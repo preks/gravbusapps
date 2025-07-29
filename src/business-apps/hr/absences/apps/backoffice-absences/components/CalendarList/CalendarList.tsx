@@ -154,7 +154,7 @@ const buildOptimizedEmployeeQuery = (isAllDepartments: boolean, departmentNames?
           ${departmentFilter}
         }
         limit: 1000
-        order_by: { employee: { lastName: asc } }
+        orderBy: { employee: { lastName: ASC } }
       ) {
         employee {
           id
@@ -169,7 +169,7 @@ const buildOptimizedEmployeeQuery = (isAllDepartments: boolean, departmentNames?
                 { endDate: { _lte: "2025-12-31T23:59:59Z" } }
               ]
             }
-            order_by: { startDate: asc }
+            orderBy: { startDate: ASC }
           ) {
             id
             startDate
@@ -233,14 +233,15 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const fetchData = useCallback(async (departments: string[] = selectedOrgUnits) => {
+      const fetchData = useCallback(async (departments: string[] = selectedOrgUnits) => {
     setIsLoading(true)
     setError(null)
 
     try {
+      console.log('=== ENHANCED FETCH START ===');
       console.log('Fetching data for departments:', departments);
       
-      // Build employee query from EmployeePosition table (only employees with positions)
+      // Step 1: Fetch employees from EmployeePosition table (ensures department data)
       let employeesQuery;
       if (departments.includes('--- All Departments')) {
         // If "All Departments" is selected, fetch all employees
@@ -251,6 +252,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
                 employee: { isDeleted: { _eq: false } }
               }
               limit: 1000
+              orderBy: { employee: { lastName: ASC } }
             ) {
               employee {
                 id
@@ -277,6 +279,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
                 }
               }
               limit: 1000
+              orderBy: { employee: { lastName: ASC } }
             ) {
               employee {
                 id
@@ -301,7 +304,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         id: position.employee.id,
         firstName: position.employee.firstName,
         lastName: position.employee.lastName,
-        pictureThumbnail: position.employee.pictureThumbnail,
+        pictureThumbnail: position.employee.pictureThumbnail || '',
         employeePosition: {
           organizationalUnit: {
             name: position.organizationalUnit.name
@@ -314,10 +317,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       console.log('Total employee positions fetched:', employeePositions.length);
       console.log('Total employees extracted:', employees.length);
       console.log('Sample employee data:', employees.slice(0, 3));
-      console.log('All employees now have position data: 100%');
+      console.log('All employees have position data: 100%');
       console.log('============================');
       
-      // Build absence query filtered by employee IDs
+      // Step 2: Fetch 2025 absences for these employees using proper schema structure
       let absenceQuery = ABSENCE_QUERY_2025;
       if (employees.length > 0) {
         const employeeIds = employees.map((emp) => `"${emp.id}"`).join(', ');
@@ -375,13 +378,18 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }
 
       // Fetch absences for the filtered employees
-              const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery);
-        const absences = absenceResult?.EmployeeAbsence || [];
-        setEmployeeAbsences(absences);
-        console.log('Fetched absences for employees:', absences.length);
+      const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery);
+      const absences = absenceResult?.EmployeeAbsence || [];
+      setEmployeeAbsences(absences);
       
+      console.log('=== ENHANCED FETCH COMPLETE ===');
+      console.log('Total absences fetched:', absences.length);
+      console.log('Sample absence data:', absences.slice(0, 2));
+      console.log('✅ Enhanced 2-step fetch successful!');
+      console.log('============================');
+    
     } catch (err) {
-      console.error('Error fetching data:', err)
+      console.error('Error in enhanced fetch:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch data'))
     } finally {
       setIsLoading(false)
@@ -597,16 +605,38 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
               return;
             }
             
-            // Check if "All Departments" is being selected
-            const allDepartmentsSelected = validValues.includes('--- All Departments');
+            // Analyze current state vs new selection to understand user intent
+            const currentState = selectedOrgUnits;
+            const newSelection = validValues;
             
-            if (allDepartmentsSelected) {
-              // "All Departments" is exclusive - clear other selections
-              console.log('All Departments selected - clearing other selections');
+            const currentHasAllDepartments = currentState.includes('--- All Departments');
+            const newHasAllDepartments = newSelection.includes('--- All Departments');
+            const specificDepartmentsInNew = newSelection.filter(val => val !== '--- All Departments');
+            
+            console.log('=== SELECTION ANALYSIS ===');
+            console.log('Current state:', currentState);
+            console.log('New selection:', newSelection);
+            console.log('Current has All Departments:', currentHasAllDepartments);
+            console.log('New has All Departments:', newHasAllDepartments);
+            console.log('Specific departments in new:', specificDepartmentsInNew);
+            console.log('========================');
+            
+            if (currentHasAllDepartments && newHasAllDepartments && specificDepartmentsInNew.length > 0) {
+              // User had "All Departments" and clicked on a specific department
+              // Ant Design gives us both, but user intent is to switch to specific department
+              console.log('🎯 Auto-removing All Departments - user clicked specific department');
+              setSelectedOrgUnits(specificDepartmentsInNew);
+            } else if (newHasAllDepartments && !currentHasAllDepartments) {
+              // User explicitly clicked "All Departments" - clear others
+              console.log('All Departments explicitly selected - clearing other selections');
+              setSelectedOrgUnits(['--- All Departments']);
+            } else if (newHasAllDepartments && specificDepartmentsInNew.length === 0) {
+              // Only "All Departments" in new selection
+              console.log('Only All Departments selected');
               setSelectedOrgUnits(['--- All Departments']);
             } else {
-              // Regular multi-select behavior
-              console.log('Setting selected departments:', validValues);
+              // Regular multi-select behavior (no "All Departments" involved)
+              console.log('Regular multi-select - setting departments:', validValues);
               setSelectedOrgUnits(validValues);
             }
           }}
