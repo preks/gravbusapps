@@ -22,6 +22,7 @@ export interface ExpenseData {
   currency: { code?: string };
   currencyRef: string;
   typeRef: string;
+  requestTypeRef: string;
   totalRemainingAmount: number | string;
   userId: string;
   expenseRuleId: string;

@@ -13,6 +13,8 @@ export const GET_EXPENSE_REQUESTS = `
       offset: $offset
     ) {
       id
+      version
+      currencyRef
       code
       requestDate
       createdAt
@@ -22,6 +24,7 @@ export const GET_EXPENSE_REQUESTS = `
       startDate
       endDate
       employeeId
+      requestTypeRef
       nonReimbursableAmount
       employeeDocumentId
       employeeDocument {

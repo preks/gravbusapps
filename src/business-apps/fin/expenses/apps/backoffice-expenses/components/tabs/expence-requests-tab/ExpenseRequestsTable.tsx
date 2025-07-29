@@ -36,7 +36,8 @@ import {
 import {
   useExpenseRequestFilters,
   useExpenseRequestPdf,
-  useExpenseRequestActions
+  useExpenseRequestActions,
+  useExpenseRequestTransfer
 } from './hooks';
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
@@ -142,7 +143,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     amountMaxFilter,
   } = useExpenseRequests(contextProps);
 
-  // Use custom hooks
+ 
+
+
   const {
     isPdfModalVisible,
     pdfUrl,
@@ -156,6 +159,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleDownloadAccountingNote,
     handleTriggerCSV
   } = useExpenseRequestActions(props);
+
+  const {
+    handleTransferPayment
+  } = useExpenseRequestTransfer(props);
 
   const {
     employeeFilter,
@@ -433,6 +440,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       onDownloadAccountingNote={handleDownloadAccountingNote}
                       onTriggerCSV={handleTriggerCSV}
                       onPrintExpenseRequest={handlePrintExpenseRequest}
+                      onTransferPayment={handleTransferPayment}
                     />
                   ))}
                 </TableBody>

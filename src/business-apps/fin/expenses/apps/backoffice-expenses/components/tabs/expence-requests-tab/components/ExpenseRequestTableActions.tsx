@@ -15,6 +15,7 @@ interface ExpenseRequestTableActionsProps {
   onDownloadAccountingNote: (record: ExpenseData) => void;
   onTriggerCSV: (record: ExpenseData) => void;
   onPrintExpenseRequest: (record: ExpenseData) => void;
+  onTransferPayment: (record: ExpenseData) => void;
 }
 
 const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
@@ -22,7 +23,8 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
   onNavigateToExpenseRequest,
   onDownloadAccountingNote,
   onTriggerCSV,
-  onPrintExpenseRequest
+  onPrintExpenseRequest,
+  onTransferPayment
 }) => {
   const canPrint = (record.status === 'PAID' ||
     record.status === 'BOOKED' ||
@@ -30,6 +32,8 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
     record.status === 'VERIFIED' ||
     record.status === 'TRANSFERRED') &&
     record.employeeDocumentId !== null;
+
+  const canTransferPayment = record.status === 'BOOKED';
 
   return (
     <div className="gba:flex gba:justify-start gba:gap-2">
@@ -74,6 +78,17 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
           >
             Trigger CSV
           </DropdownMenuItem>
+          {canTransferPayment && (
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onTransferPayment(record);
+              }}
+              data-testid={`transfer-payment-${record.id}`}
+            >
+              Transfer Payment
+            </DropdownMenuItem>
+          )}
           {canPrint && (
             <DropdownMenuItem
               onClick={(e) => {

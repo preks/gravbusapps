@@ -13,6 +13,7 @@ interface ExpenseRequestTableRowProps {
   onDownloadAccountingNote: (record: ExpenseData) => void;
   onTriggerCSV: (record: ExpenseData) => void;
   onPrintExpenseRequest: (record: ExpenseData) => void;
+  onTransferPayment: (record: ExpenseData) => void;
 }
 
 const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
@@ -21,7 +22,8 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   onNavigateToExpenseRequest,
   onDownloadAccountingNote,
   onTriggerCSV,
-  onPrintExpenseRequest
+  onPrintExpenseRequest,
+  onTransferPayment
 }) => {
   return (
     <TableRow 
@@ -35,6 +37,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
           onDownloadAccountingNote={onDownloadAccountingNote}
           onTriggerCSV={onTriggerCSV}
           onPrintExpenseRequest={onPrintExpenseRequest}
+          onTransferPayment={onTransferPayment}
         />
       </TableCell>
       <TableCell>

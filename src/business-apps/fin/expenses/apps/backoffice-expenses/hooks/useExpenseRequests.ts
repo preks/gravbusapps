@@ -52,20 +52,21 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
       amount: item.totalAmount
         ? `${item.totalAmount} ${item.currency?.code ?? ""}`.trim()
         : "-",
-      advance: "-",
-      status: item.status ?? "-",
+      advance: "",
+      status: item.status ?? "",
       payableAmount: item.totalAmount
         ? `${item.totalAmount} ${item.currency?.code ?? ""}`.trim()
         : "-",
       paymentMethod: "-",
       employeeId: String(item.employee?.id ?? "-"),
-      version: "-",
+      version: item.version ?? "",
       currency: { code: item.currency?.code ?? "" },
-      currencyRef: "-",
-      typeRef: "-",
+      currencyRef: item.currencyRef ?? "",
+      typeRef: "",
+      requestTypeRef: item.requestTypeRef ?? "",
       totalRemainingAmount: item.totalRemainingAmount ?? "-",
-      userId: "-",
-      expenseRuleId: "-",
+      userId: "",
+      expenseRuleId: "",
       totalAmount: item.totalAmount ?? 0,
       employeeDocumentId: item.employeeDocumentId ?? null,
       documentData: null,
