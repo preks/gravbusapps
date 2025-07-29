@@ -27,7 +27,7 @@ export const usePermissionCheck = (accessToken: string, permissionRequests: Perm
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const permissionsApiUrl = env('NEXT_PUBLIC_PERMISSIONS_API') ?? "";
+  const permissionsApiUrl = `${env('NEXT_PUBLIC_BASE_URL')}/authorization/api/v1` || "";
   const restClient = useRestClient(permissionsApiUrl);
   
   // Use a ref to track if we've already attempted the permission check

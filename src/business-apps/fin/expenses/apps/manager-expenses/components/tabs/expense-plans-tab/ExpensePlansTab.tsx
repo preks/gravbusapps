@@ -1,134 +1,210 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-// Define ExpenseStatus locally
-enum ExpenseStatus {
-  PREPARED = "PREPARED",
-  CREATED = "CREATED",
-  ASSIGNED = "ASSIGNED",
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  RETURNED = "RETURNED",
-  REJECTED = "REJECTED",
-  VERIFIED = "VERIFIED",
-  BOOKED = "BOOKED",
-  PAID = "PAID",
-  CLOSED = "CLOSED",
-  DISCARDED = "DISCARDED",
-  TRANSFERRED = "TRANSFERRED",
-}
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useMainViewExpensePlans } from '../../../hooks/useMainViewExpensePlans';
-import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics';
-import ExpensePlansTable from './ExpensePlansTable';
+import React, { useState, useMemo, useCallback } from "react";
+import { PiFileText } from "react-icons/pi";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { DataContainer } from "@/components/layout/dataContainer";
+import {
+  ExpensePlan,
+  useMainViewExpensePlans,
+} from "../../../hooks/useMainViewExpensePlans";
+import { useExpensePlanFilters } from "../../../hooks/useExpensePlanFilters";
+import { ExpenseStatus } from "../../../utils";
+import ExpensePlanStatisticsDisplay from "./ExpensePlanStatistics";
+import ExpensePlansTable from "./ExpensePlansTable";
+import ExpensePlanDetails from "./ExpensePlanDetails";
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: React.ReactNode) => void;
   employeeId?: string;
 }
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
-  const { accessToken, userInfo, onContentHeaderChange } = props;
-
-  // State for filter and search
-  const [activeFilter, setActiveFilter] = useState<ExpenseStatus | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-
-  // Handle filter change from child components
-  const handleFilterChange = useCallback((filter: ExpenseStatus | null) => {
-    console.log('Filter changed to:', filter);
-    setActiveFilter(filter);
-  }, []);
-
-  // Handle search term change
-  const handleSearchChange = useCallback((search: string) => {
-    console.log('Search term changed to:', search);
-    setSearchTerm(search);
-  }, []);
-
-  // Clear all filters and search
-  const clearAllFilters = useCallback(() => {
-    console.log('Clearing all filters');
-    setActiveFilter(null);
-    setSearchTerm('');
-  }, []);
-
   // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    activeFilter,
-    onFilterChange: handleFilterChange,
-    search: searchTerm,
-    onSearchChange: handleSearchChange,
-    onClearFilters: clearAllFilters
-  }), [props.accessToken, props.userInfo, activeFilter, searchTerm, handleFilterChange, handleSearchChange, clearAllFilters]);
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo,
+    }),
+    [props.accessToken, props.userInfo]
+  );
 
-  // Use the new main view hook for expense plans
+  // Use the expense plan filters hook (same pattern as expense items)
+  const {
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+  } = useExpensePlanFilters();
+
+  // Use the statistics-only hook to get KPI data without interfering with table data
   const {
     planStats,
     statsLoading,
     statsError,
     fetchPlanStatistics,
+    approvePlan,
+    rejectPlan,
   } = useMainViewExpensePlans({
-    accessToken,
-    userInfo,
-    pageSize: 1000, // Large page size for statistics
+    ...contextProps,
+    statisticsOnly: true, // This prevents race conditions with the table data
   });
-  
-  // Add debugging logs to track data flow
-  React.useEffect(() => {
-    console.log('ExpensePlansTab - planStats:', {
-      totalCount: planStats?.totalCount,
-      sumTotalAmount: planStats?.sumTotalAmount,
-      pendingCount: planStats?.pendingCount,
-      pendingAmount: planStats?.pendingAmount,
-      timestamp: new Date().toISOString(),
-      managerId: userInfo?.employeeDetails?.employeeId || 'not-available' // Use dynamic managerId from userInfo
-    });
-  }, [planStats, userInfo]);
-  
-  // Debug when component mounts to verify props
-  React.useEffect(() => {
-    console.log('ExpensePlansTab - Component mounted with props:', {
-      hasAccessToken: !!accessToken,
-      hasUserInfo: !!userInfo,
-      employeeId: props.employeeId,
-      hasContentHeaderChange: !!onContentHeaderChange
-    });
+
+  // State for selected plan details
+  const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null);
+
+  // Handle plan selection for details panel
+  const handleViewDetails = useCallback((plan: ExpensePlan) => {
+    setSelectedPlan(plan);
   }, []);
 
+  // Handle closing details panel
+  const handleCloseDetails = useCallback(() => {
+    setSelectedPlan(null);
+  }, []);
 
+  // Handle approve plan
+  const handleApprovePlan = useCallback(
+    async (planId: string) => {
+      try {
+        await approvePlan(planId, ""); // Default empty comments - could be enhanced with modal later
+        setSelectedPlan(null); // Close details panel after successful approval
+      } catch (error) {
+        // Error handling is done inside approvePlan function
+        console.error("Failed to approve plan:", error);
+      }
+    },
+    [approvePlan]
+  );
 
+  // Handle reject plan
+  const handleRejectPlan = useCallback(
+    async (planId: string) => {
+      try {
+        await rejectPlan(planId, "Rejected via details panel"); // Default reason - could be enhanced with modal later
+        setSelectedPlan(null); // Close details panel after successful rejection
+      } catch (error) {
+        // Error handling is done inside rejectPlan function
+        console.error("Failed to reject plan:", error);
+      }
+    },
+    [rejectPlan]
+  );
 
+  // Handle search term changes
+  const handleSearchChange = useCallback(
+    (search: string) => {
+      setSearchTerm(search);
+    },
+    [setSearchTerm]
+  );
 
-  // Update the content header when statistics change
-  useEffect(() => {
-    if (onContentHeaderChange) {
-      const headerContent = (
+  // Handle filter changes (only log when user actually clicks)
+  const handleFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      console.log("🔥 Filter clicked:", { filterId, selected }); // Only log on actual clicks
+      handleDataFilterChange(filterId, selected);
+    },
+    [handleDataFilterChange]
+  );
+
+  // Handle clearing all filters
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm("");
+    setStatusFilter([]);
+  }, [setSearchTerm, setStatusFilter]);
+
+  return (
+    <div className="gba:h-full gba:flex gba:flex-col">
+      {/* Statistics Section */}
+      <div className="gba:mb-6">
         <ExpensePlanStatisticsDisplay
           planStats={planStats}
           statsLoading={statsLoading}
           statsError={statsError}
           fetchPlanStatistics={fetchPlanStatistics}
-          activeFilter={activeFilter}
-          onFilterChange={handleFilterChange}
+          activeFilter={statusFilter}
+          onFilterChange={(filter) => setStatusFilter(filter || [])}
         />
-      );
-      onContentHeaderChange(headerContent);
-    }
-  }, [planStats, statsLoading, statsError, fetchPlanStatistics, activeFilter, handleFilterChange, onContentHeaderChange]);
+      </div>
 
-  // Handle search changes from the table is now handled by the handleSearchChange callback
-
-  return (
-    <div className="gba:h-full gba:flex gba:flex-col">
-      <ExpensePlansTable
-        {...contextProps}
-        search={searchTerm}
-        onSearchChange={handleSearchChange}
-        onFilterChange={handleFilterChange}
-        onClearFilters={clearAllFilters}
-        employeeId={props.employeeId}
-        activeFilter={activeFilter}
+      {/* Data Container with floating details */}
+      <DataContainer
+        contentBackground="white"
+        dataControllerProps={{
+          search: searchTerm,
+          filter: statusFilter,
+          setSearch: handleSearchChange,
+          setFilter: (newFilters) => {
+            const filtersToRemove = statusFilter.filter(
+              (f) => !newFilters.includes(f)
+            );
+            if (filtersToRemove.length > 0) {
+              console.log("🔥 Filters removed:", filtersToRemove); // Only log when filters actually removed
+            }
+            setStatusFilter(newFilters as ExpenseStatus[]);
+          },
+          addButton: {
+            onClick: () => {
+              // TODO: Implement add plan functionality
+              console.log("Add plan clicked");
+            },
+            label: "Add",
+            "data-testid": "add-expense-plan-button",
+          },
+          filterLabelMap: filterLabelMap,
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:backoffice_expense_landing_page.plan_info_pl",
+                    "Plans"
+                  )}
+                </span>
+                <span className="gba:text-gray-500">(x)</span>
+              </div>
+            </div>
+          ),
+          debounceDelay: 300,
+        }}
+        dataFilterProps={{
+          filterGroups,
+          onFilterChange: handleFilterChange,
+        }}
+        dataBody={
+          <div data-testid="expense-plans-table-container">
+            <ExpensePlansTable
+              {...contextProps}
+              search={searchTerm}
+              onSearchChange={handleSearchChange}
+              activeFilter={statusFilter}
+              onFilterChange={(filter) => setStatusFilter(filter || [])}
+              onClearFilters={clearAllFilters}
+              employeeId={props.employeeId}
+              onViewDetails={handleViewDetails}
+            />
+          </div>
+        }
+        dataDetails={
+          selectedPlan
+            ? {
+                title: selectedPlan.title || "Expense Plan Details",
+                icon: <PiFileText />,
+                content: (
+                  <ExpensePlanDetails
+                    {...contextProps}
+                    plan={selectedPlan}
+                    onApprove={handleApprovePlan}
+                    onReject={handleRejectPlan}
+                  />
+                ),
+                onClose: handleCloseDetails,
+                footer: null,
+              }
+            : undefined
+        }
       />
     </div>
   );

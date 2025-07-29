@@ -5,7 +5,7 @@ trigger: always_on
 # Approved Dependencies
 
 ## Allowed Libraries
-- UI: `react`, `tailwind v4`, `nw-design-system`, `@dnd-kit`
+- UI: `react`, `tailwind v4`, `@newwork/nw-design-system`, `@dnd-kit`
 - State: `zustand`
 - DOM: `react-dom`
 - Language: `typescript`

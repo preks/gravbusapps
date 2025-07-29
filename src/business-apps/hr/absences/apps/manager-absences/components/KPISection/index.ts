@@ -1,0 +1,1 @@
+export { KPISectionModern } from "./KPISectionModern"

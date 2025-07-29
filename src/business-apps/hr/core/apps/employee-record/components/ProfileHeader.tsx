@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import {
   PiEnvelopeSimple,
@@ -12,7 +12,9 @@ import {
   PiPencilSimple,
   PiVideoCamera,
   PiChat,
-  PiCurrencyDollar
+  PiCurrencyDollar,
+  PiGlobeHemisphereWest,
+  PiBookmarks
 } from 'react-icons/pi';
 import { Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../hooks/useEmployeeData';
@@ -22,6 +24,12 @@ import AppActionButton from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useFeature } from "@/common/hooks/useFeature";
 import { Feature } from "@/common/types/constants/FeatureHub";
+import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
+import { useEmployeeWorkCommunications, WorkCommunication } from '../hooks/useEmployeeWorkCommunications';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { notification } from 'antd';
+import { StarIcon } from "lucide-react";
+import { TeamOutlined } from "@ant-design/icons";
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -58,7 +66,36 @@ interface ProfileInfoItemProps {
   value: string;
   linkTo?: string;
   onClick?: () => void;
+  openInNewTab?: boolean;
 }
+
+interface TagItemProps {
+  icon: React.ReactNode;
+  label: string;
+  bgColorClass: string;
+  textColorClass?: string;
+  borderColorClass?: string;
+  testId?: string;
+}
+
+const TagItem: React.FC<TagItemProps> = ({
+  icon,
+  label,
+  bgColorClass,
+  textColorClass = 'gba:text-gray-800',
+  borderColorClass = '',
+  testId,
+}) => {
+  return (
+    <span
+      className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${bgColorClass} ${textColorClass} ${borderColorClass}`}
+      data-testid={testId}
+    >
+      {icon && <span className="gba:mr-2">{icon}</span>}
+      {label}
+    </span>
+  );
+};
 
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   icon,
@@ -66,6 +103,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   value,
   linkTo,
   onClick,
+  openInNewTab = false,
 }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -76,6 +114,8 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
           <a
             href={linkTo}
             className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap"
+            target={openInNewTab ? "_blank" : undefined}
+            rel={openInNewTab ? "noopener noreferrer" : undefined}
           >
             <span className="gba:whitespace-normal">{value}</span>
             <svg
@@ -132,33 +172,79 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   employee,
   accessToken,
 }) => {
+
+  // Translation helper
+  const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key);
   const [isHovering, setIsHovering] = useState(false);
+  const [workCommunications, setWorkCommunications] = useState<WorkCommunication[]>([]);
+  const [employeeEmail, setEmployeeEmail] = useState<string | undefined>();
+  
+  // Use the openChat hook for direct Teams integration
+  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
+  
+  // Use the hook to fetch employee work communications
+  const { employee: employeeWithComms, loading } = useEmployeeWorkCommunications({
+    accessToken,
+    employeeId: employee?.id || ''
+  });
 
-  // Communication handlers
-  const handleCommunication = (eventType: string) => {
-    if (!employee.additionalProperties?.userId) return;
+  // Communication handlers that directly use the hook methods
+  const handleChat = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start chat',
+        description: 'No email address associated with this employee',
+        className: 'employee-chat-error-notification',
+        placement: "bottomRight"
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openChatWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openChatWithUser, t]);
+  
+  const handleAudioCall = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start audio call',
+        description: 'No email address associated with this employee',
+        className: 'employee-audio-call-error-notification',
+        placement: "bottomRight"
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openAudioConferenceWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openAudioConferenceWithUser, t]);
 
-    const customEvent = new CustomEvent(eventType, {
-      detail: {
-        userId: employee.additionalProperties.userId,
-        displayName: getEmployeeFullName(employee),
-      },
-    });
-
-    window.dispatchEvent(customEvent);
-  };
-
-  const handleChat = () => {
-    handleCommunication("custom:event:openChatWithUser");
-  };
-
-  const handleAudioCall = () => {
-    handleCommunication("custom:event:openAudioConferenceWithUser");
-  };
-
-  const handleVideoCall = () => {
-    handleCommunication("custom:event:openVideoConferenceWithUser");
-  };
+  const handleVideoCall = useCallback(() => {
+    // Use the email from GraphQL response if available, fallback to userInfo
+    const userEmail = employeeEmail || (userInfo && (userInfo as any).email);
+    const userId = employee.additionalProperties?.userId || employee.id || '';
+    
+    if (!userEmail) {
+      notification.error({
+        message: 'Cannot start video call',
+        description: 'No email address associated with this employee',
+        className: 'employee-video-call-error-notification',
+        
+      });
+      return;
+    }
+    
+    // Call will succeed even if email is undefined (will use userId as fallback)
+    openVideoConferenceWithUser(userId, userEmail);
+  }, [employee, userInfo, employeeEmail, openVideoConferenceWithUser, t]);
 
   const calculateTimeSince = () => {
     if (!employee.workingCondition[0]?.hireDate) return "";
@@ -186,6 +272,16 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   // We don't need to manage the profile picture state anymore as EmployeeAvatar handles it
 
   const getBusinessEmail = () => {
+    // First try to get from the GraphQL work communications
+    const emailComm = workCommunications.find(
+      (c) => c.channel?.value?.toLowerCase().includes('e-mail') || c.channel?.value?.toLowerCase().includes('email')
+    );
+    
+    if (emailComm?.value) {
+      return emailComm.value;
+    }
+    
+    // Fallback to the original method
     const email = employee.communication?.find(
       (c) => c.channel?.code === "EMAIL"
     )?.value;
@@ -193,11 +289,35 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
   };
 
   const getBusinessPhone = () => {
+    // First try to get from the GraphQL work communications
+    const phoneComm = workCommunications.find(
+      (c) => c.channel?.value?.toLowerCase().includes('phone') || c.channel?.value?.toLowerCase().includes('mobile')
+    );
+    
+    if (phoneComm?.value) {
+      return formatPhoneNumber(phoneComm.value);
+    }
+    
+    // Fallback to the original method
     const phone = employee.communication?.find(
       (c) => c.channel?.code === "PHONE"
     )?.value;
     return phone ? formatPhoneNumber(phone) : "";
   };
+
+  // Update work communications when employee data is loaded
+  useEffect(() => {
+    if (employeeWithComms) {
+      if (employeeWithComms.workCommunications) {
+        setWorkCommunications(employeeWithComms.workCommunications);
+      }
+      
+      // Set the email directly from the enhanced employee data
+      if (employeeWithComms.email) {
+        setEmployeeEmail(employeeWithComms.email);
+      }
+    }
+  }, [employeeWithComms]);
 
   const coreCollaborationMode = useFeature(Feature.Core.Collaboration.Key);
   const isAudioCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
@@ -269,34 +389,42 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 </div>
 
                 {/* Communication Actions - Always visible */}
-                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3">
-                  <button
-                    onClick={handleChat}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Chat"
-                    aria-label="Chat"
-                    disabled={!userInfo?.id}
-                  >
-                    <PiChat className="gba:h-5 gba:w-5" />
-                  </button>
-                  <button
-                    onClick={handleAudioCall}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Audio Call"
-                    aria-label="Audio Call"
-                    disabled={!isAudioCallEnabled}
-                  >
-                    <PiPhone className="gba:h-5 gba:w-5" />
-                  </button>
-                  <button
-                    onClick={handleVideoCall}
-                    className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                    title="Video Call"
-                    aria-label="Video Call"
-                    disabled={!isVideoCallEnabled}
-                  >
-                    <PiVideoCamera className="gba:h-5 gba:w-5" />
-                  </button>
+                <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
+                  {loading ? (
+                    <div className="gba:text-xs gba:text-gray-500" data-testid="loading-communications">
+                      Loading communications...
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleChat}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Chat"
+                        aria-label="Chat"
+                        data-testid="employee-chat-button"
+                      >
+                        <PiChat className="gba:h-5 gba:w-5" />
+                      </button>
+                      <button
+                        onClick={handleAudioCall}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Audio Call"
+                        aria-label="Audio Call"
+                        data-testid="employee-audio-call-button"
+                      >
+                        <PiPhone className="gba:h-5 gba:w-5" />
+                      </button>
+                      <button
+                        onClick={handleVideoCall}
+                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        title="Video Call"
+                        aria-label="Video Call"
+                        data-testid="employee-video-call-button"
+                      >
+                        <PiVideoCamera className="gba:h-5 gba:w-5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -328,7 +456,42 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
                       : undefined
                   }
+                  openInNewTab={true}
                 />
+ 
+                {/* Location */}
+                <ProfileInfoItem
+                  data-testid="employee-location-info"
+                  icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
+                  label={"Location"}
+                  value={
+                    employee.employeePosition?.siteLocation?.name ||
+                    "Not assigned"
+                  }
+                  linkTo={
+                    employee.employeePosition?.siteLocation?.id
+                      ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
+                      : undefined
+                  }
+                  openInNewTab={true}
+                />
+                {/* Email */}
+                  <ProfileInfoItem
+                    icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
+                    label={"Work Email"}
+                    value={employeeWithComms?.email ? employeeWithComms.email : "N/A"}
+                    linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
+                    data-testid="employee-email-info"
+                  />
+            
+
+                  <ProfileInfoItem
+                    icon={<PiPhone className="gba:h-4 gba:w-4" />}
+                    label={"Work Phone"}
+                    value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : "N/A"}
+                    linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
+                    data-testid="employee-phone-info"
+                  />
 
                 {/* Manager */}
                 <ProfileInfoItem
@@ -361,7 +524,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                       : undefined
                   }
                 />
-
+                
                 {/* Job Position */}
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
@@ -404,96 +567,93 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
               {employee.employeePosition?.matrixUnitEmployees &&
                 employee.employeePosition.matrixUnitEmployees.length > 0 && (
                   <div className="gba:mt-6">
-                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                      {"Teams"}
-                    </h3>
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {employee.employeePosition.matrixUnitEmployees.map(
-                        (teamItem: MatrixUnitEmployee) => (
-                          <span
-                            key={teamItem.matrixUnit.id}
-                            className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800"
-                          >
-                            {teamItem.matrixUnit.name}
-                          </span>
-                        )
-                      )}
+                    <div className="gba:flex gba:items-start gba:p-1">
+                      <div className="gba:flex-1">
+                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
+                        <div className="gba:text-sm gba:text-gray-700">
+                          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                            {employee.employeePosition.matrixUnitEmployees.map(
+                              (teamItem: MatrixUnitEmployee) => (
+                                <TagItem
+                                  key={teamItem.matrixUnit.id}
+                                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                  label={teamItem.matrixUnit.name}
+                                  bgColorClass="gba:bg-blue-100"
+                                  textColorClass="gba:text-blue-800"
+                                  testId={`team-${teamItem.matrixUnit.id}`}
+                                />
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-              {/* Capabilities Section - if available */}
-              {employee.employeePosition?.employeeCapabilities &&
-                employee.employeePosition.employeeCapabilities.length > 0 && (
-                  <div className="gba:mt-4">
-                    <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                      {"Capabilities"}
-                    </h3>
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {employee.employeePosition.employeeCapabilities.map(
-                        (capItem: EmployeeCapability) => (
-                          <span
-                            key={capItem.capability?.id}
-                            className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
-                          >
-                            {capItem.capability?.name}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {/* Skills Section - if available */}
-              {employee.skills?.length > 0 && (
-                <div className="gba:mt-4">
-                  <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:text-gray-700">
-                    {"Skills"}
-                  </h3>
-                  <div className="gba:flex gba:flex-wrap gba:gap-2">
-                    {employee.skills.map((skillItem: EmployeeSkill) => (
-                      <span
-                        key={skillItem.skill.id}
-                        className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${
-                          skillItem.level === "Advanced"
-                            ? "gba:bg-purple-100 gba:text-purple-800"
-                            : "gba:bg-gray-100 gba:text-gray-800"
-                        }`}
-                      >
-                        {skillItem.skill.name}
-                        {skillItem.level === "Advanced" && (
-                          <span className="gba:ml-1 gba:text-xs gba:font-semibold">
-                            ★
+              {/* Capabilities Section - always displayed */}
+              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="capabilities-section">
+                <div className="gba:flex gba:items-start">
+                  <div className="gba:flex-1">
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Capabilities</div>
+                    <div className="gba:text-sm gba:text-gray-700">
+                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                        {employee.employeePosition?.employeeCapabilities && 
+                         employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
+                          employee.employeePosition.employeeCapabilities
+                            .filter(capItem => capItem.capability)
+                            .map((capItem: EmployeeCapability) => (
+                              <TagItem
+                                key={capItem.capability!.id}
+                                icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                label={capItem.capability!.name}
+                                bgColorClass="gba:bg-green-100"
+                                textColorClass="gba:text-green-800"
+                                testId={`capability-${capItem.capability!.id}`}
+                              />
+                            ))
+                        ) : (
+                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-capabilities-message">
+                            No capabilities assigned
                           </span>
                         )}
-                      </span>
-                    ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* Contact Info */}
-              <div className="gba:mt-4 gba:flex gba:flex-col gba:gap-2">
-                {getBusinessEmail() && (
-                  <a
-                    href={`mailto:${getBusinessEmail()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
-                  >
-                    <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessEmail()}
-                  </a>
-                )}
-
-                {getBusinessPhone() && (
-                  <a
-                    href={`tel:${getBusinessPhone()}`}
-                    className="gba:inline-flex gba:items-center gba:text-blue-600 gba:hover:text-blue-800 gba:transition-colors gba:text-sm"
-                  >
-                    <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessPhone()}
-                  </a>
-                )}
               </div>
+
+              {/* Skills Section - always displayed */}
+              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="skills-section">
+                <div className="gba:flex gba:items-start">
+                  <div className="gba:flex-1">
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>
+                    <div className="gba:text-sm gba:text-gray-700">
+                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                        {employee.skills?.filter(skill => skill.skill).length > 0 ? (
+                          employee.skills
+                            .filter(skillItem => skillItem.skill)
+                            .map((skillItem: EmployeeSkill) => (
+                              <TagItem
+                                key={skillItem.skill.id}
+                                icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                label={skillItem.skill.name}
+                                bgColorClass="gba:bg-purple-100"
+                                textColorClass="gba:text-purple-800"
+                                testId={`skill-${skillItem.skill.id}`}
+                              />
+                            ))
+                        ) : (
+                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-skills-message">
+                            No skills assigned
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            
             </div>
           </div>
         </div>

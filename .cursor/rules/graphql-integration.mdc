@@ -1,20 +1,24 @@
 ---
-description: 
+description: When working with GraphQL and GraphQL queries
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 # GraphQL Integration Pattern
 
-When working with GraphQL APIs in business apps:
 
+
+## Client and Query Implementation
+- **ALWAYS** use Graphql MCP (NEWWORK MCP) tool to make sure the graphql queries are corect.
 - Use `useGraphQLClient()` from `src/common/network/graphql/useGraphQLClient.ts`
-- Create query files in `queries/` directory with pattern `EntityQueries.ts`
 - Always use `context.accessToken` for authentication
 - Wrap API calls in try-catch blocks with proper error handling
 
 ## GraphQL Query Conventions
+- Use PascalCase for entities
+- Use camelCase for fields and relationships
 - Use `orderBy` instead of `order_by` for sorting
-- Use uppercase `ASC` and `DESC` for sort direction (not lowercase `asc`/`desc`)
+- Use screaming SNAKE_CASE for sorting directions like `ASC`, `DESC`, `ASC_NULLS_FIRST`etc.
+- Use a prefix `_` and camelCase for filter operators like `_eq`, `_isNull`, `like` etc.
 
 ### Example:
 ```graphql
@@ -31,7 +35,10 @@ query GetEntities($limit: Int, $offset: Int) {
 }
 ```
 
-@src/business-apps/mdm/apps/compensation-data/queries/CompensationBandQueries.ts
+## Query Generation
+- Create query files in `queries/` directory with pattern `EntityQueries.ts`
+- ALWAYS STRICTLY use newwork-mcp to test a query before implementing. If a parameter is required for a query ask the user to provide an example
+- When you need a structureId use "99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf"
 
 ## Query File Structure
 ```typescript
@@ -43,7 +50,7 @@ export interface EntityQueryVariables {
 }
 
 export const useGetEntityData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphQLClient = useGraphQLClient(context.accessToken);
   
   const fetchEntityData = async (variables: EntityQueryVariables = {}) => {
     try {

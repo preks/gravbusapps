@@ -120,43 +120,76 @@ export function DataFolders<F, T>({
   // If there are no folders, show the empty message
   if (folders.length === 0) {
     return (
-      <div className={`gba:flex gba:justify-center gba:items-center gba:p-6 ${className}`}>
-        <div className="gba:text-gray-400 gba:text-center gba:text-base">{emptyMessage}</div>
+      <div 
+        className={`gba:flex gba:justify-center gba:items-center gba:p-6 ${className}`}
+        data-testid="data-folders-empty-state"
+      >
+        <div 
+          className="gba:text-gray-400 gba:text-center gba:text-base"
+          data-testid="data-folders-empty-message"
+        >
+          {emptyMessage}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`gba:flex gba:flex-col gba:gap-4 gba:w-full ${className}`}>
+    <div 
+      className={`gba:flex gba:flex-col gba:gap-4 gba:w-full ${className}`}
+      data-testid="data-folders-container"
+    >
       {folders.map((folder, idx) => {
         const isOpen = openFolders.includes(idx);
         const items = getFolderItems(folder);
+        const folderKey = getFolderKey(folder);
         
         return (
           <div
-            key={getFolderKey(folder)}
+            key={folderKey}
             className="gba:flex gba:flex-col gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden gba:bg-white gba:shadow-sm"
+            data-testid={`data-folders-folder-${folderKey}`}
           >
             <button
               className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:bg-gray-50 gba:font-semibold gba:cursor-pointer gba:border-none gba:w-full gba:text-left gba:hover:bg-gray-100"
               onClick={() => toggleFolder(idx)}
               type="button"
+              data-testid={`data-folders-toggle-button-${folderKey}`}
             >
-              <span>{getFolderName(folder)}</span>
-              <span className={`gba:inline-block gba:transition-transform gba:duration-200 gba:ease ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+              <span data-testid={`data-folders-name-${folderKey}`}>{getFolderName(folder)}</span>
+              <span 
+                className={`gba:inline-block gba:transition-transform gba:duration-200 gba:ease ${isOpen ? 'rotate-90' : ''}`}
+                data-testid={`data-folders-toggle-icon-${folderKey}`}
+              >
+                ▶
+              </span>
             </button>
             {isOpen && (
-              <div className="gba:p-4 gba:border-t gba:border-gray-200">
+              <div 
+                className="gba:p-4 gba:border-t gba:border-gray-200"
+                data-testid={`data-folders-content-${folderKey}`}
+              >
                 {items.length > 0 ? (
-                  <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6 gba:-mb-2">
+                  <div 
+                    className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6 gba:-mb-2"
+                    data-testid={`data-folders-items-grid-${folderKey}`}
+                  >
                     {items.map(item => (
-                      <React.Fragment key={getItemKey(item)}>
+                      <div
+                        key={getItemKey(item)}
+                        data-testid={`data-folders-item-${folderKey}-${getItemKey(item)}`}
+                      >
                         {renderItem(item, folder)}
-                      </React.Fragment>
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="gba:p-4 gba:text-center gba:text-gray-500 gba:italic">{emptyFolderMessage}</div>
+                  <div 
+                    className="gba:p-4 gba:text-center gba:text-gray-500 gba:italic"
+                    data-testid={`data-folders-folder-empty-${folderKey}`}
+                  >
+                    {emptyFolderMessage}
+                  </div>
                 )}
               </div>
             )}

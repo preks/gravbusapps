@@ -1,5 +1,5 @@
 import React from 'react';
-import { EuroCircleOutlined } from '@ant-design/icons';
+import { CurrencyEur } from '@phosphor-icons/react';
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
@@ -23,8 +23,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-count',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
-      value: formatNumberFunction(advancePaymentStats.totalCount.toString(), "0.00[,]00"),
-      prefix: <EuroCircleOutlined />,
+      value: advancePaymentStats.totalCount.toString(),
+      prefix: <CurrencyEur />,
       color: '#3f8600',
       valueIsString: true, // Mark as pre-formatted string
       span: { xs: 24, sm: 12, md: 8, lg: 6 },
@@ -36,10 +36,12 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     <WidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
-      error={statsError}
+      error={statsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchAdvancePaymentStatistics}
-      skeletonCount={1}
+      skeletonCount={4}
       emptyText="No advance payment statistics available."
+      cardBackground="transparent"
+      className="gba:py-0"
     />
   );
 };

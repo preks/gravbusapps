@@ -54,7 +54,7 @@ src
 			├── utils/
 			└──	...
 
-- No single file should exceed 300 lines of code (excluding imports and blank lines).
+- You must never exceed 300 lines of code per file (excluding imports and blank lines).
 - When a file approaches this size, break out logic, UI, hooks, or utility functions into separate, logically named files.
 - Prefer splitting code by component, feature, or responsibility to support clarity and reuse.
 - If splitting is not obvious, prompt the user for suggestions on how to divide the code.
@@ -69,6 +69,7 @@ src
 - Use typescript for type safety
 - Use prettier for code styling
 - Use eslint for linting
+- Use `recharts` for chart creation
 
 - Do not install other packages for UI themes, icons, etc. unless absolutely necessary or I request them.
 - The list of required dependencies must be small and simple and must reuse existing packages.
@@ -78,13 +79,16 @@ src
 # Component Development
 - Always start all CSS classes strictly with prefix `gba:`, this means `gba:<tailwind-class>`.
 - Always add to all HTML elements in a component the `data-testid` attribute with a value which is unique and descriptive.
-
+- For Table component development, use rules from .cursor\rules\tables-integration.mdc .
 - Use always the existing `DebouncedInput` component for search fields to provide debounced search.
 - When tab components are used, provide a unique tab key for each tab and use this in a URL query parameter.
+- Charts and visualizations should **ALWAYS** use the `recharts` library (e.g., `<LineChart>`, `<BarChart>`, etc.).
+- Charts should **NEVER** use libraries like `Chart.js`, `D3`, `Plotly`, `Highcharts`, `@ant-design/plots`, `@ant-design/charts`.
 
 - Add all CSS files in `src/index.css`, so that they are included in `dist/assets/main.css` by the vite bundler. Only this way will they be applied on the NEWWORK platform.
 
 - For Graphql API requests, use src\common\network\graphql\useGraphQLClient.ts. Analyze the file first, and its dependency.
+- For Graphql, use rules from .cursor\rules\graphql-integration.mdc
 - For REST API requests, use src\common\network\rest\useRestClient.ts. Analyze the file first, and its dependency.
 - For all API requests to a service, check if already exists in src\common\network, or create a new folder for that entity type. Example: `src\common\network\catalog-entry`, `src\common\network\expense-plan` folders, named in camelCase, and exported as named exports.
 - If the API request is REST, use a singleton client class that extends RestClient. Example: src\common\network\catalogs\CatalogManagerClient.ts

@@ -4,9 +4,10 @@
  */
 
 import React from 'react';
-import { Card, Spin, Alert } from 'antd';
-import { Column } from '@ant-design/plots';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { MonthlyExpenseTrend } from '../../types';
+import { EXPENSE_COLORS } from '../../utils/colorConstants';
 
 export interface MonthlyExpenseTrendsCardProps {
   loading: boolean;
@@ -25,66 +26,105 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
     }).format(value);
   };
 
-  if (error) {
+  if (loading) {
     return (
-      <Card title={`Monthly Expense Trends ${currentYear}`} className="gba:bg-blue-50" style={{ height: '100%' }}>
-        <Alert message={`Error: ${error.message}`} type="error" showIcon />
+      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-loading">
+        <CardHeader>
+          <CardTitle>Monthly Expense Trends {currentYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+            <Spinner size="lg" />
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
-  const config = {
-    data: monthlyTrends,
-    xField: 'monthName',
-    yField: 'totalAmount',
-    color: '#1890ff',
-    label: {
-      position: 'top' as const,
-      style: {
-        fill: '#1890ff',
-        opacity: 0.6,
-      },
-      formatter: (datum: any) => formatCurrency(datum.totalAmount),
-    },
-    xAxis: {
-      label: {
-        autoHide: true,
-        autoRotate: false,
-      },
-    },
-    meta: {
-      monthName: {
-        alias: 'Month',
-      },
-      totalAmount: {
-        alias: 'Total Expenses (EUR)',
-        formatter: (value: number) => formatCurrency(value),
-      },
-    },
-    tooltip: {
-      formatter: (datum: any) => ({
-        name: 'Total Expenses',
-        value: formatCurrency(datum.totalAmount),
-      }),
-    },
+  if (error) {
+    return (
+      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-error">
+        <CardHeader>
+          <CardTitle>Monthly Expense Trends {currentYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <div>
+              <p className="gba:text-sm">Error: {error.message}</p>
+            </div>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Custom tooltip formatter to match the original behavior
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="gba:bg-white gba:p-2 gba:border gba:rounded gba:shadow">
+          <p className="gba:text-sm gba:font-medium">{`Month: ${label}`}</p>
+          <p className="gba:text-sm" style={{ color: EXPENSE_COLORS.PRIMARY_BLUE }}>
+            {`Total Expenses: ${formatCurrency(payload[0].value)}`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom label component for bar tops
+  const renderCustomLabel = (props: any) => {
+    const { x, y, width, value } = props;
+    return (
+      <text 
+        x={x + width / 2} 
+        y={y - 10} 
+        fill={EXPENSE_COLORS.PRIMARY_BLUE} 
+        textAnchor="middle" 
+        dy={-6}
+        className="gba:text-xs gba:opacity-60"
+      >
+        {formatCurrency(value)}
+      </text>
+    );
   };
 
   return (
-    <Card title={`Monthly Expense Trends ${currentYear}`} className="gba:bg-blue-50" style={{ height: '100%' }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin size="large" />
+    <Card className="gba:bg-blue-50 gba:w-full" data-testid="monthly-expense-trends-card">
+      <CardHeader>
+        <CardTitle className="gba:text-sm gba:font-medium gba:text-gray-700">
+          Monthly Expense Trends {currentYear}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="gba:p-6">
+        <div className="gba:h-80 gba:w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={monthlyTrends}
+              margin={{ top: 30, right: 30, left: 20, bottom: 5 }}
+            >
+              <XAxis 
+                dataKey="monthName" 
+                tick={{ fontSize: 12 }}
+                interval={0}
+              />
+              <YAxis 
+                tickFormatter={formatCurrency}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar 
+                dataKey="totalAmount" 
+                fill={EXPENSE_COLORS.PRIMARY_BLUE}
+                label={renderCustomLabel}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-      ) : (
-        <div style={{ height: 300 }}>
-          <Column {...config} />
-          <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-            Showing paid expenses in EUR by month
-          </div>
-        </div>
-      )}
+      </CardContent>
     </Card>
   );
-}
+};
 
 export default MonthlyExpenseTrendsCard;

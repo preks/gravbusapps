@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useEmployeeData } from './hooks/useEmployeeData';
+import { useEmployeePermissions } from './hooks/useEmployeePermissions';
 import ProfileHeader from './components/ProfileHeader';
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog';
 import { ProfileLayout } from '@/components/layout/profileLayout';
@@ -58,7 +59,8 @@ const ErrorUI = () => {
   React.useEffect(() => {
     notification.error({
       message: "Error",
-      description: "Error loading employee data."
+      description: "Error loading employee data.",
+      placement: "bottomRight"
     });
   }, []);
 
@@ -138,7 +140,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   accessToken,
   currentUserEmployeeId,
   employeeIdToShow,
-  initialActiveTab
+  initialActiveTab,
+  userInfo
 }) => {
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab);
@@ -166,11 +169,31 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   }, [activeTab, employeeIdToShow, currentUserEmployeeId]);
   
   // Always fetch the employee data for the employee ID we want to show
-  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals } = useEmployeeData(
+  const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, refetch } = useEmployeeData(
     accessToken,
     activeStructureId,
     employeeIdToShow // Use the determined employeeId directly
   );
+  
+  // Add event listener to refresh data after process completion (e.g., when using AppActionButtons)
+  useEffect(() => {
+    // Define the event handler
+    const handleProcessCompletion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
+      const resolution = customEvent.detail.resolution
+      if (resolution === 'success') {
+        refetch();
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+    
+    // Clean up the event listener when component unmounts
+    return () => {
+      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+    };
+  }, [refetch]);
 
   // Define tab content components
   const renderContent = () => {
@@ -208,12 +231,20 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     );
   };
 
+  // Get employee permissions
+  const { tabPermissions } = useEmployeePermissions(
+    employeeIdToShow,
+    accessToken
+  );
+  
+  const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId);
+
   // Define tab items for the Tabs component
   const getTabItems = () => {
     // Ensure employee is not null before creating tab items
     if (!employee) return [];
     
-    return [
+    const allTabs = [
     {
       key: TAB_KEYS.summary,
       label: (
@@ -226,6 +257,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <SummaryTab 
           employee={employee}
           accessToken={accessToken}
+          currentUserEmployeeId={currentUserEmployeeId}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     },
@@ -241,6 +275,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <DetailsTab 
           employee={employee}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     },
@@ -248,13 +285,17 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       key: TAB_KEYS.employment,
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
-        </div>
+        <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+        <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
+      </div>
       ),
       children: (
         <EmploymentTab 
           employee={employee}
+          accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     },
@@ -270,6 +311,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <DocumentsTab 
           employee={employee}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     },
@@ -285,6 +329,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <PerformanceTab 
           employee={employee}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
           employeePerformanceGoals={performanceGoals ?? []}
         />
       )
@@ -301,6 +348,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         <FeedbackTab 
           employee={employee}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
           employeeFeedback={feedback ?? []}
         />
       )
@@ -318,6 +368,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           employee={employee}
           employeeAbsenceEntitlement={absenceEntitlements ?? []}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     },
@@ -330,13 +383,34 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         </div>
       ),
       children: (
-        <SkillsTab 
+        <SkillsTab
           employee={employee}
           accessToken={accessToken}
+          employeeId={employeeIdToShow}
+          userInfo={userInfo}
+          isSelfView={isSelfView}
         />
       )
     }
   ];
+    // ONLY when not viewing own profile
+    return allTabs.filter(tab => {
+      const tabKey = tab.key as string;
+      
+      // If viewing own profile, always show all tabs
+      if (isSelfView) {
+        return true;
+      }
+      
+      // If not viewing own profile and tab is employment, documents, or absences, check permissions
+      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences) {
+        // Check if user has permission to see this tab
+        return tabPermissions?.[tabKey]?.hasAccess === true;
+      }
+      
+      // Always show other tabs
+      return true;
+    });
   };
   
   // Tab items for the Tabs component

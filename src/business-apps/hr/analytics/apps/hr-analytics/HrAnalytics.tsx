@@ -1,213 +1,180 @@
-import React, { useState, useMemo } from "react";
-import { Tabs, Typography, Spin } from "antd";
+import React, { useState, useEffect } from 'react';
+import { Spin, Alert, Button } from 'antd';
+import { PageLayout } from '@newwork/nw-design-system';
 import {
-  HrAnalyticsProps,
-  AnalyticsKpiData,
-  TabKey,
-} from "./types/analyticsTypes";
-import Overview from "./components/tabs/Overview";
-import EmployeeDemographics from "./components/tabs/Employee.Demographics";
-import CompensationTab from "./components/tabs/Compensation";
-import Workforce from "./components/tabs/Workforce";
-import ForecastingTab from "./components/tabs/Forecasting";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useEmployeeCount } from "./hooks/useEmployeeCount";
-import { useNewHiresCount } from "./hooks/useNewHiresCount";
-import { useTurnoverRate } from "./hooks/useTurnoverRate";
-import { useAverageSalary } from "./hooks/useAverageSalary";
-import { useHiresPerYear } from "./hooks/useHiresPerYear";
-import { useEmployeesPerYear } from "./hooks/useEmployeesPerYear";
-import { useEmployeesByOrgUnit } from "./hooks/useEmployeesByOrgUnit";
+  DashboardOutlined,
+  CalendarOutlined
+} from '@ant-design/icons';
+import { ChartPie } from '@phosphor-icons/react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import Dashboard from './components/views/dashboard/Dashboard';
+import AbsenceReport from './components/views/absence-report';
 
-const { Title, Text } = Typography;
+export interface HrAnalyticsProps extends BusinessAppContextProps {}
 
-/**
- * HR Analytics Dashboard component that displays various HR metrics and analytics across different tabs
- */
-const HrAnalytics: React.FC<HrAnalyticsProps> = ({ accessToken }) => {
-  // Keep all hook calls at the top level in a consistent order
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
-
-  // Get data from custom hooks
-  const { count: employeeCount, loading: employeeLoading } =
-    useEmployeeCount(accessToken);
-  const { count: newHiresCount, loading: hiresLoading } =
-    useNewHiresCount(accessToken);
-  const {
-    rate: turnoverRate,
-    change: turnoverChange,
-    loading: turnoverLoading,
-  } = useTurnoverRate(accessToken, employeeCount);
-  const { averageSalary, loading: salaryLoading } =
-    useAverageSalary(accessToken);
-  const {
-    hiresData,
-    loading: hiresYearlyLoading,
-    error: hiresYearlyError,
-  } = useHiresPerYear(accessToken);
-  const {
-    data: employeesYearlyData,
-    loading: employeesYearlyLoading,
-    error: employeesYearlyError,
-  } = useEmployeesPerYear(accessToken);
-  const {
-    data: departmentData,
-    loading: departmentLoading,
-    error: departmentError,
-  } = useEmployeesByOrgUnit(accessToken);
-
-  // Combine loading states
-  const loading =
-    employeeLoading ||
-    hiresLoading ||
-    turnoverLoading ||
-    salaryLoading ||
-    hiresYearlyLoading ||
-    employeesYearlyLoading ||
-    departmentLoading;
-
-  // Analytics data with real counts from API
-  const analyticsData: AnalyticsKpiData = useMemo(
-    () => ({
-      totalEmployees: {
-        value: employeeCount,
-        change: 2.1,
-        changeType: "increase",
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_last_month",
-          "last month"
-        ),
-      },
-      newHires: {
-        value: newHiresCount,
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_this_month",
-          "This month"
-        ),
-      },
-      turnoverRate: {
-        value: turnoverRate,
-        change: Math.abs(turnoverChange),
-        changeType: turnoverChange < 0 ? "decrease" : "increase",
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_last_month",
-          "last month"
-        ),
-      },
-      avgSalary: {
-        value: averageSalary,
-        period: getTranslationFromI18nKeyAndLabel(
-          "hr_analytics_annual_average",
-          "Annual average"
-        ),
-      },
-    }),
-    [employeeCount, newHiresCount, turnoverRate, turnoverChange, averageSalary]
-  );
-
-  const handleTabChange = (key: string) => {
-    setActiveTab(key as TabKey);
-  };
-
-  const tabItems = [
+export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
+  const viewOptions = [
     {
-      key: "overview",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_overview",
-        "Overview"
-      ),
-      children: (
-        <Overview
-          analyticsData={analyticsData}
-          hiresPerYearData={hiresData}
-          hiresChartLoading={hiresYearlyLoading}
-          hiresChartError={hiresYearlyError}
-          employeesPerYearData={employeesYearlyData}
-          employeesChartLoading={employeesYearlyLoading}
-          employeesChartError={employeesYearlyError}
-          departmentData={departmentData}
-          departmentChartLoading={departmentLoading}
-          departmentChartError={departmentError}
-          accessToken={accessToken}
-        />
-      ),
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: 'Dashboard'
     },
     {
-      key: "demographics",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_demographics",
-        "Demographics"
-      ),
-      children: (
-        <EmployeeDemographics loading={loading} accessToken={accessToken} />
-      ),
-    },
-    {
-      key: "workforce",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_workforce",
-        "Workforce"
-      ),
-      children: <Workforce loading={loading} accessToken={accessToken} />,
-    },
-    {
-      key: "compensation",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_compensation",
-        "Compensation"
-      ),
-      children: <CompensationTab accessToken={accessToken} />,
-    },
-    {
-      key: "forecasting",
-      label: getTranslationFromI18nKeyAndLabel(
-        "hr_analytics_tab_forecasting",
-        "Forecasting"
-      ),
-      children: <ForecastingTab accessToken={accessToken} />,
-    },
+      key: 'absences',
+      icon: <CalendarOutlined />,
+      label: 'Absences'
+    }
   ];
 
+  // Get initial view from URL or default to first view
+  const getInitialView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewFromUrl = urlParams.get('view');
+
+    // Validate that the view exists in our options
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+      return viewFromUrl;
+    }
+
+    // Default to first view
+    return viewOptions[0].key;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialView());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Update URL when view changes
+  const updateUrl = (view: string) => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Always set the view parameter (including for default)
+    urlParams.set('view', view);
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  const handleTabChange = (key: string) => {
+    // Prevent deselection - if key is empty or same as current, ignore the change
+    if (!key || key === activeTab) {
+      return;
+    }
+    setActiveTab(key);
+    updateUrl(key);
+  };
+
+  // Ensure URL always has view parameter on initial load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('view')) {
+      updateUrl(activeTab);
+    }
+  }, []);
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const newView = getInitialView();
+      setActiveTab(newView);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const renderErrorContent = (viewName: string) => {
+    if (error) {
+      return (
+        <div className="gba:p-6">
+          <Alert
+            message={`Error Loading ${viewName}`}
+            description={error}
+            type="error"
+            showIcon
+            action={
+              <Button size="small" onClick={() => setError(null)} type="primary">
+                Retry
+              </Button>
+            }
+            className="gba:shadow-sm"
+          />
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderLoadingContent = (viewName: string) => {
+    if (isLoading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+          <div className="gba:text-center">
+            <Spin size="large" />
+            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">
+              Loading {viewName}...
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderTabContent = () => {
+    const errorContent = renderErrorContent('HR Analytics');
+    if (errorContent) return errorContent;
+
+    const loadingContent = renderLoadingContent('HR Analytics');
+    if (loadingContent) return loadingContent;
+
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <div data-testid="dashboard-tab-content">
+            <Dashboard
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+            />
+          </div>
+        );
+      case 'absences':
+        return (
+          <div data-testid="absences-tab-content">
+            <AbsenceReport {...context} />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div
-      className="gba:w-full gba:bg-white"
-      data-testid="hr-analytics-dashboard"
-    >
-      <div className="gba:p-6 gba:pb-0">
-        <div className="gba:mb-2">
-          <Title level={2} className="gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              "hr_analytics_dashboard_title",
-              "HR Analytics Dashboard"
-            )}
-          </Title>
-          <Text className="gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              "hr_analytics_dashboard_subtitle",
-              "Comprehensive workforce insights and metrics"
-            )}
-          </Text>
+    <div data-testid="hr-analytics-app">
+      <PageLayout
+        headerPhosphorIcon={{
+          icon: ChartPie,
+          variant: "premium",
+          size: "lg",
+          label: "HR Analytics"
+        }}
+        headerTitle="HR Analytics"
+        headerDescription="Comprehensive workforce insights, analytics, and metrics to drive HR decisions"
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map((option) => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
+        className="gba:min-h-screen"
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          {renderTabContent()}
         </div>
-      </div>
-
-      <div className="gba:ml-6 gba:mr-6">
-        <Tabs
-          activeKey={activeTab}
-          onChange={handleTabChange}
-          items={tabItems}
-          className="gba:mt-4"
-          data-testid="hr-analytics-tabs"
-        />
-      </div>
-
-      {loading && (
-        <div
-          className="gba:flex gba:justify-center gba:items-center gba:py-12"
-          data-testid="hr-analytics-loading"
-        >
-          <Spin size="large" />
-        </div>
-      )}
+      </PageLayout>
     </div>
   );
 };

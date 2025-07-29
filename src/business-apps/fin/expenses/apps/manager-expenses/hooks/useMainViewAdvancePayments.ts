@@ -13,13 +13,16 @@ export interface AdvancePayment {
   description: string | null;
   status: string;
   amount: number;
+  currency: string;
   createdAt: string;
   updatedAt: string;
   expensePlan: {
     id: string;
+    code: string;
     title: string;
     startDate: string;
     endDate: string;
+    currency: string;
     employee: {
       id: string;
       displayName?: string;
@@ -40,7 +43,10 @@ export interface AdvancePayment {
 }
 
 export interface AdvancePaymentResponse {
-  AdvancePayment: AdvancePayment[];
+  AdvancePayment: (AdvancePayment & { 
+    currencyRef?: string;
+    expensePlan: AdvancePayment['expensePlan'] & { currencyRef?: string };
+  })[];
   AdvancePaymentAggregate: {
     aggregate: {
       count: number;
@@ -77,7 +83,8 @@ interface AdvancePaymentStatisticsResponse {
 interface UseMainViewAdvancePaymentsProps extends BusinessAppContextProps {
   pageSize?: number;
   searchTerm?: string;
-  currentStatusFilter?: string | null;
+  currentStatusFilter?: string[] | null;
+  currentPage?: number;
 }
 
 export const useMainViewAdvancePayments = ({
@@ -86,18 +93,22 @@ export const useMainViewAdvancePayments = ({
   pageSize = 10,
   searchTerm,
   currentStatusFilter,
+  currentPage: externalCurrentPage,
 }: UseMainViewAdvancePaymentsProps) => {
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   // Log the managerId to help with debugging
-  console.log('useMainViewAdvancePayments - managerId:', managerId);
+
   
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [payments, setPayments] = useState<AdvancePayment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
+  
+  // Use external currentPage if provided, otherwise use internal state
+  const currentPage = externalCurrentPage ?? internalCurrentPage;
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
@@ -105,8 +116,43 @@ export const useMainViewAdvancePayments = ({
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<Error | null>(null);
 
+  const buildWhereClause = useCallback(() => {
+    const conditions: any[] = [];
+
+    // Add search condition if searchTerm is provided
+    if (searchTerm && searchTerm.trim()) {
+      conditions.push({
+        _or: [
+          { code: { _ilike: `%${searchTerm}%` } },
+          { description: { _ilike: `%${searchTerm}%` } },
+          { expensePlan: { title: { _ilike: `%${searchTerm}%` } } },
+          { expensePlan: { employee: { fullName: { _ilike: `%${searchTerm}%` } } } }
+        ]
+      });
+    }
+
+    // Add status filter condition if statusFilter is provided
+    if (currentStatusFilter && currentStatusFilter.length > 0) {
+      conditions.push({
+        status: { _in: currentStatusFilter }
+      });
+    }
+
+    // If no conditions, return an empty object to show all records
+    if (conditions.length === 0) {
+      return {};
+    }
+
+    // If only one condition, return it directly
+    if (conditions.length === 1) {
+      return conditions[0];
+    }
+
+    // If multiple conditions, combine them with _and
+    return { _and: conditions };
+  }, [searchTerm, currentStatusFilter]);
+
   const fetchPayments = useCallback(async () => {
-    console.log('fetchPayments called with accessToken:', !!accessToken, 'managerId:', managerId);
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch advance payments.'));
@@ -124,10 +170,9 @@ export const useMainViewAdvancePayments = ({
     setError(null);
 
     try {
-      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
       const offset = (currentPage - 1) * pageSize;
-      
-      console.log('Fetching advance payments with managerId:', managerId);
+      const whereClause = buildWhereClause();
+    
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -141,8 +186,7 @@ export const useMainViewAdvancePayments = ({
             managerId,
             limit: pageSize,
             offset,
-            searchTerm: searchValue,
-            status: currentStatusFilter === 'all' || !currentStatusFilter ? null : currentStatusFilter 
+            where: whereClause
           }
         })
       });
@@ -154,15 +198,19 @@ export const useMainViewAdvancePayments = ({
       }
 
       const data = result.data as AdvancePaymentResponse;
-      console.log('Advance payments data received:', {
-        paymentsCount: data.AdvancePayment?.length,
-        totalCount: data.AdvancePaymentAggregate?.aggregate?.count,
-        firstPayment: data.AdvancePayment?.[0],
-        managerId
-      });
       
       // Apply client-side filtering for employee if needed
       let filteredPayments = data.AdvancePayment;
+      
+      // Map currency information from currencyRef fields
+      filteredPayments = filteredPayments.map(payment => ({
+        ...payment,
+        currency: payment.currencyRef ? payment.currencyRef.replace('Currency:v1:', '') : 'EUR',
+        expensePlan: {
+          ...payment.expensePlan,
+          currency: payment.expensePlan.currencyRef ? payment.expensePlan.currencyRef.replace('Currency:v1:', '') : 'EUR'
+        }
+      }));
       
       // Filter by employee if specified
       if (employeeFilter) {
@@ -177,7 +225,7 @@ export const useMainViewAdvancePayments = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter]);
+  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, buildWhereClause]);
 
   useEffect(() => {
     fetchPayments();
@@ -213,12 +261,6 @@ export const useMainViewAdvancePayments = ({
       
       const data = result.data as AdvancePaymentStatisticsResponse;
       
-      console.log('Advance payment statistics received:', {
-        totalCount: data.allPaymentsStats?.aggregate.totalCount,
-        sumAmount: data.allPaymentsStats?.aggregate.sum?.amount,
-        pendingCount: data.pendingPaymentsStats?.aggregate.pendingCount,
-        pendingAmount: data.pendingPaymentsStats?.aggregate.sum?.amount
-      });
       
       setPaymentStats({
         totalCount: data.allPaymentsStats?.aggregate.totalCount || 0,
@@ -239,7 +281,7 @@ export const useMainViewAdvancePayments = ({
   }, [fetchPaymentStatistics]);
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    setInternalCurrentPage(page);
   };
 
   const approvePayment = useCallback(async (paymentId: string, comments: string = '') => {

@@ -1,6 +1,14 @@
 export enum FlowContextName {
     employeeEntity = 'employeeEntity',
     jobPositionEntity = 'jobPositionEntity',
+    leadEntity = 'leadEntity',
+    accountEntity = 'accountEntity',
+    contactEntity = 'contactEntity',
+    opportunityEntity = "opportunityEntity",
+    equityInvestmentEntity = "equityInvestmentEntity",
+    privateEquityInvestmentEntity = "privateEquityInvestmentEntity",
+    realEstateInvestmentEntity = "realEstateInvestmentEntity",
+    liquidFundInvestmentEntity = "liquidFundInvestmentEntity",
     expenseItems = 'expenseItems',
     expensePlans = 'expensePlans',
     expenseRequests = 'expenseRequests',
@@ -17,7 +25,17 @@ export enum FlowContextName {
     employeeGiveFeedback = 'employeeGiveFeedback',
     employeeRequestFeedback = 'employeeRequestFeedback',
     employeeSkills = 'employeeSkills',
-    employeeProfilePicture = 'employeeProfilePicture'
+    employeeProfilePicture = 'employeeProfilePicture',
+    updateEmployeePersonalData = "updateEmployeePersonalData",
+    updateEmployeeAddress = "updateEmployeeAddress",
+    updateEmployeeCommunication = "updateEmployeeCommunication",
+    updateEmployeeRelationship = "updateEmployeeRelationship",
+    updateEmployeeBankAccount = "updateEmployeeBankAccount",
+    updateEmployeePicture = "updateEmployeePicture",
+    updateEmployeeSkill = "updateEmployeeSkill",
+    updateEmployeeWorkingCondition = "updateEmployeeWorkingCondition",
+    updateEmployeeWorkingHours = "updateEmployeeWorkingHours",
+    updateAccount = "updateAccount"
 }
 
 export type ContextData = {

@@ -9,22 +9,43 @@ import { useExpenseRequests } from '../../../hooks/useExpenseRequests';
 import {
   Button,
   Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   Alert,
-  Typography,
-  Select,
-} from 'antd';
-import { DataTable } from '@newwork/gravity-ui-catalog';
+  Badge,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Card,
+  CardContent,
+  Spinner,
+} from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import {
-  EyeOutlined,
-} from '@ant-design/icons';
+
 import { ExpenseData } from '../../../types';
 import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
-import Pill from '@/components/pill/Pill';
-import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
+import { getExpenseRequestStatusConfig } from '../../../utils/badgeUtils';
+import { ExpenseStatus } from '../../../utils/utils';
 
-const { Text } = Typography;
-const { Option } = Select;
+// Move outside component to prevent re-creation on every render
+const AVAILABLE_FILTER_STATUSES: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
+  ExpenseStatus.CREATED,
+  ExpenseStatus.ASSIGNED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.VERIFIED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.TRANSFERRED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.REJECTED,
+  ExpenseStatus.CLOSED,
+  ExpenseStatus.DISCARDED,
+];
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -39,12 +60,76 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     accessToken: props.accessToken,
   }), [props.accessToken]);
   
-  // Local state management
-  const [searchText, setSearchText] = useState<string>(search ?? '');
+  // ⚡ BEST PRACTICE: Get initial values from URL parameters (like leads)
+  const [initialParams] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      search: urlParams.get('search') || '',
+      page: parseInt(urlParams.get('page') || '1', 10),
+      pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
+      status: urlParams.get('status') || '',
+      department: urlParams.get('department') || ''
+    };
+  });
+  
+  // Local state management with URL initialization
+  const [searchText, setSearchText] = useState<string>(search ?? initialParams.search);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseData | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  
+  // ⚡ BEST PRACTICE: Update URL parameters (like leads)
+  const updateURLParams = useCallback((params: {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    department?: string;
+  }) => {
+    const newSearchParams = new URLSearchParams(window.location.search);
+    
+    if (params.search !== undefined) {
+      if (params.search) {
+        newSearchParams.set('search', params.search);
+      } else {
+        newSearchParams.delete('search');
+      }
+    }
+    
+    if (params.page !== undefined) {
+      if (params.page > 1) {
+        newSearchParams.set('page', params.page.toString());
+      } else {
+        newSearchParams.delete('page');
+      }
+    }
+    
+    if (params.pageSize !== undefined) {
+      if (params.pageSize !== 20) {
+        newSearchParams.set('pageSize', params.pageSize.toString());
+      } else {
+        newSearchParams.delete('pageSize');
+      }
+    }
+
+    if (params.status !== undefined) {
+      if (params.status) {
+        newSearchParams.set('status', params.status);
+      } else {
+        newSearchParams.delete('status');
+      }
+    }
+
+    if (params.department !== undefined) {
+      if (params.department) {
+        newSearchParams.set('department', params.department);
+      } else {
+        newSearchParams.delete('department');
+      }
+    }
+
+    const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
+    window.history.replaceState({}, '', newURL);
+  }, []);
   
   // Get expense requests data using the hook
   const { 
@@ -53,9 +138,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     error,
     departments,
     handleTableChange,
+    handleSearch,
+    handleStatusFilter,
+    handleDepartmentFilter,
     totalItems,
     currentPage,
     pageSize,
+    searchTerm: hookSearchTerm,
+    statusFilter: hookStatusFilter,
+    departmentFilter: hookDepartmentFilter,
   } = useExpenseRequests(contextProps);
 
   // Sync with parent search prop if provided
@@ -68,24 +159,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
+    handleSearch(value); // Pass to hook for API call
     
     // Notify parent if callback exists
     if (onSearchChange) {
       onSearchChange(value);
     }
-  }, [onSearchChange]);
+  }, [onSearchChange, handleSearch]);
 
-  // Handle status filter change
-  const handleStatusChange = useCallback((value: string) => {
-    setStatusFilter(value);
-    // Add filter logic here
-  }, []);
-
-  // Handle department filter change
-  const handleDepartmentChange = useCallback((value: string) => {
-    setDepartmentFilter(value);
-    // Add filter logic here
-  }, []);
+  // Removed old handlers - now using handleFilterChange
 
   // Handle expense selection
   const handleSelectExpense = useCallback((expense: ExpenseData) => {
@@ -115,169 +197,232 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setSelectedRowKeys([record.id]);
   }, []);
 
-  const columns = [
-    {
-      title: 'Request Number',
-      dataIndex: 'code',
-      key: 'code',
-      sortable: true,
-      data_testid: 'expense-request-code',
-    },
-    {
-      title: 'Employee',
-      dataIndex: 'employee',
-      key: 'employee',
-      sortable: true,
-      data_testid: 'expense-request-employee',
-    },
-    {
-      title: 'SAP Number',
-      dataIndex: 'sapNumber',
-      key: 'sapNumber',
-      data_testid: 'expense-request-sap',
-    },
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-      data_testid: 'expense-request-title',
-      render: (title: string) => (
-        <Tooltip title={title}>
-          <div className="gba:max-w-[200px] gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap">
-            {title}
-          </div>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      data_testid: 'expense-request-status',
-      render: (status: string) => {
-        const { label, type } = getExpenseRequestStatusDisplay(status);
-        return (
-          <Pill label={label} type={type} className="gba:text-center" data-testid={`status-pill-${status?.toLowerCase()}`} />
-        );
-      },
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      sortable: true,
-      data_testid: 'expense-request-department',
-    },
-    {
-      title: 'Total Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      sortable: true,
-      data_testid: 'expense-request-amount',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      data_testid: 'expense-request-actions',
-      render: (_: any, record: ExpenseData) => (
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          onClick={(e) => { e.stopPropagation(); handleViewDetails(record); }}
-          title="View Details"
-          aria-label="View expense details"
-          data-testid={`view-expense-${record.id}`}
-        />
-      ),
-    },
-  ] as any;
+  // Column definitions removed - now building table manually with Table components
 
   // Render data body with DataTable
   const renderDataBody = () => {
     if (error) {
       return (
-        <Alert
-          message="API Error"
-          description={String(error)}
-          type="error"
-          showIcon
-          data-testid="expense-request-error-alert"
-        />
+        <div 
+          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
+          data-testid="expense-requests-error-state"
+        >
+          <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
+            Error Loading Expense Requests
+          </div>
+          <div className="gba:text-gray-600 gba:mb-4">
+            {error}
+          </div>
+          <Button
+            variant="default"
+            onClick={() => window.location.reload()}
+            data-testid="expense-requests-retry-button"
+          >
+            Retry
+          </Button>
+        </div>
       );
     }
 
     if (!expenses || expenses.length === 0 && !loading) {
       return (
         <div className="gba:text-center gba:p-5" data-testid="expense-requests-empty">
-          <Text>No expense requests found.</Text>
+          <p className="gba:text-muted-foreground">No expense requests found.</p>
+        </div>
+      );
+    }
+
+    if (loading) {
+      return (
+        <div className="gba:text-center gba:p-5" data-testid="expense-requests-loading">
+          <div className="gba:inline-block gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-gray-900"></div>
+          <p className="gba:mt-2 gba:text-muted-foreground">Loading expense requests...</p>
         </div>
       );
     }
 
     return (
-      <DataTable
-        dataSource={expenses}
-        columns={columns}
-        loading={loading}
-        rowKey="id"
-        rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys,
-          onChange: handleRowSelectionChange,
-          columnWidth: 48,
-        }}
-        onRow={(record: any) => ({
-          onClick: () => handleSelectExpense(record as ExpenseData),
-          className: 'gba:cursor-pointer',
-        })}
-        pagination={{
-          current: currentPage,
-          pageSize,
-          total: totalItems,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showTotal: (total: number, range: [number, number]) => `${range[0]}-${range[1]} of ${total} items`,
-        }}
-        onChange={handleTableChange}
-        data-testid="expense-requests-table"
-      />
+      <Card data-testid="expense-requests-table">
+        <CardContent className="gba:p-0">
+          {loading && (
+            <div className="gba:flex gba:justify-center gba:p-4">
+              <Spinner />
+            </div>
+          )}
+          
+          <div className="gba:overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="gba:border-b gba:bg-gray-50">
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Request Number</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">SAP Number</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Department</TableHead>
+                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Total Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenses?.map((record) => (
+                  <TableRow 
+                    key={record.id}
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
+                    data-testid={`expense-request-row-${record.id}`}
+                  >
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <button
+                        onClick={() => handleViewDetails(record)}
+                        className="gba:cursor-pointer gba:hover:bg-gray-100 gba:p-1 gba:rounded"
+                        data-testid={`request-number-${record.id}`}
+                      >
+                        {record.code}
+                      </button>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">{record.employee}</TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">{record.sapNumber}</TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:max-w-[200px] gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap">
+                              {record.title}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{record.title}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">
+                      {(() => {
+                        const { label, variant } = getExpenseRequestStatusConfig(record.status);
+                        return (
+                          <Badge variant={variant} data-testid={`status-badge-${record.status?.toLowerCase()}`}>
+                            {label}
+                          </Badge>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">{record.department}</TableCell>
+                    <TableCell className="gba:py-4 gba:px-6">{record.amount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {totalItems > 0 
+                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} expense requests`
+                : '0-0 of 0 expense requests'}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handleTableChange(
+                    { current: 1, pageSize: Number(e.target.value) },
+                    {},
+                    {}
+                  )}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid="expense-requests-page-size-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+                Page {currentPage} of {Math.max(1, Math.ceil(totalItems / pageSize))}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Button 
+                  variant="outline" 
+                  className="gba:h-8 gba:w-8 gba:p-0" 
+                  disabled={currentPage === 1}
+                  onClick={() => handleTableChange({ current: 1, pageSize }, {}, {})}
+                  data-testid="expense-requests-first-page"
+                >
+                  ⟨⟨
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="gba:h-8 gba:w-8 gba:p-0" 
+                  disabled={currentPage === 1}
+                  onClick={() => handleTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                  data-testid="expense-requests-prev-page"
+                >
+                  ⟨
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="gba:h-8 gba:w-8 gba:p-0" 
+                  disabled={currentPage === Math.max(1, Math.ceil(totalItems / pageSize))}
+                  onClick={() => handleTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                  data-testid="expense-requests-next-page"
+                >
+                  ⟩
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="gba:h-8 gba:w-8 gba:p-0" 
+                  disabled={currentPage === Math.max(1, Math.ceil(totalItems / pageSize))}
+                  onClick={() => handleTableChange({ current: Math.max(1, Math.ceil(totalItems / pageSize)), pageSize }, {}, {})}
+                  data-testid="expense-requests-last-page"
+                >
+                  ⟩⟩
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
-  // Filter controls
-  const filterControlsNode = (
-    <div className="gba:flex gba:flex-wrap gba:gap-4">
-      <div className="gba:w-64">
-        <Text strong>Status</Text>
-        <Select 
-          className="gba:w-full gba:mt-1"
-          value={statusFilter}
-          onChange={handleStatusChange}
-          data-testid="status-filter-select"
-        >
-          <Option value="all">All Statuses</Option>
-          <Option value="PENDING">Pending</Option>
-          <Option value="APPROVED">Approved</Option>
-          <Option value="REJECTED">Rejected</Option>
-          <Option value="BOOKED">Booked</Option>
-        </Select>
-      </div>
-      <div className="gba:w-64">
-        <Text strong>Department</Text>
-        <Select 
-          className="gba:w-full gba:mt-1"
-          value={departmentFilter}
-          onChange={handleDepartmentChange}
-          data-testid="department-filter-select"
-        >
-          <Option value="all">All Departments</Option>
-          {departments.map(dept => (
-            <Option key={dept} value={dept}>{dept}</Option>
-          ))}
-        </Select>
-      </div>
-    </div>
-  );
+  // Create proper filter groups using status config mappings
+  const filterGroups = [
+    {
+      id: 'status',
+      title: 'Status',
+      filters: AVAILABLE_FILTER_STATUSES.map(status => {
+        const { label } = getExpenseRequestStatusConfig(status);
+        return {
+          id: status,
+          label: label,
+          selected: hookStatusFilter === status
+        };
+      })
+    },
+    {
+      id: 'department', 
+      title: 'Department',
+      filters: (departments || []).filter((dept): dept is string => typeof dept === 'string' && dept.length > 0).map(dept => ({
+        id: dept,
+        label: dept,
+        selected: hookDepartmentFilter === dept
+      }))
+    }
+  ];
+
+  // Handle filter changes like leads table
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    // Status filters - check if it's one of our available status values
+    if (AVAILABLE_FILTER_STATUSES.includes(filterId as ExpenseStatus)) {
+      handleStatusFilter(selected ? filterId : '');
+    } 
+    // Department filters (any other filterId that's not a status)
+    else if (departments?.includes(filterId)) {
+      handleDepartmentFilter(selected ? filterId : '');
+    }
+  }, [departments, handleStatusFilter, handleDepartmentFilter]);
 
   return (
     <DataContainer
@@ -292,9 +437,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         debounceDelay: 300,
       }}
       dataFilterProps={{
-        filterGroups: [],
-        children: filterControlsNode,
-        onFilterChange: () => {},
+        filterGroups: filterGroups,
+        onFilterChange: handleFilterChange,
       }}
       dataBody={renderDataBody()}
       contentBackground="white"

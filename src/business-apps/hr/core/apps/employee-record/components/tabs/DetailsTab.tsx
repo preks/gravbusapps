@@ -8,18 +8,25 @@ import { formatPhoneNumber } from '../../utils/formatters';
 import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions';
+import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PiPencilSimple } from 'react-icons/pi';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 
 interface DetailsTabProps {
   employee: Employee;
   accessToken: string;
   employeeId?: string; // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps; // Current user info
+  isSelfView: boolean; // Whether user is viewing their own profile
 }
 
 /**
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, userInfo, isSelfView }) => {
+  // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id;
   
@@ -27,7 +34,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken);
   // Fetch academic titles from catalog
   const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken);
-
+  
   // Find the academic titles that match the employee's title references
   const academicTitleName = useMemo(() => {
     if (loadingTitles) {
@@ -54,7 +61,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     return matchingTitles.join(', ');
   }, [employee.academicTitleRef, academicTitles, loadingTitles]);
 
-  // Prepare personal data
   const personalData = [
     {
       label: "Salutation",
@@ -78,27 +84,33 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     },
     {
       label: "Birth Name",
-      value: employee.birthName || ''
+      value: employee.birthName || '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: "Date of Birth",
-      value: employee.birthDate ? dayjs(employee.birthDate).format('MMM D, YYYY') : ''
+      value: employee.birthDate ? dayjs(employee.birthDate).format('MMM D, YYYY') : '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: "Place of Birth",
-      value: employee.birthPlace?.value || ''
+      value: employee.birthPlace?.value || '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: "Nationality",
-      value: employee.nationality?.value || ''
+      value: employee.nationality?.value || '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: "Gender",
-      value: employee.gender?.value || ''
+      value: employee.gender?.value || '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: "Marital Status",
-      value: employee.maritalStatus?.value || ''
+      value: employee.maritalStatus?.value || '',
+      sectionKey: SECTION_KEYS.details.personalInfoPrivate
     }
   ];
 
@@ -206,13 +218,24 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
       return '-';
     }
     
-    // Check permissions for non-empty values
-    if (isSectionVisible('details', sectionKey)) {
+    // If user is viewing their own profile, always show the data
+    if (isSelfView) {
       return value;
     }
     
-    // Only mask if there's actual data to protect
-    return '••••••••';
+    // Special handling for personalInfoPrivate section
+    if (sectionKey === SECTION_KEYS.details.personalInfoPrivate) {
+      // Mask all personalInfoPrivate fields when viewing other profiles
+      return '••••••••';
+    }
+    
+    // For other sections, check permissions
+    if (sectionKey && isSectionVisible('details', sectionKey)) {
+      return value;
+    }
+    
+   // If no permission, mask the value
+   return '••••••••';
   };
 
   // Helper function to render data items in a grid with 3 columns
@@ -262,15 +285,25 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-personal"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="personal-data-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeePersonalData]}
+                externalContextData={{
+                  employeeId: employee?.id,
+                }}
+                prefixDataTestId="personal-data-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
-          {renderDataItems(personalData.map((item, index) => {
-            // Add sectionKey for private fields (index >= 7)
-            return index >= 7 
-              ? {...item, sectionKey: SECTION_KEYS.details.personalInfoPrivate}
-              : item;
-          }))}
+          {/* Personal data with masking already applied in the data definition */}
+          {renderDataItems(personalData)}
         </Card>
 
         {/* Address Card - Always visible but values may be masked */}
@@ -279,8 +312,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-address"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="address-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeeAddress]}
+                externalContextData={{
+                  employeeId: employee?.id,
+                }}
+                prefixDataTestId="address-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
           {renderDataItems(addressData.map(item => ({...item, sectionKey: SECTION_KEYS.details.addressPublic})))}
         </Card>
@@ -291,8 +338,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-bank"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="bank-account-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeeBankAccount]}
+                externalContextData={{
+                  employeeId: employee?.id,
+                }}
+                prefixDataTestId="bank-account-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
           {renderDataItems(bankAccountData.map(item => ({...item, sectionKey: SECTION_KEYS.details.bankAccount})))}
         </Card>
@@ -303,8 +364,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-communication"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
+            {isSelfView && (
+              <AppActionButton 
+                data-testid="private-communication-action-button"
+                variant="ghost"
+                contextsArray={[FlowContextName.updateEmployeeCommunication]}
+                externalContextData={{
+                  employeeId: employee?.id,
+                }}
+                prefixDataTestId="private-communication-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+                icon={<PiPencilSimple />}
+              />
+            )}
           </div>
           {renderDataItems(privateCommunicationData.map(item => ({...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate})))}
         </Card>
@@ -319,49 +394,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
           </div>
           {renderDataItems(emergencyContactData.map(item => ({...item, sectionKey: SECTION_KEYS.details.relationships})))}
-        </Card>
-
-        {/* Tax Details Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-tax"
-        >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Details</h3>
-          </div>
-          {renderDataItems([
-              {
-                label: "Tax Number",
-                value: employee.taxDetails?.[0]?.taxNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Tax Bracket",
-                value: employee.taxDetails?.[0]?.taxBracketRef || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Tax Identification Number",
-                value: employee.taxDetails?.[0]?.taxIdentificationNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Social Security Number",
-                value: employee.taxDetails?.[0]?.socialSecurityNumber || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Church Affiliation",
-                value: employee.taxDetails?.[0]?.taxableChurchAffiliationRef || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              },
-              {
-                label: "Child Tax Allowance",
-                value: employee.taxDetails?.[0]?.childTaxAllowance?.toString() || '',
-                sectionKey: SECTION_KEYS.details.taxDetails
-              }
-            ])}
         </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}

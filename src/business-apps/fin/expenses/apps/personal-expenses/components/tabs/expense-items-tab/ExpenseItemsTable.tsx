@@ -1,253 +1,214 @@
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Spin, Alert } from 'antd';
+import { Typography, Spin, Alert, message } from 'antd';
 import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
+import { PlusSquareIcon } from '@/components/dataController/DataController';
 import { FileTextOutlined, FileImageOutlined } from '@ant-design/icons';
-import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
+import { useGetExpenseItems, ExpenseFilter, ExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getExpenseItemStatusDisplay, ExpenseStatus } from '../../../utils';
-import { startProcess } from '@/common/utils/start-process';
+import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
-import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
+import { startProcess } from '@/common/utils/start-process';
 
 const { Text } = Typography;
 
-export interface ExpenseItemsTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (value: string) => void;
-  filters?: string[];
-  onFilterChange?: (filterId: string, selected: boolean) => void;
-  onAddExpenseItem?: () => void;
-  selectedFilters?: string[];
-  addFilter?: (filterId: string) => void;
-  removeFilter?: (filterId: string) => void;
+// Sorting utilities following SOLID principles
+interface SortableField<T> {
+  key: keyof T;
+  type: 'string' | 'number' | 'date';
+  nullable?: boolean;
 }
 
-const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Use our simplified expense filters hook
+class SortingService {
+  static createSorter<T>(field: SortableField<T>) {
+    return (a: T, b: T) => {
+      const aValue = a[field.key];
+      const bValue = b[field.key];
+      
+      // Handle nullable values
+      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
+      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
+      
+      switch (field.type) {
+        case 'string':
+          return String(aSafe).localeCompare(String(bSafe));
+        case 'number':
+          return Number(aSafe) - Number(bSafe);
+        case 'date':
+          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
+          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
+          return aDate - bDate;
+        default:
+          return 0;
+      }
+    };
+  }
+}
+
+// Column configuration following SRP
+const EXPENSE_ITEM_COLUMNS = {
+  title: { key: 'title' as keyof ExpenseItem, type: 'string' as const },
+  expenseDate: { key: 'expenseDate' as keyof ExpenseItem, type: 'date' as const, nullable: true },
+  status: { key: 'status' as keyof ExpenseItem, type: 'string' as const },
+  reimbursableAmount: { key: 'reimbursableAmount' as keyof ExpenseItem, type: 'number' as const, nullable: true },
+} as const;
+
+export interface ExpenseItemsTableProps extends BusinessAppContextProps {
+  onAddExpenseItem: () => void;
+  selectedFilters: string[];
+  addFilter: (filterId: string) => void;
+  removeFilter: (filterId: string) => void;
+  clearFilters: () => void;
+  filterGroups: DataFilterGroup[];
+  filterLabelMap: Record<string, string>;
+  getFilters: (filtersToApply?: string[]) => ExpenseFilter;
+  setFilters: (filters: string[]) => void;
+  availableStatuses: string[];
+}
+
+const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
   const {
-    search,
-    setSearch,
-    selectedFilters: localSelectedFilters,
+    onAddExpenseItem,
+    selectedFilters,
+    addFilter,
+    removeFilter,
+    clearFilters,
     filterGroups,
     filterLabelMap,
-    addFilter: localAddFilter,
-    removeFilter: localRemoveFilter,
-  } = useExpenseFilters();
+    getFilters,
+    setFilters,
+    availableStatuses,
+    ...contextProps
+  } = props;
 
-  // Use shared filter state or fallback to local state
-  const currentSelectedFilters = props.selectedFilters ?? localSelectedFilters;
+  const [search, setSearch] = useState('');
 
-  // Create filter groups with the current selected filters
-  const currentFilterGroups = useMemo(() => {
-    return filterGroups.map(group => ({
-      ...group,
-      filters: group.filters?.map(filter => ({
-        ...filter,
-        selected: currentSelectedFilters.includes(filter.id)
-      })) || []
-    }));
-  }, [filterGroups, currentSelectedFilters]);
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('expenseDate');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
-  // Get expense items with the filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
-  
-  // Create a custom getFilters function that uses shared state when available
-  const getCurrentFilters = useCallback((): ExpenseFilter => {
-    const activeFilters = currentSelectedFilters;
-    const filter: ExpenseFilter = {};
-    
-    // Define filter options
-    const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-    const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
-    const OTHER_OPTIONS = ['noreceiptfilter'];
-    
-    // Extract filters by types
-    const timePeriod = activeFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) ?? null;
-    const statusFilters = activeFilters.filter(f => 
-      Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
-    const expenseTypes = activeFilters.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = activeFilters.filter(f => OTHER_OPTIONS.includes(f));
-    
-    // Process status filters
-    if (statusFilters.length > 0) {
-      const statuses = statusFilters.map(f => f.toUpperCase());
-      filter.status = statuses;
-    }
-    
-    // Process Other filters (No receipt)
-    if (otherFilters.includes('noreceiptfilter')) {
-      filter.noReceipt = true;
-    }
-    
-    // Process time period filters
-    if (timePeriod) {
-      const today = new Date();
-      const endDate = new Date(today).toISOString().split('T')[0]; 
-      
-      let startDate = new Date(today);
-      if (timePeriod === 'last30days') {
-        startDate.setDate(today.getDate() - 30);
-      } else if (timePeriod === 'last90days') {
-        startDate.setDate(today.getDate() - 90);
-      } else if (timePeriod === 'last180days') {
-        startDate.setDate(today.getDate() - 180);
-      }
-      
-      filter.expenseDateStart = startDate.toISOString().split('T')[0];
-      filter.expenseDateEnd = endDate;
-    }
-    
-    // Process expense type filters
-    if (expenseTypes.length > 0) {
-      const selectedType = expenseTypes[0];
-      filter.expenseClass = { value: selectedType === 'expense' ? 'Expense' : 'Trip' };
-    }
-    
-    return filter;
-  }, [currentSelectedFilters]);
-  
-  // State declarations
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+
+  useEffect(() => {
+    const apiFilters = getFilters(selectedFilters);
+    fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+  }, [fetchItems, currentPage, pageSize, search, selectedFilters, getFilters, sortField, sortOrder]);
+
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
   
-  // Initialize search from props
-  useEffect(() => {
-    if (props.search !== undefined && props.search !== search) {
-      setSearch(props.search);
-    }
-  }, [props.search, search, setSearch]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  // Initialize filters from props
-  useEffect(() => {
-    if (props.filters) {
-      // Clear existing filters first
-      localSelectedFilters.forEach(f => localRemoveFilter(f));
-      
-      // Add new filters
-      props.filters.forEach(filter => localAddFilter(filter));
-    }
-  }, [props.filters, localAddFilter, localRemoveFilter, localSelectedFilters]);
-
-  // Watch for changes in shared filter state and refetch data
-  useEffect(() => {
-    if (props.selectedFilters) {
-      console.log('Shared filter state changed, refetching data:', props.selectedFilters);
-      const filters = getCurrentFilters();
-      fetchItems(search, currentPage, pageSize, filters);
-    }
-  }, [props.selectedFilters, getCurrentFilters, fetchItems, search, currentPage, pageSize]);
-
-  // Initial data loading
-  useEffect(() => {
-    if (contextProps.accessToken && (!items || items.length === 0)) {
-      const filters = getCurrentFilters();
-      fetchItems(search, currentPage, pageSize, filters);
-    }
-  }, [contextProps.accessToken, items]);
-
-  // Create a memoized search change handler
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setCurrentPage(1); // Reset to first page on new search
-    // Apply filters when search changes
-    const filters = getCurrentFilters();
-    fetchItems(value, 1, pageSize, filters);
-    
-    // Notify parent component
-    if (props.onSearchChange) {
-      props.onSearchChange(value);
-    }
-  }, [fetchItems, pageSize, getCurrentFilters, props, setSearch]);
+    setCurrentPage(1);
+  }, [setSearch]);
 
-  // Handle filter changes
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Apply the filter change based on selection
     if (selected) {
-      // Add the filter using shared or local state
-      (props.addFilter || localAddFilter)(filterId);
+      addFilter(filterId);
     } else {
-      // Remove the filter using shared or local state
-      (props.removeFilter || localRemoveFilter)(filterId);
+      removeFilter(filterId);
     }
-    
-    setCurrentPage(1); // Reset to first page when filters change
-    
-    // Calculate the immediate ExpenseFilter object
-    const filter = getCurrentFilters(); // Use current filters from hook
-    
-    // Fetch with new filters
-    fetchItems(search, 1, pageSize, filter);
-    
-    // Call parent change handler if provided
-    if (props.onFilterChange) {
-      props.onFilterChange(filterId, selected);
-    }
-  }, [currentSelectedFilters, localAddFilter, localRemoveFilter, search, pageSize, fetchItems, props, getCurrentFilters]);
+    setCurrentPage(1);
+  }, [addFilter, removeFilter]);
 
-  // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (props.onAddExpenseItem) {
-      props.onAddExpenseItem();
-    } else if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseItem',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
-        }
-      });
-    }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId, props]);
+    onAddExpenseItem();
+  }, [onAddExpenseItem]);
 
-  // Handle table change for pagination, filters, and sorting
-  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
+  const handleTableChange = useCallback((pagination: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-    const filters = getCurrentFilters();
-    fetchItems(search, pagination.current, pagination.pageSize, filters);
-  }, [search, fetchItems, getCurrentFilters]);
+  }, []);
 
-  // Handle item selection
   const handleSelectItem = useCallback((item: any) => {
     setSelectedItem(item);
-    setSelectedRowKeys([item.id]);
   }, []);
-  
-  // Handle row selection change
+
   const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
     setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected item
-    if (newSelectedRowKeys.length === 1) {
-      const selectedItemId = newSelectedRowKeys[0];
-      const item = items?.find(item => item.id === selectedItemId);
-      if (item) {
-        setSelectedItem(item);
-      }
-    } else {
-      // If multiple or no rows selected, clear the selected item
-      setSelectedItem(null);
-    }
-  }, [items]);
-  
-  // Handle closing the details panel
+  }, []);
+
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
     setSelectedRowKeys([]);
   }, []);
 
+  // Handlers for the top buttons
+  const handleCreateExpenseRequest = useCallback(() => {
+    if (!selectedRowKeys.length) return;
+    const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
+    // Only allow creation if all items are in 'CREATED' status (draft)
+    const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
+    if (!allDraft) {
+      message.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'gba.expenseItems.createRequestDraftOnly',
+          'An Expense Request can be started only with items in status draft.'
+        )
+      );
+      return;
+    }
+    const expenseItems = selectedItems.map((element: any) => ({
+      itemId: element.id,
+      currencyId: element.currencyId
+    }));
+    const payload = {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+      expenseItems
+    };
+    // Log payload for create button
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload,
+      builderType: 'NATIVE_SCREEN'
+    });
+  }, [selectedRowKeys, items, contextProps.userInfo]);
+
+  const handleDeleteSelection = useCallback((ids?: string[]) => {
+    const targetIds = ids || selectedRowKeys;
+    if (!targetIds.length) return;
+    const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
+    const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
+    if (!allAllowed) {
+      message.warning('You can only discard items with status "Created" or "Assigned".');
+      return;
+    }
+    const payload = {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+      expenseItemsIds: targetIds
+    };
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'discardExpenseItems',
+      payload,
+    });
+  }, [selectedRowKeys, items, contextProps.userInfo]);
+
+  // Column factory following OCP
+  const createColumn = useCallback((key: keyof typeof EXPENSE_ITEM_COLUMNS, title: string, render?: (value: any, record: ExpenseItem) => React.ReactNode, additionalProps?: any) => {
+    const field = EXPENSE_ITEM_COLUMNS[key];
+    return {
+      title,
+      dataIndex: field.key,
+      key: field.key,
+      sorter: SortingService.createSorter(field),
+      sortOrder: sortField === field.key ? sortOrder : null,
+      render,
+      ...additionalProps,
+    };
+  }, [sortField, sortOrder]);
+
   const renderDataBody = useCallback(() => {
-    if (isLoading) {
+    if (isLoading && !items?.length) {
       return <div style={{ padding: 24, textAlign: 'center' }}><Spin size="large" /></div>;
     }
 
@@ -264,19 +225,25 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
     }
 
     return (
-      <DataTable 
-        dataSource={items} 
+      <DataTable
+        dataSource={items}
         rowKey="id"
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys,
           onChange: handleRowSelectionChange,
           columnWidth: 48,
+          renderCell: (_checked, _record, _index, originNode) => (
+            <div onClick={(e) => e.stopPropagation()}>{originNode}</div>
+          ),
         }}
         onRow={(record: any) => ({
           onClick: (event) => {
-            // Prevent row click from triggering when clicking on checkbox
-            if ((event.target as HTMLElement).tagName !== 'INPUT') {
+            const target = event.target as HTMLElement;
+            const isCheckboxColumn = target.closest('.ant-table-selection-column');
+            const isActionButton = target.closest('[class*="ant-dropdown-trigger"]');
+
+            if (!isCheckboxColumn && !isActionButton) {
               handleSelectItem(record);
             }
           },
@@ -290,62 +257,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
           pageSizeOptions: ['10', '20', '50', '100'],
           showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
         }}
-        onChange={handleTableChange}
+        onChange={handleEnhancedTableChange}
+        loading={isLoading}
         data-testid="expense-items-data-table"
         columns={[
-          {
-            title: 'Item',
-            dataIndex: 'title',
-            key: 'title',
-            render: (text: string, record: any) => (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>{text}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>{record.invoiceDate}</div>
-              </div>
-            )
-          },
-          {
-            title: 'Attachment',
-            dataIndex: 'expenseItemFile',
-            key: 'attachment',
-            width: 80,
-            align: 'center',
-            render: (expenseItemFile: any[]) => (
-              expenseItemFile && expenseItemFile.length > 0 ? (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                </div>
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-center">
-                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
-                </div>
-              )
-            )
-          },
-          {
-            title: 'Amount',
-            dataIndex: 'reimbursableAmount',
-            key: 'amount',
-            align: 'right',
-            render: (amount: number) => (
-              <span style={{ fontWeight: 'bold' }}>€{amount?.toFixed(2) ?? '0.00'}</span>
-            )
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status: string) => {
-              const { label, type } = getExpenseItemStatusDisplay(status);
-              return (
-                <Pill 
-                  label={label} 
-                  type={type} 
-                  className="gba:text-center"
-                />
-              );
-            }
-          },
           {
             title: '',
             key: 'actions',
@@ -355,103 +270,185 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = (props) => {
               <ActionButton
                 onClick={(e) => e.stopPropagation()}
                 flowData={[
+                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED') 
+                 ?  [
                   {
                     category: 'Actions',
                     key: 'edit',
                     label: 'Edit',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Edit expense item:', record.id);
+                    onClick: () => {
+                      startProcess({
+                        domain: 'employee-expense',
+                        processName: 'changeExpenseItem',
+                        payload: {
+                          employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                          expenseItemIds: [record.id]
+                        },
+                        builderType: 'NATIVE_SCREEN'
+                      });
                     }
-                  },
+                  }
+                 ] : [],
                   {
                     category: 'Navigations',
                     key: 'view',
                     label: 'View Details',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
+                    onClick: () => {
                       handleSelectItem(record);
                     }
                   },
-                  {
-                    category: 'Actions',
-                    key: 'delete',
-                    label: 'Delete',
-                    onClick: (e?: React.MouseEvent) => {
-                      e?.stopPropagation();
-                      console.log('Delete expense item:', record.id);
-                    }
-                  }
+                  ...(record.status === 'CREATED' || record.status === 'ASSIGNED'
+                    ? [
+                        {
+                          category: 'Actions',
+                          key: 'discard',
+                          label: 'Discard Expense Item',
+                          onClick: () => {
+                            handleDeleteSelection([record.id]);
+                          }
+                        }
+                      ]
+                    : [])
                 ]}
                 portalContainer={document.body}
                 data-testid={`actions-${record.id}`}
                 size="md"
               />
             )
-          }
+          },
+          createColumn('title', 'Title', (text: string) => (
+            <div style={{ fontWeight: 'bold' }} data-testid="expense-title-cell">{text}</div>
+          )),
+          createColumn('expenseDate', getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date'), (date: string) => {
+            const formattedDate = date
+              ? formatDate(date, 'date.long')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
+            return <div style={{ fontSize: '12px', color: '#666' }} data-testid="expense-expense-date-cell">{formattedDate}</div>;
+          }, { width: 140 }),
+          createColumn('status', 'Status', (status: string) => {
+            const { label, type } = getExpenseItemStatusDisplay(status);
+            return <Pill label={label} type={type} className="gba:text-center" data-testid="expense-status-cell" />;
+          }),
+          {
+            title: 'Attachment',
+            dataIndex: 'expenseItemFile',
+            key: 'attachment',
+            width: 80,
+            align: 'center',
+            render: (expenseItemFile: any[]) => (
+              expenseItemFile && expenseItemFile.length > 0 ? (
+                <div className="gba:flex gba:items-center gba:justify-center">
+                  <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                </div>
+              ) : (
+                <div className="gba:flex gba:items-center gba:justify-center">
+                  <FileImageOutlined style={{ fontSize: '24px', color: '#d9d9d9' }} />
+                </div>
+              )
+            )
+          },
+          createColumn('reimbursableAmount', 'Reimbursable Amount', (amount: number, record: any) => {
+            const currency = record.currency?.code || '';
+            return (
+              <span data-testid="expense-amount-cell">
+                {formatNumberFunction(String(amount ?? '0'))} {currency}
+              </span>
+            );
+          }, { onCell: () => ({ className: 'gba:text-right' }) }),
         ] as any}
       />
     );
-  }, [items, currentPage, pageSize, handleTableChange, isLoading, error, selectedRowKeys, handleRowSelectionChange, handleSelectItem, totalCount]);
+  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleTableChange, selectedRowKeys, handleRowSelectionChange, handleSelectItem, createColumn, contextProps.userInfo]);
 
-  // Render expense details panel using the ExpenseItemDetails component
   const renderExpenseDetails = useMemo(() => {
     if (!selectedItem) return null;
 
     return (
-      <ExpenseItemDetails 
-        selectedItem={selectedItem} 
+      <ExpenseItemDetails
+        selectedItem={selectedItem}
         onClose={handleCloseDetails}
-        {...contextProps}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
       />
     );
   }, [selectedItem, handleCloseDetails, contextProps]);
 
+  const currentFilterGroups = useMemo(() => {
+    return filterGroups.map(group => ({
+      ...group,
+      filters: (group.filters || []).map(filter => ({ ...filter, selected: selectedFilters.includes(filter.id) }))
+    }));
+  }, [filterGroups, selectedFilters]);
+
+  // Enhanced table change handler for sorting
+  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      setSortField('');
+      setSortOrder(undefined);
+    }
+  };
+
   return (
-      <DataContainer
-        dataControllerProps={{
-          search: search,
-          filter: currentSelectedFilters,
-          setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
-            // Handle filter removal when X is clicked or filters are cleared
-            const filtersToRemove = currentSelectedFilters.filter(f => !newFilters.includes(f));
-            filtersToRemove.forEach(filterId => (props.removeFilter || localRemoveFilter)(filterId));
-            console.log('Filters removed:', filtersToRemove);
-            
-            // Always fetch new data with the remaining filters
-            setCurrentPage(1); // Reset to first page
-            
-            // Build filters based on newFilters (remaining filters)
-            const filter = getCurrentFilters();
-            
-            console.log('Fetching with remaining filters:', filter);
-            fetchItems(search, 1, pageSize, filter);
-          },
-          addButton: {
-            onClick: handleAddExpenseItem,
-            label: 'Add',
-            'data-testid': 'add-expense-item-button'
-          },
-          listTitle: "My Expense Items",
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          filterLabelMap: filterLabelMap,
-        }}
-        dataFilterProps={{
-          filterGroups: currentFilterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        hideFilter={false}
-        dataBody={renderDataBody()}
-        contentBackground="white"
-        dataDetails={selectedItem ? {
-          title: selectedItem.title,
-          icon: <FileTextOutlined />,
-          content: renderExpenseDetails,
-          onClose: handleCloseDetails
-        } : undefined}
-      />
+    <DataContainer
+      dataControllerProps={{
+        listTitle: 'Expense Items',
+        listAmount: totalCount ? `${totalCount}` : undefined,
+        search: search,
+        setSearch: handleSearchChange,
+        placeholder: 'Search by description, amount, or status...',
+        filter: selectedFilters,
+        setFilter: setFilters,
+        filterLabelMap: filterLabelMap,
+        actions: [
+          ...(selectedRowKeys.length > 0
+            ? [
+                <button
+                  key="create-expense-request"
+                  className="gba:btn gba:btn-primary"
+                  data-testid="create-expense-request-btn"
+                  onClick={handleCreateExpenseRequest}
+                >
+                  Create Expense Request (from Selection)
+                </button>,
+                <button
+                  key="delete-selection"
+                  className="gba:btn gba:btn-danger"
+                  data-testid="delete-selection-btn"
+                  onClick={() => handleDeleteSelection()}
+                >
+                  Delete Selection
+                </button>
+              ]
+            : []),
+          <button
+            key="add-expense-item"
+            className="gba:btn gba:btn-primary gba:inline-flex gba:items-center"
+            data-testid="add-expense-item-btn"
+            onClick={handleAddExpenseItem}
+          >
+            <PlusSquareIcon className="gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add')}
+          </button>
+        ],
+      }}
+      dataFilterProps={{
+        filterGroups: filterGroups,
+        onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
+      }}
+      dataBody={renderDataBody()}
+      dataDetails={selectedItem ? {
+        title: selectedItem.title,
+        icon: <FileTextOutlined />,
+        content: renderExpenseDetails,
+        onClose: handleCloseDetails
+      } : undefined}
+    />
   );
-};
+});
 
 export default ExpenseItemsTable;

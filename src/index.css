@@ -11,12 +11,71 @@
   initial-value: #0000;
 }
 
+/* Global smooth scrolling for better tab transitions */
+html {
+  scroll-behavior: smooth;
+}
+
 /* Now import Tailwind and other styles */
 @import "tailwindcss" prefix(gba);
 @config "../tailwind.config.js";
 @import "tw-animate-css";
 
-@import "@newwork/nw-design-system/dist/index.css";
+@import "@newwork/nw-design-system/style";
+
+/* Import all business app specific styles */
+@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css";
+@import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
+@import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
+@import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
+@import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
+
+/* Expense Request Wizard CSS imports */
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css";
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css";
+@import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css";
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css";
+
+/* Custom properties can be declared after imports */
+@property --tw-gradient-to {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+@property --tw-gradient-from {
+  syntax: "*";
+  inherits: false;
+  initial-value: #0000;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+/* ========================================================================
+ * DESIGN SYSTEM INTEGRATION
+ * All design tokens now come from @newwork/nw-design-system
+ * No local overrides - maintains consistency and single source of truth
+ * ======================================================================== */
+
+/* 
+ * ✅ REMOVED: All duplicate design tokens
+ * ✅ REASON: @newwork/nw-design-system provides comprehensive token system
+ * ✅ BENEFIT: Single source of truth, consistent theming, proper dark mode
+ * 
+ * All tokens (colors, spacing, shadows, etc.) are now inherited from:
+ * - nw-design-system/src/styles/semantic/colors.css
+ * - nw-design-system/src/styles/semantic/spacing.css  
+ * - nw-design-system/src/styles/semantic/effects.css
+ * - nw-design-system/src/styles/foundation/core.css
+ */
 
 /* Flow Wizard Dialog Styles */
 .gba\:flow-wizard-dialog .ant-modal-content {
@@ -118,6 +177,11 @@
   }
 }
 
+:root {
+  --font-primary: 'Roboto Flex', sans-serif;
+  --font-secondary: 'Roboto Flex', sans-serif;
+}
+
 .gba\:category-expanded {
   animation: slideDown 0.3s ease;
 }
@@ -157,3 +221,26 @@
   background: #a8a8a8;
 }
 
+/* Spinner animation for status progression loading */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Calendar activity scrollbar styling */
+.gba\:overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 2px;
+}
+
+.gba\:overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}

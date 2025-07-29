@@ -1,16 +1,21 @@
-import { env } from '../../env/EnvUtils';
-import { CatalogEntry, GetCatalogEntriesParams, GetCatalogEntriesResponse, GetCatalogsParams, GetCatalogsResponse } from '../../types/CatalogTypes';
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
-import { RestClient, type RequestOptions } from '../rest/RestClient';
+import { env } from "../../env/EnvUtils";
+import {
+  CatalogEntry,
+  GetCatalogEntriesParams,
+  GetCatalogEntriesResponse,
+  GetCatalogsParams,
+  GetCatalogsResponse,
+} from "../../types/CatalogTypes";
+import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
+import { RestClient, type RequestOptions } from "../rest/RestClient";
 
-const BASE_PATH = 'api/v1/catalogs';
+const BASE_PATH = "api/v1";
 
 export class CatalogManagerClient extends RestClient {
-  
   constructor() {
-    let url: string = env('NEXT_PUBLIC_CATALOG_API') ?? '';
-    if (!url.endsWith('/')) {
-      url += '/';
+    let url: string = env("NEXT_PUBLIC_CATALOG_API") ?? "";
+    if (!url.endsWith("/")) {
+      url += "/";
     }
 
     url += BASE_PATH;
@@ -18,7 +23,10 @@ export class CatalogManagerClient extends RestClient {
     super(url, {});
   }
 
-  private replacePathParams(path: string, params: Record<string, string | number> = {}): string {
+  private replacePathParams(
+    path: string,
+    params: Record<string, string | number> = {}
+  ): string {
     return Object.entries(params).reduce(
       (result, [key, value]) => result.replace(`{${key}}`, String(value)),
       path
@@ -30,23 +38,28 @@ export class CatalogManagerClient extends RestClient {
       this.headers = {};
     }
 
-    this.headers["Authorization"] = setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers["Authorization"] =
+      setAccessTokenToAuthorizationHeader(accessToken);
   }
 
   public async getCatalogEntriesList(
     pathParams: GetCatalogEntriesParams,
     params: GetCatalogsParams = {},
-    options: Omit<RequestOptions, 'body'> = {}
+    options: Omit<RequestOptions, "body"> = {}
   ): Promise<GetCatalogEntriesResponse> {
+    const { limit, offset, value, ...restParams } = params;
+    const path = this.replacePathParams(
+      "/catalogs/{catalogIdentifier}/{version}/entries",
+      {
+        catalogIdentifier: pathParams.catalogIdentifier,
+        version: pathParams.version || "v1", // Default to 'v1' if not provided
+      }
+    );
 
-    const { limit, offset, ...restParams } = params;
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries', {
-      catalogIdentifier: pathParams.catalogIdentifier,
-      version: pathParams.version || 'v1', // Default to 'v1' if not provided
-    });
+    const queryParams: Record<string, string | number | boolean> = {
+      ...restParams,
+    };
 
-    const queryParams: Record<string, string | number | boolean> = { ...restParams };
-    
     if (limit !== undefined) {
       queryParams.limit = limit;
     }
@@ -54,23 +67,26 @@ export class CatalogManagerClient extends RestClient {
       queryParams.offset = offset;
     }
 
-    return this.get<GetCatalogEntriesResponse>(
-      path,
-      {
-        ...options,
-        params: queryParams,
-      }
-    );
+    if (value !== undefined) {
+      queryParams.value = value;
+    }
+
+    console.log(queryParams);
+    return this.get<GetCatalogEntriesResponse>(path, {
+      ...options,
+      params: queryParams,
+    });
   }
 
   public async getCatalogs(
     params: GetCatalogsParams = {},
-    options: Omit<RequestOptions, 'body'> = {}
+    options: Omit<RequestOptions, "body"> = {}
   ): Promise<GetCatalogsResponse> {
-
     const { limit, offset, ...restParams } = params;
-    const queryParams: Record<string, string | number | boolean> = { ...restParams };
-    
+    const queryParams: Record<string, string | number | boolean> = {
+      ...restParams,
+    };
+
     if (limit !== undefined) {
       queryParams.limit = limit;
     }
@@ -78,83 +94,54 @@ export class CatalogManagerClient extends RestClient {
       queryParams.offset = offset;
     }
 
-    return this.get<GetCatalogsResponse>(
-      '',
-      {
-        ...options,
-        params: queryParams,
-      }
-    );
+    return this.get<GetCatalogsResponse>("/catalogs", {
+      ...options,
+      params: queryParams,
+    });
   }
 
   public async createCatalogEntry(
     catalogIdentifier: string,
     version: string,
-    entry: Omit<CatalogEntry, 'id' | 'type'>,
-    options: Omit<RequestOptions, 'body'> = {}
+    entry: Omit<CatalogEntry, "id" | "type">,
+    options: Omit<RequestOptions, "body"> = {}
   ): Promise<CatalogEntry> {
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries', {
-      catalogIdentifier,
-      version: version || 'v1', // Default to 'v1' if not provided
-    });
-
-    return this.post<CatalogEntry>(
-      path,
-      entry,
-      options
+    const path = this.replacePathParams(
+      "/catalogs/{catalogIdentifier}/{version}/entries",
+      {
+        catalogIdentifier,
+        version: version || "v1", // Default to 'v1' if not provided
+      }
     );
+
+    return this.post<CatalogEntry>(path, entry, options);
   }
 
   public async updateCatalogEntry(
     catalogIdentifier: string,
     version: string,
     entryId: string,
-    entry: Partial<Omit<CatalogEntry, 'id' | 'type'>>,
-    options: Omit<RequestOptions, 'body'> = {}
+    entry: Partial<Omit<CatalogEntry, "id" | "type">>,
+    options: Omit<RequestOptions, "body"> = {}
   ): Promise<CatalogEntry> {
-    // Ensure we're using just the numeric part of the entryId
-    // The ID might be in format "DocumentType:v1:123" and we need just "123"
-    const numericId = entryId.split(':').pop() || entryId;
-    
-    // Include version in the path
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries/{entryId}', {
-      catalogIdentifier,
-      version: version || 'v1', // Default to 'v1' if not provided
-      entryId: numericId, // Use just the numeric part
+    const path = this.replacePathParams("/catalog-entries/{entryId}", {
+      entryId: entryId,
     });
 
-    console.log('Update catalog entry path:', path);
-
-    return this.put<CatalogEntry>(
-      path,
-      entry,
-      options
-    );
+    return this.put<CatalogEntry>(path, entry, options);
   }
 
   public async deleteCatalogEntry(
     catalogIdentifier: string,
     version: string,
     entryId: string,
-    options: Omit<RequestOptions, 'body'> = {}
+    options: Omit<RequestOptions, "body"> = {}
   ): Promise<void> {
-    // Ensure we're using just the numeric part of the entryId
-    // The ID might be in format "DocumentType:v1:123" and we need just "123"
-    const numericId = entryId.split(':').pop() || entryId;
-    
-    // Include version in the path
-    const path = this.replacePathParams('/{catalogIdentifier}/{version}/entries/{entryId}', {
-      catalogIdentifier,
-      version: version || 'v1', // Default to 'v1' if not provided
-      entryId: numericId, // Use just the numeric part
+    const path = this.replacePathParams("/catalog-entries/{entryId}", {
+      entryId: entryId,
     });
 
-    console.log('Delete catalog entry path:', path);
-
-    return this.delete(
-      path,
-      options
-    );
+    return this.delete(path, options);
   }
 }
 

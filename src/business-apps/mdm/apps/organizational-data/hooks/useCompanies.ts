@@ -9,7 +9,7 @@ import {
   OrganizationalNode 
 } from '../types';
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
 
 export const useCompanies = (context: BusinessAppContextProps) => {
   const [hierarchyState, setHierarchyState] = useState<CompanyHierarchyState>({
