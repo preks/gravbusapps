@@ -57,6 +57,11 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
           code
         }
       }
+      employeeDocumentId
+      employeeDocument {
+        file
+        name
+      }
     }
   }
 `;
@@ -103,20 +108,54 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
           code
         }
       }
+      employeeDocumentId
+      employeeDocument {
+        file
+        name
+      }
     }
   }
 `;
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!) {
+  query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
     ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        requestDate: {_gte: $startDate, _lt: $endDate}
+        status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]}
       }
     ) {
       aggregate {
         count
+        sum {
+          totalAmount
+        }
+      }
+    }
+    PendingApproval: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    ReimbursableAmount: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_nin: ["PAID", "CLOSED", "TRANSFERRED"]}
+      }
+    ) {
+      aggregate {
+        sum {
+          reimbursableAmount
+        }
       }
     }
   }

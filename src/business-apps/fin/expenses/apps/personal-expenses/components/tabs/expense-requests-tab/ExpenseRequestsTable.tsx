@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Alert, Empty } from 'antd';
+import { Alert, Empty, Modal } from 'antd';
 import { 
   Table, 
   TableHeader, 
@@ -16,8 +16,6 @@ import {
   Badge 
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import Pill, { PillType } from '@/components/pill';
@@ -25,7 +23,8 @@ import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { formatDate, formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { startProcess } from '@/common/utils/start-process';
+import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -87,6 +86,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Selected row keys for table
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
+  // Print functionality state
+  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
+  const [printPdfUrl, setPrintPdfUrl] = useState<string>('');
+  const [printLoading, setPrintLoading] = useState<boolean>(false);
+  
+  // Use the file service hook
+  const { printExpenseRequest, isMounted } = useExpenseRequestFileService(props);
+
   // Sync local search input with prop changes
   useEffect(() => {
     setSearchInput(search || '');
@@ -140,7 +147,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
       displayText = statusConfig.label;
     } else {
-      // Format backend status with only first letter uppercase
       displayText = `${statusConfig.label}`;
     }
     return { type: statusConfig.type, text: displayText };
@@ -158,9 +164,38 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
   // Handle editing an expense request
   const handleEditExpenseRequest = useCallback((item: typeof items[0]) => {
-    // Add logic to edit the expense request
     console.log('Editing expense request:', item.id);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseRequest',
+      payload: {
+            employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+            expenseRequestId: item.id
+      }
+    });
   }, []);
+
+  // Handle printing an expense request
+  const handlePrintRequest = useCallback(async (record: typeof items[0]) => {
+    setPrintLoading(true);
+    setPrintModalOpen(true);
+
+    try {
+      const result = await printExpenseRequest(record);
+      
+      if (result.success && result.pdfUrl && isMounted.current) {
+        setPrintPdfUrl(result.pdfUrl);
+      } else if (!result.success) {
+        console.error('Error printing request:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching print PDF:', error);
+    } finally {
+      if (isMounted.current) {
+        setPrintLoading(false);
+      }
+    }
+  }, [printExpenseRequest, isMounted]);
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
@@ -208,6 +243,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       Title
                     </TableHead>
                     <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      Request Date
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
                       Start Date
                     </TableHead>
                     <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
@@ -216,10 +254,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                     <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
                       Status
                     </TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
                       Reimbursable Amount
                     </TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
                       Advance
                     </TableHead>
                   </TableRow>
@@ -227,7 +265,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                 <TableBody>
                   {!isLoading && (!items || items.length === 0) ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="gba:py-8 gba:text-center">
+                      <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <Empty 
                           description="No expense requests found matching your criteria." 
                           style={{ margin: '40px 0' }}
@@ -248,27 +286,39 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                               data-testid={`expense-request-update-button-${record.id}`}
                               variant="secondary"
                               staticFlowData={[
+                                ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                 {
                                   category: 'Actions',
                                   key: 'edit-expense-request',
-                                  label: 'Edit',
+                                  label: 'Update Request',
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handleEditExpenseRequest(record);
                                   }
-                                },
+                                }]: [],
+                                  ...((record.status === "APPROVED"  || record.status === "VERIFIED" || record.status === "BOOKED" || record.status === "TRANSFERRED" || record.status === "PAID") && (record.employeeDocument && record.employeeDocument?.file && record.employeeDocument.file.trim() !== '')) ? [
                                 {
-                                  category: 'Navigations',
-                                  key: 'view-expense-request',
-                                  label: 'View Details',
+                                  category: 'Actions',
+                                  key: 'print',
+                                  label: 'Print',
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
-                                    handleSelectItem(record);
+                                    handlePrintRequest(record);
                                   }
-                                }
+                                }]: [],
+                                  {
+                                    category: 'Navigations',
+                                    key: 'view-expense-request',
+                                    label: 'View Request Details',
+                                    onClick: (e?: React.MouseEvent) => {
+                                      e?.stopPropagation();
+                                      handleSelectItem(record);
+                                    }
+                                  },
                               ]}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
+                              deferMainContextRequestsUntilClick
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
@@ -278,6 +328,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {record.title}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6">
+                          {record.requestDate ? dayjs(record.requestDate).format(getDateFormat('date.short')) : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {record.startDate ? dayjs(record.startDate).format(getDateFormat('date.short')) : '-'}
@@ -437,7 +490,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     },
     listTitle: "My Expense Requests",
     listAmount: totalCount ? `${totalCount}` : undefined,
-    filterLabelMap: filterLabelMap,
+    filterLabelMap: filterLabelMap
   }), [searchInput, selectedFilters, handleSearchChange, handleFilterChange, clearFilters, totalCount, filterLabelMap, onAddExpenseRequest]);
 
   const dataFilterProps = useMemo(() => ({
@@ -458,15 +511,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [selectedItem, renderExpenseRequestDetails, handleCloseDetails]);
 
   return (
-    <DataContainer
-      dataControllerProps={dataControllerProps}
-      dataFilterProps={dataFilterProps}
-      hideFilter={false}
-      dataBody={renderDataBody()}
-      contentBackground="white"
-      floatingDetails={true}
-      dataDetails={dataDetails}
-    />
+    <>
+      <DataContainer
+        dataControllerProps={dataControllerProps}
+        dataFilterProps={dataFilterProps}
+        hideFilter={false}
+        dataBody={renderDataBody()}
+        contentBackground="white"
+        floatingDetails={true}
+        dataDetails={dataDetails}
+      />
+
+      {/* Print Modal */}
+      <Modal
+        open={printModalOpen}
+        title="Print Expense Request"
+        footer={null}
+        onCancel={() => {
+          setPrintModalOpen(false);
+          setPrintPdfUrl('');
+        }}
+        width="90vw"
+        style={{ top: 20 }}
+        destroyOnClose={true}
+        data-testid="print-request-modal"
+      >
+        {printLoading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+            <Spinner />
+          </div>
+        ) : (
+          <iframe
+            src={printPdfUrl}
+            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
+            title="Print Preview"
+            data-testid="print-request-iframe"
+          />
+        )}
+      </Modal>
+    </>
   );
 });
 

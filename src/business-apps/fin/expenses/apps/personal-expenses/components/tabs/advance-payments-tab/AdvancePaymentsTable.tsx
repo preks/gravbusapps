@@ -91,6 +91,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null);
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
@@ -102,12 +106,12 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Build fetch parameters
   const fetchParams = useMemo(() => ({
     searchText,
-    currentPage: 1,
-    pageSize: 20,
+    currentPage,
+    pageSize,
     currentStatusFilter,
     currentAmountRange,
     currentAdvanceRange
-  }), [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
 
   // Sync search with parent prop
   useEffect(() => {
@@ -167,6 +171,16 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Handle clicking on a row to view details
   const handleSelectItem = useCallback((item: AdvancePayment) => {
     setSelectedItem(item);
+  }, []);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage);
+  }, []);
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
   }, []);
 
   // Handle closing the details panel
@@ -380,9 +394,105 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             </TableBody>
           </Table>
         </div>
+        
+        {/* Pagination - Only show if there are multiple pages */}
+        {totalCount > pageSize ? (
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+            <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const newPageSize = Number(e.target.value);
+                    handlePageSizeChange(newPageSize);
+                  }}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
+                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Button
+                  variant="outline"
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+                >
+                  <span className="gba:sr-only">Go to first page</span>
+                  ⟨⟨
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+                >
+                  <span className="gba:sr-only">Go to previous page</span>
+                  ⟨
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+                >
+                  <span className="gba:sr-only">Go to next page</span>
+                  ⟩
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+                >
+                  <span className="gba:sr-only">Go to last page</span>
+                  ⟩⟩
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {`${totalCount} advance payments`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newPageSize = Number(e.target.value);
+                  handlePageSizeChange(newPageSize);
+                }}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     );
-  }, [items, isLoading, error, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken]);
+  }, [items, isLoading, error, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken, totalCount]);
 
   // Memoize DataContainer props to prevent unnecessary re-renders
   const dataControllerProps = useMemo(() => ({

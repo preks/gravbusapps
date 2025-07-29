@@ -186,7 +186,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
-      processName: 'changeExpenseItem',
+      processName: 'changeExpenseRequest',
       payload,
       builderType: 'NATIVE_SCREEN'
     });
@@ -319,19 +319,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           >
             <PiPlus className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add')}
-          </Button>,
-          // Clear filters button
-          ...(allSelectedFilters.length > 0 ? [
-            <Button
-              key="clear-filters"
-              variant="outline"
-              data-testid="clear-filters-btn"
-              onClick={clearFilters}
-              className="gba:inline-flex gba:items-center gba:gap-2"
-            >
-              Clear Filters
-            </Button>
-          ] : [])
+          </Button>
         ],
       }}
       dataFilterProps={{

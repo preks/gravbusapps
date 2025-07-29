@@ -4,6 +4,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/StartDateRangeFilter';
 import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/EndDateRangeFilter';
+import RequestDateRangeFilter from '../components/tabs/expense-requests-tab/RequestDateRangeFilter';
 import dayjs from 'dayjs';
 
 // Define expense request status types based on srn_expenseRequest mappings
@@ -52,6 +53,10 @@ export interface ExpenseRequestWhereClause {
       _gte?: string;
       _lte?: string;
     };
+    requestDate?: {
+      _gte?: string;
+      _lte?: string;
+    };
   }>;
 }
 
@@ -67,6 +72,8 @@ export interface UseExpenseRequestFiltersReturn {
   getFilters: () => ExpenseRequestWhereClause;
   setStartDateRange: (dateRange: [Date | null, Date | null] | null) => void;
   setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void;
+  setRequestDateRange: (dateRange: [Date | null, Date | null] | null) => void;
+  filterLabelMap: Record<string, string>;
 }
 
 /**
@@ -78,6 +85,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
+  const [requestDateRange, setRequestDateRange] = useState<[Date | null, Date | null] | null>(null);
 
   // Define these as constants for stable references
   // const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -98,6 +106,17 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'requestDateRange',
+      title: 'Request Date',
+      type: 'date-range' as any,
+      customComponent: React.createElement(RequestDateRangeFilter, {
+        requestDateRange: requestDateRange,
+        onDateRangeChange: setRequestDateRange,
+        placeholder: ['Start date', 'End date']
+      }),
+      hideSearch: true,
+    },
     {
       id: 'startDateRange',
       title: 'Start Date',
@@ -149,26 +168,59 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         };
       })
     }
-  ], [selectedFilters, startDateRange, endDateRange]);
+  ], [selectedFilters, startDateRange, endDateRange, requestDateRange]);
   
+  // Helper function to format date range for display
+  const formatDateRangeLabel = useCallback((dateRange: [Date | null, Date | null] | null): string => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return '';
+    
+    const startDate = dateRange[0];
+    const endDate = dateRange[1];
+    
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (startDate) {
+      return `From ${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (endDate) {
+      return `To ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    }
+    
+    return '';
+  }, []);
+
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
-      'last30days': 'Last 30 days',
-      'last90days': 'Last 90 days',
-      'last180days': 'Last 180 days',
+      // 'last30days': 'Last 30 days',
+      // 'last90days': 'Last 90 days',
+      // 'last180days': 'Last 180 days',
       'general': 'General Expense',
       'trip': 'Trip',
     };
     
-    // Add all status options
+    // Add all status options using the same display names as the filter dropdown
     Object.values(ExpenseRequestStatus).forEach(status => {
-      const key = status.toLowerCase();
-      labelMap[key] = getStatusDisplayName(status);
+      labelMap[status] = getStatusDisplayName(status);
     });
     
+    // Add date range labels if active
+    const requestDateLabel = formatDateRangeLabel(requestDateRange);
+    if (requestDateLabel) {
+      labelMap['requestDateRange'] = `Request Date: ${requestDateLabel}`;
+    }
+    
+    const startDateLabel = formatDateRangeLabel(startDateRange);
+    if (startDateLabel) {
+      labelMap['startDateRange'] = `Start Date: ${startDateLabel}`;
+    }
+    
+    const endDateLabel = formatDateRangeLabel(endDateRange);
+    if (endDateLabel) {
+      labelMap['endDateRange'] = `End Date: ${endDateLabel}`;
+    }
+    
     return labelMap;
-  }, []);
+  }, [getStatusDisplayName, formatDateRangeLabel, requestDateRange, startDateRange, endDateRange]);
   
   // Add filter with proper dependency handling - returns the new filters array for immediate use
   const addFilter = useCallback((filterId: string): string[] => {
@@ -199,10 +251,30 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const removeFilter = useCallback((filterId: string): string[] => {
     let newFilters: string[] = [];
     
-    setSelectedFilters(prev => {
-      newFilters = prev.filter(f => f !== filterId);
-      return newFilters;
-    });
+    if (filterId === 'requestDateRange') {
+      setRequestDateRange(null);
+      setSelectedFilters(prev => {
+        newFilters = prev.filter(f => f !== filterId);
+        return newFilters;
+      });
+    } else if (filterId === 'startDateRange') {
+      setStartDateRange(null);
+      setSelectedFilters(prev => {
+        newFilters = prev.filter(f => f !== filterId);
+        return newFilters;
+      });
+    } else if (filterId === 'endDateRange') {
+      setEndDateRange(null);
+      setSelectedFilters(prev => {
+        newFilters = prev.filter(f => f !== filterId);
+        return newFilters;
+      });
+    } else {
+      setSelectedFilters(prev => {
+        newFilters = prev.filter(f => f !== filterId);
+        return newFilters;
+      });
+    }
     
     return newFilters;
   }, []);
@@ -246,6 +318,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       console.log('ExpenseRequestFilters: Adding endDate _lte:', endDateRange[1]);
       conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
+    if (requestDateRange?.[0]) {
+      console.log('ExpenseRequestFilters: Adding requestDate _gte:', requestDateRange[0]);
+      conditions.push({ requestDate: { _gte: formatStartDate(requestDateRange[0]) } });
+    }
+    if (requestDateRange?.[1]) {
+      console.log('ExpenseRequestFilters: Adding requestDate _lte:', requestDateRange[1]);
+      conditions.push({ requestDate: { _lte: formatEndDate(requestDateRange[1]) } });
+    }
 
     // Always exclude DISCARDED requests at backend level for correct pagination
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
@@ -254,12 +334,13 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     console.log('ExpenseRequestFilters: Final where clause:', JSON.stringify(result, null, 2));
     return result;
 
-  }, [search, selectedFilters, startDateRange, endDateRange]);
+  }, [search, selectedFilters, startDateRange, endDateRange, requestDateRange]);
 
   const clearFilters = useCallback(() => {
     setSelectedFilters([]);
     setStartDateRange(null);
     setEndDateRange(null);
+    setRequestDateRange(null);
     setSearch('');
   }, []);
 
@@ -279,6 +360,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     clearFilters,
     getFilters,
     setStartDateRange,
-    setEndDateRange
+    setEndDateRange,
+    setRequestDateRange,
+    filterLabelMap
   };
 };

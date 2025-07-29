@@ -6,6 +6,7 @@ import ExpenseRequestsTable from './ExpenseRequestsTable';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
 import { message } from 'antd';
+import dayjs from 'dayjs';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -20,6 +21,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [activeWidget, setActiveWidget] = useState<string | null>(null);
 
   const {
     filterGroups,
@@ -31,10 +33,79 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     setSearch,
     getFilters,
     setStartDateRange,
-    setEndDateRange
+    setEndDateRange,
+    setRequestDateRange,
+    filterLabelMap
   } = useExpenseRequestFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
+
+  // Helper function to get current month date range
+  const getCurrentMonthRange = useCallback(() => {
+    const today = dayjs();
+    const currentMonthStart = today.startOf('month').toDate();
+    const currentMonthEnd = today.endOf('month').toDate();
+    return [currentMonthStart, currentMonthEnd] as [Date, Date];
+  }, []);
+
+  // Handle widget clicks with immediate visual feedback
+  const handleWidgetClick = useCallback((widgetKey: string) => {
+    const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    setActiveWidget(newActiveWidget);
+    
+    // Clear existing filters for all widget activations
+    clearFilters();
+    
+    // Apply widget-specific filter logic
+    switch (newActiveWidget) {
+      case 'total-requests':
+        const currentMonthRange = getCurrentMonthRange();
+        setRequestDateRange(currentMonthRange);
+        handleFilterChange('PAID', true);
+        handleFilterChange('CLOSED', true);
+        handleFilterChange('TRANSFERRED', true);
+        break;
+      case 'total-amount':
+        const today = dayjs();
+        const currentMonthStart = today.startOf('month').toDate();
+        const currentMonthEnd = today.endOf('month').toDate();
+        setRequestDateRange([currentMonthStart, currentMonthEnd]);
+        handleFilterChange('PAID', true);
+        handleFilterChange('CLOSED', true);
+        handleFilterChange('TRANSFERRED', true);
+        break;
+      case 'pending-approval':
+        // Clear any existing date range filters
+        setRequestDateRange(null);
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Set status filter to only show PENDING requests
+        const allStatusesForPending = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForPending.forEach(status => {
+          handleFilterChange(status, false);
+        });
+        handleFilterChange('PENDING', true);
+        break;
+      case 'reimbursable':
+        // Clear any existing date range filters
+        setRequestDateRange(null);
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Set status filters to exclude PAID, CLOSED, TRANSFERRED
+        const allStatusesForReimbursable = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForReimbursable.forEach(status => {
+          if (['PAID', 'CLOSED', 'TRANSFERRED'].includes(status)) {
+            handleFilterChange(status, false);
+          } else {
+            handleFilterChange(status, true);
+          }
+        });
+        break;
+      case null:
+        // Widget deactivated - filters already cleared above
+        break;
+    }
+  }, [activeWidget, clearFilters, handleFilterChange, setRequestDateRange, getCurrentMonthRange, setStartDateRange, setEndDateRange]);
 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
@@ -52,50 +123,31 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     }
   }, [fetchItems, currentPage, pageSize, memoizedFilters, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
 
-  // Create filter label map for proper display labels
-  const filterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {};
-    
-    // Map status values to their display labels
-    const statusLabels = {
-      'PREPARED': 'Prepared',
-      'CREATED': 'Draft (Created)',
-      'PENDING': 'In Approval (Pending)',
-      'ASSIGNED': 'Assigned',
-      'APPROVED': 'Approved',
-      'REJECTED': 'Revision Required (Rejected)',
-      'VERIFIED': 'In Transit (Verified)',
-      'BOOKED': 'In Transit (Booked)',
-      'PAID': 'Paid',
-      'CLSOED': 'Closed',
-      'TRANSFERRED': 'In Transit (Transferred)',
-    };
-    
-    // Add all status mappings
-    Object.entries(statusLabels).forEach(([status, label]) => {
-      labelMap[status] = label;
-    });
-    
-    return labelMap;
-  }, []);
+
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
-    return items && items.length > 0 ? <ExpenseRequestStatistics items={items} /> : null;
-  }, [items]);
+    return (
+      <ExpenseRequestStatistics 
+        {...contextProps} 
+        onWidgetClick={handleWidgetClick}
+        activeWidgetKey={activeWidget || undefined}
+      />
+    );
+  }, [contextProps, handleWidgetClick, activeWidget]);
   
-  // Update the content header only when it changes and when items are loaded
+  // Update the content header only when it changes
   const onContentHeaderChange = props.onContentHeaderChange;
   useEffect(() => {
-    // Only update content header when we have items and the callback exists
-    if (onContentHeaderChange && items && items.length > 0) {
+    // Only update content header when the callback exists
+    if (onContentHeaderChange) {
       // Use a small timeout to ensure proper React rendering cycle
       const timerId = setTimeout(() => {
         onContentHeaderChange(contentHeader);
       }, 0);
       return () => clearTimeout(timerId);
     }
-  }, [onContentHeaderChange, contentHeader, items]);
+  }, [onContentHeaderChange, contentHeader]);
 
   // Handle adding a new expense request
   const handleAddExpenseRequest = useCallback(() => {
@@ -123,6 +175,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
   const handleClearAllFilters = useCallback(() => {
     clearFilters();
+    setActiveWidget(null);
     setCurrentPage(1);
   }, [clearFilters]);
 
