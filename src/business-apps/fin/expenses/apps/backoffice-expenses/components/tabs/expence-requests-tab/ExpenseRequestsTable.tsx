@@ -8,32 +8,15 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests';
 import { 
   Table, 
-  TableHeader, 
   TableBody, 
-  TableHead, 
-  TableRow, 
-  TableCell,
   Alert, 
-  Spinner,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Button
+  Spinner
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
-import Pill from '@/components/pill/Pill';
-import { MoreHorizontal } from 'lucide-react';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
 import { env } from '@/common/env/EnvUtils';
 import { useRestClient } from '@/common/network/rest/useRestClient';
@@ -41,6 +24,11 @@ import { ResponseType } from '@/common/network/rest/RestClient';
 import { Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
+import { ExpenseRequestRow } from './ExpenseRequestRow';
+import { ExpenseRequestTableHeader } from './ExpenseRequestTableHeader';
+import { ExpenseRequestPdfModal } from './ExpenseRequestPdfModal';
+import { ExpenseRequestPagination } from './ExpenseRequestPagination';
+import { useExpenseRequestActions } from '../../../hooks/useExpenseRequestActions';
 
 
 function debounce<T extends (...args: any[]) => any>(
@@ -87,6 +75,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [pdfUrl, setPdfUrl] = useState<string>('');
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string>('');
+
+  // Use the actions hook
+  const { handleDownloadAccountingNote, handleTriggerCSV, handlePrintExpenseRequest } = useExpenseRequestActions(props);
 
   const updateURLParams = useCallback((params: {
     search?: string;
@@ -432,73 +423,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleTableChange(pagination, _filters, sorter);
   }, [handleTableChange]);
 
-  const handleDownloadAccountingNote = useCallback(async (record: ExpenseData) => {
-    try {
-      const response = await restClient.get(`/cs-selgros/expense-sheets/expense-request/${record.id}/csv`, {
-        responseType: ResponseType.TEXT,
-        headers: {
-          Authorization: `Bearer ${props.accessToken}`,
-        },
-      });
-      
-      const originalName = record.employeeDocument?.name || `accounting-note-${record.code}`;
-      const csvFileName = originalName.replace(/\.[^/.]+$/, '.csv');
-      
-      const blob = new Blob([response], { type: 'text/csv;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = csvFileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading accounting note:', error);
-    }
-  }, [restClient, props.accessToken]);
-
-
-  const handleTriggerCSV = useCallback(async (record: ExpenseData) => {
-    try {
-      await startProcess({
-        domain: 'cs-selgros',
-        processName: 'createSelgrosExpenseSheetManualTrigger',
-        payload: {
-          employeeId: record.employeeId,
-          expenseRequestId: record.id
-        }
-      });
-      
-      // Show success toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'expense.request.csv.trigger.success',
-          'CSV was generated successfully'
-        ),
-        'success'
-      );
-    } catch (error) {
-      console.error('Failed to trigger CSV process:', error);
-      
-      // Show error toast
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'expense.request.csv.trigger.error',
-          'Failed to generate CSV. Please try again.'
-        ),
-        'error'
-      );
-    }
-  }, []);
-
-  const handlePrintExpenseRequest = useCallback(async (record: ExpenseData) => {
+  // Wrapper for print function to handle modal state
+  const handlePrintWithModal = useCallback(async (record: ExpenseData) => {
     setPdfLoading(true);
     setPdfError('');
     setPdfUrl('');
     
     try {
-      const result = await printExpenseRequest(record);
+      const result = await handlePrintExpenseRequest(record);
       
       if (result.success && result.pdfUrl) {
         setPdfUrl(result.pdfUrl);
@@ -513,7 +445,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     } finally {
       setPdfLoading(false);
     }
-  }, [printExpenseRequest]);
+  }, [handlePrintExpenseRequest]);
 
   const handleClosePdfModal = useCallback(() => {
     setIsPdfModalVisible(false);
@@ -613,198 +545,29 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           ) : (
             <div data-testid="expense-requests-data-table">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-[60px]">Actions</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Employee Code</TableHead>
-                    <TableHead>SAP Number</TableHead>
-                    <TableHead>Request Number</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Creation Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="gba:text-right">Remaining Amount</TableHead>
-                    <TableHead className="gba:text-right">Total Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
+                <ExpenseRequestTableHeader />
                 <TableBody>
                   {expenses.map((record: ExpenseData) => (
-                    <TableRow 
+                    <ExpenseRequestRow
                       key={record.id}
-                      onClick={() => handleRowClick(record)}
-                      className="gba:cursor-pointer gba:hover:bg-gray-50"
-                    >
-                      <TableCell className="gba:w-[60px]">
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="gba:h-8 gba:w-8 p-0"
-                                data-testid={`expense-request-actions-${record.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <span className="gba:sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => handleRowClick(record)}
-                                data-testid={`view-expense-request-${record.id}`}
-                              >
-                                View Expense Request Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadAccountingNote(record);
-                                }}
-                                data-testid={`download-accounting-note-${record.id}`}
-                              >
-                                Download Accounting Note
-                              </DropdownMenuItem>
-                              
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTriggerCSV(record);
-                                }}
-                                data-testid={`trigger-csv-${record.id}`}
-                              >
-                                Trigger CSV
-                              </DropdownMenuItem>
-                              {((record.status === 'PAID' ||
-                                 record.status === 'BOOKED' ||
-                                 record.status === 'APPROVED' ||
-                                 record.status === 'VERIFIED' ||
-                                 record.status === 'TRANSFERRED') &&
-                                record.employeeDocumentId !== null) && (
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePrintExpenseRequest(record);
-                                  }}
-                                  data-testid={`print-expense-request-${record.id}`}
-                                >
-                                  Print
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-employee-${record.id}`}>
-                          {record.employee}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-employee-code-${record.id}`}>
-                          {record.employeeCode}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-sap-number-${record.id}`}>
-                          {record.sapNumber}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-code-${record.id}`}>
-                          {record.code}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-title-${record.id}`}>
-                          {record.title}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-start-date-${record.id}`}>
-                          {record.startDate && record.startDate !== 'N/A' ? formatDate(record.startDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-end-date-${record.id}`}>
-                          {record.endDate && record.endDate !== 'N/A' ? formatDate(record.endDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-creation-date-${record.id}`}>
-                          {record.creationDate && record.creationDate !== 'N/A' ? formatDate(record.creationDate, 'date.short') : '-'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div data-testid={`expense-request-status-${record.id}`}>
-                          <Pill
-                            label={getExpenseRequestStatusDisplay(record.status).label}
-                            type={getExpenseRequestStatusDisplay(record.status).type}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid={`expense-request-remaining-amount-${record.id}`}>
-                          {(() => {
-                            const remainingAmount = Number(record.totalRemainingAmount) || 0;
-                            const currencyCode = record.currency?.code || '';
-                            return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
-                          })()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <span data-testid={`expense-request-total-amount-${record.id}`}>
-                          {formatNumberFunction(String(record.totalAmount))} {record.currency?.code || ''}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                      record={record}
+                      onViewDetails={handleRowClick}
+                      onDownloadAccountingNote={handleDownloadAccountingNote}
+                      onTriggerCSV={handleTriggerCSV}
+                      onPrintExpenseRequest={handlePrintWithModal}
+                    />
                   ))}
                 </TableBody>
               </Table>
               
               {/* Pagination */}
               {totalItems > 0 && (
-                <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
-                  <div className="gba:text-sm gba:text-gray-600">
-                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} items`}
-                  </div>
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                          className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: Math.ceil(totalItems / pageSize) }, (_, i) => i + 1)
-                        .filter(page => page === 1 || page === Math.ceil(totalItems / pageSize) || Math.abs(page - currentPage) <= 1)
-                        .map((page, index, array) => (
-                          <React.Fragment key={page}>
-                            {index > 0 && array[index - 1] !== page - 1 && (
-                              <PaginationItem>
-                                <span className="gba:px-2">...</span>
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink
-                                onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
-                                className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </React.Fragment>
-                        ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                          className={currentPage >= Math.ceil(totalItems / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
+                <ExpenseRequestPagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onPageChange={(page, pageSize) => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                />
               )}
             </div>
           )
@@ -879,40 +642,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       />
       
       {/* PDF Modal */}
-      <Modal
-        title="Expense Request Document"
-        open={isPdfModalVisible}
-        onCancel={handleClosePdfModal}
-        footer={null}
-        width="80%"
-        style={{ top: 20 }}
-        data-testid="expense-request-pdf-modal"
-      >
-        {pdfLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <Spinner size="lg" />
-            <div>Loading PDF...</div>
-          </div>
-        ) : pdfError ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <Alert variant="destructive">
-              <div className="gba:font-medium">Error Loading PDF</div>
-              <div className="gba:text-sm">{pdfError}</div>
-            </Alert>
-          </div>
-        ) : pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            style={{ width: '100%', height: '70vh', border: 'none' }}
-            title="Expense Request PDF"
-            data-testid="expense-request-pdf-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <div>No PDF URL available</div>
-          </div>
-        )}
-      </Modal>
+      <ExpenseRequestPdfModal
+        isVisible={isPdfModalVisible}
+        pdfUrl={pdfUrl}
+        pdfLoading={pdfLoading}
+        pdfError={pdfError}
+        onClose={handleClosePdfModal}
+      />
     </>
   );
 };
