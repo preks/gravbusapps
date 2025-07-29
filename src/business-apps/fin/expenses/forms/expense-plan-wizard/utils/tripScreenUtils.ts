@@ -9,6 +9,7 @@ import { LocationData } from '../../expense-request-wizard/utils/types';
 import { ADDRESS_TYPES_ENUM, PointTypeEnum, TripDirectionDefaultValue } from '../../expense-request-wizard/constants/constants';
 import { mergeUniqueById } from '../../../utils/functionUtils';
 import { EVENTS } from '../../../utils/constants';
+import { findRegionRuleDetail, getAllowanceRegionRuleDetailId, getCountryRefFromRegion, getValidLocality } from '../../expense-request-wizard/utils/tripScreenUtils';
 
 /**
  * Prepares trip data for saving
@@ -123,19 +124,19 @@ export const handleTripSubmitAction = (
   if (!initialPlan) {
     showToast(
       getTranslationFromI18nKeyAndLabel(
-        "lowcoder:modify_expense_request.trip_screen.missing_request_data",
-        "Missing request data"
+        "lowcoder:add_items_to_plan.add_trip_info_to_plan.missing_plan_data",
+        "Missing plan data"
       ),
       "error"
     );
     return false;
   }
   const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,skipStep);
-  const requestItems: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const planItems: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
     expensePlanData.ExpenseItem.forEach((item: any) => {
       if (item) {
-        requestItems.push({
+        planItems.push({
           id: item.id,
           code: item.code || '',
           title: item.title || '',
@@ -158,7 +159,7 @@ export const handleTripSubmitAction = (
       });
     });
   }
-  const combinedItems = mergeUniqueById(requestItems, additionalItems);
+  const combinedItems = mergeUniqueById(planItems, additionalItems);
   
   (logObject as LogObject).expensePlanItems = {
     planItems: combinedItems
@@ -181,8 +182,23 @@ export const handleTripSubmitAction = (
   (logObject as LogObject).expenseRequestTrips = {
     expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialPlan.expenseRequestTrip || [])
   };
-console.log("logObject",logObject)
-  // dispatchProcessContinueEvent(event, logObject);
+
+  (logObject as LogObject).createBusinessTrip = true;
+
+  const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
+  const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
+  
+  (logObject as LogObject).employeeAbsence = {
+    "typeRef": "AbsenceType:v1:A101",
+    "employeeId": initialPlan.employeeId,
+    "startDate":  startTripDateTime,
+    "endDate":  endTripDateTime,
+    "description":  initialPlan.description,
+    "substituteEmployee": ""
+}
+  //remove it
+  console.log("logObject",logObject)
+  dispatchProcessContinueEvent(event, logObject);
   return true;
 };
 
@@ -282,51 +298,6 @@ export const transformTrips = (startLocation: LocationData, destinations: Locati
   
   return tripsArray;
 };
-
-/**
- * Find region rule detail from travel region reference
- * @param travelRegionRef - Travel region reference
- * @param expenseRulesData - Expense rules data
- * @returns Region rule detail or undefined
- */
-const findRegionRuleDetail = (travelRegionRef: string, expenseRulesData: any): any => {
-  if (!expenseRulesData?.AllowanceRegionRuleDetail) return undefined;
-
-  const hasHomeRegionRule = expenseRulesData.homeRegionRule?.length > 0;
-  if (hasHomeRegionRule && 
-      (!travelRegionRef || travelRegionRef === expenseRulesData.homeRegionRule[0].travelRegionRef)) {
-    return expenseRulesData.AllowanceRegionRuleDetail.find(
-      (rule: any) => rule.travelRegionRef === expenseRulesData.homeRegionRule[0].travelRegionRef
-    );
-  }
-
-  return expenseRulesData.AllowanceRegionRuleDetail.find(
-    (rule: any) => rule.travelRegionRef === travelRegionRef
-  );
-};
-
-/**
- * Get country reference from travel region
- * @param travelRegionRef - Travel region reference
- * @param expenseRulesData - Expense rules data
- * @returns Country reference
- */
-export const getCountryRefFromRegion = (travelRegionRef: string, expenseRulesData: any): string => {
-  const regionRuleDetail = findRegionRuleDetail(travelRegionRef, expenseRulesData);
-  return regionRuleDetail?.countryRef || "";
-};
-
-/**
- * Get allowance region rule detail ID from travel region
- * @param travelRegionRef - Travel region reference
- * @param expenseRulesData - Expense rules data
- * @returns Allowance region rule detail ID
- */
-export const getAllowanceRegionRuleDetailId = (travelRegionRef: string, expenseRulesData: any): string => {
-  const regionRuleDetail = findRegionRuleDetail(travelRegionRef, expenseRulesData);
-  return regionRuleDetail?.id || "";
-};
-
 /**
  * Create border crossing transformer
  * @returns Border crossing transformer function
@@ -401,26 +372,6 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
       item.expensePlanId === objectToCheck.expensePlan &&
       item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail;
   }) || null;
-};
-
-/**
- * Get valid locality from employee addresses
- * @param employeeAddresses - Employee addresses array
- * @returns Valid locality or null
- */
-export const getValidLocality = (employeeAddresses: any[]) => {
-  if (!Array.isArray(employeeAddresses) || employeeAddresses.length === 0) {
-    return "";
-  }
-  const primary = employeeAddresses.find(address => 
-    address.type === ADDRESS_TYPES_ENUM.value.PRIMARY);
-  if (primary && primary.locality && primary.locality.trim()) {
-    return primary.locality;
-  }
-  const secondary = employeeAddresses.find(address => 
-    address.type === ADDRESS_TYPES_ENUM.value.SECONDARY && 
-    address.locality && address.locality.trim());
-  return secondary ? secondary.locality : "";
 };
 
 

@@ -1,5 +1,3 @@
-import { BusinessAppContextProps } from "@/business-apps/types";
-
   /**
    * Trip data interface
    */
@@ -60,4 +58,13 @@ import { BusinessAppContextProps } from "@/business-apps/types";
     expensePlanItems?: {
       planItems: ExpensePlanItemData[] | any[];
     };
+    createBusinessTrip?: boolean;
+    employeeAbsence?: {
+      typeRef: string,
+      employeeId: any,
+      startDate: any,
+      endDate: any,
+      description: string,
+      substituteEmployee: string
+    }
   }

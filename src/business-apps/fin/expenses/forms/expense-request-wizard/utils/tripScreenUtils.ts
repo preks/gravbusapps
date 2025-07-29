@@ -192,7 +192,7 @@ export const transformTrips = (startLocation: LocationData, destinations: Locati
  * @param expenseRulesData - Expense rules data
  * @returns Region rule detail or undefined
  */
-const findRegionRuleDetail = (travelRegionRef: string, expenseRulesData: any): any => {
+export const findRegionRuleDetail = (travelRegionRef: string, expenseRulesData: any): any => {
   if (!expenseRulesData?.AllowanceRegionRuleDetail) return undefined;
 
   const hasHomeRegionRule = expenseRulesData.homeRegionRule?.length > 0;

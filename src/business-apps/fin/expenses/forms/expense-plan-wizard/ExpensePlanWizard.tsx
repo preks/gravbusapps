@@ -110,10 +110,11 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_plan.title_required', 'Title is required');
+      return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_custom_rule', 'Please enter a title');
     }
     if (value.length > 50) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_plan.title_too_long', 'Title must be 50 characters or less');
+      return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.maximum_characters_title_error_message',
+        'Maximum limit reached: The title can be up to 50 characters only.');
     }
     return '';
   };
@@ -126,7 +127,6 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   const startEditingTitle = () => {
     setIsEditingTitle(true);
-    setTitleError('');
   };
 
   const cancelEditingTitle = () => {

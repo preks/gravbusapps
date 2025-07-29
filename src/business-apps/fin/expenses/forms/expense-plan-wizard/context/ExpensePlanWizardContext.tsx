@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Form } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
 import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../queries/ExpensePlanWizardQueries';
@@ -73,7 +73,6 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   userInfo,
   additionalData,
 }) => {
-  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(true);
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null);
@@ -95,8 +94,6 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   const [skipAdvancePayment, setSkipAdvancePayment] = useState<boolean>(false);
   const graphqlClient = useGraphqlClient(accessToken);
 
-  // Fetch expense data when employeeRuleId is available
-  // Made public so it can be called after expense item creation
   const fetchExpenseData = async () => {
     try {
       if (!accessToken || !employeeRuleId || !userInfo) return;
@@ -111,10 +108,6 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       // Extract expenseId from additionalData
       const expenseId = additionalData?.psi_taskPayload?.expensePlan?.id;
       if (!expenseId) {
-        showToast(
-          t("lowcoder:create_expense_plan_wizard.missing_expense_id", "Missing expense plan ID"),
-          "error"
-        );
         setLoading(false);
         return;
       }
@@ -123,7 +116,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       const employeeId = userInfo?.employeeDetails?.employeeId;
       if (!employeeId) {
         showToast(
-          t("lowcoder:create_expense_plan_wizard.missing_employee_id", "Missing employee ID"),
+          getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request_wizard.missing_employee_id", "Missing employee ID"),
           "error"
         );
         setLoading(false);
@@ -162,7 +155,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       setExpensePlanData(response);
     } catch (error) {
       showToast(
-        t("lowcoder:modify_expense_plan.error_fetching_expense_data", "Error fetching expense plan data"),
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense plan data"),
         "error"
       );
     } finally {
@@ -179,7 +172,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
         const employeeId = userInfo?.employeeDetails?.employeeId;
         if (!employeeId) {
           showToast(
-            t("lowcoder:create_expense_plan_wizard.missing_employee_id", "Missing employee ID"),
+            getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request_wizard.missing_employee_id", "Missing employee ID"),
             "error"
           );
           setLoading(false);
@@ -197,19 +190,19 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
           setExpenseRuleError(null);
         } else {
           setExpenseRuleError(
-            t("lowcoder:create_expense_plan.missing_expense_rule_message", "No expense rule found for this employee")
+            getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.missing_expense_rule_message", "No expense rule found for this employee")
           );
           showToast(
-            t("lowcoder:create_expense_plan.missing_expense_rule_message", "No expense rule found for this employee"),
+            getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.missing_expense_rule_message", "No expense rule found for this employee"),
             "error"
           );
         }
       } catch (error) {
         setExpenseRuleError(
-          t("lowcoder:create_expense_plan.error_employee_rule", "Error fetching employee expense rule")
+          getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.error_employee_rule", "Error fetching employee expense rule")
         );
         showToast(
-          t("lowcoder:create_expense_plan.error_employee_rule", "Error fetching employee expense rule"),
+          getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.error_employee_rule", "Error fetching employee expense rule"),
           "error"
         );
       } finally {
@@ -218,7 +211,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     };
 
     initializeData();
-  }, [accessToken, userInfo, t]);
+  }, [accessToken, userInfo]);
 
   // Fetch expense data when employeeRuleId is available
   useEffect(() => {

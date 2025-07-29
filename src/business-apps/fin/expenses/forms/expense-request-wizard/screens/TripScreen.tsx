@@ -574,7 +574,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
       return false;
     }
     
-    if (startLocationOverlap || endLocationOverlap) {
+    if (startLocationOverlap?.isError===true || endLocationOverlap?.isError===true) {
       updateTripFormValidation(false);
       return false;
     }

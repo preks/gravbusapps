@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Form, Checkbox } from "antd";
-import { Button } from "@newwork/gravity-ui-catalog";
+import { Form } from "antd";
+import { Button, Checkbox } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from "@/common/utils/windowUtils";
 import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
@@ -13,15 +13,14 @@ import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocatio
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../queries/ExpensePlanWizardQueries";
 import { useExpensePlanWizardContext } from "../context/ExpensePlanWizardContext";
 import { showToast } from "../../../utils/notificationUtils";
-import LoadScreen from "../../expense-request-wizard/screens/LoadScreen";
 import { fetchEmployeeRule } from "../queries/ExpensePlanWizardQueries";
-import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { getOverlapWarningMessage } from '../utils/dateOverlapUtils';
 import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLocation, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../../expense-request-wizard/constants/constants";
 import RejectionComment from "../../expense-request-wizard/components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
-import { mergeUniqueById } from '../../../utils/functionUtils';
 import { setLocalitiesDefault } from '../utils/tripScreenUtils';
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils';
+import { formatDateTimeToISO } from '../../expense-request-wizard/utils/dateOverlapUtils';
 
 
 /**
@@ -232,13 +231,13 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         }
       } catch (error) {
         showToast(
-          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.error_fetching_expense_data", "Error fetching expense plan data"),
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense plan data"),
           "error"
         );
       }
     } catch (error) {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.error_fetching_expense_data", "Error fetching expense plan data"),
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense plan data"),
         "error"
       );
     }
@@ -294,7 +293,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
           const employeeId = userInfo?.employeeDetails?.employeeId;
           if (!employeeId) {
             showToast(
-              getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.missing_employee_id", "Missing employee ID"),
+              getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.missing_employee_id", "Missing employee ID"),
               "error"
             );
             return;
@@ -310,15 +309,11 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
             });
             
             setExpenseRulesData(rulesResponse);
-            // Use setByExternalCustomComponent with transformed data
             setByExternalCustomComponent(expensePlanData, rulesResponse, setStartLocation, setDestinations, setEndLocation);
           } else {
-            // Still try to prefill with available data even if rule is missing
-
             setByExternalCustomComponent(expensePlanData, null, setStartLocation, setDestinations, setEndLocation);
           }
         } else {
-
           setByExternalCustomComponent(expensePlanData, expenseRulesData, setStartLocation, setDestinations, setEndLocation);
         }
       } else {
@@ -326,7 +321,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       }
     } catch (error) {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.error_loading_trip_data", "Error loading trip data"),
+        getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_loading_trip_data", "Error loading trip data"),
         "error"
       );
     }
@@ -347,54 +342,46 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   };
 
   const updateDestination = (id: string, field: string, value: any) => {
-    setDestinations(prev =>
-      prev.map(dest => {
-        if (dest.id === id) {
-          const updatedDest = { ...dest, [field]: value };
-          const limits = getMinMaxLimits(
-            startLocation,
-            endLocation,
-            prev,
-            updatedDest
-          );
-          return validateAndSanitizeLocation(updatedDest, limits);
+    setDestinations((prev) =>
+      prev.map((destination) => {
+        if (destination.id !== id) return destination;
+
+        const updatedDestination = { ...destination, [field]: value };
+        if (field === 'isAbroad' && destination.isAbroad && !value && expenseRulesData?.homeRegionRule?.length > 0) {
+          updatedDestination.travelRegionRef = expenseRulesData.homeRegionRule[0].travelRegionRef;
         }
-        return dest;
+
+        const limits = getMinMaxLimits(
+          startLocation,
+          endLocation,
+          prev,
+          destination
+        );
+
+        return validateAndSanitizeLocation(updatedDestination, limits);
       })
     );
   };
 
   const addDestination = () => {
-    const newDestination: LocationData = {
-      ...defaultDestination,
-      id: `destination-${Date.now()}`,
-      isCollapsed: false
-    };
-    
-    const limits = getMinMaxLimits(
-      startLocation,
-      endLocation,
-      destinations,
-      newDestination
-    );
-    
-    const validatedDestination = validateAndSanitizeLocation(newDestination, limits);
-    setDestinations(prev => [...prev, validatedDestination]);
+    const newId = `destination-${destinations.length + 1}`;
+    setDestinations((prev) => [
+      ...prev,
+      {
+        id: newId,
+        name: "Destination",
+        isAbroad: false,
+        location: "",
+        departureDate: undefined,
+        departureTime: undefined,
+        isCollapsed: false,
+        travelRegionRef: undefined,
+      },
+    ]);
   };
 
   const removeDestination = (id: string) => {
-    setDestinations(prev => {
-      const filtered = prev.filter(dest => dest.id !== id);
-      return filtered.map(dest => {
-        const limits = getMinMaxLimits(
-          startLocation,
-          endLocation,
-          filtered,
-          dest
-        );
-        return validateAndSanitizeLocation(dest, limits);
-      });
-    });
+    setDestinations((prev) => prev.filter((dest) => dest.id !== id));
   };
 
   const [destinations, setDestinations] = useState<LocationData[]>([
@@ -403,62 +390,76 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        if (!accessToken || !userInfo) {
-          setLoading(false);
-          return;
-        }
+    if (accessToken && userInfo?.employeeId && expensePlanData) {
+      if (startLocation.departureDate || startLocation.departureTime) {
+        checkAbsencesAndPlans(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          false 
+        );
+      }
+      
+      if (endLocation.departureDate || endLocation.departureTime) {
+        checkAbsencesAndPlans(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          true
+        );
+      }
+    }
+  }, [accessToken, userInfo, expensePlanData, startLocation.departureDate, startLocation.departureTime, endLocation.departureDate, endLocation.departureTime]);
 
-        const employeeId = userInfo?.employeeDetails?.employeeId;
-        if (!employeeId) {
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!accessToken || !employeeRuleId || !expensePlanData) return;
+      
+      try {
+        const activeUserLocale = getCurrentActiveUserLocale();
+        
+        const expenseId = expensePlanData?.ExpensePlanByPk?.id;
+        if (!expenseId) {
           showToast(
-            getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.missing_employee_id", "Missing employee ID"),
+            getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_request.error_missing_user_info", "Missing user information"),
             "error"
           );
-          setLoading(false);
           return;
         }
 
-        // Get current date
-        const currentDate = new Date().toISOString();
+        const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+          expenseRuleId: employeeRuleId,
+          activeUserLocale
+        });
         
-        // Fetch employee rule
-        const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken);
-
-        if (employeeRuleData && employeeRuleData.expenseRuleId) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId);
-          
-          const activeUserLocale = getCurrentActiveUserLocale();
-          const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-            expenseRuleId: employeeRuleData.expenseRuleId,
-            activeUserLocale
-          });
-          
-          setExpenseRulesData(rulesResponse);
-        }
-
-        // Load initial trip data if available
-        await loadInitialTripData();
+        setExpenseRulesData(rulesResponse);
         
+        await loadInitialTripData()
       } catch (error) {
         showToast(
-          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_plan.error_loading_data", "Error loading data"),
+          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
           "error"
         );
-      } finally {
-        setLoading(false);
       }
     };
-
+    
     fetchData();
-  }, [accessToken, userInfo]);
+  }, [accessToken, employeeRuleId, expensePlanData, additionalData, setEmployeeRuleId]);
 
-  // Calculate limits
-  const startLimits = useMemo(() => getMaxLimits(destinations, endLocation), [startLocation, endLocation, destinations]);
-  const endLimits = useMemo(() => getMinLimits(startLocation,destinations), [startLocation, endLocation, destinations]);
+  const startLimits = useMemo(
+    () => getMaxLimits(destinations, endLocation),
+    [destinations, endLocation]
+  );
+
+  const endLimits = useMemo(
+    () => getMinLimits(startLocation, destinations),
+    [startLocation, destinations]
+  );
+
+  
   const destinationLimits: DestinationLimit = useMemo(
     () =>
       destinations.reduce((acc, destination) => {
@@ -483,7 +484,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       return false;
     }
     
-    if (startLocationOverlap || endLocationOverlap) {
+    if (startLocationOverlap?.isError===true || endLocationOverlap?.isError===true) {
       updateTripFormValidation(false);
       return false;
     }
@@ -500,7 +501,6 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     
     for (let i = 0; i < destinations.length; i++) {
       const destination = destinations[i];
-      
       if (!destination.location || (destination.isAbroad && !destination.travelRegionRef)) {
         updateTripFormValidation(false);
         return false;
@@ -528,6 +528,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     return true;
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, updateTripFormValidation]);
   
+
   useEffect(() => {
     validateTripForm();
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
@@ -584,7 +585,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     <div className="gba:tripScreenContainer" data-testid="trip-screen-container">
       <Form form={form} layout="vertical">
         {latestRejectComment && (
-          <RejectionComment comment={latestRejectComment} />
+          <RejectionComment isRequest={false} comment={latestRejectComment} />
         )}
         
         <div className="gba:locationsContainer" data-testid="locations-container">
@@ -640,7 +641,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
                 dateTimeLimits={startLimits}
                 travelRegions={getFilteredTravelRegions(startLocation.isAbroad)}
                 overlapWarning={endLocation.departureDate ? null : startLocationOverlap }
-                showFutureWarning={false}
+                showPastWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
                   inputFieldLabel:getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location', 'Start Location'),
@@ -766,6 +767,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
                   dateFieldLabel:getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.end_date_label', 'Arrival Date'),
                   timeFieldLabel:getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.end_time_label', 'Arrival Time')
                 }}
+                showPastWarning={true}
               />
             </LocationContainer>
           </div>
@@ -773,8 +775,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
           {/* Skip Advance Payment Checkbox */}
           <div className="gba:skipAdvancePaymentContainer" data-testid="skip-advance-payment-container">
             <Checkbox
-              checked={skipAdvancePayment}
-              onChange={(e) => setSkipAdvancePayment(e.target.checked)}
+              value={skipAdvancePayment}
+              name={"skip-advance-payment-checkbox"}
+              onChange={(e) =>setSkipAdvancePayment(e.value as boolean || false)}
               data-testid="skip-advance-payment-checkbox"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment')}
