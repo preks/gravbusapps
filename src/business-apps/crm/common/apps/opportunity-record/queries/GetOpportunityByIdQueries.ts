@@ -11,18 +11,27 @@ export interface OpportunityResponse {
   name: string;
   estimatedAmount?: number;
   salesPipelineRef?: string;
+  salesPipeline?: {
+    id: string;
+    value: string;
+    type: string;
+    code: string;
+    objectValue?: any;
+  };
   salesPipelineStageRef?: string;
   salesPipelineStage?: {
     id: string;
     value: string;
     type: string;
     code: string;
+    objectValue?: any;
   };
   opportunityStatus?: {
     id: string;
     value: string;
     type: string;
     code: string;
+    objectValue?: any;
   };
   currency?: {
     id: string;
@@ -74,6 +83,7 @@ export interface OpportunityResponse {
       value: string;
       type: string;
       code: string;
+      objectValue?: any;
     };
   };
   createdAt: string;
@@ -88,18 +98,27 @@ export const GET_OPPORTUNITY_BY_ID = `
       name
       estimatedAmount
       salesPipelineRef
+      salesPipeline {
+        id
+        value
+        type
+        code
+        objectValue
+      }
       salesPipelineStageRef
       salesPipelineStage {
         id
         value
         type
         code
+        objectValue
       }
       opportunityStatus {
         id
         value
         type
         code
+        objectValue
       }
       currency {
         id
@@ -151,6 +170,7 @@ export const GET_OPPORTUNITY_BY_ID = `
           value
           type
           code
+          objectValue
         }
       }
       createdAt
