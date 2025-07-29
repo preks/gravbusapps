@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { CalendarTimeline, TimelineEvent, Select } from '@newwork/gravity-ui-catalog';
-import type { SelectProps } from '@newwork/gravity-ui-catalog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 
 interface EmployeeAbsence {
@@ -49,6 +48,7 @@ const ABSENCE_QUERY = `
         pictureThumbnail
         employeePosition {
           organizationalUnit {
+            id
             name
           }
         }
@@ -79,21 +79,49 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const extractOrgUnits = useCallback((absences: EmployeeAbsence[]): OrganizationalUnit[] => {
-    const orgUnitsMap = new Map<string, OrganizationalUnit>();
-    
-    absences.forEach(absence => {
-      const orgUnit = absence.employee?.employeePosition?.organizationalUnit;
-      if (orgUnit?.name) {
-        orgUnitsMap.set(orgUnit.name, {
-          id: orgUnit.name,
-          name: orgUnit.name
-        });
-      }
-    });
+  const fetchOrganizationalUnits = useCallback(async () => {
+    if (!accessToken) return;
 
-    return Array.from(orgUnitsMap.values());
-  }, []);
+    try {
+      // Query employee positions to get ALL organizational units that have active employees
+      const employeePositionsQuery = `
+        query GetEmployeePositionsWithOrgUnits {
+          EmployeePosition(
+            where: { 
+              employee: { isDeleted: { _eq: false } }
+            }
+          ) {
+            organizationalUnit {
+              id
+              name
+            }
+          }
+        }
+      `;
+
+      const result = await graphQLClient.request(employeePositionsQuery);
+      
+      // Extract unique organizational units
+      const orgUnitsMap = new Map<string, { id: string; name: string }>();
+      
+      result?.EmployeePosition?.forEach((position: any) => {
+        if (position.organizationalUnit) {
+          orgUnitsMap.set(position.organizationalUnit.id, {
+            id: position.organizationalUnit.id,
+            name: position.organizationalUnit.name
+          });
+        }
+      });
+
+      // Convert to array and sort by name
+      const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      
+      setOrganizationalUnits(uniqueOrgUnits);
+    } catch (error) {
+      console.error('Calendar: Error fetching organizational units:', error);
+      setOrganizationalUnits([]);
+    }
+  }, [graphQLClient, accessToken]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
@@ -108,16 +136,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         }
       )
 
-      const orgUnits = extractOrgUnits(EmployeeAbsence);
-      setOrganizationalUnits(orgUnits);
-      
-      const userOrgUnit = orgUnits.find(unit => unit.name === userInfo?.employeeDetails?.organizationalUnit?.name);
-      if (userOrgUnit) {
-        setSelectedOrgUnit(userOrgUnit.name);
-      } else if (orgUnits.length > 0 && !selectedOrgUnit) {
-        setSelectedOrgUnit(orgUnits[0].name);
-      }
-
       setEmployeeAbsences(EmployeeAbsence)
     } catch (err) {
       console.error('Error fetching employee absences:', err)
@@ -125,23 +143,40 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     } finally {
       setIsLoading(false)
     }
-  }, [graphQLClient, extractOrgUnits, selectedOrgUnit])
+  }, [graphQLClient])
 
-  const handleOrgUnitChange: SelectProps['onChange'] = (field) => {
-    if (field && typeof field === 'object' && 'value' in field) {
-      setSelectedOrgUnit(field.value as string);
-    }
-  };
+
 
   useEffect(() => {
+    fetchOrganizationalUnits();
     fetchData();
-  }, [fetchData]);
+  }, [fetchOrganizationalUnits, fetchData]);
+
+  // Set default selected org unit when organizational units are loaded
+  useEffect(() => {
+
+    
+    if (organizationalUnits.length > 0 && !selectedOrgUnit) {
+      const userOrgUnit = organizationalUnits.find(unit => unit.name === userInfo?.employeeDetails?.organizationalUnit?.name);
+      if (userOrgUnit) {
+        setSelectedOrgUnit(userOrgUnit.name);
+      } else {
+        setSelectedOrgUnit(organizationalUnits[0].name);
+      }
+    }
+  }, [organizationalUnits, selectedOrgUnit, userInfo?.employeeDetails?.organizationalUnit?.name]);
 
   const filteredAbsences = useMemo(() => {
-    if (!selectedOrgUnit) return employeeAbsences;
-    return employeeAbsences.filter(
+    if (!selectedOrgUnit) {
+      return employeeAbsences;
+    }
+    
+    const filtered = employeeAbsences.filter(
       absence => absence.employee?.employeePosition?.organizationalUnit?.name === selectedOrgUnit
     );
+    
+
+    return filtered;
   }, [employeeAbsences, selectedOrgUnit]);
 
   const typeColorMap = new Map<string, string>();
@@ -268,27 +303,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   }
 
   return (
-    <div className="gba:space-y-4">
-      <div className="gba:flex gba:items-center gba:flex-start gba:mb-4">
-        <h2 className="gba:text-lg gba:font-semibold">Filter by Department</h2>
-        {organizationalUnits.length > 0 && (
-          <div className="gba:w-64">
-            <Select
-              name="orgUnit"
-              value={selectedOrgUnit || ''}
-              onChange={handleOrgUnitChange}
-              placeholder="Select Organization Unit"
-              disabled={isLoading}
-              data={organizationalUnits.map(org => ({
-                id: org.id,
-                name: org.name,
-                value: org.id,
-                label: org.name
-              })) as any} 
-            />
-          </div>
-        )}
-      </div>
+    <div className="gba:relative" data-testid="calendar-list-content">
+      {/* Calendar Timeline */}
       <CalendarTimeline
         items={timelineItems}
         events={timelineEvents}
@@ -320,6 +336,38 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           </div>
         )}
       />
+
+      {/* Department Filter - Positioned next to calendar icon */}
+      <div className="gba:absolute gba:top-2 gba:left-16 gba:z-10">
+        <div className="gba:w-64">
+          <Select
+            name="department"
+            value={selectedOrgUnit || ''}
+            onChange={(value: any) => {
+              if (value && value.value !== undefined) {
+                if (value.value === '') {
+                  setSelectedOrgUnit(null);
+                } else {
+                  setSelectedOrgUnit(value.value);
+                }
+              }
+            }}
+            placeholder="Filter by Department"
+            disabled={isLoading}
+            showSearch={false}
+            data={[
+              { id: 'all', name: 'All Departments', value: '', label: 'All Departments' },
+              ...organizationalUnits.map(org => ({
+                id: org.id,
+                name: org.name,
+                value: org.name,
+                label: org.name
+              }))
+            ]}
+            data-testid="calendar-department-filter"
+          />
+        </div>
+      </div>
     </div>
   )
 }
