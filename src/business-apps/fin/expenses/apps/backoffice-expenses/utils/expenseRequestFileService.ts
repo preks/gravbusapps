@@ -49,7 +49,7 @@ export const useExpenseRequestFileService = (
 
         const cleanEmployeeId = employeeId.toString().trim();
 
-        const fileId = record.employeeDocument.id;
+        const fileId = record.employeeDocument.file?.split("/").pop();
 
         if (!fileId) {
           return {
@@ -65,10 +65,10 @@ export const useExpenseRequestFileService = (
           },
           {
             appName: "employee-profile",
-            folderPath: `/documents/${cleanEmployeeId}`,
+            folderPath: `/documents/${employeeId}`,
           }
         );
-
+        console.log("blob", blob);
         const objectUrl = URL.createObjectURL(blob);
 
         return {
