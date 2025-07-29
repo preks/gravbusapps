@@ -158,28 +158,43 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = (props) => {
     
     setOrgUnitsLoading(true);
     try {
-      // Query to get only organizational units that have employees in employee positions
+      // Query to get organizational units from employees (same as CalendarList)
       const orgUnitsQuery = `
-        query GetOrganizationalUnitsWithEmployees {
-          OrganizationalUnit(
-            limit: 200
-            orderBy: [{ name: ASC }]
-            where: { 
+        query GetOrganizationalUnitsFromEmployees {
+          Employee(
+            where: {
               isDeleted: { _eq: false }
-              employeePositions: { 
-                employee: { isDeleted: { _eq: false } }
+            }
+            limit: 1000
+          ) {
+            employeePosition {
+              organizationalUnit {
+                id
+                name
               }
             }
-          ) {
-            id
-            name
           }
         }
       `;
 
       const result = await graphQLClient.request(orgUnitsQuery);
-      console.log('Organizational Units with employees loaded:', result?.OrganizationalUnit?.length || 0); // Debug
-      setOrganizationalUnits(result?.OrganizationalUnit || []);
+      
+      // Extract unique organizational units from employees
+      const orgUnitsMap = new Map<string, { id: string; name: string }>();
+      
+      result?.Employee?.forEach((employee: any) => {
+        if (employee.employeePosition?.organizationalUnit) {
+          const orgUnit = employee.employeePosition.organizationalUnit;
+          orgUnitsMap.set(orgUnit.id, {
+            id: orgUnit.id,
+            name: orgUnit.name
+          });
+        }
+      });
+
+      const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      console.log('Organizational Units with employees loaded:', uniqueOrgUnits.length); // Debug
+      setOrganizationalUnits(uniqueOrgUnits);
     } catch (error) {
       console.error('Error fetching organizational units:', error);
       setOrganizationalUnits([]);
