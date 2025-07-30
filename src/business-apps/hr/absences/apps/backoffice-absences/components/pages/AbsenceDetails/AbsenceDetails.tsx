@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AbsenceList } from '../AbsenceList/AbsenceList';
-import { useDashboardData } from '../../hooks/useDashboardData';
+import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
+import { AbsenceList } from '../../tabs/absence-list-tab/AbsenceList/AbsenceList';
+import { useDashboardData } from '../../../hooks/useDashboardData';
 
 interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
@@ -47,17 +47,17 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
   // Get calculations for the specific month
   const getMonthCalculations = () => {
-    if (!dashboardData?.monthlyTrends || !month) {
+    if (!dashboardData?.monthlyData || !month) {
       return null;
     }
 
     const monthName = getMonthDisplayName(month);
-    const monthData = dashboardData.monthlyTrends.find(trend => trend.month === monthName);
+    const monthData = dashboardData.monthlyData.find((trend: any) => trend.month === monthName);
     
     if (!monthData) return null;
 
     return {
-      totalRequests: Object.values(monthData.typeBreakdown || {}).reduce((sum, count) => sum + count, 0),
+      totalRequests: Object.values(monthData.typeBreakdown || {}).reduce((sum: number, count: number) => sum + count, 0),
       uniqueEmployees: monthData.uniqueEmployees || 0,
       avgRequestsPerEmployee: monthData.avgRequestsPerEmployee || 0,
       avgDurationPerRequest: monthData.avgDurationPerRequest || 0,
@@ -224,7 +224,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4">
                 <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
                   <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations.totalRequests}
+                    {monthCalculations?.totalRequests || 0}
                   </div>
                   <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
                     Total Requests

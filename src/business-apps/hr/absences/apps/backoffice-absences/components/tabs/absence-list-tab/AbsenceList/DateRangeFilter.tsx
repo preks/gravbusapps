@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DatePicker } from 'antd';
 import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils';
 
 const { RangePicker } = DatePicker;
 

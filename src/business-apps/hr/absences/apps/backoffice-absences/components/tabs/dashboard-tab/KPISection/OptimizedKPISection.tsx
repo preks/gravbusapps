@@ -13,10 +13,10 @@ import {
   Cell,
 } from "recharts";
 import { RiBarChartLine, RiPieChart2Line, RiBarChart2Line } from "@remixicon/react";
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DashboardData } from '../../hooks/useDashboardData';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { PiUsers, PiClock, PiCheckCircle, PiXCircle, PiCalendar, PiPercent } from 'react-icons/pi';
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
+import { DashboardData } from '../../../../types';
+import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group';
+import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi';
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
@@ -33,13 +33,10 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   const {
     totalAbsences,
     pendingAbsences,
-    approvedAbsences,
-    rejectedAbsences,
     averageDuration,
     approvalRate,
     departmentStats,
     statusBreakdown,
-    typeBreakdown,
     entitlements,
     isLoading,
     error
@@ -63,13 +60,13 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
 
   // Transform data for visualizations
   const departmentChartData = departmentStats.map(dept => ({
-    department: dept.department.length > 15 ? `${dept.department.substring(0, 15)}...` : dept.department,
-    fullName: dept.department,
+    department: dept.name.length > 15 ? `${dept.name.substring(0, 15)}...` : dept.name,
+    fullName: dept.name,
     absences: dept.totalDays,
     uniqueEmployees: dept.uniqueEmployees,
     avgDaysPerEmployee: dept.avgDaysPerEmployee,
     avgRequestsPerEmployee: dept.avgRequestsPerEmployee,
-    totalRequests: dept.count
+    totalRequests: dept.totalRequests
   }));
 
   const pieChartData = statusBreakdown.map((status, index) => ({

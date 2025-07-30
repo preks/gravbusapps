@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 // Using PageLayout headerSubViews pattern like team expenses implementation
 import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
-import { PageLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { PageLayout } from '@newwork/nw-design-system';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 
-// 🚀 OPTIMIZED: Using only optimized components with centralized dashboard data
-import { OptimizedKPISection } from './components/KPISection/OptimizedKPISection';
-import OptimizedAbsenceTrends from './components/AbsenceTrends/OptimizedAbsenceTrends';
-import { AbsenceReports } from './components/AbsenceReports/AbsenceReports';
-import { AbsenceList } from './components/AbsenceList/AbsenceList';
-import CalendarList from './components/CalendarList/CalendarList';
-import { AbsenceDetails } from './components/AbsenceDetails';
+// 🚀 OPTIMIZED: Using new organized tab structure following manager-absences pattern
+import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab } from './components/tabs';
+import { AbsenceDetails } from './components/pages/AbsenceDetails';
 import { useDashboardData } from './hooks/useDashboardData';
 
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
@@ -99,70 +95,39 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     switch (activeTab) {
       case 'dashboard':
         return (
-          <div className="gba:space-y-8" data-testid="dashboard-content">
-            
-            {/* Time Filter */}
-            <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-              <div>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">Dashboard Analytics</h2>
-                <p className="gba:text-sm gba:text-gray-500">
-                  {dashboardData.isLoading ? 'Loading...' : `Showing ${dashboardData.totalAbsences} absences`} • Filter: {timeFilter}
-                </p>
-              </div>
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <span className="gba:text-sm gba:text-gray-600">Time Period:</span>
-                <Select value={timeFilter} onValueChange={(value: any) => setTimeFilter(value)}>
-                  <SelectTrigger className="gba:w-48">
-                    <SelectValue placeholder="Select time period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="current-year">This Year</SelectItem>
-                    <SelectItem value="quarter">This Quarter</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="everything">All Time</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {/* Dashboard Components - All optimized */}
-            <OptimizedKPISection
-              accessToken={accessToken}
-              userInfo={userInfo}
-              dashboardData={dashboardData}
-            />
-            
-            <OptimizedAbsenceTrends
-              accessToken={accessToken}
-              userInfo={userInfo}
-              dashboardData={dashboardData}
-              onMonthClick={handleNavigateToAbsenceDetails}
-            />
-            
-
-          </div>
+          <DashboardTab
+            accessToken={accessToken}
+            userInfo={userInfo}
+            dashboardData={dashboardData}
+            onMonthClick={handleNavigateToAbsenceDetails}
+            timeFilter={timeFilter}
+            onTimeFilterChange={setTimeFilter}
+          />
         );
       case 'absence-list':
         return (
-          <div data-testid="absence-list-content">
-            <AbsenceList 
-              accessToken={accessToken} 
-              userInfo={userInfo}
-            />
-          </div>
+          <AbsenceListTab 
+            accessToken={accessToken} 
+            userInfo={userInfo}
+            dashboardData={dashboardData}
+          />
         );
 
       case 'calendar':
         return (
-          <div data-testid="calendar-content">
-            <CalendarList accessToken={accessToken} userInfo={userInfo} />
-          </div>
+          <CalendarTab 
+            accessToken={accessToken} 
+            userInfo={userInfo}
+            dashboardData={dashboardData}
+          />
         );
       case 'reports':
         return (
-          <div data-testid="reports-content">
-            <AbsenceReports accessToken={accessToken} userInfo={userInfo} />
-          </div>
+          <ReportsTab 
+            accessToken={accessToken} 
+            userInfo={userInfo}
+            dashboardData={dashboardData}
+          />
         );
       default:
         return null;

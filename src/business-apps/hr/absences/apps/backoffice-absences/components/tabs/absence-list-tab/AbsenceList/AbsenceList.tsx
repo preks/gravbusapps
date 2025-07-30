@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { DataContainer } from '@/components/layout/dataContainer';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { DataContainer } from '../../../../../../../../../components/layout/dataContainer';
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
 import { 
   Table, 
   TableHeader, 
@@ -15,8 +15,8 @@ import {
   Badge 
 } from '@newwork/nw-design-system';
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
+import { useCatalogManagerClient } from '../../../../../../../../../common/network/catalogs/useCatalogManagerClient';
 import dayjs from 'dayjs';
 import { DateRangeFilter } from './DateRangeFilter';
 import { CreationDateFilter } from './CreationDateFilter';
@@ -92,7 +92,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
  * Modern Absence List component matching manager-absences design exactly
  */
 export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
-  const { accessToken, userInfo, initialFilters, preFilteredData } = props;
+  const { accessToken, initialFilters, preFilteredData } = props;
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
 
@@ -396,11 +396,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         return;
       }
       
-      // Fetch catalog data for absence groups
-      const catalogData = await catalogClient.getCatalogEntriesList({
-        catalogIdentifier: 'AbsenceGroup',
-        version: 'v1'
-      });
+      // Fetch catalog data for absence groups with proper auth parameters
+      const catalogData = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
+      );
       
       const groupsMap: Record<string, string> = {};
       catalogData.data.forEach((entry: any) => {

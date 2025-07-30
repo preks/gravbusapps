@@ -11,8 +11,8 @@ import {
   ResponsiveContainer, 
   Legend 
 } from 'recharts';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DashboardData } from '../../hooks/useDashboardData';
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
+import { DashboardData } from '../../../../types';
 
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
@@ -33,13 +33,13 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
   dashboardData,
   onMonthClick
 }) => {
-  const { monthlyTrends, isLoading, error } = dashboardData;
+  const { monthlyData, isLoading, error } = dashboardData;
 
       // Transform enhanced monthly trends into chart data
     const chartData = useMemo(() => {
       // First get all unique absence types to ensure consistent ordering
       const allTypes = new Set<string>();
-      monthlyTrends.forEach(monthData => {
+      monthlyData.forEach((monthData: any) => {
         Object.keys(monthData.typeBreakdown).forEach(type => {
           if (type !== 'Unknown' && type.trim() !== '') {
             allTypes.add(type);
@@ -66,7 +66,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
     });
 
           // Convert MonthlyTrendData[] to chart format with consistent ordering
-      const chartItems = monthlyTrends.map(monthData => {
+      const chartItems = monthlyData.map((monthData: any) => {
         const shortMonth = monthData.month.substring(0, 3); // Jan, Feb, etc.
         
         // Create chart item with month and all absence types in the correct order
@@ -104,7 +104,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
     });
 
     return trendData;
-  }, [monthlyTrends]);
+  }, [monthlyData]);
 
   // Calculate totals for header display
   const { totalAbsenceDays, averagePerMonth } = useMemo(() => {

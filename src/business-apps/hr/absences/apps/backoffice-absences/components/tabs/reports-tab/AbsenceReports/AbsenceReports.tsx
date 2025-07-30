@@ -1,9 +1,9 @@
 import { Card, Spinner, Alert } from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { BusinessAppContextProps } from "../../../../../../../../../common/BusinessAppContext";
 import { RiBarChartLine } from "@remixicon/react";
 import { useState, useEffect } from "react";
-import { env } from "@/common/env/EnvUtils";
-import { navigateTo } from "@/common/utils/navigationUtils";
+
+import { navigateTo } from "../../../../../../../../../common/utils/navigationUtils";
 
 interface ResourceUrl {
   id: string;
@@ -35,32 +35,6 @@ interface Report {
   url: string;
 }
 
-const transformMenuItemsToReports = (menuItems: MenuItem[]): Report[] => {
-  const reports: Report[] = [];
-
-  const processItems = (items: MenuItem[]) => {
-    items.forEach((item) => {
-      if (item.resourceUrl?.url) {
-        reports.push({
-          id: item.id,
-          title: item.name,
-          description: item.description || 'No description available',
-          icon: <RiBarChartLine className="h-5 w-5" />,
-          category: item.resourceUrl.name || 'Report',
-          favorite: false,
-          url: `https://newwork-dev.newwork.com${item.resourceUrl.url}`,
-        });
-      }
-
-      if (item.children && item.children.length > 0) {
-        processItems(item.children);
-      }
-    });
-  };
-
-  processItems(menuItems);
-  return reports;
-};
 
 const findMenuItem = (items: MenuItem[], name: string): MenuItem | undefined => {
   for (const item of items) {
@@ -76,7 +50,7 @@ const findMenuItem = (items: MenuItem[], name: string): MenuItem | undefined => 
 };
 
 export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
+  const [filteredReports, _setFilteredReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,29 +63,10 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
       setLoading(true);
       try {
-        const response = await fetch(
-          `${env('NEXT_PUBLIC_NAVIGATION_SERVICE_API')}/menuItems`,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data || !Array.isArray(data.menuItems)) {
-          throw new Error('Invalid response format: menuItems array not found');
-        }
-
-        const reports = transformMenuItemsToReports(data.menuItems);
-        setFilteredReports(reports);
+        // 🚨 TEMPORARY: Skip navigation service call to isolate 401 error
+        console.log('🔍 TEMPORARILY SKIPPING navigation service call...');
+        setLoading(false);
+        return;
         
       } catch (err) {
         console.error('Error fetching menu items:', err);

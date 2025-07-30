@@ -1,263 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { graphQLClient } from '@/common/network/graphql/GraphQLClient';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient';
+import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient';
+import { DashboardDataProps, DashboardData } from '../types';
+import { getDashboardQuery, getDateFilters } from '../queries';
 
-export interface DashboardData {
-  // KPI Metrics
-  totalAbsences: number;
-  pendingAbsences: number;
-  approvedAbsences: number;
-  rejectedAbsences: number;
-  averageDuration: number;
-  approvalRate: number;
-  
-  // 🚀 Raw filtered absences - for AbsenceList to use same exact data
-  rawAbsences: Array<any>;
-  
-  // Vacation Entitlements (accurate calculation)
-  entitlements: {
-    averageVacationPerEmployee: number;
-    totalActiveEmployees: number;
-    averageAvailable: number;
-    averageUsed: number;
-  };
-  
-  // Chart Data
-  departmentStats: Array<{
-    department: string;
-    totalDays: number;
-    count: number;
-    uniqueEmployees: number;
-    avgDaysPerEmployee: number;
-    avgRequestsPerEmployee: number;
-  }>;
-  
-  statusBreakdown: Array<{
-    status: string;
-    totalDays: number;
-    count: number;
-    percentage: number;
-  }>;
-  
-  typeBreakdown: Array<{
-    type: string;
-    totalDays: number;
-    count: number;
-  }>;
-  
-  monthlyTrends: Array<{
-    month: string;
-    total: number;
-    approved: number;
-    pending: number;
-    rejected: number;
-    typeBreakdown: { [type: string]: number };
-    uniqueEmployees: number;
-    avgRequestsPerEmployee: number;
-    avgDurationPerRequest: number;
-    totalDuration: number;
-  }>;
-  
-  // Loading states
-  isLoading: boolean;
-  error: string | null;
-}
 
-// Comprehensive dashboard query with vacation entitlements
-const getDashboardQuery = (dateFilters: any) => {
-  // OPTION 1: OVERLAP LOGIC - Include any absence that overlaps with the period
-  // Changed from restrictive (fully contained) to inclusive (any overlap)
-  const absenceWhere = dateFilters 
-    ? `where: { 
-        _and: [
-          { isDeleted: { _eq: false } },
-          { startDate: { _lte: "${dateFilters.endDate}" } },
-          { endDate: { _gte: "${dateFilters.startDate}" } }
-        ]
-      }`
-    : `where: { isDeleted: { _eq: false } }`;
 
-  const entitlementWhere = dateFilters 
-    ? `where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          {
-            _or: [
-              { type: { value: { _ilike: "%vacation%" } } },
-              { type: { value: { _ilike: "%annual%" } } },
-              { type: { value: { _ilike: "%holiday%" } } },
-              { type: { value: { _ilike: "%leave%" } } }
-            ]
-          },
-          {
-            _or: [
-              { validFrom: { _gte: "${dateFilters.startDate}" } },
-              { validTo: { _gte: "${dateFilters.startDate}" } },
-              { 
-                _and: [
-                  { validFrom: { _lte: "${dateFilters.endDate}" } },
-                  { validTo: { _gte: "${dateFilters.startDate}" } }
-                ]
-              }
-            ]
-          },
-          {
-            employee: { 
-              employeePosition: { id: { _isNull: false } }
-            }
-          }
-        ]
-      }`
-    : `where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          {
-            _or: [
-              { type: { value: { _ilike: "%vacation%" } } },
-              { type: { value: { _ilike: "%annual%" } } },
-              { type: { value: { _ilike: "%holiday%" } } },
-              { type: { value: { _ilike: "%leave%" } } }
-            ]
-          },
-          {
-            _or: [
-              { validFrom: { _gte: "2025-01-01T00:00:00.000Z" } },
-              { validTo: { _gte: "2025-01-01T00:00:00.000Z" } },
-              { 
-                _and: [
-                  { validFrom: { _lte: "2025-12-31T23:59:59.999Z" } },
-                  { validTo: { _gte: "2025-01-01T00:00:00.000Z" } }
-                ]
-              }
-            ]
-          },
-          {
-            employee: { 
-              employeePosition: { id: { _isNull: false } }
-            }
-          }
-        ]
-      }`;
 
-  return `
-  query GetDashboardData {
-    # Main absences data
-    employeeAbsences: EmployeeAbsence(${absenceWhere}) {
-      id
-      status
-      startDate
-      endDate
-      effectiveDays
-      calendarDays
-      type {
-        objectValue
-        translations {
-          localeCode
-          value
-        }
-        id
-        value
-        parentEntryId
-      }
-      employee {
-        id
-        firstName
-        lastName
-        employeePosition {
-          organizationalUnit {
-            name
-          }
-        }
-      }
-    }
-    
-    # Vacation entitlements for active employees (filtered by time period)
-    EmployeeAbsenceEntitlement(${entitlementWhere}) {
-      employeeId
-      available
-      approved
-      total
-      pending
-    }
-  }
-`;
-};
 
-interface DashboardDataProps extends BusinessAppContextProps {
-  timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
-}
 
-// Helper function to get date filters based on timeFilter
-const getDateFilters = (timeFilter: string) => {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  
-  console.log('🗓️ Current date context:', {
-    now: now.toISOString(),
-    currentYear,
-    currentMonth: now.getMonth(),
-    timeFilter
-  });
-  
-  switch (timeFilter) {
-    case 'current-year':
-      const yearFilters = {
-        startDate: `${currentYear}-01-01T00:00:00.000Z`,
-        endDate: `${currentYear}-12-31T23:59:59.999Z`
-      };
-      console.log('📅 Year filters:', yearFilters);
-      return yearFilters;
-      
-    case 'quarter':
-      const currentQuarter = Math.floor(now.getMonth() / 3);
-      // Fix: Use UTC dates to avoid timezone issues
-      const quarterStartMonth = currentQuarter * 3; // 0, 3, 6, 9 for Q1, Q2, Q3, Q4
-      const quarterEndMonth = quarterStartMonth + 2; // 2, 5, 8, 11 for Q1, Q2, Q3, Q4
-      
-      // Use UTC methods to avoid timezone conversion
-      const quarterStart = new Date(Date.UTC(currentYear, quarterStartMonth, 1, 0, 0, 0, 0));
-      const quarterEnd = new Date(Date.UTC(currentYear, quarterEndMonth + 1, 0, 23, 59, 59, 999));
-      const quarterFilters = {
-        startDate: quarterStart.toISOString(),
-        endDate: quarterEnd.toISOString()
-      };
-      console.log('📅 Quarter filters (UTC FIXED):', {
-        currentMonth: now.getMonth() + 1,
-        currentQuarter,
-        quarterNumber: currentQuarter + 1,
-        quarterStartMonth: quarterStartMonth + 1, // +1 for human readable (July = 7)
-        quarterEndMonth: quarterEndMonth + 1,     // +1 for human readable (Sept = 9)
-        quarterStart: quarterStart.toISOString(),
-        quarterEnd: quarterEnd.toISOString(),
-        expectedQuarter: currentQuarter === 2 ? 'Q3 (July-September)' : `Q${currentQuarter + 1}`,
-        ...quarterFilters
-      });
-      return quarterFilters;
-      
-    case 'month':
-      // Use UTC to avoid timezone issues
-      const monthStart = new Date(Date.UTC(currentYear, now.getMonth(), 1, 0, 0, 0, 0));
-      const monthEnd = new Date(Date.UTC(currentYear, now.getMonth() + 1, 0, 23, 59, 59, 999));
-      const monthFilters = {
-        startDate: monthStart.toISOString(),
-        endDate: monthEnd.toISOString()
-      };
-      console.log('📅 Month filters (UTC):', {
-        currentMonth: now.getMonth() + 1,
-        monthName: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()],
-        ...monthFilters
-      });
-      return monthFilters;
-      
-    case 'everything':
-    default:
-      console.log('📅 No date filtering (everything)');
-      return null; // No date filtering
-  }
-};
 
-export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-year' }: DashboardDataProps) => {
+export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: DashboardDataProps) => {
+  const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
   const [data, setData] = useState<DashboardData>({
     totalAbsences: 0,
@@ -267,16 +21,20 @@ export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-
     averageDuration: 0,
     approvalRate: 0,
     rawAbsences: [], // 🚀 Initialize empty array for filtered absences
+    averageVacationDays: 0,
+    averageUsed: 0,
+    averagePending: 0,
+    totalVacationLiability: 0,
+    departmentStats: [],
+    monthlyData: [],
+    statusBreakdown: [],
+    typeBreakdown: [],
     entitlements: {
       averageVacationPerEmployee: 0,
       totalActiveEmployees: 0,
       averageAvailable: 0,
       averageUsed: 0
     },
-    departmentStats: [],
-    statusBreakdown: [],
-    typeBreakdown: [],
-    monthlyTrends: [],
     isLoading: true,
     error: null
   });
@@ -287,17 +45,17 @@ export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-
     setData(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Fetch both absence groups AND absence types from catalogs
-      console.log('🔍 Fetching absence catalogs...');
+      // Fetch both absence groups AND absence types from catalogs with correct parameters
+      console.log('🔍 Fetching absence catalogs with proper auth parameters...');
       const [groupsCatalogData, typesCatalogData] = await Promise.all([
-        catalogClient.getCatalogEntriesList({
-          catalogIdentifier: "AbsenceGroup",
-          version: "v1",
-        }),
-        catalogClient.getCatalogEntriesList({
-          catalogIdentifier: "AbsenceType",
-          version: "v1",
-        })
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: "AbsenceGroup", version: "v1" },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        ),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: "AbsenceType", version: "v1" },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        )
       ]);
       
       const groupsMap: { [key: string]: string } = {};
@@ -348,8 +106,19 @@ export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-
       const rawAbsences = result?.employeeAbsences || [];
       const entitlements = result?.EmployeeAbsenceEntitlement || [];
 
-      // DEBUG: Check January data specifically
-      const januaryAbsences = rawAbsences.filter((a: any) => {
+      // CRITICAL: Enrich absences with all fields needed for dashboard and AbsenceList
+      const absences = rawAbsences.map((absence: any) => ({
+        ...absence,
+        groupName: groupsMap[absence.type?.parentEntryId] || absence.type?.value || 'Unknown Group',
+        typeName: typesMap[absence.type?.id] || typesMap[absence.type?.catalogEntryLocalId] || absence.type?.value || 'Unknown Type',
+        // Additional fields for AbsenceList compatibility
+        employeeName: `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim() || 'Unknown Employee',
+        pictureThumbnail: absence.employee?.pictureThumbnail || '',
+        createdAt: absence.createdAt || absence.startDate // fallback to startDate if createdAt missing
+      }));
+
+      // DEBUG: Check January data specifically  
+      const januaryAbsences = absences.filter((a: any) => {
         const date = new Date(a.startDate);
         return date.getMonth() === 0; // January = 0
       });
@@ -387,17 +156,7 @@ export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-
         possibleIssue: january2024.length > 0 ? '⚠️ Found January 2024 data - these should be excluded by year filter' : '✅ No 2024 data found'
       });
 
-      // Enrich absences with proper group names AND type names from catalogs
-      // 🚀 ENHANCED: Add all fields that AbsenceList expects (EnhancedAbsence interface)
-      const absences = rawAbsences.map((absence: any) => ({
-        ...absence,
-        groupName: groupsMap[absence.type?.parentEntryId] || 'Unknown Group',
-        typeName: typesMap[absence.type?.id] || typesMap[absence.type?.catalogEntryLocalId] || absence.type?.value || 'Unknown Type',
-        // Additional fields for AbsenceList compatibility
-        employeeName: `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim() || 'Unknown Employee',
-        pictureThumbnail: absence.employee?.pictureThumbnail || '',
-        createdAt: absence.createdAt || absence.startDate // fallback to startDate if createdAt missing
-      }));
+      // NOTE: absences already enriched above with groupName from catalog mapping
 
       console.log('📊 Dashboard data loaded with filter:', {
         timeFilter,
@@ -744,17 +503,36 @@ export const useDashboardData = ({ accessToken, userInfo, timeFilter = 'current-
         rejectedAbsences,
         averageDuration,
         approvalRate,
-        rawAbsences: absences, // 🚀 Pass the same filtered absences to AbsenceList
+        rawAbsences: absences, // 🚀 Pass the enriched absences to AbsenceList
+        averageVacationDays: averageVacationPerEmployee,
+        averageUsed,
+        averagePending: 0, // TODO: Calculate from entitlements
+        totalVacationLiability: 0, // TODO: Calculate remaining vacation days
+        departmentStats: departmentStats.map(dept => ({
+          name: dept.department,
+          totalDays: dept.totalDays,
+          uniqueEmployees: dept.uniqueEmployees,
+          avgDaysPerEmployee: dept.avgDaysPerEmployee,
+          avgRequestsPerEmployee: dept.avgRequestsPerEmployee,
+          totalRequests: dept.count
+        })),
+        monthlyData: monthlyTrends.map(trend => ({
+          month: trend.month,
+          total: trend.total, // Chart expects 'total', not 'totalRequests'
+          uniqueEmployees: trend.uniqueEmployees,
+          avgRequestsPerEmployee: trend.avgRequestsPerEmployee,
+          avgDurationPerRequest: trend.avgDurationPerRequest,
+          totalDuration: trend.totalDuration,
+          typeBreakdown: trend.typeBreakdown
+        })),
+        statusBreakdown,
+        typeBreakdown,
         entitlements: {
           averageVacationPerEmployee,
           totalActiveEmployees: uniqueEmployees,
           averageAvailable,
           averageUsed
         },
-        departmentStats,
-        statusBreakdown,
-        typeBreakdown,
-        monthlyTrends,
         isLoading: false,
         error: null
       });

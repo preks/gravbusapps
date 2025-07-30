@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
+import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
 import { CalendarTimeline, TimelineEvent } from '@newwork/gravity-ui-catalog';
 import { Select } from 'antd';
 const { Option } = Select;
