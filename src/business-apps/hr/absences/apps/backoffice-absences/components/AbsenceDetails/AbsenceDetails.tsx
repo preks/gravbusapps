@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -9,6 +9,7 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
   startDate?: string;
   endDate?: string;
+  timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
   onNavigateBack: () => void;
 }
 
@@ -18,10 +19,22 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   month, 
   startDate, 
   endDate,
+  timeFilter,
   onNavigateBack
 }) => {
-  // Get dashboard data to show calculations
-  const dashboardData = useDashboardData({ accessToken, userInfo });
+  // Get dashboard data to show calculations - USE SAME TIME FILTER AS MAIN DASHBOARD
+  const dashboardData = useDashboardData({ accessToken, userInfo, timeFilter });
+
+      // Debug: Log to confirm we're using the dashboard data source
+    console.log('🔍 AbsenceDetails Data Source:', {
+      timeFilter,
+      dataSource: 'Dashboard rawAbsences (will be filtered for specific month)',
+      totalDashboardAbsences: dashboardData.totalAbsences,
+      totalRawAbsences: dashboardData.rawAbsences?.length,
+      monthRequested: month,
+      dateRange: `${startDate} to ${endDate}`,
+      note: 'Filtering will happen next...'
+    });
 
   const getMonthDisplayName = (shortMonth?: string) => {
     const monthMap: Record<string, string> = {
@@ -54,6 +67,100 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
   const monthCalculations = getMonthCalculations();
 
+  // 🎯 FILTER rawAbsences for the specific month/date range
+  const filteredAbsencesForMonth = useMemo(() => {
+    if (!startDate || !endDate || !dashboardData.rawAbsences) {
+      return { 
+        absences: dashboardData.rawAbsences || [],
+        overlappingInfo: { 
+          fullyWithin: 0, 
+          spanningInto: 0, 
+          spanningOut: 0, 
+          spanningAcross: 0,
+          spanningIntoRequests: [],
+          spanningOutRequests: [],
+          fullyWithinRequests: [],
+          spanningAcrossRequests: []
+        }
+      };
+    }
+
+    const rangeStart = new Date(startDate);
+    const rangeEnd = new Date(endDate);
+    
+    let fullyWithin = 0;
+    let spanningInto = 0; // starts before, ends within
+    let spanningOut = 0;  // starts within, ends after
+    let spanningAcross = 0; // starts before, ends after (spans across entire month)
+
+    // Collect actual requests for each category
+    const spanningIntoRequests: any[] = [];
+    const spanningOutRequests: any[] = [];
+    const fullyWithinRequests: any[] = [];
+    const spanningAcrossRequests: any[] = [];
+
+    const filtered = dashboardData.rawAbsences.filter((absence: any) => {
+      // Use overlap logic: absence overlaps with the requested date range
+      const absenceStart = new Date(absence.startDate);
+      const absenceEnd = new Date(absence.endDate);
+
+      const overlaps = absenceStart <= rangeEnd && absenceEnd >= rangeStart;
+      
+      if (overlaps) {
+        // Categorize the type of overlap and collect the requests
+        if (absenceStart >= rangeStart && absenceEnd <= rangeEnd) {
+          fullyWithin++;
+          fullyWithinRequests.push(absence);
+        } else if (absenceStart < rangeStart && absenceEnd <= rangeEnd) {
+          spanningInto++;
+          spanningIntoRequests.push(absence);
+        } else if (absenceStart >= rangeStart && absenceEnd > rangeEnd) {
+          spanningOut++;
+          spanningOutRequests.push(absence);
+        } else if (absenceStart < rangeStart && absenceEnd > rangeEnd) {
+          spanningAcross++;
+          spanningAcrossRequests.push(absence);
+        }
+      }
+
+      return overlaps;
+    });
+
+    const overlappingInfo = { 
+      fullyWithin, 
+      spanningInto, 
+      spanningOut, 
+      spanningAcross,
+      // Add the actual requests for each category
+      spanningIntoRequests,
+      spanningOutRequests,
+      fullyWithinRequests,
+      spanningAcrossRequests
+    };
+
+    console.log('🎯 AbsenceDetails: Filtering rawAbsences for specific month/range', {
+      totalRawAbsences: dashboardData.rawAbsences.length,
+      dateRange: `${startDate} to ${endDate}`,
+      filteredCount: filtered.length,
+      month,
+      overlapLogic: 'absenceStart <= rangeEnd && absenceEnd >= rangeStart',
+      overlappingBreakdown: overlappingInfo
+    });
+
+    return { absences: filtered, overlappingInfo };
+  }, [dashboardData.rawAbsences, startDate, endDate, month]);
+
+  // Debug: Log filtering results
+  console.log('✅ AbsenceDetails: Month filtering completed:', {
+    totalRawAbsences: dashboardData.rawAbsences?.length,
+    filteredForMonth: filteredAbsencesForMonth?.absences?.length,
+    overlappingBreakdown: filteredAbsencesForMonth?.overlappingInfo,
+    monthRequested: month,
+    dateRange: `${startDate} to ${endDate}`,
+    dataConsistency: '🎯 AbsenceList will now use month-filtered data only!',
+    expectedResult: `January should show ${filteredAbsencesForMonth?.absences?.length} absences (not ${dashboardData.rawAbsences?.length})`
+  });
+
   return (
     <div data-testid="absence-details-page" className="gba:space-y-6">
       {/* Back Navigation - Above everything */}
@@ -82,6 +189,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               <p className="gba:text-gray-600 gba:mt-1">
                 {startDate && endDate ? `${startDate} to ${endDate}` : 'All absences for selected month'}
               </p>
+              
             </div>
           </div>
           
@@ -168,8 +276,61 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 <div className="gba:text-blue-600 gba:text-xs gba:space-y-1">
                   <div>• Avg per Employee: {monthCalculations.totalRequests} requests ÷ {monthCalculations.uniqueEmployees} employees = {monthCalculations.avgRequestsPerEmployee.toFixed(2)}</div>
                   <div>• Avg Duration: {monthCalculations.totalDuration} total days ÷ {monthCalculations.totalRequests} requests = {monthCalculations.avgDurationPerRequest.toFixed(2)} days</div>
+                  <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-blue-200">
+                    <div className="gba:font-medium gba:mb-1">Overlapping Requests (cross-month absences):</div>
+                    <div>• Fully within month: {filteredAbsencesForMonth.overlappingInfo.fullyWithin} requests</div>
+                    <div>• Spanning into month: {filteredAbsencesForMonth.overlappingInfo.spanningInto} requests (started before, ended within)</div>
+                    <div>• Spanning out of month: {filteredAbsencesForMonth.overlappingInfo.spanningOut} requests (started within, ended after)</div>
+                    <div>• Spanning across month: {filteredAbsencesForMonth.overlappingInfo.spanningAcross} requests (started before, ended after)</div>
+                  </div>
                 </div>
               </div>
+
+              {/* Minimal Cross-Month Details */}
+              {(filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 || 
+                filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0) && (
+                <div className="gba:mt-2 gba:p-2 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded">
+                  <div className="gba:text-amber-800 gba:text-xs gba:font-medium gba:mb-1">
+                    🔍 Cross-Month: 
+                    {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 && (
+                      <span className="gba:ml-1">
+                        INTO ({filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length}): {
+                          filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.map((absence: any, index: number) => {
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return (
+                              <span key={absence.id || index} className="gba:text-amber-600">
+                                {index > 0 && ', '}
+                                {absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()} 
+                                ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
+                              </span>
+                            );
+                          })
+                        }
+                      </span>
+                    )}
+                    {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 && 
+                     filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0 && (
+                      <span className="gba:mx-2">•</span>
+                    )}
+                    {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0 && (
+                      <span>
+                        OUT ({filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length}): {
+                          filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.map((absence: any, index: number) => {
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return (
+                              <span key={absence.id || index} className="gba:text-amber-600">
+                                {index > 0 && ', '}
+                                {absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()} 
+                                ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
+                              </span>
+                            );
+                          })
+                        }
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -192,7 +353,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         </div>
       )}
 
-      {/* Absence List with initial filters */}
+      {/* Absence List with MONTH-FILTERED DATA */}
       <AbsenceList 
         accessToken={accessToken}
         userInfo={userInfo}
@@ -201,6 +362,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           endDate,
           month
         }}
+        preFilteredData={filteredAbsencesForMonth.absences}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // Using PageLayout headerSubViews pattern like team expenses implementation
 import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
-import { PageLayout } from '@newwork/nw-design-system';
+import { PageLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceOverview } from './components/AbsenceOverview/AbsenceOverview';
 
@@ -28,9 +28,12 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     endDate?: string;
   }>({});
 
+  // State for time filter
+  const [timeFilter, setTimeFilter] = useState<'current-year' | 'quarter' | 'month' | 'everything'>('current-year');
+
   // 🚀 OPTIMIZED: Single comprehensive dashboard query with server-side aggregations
   // Replaces multiple individual API calls with one efficient request
-  const dashboardData = useDashboardData({ accessToken, userInfo });
+  const dashboardData = useDashboardData({ accessToken, userInfo, timeFilter });
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -98,10 +101,33 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
       case 'dashboard':
         return (
           <div className="gba:space-y-8" data-testid="dashboard-content">
-
+            
+            {/* Time Filter */}
+            <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+              <div>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">Dashboard Analytics</h2>
+                <p className="gba:text-sm gba:text-gray-500">
+                  {dashboardData.isLoading ? 'Loading...' : `Showing ${dashboardData.totalAbsences} absences`} • Filter: {timeFilter}
+                </p>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <span className="gba:text-sm gba:text-gray-600">Time Period:</span>
+                <Select value={timeFilter} onValueChange={(value: any) => setTimeFilter(value)}>
+                  <SelectTrigger className="gba:w-48">
+                    <SelectValue placeholder="Select time period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current-year">This Year</SelectItem>
+                    <SelectItem value="quarter">This Quarter</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="everything">All Time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
             {/* Dashboard Components - All optimized */}
-                        <OptimizedKPISection
+            <OptimizedKPISection
               accessToken={accessToken}
               userInfo={userInfo}
               dashboardData={dashboardData}
@@ -114,20 +140,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
               onMonthClick={handleNavigateToAbsenceDetails}
             />
             
-            {/* Performance Summary */}
-            <div className="gba:bg-gray-50 gba:rounded-lg gba:p-4 gba:border">
-              <div className="gba:text-sm gba:text-gray-600 gba:text-center">
-                <span className="gba:font-medium">Performance Metrics:</span>
-                {dashboardData.isLoading ? (
-                  <span> Loading dashboard data...</span>
-                ) : (
-                  <span>
-                    {' '}Loaded {dashboardData.totalAbsences} absences, {dashboardData.departmentStats.length} departments, 
-                    {dashboardData.monthlyTrends.filter(m => m.total > 0).length} active months in a single optimized query
-                  </span>
-                )}
-              </div>
-            </div>
+
           </div>
         );
       case 'absence-list':
@@ -167,6 +180,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           month={absenceDetailsFilter.month}
           startDate={absenceDetailsFilter.startDate}
           endDate={absenceDetailsFilter.endDate}
+          timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />
       </div>

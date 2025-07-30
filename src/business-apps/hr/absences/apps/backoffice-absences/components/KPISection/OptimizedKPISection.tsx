@@ -65,7 +65,11 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   const departmentChartData = departmentStats.map(dept => ({
     department: dept.department.length > 15 ? `${dept.department.substring(0, 15)}...` : dept.department,
     fullName: dept.department,
-    absences: dept.totalDays
+    absences: dept.totalDays,
+    uniqueEmployees: dept.uniqueEmployees,
+    avgDaysPerEmployee: dept.avgDaysPerEmployee,
+    avgRequestsPerEmployee: dept.avgRequestsPerEmployee,
+    totalRequests: dept.count
   }));
 
   const pieChartData = statusBreakdown.map((status, index) => ({
@@ -161,7 +165,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
           <div>
             <h5 className="gba:text-sm gba:font-medium gba:m-0">Top Departments</h5>
             <p className="gba:text-xs gba:text-muted-foreground">
-              Absence days by department
+              Absence days by department (with avg per employee)
             </p>
           </div>
         </div>
@@ -182,11 +186,25 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                   if (active && payload && payload.length > 0) {
                     const data = payload[0].payload;
                     return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
-                        <p className="gba:font-medium">{data.fullName}</p>
-                        <p className="gba:text-blue-600">
-                          {data.absences} absence days
-                        </p>
+                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px]">
+                        <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
+                        <div className="gba:space-y-1 gba:text-sm">
+                          <p className="gba:text-blue-600">
+                            📊 {data.absences} total absence days
+                          </p>
+                          <p className="gba:text-purple-600">
+                            👥 {data.uniqueEmployees} employees
+                          </p>
+                          <p className="gba:text-green-600">
+                            📈 {data.avgDaysPerEmployee} avg days/employee
+                          </p>
+                          <p className="gba:text-orange-600">
+                            📋 {data.avgRequestsPerEmployee} avg requests/employee
+                          </p>
+                          <p className="gba:text-gray-600 gba:text-xs gba:mt-2">
+                            Total: {data.totalRequests} requests
+                          </p>
+                        </div>
                       </div>
                     );
                   }

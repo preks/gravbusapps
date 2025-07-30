@@ -84,13 +84,15 @@ interface AbsenceListProps extends BusinessAppContextProps {
     endDate?: string;
     month?: string;
   };
+  // 🚀 Use pre-filtered data from dashboard to ensure consistency
+  preFilteredData?: Array<any>;
 }
 
 /**
  * Modern Absence List component matching manager-absences design exactly
  */
 export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
-  const { accessToken, userInfo, initialFilters } = props;
+  const { accessToken, userInfo, initialFilters, preFilteredData } = props;
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
 
@@ -320,18 +322,19 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       }
     }
 
-    // Add start/end date filters (absence date range) - exactly like manager-absences
+    // Add start/end date filters (absence date range) - OPTION 1: OVERLAP LOGIC
+    // Changed to match dashboard: include any absence that overlaps with the period
     if (startDate && endDate) {
       const startDateTime = `${startDate} 00:00:00+00`;
       const endDateTime = `${endDate} 23:59:59+00`;
-      conditions.startDate = { _gte: startDateTime };
-      conditions.endDate = { _lte: endDateTime };
+      conditions.startDate = { _lte: endDateTime };  // absence starts before/on period end
+      conditions.endDate = { _gte: startDateTime };   // absence ends after/on period start
     } else if (startDate) {
       const startDateTime = `${startDate} 00:00:00+00`;
-      conditions.startDate = { _gte: startDateTime };
+      conditions.endDate = { _gte: startDateTime };   // absence ends after/on start date
     } else if (endDate) {
       const endDateTime = `${endDate} 23:59:59+00`;
-      conditions.endDate = { _lte: endDateTime };
+      conditions.startDate = { _lte: endDateTime };   // absence starts before/on end date
     }
 
     // Add creation date filters - exactly like manager-absences
@@ -363,6 +366,35 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
     try {
       setLoading(true);
+      
+      // 🚀 USE PRE-FILTERED DATA FROM DASHBOARD IF AVAILABLE
+      if (preFilteredData && preFilteredData.length >= 0) {
+        console.log('🚀 AbsenceList: Using pre-filtered data from dashboard', {
+          count: preFilteredData.length,
+          dataSource: 'Same as dashboard (ensuring consistency)',
+          note: 'No separate GraphQL query needed!',
+          sampleDataStructure: preFilteredData.slice(0, 2).map((item: any) => ({
+            id: item.id,
+            hasEmployeeName: !!item.employeeName,
+            hasGroupName: !!item.groupName,
+            hasCreatedAt: !!item.createdAt,
+            fields: Object.keys(item || {})
+          })),
+          actionTaken: 'Setting absences state and returning early'
+        });
+        
+        setAbsences(preFilteredData as EnhancedAbsence[]);
+        setTotal(preFilteredData.length);
+        setLoading(false);
+        initialLoadDone.current = true; // Mark as loaded to prevent other effects
+        console.log('✅ AbsenceList: State updated with preFilteredData', {
+          absencesCount: preFilteredData.length,
+          totalSet: preFilteredData.length,
+          loadingSet: false,
+          initialLoadDoneSet: true
+        });
+        return;
+      }
       
       // Fetch catalog data for absence groups
       const catalogData = await catalogClient.getCatalogEntriesList({
@@ -469,21 +501,49 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     }
   };
 
-  // Initial load effect
+  // Effect for preFilteredData (dashboard drill-down) - process immediately
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
+    console.log('🔍 AbsenceList: preFilteredData useEffect triggered', {
+      hasPreFilteredData: !!preFilteredData,
+      dataCount: preFilteredData?.length || 0,
+      hasAccessToken: !!accessToken,
+      initialLoadDone: initialLoadDone.current
+    });
+    
+    if (preFilteredData && accessToken) {
+      console.log('🚀 AbsenceList: Processing preFilteredData via useEffect', {
+        dataCount: preFilteredData.length,
+        initialLoadDone: initialLoadDone.current
+      });
+      fetchAbsences(); // This will use preFilteredData and return early
+    }
+  }, [preFilteredData, accessToken]);
+
+  // Initial load effect - DON'T call fetchAbsences if preFilteredData is provided
+  useEffect(() => {
+    if (!initialLoadDone.current && accessToken && !preFilteredData) {
+      console.log('🔄 AbsenceList: Initial load effect triggered (no preFilteredData)');
       initialLoadDone.current = true;
       fetchAbsences();
     }
-  }, [accessToken, currentPage, pageSize]);
+  }, [accessToken, currentPage, pageSize, preFilteredData]);
 
   // Search and filter effects (including date ranges like manager-absences)
+  // DON'T call fetchAbsences if preFilteredData is provided (dashboard drill-down)
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && !preFilteredData) {
+      console.log('🔍 AbsenceList: Search/filter effect triggered (no preFilteredData)', {
+        search, selectedFilters, startDate, endDate
+      });
       setCurrentPage(1);
       fetchAbsences();
+    } else if (preFilteredData) {
+      console.log('⚠️ AbsenceList: Search/filter effect blocked (preFilteredData exists)', {
+        preFilteredDataCount: preFilteredData.length,
+        search, selectedFilters, startDate, endDate
+      });
     }
-  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate]);
+  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate, preFilteredData]);
 
   // Employee filter backend search function
   const getEmployeeFilters = useCallback((searchTerm: string) => {
