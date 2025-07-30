@@ -12,7 +12,6 @@ import {
   TableBody, 
   TableHead,
   TableRow,
-  TableCell,
   Alert, 
   Spinner,
   Button,
@@ -25,7 +24,6 @@ import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
-// Import new components
 import {
   ExpenseRequestPdfModal,
   EmployeeSearchFilter,
@@ -34,7 +32,6 @@ import {
   ExpenseRequestPagination
 } from './components';
 
-// Import new hooks
 import {
   useExpenseRequestFilters,
   useExpenseRequestPdf,
@@ -72,6 +69,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedRecords([]);
+    setSelectedRowKeys([]);
+  }, []);
 
   const updateURLParams = useCallback((params: {
     search?: string;
@@ -132,8 +134,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     loading, 
     error, 
     currentPage, 
-    pageSize, 
-    searchTerm,
+    pageSize,
     fetchData,
     searchEmployees, 
     searchStatuses,
@@ -166,7 +167,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const {
     handleTransferPayment,
     handleBulkTransferPayment
-  } = useExpenseRequestTransfer(props);
+  } = useExpenseRequestTransfer(props, fetchData, clearSelection);
 
   const {
     employeeFilter,
@@ -187,8 +188,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setLocalAmountMin,
     localAmountMax,
     setLocalAmountMax,
-    debouncedAmountFilter,
-    clearAllFilters
+    debouncedAmountFilter
   } = useExpenseRequestFilters({
     searchEmployees,
     handleEmployeeFilter,
