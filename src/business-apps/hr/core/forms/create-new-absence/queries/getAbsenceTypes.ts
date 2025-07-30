@@ -8,6 +8,7 @@ export const getAbsenceTypes = `
       orderBy: { value: ASC }
     ) {
       id
+      parentEntryId
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         value
         localeCode
