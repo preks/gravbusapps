@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Input, 
   Label, 
@@ -15,8 +15,7 @@ import { useFilterData } from '../../hooks/useFilterData';
 export interface FilterOptions {
   department?: string;
   currency?: string;
-  dateFrom?: string;
-  dateTo?: string;
+  period?: 'monthly' | 'quarterly' | 'yearly';
   additionalFilters?: Record<string, any>;
 }
 
@@ -31,17 +30,32 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   'data-testid': dataTestId = 'expense-filter-bar'
 }) => {
   // Fetch real organizational units and currencies
-  const { organizationalUnits, currencies, loading: filterDataLoading } = useFilterData({ accessToken });
+  const { organizationalUnits, currencies, mostUsedCurrency, loading: filterDataLoading, error } = useFilterData({ accessToken });
   const [filters, setFilters] = useState<FilterOptions>({
     department: 'all',
-    currency: 'all',
-    dateFrom: '',
-    dateTo: '',
+    currency: '', // Will be set to most used currency when data loads
+    period: 'monthly' as const, // Default to monthly
     additionalFilters: {}
   });
 
+  // Set default currency when data is loaded
+  useEffect(() => {
+    if (!filterDataLoading && mostUsedCurrency && !filters.currency) {
+      const newFilters: FilterOptions = { ...filters, currency: mostUsedCurrency };
+      setFilters(newFilters);
+      
+      // Notify parent component about the default currency
+      const filtersForParent = {
+        ...newFilters,
+        department: newFilters.department === 'all' ? '' : newFilters.department,
+        currency: newFilters.currency,
+      };
+      onFiltersChange(filtersForParent);
+    }
+  }, [filterDataLoading, mostUsedCurrency, filters.currency, onFiltersChange]);
+
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
-    const newFilters = { ...filters, [key]: value };
+    const newFilters = { ...filters, [key]: value } as FilterOptions;
     setFilters(newFilters);
     
     // Convert "all" values to empty strings for the parent component
@@ -54,30 +68,27 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   };
 
   const clearAllFilters = () => {
-    const clearedFilters = {
+    const clearedFilters: FilterOptions = {
       department: 'all',
-      currency: 'all',
-      dateFrom: '',
-      dateTo: '',
+      currency: mostUsedCurrency || '', // Reset to most used currency
+      period: 'monthly' as const, // Reset to default
       additionalFilters: {}
     };
     setFilters(clearedFilters);
     
-    // Send empty strings to parent for cleared state
+    // Send cleared state to parent
     const clearedFiltersForParent = {
       department: '',
-      currency: '',
-      dateFrom: '',
-      dateTo: '',
+      currency: mostUsedCurrency || '',
+      period: 'monthly' as const,
       additionalFilters: {}
     };
     onFiltersChange(clearedFiltersForParent);
   };
 
   const hasActiveFilters = (filters.department && filters.department !== 'all') || 
-    (filters.currency && filters.currency !== 'all') || 
-    filters.dateFrom || 
-    filters.dateTo;
+    (filters.currency && filters.currency !== mostUsedCurrency) || 
+    filters.period !== 'monthly';
 
   return (
     <div 
@@ -117,7 +128,6 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by currency"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Currencies</SelectItem>
             {currencies.map((currency) => (
               <SelectItem key={currency.currencyRef} value={currency.currencyRef}>
                 {currency.code}
@@ -126,26 +136,22 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
           </SelectContent>
         </Select>
 
-        {/* Date Range Filter */}
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Input
-            type="date"
-            value={filters.dateFrom || ''}
-            onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-            className="gba:w-36 gba:border-gray-300"
-            data-testid="expense-filter-date-from"
-            placeholder="From date"
-          />
-          <span className="gba:text-gray-400">to</span>
-          <Input
-            type="date"
-            value={filters.dateTo || ''}
-            onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-            className="gba:w-36 gba:border-gray-300"
-            data-testid="expense-filter-date-to"
-            placeholder="To date"
-          />
-        </div>
+        {/* Period Filter */}
+        <Select
+          value={filters.period || ''}
+          onValueChange={(value) => handleFilterChange('period', value)}
+          disabled={filterDataLoading}
+          data-testid="period-filter-select"
+        >
+          <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
+            <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by period"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="quarterly">Quarterly</SelectItem>
+            <SelectItem value="yearly">Yearly</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Clear Filters Button */}

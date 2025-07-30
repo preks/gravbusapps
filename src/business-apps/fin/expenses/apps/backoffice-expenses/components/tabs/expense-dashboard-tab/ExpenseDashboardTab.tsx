@@ -26,10 +26,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { stats, loading, error } = useDashboardStats({ accessToken });
 
   // Helper functions for KPI data formatting
-  const formatCurrency = (value: number): string => {
+  const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: 'EUR',
+      currency: currencyCode,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
