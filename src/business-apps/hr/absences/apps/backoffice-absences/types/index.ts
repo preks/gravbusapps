@@ -18,6 +18,7 @@ export interface AbsenceDetailsFilter {
   month?: string;
   startDate?: string;
   endDate?: string;
+  status?: string; // Filter by absence status (APPROVED, PENDING, etc.)
 }
 
 // Views and navigation types

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { TabComponentProps, TimeFilter } from '../../../types';
+import { TabComponentProps, TimeFilter, AbsenceDetailsFilter } from '../../../types';
 import { OptimizedKPISection } from './KPISection/OptimizedKPISection';
 import OptimizedAbsenceTrends from './AbsenceTrends/OptimizedAbsenceTrends';
 
@@ -8,6 +8,7 @@ interface DashboardTabProps extends TabComponentProps {
   onMonthClick?: (month: string, year?: number) => void;
   timeFilter?: TimeFilter;
   onTimeFilterChange?: (filter: TimeFilter) => void;
+  onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -16,13 +17,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   dashboardData,
   onMonthClick,
   timeFilter = 'current-year',
-  onTimeFilterChange
+  onTimeFilterChange,
+  onNavigateToDetails
 }) => {
   if (!dashboardData) {
     return <div>Loading dashboard data...</div>;
   }
   return (
-    <div className="gba:space-y-8" data-testid="dashboard-content">
+    <div className="gba:space-y-8 gba:px-6" data-testid="dashboard-content">
       
       {/* Time Filter */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
@@ -53,6 +55,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         dashboardData={dashboardData}
+        timeFilter={timeFilter}
+        onNavigateToDetails={onNavigateToDetails}
       />
       
       <OptimizedAbsenceTrends

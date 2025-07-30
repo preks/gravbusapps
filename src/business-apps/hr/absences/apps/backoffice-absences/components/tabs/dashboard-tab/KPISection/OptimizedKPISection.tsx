@@ -14,12 +14,14 @@ import {
 } from "recharts";
 import { RiBarChartLine, RiPieChart2Line, RiBarChart2Line } from "@remixicon/react";
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
-import { DashboardData } from '../../../../types';
+import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types';
 import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group';
 import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi';
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
+  timeFilter?: TimeFilter;
+  onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void;
 }
 
 /**
@@ -28,7 +30,9 @@ interface OptimizedKPISectionProps extends BusinessAppContextProps {
  * No separate GraphQL requests - single efficient data source
  */
 export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({ 
-  dashboardData 
+  dashboardData,
+  timeFilter = 'current-year',
+  onNavigateToDetails
 }) => {
   const {
     totalAbsences,
@@ -49,14 +53,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     'REJECTED': '#f87171'   
   };
   
-  const colorPalette = [
-    "#fb7185",
-    "#34d399", 
-    "#a78bfa",
-    "#38bdf8",
-    "#fbbf24",
-    "#8b5cf6",
-  ];
+
 
   // Transform data for visualizations
   const departmentChartData = departmentStats.map(dept => ({
@@ -69,11 +66,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     totalRequests: dept.totalRequests
   }));
 
-  const pieChartData = statusBreakdown.map((status, index) => ({
+  const pieChartData = statusBreakdown.map((status) => ({
     name: status.status,
-    value: status.totalDays,
+    value: status.count, // Use count of requests, not total days
     status: status.status,
     count: status.count,
+    totalDays: status.totalDays, // Keep days for tooltip
     percentage: status.percentage
   }));
 
@@ -92,7 +90,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       key: 'average-duration',
       title: 'Avg Duration',
       value: averageDuration,
-      suffix: 'days',
+      suffix: ' days',
       precision: 1,
       prefix: <PiCalendar />,
       color: '#52c41a',
@@ -120,7 +118,58 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     }
   ];
 
-  const totalAbsenceDays = pieChartData.reduce((sum, entry) => sum + entry.value, 0);
+  const totalAbsenceCount = pieChartData.reduce((sum, entry) => sum + entry.value, 0);
+
+  // Helper function to get date range based on time filter
+  const getDateRangeForTimeFilter = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    
+    switch (timeFilter) {
+      case 'current-year':
+        return {
+          startDate: `${currentYear}-01-01`,
+          endDate: `${currentYear}-12-31`
+        };
+      case 'quarter': {
+        const quarter = Math.floor(now.getMonth() / 3);
+        const quarterStartMonth = quarter * 3;
+        const quarterEndMonth = quarterStartMonth + 2;
+        const lastDayOfQuarter = new Date(currentYear, quarterEndMonth + 1, 0).getDate();
+        return {
+          startDate: `${currentYear}-${String(quarterStartMonth + 1).padStart(2, '0')}-01`,
+          endDate: `${currentYear}-${String(quarterEndMonth + 1).padStart(2, '0')}-${String(lastDayOfQuarter).padStart(2, '0')}`
+        };
+      }
+      case 'month': {
+        const currentMonth = now.getMonth();
+        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        return {
+          startDate: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`,
+          endDate: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`
+        };
+      }
+      case 'everything':
+      default:
+        return {}; // No date filter for everything
+    }
+  };
+
+  // Handle pie chart slice click - navigate to absence details with status filter
+  const handlePieChartClick = (data: any) => {
+    if (!onNavigateToDetails || !data) return;
+    
+    const status = data.status;
+    const dateRange = getDateRangeForTimeFilter();
+    
+    console.log('🎯 Pie slice clicked:', { status, dateRange });
+    
+    // Navigate to absence details with status and date filters
+    onNavigateToDetails({
+      status,
+      ...dateRange
+    });
+  };
 
   if (isLoading) {
     return (
@@ -235,6 +284,13 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                 cx="50%"
                 cy="50%"
                 outerRadius={70}
+                label={({ value }) => {
+                  if (!value || totalAbsenceCount === 0) return '';
+                  const percent = Math.round((value / totalAbsenceCount) * 100);
+                  return percent > 5 ? `${percent}%` : ''; // Only show % if slice is large enough
+                }}
+                labelLine={false}
+                onClick={handlePieChartClick}
               >
                 {pieChartData.map((entry, index) => (
                   <Cell 
@@ -247,16 +303,16 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                 content={({ active, payload }) => {
                   if (active && payload && payload.length > 0) {
                     const entry = payload[0].payload;
-                    const percent = totalAbsenceDays > 0 
-                      ? Math.round((entry.value / totalAbsenceDays) * 100) 
+                    const percent = totalAbsenceCount > 0 
+                      ? Math.round((entry.value / totalAbsenceCount) * 100) 
                       : 0;
                     
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
                         <p className="gba:font-medium">{entry.name}</p>
-                        <p>Count: {entry.count} absences</p>
-                        <p>Days: {entry.value} total days</p>
-                        <p>Share: {percent}% of total</p>
+                        <p>Count: {entry.value} requests</p>
+                        <p>Days: {entry.totalDays} total days</p>
+                        <p>Share: {percent}% of total requests</p>
                       </div>
                     );
                   }
@@ -270,8 +326,8 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         {/* Legend */}
         <div className="gba:flex gba:flex-wrap gba:gap-3 gba:mt-2 gba:justify-center">
           {pieChartData.map((entry) => {
-            const percent = totalAbsenceDays > 0
-              ? Math.round((Number(entry.value) / totalAbsenceDays) * 100)
+            const percent = totalAbsenceCount > 0
+              ? Math.round((Number(entry.value) / totalAbsenceCount) * 100)
               : 0;
             return (
               <span

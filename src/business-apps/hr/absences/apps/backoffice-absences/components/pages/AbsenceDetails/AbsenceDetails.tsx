@@ -9,6 +9,7 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
   startDate?: string;
   endDate?: string;
+  status?: string;
   timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
   onNavigateBack: () => void;
 }
@@ -19,6 +20,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   month, 
   startDate, 
   endDate,
+  status,
   timeFilter,
   onNavigateBack
 }) => {
@@ -184,10 +186,11 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             <PiCalendarBlank size={24} className="gba:text-blue-600" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {getMonthDisplayName(month)} Absence Details
+                {month ? `${getMonthDisplayName(month)} Absence Details` : 'Absence Details'}
               </h1>
               <p className="gba:text-gray-600 gba:mt-1">
-                {startDate && endDate ? `${startDate} to ${endDate}` : 'All absences for selected month'}
+                {startDate && endDate ? `${startDate} to ${endDate}` : 
+                 month ? 'All absences for selected month' : 'Filtered absence results'}
               </p>
               
             </div>
@@ -202,7 +205,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               Absence Dashboard
             </span>
             <span className="gba:mx-2">/</span>
-            <span>{getMonthDisplayName(month)} Details</span>
+            <span>{month ? `${getMonthDisplayName(month)} Details` : 'Filtered Details'}</span>
           </div>
         </div>
       </div>
@@ -360,7 +363,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         initialFilters={{
           startDate,
           endDate,
-          month
+          month,
+          status
         }}
         preFilteredData={filteredAbsencesForMonth.absences}
       />

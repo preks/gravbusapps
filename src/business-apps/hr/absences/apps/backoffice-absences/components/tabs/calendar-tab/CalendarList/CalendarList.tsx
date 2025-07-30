@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
 import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
-import { CalendarTimeline, TimelineEvent } from '@newwork/gravity-ui-catalog';
+import { CalendarTimeline } from '@newwork/gravity-ui-catalog';
 import { Select } from 'antd';
 const { Option } = Select;
 
@@ -63,30 +63,13 @@ interface EmployeePositionResponse {
   }>
 }
 
-interface EmployeeWithAbsencesResponse {
-  EmployeePosition: Array<{
-    employee: {
-      id: string
-      firstName: string
-      lastName: string
-      pictureThumbnail?: string
-      employeeAbsences: EmployeeAbsence[]
-    }
-    organizationalUnit: {
-      name: string
-    }
-  }>
-}
+
 
 interface AbsenceResponse {
   EmployeeAbsence: EmployeeAbsence[]
 }
 
-interface SelectFieldValue {
-  value?: string | number | boolean | object | Date | null
-  name?: string
-  label?: string
-}
+
 
 // Query all 2025 absences (like manager-absences does)
 const ABSENCE_QUERY_2025 = `
@@ -140,58 +123,7 @@ const ABSENCE_QUERY_2025 = `
   }
 `;
 
-// Optimized query to get employees with their 2025 absences in a single request
-const buildOptimizedEmployeeQuery = (isAllDepartments: boolean, departmentNames?: string[]) => {
-  const departmentFilter = isAllDepartments 
-    ? '' 
-    : `organizationalUnit: { name: { _in: [${departmentNames?.map(name => `"${name}"`).join(', ')}] } }`;
-    
-  return `
-    query GetEmployeesWithAbsences {
-      EmployeePosition(
-        where: {
-          employee: { isDeleted: { _eq: false } }
-          ${departmentFilter}
-        }
-        limit: 1000
-        orderBy: { employee: { lastName: ASC } }
-      ) {
-        employee {
-          id
-          firstName
-          lastName
-          pictureThumbnail
-          employeeAbsences(
-            where: {
-              _and: [
-                { isDeleted: { _eq: false } },
-                { startDate: { _gte: "2025-01-01T00:00:00Z" } },
-                { endDate: { _lte: "2025-12-31T23:59:59Z" } }
-              ]
-            }
-            orderBy: { startDate: ASC }
-          ) {
-            id
-            startDate
-            endDate
-            status
-            calendarDays
-            effectiveDays
-            type {
-              objectValue
-              id
-              value
-              parentEntryId
-            }
-          }
-        }
-        organizationalUnit {
-          name
-        }
-      }
-    }
-  `;
-};
+
 
 // Query all employees from EmployeePosition table (only employees with positions) - for org units
 const GetAllEmployeesFromPositions = `
@@ -505,19 +437,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         eventIdSet.add(eventId);
         
         const absenceType = absence.type.value;
-        let typeIcon = '';
-        
-        try {
-          const typeInfo = typeof absence.type.objectValue === 'string' 
-            ? JSON.parse(absence.type.objectValue)
-            : absence.type.objectValue;
-            
-          if (typeInfo?.icon) {
-            typeIcon = String(typeInfo.icon);
-          }
-        } catch (e) {
-          console.warn(`Failed to process objectValue for type ${absence.type.value}:`, e);
-        }
         
         events.push({
           id: eventId,

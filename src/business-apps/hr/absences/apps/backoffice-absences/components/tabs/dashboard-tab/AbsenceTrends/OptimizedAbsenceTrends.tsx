@@ -138,7 +138,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
   }, [chartData]);
 
   // Generate colors using the exact same mapping as AbsenceList component
-  const getTypeColor = (typeName: string, index: number) => {
+  const getTypeColor = (typeName: string) => {
     // EXACT same colors as used in AbsenceList component
     const groupColors: Record<string, string> = {
       'Sick Leave': '#f87171',   // Red (from AbsenceList)
@@ -250,14 +250,14 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
                         <p className="gba:text-sm gba:text-gray-600 gba:mb-2">
                           Total: {totalForMonth} absences
                         </p>
-                        {absenceTypes.map((type, index) => {
+                        {absenceTypes.map((type) => {
                           const count = monthData[type] || 0;
                           if (count > 0) {
                             return (
                               <p key={type} className="gba:text-sm gba:flex gba:items-center gba:gap-2">
                                 <span 
                                   className="gba:w-3 gba:h-3 gba:rounded gba:inline-block"
-                                  style={{ backgroundColor: getTypeColor(type, index) }}
+                                  style={{ backgroundColor: getTypeColor(type) }}
                                 />
                                 {type}: {count}
                               </p>
@@ -282,11 +282,11 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
                 content={() => {
                   return (
                     <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
-                      {absenceTypes.map((type, index) => (
+                      {absenceTypes.map((type) => (
                         <div key={type} className="gba:flex gba:items-center gba:gap-2">
                           <span 
                             className="gba:w-3 gba:h-3 gba:rounded" 
-                            style={{ backgroundColor: getTypeColor(type, index) }}
+                            style={{ backgroundColor: getTypeColor(type) }}
                           />
                           <span className="gba:text-sm">{type}</span>
                         </div>
@@ -308,25 +308,25 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
               <Bar
                 dataKey="Vacation"
                 stackId="types"
-                fill={getTypeColor("Vacation", 0)}
+                fill={getTypeColor("Vacation")}
                 name="Vacation"
               />
               <Bar
                 dataKey="Sick Leave"
                 stackId="types"
-                fill={getTypeColor("Sick Leave", 1)}
+                fill={getTypeColor("Sick Leave")}
                 name="Sick Leave"
               />
               <Bar
                 dataKey="Special Leave"
                 stackId="types"
-                fill={getTypeColor("Special Leave", 2)}
+                fill={getTypeColor("Special Leave")}
                 name="Special Leave"
               />
               <Bar
                 dataKey="Work Leave"
                 stackId="types"
-                fill={getTypeColor("Work Leave", 3)}
+                fill={getTypeColor("Work Leave")}
                 name="Work Leave"
               />
               

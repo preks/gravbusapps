@@ -83,6 +83,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
     startDate?: string;
     endDate?: string;
     month?: string;
+    status?: string;
   };
   // 🚀 Use pre-filtered data from dashboard to ensure consistency
   preFilteredData?: Array<any>;
@@ -98,7 +99,17 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // State management following manager-absences pattern
   const [search, setSearch] = useState('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
+    const initialSelectedFilters: string[] = [];
+    // Add initial status filter if provided
+    if (initialFilters?.status) {
+      initialSelectedFilters.push(`status-${initialFilters.status}`);
+    }
+    
+    console.log('🎯 Status filter applied:', { status: initialFilters?.status, filters: initialSelectedFilters });
+    
+    return initialSelectedFilters;
+  });
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -501,6 +512,52 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     }
   };
 
+  // Apply client-side filtering to preFilteredData when we have selectedFilters
+  const applyClientSideFiltering = useCallback(() => {
+    if (!preFilteredData) return;
+
+    let filteredData = [...preFilteredData];
+
+    // Apply status filters
+    const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
+    if (statusFilters.length > 0) {
+      filteredData = filteredData.filter(absence => statusFilters.includes(absence.status));
+      console.log('🔍 Client-side status filter applied:', { statusFilters, filteredCount: filteredData.length });
+    }
+
+    // Apply search filter
+    if (search && search.trim()) {
+      const searchTerm = search.trim().toLowerCase();
+      filteredData = filteredData.filter(absence => 
+        absence.employee?.firstName?.toLowerCase().includes(searchTerm) ||
+        absence.employee?.lastName?.toLowerCase().includes(searchTerm) ||
+        absence.type?.value?.toLowerCase().includes(searchTerm) ||
+        absence.status?.toLowerCase().includes(searchTerm) ||
+        absence.employee?.employeePosition?.organizationalUnit?.name?.toLowerCase().includes(searchTerm)
+      );
+      console.log('🔍 Client-side search filter applied:', { searchTerm, filteredCount: filteredData.length });
+    }
+
+    // Apply group filters
+    const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
+    if (groupFilters.length > 0) {
+      filteredData = filteredData.filter(absence => groupFilters.includes(absence.type?.parentEntryId));
+      console.log('🔍 Client-side group filter applied:', { groupFilters, filteredCount: filteredData.length });
+    }
+
+    // Set the filtered data
+    setAbsences(filteredData);
+    setTotal(filteredData.length);
+    setLoading(false);
+    setError(null);
+
+    console.log('🎯 Client-side filtering complete:', {
+      originalCount: preFilteredData.length,
+      filteredCount: filteredData.length,
+      appliedFilters: selectedFilters
+    });
+  }, [preFilteredData, selectedFilters, search]);
+
   // Effect for preFilteredData (dashboard drill-down) - process immediately
   useEffect(() => {
     console.log('🔍 AbsenceList: preFilteredData useEffect triggered', {
@@ -515,9 +572,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         dataCount: preFilteredData.length,
         initialLoadDone: initialLoadDone.current
       });
-      fetchAbsences(); // This will use preFilteredData and return early
+      applyClientSideFiltering(); // Apply client-side filtering to preFilteredData
     }
-  }, [preFilteredData, accessToken]);
+  }, [preFilteredData, accessToken, applyClientSideFiltering]);
 
   // Initial load effect - DON'T call fetchAbsences if preFilteredData is provided
   useEffect(() => {
@@ -538,12 +595,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       setCurrentPage(1);
       fetchAbsences();
     } else if (preFilteredData) {
-      console.log('⚠️ AbsenceList: Search/filter effect blocked (preFilteredData exists)', {
+      console.log('⚠️ AbsenceList: Search/filter effect blocked (preFilteredData exists), applying client-side filtering', {
         preFilteredDataCount: preFilteredData.length,
         search, selectedFilters, startDate, endDate
       });
+      // Apply client-side filtering to preFilteredData
+      applyClientSideFiltering();
     }
-  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate, preFilteredData]);
+  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate, preFilteredData, applyClientSideFiltering]);
 
   // Employee filter backend search function
   const getEmployeeFilters = useCallback((searchTerm: string) => {

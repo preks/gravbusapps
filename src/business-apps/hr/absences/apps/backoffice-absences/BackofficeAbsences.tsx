@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // Using PageLayout headerSubViews pattern like team expenses implementation
-import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
+import { PiGauge, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
 import { PageLayout } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 
@@ -8,6 +8,7 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
 import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab } from './components/tabs';
 import { AbsenceDetails } from './components/pages/AbsenceDetails';
 import { useDashboardData } from './hooks/useDashboardData';
+import { AbsenceDetailsFilter } from './types';
 
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
@@ -17,11 +18,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
   // State for active tab within the tabs view
   const [activeTab, setActiveTab] = useState('dashboard');
   // State for absence details page filters
-  const [absenceDetailsFilter, setAbsenceDetailsFilter] = useState<{
-    month?: string;
-    startDate?: string;
-    endDate?: string;
-  }>({});
+  const [absenceDetailsFilter, setAbsenceDetailsFilter] = useState<AbsenceDetailsFilter>({});
 
   // State for time filter
   const [timeFilter, setTimeFilter] = useState<'current-year' | 'quarter' | 'month' | 'everything'>('current-year');
@@ -67,6 +64,12 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     setAbsenceDetailsFilter({});
   };
 
+  // Handle navigation to absence details with filters (status, date range, etc.)
+  const handleNavigateToAbsenceDetailsWithFilters = (filters: AbsenceDetailsFilter) => {
+    setAbsenceDetailsFilter(filters);
+    setCurrentView('absence-details');
+  };
+
   // Tab view options like in manager expenses
   const viewOptions = [
     {
@@ -102,6 +105,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
             onMonthClick={handleNavigateToAbsenceDetails}
             timeFilter={timeFilter}
             onTimeFilterChange={setTimeFilter}
+            onNavigateToDetails={handleNavigateToAbsenceDetailsWithFilters}
           />
         );
       case 'absence-list':
@@ -144,6 +148,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           month={absenceDetailsFilter.month}
           startDate={absenceDetailsFilter.startDate}
           endDate={absenceDetailsFilter.endDate}
+          status={absenceDetailsFilter.status}
           timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />

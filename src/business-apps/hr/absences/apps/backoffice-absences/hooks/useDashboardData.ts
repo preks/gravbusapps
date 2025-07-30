@@ -349,31 +349,43 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: D
       
 
 
-      // Status breakdown
-      const statusMap: Record<string, number> = {};
+      // Status breakdown - count requests AND total days per status
+      const statusMap: Record<string, { count: number, totalDays: number }> = {};
       absences.forEach((absence: any) => {
         const status = absence.status || 'UNKNOWN';
-        statusMap[status] = (statusMap[status] || 0) + 1;
+        const days = absence.effectiveDays || absence.calendarDays || 0;
+        
+        if (!statusMap[status]) {
+          statusMap[status] = { count: 0, totalDays: 0 };
+        }
+        statusMap[status].count += 1;
+        statusMap[status].totalDays += days;
       });
 
-      const statusBreakdown = Object.entries(statusMap).map(([status, count]) => ({
+      const statusBreakdown = Object.entries(statusMap).map(([status, data]) => ({
         status,
-        totalDays: count,
-        count,
-        percentage: totalAbsences > 0 ? Math.round((count / totalAbsences) * 100) : 0
+        totalDays: data.totalDays, // Actual total days
+        count: data.count, // Number of requests
+        percentage: totalAbsences > 0 ? Math.round((data.count / totalAbsences) * 100) : 0
       }));
 
-      // Type breakdown
-      const typeMap: Record<string, number> = {};
+      // Type breakdown - count requests AND total days per type
+      const typeMap: Record<string, { count: number, totalDays: number }> = {};
       absences.forEach((absence: any) => {
         const type = absence.type?.value || 'Unknown';
-        typeMap[type] = (typeMap[type] || 0) + 1;
+        const days = absence.effectiveDays || absence.calendarDays || 0;
+        
+        if (!typeMap[type]) {
+          typeMap[type] = { count: 0, totalDays: 0 };
+        }
+        typeMap[type].count += 1;
+        typeMap[type].totalDays += days;
       });
 
-      const typeBreakdown = Object.entries(typeMap).map(([type, count]) => ({
+      const typeBreakdown = Object.entries(typeMap).map(([type, data]) => ({
         type,
-        totalDays: count,
-        count
+        totalDays: data.totalDays, // Actual total days
+        count: data.count // Number of requests
       }));
 
       // Calculate real monthly trends from absence data with employee and duration stats
