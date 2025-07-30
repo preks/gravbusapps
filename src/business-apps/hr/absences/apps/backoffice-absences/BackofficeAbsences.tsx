@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
 import { PageLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AbsenceOverview } from './components/AbsenceOverview/AbsenceOverview';
 
 // 🚀 OPTIMIZED: Using only optimized components with centralized dashboard data
 import { OptimizedKPISection } from './components/KPISection/OptimizedKPISection';
