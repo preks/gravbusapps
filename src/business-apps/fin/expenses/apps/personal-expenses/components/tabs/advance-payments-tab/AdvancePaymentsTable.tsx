@@ -18,6 +18,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
+import Pill, { PillType } from '@/components/pill';
 import { Modal, message } from 'antd';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
@@ -369,9 +370,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       </div>
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                      <Badge variant={getAdvancePaymentStatusBadgeVariant(record.status)} data-testid="advance-payment-status-cell">
-                        {getAdvancePaymentStatusDisplay(record.status).label}
-                      </Badge>
+                      {(() => {
+                        const statusConfig = getAdvancePaymentStatusDisplay(record.status);
+                        return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-cell" />;
+                      })()}
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
                       <span data-testid="advance-payment-amount-cell">

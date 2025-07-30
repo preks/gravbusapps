@@ -184,7 +184,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }), [currentPage, pageSize, totalCount, handleEnhancedTableChange]);
 
   // Helper function to determine status display with memoization
-  const getStatusDisplay = useCallback((status: string): { type: PillType; text: string } => {
+  const getStatusDisplay = useCallback((status: string): { type: PillType; text: string; color?: string } => {
     // Use the same logic as the filter sidebar to get consistent labels
     const statusConfig = getExpenseRequestStatusDisplay(status);
     // Only show backend status in parentheses if the label is different from the status
@@ -194,7 +194,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     } else {
       displayText = `${statusConfig.label}`;
     }
-    return { type: statusConfig.type, text: displayText };
+    return { type: statusConfig.type, text: displayText, color: statusConfig.color };
   }, [])
 
   // Handle row selection change
@@ -446,8 +446,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {(() => {
-                            const { type, text } = getStatusDisplay(record.status);
-                            return <Pill type={type} label={text} />;
+                            const { type, text, color } = getStatusDisplay(record.status);
+                            return <Pill type={type} label={text} color={color} />;
                           })()}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right">

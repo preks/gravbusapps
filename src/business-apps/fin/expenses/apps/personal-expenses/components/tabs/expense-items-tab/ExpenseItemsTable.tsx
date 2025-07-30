@@ -19,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
+import Pill, { PillType } from '@/components/pill';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown, PiCalendar, PiPlus } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
@@ -521,9 +522,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                             )}
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                            <Badge variant={getStatusBadgeVariant(record.status)} data-testid="expense-status-cell">
-                              {getExpenseItemStatusDisplay(record.status).label}
-                            </Badge>
+                            {(() => {
+                              const statusConfig = getExpenseItemStatusDisplay(record.status);
+                              return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-status-cell" />;
+                            })()}
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}>
                             <div className="gba:flex gba:items-center gba:justify-center">

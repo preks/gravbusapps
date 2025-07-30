@@ -22,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
+import Pill, { PillType } from '@/components/pill';
 import { Modal } from 'antd';
 import { formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
@@ -451,7 +452,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                     }
                                   }
                                 ] : [],
-                                ...(record.status === 'CREATED' || record.status === 'CLOSED') ? [
+                                ...(record.status === 'APPROVED') ? [
                                   {
                                     category: 'Actions',
                                     key: 'request-advance',
@@ -577,9 +578,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                           )}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                          <Badge variant={getStatusBadgeVariant(record.status)} data-testid="expense-plan-status-cell">
-                            {getExpensePlanStatusDisplay(record.status).label}
-                          </Badge>
+                          {(() => {
+                            const statusConfig = getExpensePlanStatusDisplay(record.status);
+                            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-plan-status-cell" />;
+                          })()}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-reimbursable-amount-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="expense-plan-reimbursable-amount-cell">
