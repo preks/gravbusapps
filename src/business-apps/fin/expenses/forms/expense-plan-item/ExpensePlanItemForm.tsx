@@ -276,6 +276,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 "lowcoder:create_expense_type_item.current_currency_placeholder",
                 "Select Currency"
               )}
+              disabled={!!form.getFieldValue('fixedCurrency')}
               data-testid="currency-select"
               isDataSorted={false}
               data={currencies.map((currency) => ({

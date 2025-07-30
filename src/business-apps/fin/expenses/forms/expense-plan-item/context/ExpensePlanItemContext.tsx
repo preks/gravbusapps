@@ -84,7 +84,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [loading, setLoading] = useState<boolean>(false);
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
-
+  const [expensePlanId,setExpensePlanId] = useState<string>("");
   const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>([]);
   const [expenseTypes, setExpenseTypes] = useState<{
     [classId: string]: ExpenseType[];
@@ -152,9 +152,26 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
   useEffect(() => {
     if (catalogueDataResponse && accessToken && !expenseRuleError) {
-      addRequestsWrapper();
-      // Check if we're in edit mode
-      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+      addCurrencyWrapper();
+      const expensePlanId = 
+        additionalData?.expensePlanId || 
+        additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+      
+      // Set expensePlanId in form
+      if (expensePlanId) {
+        setExpensePlanId(expensePlanId)
+      }
+      if (additionalData?.itemCurrency && currencies.length > 0) {
+        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency);
+        if (currencyToSet) {
+          form.setFieldsValue({ 
+            currency: currencyToSet.id,
+            fixedCurrency: true
+          });
+        }
+      }
+
+      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.initialParameters?.expensePlanItem;
       if (expensePlanItemId) {
         setIsEditMode(true);
         setByEditWrapper(expensePlanItemId);
@@ -170,7 +187,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     }
   },[currentSelectedDate])
 
-  const addRequestsWrapper = () => {
+  const addCurrencyWrapper = () => {
     try {
       const transformedCurrencies = transformCurrencies(
         catalogueDataResponse?.data?.currency || []
@@ -449,6 +466,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       generalDataResponse,
       catalogueDataResponse,
       setLoading,
+      expensePlanId,
       accessToken,
       userInfo,
       additionalData,

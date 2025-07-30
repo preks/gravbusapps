@@ -94,12 +94,49 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
   onClose 
 }) => {
 
+  const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
+    // Parse URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const expensePlanId = urlParams.get('expensePlanId');
+    const itemCurrency = urlParams.get('itemCurrency');
+    
+    // Merge URL parameters with additionalData
+    return {
+      ...additionalData,
+      expensePlanId: expensePlanId || additionalData?.expensePlanId,
+      itemCurrency: itemCurrency || additionalData?.itemCurrency
+    };
+  });
   
+   // For backward compatibility, still listen for the custom event
+   React.useEffect(() => {
+    const handleShowExpenseItem = (event: CustomEvent) => {
+      if (event.detail) {
+        const { expensePlanId, itemCurrency } = event.detail;
+        
+        // Update additionalData with the parameters from the event
+        setLocalAdditionalData((prevData: any) => ({
+          ...prevData,
+          expensePlanId,
+          itemCurrency
+        }));
+      }
+    };
+    
+    // Add event listener
+    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    };
+  }, []);
+
   return (
     <ExpensePlanItemProvider 
       accessToken={accessToken} 
       userInfo={userInfo} 
-      additionalData={additionalData}
+      additionalData={localAdditionalData}
     >
       <ExpensePlanItemContent onClose={onClose} />
     </ExpensePlanItemProvider>

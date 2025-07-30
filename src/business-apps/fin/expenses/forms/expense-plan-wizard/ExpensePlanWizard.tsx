@@ -23,9 +23,9 @@ import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './contex
 // Import date validation hook
 import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 
-// Import queries from the correct location
-import { fetchExpenseRequestAndItems } from './queries/ExpensePlanWizardQueries';
 import { setInitialScreen } from './utils/tripScreenUtils';
+import ItemsScreen from './screens/ItemsScreen';
+import ExpensePlanItem from '../expense-plan-item';
 
 const { Title } = Typography;
 
@@ -221,9 +221,11 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
         return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" data-testid="expense-plan-wizard-items-screen">
-            <p>{getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.subtitle', 'Expenses')} - Coming Soon</p>
-          </div>
+          <ItemsScreen
+            accessToken={accessToken} 
+            userInfo={userInfo} 
+            additionalData={additionalData} 
+          />
         );
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
         return (
@@ -268,9 +270,12 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   
   if (showExpenseItem) {
     return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" data-testid="expense-plan-wizard-expense-item">
-        <p>Expense Item Component - Coming Soon</p>
-      </div>
+      <ExpensePlanItem
+        accessToken={accessToken} 
+        userInfo={userInfo} 
+        additionalData={expenseItemParams}
+        onClose={hideExpenseItem}
+      />
     );
   }
   

@@ -26,6 +26,7 @@ export const handleSubmit = async (
   generalDataResponse: any,
   catalogueDataResponse: any,
   setLoading: (loading: boolean) => void,
+  expensePlanId:string,
   accessToken?: string,
   userInfo?: any,
   additionalData?: any,
@@ -115,7 +116,7 @@ export const handleSubmit = async (
         nonReimbursableAmount: values.reimbursable !== true ? values.amount : "",
         expenseRuleGeneralExpense: values.expenseType || "",
         costCenter: values.costCenter,
-        expensePlan: values.expensePlan || additionalData?.expensePlanId || "",
+        expensePlan: values.expensePlan || expensePlanId || additionalData?.expensePlanId || "",
         additionalProperties: {
           customFields: customFieldsArray,
         },
