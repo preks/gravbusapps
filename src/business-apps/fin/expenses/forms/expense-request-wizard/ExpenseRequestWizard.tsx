@@ -148,7 +148,6 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   useEffect(() => {
-    //aici
     setInitialScreen(additionalData,expenseRequestData,isTrip,setCurrentScreen)
   }, [expenseRequestData, isTrip]);
   
@@ -551,6 +550,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
           onCancel={handleCancel} 
           accessToken={accessToken} 
           userInfo={userInfo}
+          additionalData={additionalData}
         />
       </div>
     </ExpenseRequestWizardProvider>

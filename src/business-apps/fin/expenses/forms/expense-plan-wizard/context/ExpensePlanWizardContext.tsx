@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
-import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../queries/ExpensePlanWizardQueries';
+import { fetchEmployeeRule, fetchExpensePlanAndItems } from '../queries/ExpensePlanWizardQueries';
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
 import { LocationData } from '../../expense-request-wizard/utils/types';
@@ -134,7 +134,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       };
 
       // Execute query
-      const response = await graphqlClient.request(fetchExpenseRequestAndItems, variables);
+      const response = await graphqlClient.request(fetchExpensePlanAndItems, variables);
       
       // Preserve any manually selected items that aren't part of the fetched data
       if (expensePlanData?.ExpensePlanItem && Array.isArray(expensePlanData.ExpensePlanItem)) {

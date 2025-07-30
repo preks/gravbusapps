@@ -1,6 +1,6 @@
 export { useEmployeeRuleQuery,fetchEmployeeRule, getExpenseRulesDataQuery } from "../../expense-request-wizard/ExpenseRequestWizardQueries";
 
-export const fetchExpenseRequestAndItems = `
+export const fetchExpensePlanAndItems = `
 query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) {
   ExpensePlanByPk(id: $expenseId) {
     id
@@ -112,6 +112,14 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     autoCalculated
     costCenterId
     costCenterId
+    expenseRuleGeneralExpenseId
+    expenseRuleGeneralExpense {
+        name
+      }
+    costCenter{
+    id
+    name
+    }
     projectId
     expensePlan {
       id
@@ -164,6 +172,14 @@ export const fetchEmployeeExpenseItems = `query FetchEmployeeExpensePlanItems($e
     employeeId
     autoCalculated
     costCenterId
+    expenseRuleGeneralExpenseId
+    expenseRuleGeneralExpense {
+        name
+      }
+    costCenter{
+    id
+    name
+    }
     projectId
     expensePlan {
       id
@@ -216,6 +232,14 @@ export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseP
     employeeId
     autoCalculated
     costCenterId
+    expenseRuleGeneralExpenseId
+    expenseRuleGeneralExpense {
+        name
+      }
+    costCenter{
+    id
+    name
+    }
     projectId
     expensePlan {
       id

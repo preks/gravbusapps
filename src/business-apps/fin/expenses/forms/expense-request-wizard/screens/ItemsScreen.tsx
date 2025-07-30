@@ -533,7 +533,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
           <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
-            {expenseItems.length > 0 && `(${expenseItems.length})`}
+            {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button 
