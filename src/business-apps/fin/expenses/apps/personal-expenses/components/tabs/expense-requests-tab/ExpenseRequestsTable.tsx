@@ -13,7 +13,11 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge 
+  Badge,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
@@ -25,6 +29,8 @@ import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -80,6 +86,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Debounced search term for API calls
   const debouncedSearchTerm = useDebounce(searchInput, 300);
 
+  // Server-side sorting state
+  const [sortField, setSortField] = useState<string>('requestDate');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
 
@@ -118,10 +128,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     }
   }, [handleFilterChange]);
 
-  // Enhanced table change handler for pagination
-  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
+  // Enhanced server-side sorting handler
+  const handleSort = useCallback((field: string) => {
+    if (sortField === field) {
+      // Cycle through: ascend -> descend -> clear
+      if (sortOrder === 'ascend') {
+        setSortOrder('descend');
+      } else if (sortOrder === 'descend') {
+        setSortField('');
+        setSortOrder(undefined);
+      } else {
+        setSortOrder('ascend');
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('ascend');
+    }
+    // Reset to first page when sorting changes
     if (onTableChange) {
-      onTableChange(pagination, _filters, _sorter);
+      onTableChange({ current: 1, pageSize }, {}, { field, order: sortOrder === 'ascend' ? 'descend' : 'ascend' });
+    }
+  }, [sortField, sortOrder, onTableChange, pageSize]);
+
+  // Helper function to render sort icon
+  const renderSortIcon = useCallback((field: string) => {
+    if (sortField !== field) return null;
+    if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+    if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+    return null;
+  }, [sortField, sortOrder]);
+
+  // Enhanced table change handler for pagination
+  const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
+    if (onTableChange) {
+      // Update sorting state if sorter is provided
+      if (sorter && sorter.field) {
+        setSortField(sorter.field);
+        setSortOrder(sorter.order);
+      }
+      onTableChange(pagination, _filters, sorter);
     }
   }, [onTableChange]);
 
@@ -160,6 +205,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Handle item selection
   const handleSelectItem = useCallback((item: typeof items[0]) => {
     setSelectedItem(item);
+  }, []);
+
+  const handleViewExpenseRequestDetails = useCallback((item: typeof items[0]) => {
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
+      expenseRequestId: item.id
+    });
+    navigateTo(url);
   }, []);
 
   // Handle editing an expense request
@@ -236,29 +288,83 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      Request Number
+                    <TableHead 
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('code')}
+                      data-testid="expense-requests-code-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        Request Number
+                        {renderSortIcon('code')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      Title
+                    <TableHead 
+                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('title')}
+                      data-testid="expense-requests-title-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        Title
+                        {renderSortIcon('title')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      Request Date
+                    <TableHead 
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('requestDate')}
+                      data-testid="expense-requests-request-date-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        Request Date
+                        {renderSortIcon('requestDate')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      Start Date
+                    <TableHead 
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('startDate')}
+                      data-testid="expense-requests-start-date-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        Start Date
+                        {renderSortIcon('startDate')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      End Date
+                    <TableHead 
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('endDate')}
+                      data-testid="expense-requests-end-date-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        End Date
+                        {renderSortIcon('endDate')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                      Status
+                    <TableHead 
+                      className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('status')}
+                      data-testid="expense-requests-status-header"
+                    >
+                      <div className="gba:flex gba:items-center">
+                        Status
+                        {renderSortIcon('status')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
-                      Reimbursable Amount
+                    <TableHead 
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
+                      onClick={() => handleSort('reimbursableAmount')}
+                      data-testid="expense-requests-reimbursable-amount-header"
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        Reimbursable Amount
+                        {renderSortIcon('reimbursableAmount')}
+                      </div>
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
-                      Advance
+                    <TableHead 
+                      className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
+                      data-testid="expense-requests-advance-header"
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        Advance
+                      </div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -276,7 +382,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                     items?.map((record: any) => (
                       <TableRow 
                         key={record.id} 
-                        className="gba:hover:bg-gray-50 gba:cursor-pointer"
+                        className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
                         onClick={() => handleSelectItem(record)}
                         data-testid={`expense-request-row-${record.id}`}
                       >
@@ -312,7 +418,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                     label: 'View Request Details',
                                     onClick: (e?: React.MouseEvent) => {
                                       e?.stopPropagation();
-                                      handleSelectItem(record);
+                                      handleViewExpenseRequestDetails(record);
                                     }
                                   },
                               ]}
@@ -421,7 +527,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       disabled={currentPage === 1}
                       data-testid="expense-requests-previous-page-button"
                     >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
+                      <span className="gba:sr-only">Go to previous page</span>
+                      ⟨
                     </Button>
                     <Button
                       variant="outline"
@@ -430,7 +537,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                       data-testid="expense-requests-next-page-button"
                     >
-                      <span className="gba:sr-only">Go to next page</span>⟩
+                      <span className="gba:sr-only">Go to next page</span>
+                      ⟩
                     </Button>
                     <Button
                       variant="outline"
@@ -450,103 +558,78 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
         </Card>
       </div>
     );
-  }, [items, isLoading, error, currentPage, pageSize, totalCount, 
-      handleEnhancedTableChange, handleEditExpenseRequest, handleSelectItem, getStatusDisplay]);
-
-  // Memoized details panel render function using the new component
-  const renderExpenseRequestDetails = useCallback(() => {
-    if (!selectedItem) return null;
-    return (
-      <ExpenseRequestDetails 
-        selectedItem={selectedItem} 
-        onClose={handleCloseDetails}
-        accessToken={contextProps.accessToken}
-        userInfo={contextProps.userInfo}
-      />
-    );
-  }, [selectedItem, handleCloseDetails, contextProps.accessToken, contextProps.userInfo]);
-
-  const dataControllerProps = useMemo(() => ({
-    search: searchInput,
-    setSearch: handleSearchChange,
-    filter: selectedFilters,
-    setFilter: (newFilters: string[]) => {
-      // Clear all current filters first
-      if (clearFilters) {
-        clearFilters();
-      }
-      
-      // Add each new filter
-      newFilters.forEach((filter: string) => {
-        if (handleFilterChange) {
-          handleFilterChange(filter, true);
-        }
-      });
-    },
-    addButton: {
-      onClick: onAddExpenseRequest || (() => {}),
-      label: 'Add',
-      'data-testid': 'add-expense-request-button'
-    },
-    listTitle: "My Expense Requests",
-    listAmount: totalCount ? `${totalCount}` : undefined,
-    filterLabelMap: filterLabelMap
-  }), [searchInput, selectedFilters, handleSearchChange, handleFilterChange, clearFilters, totalCount, filterLabelMap, onAddExpenseRequest]);
-
-  const dataFilterProps = useMemo(() => ({
-    filterGroups: filterGroups,
-    onFilterChange: handleFilterChange,
-  }), [filterGroups, handleFilterChange]);
-
-  const dataDetails = useMemo(() => {
-    if (selectedItem) {
-      return {
-        title: selectedItem.title ?? 'Expense Request Details',
-        icon: <InfoCircleOutlined />,
-        content: renderExpenseRequestDetails(),
-        onClose: handleCloseDetails
-      };
-    }
-    return undefined;
-  }, [selectedItem, renderExpenseRequestDetails, handleCloseDetails]);
+  }, [items, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, handleSort, renderSortIcon, handleSelectItem, handleEditExpenseRequest, handlePrintRequest, getStatusDisplay, contextProps.accessToken]);
 
   return (
     <>
       <DataContainer
-        dataControllerProps={dataControllerProps}
-        dataFilterProps={dataFilterProps}
-        hideFilter={false}
+        dataControllerProps={{
+          listTitle: 'Expense Requests',
+          listAmount: totalCount ? `${totalCount}` : undefined,
+          search: searchInput,
+          setSearch: handleSearchChange,
+          placeholder: 'Search by request number, title, or status...',
+          filter: selectedFilters,
+          setFilter: setFilters || (() => {}),
+          filterLabelMap: filterLabelMap,
+          addButton: {
+            onClick: onAddExpenseRequest || (() => {}),
+            label: 'Add',
+            'data-testid': 'add-expense-plan-button',
+          },
+        }}
+        dataFilterProps={{
+          filterGroups: filterGroups,
+          onFilterChange: handleFilterChangeCallback,
+        }}
         dataBody={renderDataBody()}
-        contentBackground="white"
-        floatingDetails={true}
-        dataDetails={dataDetails}
       />
+
+      {/* Expense Request Details Sheet */}
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedItem?.title || 'Expense Request Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <ExpenseRequestDetails
+                selectedItem={selectedItem}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Print Modal */}
       <Modal
-        open={printModalOpen}
         title="Print Expense Request"
+        open={printModalOpen}
+        onCancel={() => setPrintModalOpen(false)}
         footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false);
-          setPrintPdfUrl('');
-        }}
-        width="90vw"
-        style={{ top: 20 }}
-        destroyOnClose={true}
-        data-testid="print-request-modal"
+        width={800}
+        data-testid="expense-request-print-modal"
       >
         {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+          <div className="gba:flex gba:justify-center gba:p-8">
             <Spinner />
           </div>
-        ) : (
+        ) : printPdfUrl ? (
           <iframe
             src={printPdfUrl}
-            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-            title="Print Preview"
-            data-testid="print-request-iframe"
+            style={{ width: '100%', height: '600px', border: 'none' }}
+            title="Expense Request PDF"
+            data-testid="expense-request-pdf-iframe"
           />
+        ) : (
+          <div className="gba:text-center gba:p-8 gba:text-gray-500">
+            Failed to load PDF
+          </div>
         )}
       </Modal>
     </>

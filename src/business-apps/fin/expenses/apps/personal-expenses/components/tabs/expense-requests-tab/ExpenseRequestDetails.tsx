@@ -184,16 +184,21 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               </span>
             </div>
             
-            {selectedItem.advancePaymentPaidAmount > 0 && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.request.advancePayment', 'Advance Payment')}
-                </span>
-                <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                  {formatCurrency(selectedItem.advancePaymentPaidAmount)}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const advanceAmountValue = selectedItem.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
+              const advanceAmount = advanceAmountValue && advanceAmountValue > 0 ? advanceAmountValue : null;
+              
+              return advanceAmount ? (
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                    {getTranslationFromI18nKeyAndLabel('expense.request.advancePayment', 'Advance Payment')}
+                  </span>
+                  <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+                    {formatCurrency(advanceAmount)}
+                  </span>
+                </div>
+              ) : null;
+            })()}
           </div>
         </CardContent>
       </Card>

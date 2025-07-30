@@ -95,6 +95,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   // Get all selected filters (including date range) - use props instead of hook
   const allSelectedFilters = selectedFilters;
 
+  // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
@@ -212,8 +213,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
-  // Handle sorting
-  const handleSort = (field: string) => {
+  // Enhanced server-side sorting handler
+  const handleSort = useCallback((field: string) => {
     if (sortField === field) {
       // Cycle through: ascend -> descend -> clear
       if (sortOrder === 'ascend') {
@@ -229,15 +230,15 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       setSortOrder('ascend');
     }
     setCurrentPage(1);
-  };
+  }, [sortField, sortOrder]);
 
   // Helper function to render sort icon
-  const renderSortIcon = (field: string) => {
+  const renderSortIcon = useCallback((field: string) => {
     if (sortField !== field) return null;
     if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
     if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
     return null;
-  };
+  }, [sortField, sortOrder]);
 
   // Handle pagination
   const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {

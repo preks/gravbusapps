@@ -24,6 +24,21 @@ export interface ExpenseRequest {
   reimbursableAmount: number;
   nonReimbursableAmount: number;
   requestType: CatalogEntry;
+  currency?: {
+    code: string;
+  };
+  employeeDocument?: {
+    file: string;
+  };
+  expensePlan?: {
+    advancePaymentAggregate?: {
+      aggregate?: {
+        sum?: {
+          amount: number;
+        };
+      };
+    };
+  };
 }
 
 // Type for the hook return value
@@ -32,7 +47,7 @@ export interface ExpenseRequestsDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (filters: any, page?: number, pageSize?: number) => Promise<void>;
+  fetchItems: (filters: any, page?: number, pageSize?: number, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
 }
 
 export const useGetExpenseRequests = (context?: BusinessAppContextProps): ExpenseRequestsDataView => {
@@ -46,13 +61,19 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const accessToken = context?.accessToken || '';
   const client = useGraphqlClient(accessToken);
 
-  // Function to fetch items with search, pagination, and filters
-  const fetchItems = useCallback(async (filters: any = {}, page: number = 1, pageSize: number = 10) => {
+  // Function to fetch items with search, pagination, filters, and sorting
+  const fetchItems = useCallback(async (
+    filters: any = {}, 
+    page: number = 1, 
+    pageSize: number = 10,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
+  ) => {
     // Set loading state immediately when function is called
     setIsLoading(true);
     setError(null);
     
-    console.log('ExpenseRequests: fetchItems called with filters:', filters);
+    console.log('ExpenseRequests: fetchItems called with filters:', filters, 'sortField:', sortField, 'sortOrder:', sortOrder);
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -84,15 +105,41 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         ]
       };
 
-      const variables = {
+      // Build variables object
+      const variables: Record<string, any> = {
         limit: pageSize,
         offset: offset,
         where: whereClause,
       };
+
+      // Add orderBy for server-side sorting
+      if (sortField && sortOrder) {
+        // Map UI sort field to GraphQL field names - only include fields that exist in the schema
+        const fieldMap: Record<string, string> = {
+          code: 'code',
+          title: 'title',
+          requestDate: 'requestDate',
+          startDate: 'startDate',
+          endDate: 'endDate',
+          status: 'status',
+          reimbursableAmount: 'reimbursableAmount',
+          totalAmount: 'totalAmount',
+          createdAt: 'createdAt',
+          updatedAt: 'updatedAt',
+          description: 'description',
+          currencyRef: 'currencyRef',
+          nonReimbursableAmount: 'nonReimbursableAmount'
+        };
+        const gqlField = fieldMap[sortField] || sortField;
+        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
+        variables.orderBy = [{ [gqlField]: direction }];
+      } else {
+        // Default sorting by request date descending
+        variables.orderBy = [{ requestDate: 'DESC' }];
+      }
       
       // Log the complete where clause for debugging
       console.log('ExpenseRequests: Final whereClause:', JSON.stringify(whereClause, null, 2));
-
       console.log('ExpenseRequests: GraphQL request sent with variables:', variables);
       
       // Start a performance measurement to track request time

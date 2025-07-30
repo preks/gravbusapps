@@ -3,7 +3,8 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
   query GetExpenseRequestsByEmployee(
     $limit: Int,
     $offset: Int,
-    $where: ExpenseRequestBoolExp
+    $where: ExpenseRequestBoolExp,
+    $orderBy: [ExpenseRequestOrderBy!]
   ) {
     ExpenseRequestAggregate(
       where: $where
@@ -15,7 +16,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
     ExpenseRequest(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id

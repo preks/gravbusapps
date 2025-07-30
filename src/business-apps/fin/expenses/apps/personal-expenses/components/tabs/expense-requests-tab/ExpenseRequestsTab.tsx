@@ -23,6 +23,10 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const [pageSize, setPageSize] = useState(20);
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
 
+  // Server-side sorting state
+  const [sortField, setSortField] = useState<string>('requestDate');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+
   const {
     filterGroups,
     selectedFilters,
@@ -112,18 +116,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     return getFilters();
   }, [getFilters]);
 
-  // Only fetch when filters, page, or pageSize change
+  // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
       fetchItems(
         memoizedFilters,
         currentPage,
-        pageSize
+        pageSize,
+        sortField,
+        sortOrder
       );
     }
-  }, [fetchItems, currentPage, pageSize, memoizedFilters, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
-
-
+  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
@@ -171,6 +175,16 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
+    
+    // Handle sorting changes
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      // Reset to default sorting
+      setSortField('requestDate');
+      setSortOrder('descend');
+    }
   }, []);
 
   const handleClearAllFilters = useCallback(() => {

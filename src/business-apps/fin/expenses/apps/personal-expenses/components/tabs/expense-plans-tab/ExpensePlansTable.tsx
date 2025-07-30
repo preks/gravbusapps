@@ -17,22 +17,20 @@ import {
   Spinner, 
   Button, 
   Badge, 
-  Alert,
-  Checkbox,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
 import { Modal } from 'antd';
-import { formatDate, formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
-import { PiFileText, PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { formatNumberFunction, getDateFormat } from '@/common/utils/windowUtils';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable';
 
@@ -221,9 +219,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   }, [contextProps.userInfo]);
 
   const handleViewExpenseRequestDetails = useCallback((record: ExpensePlan) => {
-    if (record.expenseRequest) {
-      setSelectedExpenseRequest(record.expenseRequest[0]);
-    }
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
+      expenseRequestId: record.expenseRequest[0].id
+    });
+    navigateTo(url);
+  }, []);
+
+  const handleViewExpensePlanDetails = useCallback((record: ExpensePlan) => {
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { 
+      expensePlanId: record.id
+    });
+    navigateTo(url);
   }, []);
 
   // Enhanced table change handler for sorting - manages state internally
@@ -473,7 +479,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                         domain: 'employee-expense',
                                         processName: 'changeExpenseRequest',
                                         payload: {
-                                            employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
+                                          employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlanId: record.id
                                         },
                                       });
@@ -486,7 +492,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                   label: 'View Plan Details',
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
-                                    handleSelectItem(record);
+                                    handleViewExpensePlanDetails(record);
                                   },
                                 },
                                 ...(record.expenseRequest && (record.expenseRequest as unknown as any[]).length > 0 && (record.expenseRequest as unknown as any[])[0].id !== null) ? [
