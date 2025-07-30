@@ -101,9 +101,10 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
 
       try {
         const today = new Date();
-        const todayDate = today.toISOString().split('T')[0];
         const currentYear = today.getFullYear();
         const firstDayOfYear = new Date(Date.UTC(currentYear, 0, 1)).toISOString().split('T')[0];
+        const lastDayOfYear = new Date(Date.UTC(currentYear, 11, 31)).toISOString().split('T')[0];
+        const todayDate = today.toISOString().split('T')[0];
 
         
         const formatForGraphQL = (dateStr: string) => `${dateStr}T00:00:00.000Z`;
@@ -169,7 +170,7 @@ export const AbsenceOverview: React.FC<BusinessAppContextProps> = ({ accessToken
         
         const variables = {
           startDate: formatForGraphQL(firstDayOfYear),
-          endDate: formatForGraphQL(todayDate),
+          endDate: formatForGraphQL(lastDayOfYear), // Changed to full year
           today: formatForGraphQL(todayDate)
         };
         

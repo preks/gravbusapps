@@ -4,20 +4,69 @@ import { PiGauge, PiCalendar, PiListBullets, PiChartBar, PiCalendarBlank } from 
 import { PageLayout } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceOverview } from './components/AbsenceOverview/AbsenceOverview';
-import AbsenceTrends from './components/AbsenceTrends/AbsenceTrends';
-import KPISection from './components/KPISection/KPISection';
+
+// 🚀 OPTIMIZED: Using only optimized components with centralized dashboard data
+import { OptimizedKPISection } from './components/KPISection/OptimizedKPISection';
+import OptimizedAbsenceTrends from './components/AbsenceTrends/OptimizedAbsenceTrends';
 import { AbsenceReports } from './components/AbsenceReports/AbsenceReports';
 import { AbsenceList } from './components/AbsenceList/AbsenceList';
 import CalendarList from './components/CalendarList/CalendarList';
+import { AbsenceDetails } from './components/AbsenceDetails';
+import { useDashboardData } from './hooks/useDashboardData';
 
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
 const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, userInfo }) => {
+  // State for current view/page - following manager-absences pattern
+  const [currentView, setCurrentView] = useState<'tabs' | 'absence-details'>('tabs');
+  // State for active tab within the tabs view
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [contentHeader, setContentHeader] = useState<React.ReactNode | null>(null);
+  // State for absence details page filters
+  const [absenceDetailsFilter, setAbsenceDetailsFilter] = useState<{
+    month?: string;
+    startDate?: string;
+    endDate?: string;
+  }>({});
+
+  // 🚀 OPTIMIZED: Single comprehensive dashboard query with server-side aggregations
+  // Replaces multiple individual API calls with one efficient request
+  const dashboardData = useDashboardData({ accessToken, userInfo });
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+  };
+
+  // Navigation handlers - following manager-absences pattern
+  const handleNavigateToAbsenceDetails = (month: string, year: number = new Date().getFullYear()) => {
+    // Calculate start and end dates for the selected month
+    const monthIndex = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ].findIndex(m => m.startsWith(month.substring(0, 3)));
+    
+    if (monthIndex === -1) return;
+    
+    const startDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+    
+    // Create a date for the last day of the month (avoiding timezone issues)
+    const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
+    const endDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
+    const shortMonth = month.substring(0, 3);
+    
+    // Set filters and navigate to details page
+    setAbsenceDetailsFilter({
+      month: shortMonth,
+      startDate,
+      endDate
+    });
+    setCurrentView('absence-details');
+  };
+
+  const handleNavigateBackToDashboard = () => {
+    setCurrentView('tabs');
+    setActiveTab('dashboard');
+    // Clear any filters when returning to dashboard
+    setAbsenceDetailsFilter({});
   };
 
   // Tab view options like in manager expenses
@@ -34,12 +83,12 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     },
     {
       key: 'calendar',
-      label: 'Team Calendar',
-      icon: <PiCalendar className="w-5 h-5" />,
+      label: 'Calendar View',
+      icon: <PiCalendarBlank className="w-5 h-5" />,
     },
     {
       key: 'reports',
-      label: 'Absence Reports',
+      label: 'Reports',
       icon: <PiChartBar className="w-5 h-5" />,
     },
   ];
@@ -49,17 +98,48 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
       case 'dashboard':
         return (
           <div className="gba:space-y-8" data-testid="dashboard-content">
-            <AbsenceOverview accessToken={accessToken} userInfo={userInfo} />
-            <AbsenceTrends accessToken={accessToken} />
-            <KPISection accessToken={accessToken} />
+
+            
+            {/* Dashboard Components - All optimized */}
+                        <OptimizedKPISection
+              accessToken={accessToken}
+              userInfo={userInfo}
+              dashboardData={dashboardData}
+            />
+            
+            <OptimizedAbsenceTrends
+              accessToken={accessToken}
+              userInfo={userInfo}
+              dashboardData={dashboardData}
+              onMonthClick={handleNavigateToAbsenceDetails}
+            />
+            
+            {/* Performance Summary */}
+            <div className="gba:bg-gray-50 gba:rounded-lg gba:p-4 gba:border">
+              <div className="gba:text-sm gba:text-gray-600 gba:text-center">
+                <span className="gba:font-medium">Performance Metrics:</span>
+                {dashboardData.isLoading ? (
+                  <span> Loading dashboard data...</span>
+                ) : (
+                  <span>
+                    {' '}Loaded {dashboardData.totalAbsences} absences, {dashboardData.departmentStats.length} departments, 
+                    {dashboardData.monthlyTrends.filter(m => m.total > 0).length} active months in a single optimized query
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         );
       case 'absence-list':
         return (
           <div data-testid="absence-list-content">
-            <AbsenceList accessToken={accessToken} userInfo={userInfo} />
+            <AbsenceList 
+              accessToken={accessToken} 
+              userInfo={userInfo}
+            />
           </div>
         );
+
       case 'calendar':
         return (
           <div data-testid="calendar-content">
@@ -77,12 +157,29 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     }
   };
 
+  // Render based on current view - following manager-absences pattern
+  if (currentView === 'absence-details') {
+    return (
+      <div data-testid="backoffice-absences-container">
+        <AbsenceDetails
+          accessToken={accessToken}
+          userInfo={userInfo}
+          month={absenceDetailsFilter.month}
+          startDate={absenceDetailsFilter.startDate}
+          endDate={absenceDetailsFilter.endDate}
+          onNavigateBack={handleNavigateBackToDashboard}
+        />
+      </div>
+    );
+  }
+
+  // Default tabs view
   return (
     <div data-testid="backoffice-absences-container">
       <PageLayout
-        headerIcon={<PiCalendarBlank className="w-6 h-6 text-purple-600" />}
+        headerIcon={<PiCalendarBlank className="w-6 h-6 text-blue-600" />}
         headerTitle="Absence Management Hub (Backoffice)"
-        headerDescription="Manage team absences, track absence trends, and generate absence reports"
+        headerDescription="Manage and monitor all absence requests across the organization"
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
@@ -94,9 +191,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto gba:p-6">
-          {renderTabContent()}
-        </div>
+        {renderTabContent()}
       </PageLayout>
     </div>
   );

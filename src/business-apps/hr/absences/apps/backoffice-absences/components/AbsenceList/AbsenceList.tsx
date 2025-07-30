@@ -77,11 +77,20 @@ const ABSENCE_STATUSES = [
   { id: 'CANCELLED', name: 'Cancelled' }
 ];
 
+// Extended interface for AbsenceList with initial filters
+interface AbsenceListProps extends BusinessAppContextProps {
+  initialFilters?: {
+    startDate?: string;
+    endDate?: string;
+    month?: string;
+  };
+}
+
 /**
  * Modern Absence List component matching manager-absences design exactly
  */
-export const AbsenceList: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo } = props;
+export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
+  const { accessToken, userInfo, initialFilters } = props;
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
 
@@ -104,8 +113,8 @@ export const AbsenceList: React.FC<BusinessAppContextProps> = (props) => {
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(false);
   
   // Date range state (exactly like manager-absences)
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
-  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+  const [startDate, setStartDate] = useState<string | undefined>(initialFilters?.startDate);
+  const [endDate, setEndDate] = useState<string | undefined>(initialFilters?.endDate);
   const [creationStartDate, setCreationStartDate] = useState<string | undefined>(undefined);
   const [creationEndDate, setCreationEndDate] = useState<string | undefined>(undefined);
   
