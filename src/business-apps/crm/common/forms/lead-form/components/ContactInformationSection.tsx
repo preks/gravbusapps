@@ -3,7 +3,8 @@ import { SelectField, InputField } from '@newwork/gravity-ui-catalog';
 import { PiPhone, PiEnvelopeSimple, PiCaretDown, PiCaretUp } from 'react-icons/pi';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useLeadFormContext } from '../context/LeadFormContext';
-import { validateEmail, validatePhone, toStringOrUndefined, salutationOptions } from '../utils/validationUtils';
+import { validateEmail, validatePhone, toStringOrUndefined } from '../utils/validationUtils';
+import { useAcademicTitles } from '../hooks/useAcademicTitles';
 
 const prefixDataTestId = 'LeadForm';
 
@@ -14,7 +15,14 @@ const ContactInformationSection: React.FC = () => {
     formValues,
     setFormValues,
     isLoading,
+    accessToken,
   } = useLeadFormContext();
+
+  // Fetch academic titles from catalog
+  const {
+    academicTitleOptions,
+    isLoading: academicTitlesLoading
+  } = useAcademicTitles(accessToken);
 
   const emailError = formValues.email && !validateEmail(formValues.email) ? 'Please enter a valid email address' : '';
   const phoneError = formValues.phone && !validatePhone(formValues.phone) ? 'Please enter a valid phone number' : '';
@@ -56,9 +64,9 @@ const ContactInformationSection: React.FC = () => {
             name="salutation"
             value={toStringOrUndefined(formValues.salutation)}
             onChange={e => setFormValues({ salutation: String(e.value || '') })}
-            data={salutationOptions}
+            data={academicTitleOptions}
             placeholder="Please Select..."
-            loading={isLoading}
+            loading={isLoading || academicTitlesLoading}
             filterOption={false}
             data-testid={formatDataTestId(prefixDataTestId, 'SalutationSelect')}
           />

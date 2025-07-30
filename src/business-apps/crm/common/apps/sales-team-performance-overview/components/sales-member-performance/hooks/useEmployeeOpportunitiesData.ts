@@ -94,7 +94,6 @@ export const useEmployeeOpportunitiesData = ({
                 _and: conditions,
               };
 
-        console.log(sortField, sortOrder);
         let orderBy: any = {};
         if (sortField && sortField !== "") {
           if (sortField === "name") {
@@ -131,7 +130,6 @@ export const useEmployeeOpportunitiesData = ({
           orderBy: [orderBy],
           where,
         };
-        console.log("variables", variables);
         const result = await fetchEmployeeOpportunities(variables);
 
         setOpportunities(result.Opportunity || []);

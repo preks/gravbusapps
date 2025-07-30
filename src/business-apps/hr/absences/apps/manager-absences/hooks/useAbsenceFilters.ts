@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceFilters } from '../types';
 import { useAbsenceCatalogs } from './useAbsenceCatalogs';
+import { DateRangeFilter } from '../components/DateRangeFilter';
+import { CreationDateFilter } from '../components/CreationDateFilter';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 // DataFilter interfaces to match DataContainer expectations
@@ -159,9 +161,9 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   }, []);
 
   // Backend search functions (following leads pattern exactly)
-  const getStatusFilters = useCallback((search: string) => {
+    const getStatusFilters = useCallback((search: string) => {
     const filteredStatuses = search 
-      ? ABSENCE_STATUSES.filter(status => 
+      ? ABSENCE_STATUSES.filter(status =>
           status.name.toLowerCase().includes(search.toLowerCase())
         )
       : ABSENCE_STATUSES;
@@ -263,6 +265,28 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   // Create filter groups with backend search functions (following leads pattern exactly)
   const filterGroups: DataFilterGroup[] = [
     {
+      id: 'absenceDateRange',
+      title: 'Start - End Date',
+      customComponent: React.createElement(DateRangeFilter, {
+        key: `absenceDateRange-${startDate}-${endDate}`, // Force re-render when dates change
+        initialStartDate: startDate,
+        initialEndDate: endDate,
+        onDateRangeChange: handleDateRangeChangeForFilter
+      }),
+      hideSearch: true
+    } as any, // Temporary type assertion to bypass interface issue
+    {
+      id: 'creationDateRange',
+      title: 'Creation Date',
+      customComponent: React.createElement(CreationDateFilter, {
+        key: `creationDateRange-${creationStartDate}-${creationEndDate}`, // Force re-render when dates change
+        initialStartDate: creationStartDate,
+        initialEndDate: creationEndDate,
+        onCreationDateRangeChange: handleCreationDateRangeChangeForFilter
+      }),
+      hideSearch: true
+    } as any, // Temporary type assertion to bypass interface issue
+    {
       id: 'employee',
       title: 'Employee',
       filters: employeeFilterOptions,
@@ -299,7 +323,10 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
       const fullName = `${firstName} ${lastName}`.trim();
       return [employee.id, fullName || 'Unknown Employee'];
     })),
-    // Add creation date range labels only (Start - End Date is not used for filtering)
+    // Add date range labels
+    ...(startDate && endDate ? { 'absenceDateRange': `Start - End Date: ${startDate} to ${endDate}` } : {}),
+    ...(startDate && !endDate ? { 'absenceDateRange': `Start - End Date: From ${startDate}` } : {}),
+    ...(!startDate && endDate ? { 'absenceDateRange': `Start - End Date: Until ${endDate}` } : {}),
     ...(creationStartDate && creationEndDate ? { 'creationDateRange': `Creation Date: ${creationStartDate} to ${creationEndDate}` } : {}),
     ...(creationStartDate && !creationEndDate ? { 'creationDateRange': `Creation Date: From ${creationStartDate}` } : {}),
     ...(!creationStartDate && creationEndDate ? { 'creationDateRange': `Creation Date: Until ${creationEndDate}` } : {})
@@ -324,15 +351,28 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
       creationEndDate
     };
 
-    console.log('useAbsenceFilters - getFilters called:', filters);
+  
     return filters;
   }, [search, selectedFilters, absenceTypes, absenceGroups, teamEmployees, startDate, endDate, creationStartDate, creationEndDate]);
 
-  // Compute selectedFilters including creation date range for display
+  // Compute selectedFilters including date ranges for display
   const computedSelectedFilters = useMemo(() => {
     const allSelectedFilters = [...selectedFilters];
     
-    // Add creation date range filter if active (Start - End Date is not used for filtering)
+    // Add absence date range filter if active
+    if (startDate || endDate) {
+      if (!allSelectedFilters.includes('absenceDateRange')) {
+        allSelectedFilters.push('absenceDateRange');
+      }
+    } else {
+      // Remove if no longer active
+      const index = allSelectedFilters.indexOf('absenceDateRange');
+      if (index > -1) {
+        allSelectedFilters.splice(index, 1);
+      }
+    }
+    
+    // Add creation date range filter if active
     if (creationStartDate || creationEndDate) {
       if (!allSelectedFilters.includes('creationDateRange')) {
         allSelectedFilters.push('creationDateRange');
@@ -346,7 +386,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     }
     
     return allSelectedFilters;
-  }, [selectedFilters, creationStartDate, creationEndDate]);
+  }, [selectedFilters, startDate, endDate, creationStartDate, creationEndDate]);
 
   return {
     search,

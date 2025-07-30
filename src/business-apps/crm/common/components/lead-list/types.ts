@@ -54,6 +54,7 @@ export interface Lead {
     firstName: string;
     lastName: string;
     pictureUrl: string;
+    pictureThumbnailUrl: string;
   };
 }
 

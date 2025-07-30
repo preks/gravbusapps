@@ -127,7 +127,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
 
   return (
     <Card 
-      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:h-full gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/30 hover:gba:shadow-2xl hover:gba:border-white/50 hover:gba:bg-white hover:gba:scale-105 gba:rounded-xl gba:overflow-hidden"
+      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:h-full gba:min-h-96 gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/30 hover:gba:shadow-2xl hover:gba:border-white/50 hover:gba:bg-white hover:gba:scale-105 gba:rounded-xl gba:overflow-hidden gba:flex gba:flex-col"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -135,7 +135,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
       aria-label={`Navigate to ${area.title}: ${area.description}`}
       data-testid={`navigation-card-${area.id}`}
     >
-      <CardHeader className="gba:pb-4">
+      <CardHeader className="gba:pb-4 gba:flex-shrink-0">
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
           <div className={`gba:p-2 gba:rounded-lg ${styles.iconBg} gba:flex-shrink-0`}>
             <IconComponent 
@@ -157,21 +157,21 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="gba:pt-0">
+      <CardContent className="gba:pt-0 gba:flex gba:flex-col gba:flex-grow">
         {/* Action Items */}
         <div className="gba:space-y-2 gba:mb-4">
           {area.id === 'leads' && (
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('leads', { leadStatus: 'open' }, e)}
+                onClick={(e) => handleActionClick('leads', { salesLeadStatus: 'SalesLeadStatus:v1:OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('leads', { leadStatus: 'converted' }, e)}
+                onClick={(e) => handleActionClick('leads', { salesLeadStatus: 'SalesLeadStatus:v1:CONVERTED' }, e)}
               >
                 <span className="gba:text-gray-600">Converted Leads</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -190,7 +190,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('opportunities', { status: 'active' }, e)}
+                onClick={(e) => handleActionClick('opportunities', { status: 'OPPORTUNITY_OPEN' }, e)}
               >
                 <span className="gba:text-gray-600">Active Opportunities</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -221,21 +221,21 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
             <>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'founder' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'FOUNDER_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Founder Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'primary' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'PRIMARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Primary Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div 
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleActionClick('contacts', { contactType: 'secondary' }, e)}
+                onClick={(e) => handleActionClick('contacts', { contactType: 'SECONDARY_CONTACT' }, e)}
               >
                 <span className="gba:text-gray-600">Secondary Contacts</span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -282,9 +282,9 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats })
           )}
         </div>
 
-        {/* Primary Action Button */}
+        {/* Primary Action Button - Always at bottom */}
         <button 
-          className={`gba:w-full gba:py-2 gba:px-4 ${styles.statsText} gba:text-sm gba:font-medium gba:rounded-md hover:gba:opacity-90 gba:transition-opacity gba:duration-200`}
+          className={`gba:w-full gba:py-2 gba:px-4 ${styles.statsText} gba:text-sm gba:font-medium gba:rounded-md hover:gba:opacity-90 gba:transition-opacity gba:duration-200 gba:flex-shrink-0 gba:mt-auto`}
           style={{ backgroundColor: styles.statsBg }}
           onClick={handleButtonClick}
         >

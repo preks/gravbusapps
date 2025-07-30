@@ -138,16 +138,19 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
       }
 
       const payload = {
-        typeRef: formValuesState.selectedType,
-        startDate: formValuesState.startDate
-          ? dayjs(formValuesState.startDate).format("YYYY-MM-DD")
-          : null,
-        endDate: formValuesState.endDate
-          ? dayjs(formValuesState.endDate).format("YYYY-MM-DD")
-          : null,
-        substituteEmployee: formValuesState.selectedSubstitute,
-        description: formValuesState.comment,
-        status: "PENDING",
+        employeeAbsence: {
+          employeeId: userInfo?.employeeDetails.employeeId,
+          typeRef: formValuesState.selectedType,
+          startDate: formValuesState.startDate
+            ? dayjs(formValuesState.startDate).format("YYYY-MM-DD")
+            : null,
+          endDate: formValuesState.endDate
+            ? dayjs(formValuesState.endDate).format("YYYY-MM-DD")
+            : null,
+          substituteEmployee: formValuesState.selectedSubstitute,
+          description: formValuesState.comment,
+          status: "PENDING",
+        },
       };
       dispatchProcessContinueEvent("pse_submit", payload);
     },

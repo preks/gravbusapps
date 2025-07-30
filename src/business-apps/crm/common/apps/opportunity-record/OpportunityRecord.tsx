@@ -18,6 +18,7 @@ import { useOpportunityData } from "./hooks/useOpportunityData";
 import { OpportunityHeader } from "./components/OpportunityHeader";
 import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
+import { OpportunityDetails } from "./components/OpportunityDetails";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { StageProgression } from "./components/StageProgression";
@@ -158,16 +159,24 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           </TabsList>
 
           <TabsContent value="overview" data-testid="overview-content">
-            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
-              <div className="gba:col-span-3 gba:flex">
+            <div className="gba:grid gba:grid-cols-8 gba:gap-6 gba:mb-6">
+              <div className="gba:col-span-4 gba:flex">
                 <CompanyInformation
                   opportunity={opportunity}
                   opportunityData={opportunityData}
                 />
               </div>
 
-              <div className="gba:col-span-1 gba:flex">
+              <div className="gba:col-span-2 gba:flex">
                 <ContactInformation
+                  opportunityData={opportunityData}
+                  opportunityId={opportunityId}
+                  context={props}
+                />
+              </div>
+
+              <div className="gba:col-span-2 gba:flex">
+                <OpportunityDetails
                   opportunityData={opportunityData}
                   opportunityId={opportunityId}
                   context={props}

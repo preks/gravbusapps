@@ -247,7 +247,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
+            <div className="gba:flex-1 gba:ml-1 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
               {listTitle}
             </div>
           )}
