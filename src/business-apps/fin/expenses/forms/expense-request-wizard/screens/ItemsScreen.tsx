@@ -13,6 +13,8 @@ import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { showToast } from '../../../utils/notificationUtils';
+import RejectionComment from '../components/RejectionComment';
+import { getLatestRejectComment } from '../utils/tripScreenUtils';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -22,6 +24,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
     };
     [key: string]: any;
   };
+  isTrip:boolean
 }
 
 
@@ -29,7 +32,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
 
 
 const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
-  const { accessToken, additionalData, userInfo } = props;
+  const { accessToken, additionalData, userInfo, isTrip } = props;
   const { 
     expenseRequestData, 
     setExpenseRequestData, 
@@ -66,6 +69,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     
     return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
   }, [expenseRequestData]);
+  
+  const latestRejectComment = getLatestRejectComment(expenseRequestData);
+
   useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
@@ -529,6 +535,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   return (
     <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-request-wizard-items-screen">
+      {!isTrip && latestRejectComment && (
+       <div className="gba:mb-4">
+        <RejectionComment isRequest={true} comment={latestRejectComment} />
+        </div>
+      )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
           <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">

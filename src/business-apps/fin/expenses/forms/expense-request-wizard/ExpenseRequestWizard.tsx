@@ -215,7 +215,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const renderCurrentScreen = () => {    
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} isTrip={isTrip}/>;
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
@@ -227,7 +227,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         return <SummaryScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       default:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
+        return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
     }
   };
   

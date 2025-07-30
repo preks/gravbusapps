@@ -12,6 +12,8 @@ import { EVENTS } from '../../../utils/constants';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { showToast } from '../../../utils/notificationUtils';
 import ExpenseItemCard from '../../expense-request-wizard/components/ExpenseItemCard';
+import RejectionComment from '../../expense-request-wizard/components/RejectionComment';
+import { getLatestRejectComment } from '../utils/tripScreenUtils';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -21,10 +23,11 @@ interface ItemsScreenProps extends BusinessAppContextProps {
     };
     [key: string]: any;
   };
+  isTrip:boolean
 }
 
-const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
-  const { accessToken, additionalData, userInfo } = props;
+const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
+  const { accessToken, additionalData, userInfo, isTrip } = props;
   const { 
     expensePlanData, 
     setExpensePlanData, 
@@ -46,6 +49,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const itemListLimit = 4;
   
   const graphQLClient = useGraphqlClient(accessToken);
+
+  const latestRejectComment = getLatestRejectComment(expensePlanData);
+
   const expenseItems = useMemo(() => {
     const expensesArray = expensePlanData?.ExpensePlanItem
     if (!expensesArray || !Array.isArray(expensesArray)) {
@@ -250,6 +256,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   return (
     <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-plan-wizard-items-screen">
+      {!isTrip && latestRejectComment && (
+       <div className="gba:mb-4">
+        <RejectionComment isRequest={false} comment={latestRejectComment} />
+        </div>
+      )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
           <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-plan-wizard-items-screen-title">
@@ -368,4 +379,4 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   );
 };
 
-export default ItemsScreen; 
+export default PlanItemsScreen; 

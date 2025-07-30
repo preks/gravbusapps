@@ -20,7 +20,7 @@ import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLo
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
 import { mergeUniqueById } from '../../../utils/functionUtils';
-import { setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
+import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
 
 /**
  * Filters travel regions based on expense items' currency
@@ -656,22 +656,8 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
   }
-
-  const getLatestRejectComment = () => {
-    if (expenseRequestData && 
-        expenseRequestData.ExpenseRequestByPk && 
-        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
-      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
-        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
-      
-      return filteredArray && filteredArray.length > 0 ? 
-        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
-        null;
-    }
-    return null;
-  };
   
-  const latestRejectComment = getLatestRejectComment();
+  const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
   return (
     <div

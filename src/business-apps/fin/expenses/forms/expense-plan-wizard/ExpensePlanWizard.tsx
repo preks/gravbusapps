@@ -15,7 +15,7 @@ import LoadScreen from '../expense-request-wizard/screens/LoadScreen';
 
 import ProgressIndicator from '../expense-request-wizard/components/ProgressIndicator';
 
-import TripScreen from './screens/TripScreen';
+import PlanTripScreen from './screens/PlanTripScreen';
 
 // Import context provider and hook
 import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './context/ExpensePlanWizardContext';
@@ -24,7 +24,7 @@ import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './contex
 import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 
 import { setInitialScreen } from './utils/tripScreenUtils';
-import ItemsScreen from './screens/ItemsScreen';
+import PlanItemsScreen from './screens/PlanItemsScreen';
 import ExpensePlanItem from '../expense-plan-item';
 
 const { Title } = Typography;
@@ -221,7 +221,8 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
         return (
-          <ItemsScreen
+          <PlanItemsScreen
+            isTrip={isTrip}
             accessToken={accessToken} 
             userInfo={userInfo} 
             additionalData={additionalData} 
@@ -229,7 +230,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         );
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
         return (
-          <TripScreen 
+          <PlanTripScreen 
             accessToken={accessToken} 
             userInfo={userInfo} 
             additionalData={additionalData} 

@@ -33,6 +33,7 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, is
         case SCREEN_NAMES_ENUM.ITEMS_TAB:
           return [true, true, false, false]; // Expense Items: 1st and 2nd lines filled
         case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
+        case SCREEN_NAMES_ENUM.PAYMENT_TAB:
           return [true, true, true, false]; // Allowances: 1st, 2nd, and 3rd lines filled
         case SCREEN_NAMES_ENUM.SUMMARY_TAB:
           return [true, true, true, true]; // Summary: All lines filled

@@ -539,6 +539,19 @@ export const setLocalitiesDefault = (expenseRequestData: any,
     }
   };
 
+  export const getLatestRejectComment = (expenseRequestData: any) => {
+    if (expenseRequestData && 
+        expenseRequestData.ExpenseRequestByPk && 
+        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
+      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
+        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
+      
+      return filteredArray && filteredArray.length > 0 ? 
+        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
+        null;
+    }
+    return null;
+  };
 
   export const setInitialScreen =(additionalData:any,
     expenseRequestData: any,

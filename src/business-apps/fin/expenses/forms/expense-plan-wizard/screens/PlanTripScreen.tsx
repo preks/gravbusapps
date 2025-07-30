@@ -18,7 +18,7 @@ import { getOverlapWarningMessage } from '../utils/dateOverlapUtils';
 import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLocation, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../../expense-request-wizard/constants/constants";
 import RejectionComment from "../../expense-request-wizard/components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
-import { setLocalitiesDefault } from '../utils/tripScreenUtils';
+import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils';
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils';
 import { formatDateTimeToISO } from '../../expense-request-wizard/utils/dateOverlapUtils';
 
@@ -60,7 +60,7 @@ const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
   };
 };
 
-export const TripScreen: React.FC<TripScreenProps> = (props) => {
+export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   const { accessToken, additionalData } = props;
   const [form] = Form.useForm();
   const graphqlClient = useGraphqlClient(accessToken);
@@ -561,21 +561,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     };
   }, [startLocation, destinations, endLocation, expenseRulesData, validateTripForm]);
 
-  const getLatestRejectComment = () => {
-    if (expensePlanData && 
-      expensePlanData.ExpensePlanByPk && 
-      expensePlanData.ExpensePlanByPk.expensePlanComment) {
-      const filteredArray = expensePlanData.ExpensePlanByPk.expensePlanComment
-        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
-      
-      return filteredArray && filteredArray.length > 0 ? 
-        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
-        null;
-    }
-    return null;
-  };
-
-  const latestRejectComment = getLatestRejectComment();
+  const latestRejectComment = getLatestRejectComment(expensePlanData);
 
   // if (loading) {
   //   return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
@@ -789,4 +775,4 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   );
 };
 
-export default TripScreen; 
+export default PlanTripScreen; 

@@ -417,6 +417,19 @@ export const setLocalitiesDefault = (expensePlanData: any,
     }
   };
 
+  export const getLatestRejectComment = (expensePlanData:any) => {
+    if (expensePlanData && 
+    expensePlanData.ExpensePlanByPk && 
+    expensePlanData.ExpensePlanByPk.expensePlanComment) {
+    const filteredArray = expensePlanData.ExpensePlanByPk.expensePlanComment
+      .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
+    
+    return filteredArray && filteredArray.length > 0 ? 
+      [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
+      null;
+  }
+  return null;
+};
 
   export const setInitialScreen =(additionalData:any,
     expensePlanData: any,
