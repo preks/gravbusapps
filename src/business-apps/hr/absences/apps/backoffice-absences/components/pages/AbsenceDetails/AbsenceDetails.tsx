@@ -10,6 +10,8 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   startDate?: string;
   endDate?: string;
   status?: string;
+  department?: string;
+  departmentId?: string;
   timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
   onNavigateBack: () => void;
 }
@@ -21,6 +23,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   startDate, 
   endDate,
   status,
+  department,
+  departmentId,
   timeFilter,
   onNavigateBack
 }) => {
@@ -186,11 +190,13 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             <PiCalendarBlank size={24} className="gba:text-blue-600" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {month ? `${getMonthDisplayName(month)} Absence Details` : 'Absence Details'}
+                {month ? `${getMonthDisplayName(month)} Absence Details` : 
+                 department ? `${department} Department Details` : 'Absence Details'}
               </h1>
               <p className="gba:text-gray-600 gba:mt-1">
                 {startDate && endDate ? `${startDate} to ${endDate}` : 
-                 month ? 'All absences for selected month' : 'Filtered absence results'}
+                 month ? 'All absences for selected month' : 
+                 department ? `All absences for ${department} department` : 'Filtered absence results'}
               </p>
               
             </div>
@@ -205,7 +211,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               Absence Dashboard
             </span>
             <span className="gba:mx-2">/</span>
-            <span>{month ? `${getMonthDisplayName(month)} Details` : 'Filtered Details'}</span>
+            <span>{month ? `${getMonthDisplayName(month)} Details` : 
+                  department ? `${department} Department` : 'Filtered Details'}</span>
           </div>
         </div>
       </div>
@@ -339,6 +346,59 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         </div>
       )}
 
+      {/* Department Analysis - Show Department Statistics */}
+      {department && !month && (
+        <div className="gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg gba:p-6">
+          <div className="gba:flex gba:items-start gba:gap-4">
+            <span className="gba:text-gray-600 gba:text-2xl">🏢</span>
+            <div className="gba:flex-1">
+              <div className="gba:text-gray-800 gba:font-bold gba:text-lg gba:mb-3">
+                Department Analysis: {department}
+              </div>
+              <div className="gba:text-gray-600 gba:text-sm gba:mb-4">
+                Drilled down from department chart • {startDate && endDate ? `${startDate} to ${endDate}` : 'All time'}
+              </div>
+              
+              {/* Department Statistics Grid */}
+              <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
+                    {dashboardData?.departmentStats?.find(d => d.name === department)?.totalDays || 0}
+                  </div>
+                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Total Days</div>
+                </div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
+                    {dashboardData?.departmentStats?.find(d => d.name === department)?.totalRequests || 0}
+                  </div>
+                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Total Requests</div>
+                </div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
+                    {dashboardData?.departmentStats?.find(d => d.name === department)?.uniqueEmployees || 0}
+                  </div>
+                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Employees</div>
+                </div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
+                    {dashboardData?.departmentStats?.find(d => d.name === department)?.avgDaysPerEmployee || 0}
+                  </div>
+                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Avg Days/Employee</div>
+                </div>
+              </div>
+              
+              <div className="gba:mt-4 gba:text-gray-700 gba:text-sm">
+                <strong>Department Performance:</strong> This department has{' '}
+                {dashboardData?.departmentStats?.find(d => d.name === department)?.avgRequestsPerEmployee || 0} avg requests per employee.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fallback if no calculations available */}
       {month && !monthCalculations && (
         <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
@@ -364,7 +424,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           startDate,
           endDate,
           month,
-          status
+          status,
+          department,
+          departmentId
         }}
         preFilteredData={filteredAbsencesForMonth.absences}
       />

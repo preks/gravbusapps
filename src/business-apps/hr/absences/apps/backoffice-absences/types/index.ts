@@ -19,6 +19,8 @@ export interface AbsenceDetailsFilter {
   startDate?: string;
   endDate?: string;
   status?: string; // Filter by absence status (APPROVED, PENDING, etc.)
+  department?: string; // Filter by department name
+  departmentId?: string; // Filter by department ID (more reliable)
 }
 
 // Views and navigation types

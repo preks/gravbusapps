@@ -311,8 +311,31 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: D
       }> = {};
       
       absences.forEach((absence: any) => {
+        // Now employeePosition should be a single active position (filtered at query level)
         const deptName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
         const employeeId = absence.employee?.id;
+        
+        // Debug logging for position filtering
+        if (absence.employee?.firstName === 'Zsolt' || absence.employee?.lastName?.toLowerCase().includes('zsolt')) {
+          console.log('🔍 Zsolt Position Debug (Query-Level Filtered):', {
+            employeeName: `${absence.employee.firstName} ${absence.employee.lastName}`,
+            employeePosition: absence.employee?.employeePosition,
+            departmentName: deptName,
+            departmentId: absence.employee?.employeePosition?.organizationalUnit?.id,
+            note: 'Should now show only active position due to exitDate filter'
+          });
+        }
+        
+        // Debug logging for Paul specifically
+        if (absence.employee?.firstName?.toLowerCase().includes('paul') || absence.employee?.lastName?.toLowerCase().includes('paul')) {
+          console.log('🔍 Paul Debug in Dashboard:', {
+            employeeName: `${absence.employee.firstName} ${absence.employee.lastName}`,
+            employeePosition: absence.employee?.employeePosition,
+            departmentName: deptName,
+            departmentId: absence.employee?.employeePosition?.organizationalUnit?.id,
+            note: 'Paul found in dashboard absence data'
+          });
+        }
         
         if (!departmentMap[deptName]) {
           departmentMap[deptName] = { 

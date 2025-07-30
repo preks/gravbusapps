@@ -80,14 +80,32 @@ export const getDateFilters = (timeFilter: string) => {
 
 // Dashboard query using string interpolation (ORIGINAL WORKING APPROACH)
 export const getDashboardQuery = (dateFilters: any): string => {
-  let absenceWhere = `where: { isDeleted: { _eq: false } }`;
+  const currentDate = new Date().toISOString();
+  
+  let absenceWhere = `where: { 
+    _and: [
+      { isDeleted: { _eq: false } },
+      { employee: { employeePosition: { 
+        _or: [
+          { exitDate: { _isNull: true } },
+          { exitDate: { _gte: "${currentDate}" } }
+        ]
+      } } }
+    ]
+  }`;
   
   if (dateFilters) {
     absenceWhere = `where: { 
         _and: [
           { isDeleted: { _eq: false } },
           { startDate: { _lte: "${dateFilters.endDate}" } },
-          { endDate: { _gte: "${dateFilters.startDate}" } }
+          { endDate: { _gte: "${dateFilters.startDate}" } },
+          { employee: { employeePosition: { 
+            _or: [
+              { exitDate: { _isNull: true } },
+              { exitDate: { _gte: "${currentDate}" } }
+            ]
+          } } }
         ]
     }`;
   }
@@ -169,6 +187,7 @@ export const getDashboardQuery = (dateFilters: any): string => {
         lastName
         employeePosition {
           organizationalUnit {
+            id
             name
           }
         }

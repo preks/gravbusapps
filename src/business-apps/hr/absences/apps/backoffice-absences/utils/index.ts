@@ -57,6 +57,7 @@ export const groupAbsencesByDepartment = (absences: any[]) => {
   const departmentMap = new Map();
   
   absences.forEach((absence) => {
+    // employeePosition is now a single active position (filtered at query level)
     const departmentName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
     
     if (!departmentMap.has(departmentName)) {

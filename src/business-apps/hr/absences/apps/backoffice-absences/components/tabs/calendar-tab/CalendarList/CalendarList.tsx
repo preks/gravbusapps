@@ -126,11 +126,19 @@ const ABSENCE_QUERY_2025 = `
 
 
 // Query all employees from EmployeePosition table (only employees with positions) - for org units
-const GetAllEmployeesFromPositions = `
+const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   query GetAllEmployeesFromPositions {
     EmployeePosition(
       where: {
-        employee: { isDeleted: { _eq: false } }
+        _and: [
+          { employee: { isDeleted: { _eq: false } } },
+          { 
+            _or: [
+              { exitDate: { _isNull: true } },
+              { exitDate: { _gte: "${currentDate}" } }
+            ]
+          }
+        ]
       }
       limit: 1000
     ) {
@@ -177,11 +185,20 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       let employeesQuery;
       if (departments.includes('--- All Departments')) {
         // If "All Departments" is selected, fetch all employees
+        const currentDate = new Date().toISOString();
         employeesQuery = `
           query GetAllEmployeesFromPositions {
             EmployeePosition(
               where: {
-                employee: { isDeleted: { _eq: false } }
+                _and: [
+                  { employee: { isDeleted: { _eq: false } } },
+                  { 
+                    _or: [
+                      { exitDate: { _isNull: true } },
+                      { exitDate: { _gte: "${currentDate}" } }
+                    ]
+                  }
+                ]
               }
               limit: 1000
               orderBy: { employee: { lastName: ASC } }
@@ -200,15 +217,29 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         `;
       } else {
         // Filter by selected departments using _in clause
+        const currentDate = new Date().toISOString();
         const departmentNames = departments.map(dept => `"${dept}"`).join(', ');
+        
+        console.log('🎯 DEPARTMENT FILTERING DEBUG:', {
+          selectedDepartments: departments,
+          departmentNamesForQuery: departmentNames,
+          queryType: 'GetEmployeesByDepartments'
+        });
+        
         employeesQuery = `
           query GetEmployeesByDepartments {
             EmployeePosition(
               where: {
-                employee: { isDeleted: { _eq: false } }
-                organizationalUnit: {
-                  name: { _in: [${departmentNames}] }
-                }
+                _and: [
+                  { employee: { isDeleted: { _eq: false } } },
+                  { 
+                    _or: [
+                      { exitDate: { _isNull: true } },
+                      { exitDate: { _gte: "${currentDate}" } }
+                    ]
+                  },
+                  { organizationalUnit: { name: { _in: [${departmentNames}] } } }
+                ]
               }
               limit: 1000
               orderBy: { employee: { lastName: ASC } }
@@ -246,10 +277,19 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       
       setAllEmployees(employees);
       console.log('=== EMPLOYEE DATA DEBUG ===');
+      console.log('Selected departments for filtering:', departments);
       console.log('Total employee positions fetched:', employeePositions.length);
       console.log('Total employees extracted:', employees.length);
       console.log('Sample employee data:', employees.slice(0, 3));
       console.log('All employees have position data: 100%');
+      
+      // Debug: Show department distribution
+      const deptDistribution = employees.reduce((acc: Record<string, number>, emp) => {
+        const dept = emp.employeePosition?.organizationalUnit?.name || 'No Department';
+        acc[dept] = (acc[dept] || 0) + 1;
+        return acc;
+      }, {});
+      console.log('Department distribution in fetched employees:', deptDistribution);
       console.log('============================');
       
       // Step 2: Fetch 2025 absences for these employees using proper schema structure
@@ -315,9 +355,12 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       setEmployeeAbsences(absences);
       
       console.log('=== ENHANCED FETCH COMPLETE ===');
+      console.log('Input departments:', departments);
+      console.log('Total employees fetched:', employees.length);
       console.log('Total absences fetched:', absences.length);
       console.log('Sample absence data:', absences.slice(0, 2));
       console.log('✅ Enhanced 2-step fetch successful!');
+      console.log('🎯 Expected behavior: Calendar should now show ONLY employees and absences from selected departments');
       console.log('============================');
     
     } catch (err) {
@@ -329,7 +372,14 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   }, [graphQLClient, selectedOrgUnits])
 
   useEffect(() => {
+    console.log('🔄 DEPARTMENT FILTER TRIGGER:', {
+      accessToken: !!accessToken,
+      selectedOrgUnits,
+      triggerReason: 'useEffect dependency change'
+    });
+    
     if (accessToken) {
+      console.log('🚀 CALLING fetchData() due to department change...');
       fetchData();
     }
   }, [accessToken, selectedOrgUnits, fetchData]);
@@ -341,7 +391,9 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       
       try {
         // Always fetch ALL employees to get complete org unit list for filter
-        const result = await graphQLClient.request<EmployeePositionResponse>(GetAllEmployeesFromPositions);
+        const currentDate = new Date().toISOString();
+      const getAllEmployeesQuery = getGetAllEmployeesFromPositionsQuery(currentDate);
+      const result = await graphQLClient.request<EmployeePositionResponse>(getAllEmployeesQuery);
         const allEmployeePositions = result?.EmployeePosition || [];
         
         const orgUnitsMap = new Map<string, OrganizationalUnit>();
@@ -359,6 +411,71 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
         console.log('=== ORGANIZATIONAL UNITS DEBUG ===');
         console.log('Total employee positions found:', allEmployeePositions.length);
+      
+      // Debug: Check for Paul specifically
+      const paulPositions = allEmployeePositions.filter(pos => 
+        pos.employee.firstName?.toLowerCase().includes('paul') || 
+        pos.employee.lastName?.toLowerCase().includes('paul')
+      );
+      console.log('🔍 Paul Debug in Calendar (with exitDate filter):', {
+        currentDateFilter: currentDate,
+        foundPaulPositions: paulPositions.length,
+        paulDetails: paulPositions.map(pos => ({
+          name: `${pos.employee.firstName} ${pos.employee.lastName}`,
+          orgUnit: pos.organizationalUnit?.name || 'No Org Unit',
+          employeeId: pos.employee.id
+        })),
+        filteringLogic: 'exitDate IS NULL OR exitDate >= currentDate',
+        note: 'If Paul has exitDate set but in the future, he should appear. If exitDate is in the past, he will be filtered out.'
+      });
+
+      // DETAILED Paul investigation - check ALL positions without filters
+      console.log('🔍 INVESTIGATING PAUL - Running unfiltered query to check his exit date...');
+      
+      const paulInvestigationQuery = `
+        query InvestigatePaul {
+          EmployeePosition(
+            where: {
+              employee: {
+                _or: [
+                  { firstName: { _ilike: "%paul%" } },
+                  { lastName: { _ilike: "%paul%" } }
+                ]
+              }
+            }
+          ) {
+            id
+            exitDate
+            employee {
+              id
+              firstName
+              lastName
+            }
+            organizationalUnit {
+              id
+              name
+            }
+          }
+        }
+      `;
+      
+      try {
+        const paulResult = await graphQLClient.request<any>(paulInvestigationQuery);
+        console.log('🔍 PAUL INVESTIGATION RESULTS:', {
+          totalPaulPositions: paulResult?.EmployeePosition?.length || 0,
+          paulPositions: paulResult?.EmployeePosition?.map((pos: any) => ({
+            positionId: pos.id,
+            employeeName: `${pos.employee.firstName} ${pos.employee.lastName}`,
+            employeeId: pos.employee.id,
+            organizationalUnit: pos.organizationalUnit?.name || 'No Org Unit',
+            exitDate: pos.exitDate, // THIS IS THE KEY FIELD
+            hasExitDate: !!pos.exitDate,
+            exitDateStatus: pos.exitDate ? (new Date(pos.exitDate) > new Date() ? 'FUTURE' : 'PAST') : 'NO_EXIT_DATE'
+          })) || []
+        });
+      } catch (error) {
+        console.error('🔍 Paul investigation failed:', error);
+      }
         console.log('Unique org units found:', uniqueOrgUnits.length);
         console.log('Org units:', uniqueOrgUnits.map(org => org.name));
         console.log('====================================');
@@ -375,11 +492,16 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create timeline items for ALL employees (data is already filtered server-side)
   const timelineItems = useMemo(() => {
-    console.log('Creating timeline items for employees:', allEmployees.length);
+    console.log('🗓️ TIMELINE ITEMS CREATION:', {
+      employeeCount: allEmployees.length,
+      selectedDepartments: selectedOrgUnits,
+      triggerReason: 'allEmployees dependency change'
+    });
     
-    return allEmployees.map(employee => {
+    const items = allEmployees.map(employee => {
       const empId = employee.id;
       const empName = `${employee.firstName} ${employee.lastName}`.trim();
+      // employeePosition is a single active position (filtered at query level)
       const dept = employee.employeePosition?.organizationalUnit?.name || 'No Department';
       
       return {
@@ -389,7 +511,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         picture: employee.pictureThumbnail
       };
     });
-  }, [allEmployees]);
+    
+    console.log('✅ Timeline items created:', items.length);
+    return items;
+  }, [allEmployees, selectedOrgUnits]);
 
   // Status color mapping (like manager-absences)
   const getStatusColor = (status: string): string => {
@@ -425,10 +550,22 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create timeline events from absences (data is already filtered server-side)
   const timelineEvents = useMemo(() => {
-    console.log('Creating timeline events for absences:', employeeAbsences.length);
+    console.log('📅 TIMELINE EVENTS CREATION:', {
+      absenceCount: employeeAbsences.length,
+      selectedDepartments: selectedOrgUnits,
+      triggerReason: 'employeeAbsences dependency change'
+    });
     
     const events: any[] = [];
     const eventIdSet = new Set();
+    
+    // Debug: Show absence distribution by employee and department
+    const absenceByDept = employeeAbsences.reduce((acc: Record<string, number>, absence) => {
+      const dept = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
+      acc[dept] = (acc[dept] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Absences by department:', absenceByDept);
     
     employeeAbsences.forEach(absence => {
       const eventId = `${absence.employee.id}-${absence.startDate}-${absence.endDate}-${absence.type.value}`;
@@ -452,8 +589,9 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }
     });
 
+    console.log('✅ Timeline events created:', events.length);
     return events;
-  }, [employeeAbsences]);
+  }, [employeeAbsences, selectedOrgUnits]);
 
   // Create status-based legend (like manager-absences)
   const legendItems = [
@@ -500,6 +638,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
             console.log('Selected values:', values);
             console.log('Type of values:', typeof values);
             console.log('Is array:', Array.isArray(values));
+            console.log('Available org units:', organizationalUnits.map(org => org.name));
+            console.log('Current selected:', selectedOrgUnits);
             console.log('==============================');
             
             // Handle edge cases from Ant Design Select
@@ -581,7 +721,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
       {/* Calendar Timeline - Always visible */}
       <CalendarTimeline
-        key={selectedOrgUnits.join(',') || 'all'} // Force re-render on filter change
+        key={selectedOrgUnits.join(',') || 'all'}
         items={timelineItems}
         events={timelineEvents}
         title=""

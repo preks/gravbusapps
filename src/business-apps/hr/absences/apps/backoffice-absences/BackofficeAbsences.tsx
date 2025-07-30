@@ -140,6 +140,11 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
 
   // Render based on current view - following manager-absences pattern
   if (currentView === 'absence-details') {
+    // Convert special "NO_DEPARTMENT_SPECIAL" identifier back to display name
+    const displayDepartment = absenceDetailsFilter.department === 'NO_DEPARTMENT_SPECIAL' 
+      ? 'No Department' 
+      : absenceDetailsFilter.department;
+
     return (
       <div data-testid="backoffice-absences-container">
         <AbsenceDetails
@@ -149,6 +154,8 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           startDate={absenceDetailsFilter.startDate}
           endDate={absenceDetailsFilter.endDate}
           status={absenceDetailsFilter.status}
+          department={displayDepartment}
+          departmentId={absenceDetailsFilter.departmentId}
           timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />

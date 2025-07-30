@@ -171,6 +171,44 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     });
   };
 
+  // Handle bar chart click - navigate to absence details with department filter
+  const handleBarChartClick = (data: any) => {
+    if (!onNavigateToDetails || !data) return;
+    
+    const department = data.fullName; // Use full department name
+    const dateRange = getDateRangeForTimeFilter();
+    
+    console.log('🎯 Department bar clicked:', { 
+      department, 
+      dateRange, 
+      departmentData: data,
+      chartStats: {
+        totalDays: data.absences,
+        uniqueEmployees: data.uniqueEmployees,
+        totalRequests: data.totalRequests,
+        avgDaysPerEmployee: data.avgDaysPerEmployee,
+        avgRequestsPerEmployee: data.avgRequestsPerEmployee
+      }
+    });
+    
+    // Special handling for "No Department" case
+    if (department === 'No Department') {
+      console.log('🏢 "No Department" bar clicked - using special identifier for filtering');
+      // For "No Department", we need to use a special filter identifier
+      onNavigateToDetails({
+        department: 'NO_DEPARTMENT_SPECIAL', // Special identifier
+        ...dateRange
+      });
+    } else {
+      console.log('🏢 Regular department bar clicked:', department);
+      // Navigate to absence details with regular department name
+      onNavigateToDetails({
+        department,
+        ...dateRange
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4" data-testid="optimized-kpi-section-loading">
@@ -257,7 +295,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                   return null;
                 }}
               />
-              <Bar dataKey="absences" fill="#3498db" />
+              <Bar 
+                dataKey="absences" 
+                fill="#3498db" 
+                onClick={handleBarChartClick}
+                style={{ cursor: 'pointer' }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
