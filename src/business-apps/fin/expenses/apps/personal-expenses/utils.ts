@@ -257,6 +257,12 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
         type: "draft",
         color: STATUS_COLORS.DRAFT
       };
+    case ExpenseStatus.PREPARED:
+      return {
+        label: 'Prepared',
+        type: "draft",
+        color: STATUS_COLORS.PREPARED
+      };
     case ExpenseStatus.ASSIGNED:
       return {
         label: 'Assigned',
