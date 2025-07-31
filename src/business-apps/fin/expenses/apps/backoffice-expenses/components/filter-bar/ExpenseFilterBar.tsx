@@ -21,42 +21,42 @@ export interface FilterOptions {
 
 interface ExpenseFilterBarProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   onFiltersChange: (filters: FilterOptions) => void;
+  currentFilters?: FilterOptions; // Add controlled filters prop
   'data-testid'?: string;
 }
 
 const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   accessToken,
   onFiltersChange,
+  currentFilters,
   'data-testid': dataTestId = 'expense-filter-bar'
 }) => {
   // Fetch real organizational units and currencies
   const { organizationalUnits, currencies, mostUsedCurrency, loading: filterDataLoading, error } = useFilterData({ accessToken });
-  const [filters, setFilters] = useState<FilterOptions>({
+  
+
+  
+  // Use controlled filters from parent, or fallback to internal state
+  const [internalFilters, setInternalFilters] = useState<FilterOptions>({
     department: 'all',
-    currency: '', // Will be set to most used currency when data loads
+    currency: '', // Will be set by user selection only
     period: 'monthly' as const, // Default to monthly
     additionalFilters: {}
   });
+  
+  // Use parent's filters if provided, otherwise use internal state
+  const filters = currentFilters || internalFilters;
 
-  // Set default currency when data is loaded
-  useEffect(() => {
-    if (!filterDataLoading && mostUsedCurrency && !filters.currency) {
-      const newFilters: FilterOptions = { ...filters, currency: mostUsedCurrency };
-      setFilters(newFilters);
-      
-      // Notify parent component about the default currency
-      const filtersForParent = {
-        ...newFilters,
-        department: newFilters.department === 'all' ? '' : newFilters.department,
-        currency: newFilters.currency,
-      };
-      onFiltersChange(filtersForParent);
-    }
-  }, [filterDataLoading, mostUsedCurrency, filters.currency, onFiltersChange]);
+  // ⚡ REMOVED: Automatic currency setting to prevent override of user selections
+  // The dashboard will handle all currency initialization
 
   const handleFilterChange = (key: keyof FilterOptions, value: string) => {
     const newFilters = { ...filters, [key]: value } as FilterOptions;
-    setFilters(newFilters);
+    
+    // Update internal state if not controlled by parent
+    if (!currentFilters) {
+      setInternalFilters(newFilters);
+    }
     
     // Convert "all" values to empty strings for the parent component
     const filtersForParent = {
@@ -70,16 +70,20 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   const clearAllFilters = () => {
     const clearedFilters: FilterOptions = {
       department: 'all',
-      currency: mostUsedCurrency || '', // Reset to most used currency
+      currency: '', // Reset to empty, let dashboard handle default
       period: 'monthly' as const, // Reset to default
       additionalFilters: {}
     };
-    setFilters(clearedFilters);
+    
+    // Update internal state if not controlled by parent
+    if (!currentFilters) {
+      setInternalFilters(clearedFilters);
+    }
     
     // Send cleared state to parent
     const clearedFiltersForParent = {
       department: '',
-      currency: mostUsedCurrency || '',
+      currency: '', // Let dashboard handle default
       period: 'monthly' as const,
       additionalFilters: {}
     };

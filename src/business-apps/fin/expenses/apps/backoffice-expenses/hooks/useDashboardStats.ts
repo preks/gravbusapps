@@ -24,7 +24,14 @@ interface UseDashboardStatsResult {
 
 export const useDashboardStats = ({
   accessToken,
-}: Pick<BusinessAppContextProps, "accessToken">): UseDashboardStatsResult => {
+  filters = {},
+}: Pick<BusinessAppContextProps, "accessToken"> & {
+  filters?: {
+    currency?: string;
+    department?: string;
+    period?: string;
+  };
+}): UseDashboardStatsResult => {
   const [stats, setStats] = useState<DashboardStats>({
     expensePlanYearly: { totalAmount: 0, count: 0 },
     ytdStats: {
@@ -58,6 +65,14 @@ export const useDashboardStats = ({
   // ⚡ PERFORMANCE: Separate loading state for expensive monthly trends
   const [trendsLoading, setTrendsLoading] = useState(false);
 
+  // ⚡ OPTIMIZATION: Cache for currency-specific data to prevent redundant requests
+  const [currencyCache, setCurrencyCache] = useState<Map<string, any>>(
+    new Map()
+  );
+
+  // ⚡ OPTIMIZATION: Track last request to prevent duplicate requests
+  const [lastRequestId, setLastRequestId] = useState<string>("");
+
   const client = useGraphqlClient(accessToken);
 
   // ⚡ PERFORMANCE: Phase 1 - Load essential dashboard data quickly
@@ -67,6 +82,14 @@ export const useDashboardStats = ({
       setLoading(false);
       return;
     }
+
+    // ⚡ OPTIMIZATION: Generate request ID to prevent duplicate requests
+    const requestId = `${JSON.stringify(filters)}-${Date.now()}`;
+    if (requestId === lastRequestId) {
+      console.log("Duplicate request detected, skipping");
+      return;
+    }
+    setLastRequestId(requestId);
 
     setLoading(true);
     setError(null);
@@ -139,33 +162,85 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // ⚡ PHASE 1: Load only essential KPI data - MUCH faster!
-      const [
-        expensePlanResponse,
-        monthlyStatsResponse,
-        ytdStatsResponse,
-        additionalMetricsResponse,
-      ] = await Promise.all([
-        client.request(GET_EXPENSE_PLAN_YEARLY_TOTAL, {
-          startOfYear,
-          endOfYear,
-          startOfYearTs,
-          endOfYearTs,
-        }),
-        client.request(GET_MONTHLY_SPEND_COMPARISON, {
-          currentMonthStart,
-          currentMonthEnd,
-          previousMonthStart,
-          previousMonthEnd,
-        }),
-        client.request(GET_YTD_STATS, {
-          currentYearStart,
-          currentYTD,
-          previousYearStart,
-          previousYTD,
-        }),
-        client.request(GET_ADDITIONAL_DASHBOARD_METRICS, {}),
-      ]);
+      // ⚡ OPTIMIZATION: Only fetch currency-dependent data when currency changes
+      const selectedCurrency =
+        filters.currency && filters.currency.trim() !== ""
+          ? filters.currency
+          : "Currency:v1:RON"; // Default to RON when no currency is selected
+      console.log("Selected currency for transfer required:", selectedCurrency);
+
+      // Check if we only need to update currency-dependent data
+      const isCurrencyOnlyUpdate =
+        Object.keys(filters).length === 1 && filters.currency;
+
+      // ⚡ OPTIMIZATION: Check cache for currency-specific data
+      const cacheKey = `currency-${selectedCurrency}`;
+      const cachedData = currencyCache.get(cacheKey);
+
+      let expensePlanResponse: any = null,
+        monthlyStatsResponse: any = null,
+        ytdStatsResponse: any = null,
+        additionalMetricsResponse: any = null;
+
+      if (isCurrencyOnlyUpdate) {
+        // ⚡ OPTIMIZATION: Check cache first
+        if (cachedData) {
+          console.log("Using cached currency data for:", selectedCurrency);
+          additionalMetricsResponse = cachedData;
+        } else {
+          // ⚡ OPTIMIZATION: Only fetch the currency-dependent query
+          console.log(
+            "Currency-only update detected, fetching only transfer required data"
+          );
+          additionalMetricsResponse = await client.request(
+            GET_ADDITIONAL_DASHBOARD_METRICS,
+            {
+              selectedCurrency: selectedCurrency,
+            }
+          );
+
+          // ⚡ OPTIMIZATION: Cache the result
+          setCurrencyCache((prev) =>
+            new Map(prev).set(cacheKey, additionalMetricsResponse)
+          );
+        }
+
+        // Use existing stats for non-currency-dependent data
+        expensePlanResponse = null;
+        monthlyStatsResponse = null;
+        ytdStatsResponse = null;
+      } else {
+        // Full dashboard refresh
+        console.log("Full dashboard refresh");
+        [
+          expensePlanResponse,
+          monthlyStatsResponse,
+          ytdStatsResponse,
+          additionalMetricsResponse,
+        ] = await Promise.all([
+          client.request(GET_EXPENSE_PLAN_YEARLY_TOTAL, {
+            startOfYear,
+            endOfYear,
+            startOfYearTs,
+            endOfYearTs,
+          }),
+          client.request(GET_MONTHLY_SPEND_COMPARISON, {
+            currentMonthStart,
+            currentMonthEnd,
+            previousMonthStart,
+            previousMonthEnd,
+          }),
+          client.request(GET_YTD_STATS, {
+            currentYearStart,
+            currentYTD,
+            previousYearStart,
+            previousYTD,
+          }),
+          client.request(GET_ADDITIONAL_DASHBOARD_METRICS, {
+            selectedCurrency: selectedCurrency,
+          }),
+        ]);
+      }
 
       // ⚡ FIXED: Restore real monthly trends data (was accidentally using placeholders)
       // Temporarily use placeholder data to avoid rate limiting issues
@@ -179,76 +254,100 @@ export const useDashboardStats = ({
       }));
 
       // Process the responses
-      const processedStats: DashboardStats = {
-        expensePlanYearly: {
-          totalAmount:
-            expensePlanResponse?.ExpensePlanAggregate?.aggregate?.sum
-              ?.totalAmount || 0,
-          count: expensePlanResponse?.ExpensePlan?.length || 0,
-        },
-        ytdStats: {
-          totalAmount:
-            ytdStatsResponse?.currentYearExpenses?.aggregate?.sum
-              ?.totalAmount || 0,
-          count: ytdStatsResponse?.currentYearExpenses?.aggregate?.count || 0,
-          previousTotalAmount:
-            ytdStatsResponse?.previousYearExpenses?.aggregate?.sum
-              ?.totalAmount || 0,
-          previousCount:
-            ytdStatsResponse?.previousYearExpenses?.aggregate?.count || 0,
-        },
-        monthlyTrends: monthlyTrendsResponse.map(
-          (response: any, index: number) => ({
-            month: index + 1,
-            monthName: new Date(currentYear, index).toLocaleString("default", {
-              month: "short",
-            }),
-            totalAmount: 0,
-            count: 0,
-          })
-        ),
-        monthlySpendComparison: {
-          currentMonthTotal:
-            monthlyStatsResponse?.currentMonthExpenses?.reduce(
-              (sum: number, expense: any) => sum + (expense.totalAmount || 0),
-              0
-            ) || 0,
-          previousMonthTotal:
-            monthlyStatsResponse?.previousMonthExpenses?.reduce(
-              (sum: number, expense: any) => sum + (expense.totalAmount || 0),
-              0
-            ) || 0,
-          currentMonthCount:
-            monthlyStatsResponse?.currentMonthExpenses?.length || 0,
-          previousMonthCount:
-            monthlyStatsResponse?.previousMonthExpenses?.length || 0,
-          percentChange: 0, // Will be calculated below
-          isIncrease: false, // Will be calculated below
-        },
-        transferRequired:
-          additionalMetricsResponse?.transferRequired?.aggregate?.sum
-            ?.totalAmount || 0,
-        pendingRequestsCount:
-          additionalMetricsResponse?.pendingRequests?.aggregate?.count || 0,
-        avgSpendPerTrip: 0, // Not available in current query
-        travelExpensesCount: 0, // Not available in current query
-      };
+      const processedStats: DashboardStats = isCurrencyOnlyUpdate
+        ? {
+            // Keep existing stats for non-currency-dependent data
+            ...stats,
+            // Only update currency-dependent data
+            transferRequired:
+              additionalMetricsResponse?.transferRequired?.aggregate?.sum
+                ?.totalAmount || 0,
+            pendingRequestsCount:
+              additionalMetricsResponse?.pendingRequests?.aggregate?.count || 0,
+          }
+        : {
+            expensePlanYearly: {
+              totalAmount:
+                expensePlanResponse?.ExpensePlanAggregate?.aggregate?.sum
+                  ?.totalAmount || 0,
+              count: expensePlanResponse?.ExpensePlan?.length || 0,
+            },
+            ytdStats: {
+              totalAmount:
+                ytdStatsResponse?.currentYearExpenses?.aggregate?.sum
+                  ?.totalAmount || 0,
+              count:
+                ytdStatsResponse?.currentYearExpenses?.aggregate?.count || 0,
+              previousTotalAmount:
+                ytdStatsResponse?.previousYearExpenses?.aggregate?.sum
+                  ?.totalAmount || 0,
+              previousCount:
+                ytdStatsResponse?.previousYearExpenses?.aggregate?.count || 0,
+            },
+            monthlyTrends: monthlyTrendsResponse.map(
+              (response: any, index: number) => ({
+                month: index + 1,
+                monthName: new Date(currentYear, index).toLocaleString(
+                  "default",
+                  {
+                    month: "short",
+                  }
+                ),
+                totalAmount: 0,
+                count: 0,
+              })
+            ),
+            monthlySpendComparison: {
+              currentMonthTotal:
+                monthlyStatsResponse?.currentMonthExpenses?.reduce(
+                  (sum: number, expense: any) =>
+                    sum + (expense.totalAmount || 0),
+                  0
+                ) || 0,
+              previousMonthTotal:
+                monthlyStatsResponse?.previousMonthExpenses?.reduce(
+                  (sum: number, expense: any) =>
+                    sum + (expense.totalAmount || 0),
+                  0
+                ) || 0,
+              currentMonthCount:
+                monthlyStatsResponse?.currentMonthExpenses?.length || 0,
+              previousMonthCount:
+                monthlyStatsResponse?.previousMonthExpenses?.length || 0,
+              percentChange: 0, // Will be calculated below
+              isIncrease: false, // Will be calculated below
+            },
+            transferRequired:
+              additionalMetricsResponse?.transferRequired?.aggregate?.sum
+                ?.totalAmount || 0,
+            pendingRequestsCount:
+              additionalMetricsResponse?.pendingRequests?.aggregate?.count || 0,
+            avgSpendPerTrip: 0, // Not available in current query
+            travelExpensesCount: 0, // Not available in current query
+          };
 
-      // Calculate monthly comparison percentage
-      const currentTotal =
-        processedStats.monthlySpendComparison.currentMonthTotal;
-      const previousTotal =
-        processedStats.monthlySpendComparison.previousMonthTotal;
-      if (previousTotal > 0) {
-        processedStats.monthlySpendComparison.percentChange =
-          ((currentTotal - previousTotal) / previousTotal) * 100;
-        processedStats.monthlySpendComparison.isIncrease =
-          currentTotal > previousTotal;
+      // Calculate monthly comparison percentage (only for full refresh)
+      if (!isCurrencyOnlyUpdate) {
+        const currentTotal =
+          processedStats.monthlySpendComparison.currentMonthTotal;
+        const previousTotal =
+          processedStats.monthlySpendComparison.previousMonthTotal;
+        if (previousTotal > 0) {
+          processedStats.monthlySpendComparison.percentChange =
+            ((currentTotal - previousTotal) / previousTotal) * 100;
+          processedStats.monthlySpendComparison.isIncrease =
+            currentTotal > previousTotal;
+        }
       }
 
       setStats(processedStats);
     } catch (err) {
       console.error("Error fetching dashboard stats:", err);
+      console.error("Error details:", {
+        message: err instanceof Error ? err.message : "Unknown error",
+        stack: err instanceof Error ? err.stack : undefined,
+        filters: filters,
+      });
       setError(
         err instanceof Error
           ? err
@@ -257,7 +356,7 @@ export const useDashboardStats = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, client]);
+  }, [accessToken, client, filters.currency]); // Only refetch when currency changes, not all filters
 
   useEffect(() => {
     fetchEssentialStats();

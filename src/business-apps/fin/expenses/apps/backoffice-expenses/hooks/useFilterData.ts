@@ -128,15 +128,6 @@ export const useFilterData = ({
         });
       }
 
-      console.log("Found unique organizational units:", allOrgUnits.size);
-      console.log(
-        "Organizational units:",
-        Array.from(allOrgUnits.values()).map((ou) => ({
-          id: ou.id,
-          name: ou.name,
-        }))
-      );
-
       // Convert to array and sort by name
       const orgUnits = Array.from(allOrgUnits.values()).sort((a, b) =>
         a.name.localeCompare(b.name)

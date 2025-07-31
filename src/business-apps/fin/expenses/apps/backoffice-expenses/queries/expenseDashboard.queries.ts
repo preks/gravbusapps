@@ -181,19 +181,23 @@ export const GET_YTD_STATS = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS = `
-  query GetAdditionalDashboardMetrics {
+  query GetAdditionalDashboardMetrics($selectedCurrency: String) {
     transferRequired: ExpenseRequestAggregate(
-      where: { status: { _eq: "APPROVED" }, currencyRef: { _eq: "Currency:v1:USD" } }
+      where: {
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { currencyRef: { _eq: $selectedCurrency } }
+        ]
+      }
     ) {
       aggregate {
         sum { totalAmount }
       }
     }
-    pendingRequests: ExpenseRequestAggregate(where: { status: { _eq: "SUBMITTED" } }) {
+    pendingRequests: ExpenseRequestAggregate(where: { status: { _eq: "PENDING" } }) {
       aggregate {
         count
       }
     }
-    
   }
 `;

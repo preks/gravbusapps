@@ -22,8 +22,33 @@ interface ExpenseDashboardTabProps extends BusinessAppContextProps {
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
   
-  // Use the dashboard stats hook
-  const { stats, loading, error } = useDashboardStats({ accessToken });
+  // State for filter options - initialize with default currency
+  const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
+    department: '',
+    currency: 'Currency:v1:RON', // Initialize with default currency
+    period: 'monthly'
+  });
+  
+  // State for currency change loading
+  const [isCurrencyLoading, setIsCurrencyLoading] = useState(false);
+  
+  // ⚡ OPTIMIZATION: Debounce timer for currency changes
+  const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Use the dashboard stats hook with filters
+  const { stats, loading, error } = useDashboardStats({ 
+    accessToken, 
+    filters: currentFilters 
+  });
+
+  // ⚡ OPTIMIZATION: Cleanup timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
+      }
+    };
+  }, [currencyDebounceTimer]);
 
   // Helper functions for KPI data formatting
   const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
@@ -44,6 +69,14 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     date.setMonth(date.getMonth() - 1);
     return date.toLocaleString('default', { month: 'long' });
   };
+
+  // Helper function to extract currency code from currencyRef
+  const extractCurrencyCode = (currencyRef: string): string => {
+    return currencyRef.split(':').pop() || 'RON';
+  };
+
+  // Get the current selected currency code
+  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
 
   // ⚡ PERFORMANCE: Memoize KPI cards creation to prevent unnecessary recalculations
   const kpiCards = useMemo((): KpiCardData[] => {
@@ -122,9 +155,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     // 4. Transfer Required Card
     cards.push({
       id: 'transfer-required',
-      title: 'Transfer Required',
-      value: formatCurrency(stats.transferRequired),
-      footer: 'Pending transfers',
+      title: `Transfer Required (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
+      footer: `Pending transfers in ${selectedCurrencyCode}`,
       icon: 'exclamation',
       iconColor: '#ff4d4f'
     });
@@ -150,16 +183,33 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     });
 
     return cards;
-  }, [stats]); // Recalculate only when stats change
+  }, [stats, currentFilters]); // Recalculate when stats or filters change
 
-  // ⚡ PERFORMANCE: Remove unused filter functionality (filters not implemented in dashboard stats)
+  // Handle filter changes and update dashboard stats with debouncing
   const handleFiltersChange = (newFilters: FilterOptions) => {
-    // Currently filters are not supported by the dashboard stats hook
-    // This is a placeholder for future filter implementation
-    console.log('Dashboard filters not yet implemented:', newFilters);
+    // Debounce currency changes to prevent rate limiting
+    if (newFilters.currency !== currentFilters.currency) {
+      setIsCurrencyLoading(true);
+      
+      // ⚡ OPTIMIZATION: Clear existing timer and set new one
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
+      }
+      
+      const newTimer = setTimeout(() => {
+        setCurrentFilters(newFilters);
+        setIsCurrencyLoading(false);
+        setCurrencyDebounceTimer(null);
+      }, 500); // Increased delay to 500ms
+      
+      setCurrencyDebounceTimer(newTimer);
+    } else {
+      // For non-currency changes, update immediately
+      setCurrentFilters(newFilters);
+    }
   };
 
-  if (loading) {
+  if (loading && !isCurrencyLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
         <Spinner size="lg" />
@@ -212,6 +262,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       <ExpenseFilterBar
         accessToken={accessToken}
         onFiltersChange={handleFiltersChange}
+        currentFilters={currentFilters}
         data-testid="expense-dashboard-filter-bar"
       />
 
