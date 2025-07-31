@@ -34,6 +34,7 @@ export interface DashboardData {
   pendingAbsences: number;
   approvedAbsences: number;
   rejectedAbsences: number;
+  cancelledAbsences: number;
   averageDuration: number;
   approvalRate: number;
 

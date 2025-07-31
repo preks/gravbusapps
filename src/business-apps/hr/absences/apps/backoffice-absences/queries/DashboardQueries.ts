@@ -79,7 +79,7 @@ export const getDateFilters = (timeFilter: string) => {
 };
 
 // Dashboard query using string interpolation (ORIGINAL WORKING APPROACH)
-export const getDashboardQuery = (timeFilter: string): string => {
+export const getDashboardQuery = (timeFilter: string, vacationGroupId?: string): string => {
   const currentDate = new Date().toISOString();
   const dateFilters = getDateFilters(timeFilter);
   
@@ -112,17 +112,10 @@ export const getDashboardQuery = (timeFilter: string): string => {
     }`;
   }
 
+  // ✅ FIXED: Use catalog-based vacation group filtering instead of hardcoded types
   let entitlementWhere = `where: {
     _and: [
       { isDeleted: { _eq: false } },
-      {
-        _or: [
-          { type: { value: { _ilike: "%vacation%" } } },
-          { type: { value: { _ilike: "%annual%" } } },
-          { type: { value: { _ilike: "%holiday%" } } },
-          { type: { value: { _ilike: "%leave%" } } }
-        ]
-      },
       {
         employee: { 
           employeePosition: { id: { _isNull: false } }
@@ -131,18 +124,35 @@ export const getDashboardQuery = (timeFilter: string): string => {
     ]
   }`;
   
-  if (dateFilters) {
+  // Add vacation group filter if provided
+  if (vacationGroupId) {
+    entitlementWhere = `where: {
+      _and: [
+        { isDeleted: { _eq: false } },
+        { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
+        {
+          employee: { 
+            employeePosition: { id: { _isNull: false } }
+          }
+        }
+      ]
+    }`;
+  } else {
+    console.warn('⚠️ No vacation group ID provided for frontend query - vacation metrics will be empty');
+    // Return empty result if no vacation group provided
+    entitlementWhere = `where: {
+      _and: [
+        { isDeleted: { _eq: false } },
+        { id: { _eq: "impossible-id" } }
+      ]
+    }`;
+  }
+  
+  if (dateFilters && vacationGroupId) {
     entitlementWhere = `where: {
         _and: [
           { isDeleted: { _eq: false } },
-          {
-            _or: [
-              { type: { value: { _ilike: "%vacation%" } } },
-              { type: { value: { _ilike: "%annual%" } } },
-              { type: { value: { _ilike: "%holiday%" } } },
-              { type: { value: { _ilike: "%leave%" } } }
-            ]
-          },
+          { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
           {
             _or: [
               { validFrom: { _gte: "${dateFilters.startDate}" } },

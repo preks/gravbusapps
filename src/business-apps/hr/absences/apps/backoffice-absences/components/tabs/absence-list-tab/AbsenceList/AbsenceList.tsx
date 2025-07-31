@@ -651,16 +651,40 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       // Department filters
       const departmentFilters = selectedFilters.filter(f => f.startsWith('department-')).map(f => f.replace('department-', ''));
       if (departmentFilters.length > 0) {
+        // Convert department IDs to names for client-side filtering
+        const departmentNames = departmentFilters.map(deptId => {
+          if (deptId === 'no-department') return deptId;
+          const dept = organizationalUnits.find(ou => ou.id === deptId);
+          return dept?.name;
+        }).filter(Boolean);
+        
+        console.log('🏢 Client-side department filtering:', {
+          departmentFilters, // IDs from selectedFilters
+          departmentNames,   // Converted to names for filtering
+          sampleAbsenceDepts: filteredData.slice(0, 3).map(a => ({
+            deptName: a.employee?.employeePosition?.organizationalUnit?.name
+          }))
+        });
+        
         filteredData = filteredData.filter((absence: any) => {
-          const deptId = absence.employee?.employeePosition?.organizationalUnit?.id;
           const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
           
           // Handle "No Department" special case
-          if (departmentFilters.includes('no-department')) {
+          if (departmentNames.includes('no-department')) {
             return !deptName || deptName === 'No Department';
           }
           
-          return departmentFilters.includes(deptId);
+          // Use converted department names for filtering
+          const matches = departmentNames.includes(deptName);
+          
+          return matches;
+        });
+        
+        console.log('🏢 Department filtering result:', {
+          beforeCount: preFilteredData.length,
+          afterCount: filteredData.length,
+          departmentFilters,
+          departmentNames
         });
       }
 
@@ -757,7 +781,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     } else if (preFilteredData && initialLoadDone.current) {
       console.log('🔍 AbsenceList: Applying client-side filtering on preFilteredData', {
         preFilteredDataCount: preFilteredData.length,
-        search, selectedFilters, startDate, endDate
+        search, selectedFilters, startDate, endDate,
+        organizationalUnitsLoaded: organizationalUnits.length,
+        initialFilters: initialFilters
       });
       setCurrentPage(1);
       applyClientSideFiltering();

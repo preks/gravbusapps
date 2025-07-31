@@ -1,167 +1,89 @@
 /**
  * Server-Side Aggregation Queries for Backoffice Absences Dashboard
  * Uses GraphQL *Aggregate syntax for optimal performance
+ * 
+ * Based on comprehensive UI analysis - see SERVER_SIDE_AGGREGATIONS_DOCUMENTATION.md
  */
 
 import { getDateFilters } from './DashboardQueries';
 
-// ✅ SERVER-SIDE: Dashboard KPI Aggregations
-export const getDashboardKPIQuery = (timeFilter: string): string => {
+/**
+ * ✅ CORE KPI AGGREGATIONS
+ * Generates a single comprehensive query for all dashboard KPIs
+ * Returns aggregated counts and sums for each status
+ */
+export const getDashboardKPIAggregations = (timeFilter: string): string => {
   const currentDate = new Date().toISOString();
   const dateFilters = getDateFilters(timeFilter);
   
-  // Create base where condition
-  let whereCondition = '';
+  // Build base conditions as an object structure for _and array
+  let baseConditions = [
+    `{ isDeleted: { _eq: false } }`,
+    `{ employee: { employeePosition: { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gte: "${currentDate}" } }] } } }`
+  ];
+  
+  // Add date filters if present
   if (dateFilters) {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { startDate: { _lte: "${dateFilters.endDate}" } },
-          { endDate: { _gte: "${dateFilters.startDate}" } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
-  } else {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
+    baseConditions.push(`{ startDate: { _lte: "${dateFilters.endDate}" } }`);
+    baseConditions.push(`{ endDate: { _gte: "${dateFilters.startDate}" } }`);
   }
-
+  
+  const baseConditionsStr = baseConditions.join(', ');
+  
   return `
     query GetDashboardKPIAggregations {
-      totalAbsences: EmployeeAbsenceAggregate(
-        ${whereCondition}
-      ) {
+      totalAbsences: EmployeeAbsenceAggregate(where: {
+        _and: [${baseConditionsStr}]
+      }) {
         aggregate {
           count
-          sum {
-            effectiveDays
-            calendarDays
-            workingDays
-          }
-          avg {
-            effectiveDays
-            calendarDays
-            workingDays
-          }
+          sum { effectiveDays calendarDays workingDays }
+          avg { effectiveDays }
         }
       }
       
-      approvedAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            { status: { _eq: "APPROVED" } },
-            ${dateFilters ? `{ startDate: { _lte: "${dateFilters.endDate}" } },` : ''}
-            ${dateFilters ? `{ endDate: { _gte: "${dateFilters.startDate}" } },` : ''}
-            { employee: { 
-                employeePosition: { 
-                  _or: [
-                    { exitDate: { _isNull: true } },
-                    { exitDate: { _gte: "${currentDate}" } }
-                  ]
-                } 
-              } 
-            }
-          ]
-        }
-      ) {
+      approvedAbsences: EmployeeAbsenceAggregate(where: {
+        _and: [
+          ${baseConditionsStr},
+          { status: { _eq: "APPROVED" } }
+        ]
+      }) {
         aggregate {
           count
           sum { effectiveDays }
         }
       }
       
-      pendingAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            { status: { _eq: "PENDING" } },
-            ${dateFilters ? `{ startDate: { _lte: "${dateFilters.endDate}" } },` : ''}
-            ${dateFilters ? `{ endDate: { _gte: "${dateFilters.startDate}" } },` : ''}
-            { employee: { 
-                employeePosition: { 
-                  _or: [
-                    { exitDate: { _isNull: true } },
-                    { exitDate: { _gte: "${currentDate}" } }
-                  ]
-                } 
-              } 
-            }
-          ]
-        }
-      ) {
+      pendingAbsences: EmployeeAbsenceAggregate(where: {
+        _and: [
+          ${baseConditionsStr},
+          { status: { _eq: "PENDING" } }
+        ]
+      }) {
         aggregate {
           count
           sum { effectiveDays }
         }
       }
       
-      rejectedAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            { status: { _eq: "REJECTED" } },
-            ${dateFilters ? `{ startDate: { _lte: "${dateFilters.endDate}" } },` : ''}
-            ${dateFilters ? `{ endDate: { _gte: "${dateFilters.startDate}" } },` : ''}
-            { employee: { 
-                employeePosition: { 
-                  _or: [
-                    { exitDate: { _isNull: true } },
-                    { exitDate: { _gte: "${currentDate}" } }
-                  ]
-                } 
-              } 
-            }
-          ]
-        }
-      ) {
+      rejectedAbsences: EmployeeAbsenceAggregate(where: {
+        _and: [
+          ${baseConditionsStr},
+          { status: { _eq: "REJECTED" } }
+        ]
+      }) {
         aggregate {
           count
           sum { effectiveDays }
         }
       }
       
-      draftAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            { status: { _eq: "DRAFT" } },
-            ${dateFilters ? `{ startDate: { _lte: "${dateFilters.endDate}" } },` : ''}
-            ${dateFilters ? `{ endDate: { _gte: "${dateFilters.startDate}" } },` : ''}
-            { employee: { 
-                employeePosition: { 
-                  _or: [
-                    { exitDate: { _isNull: true } },
-                    { exitDate: { _gte: "${currentDate}" } }
-                  ]
-                } 
-              } 
-            }
-          ]
-        }
-      ) {
+      cancelledAbsences: EmployeeAbsenceAggregate(where: {
+        _and: [
+          ${baseConditionsStr},
+          { status: { _eq: "CANCELLED" } }
+        ]
+      }) {
         aggregate {
           count
           sum { effectiveDays }
@@ -171,125 +93,89 @@ export const getDashboardKPIQuery = (timeFilter: string): string => {
   `;
 };
 
-// ✅ SERVER-SIDE: Department Statistics Aggregations  
-export const getDepartmentStatsQuery = (timeFilter: string): string => {
-  const currentDate = new Date().toISOString();
+/**
+ * ✅ VACATION ENTITLEMENTS AGGREGATIONS
+ * Gets aggregated vacation data for entitlements analytics
+ * Uses AbsenceGroup catalog to determine vacation group types
+ */
+export const getVacationEntitlementsAggregations = (timeFilter: string, vacationGroupId?: string): string => {
   const dateFilters = getDateFilters(timeFilter);
   
-  // Create where condition for department stats
-  let whereCondition = '';
-  if (dateFilters) {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { startDate: { _lte: "${dateFilters.endDate}" } },
-          { endDate: { _gte: "${dateFilters.startDate}" } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
+  // Build base conditions as an object structure for _and array
+  let baseConditions = [
+    `{ isDeleted: { _eq: false } }`,
+    `{ employee: { employeePosition: { id: { _isNull: false } } } }`
+  ];
+  
+  // Add vacation group filter if provided (use catalog-based filtering)
+  if (vacationGroupId) {
+    baseConditions.push(`{ type: { parentEntryId: { _eq: "${vacationGroupId}" } } }`);
   } else {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
+    // Fallback: if no vacation group ID provided, return empty result 
+    console.warn('⚠️ No vacation group ID provided for entitlements aggregation');
+    baseConditions.push(`{ id: { _eq: "impossible-id" } }`); // This will return 0 results
   }
-
+  
+  // Add date filters if present
+  if (dateFilters) {
+    baseConditions.push(`{ _or: [{ validFrom: { _gte: "${dateFilters.startDate}" } }, { validTo: { _gte: "${dateFilters.startDate}" } }, { _and: [{ validFrom: { _lte: "${dateFilters.endDate}" } }, { validTo: { _gte: "${dateFilters.startDate}" } }] }] }`);
+  }
+  
+  const baseConditionsStr = baseConditions.join(', ');
+  
   return `
-    query GetDepartmentStatsAggregations {
-      departmentAbsences: EmployeeAbsence(
-        ${whereCondition}
-      ) {
-        id
-        effectiveDays
-        calendarDays
-        workingDays
-        employee {
-          id
-          organizationalUnit {
-            id
-            name
-          }
+    query GetVacationEntitlementsAggregations {
+      vacationEntitlements: EmployeeAbsenceEntitlementAggregate(where: {
+        _and: [${baseConditionsStr}]
+      }) {
+        aggregate {
+          count
+          sum { total approved pending }
+          avg { total approved pending }
         }
       }
     }
   `;
 };
 
-// ✅ SERVER-SIDE: Monthly Trends Aggregations
-export const getMonthlyTrendsQuery = (timeFilter: string): string => {
+/**
+ * ✅ HYBRID DATA QUERY
+ * Gets minimal absence data with relationships for client-side grouping
+ * This preserves existing business logic while leveraging server performance
+ */
+export const getHybridAbsenceData = (timeFilter: string): string => {
   const currentDate = new Date().toISOString();
   const dateFilters = getDateFilters(timeFilter);
   
-  // Create where condition for monthly trends
-  let whereCondition = '';
+  // Build base conditions as an object structure for _and array
+  let baseConditions = [
+    `{ isDeleted: { _eq: false } }`,
+    `{ employee: { employeePosition: { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gte: "${currentDate}" } }] } } }`
+  ];
+  
+  // Add date filters if present
   if (dateFilters) {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { startDate: { _lte: "${dateFilters.endDate}" } },
-          { endDate: { _gte: "${dateFilters.startDate}" } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
-  } else {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
+    baseConditions.push(`{ startDate: { _lte: "${dateFilters.endDate}" } }`);
+    baseConditions.push(`{ endDate: { _gte: "${dateFilters.startDate}" } }`);
   }
-
+  
+  const baseConditionsStr = baseConditions.join(', ');
+  
   return `
-    query GetMonthlyTrendsAggregations {
-      monthlyAbsences: EmployeeAbsence(
-        ${whereCondition}
+    query GetHybridAbsenceData {
+      absences: EmployeeAbsence(
+        where: {
+          _and: [${baseConditionsStr}]
+        }
       ) {
         id
+        status
         startDate
         endDate
         effectiveDays
         calendarDays
         workingDays
-        status
+        createdAt
         type {
           id
           value
@@ -297,281 +183,14 @@ export const getMonthlyTrendsQuery = (timeFilter: string): string => {
         }
         employee {
           id
-        }
-      }
-    }
-  `;
-};
-
-// ✅ SERVER-SIDE: Vacation Entitlements Aggregations
-export const getVacationEntitlementsQuery = (timeFilter: string): string => {
-  const currentDate = new Date().toISOString();
-  const dateFilters = getDateFilters(timeFilter);
-  
-  // Create where condition for vacation entitlements
-  let whereCondition = '';
-  if (dateFilters) {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { _or: [
-            { validFrom: { _gte: "${dateFilters.startDate}" } },
-            { validTo: { _gte: "${dateFilters.startDate}" } },
-            { _and: [
-              { validFrom: { _lte: "${dateFilters.endDate}" } },
-              { validTo: { _gte: "${dateFilters.startDate}" } }
-            ] }
-          ] },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
-  } else {
-    whereCondition = `
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          { employee: { 
-              employeePosition: { 
-                _or: [
-                  { exitDate: { _isNull: true } },
-                  { exitDate: { _gte: "${currentDate}" } }
-                ]
-              } 
-            } 
-          }
-        ]
-      }`;
-  }
-
-  return `
-    query GetVacationEntitlementsAggregations {
-      vacationEntitlements: EmployeeAbsenceEntitlement(
-        ${whereCondition}
-      ) {
-        id
-        entitlement
-        validFrom
-        validTo
-        employee {
-          id
-          organizationalUnit {
-            id
-            name
-          }
-        }
-        type {
-          id
-          value
-        }
-      }
-      
-      vacationAbsences: EmployeeAbsence(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            ${dateFilters ? `{ startDate: { _lte: "${dateFilters.endDate}" } },` : ''}
-            ${dateFilters ? `{ endDate: { _gte: "${dateFilters.startDate}" } },` : ''}
-            { type: { 
-              _or: [
-                { value: { _ilike: "%vacation%" } },
-                { value: { _ilike: "%annual%" } },
-                { value: { _ilike: "%holiday%" } }
-              ]
-            } },
-            { employee: { 
-                employeePosition: { 
-                  _or: [
-                    { exitDate: { _isNull: true } },
-                    { exitDate: { _gte: "${currentDate}" } }
-                  ]
-                } 
-              } 
-            }
-          ]
-        }
-      ) {
-        id
-        effectiveDays
-        calendarDays
-        workingDays
-        employee {
-          id
-        }
-      }
-    }
-  `;
-};
-
-// ✅ COMBINED: All Dashboard Aggregations in One Query
-export const getAllDashboardAggregationsQuery = (timeFilter: string): string => {
-  const currentDate = new Date().toISOString();
-  const dateFilters = getDateFilters(timeFilter);
-  
-  let baseWhere = `{
-    isDeleted: { _eq: false },
-    employee: { 
-        employeePosition: { 
-          _or: [
-            { exitDate: { _isNull: true } },
-            { exitDate: { _gte: "${currentDate}" } }
-          ]
-        } 
-      } 
-  }`;
-  
-  if (dateFilters) {
-    baseWhere = `{
-      _and: [
-        { isDeleted: { _eq: false } },
-        { startDate: { _lte: "${dateFilters.endDate}" } },
-        { endDate: { _gte: "${dateFilters.startDate}" } },
-        { employee: { 
-            employeePosition: { 
-              _or: [
-                { exitDate: { _isNull: true } },
-                { exitDate: { _gte: "${currentDate}" } }
-              ]
-            } 
-          } 
-        }
-      ]
-    }`;
-  }
-
-  return `
-    query GetAllDashboardAggregations {
-      # KPI Aggregations
-      totalAbsences: EmployeeAbsenceAggregate(where: ${baseWhere}) {
-        aggregate {
-          count
-          sum { effectiveDays, calendarDays, workingDays }
-          avg { effectiveDays, calendarDays, workingDays }
-        }
-      }
-      
-      approvedAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            ${baseWhere.replace('{', '').replace('}', '')},
-            { status: { _eq: "APPROVED" } }
-          ]
-        }
-      ) {
-        aggregate { count, sum { effectiveDays } }
-      }
-      
-      pendingAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            ${baseWhere.replace('{', '').replace('}', '')},
-            { status: { _eq: "PENDING" } }
-          ]
-        }
-      ) {
-        aggregate { count, sum { effectiveDays } }
-      }
-      
-      rejectedAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            ${baseWhere.replace('{', '').replace('}', '')},
-            { status: { _eq: "REJECTED" } }
-          ]
-        }
-      ) {
-        aggregate { count, sum { effectiveDays } }
-      }
-      
-      draftAbsences: EmployeeAbsenceAggregate(
-        where: {
-          _and: [
-            ${baseWhere.replace('{', '').replace('}', '')},
-            { status: { _eq: "DRAFT" } }
-          ]
-        }
-      ) {
-        aggregate { count, sum { effectiveDays } }
-      }
-      
-      # Raw data for client-side grouping (department & monthly trends)
-      rawAbsences: EmployeeAbsence(
-        where: ${baseWhere}
-        orderBy: [{ startDate: ASC }]
-      ) {
-        id
-        employeeId
-        startDate
-        endDate
-        effectiveDays
-        calendarDays
-        workingDays
-        status
-        createdAt
-        type {
-          id
-          value
-          parentEntry {
-            id
-            value
-          }
-        }
-        employee {
-          id
           firstName
           lastName
-          displayName
           employeePosition {
             organizationalUnit {
               name
             }
           }
         }
-      }
-      
-      # Vacation Entitlements
-      vacationEntitlements: EmployeeAbsenceEntitlementAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } },
-            {
-              _or: [
-                { type: { value: { _ilike: "%vacation%" } } },
-                { type: { value: { _ilike: "%annual%" } } },
-                { type: { value: { _ilike: "%holiday%" } } }
-              ]
-            },
-            { employee: { employeePosition: { id: { _isNull: false } } } }
-          ]
-        }
-      ) {
-        aggregate {
-          count
-          sum { total, approved, pending }
-          avg { total, approved, pending }
-        }
-      }
-      
-      # Active Employees Count
-      activeEmployees: EmployeeAggregate(
-        where: {
-          employeePosition: {
-            _or: [
-              { exitDate: { _isNull: true } },
-              { exitDate: { _gte: "${currentDate}" } }
-            ]
-          }
-        }
-      ) {
-        aggregate { count }
       }
     }
   `;

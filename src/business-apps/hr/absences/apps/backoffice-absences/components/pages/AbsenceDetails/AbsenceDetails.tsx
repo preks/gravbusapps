@@ -29,7 +29,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   onNavigateBack
 }) => {
   // Get dashboard data to show calculations - USE SAME TIME FILTER AS MAIN DASHBOARD
-  const dashboardData = useDashboardData({ accessToken, userInfo, timeFilter });
+  const dashboardData = useDashboardData({ accessToken, timeFilter });
 
   // 🎯 FILTER rawAbsences for the specific month/date range - MOVE THIS BEFORE EARLY RETURNS
   const filteredAbsencesForMonth = useMemo(() => {
@@ -52,14 +52,33 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     const rangeStart = new Date(startDate);
     const rangeEnd = new Date(endDate);
 
-    // Filter absences using overlap logic
+    // Filter absences using overlap logic AND department filter
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
       const absenceStart = new Date(absence.startDate);
       const absenceEnd = new Date(absence.endDate);
       
-      // Overlap logic: absence overlaps with the month if:
+      // Date overlap logic: absence overlaps with the month if:
       // absence start <= month end AND absence end >= month start
-      return absenceStart <= rangeEnd && absenceEnd >= rangeStart;
+      const dateOverlaps = absenceStart <= rangeEnd && absenceEnd >= rangeStart;
+      
+      // Apply department filter if provided
+      if (department) {
+        const employeeDepartment = absence.employee?.employeePosition?.organizationalUnit?.name;
+        
+        // Special handling for "No Department" case
+        if (department === 'NO_DEPARTMENT_SPECIAL') {
+          return dateOverlaps && (!employeeDepartment || employeeDepartment.trim() === '');
+        } else {
+          return dateOverlaps && employeeDepartment === department;
+        }
+      }
+      
+      // Apply status filter if provided  
+      if (status) {
+        return dateOverlaps && absence.status === status;
+      }
+      
+      return dateOverlaps;
     });
 
     // Categorize overlapping types for analysis
@@ -99,17 +118,23 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       dateRange: `${startDate} to ${endDate}`,
       filteredCount: filtered.length,
       month,
-      overlapLogic: 'absenceStart <= rangeEnd && absenceEnd >= rangeStart',
+      department,
+      status,
+      filteringLogic: {
+        dateOverlap: 'absenceStart <= rangeEnd && absenceEnd >= rangeStart',
+        departmentFilter: department ? `employee.employeePosition.organizationalUnit.name === "${department}"` : 'none',
+        statusFilter: status ? `absence.status === "${status}"` : 'none'
+      },
       overlappingBreakdown: overlappingInfo
     });
 
     return { absences: filtered, overlappingInfo };
-  }, [dashboardData.rawAbsences, startDate, endDate, month]);
+  }, [dashboardData.rawAbsences, startDate, endDate, month, department, status]);
 
   // Debug: Log to confirm we're using the dashboard data source
   console.log('🔍 AbsenceDetails Data Source:', {
     timeFilter,
-    dataSource: 'Dashboard rawAbsences (will be filtered for specific month)',
+    dataSource: 'Dashboard rawAbsences (will be filtered for specific month/department/status)',
     isLoading: dashboardData.isLoading,
     error: dashboardData.error,
     totalDashboardAbsences: dashboardData.totalAbsences,
@@ -117,6 +142,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     monthlyDataAvailable: !!dashboardData.monthlyData?.length,
     departmentStatsAvailable: !!dashboardData.departmentStats?.length,
     monthRequested: month,
+    departmentRequested: department,
+    statusRequested: status,
     dateRange: `${startDate} to ${endDate}`,
     note: 'Checking if calculations data is available...'
   });
