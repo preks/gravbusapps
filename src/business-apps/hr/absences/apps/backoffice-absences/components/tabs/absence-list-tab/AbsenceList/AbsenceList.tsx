@@ -306,23 +306,30 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     if (departmentFilters.length > 0) {
       // Check if "No Department" filter is selected
       const hasNoDepartmentFilter = departmentFilters.includes('no-department');
-      const regularDepartmentFilters = departmentFilters.filter(f => f !== 'no-department');
+      const regularDepartmentIds = departmentFilters.filter(f => f !== 'no-department');
+      
+      // Convert department IDs to names for GraphQL filter
+      const regularDepartmentNames = regularDepartmentIds.map(deptId => {
+        const dept = organizationalUnits.find(ou => ou.id === deptId);
+        return dept?.name;
+      }).filter(Boolean); // Remove undefined values
 
       console.log('🔧 Building department filter conditions (CALENDAR PATTERN):', {
         departmentFilters,
         hasNoDepartmentFilter,
-        regularDepartmentFilters,
+        regularDepartmentIds,
+        regularDepartmentNames,
         selectedFiltersState: selectedFilters,
-        note: 'Using department NAMES like calendar, not IDs'
+        note: 'Converting IDs to names for GraphQL filter'
       });
 
       let departmentCondition;
 
-      if (hasNoDepartmentFilter && regularDepartmentFilters.length > 0) {
+      if (hasNoDepartmentFilter && regularDepartmentNames.length > 0) {
         // Both regular departments AND "No Department" selected
         departmentCondition = {
           _or: [
-            { organizationalUnit: { name: { _in: regularDepartmentFilters } } },
+            { organizationalUnit: { name: { _in: regularDepartmentNames } } },
             { organizationalUnit: { _isNull: true } }
           ]
         };
@@ -331,9 +338,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         // Only "No Department" selected
         departmentCondition = { organizationalUnit: { _isNull: true } };
         console.log('🔧 Using "No Department" condition (organizationalUnit IS NULL):', departmentCondition);
-      } else {
+      } else if (regularDepartmentNames.length > 0) {
         // Only regular departments selected - USE NAMES LIKE CALENDAR
-        departmentCondition = { organizationalUnit: { name: { _in: regularDepartmentFilters } } };
+        departmentCondition = { organizationalUnit: { name: { _in: regularDepartmentNames } } };
         console.log('🔧 Using regular department condition - BY NAME:', departmentCondition);
       }
 
@@ -674,6 +681,26 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       }
     }
 
+    // ✅ FIX: Add creation date filtering (missing from client-side logic)
+    if (creationStartDate || creationEndDate) {
+      filteredData = filteredData.filter((absence: any) => {
+        if (!absence.createdAt) return false; // Skip if no creation date
+        
+        const createdAt = new Date(absence.createdAt);
+        const createdDateStr = createdAt.toISOString().split('T')[0]; // Get YYYY-MM-DD format
+        
+        if (creationStartDate && creationEndDate) {
+          return createdDateStr >= creationStartDate && createdDateStr <= creationEndDate;
+        } else if (creationStartDate) {
+          return createdDateStr >= creationStartDate;
+        } else if (creationEndDate) {
+          return createdDateStr <= creationEndDate;
+        }
+        
+        return true;
+      });
+    }
+
     console.log('🔍 Client-side filtering applied:', {
       originalCount: preFilteredData.length,
       filteredCount: filteredData.length,
@@ -683,7 +710,8 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         employeeFilters: selectedFilters.filter(f => !f.includes('-')).length,
         departmentFilters: selectedFilters.filter(f => f.startsWith('department-')).length,
         statusFilters: selectedFilters.filter(f => f.startsWith('status-')).length,
-        groupFilters: selectedFilters.filter(f => f.startsWith('group-')).length
+        groupFilters: selectedFilters.filter(f => f.startsWith('group-')).length,
+        creationDateFilter: creationStartDate || creationEndDate ? `${creationStartDate || 'any'} to ${creationEndDate || 'any'}` : 'none'
       }
     });
 
@@ -1080,6 +1108,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     return null;
   };
 
+  // 🚀 FIX: Re-map groupName whenever absenceGroups loads to fix timing issue
+  const absencesWithUpdatedGroups = useMemo(() => {
+    return absences.map(absence => ({
+      ...absence,
+      groupName: (absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]) || absence.type?.value || 'Unknown Group'
+    }));
+  }, [absences, absenceGroups]);
+
   // Table component matching manager-absences exactly
   const AbsenceTable = () => {
     if (error) {
@@ -1191,7 +1227,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {absences.map((record) => (
+                {absencesWithUpdatedGroups.map((record) => (
                   <TableRow 
                     key={record.id}
                     className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedAbsence?.id === record.id ? 'gba:bg-blue-50' : ''}`}

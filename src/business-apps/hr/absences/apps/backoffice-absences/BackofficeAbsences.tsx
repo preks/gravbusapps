@@ -25,7 +25,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
 
   // 🚀 OPTIMIZED: Single comprehensive dashboard query with server-side aggregations
   // Replaces multiple individual API calls with one efficient request
-  const dashboardData = useDashboardData({ accessToken, userInfo, timeFilter });
+  const dashboardData = useDashboardData({ accessToken, timeFilter });
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -33,20 +33,44 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
 
   // Navigation handlers - following manager-absences pattern
   const handleNavigateToAbsenceDetails = (month: string, year: number = new Date().getFullYear()) => {
+    console.log('🔍 Navigating to absence details:', { month, year });
+    
+    // Handle month names that might include year (e.g., "Dec 2024", "Jan 2025")
+    let monthName = month;
+    let actualYear = year;
+    
+    // Check if month includes year (e.g., "Jan 2025")
+    const yearMatch = month.match(/(\w+)\s+(\d{4})/);
+    if (yearMatch) {
+      monthName = yearMatch[1]; // Extract month part
+      actualYear = parseInt(yearMatch[2]); // Extract year part
+      console.log('📅 Extracted from month string:', { monthName, actualYear });
+    }
+    
     // Calculate start and end dates for the selected month
     const monthIndex = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
-    ].findIndex(m => m.startsWith(month.substring(0, 3)));
+    ].findIndex(m => m.startsWith(monthName.substring(0, 3)));
     
-    if (monthIndex === -1) return;
+    if (monthIndex === -1) {
+      console.error('❌ Month not found:', { month, monthName });
+      return;
+    }
     
-    const startDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+    const startDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-01`;
     
     // Create a date for the last day of the month (avoiding timezone issues)
-    const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
-    const endDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
-    const shortMonth = month.substring(0, 3);
+    const lastDayOfMonth = new Date(actualYear, monthIndex + 1, 0);
+    const endDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
+    const shortMonth = monthName.substring(0, 3);
+    
+    console.log('✅ Setting absence details filter:', {
+      month: shortMonth,
+      startDate,
+      endDate,
+      actualYear
+    });
     
     // Set filters and navigate to details page
     setAbsenceDetailsFilter({

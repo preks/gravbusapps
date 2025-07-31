@@ -167,25 +167,42 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
   // Get calculations for the specific month
   const getMonthCalculations = () => {
+    console.log('🔍 getMonthCalculations: Function called', {
+      month,
+      hasDashboardData: !!dashboardData,
+      isLoading: dashboardData?.isLoading,
+      error: dashboardData?.error,
+      hasMonthlyData: !!dashboardData?.monthlyData,
+      monthlyDataLength: dashboardData?.monthlyData?.length,
+      firstMonthExample: dashboardData?.monthlyData?.[0]
+    });
+    
     if (!dashboardData?.monthlyData || !month) {
-      console.log('🔍 getMonthCalculations: Early return', {
+      console.log('❌ getMonthCalculations: Early return', {
         hasMonthlyData: !!dashboardData?.monthlyData,
         monthlyDataLength: dashboardData?.monthlyData?.length,
         hasMonth: !!month,
-        month
+        month,
+        isLoading: dashboardData?.isLoading,
+        error: dashboardData?.error
       });
       return null;
     }
 
     const monthName = getMonthDisplayName(month);
-    const monthData = dashboardData.monthlyData.find((trend: any) => trend.month === monthName);
+    // Try both full month name and short month name for matching
+    const monthData = dashboardData.monthlyData.find((trend: any) => 
+      trend.month === monthName || trend.month === month
+    );
     
     console.log('🔍 getMonthCalculations: Looking for month data', {
       requestedMonth: month,
       monthDisplayName: monthName,
       availableMonths: dashboardData.monthlyData.map((d: any) => d.month),
       foundMonthData: !!monthData,
-      monthDataStructure: monthData ? Object.keys(monthData) : null
+      monthDataStructure: monthData ? Object.keys(monthData) : null,
+      exactMatches: dashboardData.monthlyData.filter((d: any) => d.month === monthName),
+      partialMatches: dashboardData.monthlyData.filter((d: any) => d.month.includes(monthName.substring(0, 3)))
     });
     
     if (!monthData) return null;
@@ -264,6 +281,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           </div>
         </div>
       </div>
+
+
 
       {/* Month Analysis - Show Calculations */}
       {month && monthCalculations && (

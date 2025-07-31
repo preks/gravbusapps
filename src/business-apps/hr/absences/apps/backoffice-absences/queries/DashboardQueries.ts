@@ -11,7 +11,7 @@ export const getDateFilters = (timeFilter: string) => {
   console.log('🗓️ Current date context:', {
     now: now.toISOString(),
     currentYear,
-    currentMonth: now.getMonth(),
+    currentMonth: now.getMonth() + 1,
     timeFilter
   });
   
@@ -96,6 +96,7 @@ export const getDashboardQuery = (timeFilter: string): string => {
   }`;
   
   if (dateFilters) {
+    
     absenceWhere = `where: { 
         _and: [
           { isDeleted: { _eq: false } },
@@ -172,6 +173,7 @@ export const getDashboardQuery = (timeFilter: string): string => {
       endDate
       effectiveDays
       calendarDays
+      createdAt
       type {
         objectValue
         translations {
@@ -201,6 +203,11 @@ export const getDashboardQuery = (timeFilter: string): string => {
       approved
       total
       pending
+      type {
+        id
+        value
+        parentEntryId
+      }
     }
   }
 `;

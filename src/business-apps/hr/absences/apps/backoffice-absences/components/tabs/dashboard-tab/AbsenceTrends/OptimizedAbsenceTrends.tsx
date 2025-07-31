@@ -67,11 +67,12 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
 
           // Convert MonthlyTrendData[] to chart format with consistent ordering
       const chartItems = monthlyData.map((monthData: any) => {
-        const shortMonth = monthData.month.substring(0, 3); // Jan, Feb, etc.
+        // ✅ FIX: Use full month name (includes year when multiple years exist)
+        // Don't truncate - monthData.month is already properly formatted
         
         // Create chart item with month and all absence types in the correct order
         const chartItem: any = {
-          month: shortMonth,
+          month: monthData.month, // Use full month name: "Dec 2024", "Dec 2025", etc.
           total: monthData.total,
           // PRESERVE THE NEW FIELDS HERE!
           uniqueEmployees: monthData.uniqueEmployees,

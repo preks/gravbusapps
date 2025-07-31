@@ -92,23 +92,80 @@ export const groupAbsencesByDepartment = (absences: any[]) => {
 };
 
 // Monthly trends utilities
-export const groupAbsencesByMonth = (absences: any[]) => {
+export const groupAbsencesByMonth = (absences: any[], timeFilter?: string) => {
   const monthMap = new Map();
+  
+  // ✅ FIX: Get current year for filtering months
+  const currentYear = new Date().getFullYear();
+  const filterYear = timeFilter === 'current-year' ? currentYear : null;
+  
+  console.log('📅 groupAbsencesByMonth called with:', {
+    absencesCount: absences.length,
+    timeFilter,
+    filterYear,
+    logic: filterYear ? 'Show only months from filtered year' : 'Show all months'
+  });
   
   absences.forEach((absence) => {
     const startDate = new Date(absence.startDate);
-    const monthKey = startDate.toLocaleDateString('en-US', { month: 'long' });
+    const endDate = new Date(absence.endDate);
     
-    if (!monthMap.has(monthKey)) {
-      monthMap.set(monthKey, {
-        month: monthKey,
+    // ✅ FIX: For year-spanning absences, use the month that falls within the filtered year
+    let targetDate: Date;
+    
+    if (filterYear) {
+      // If filtering by year, choose the date that falls within the target year
+      if (startDate.getFullYear() === filterYear) {
+        targetDate = startDate; // Absence starts in target year
+      } else if (endDate.getFullYear() === filterYear) {
+        targetDate = endDate; // Absence ends in target year
+        
+        // ✅ DEBUG: Log year-spanning absences
+        console.log('🔄 Year-spanning absence mapped to target year:', {
+          absenceId: absence.id,
+          originalStart: absence.startDate,
+          originalEnd: absence.endDate,
+          startYear: startDate.getFullYear(),
+          endYear: endDate.getFullYear(),
+          filterYear,
+          mappedToMonth: targetDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          logic: `Moved from ${startDate.getFullYear()} to ${filterYear} because it ends in target year`
+        });
+      } else {
+        // Absence doesn't overlap with target year, skip it
+        console.log('⏭️ Skipping absence - no overlap with target year:', {
+          absenceId: absence.id,
+          startYear: startDate.getFullYear(),
+          endYear: endDate.getFullYear(),
+          filterYear
+        });
+        return;
+      }
+    } else {
+      // No year filtering, use start date as before
+      targetDate = startDate;
+    }
+    
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth(); // 0-11
+    const monthName = targetDate.toLocaleDateString('en-US', { month: 'short' }); // Jan, Feb, etc.
+    
+    // ✅ Use year-month key for proper chronological sorting
+    const sortKey = `${year}-${month.toString().padStart(2, '0')}`; // e.g., "2024-01", "2024-02"
+    
+    if (!monthMap.has(sortKey)) {
+      monthMap.set(sortKey, {
+        month: monthName, // Display name (Jan, Feb, etc.)
+        year,
+        monthNumber: month,
+        sortKey,
         absences: [],
         employees: new Set(),
         typeBreakdown: {}
       });
     }
     
-    const monthData = monthMap.get(monthKey);
+    const monthData = monthMap.get(sortKey);
     monthData.absences.push(absence);
     monthData.employees.add(absence.employee?.id);
     
@@ -117,28 +174,57 @@ export const groupAbsencesByMonth = (absences: any[]) => {
     monthData.typeBreakdown[groupName] = (monthData.typeBreakdown[groupName] || 0) + 1;
   });
   
-  return Array.from(monthMap.values()).map(monthData => {
-    const totalRequests = monthData.absences.length;
-    const uniqueEmployees = monthData.employees.size;
-    const totalDuration = monthData.absences.reduce((sum: number, absence: any) => 
-      sum + (absence.effectiveDays || absence.calendarDays || 0), 0
-    );
-    
-    return {
-      month: monthData.month,
-      totalRequests,
-      uniqueEmployees,
-      avgRequestsPerEmployee: uniqueEmployees > 0 ? Math.round((totalRequests / uniqueEmployees) * 100) / 100 : 0,
-      avgDurationPerRequest: totalRequests > 0 ? Math.round((totalDuration / totalRequests) * 100) / 100 : 0,
-      totalDuration,
-      typeBreakdown: monthData.typeBreakdown
-    };
-  });
+  // ✅ FIX: Sort months chronologically and transform data
+  const sortedMonthData = Array.from(monthMap.values())
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)); // Sort by "2024-01", "2024-02", etc.
+  
+  // ✅ FIX: Check if we have multiple years - if so, include year in display
+  const years = [...new Set(sortedMonthData.map(d => d.year))];
+  const includeYear = years.length > 1;
+  
+  
+  return sortedMonthData.map(monthData => {
+      const totalRequests = monthData.absences.length;
+      const uniqueEmployees = monthData.employees.size;
+      const totalDuration = monthData.absences.reduce((sum: number, absence: any) => 
+        sum + (absence.effectiveDays || absence.calendarDays || 0), 0
+      );
+      
+      // ✅ FIX: Include year when multiple years exist to avoid duplicates
+      const displayMonth = includeYear ? `${monthData.month} ${monthData.year}` : monthData.month;
+      
+      const result = {
+        month: displayMonth, // "Jan 2024", "Dec 2024", "Jan 2025" when multiple years, otherwise just "Jan", "Feb"
+        total: totalRequests, // ✅ FIX: Use 'total' instead of 'totalRequests' for chart compatibility
+        totalRequests, // Keep for backward compatibility
+        uniqueEmployees,
+        avgRequestsPerEmployee: uniqueEmployees > 0 ? Math.round((totalRequests / uniqueEmployees) * 100) / 100 : 0,
+        avgDurationPerRequest: totalRequests > 0 ? Math.round((totalDuration / totalRequests) * 100) / 100 : 0,
+        totalDuration,
+        typeBreakdown: monthData.typeBreakdown
+      };
+      
+      
+      return result;
+    });
 };
 
 // Vacation entitlements utilities
 export const calculateVacationMetrics = (entitlements: any[]) => {
+  console.log('🔍 DEBUG: calculateVacationMetrics input:', {
+    entitlementsCount: entitlements.length,
+    sampleEntitlements: entitlements.slice(0, 3).map(e => ({
+      id: e.id || e.employeeId,
+      total: e.total,
+      approved: e.approved,
+      pending: e.pending,
+      available: e.available,
+      allFields: Object.keys(e)
+    }))
+  });
+
   if (entitlements.length === 0) {
+    console.log('⚠️ No entitlements found, returning zeros');
     return {
       averageVacationDays: 0,
       averageUsed: 0,
@@ -156,6 +242,12 @@ export const calculateVacationMetrics = (entitlements: any[]) => {
     { total: 0, used: 0, pending: 0 }
   );
 
+  console.log('🔍 DEBUG: calculateVacationMetrics totals:', {
+    totals,
+    employeeCount: entitlements.length,
+    hasValidTotals: totals.total > 0 || totals.used > 0 || totals.pending > 0
+  });
+
   const employeeCount = entitlements.length;
   const averageVacationDays = Math.round((totals.total / employeeCount) * 100) / 100;
   const averageUsed = Math.round((totals.used / employeeCount) * 100) / 100;
@@ -167,12 +259,16 @@ export const calculateVacationMetrics = (entitlements: any[]) => {
     return sum + Math.max(0, remaining); // Only count positive remaining days
   }, 0);
 
-  return {
+  const result = {
     averageVacationDays,
     averageUsed,
     averagePending,
     totalVacationLiability: totalRemaining
   };
+
+  console.log('🔍 DEBUG: calculateVacationMetrics result:', result);
+
+  return result;
 };
 
 // Color utilities for charts
@@ -205,4 +301,13 @@ export const getMonthDateRange = (month: string, year: number = new Date().getFu
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString()
   };
-}; 
+};
+
+// ✅ NEW: Server-Side Aggregation Utilities
+export {
+  processKPIAggregations,
+  processVacationEntitlementsAggregations,
+  processHybridDashboardData,
+  validateServerClientConsistency,
+  measureAggregationPerformance
+} from './serverSideAggregationUtils'; 
