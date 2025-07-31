@@ -87,11 +87,11 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       type: preStep.type,
       inputs: preStep.inputs || [],
       links: preStep.links || [],
-      // Apply pre-configured assignment if specified, otherwise no default assignment
+      // Apply pre-configured assignment if specified, otherwise default assignment
       assignment: preStep.assignment ? {
         targets: preStep.assignment.assignmentMode === AssignmentMode.ASSIGN ? 
           null : // For ASSIGN mode, null targets means "prompt user to assign during launch"
-          [{
+          {
             userIds: [],
             organizationalUnits: [],
             matrixTeams: [],
@@ -99,10 +99,14 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
             siteLocations: [],
             costCenters: [],
             capabilities: []
-          }],
+          },
         assignmentMode: preStep.assignment.assignmentMode,
         allowReassignment: preStep.assignment.allowReassignment ?? true
-      } : undefined
+      } : {
+        targets: null,
+        assignmentMode: AssignmentMode.CLAIM,
+        allowReassignment: true
+      }
     }));
     
     // Update wizard configuration
@@ -125,7 +129,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       type: 'TEMPLATE',
       name: `${pattern.title} Workflow`,
       description: pattern.description,
-      assignmentMode: AssignmentMode.CLAIM,
+      version: 1,
       steps: defaultSteps
     });
   },
