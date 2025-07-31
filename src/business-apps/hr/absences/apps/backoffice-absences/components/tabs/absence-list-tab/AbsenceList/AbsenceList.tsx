@@ -654,11 +654,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
     // Apply selectedFilters
     if (selectedFilters.length > 0) {
-      // Employee filters (no prefix)
+      // Employee filters (no prefix) - Use employee.id like server-side filtering
       const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('status-') && !f.startsWith('group-'));
       if (employeeFilters.length > 0) {
         filteredData = filteredData.filter((absence: any) => 
-          employeeFilters.includes(absence.employeeId)
+          employeeFilters.includes(absence.employee?.id)
         );
       }
 
@@ -686,11 +686,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         );
       }
 
-      // Group filters
+      // Group filters - Use type.parentEntryId like server-side filtering  
       const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
       if (groupFilters.length > 0) {
         filteredData = filteredData.filter((absence: any) => 
-          groupFilters.includes(absence.groupId)
+          groupFilters.includes(absence.type?.parentEntryId)
         );
       }
     }
