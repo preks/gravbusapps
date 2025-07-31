@@ -9,6 +9,7 @@ import {
   ActionFeed,
   QuickActionCards
 } from './components';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
 
@@ -39,25 +40,25 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       {
         key: 'current-month-expenses',
         title: 'Current Month Expenses',
-        value: currentTotal,
+        value: formatNumberFunction(currentTotal.toString()) + '€',
         prefix: <PiCurrencyCircleDollar />,
         color: isPositiveChange ? '#cf1322' : '#3f8600',
         valueIsString: true,
         description: `${stats?.currentMonthExpenses?.count || 0} expense requests`,
         trend: {
           value: `${Math.abs(percentChange).toFixed(1)}%`,
-          positive: !isPositiveChange, // Inverted because lower expenses are better
+          positive: isPositiveChange, // Inverted because lower expenses are better
           description: `${isPositiveChange ? 'increase' : 'decrease'} from last month`
         }
       },
       {
         key: 'pending-payouts',
         title: 'Pending Payouts',
-        value: stats?.pendingPayouts || 0,
+        value: stats?.pendingPayouts + '' + '€'|| 0,
         prefix: <PiCurrencyCircleDollar />,
         color: '#1890ff',
         valueIsString: true,
-        description: 'Awaiting payment'
+        description: `${stats?.bookedAndPendingCount} Awaiting payment`
       },
       {
         key: 'upcoming-trips',
