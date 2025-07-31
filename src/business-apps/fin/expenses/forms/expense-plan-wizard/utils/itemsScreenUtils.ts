@@ -71,6 +71,7 @@ export const createItemsScreenLogObject = (
   event: string,
   skipStep:boolean
 ) => {
+  const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
   const expenseItemsArray = expenseItems.map(item => ({
     id: item.id,
     code: item.code || '',
@@ -106,6 +107,15 @@ export const createItemsScreenLogObject = (
       project: initialPlan?.project?.id || "",
       decisionDate: initialPlan?.decisionDate || ""
     },
+    advancePayment: initialAdvancePayment ? {
+      id: initialAdvancePayment.id,
+      currencyRef: initialAdvancePayment.currencyRef,
+      amount: initialAdvancePayment.amount,
+      paymentMethod: initialAdvancePayment.paymentMethod,
+      status: initialAdvancePayment.status,
+      expensePlan: initialAdvancePayment.expensePlanId,
+      costCenter: initialAdvancePayment.costCenterId,
+    } : null,
     expenseRequestItems: {
       expenseItems: expenseItemsArray
     },

@@ -1,0 +1,122 @@
+import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { SCREEN_NAMES_ENUM } from '../constants/constants';
+import { EVENTS } from '../../../utils/constants';
+
+export interface AdvanceObject {
+  currencyRef: string;
+  amount: number;
+  paymentMethod: string | null;
+  status: string;
+  expensePlan: string;
+  costCenter: string;
+}
+
+export interface PaymentScreenLogObject {
+  stepKey: string;
+  event: string;
+  expensePlan: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    expenseRule: string;
+    version: string;
+    costCenter: string;
+    employee: string;
+    title: string;
+    status: string;
+    planDate: string;
+    requestTypeRef: string;
+    additionalProperties: any;
+    currencyRef: string;
+    description: string;
+    totalAmount: number;
+    project: string;
+    decisionDate: string;
+  };
+  expensePlanItems: {
+    planItems: Array<{
+      id: string;
+      code: string;
+      title: string;
+      ruleId: string;
+      expensePlan: string;
+    }>;
+  };
+  expenseRequestTrips: {
+    expenseTrips: any[];
+  };
+  advancePayment: AdvanceObject;
+}
+
+export const createAdvanceObject = (
+  selectedCurrency: string,
+  amount: string,
+  paymentMethod: string | null,
+  expensePlanData: any
+): AdvanceObject => {
+  return {
+    currencyRef: selectedCurrency,
+    amount: parseFloat(amount),
+    paymentMethod: paymentMethod,
+    status: "PREPARED",
+    expensePlan: expensePlanData.ExpensePlanByPk.id,
+    costCenter: expensePlanData.ExpensePlanByPk.costCenter.id
+  };
+};
+
+export const createPaymentScreenLogObject = (
+  initialPlan: any,
+  employeeRuleId: string,
+  currentTitle: string,
+  advanceObject: AdvanceObject,
+  expensePlanData: any,
+  event: string
+): PaymentScreenLogObject => {
+  const planItemsArray: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  
+  if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
+    expensePlanData.ExpenseItem.forEach((item: any) => {
+      if (item) {
+        planItemsArray.push({
+          id: item.id,
+          code: item.code || '',
+          title: item.title || '',
+          ruleId: item.expenseRuleId || '',
+          expensePlan: initialPlan.id || ''
+        });
+      }
+    });
+  }
+  
+  return {
+    stepKey: SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + event,
+    event: event,
+    expensePlan: {
+      id: initialPlan?.id,
+      startDate: initialPlan?.startDate || "",
+      endDate: initialPlan?.endDate || "",
+      expenseRule: employeeRuleId || "",
+      version: initialPlan?.version || "",
+      costCenter: initialPlan?.costCenterId || "",
+      employee: initialPlan?.employeeId || "",
+      title: currentTitle || initialPlan?.title || "",
+      status: initialPlan?.status,
+      planDate: initialPlan?.planDate ? dayjs(initialPlan.planDate).format("YYYY-MM-DD") : "",
+      requestTypeRef: initialPlan?.requestTypeRef,
+      additionalProperties: initialPlan?.additionalProperties,
+      currencyRef: initialPlan?.currency?.id || "",
+      description: initialPlan?.description || "",
+      totalAmount: initialPlan?.totalAmount,
+      project: initialPlan?.project?.id || "",
+      decisionDate: initialPlan?.decisionDate || ""
+    },
+    expensePlanItems: {
+      planItems: planItemsArray
+    },
+    expenseRequestTrips: {
+      expenseTrips: (expensePlanData?.ExpensePlanByPk?.expensePlanTrip || [])
+    },
+    advancePayment: advanceObject
+  };
+}; 

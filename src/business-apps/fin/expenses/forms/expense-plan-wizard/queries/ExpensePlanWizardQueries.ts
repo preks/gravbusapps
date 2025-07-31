@@ -355,3 +355,14 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
   }
 }
 ` 
+export const getCurrencyForUser= `query MyQuery($activeUserLocale: String!)
+{
+  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}) {
+    id
+    value
+    code
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+  }}`

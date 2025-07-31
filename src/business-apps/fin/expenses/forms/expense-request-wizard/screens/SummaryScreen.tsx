@@ -34,7 +34,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
   const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext();
   const { hasFutureDates } = useExpenseRequestDateValidation();
   const requestData = expenseRequestData?.ExpenseRequestByPk;
-  const requestItemData = expenseRequestData.ExpenseItem;
+  const requestItemData = expenseRequestData?.ExpenseItem;
   const expenseItems = noAllowanceItemsFunction(requestItemData);
   
   const handleSave = useCallback(() => {
@@ -107,12 +107,12 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
   };
   
   // Get paginated data
-  const paginatedAllowanceItems = allowanceItems.slice(
+  const paginatedAllowanceItems = allowanceItems?.slice(
     (allowanceCurrentPage - 1) * itemListLimit,
     allowanceCurrentPage * itemListLimit
   );
   
-  const paginatedExpenseItems = positionsArray.slice(
+  const paginatedExpenseItems = positionsArray?.slice(
     (expenseCurrentPage - 1) * itemListLimit,
     expenseCurrentPage * itemListLimit
   );

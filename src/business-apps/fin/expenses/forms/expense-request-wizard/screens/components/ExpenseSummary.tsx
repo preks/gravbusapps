@@ -162,14 +162,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
               )}
               
               {parseFloat(values.differenceRequestPlan) < 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-green-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned')}
                 </span>
               )}
               
               {parseFloat(values.differenceRequestPlan) === 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-green-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_equal', 'Equals planned amount')}
                 </span>
@@ -191,7 +191,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-purple-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
             {values.advancePayment.amount !=0 && "-"}{formatNumberFunction(values.advancePayment.amount, "0.00[,]00")} {values.advancePayment.currency}
             </span>
           </div>
@@ -210,7 +210,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.non_reimbursable', 'Not Reimbursable Amount')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-purple-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
               {values.nonReimbursable.amount !=0 && "-"}{formatNumberFunction(values.nonReimbursable.amount, "0.00[,]00")} {values.nonReimbursable.currency}
             </span>
           </div>
@@ -229,7 +229,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-green-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
               {formatNumberFunction(values.remainingAmount.amount, "0.00[,]00")} {values.remainingAmount.currency}
             </span>
           </div>

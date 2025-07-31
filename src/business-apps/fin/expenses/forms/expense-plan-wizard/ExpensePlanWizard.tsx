@@ -26,6 +26,7 @@ import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 import { setInitialScreen } from './utils/tripScreenUtils';
 import PlanItemsScreen from './screens/PlanItemsScreen';
 import ExpensePlanItem from '../expense-plan-item';
+import PaymentScreen from './screens/PaymentScreen';
 
 const { Title } = Typography;
 
@@ -238,9 +239,11 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         );
       case SCREEN_NAMES_ENUM.PAYMENT_TAB:
         return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" data-testid="expense-plan-wizard-payment-screen">
-            <p>{getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')} - Coming Soon</p>
-          </div>
+          <PaymentScreen
+            accessToken={accessToken} 
+            userInfo={userInfo} 
+            additionalData={additionalData} 
+          />
         );
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         return (

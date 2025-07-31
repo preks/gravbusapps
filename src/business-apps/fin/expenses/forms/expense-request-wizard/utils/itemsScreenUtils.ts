@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { SCREEN_NAMES_ENUM } from "../constants/constants";
 
 export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
-  return arrayOfItems.filter((element) => !(
+  return arrayOfItems?.filter((element) => !(
     (element.expenseClassRef && element.expenseClassRef.toLowerCase().includes("allowance")) || 
     (element.expenseGroupRef && element.expenseGroupRef.toLowerCase().includes("allowance"))
   ));
@@ -15,7 +15,7 @@ export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
  * @returns Array containing only allowance items
  */
 export const getAllowanceItemsFunction = (arrayOfItems: any[]) => {
-  return arrayOfItems.filter((element) => 
+  return arrayOfItems?.filter((element) => 
     (element.expenseClassRef && element.expenseClassRef.toLowerCase().includes("allowance")) || 
     (element.expenseGroupRef && element.expenseGroupRef.toLowerCase().includes("allowance"))
   );

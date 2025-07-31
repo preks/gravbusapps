@@ -31,6 +31,15 @@
    * Log object interface
    */
   export interface LogObject {
+    advancePayment: { 
+      id: any; 
+      currencyRef: any; 
+      amount: any; 
+      paymentMethod: any; 
+      status: any; 
+      expensePlan: any; 
+      costCenter: any; 
+    } | null;
     stepKey: string;
     event: string;
     expensePlan: {

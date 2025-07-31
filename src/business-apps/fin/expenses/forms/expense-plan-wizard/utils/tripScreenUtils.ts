@@ -69,7 +69,8 @@ export const createTripLogObject = (
 ): LogObject => {
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
-  
+  const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
+
   return {
     stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event,
     event: skipStep ? event + "_"+EVENTS.SKIP : event,
@@ -91,7 +92,16 @@ export const createTripLogObject = (
       totalAmount: initialPlan?.totalAmount,
       project: initialPlan?.project?.id || "",
       decisionDate: initialPlan?.decisionDate || ""
-    }
+    },
+    advancePayment: initialAdvancePayment ? {
+      id: initialAdvancePayment.id,
+      currencyRef: initialAdvancePayment.currencyRef,
+      amount: initialAdvancePayment.amount,
+      paymentMethod: initialAdvancePayment.paymentMethod,
+      status: initialAdvancePayment.status,
+      expensePlan: initialAdvancePayment.expensePlanId,
+      costCenter: initialAdvancePayment.costCenterId,
+    } : null
   };
 };
 
@@ -189,13 +199,13 @@ export const handleTripSubmitAction = (
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
   
   (logObject as LogObject).employeeAbsence = {
-    "typeRef": "AbsenceType:v1:A101",
-    "employeeId": initialPlan.employeeId,
-    "startDate":  startTripDateTime,
-    "endDate":  endTripDateTime,
-    "description":  initialPlan.description,
-    "substituteEmployee": ""
-}
+    typeRef: "AbsenceType:v1:A101",
+    employeeId: initialPlan.employeeId,
+    startDate:  startTripDateTime,
+    endDate:  endTripDateTime,
+    description:  initialPlan.description,
+    substituteEmployee: ""
+};
   //remove it
   console.log("logObject",logObject)
   dispatchProcessContinueEvent(event, logObject);
