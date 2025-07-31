@@ -27,7 +27,7 @@ const CASH_PAYMENT = 'CASH_PAYMENT';
 
 const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
-  const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext();
+  const { expensePlanData, employeeRuleId, currentTitle, updateTripFormValidation } = useExpensePlanWizardContext();
   const graphQLClient = useGraphqlClient(accessToken);
   
   const [amount, setAmount] = useState<string>('0.00');
@@ -163,6 +163,20 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     const items = expensePlanData?.ExpensePlanItem || [];
     return items.length > 0 && items[0].currency?.code;
   }, [expensePlanData]);
+
+  // Check if payment method should be disabled (if amount is 0 or empty)
+  const isPaymentMethodDisabled = useMemo(() => {
+    const amountValue = parseFloat(amount) || 0;
+    return amountValue === 0;
+  }, [amount]);
+
+  // Clear payment method when disabled
+  useEffect(() => {
+    if (isPaymentMethodDisabled && paymentMethod) {
+      setPaymentMethod('');
+      form.setFieldsValue({ paymentMethod: undefined });
+    }
+  }, [isPaymentMethodDisabled, paymentMethod, form]);
 
   // Get the selected currency code for display
   const selectedCurrencyCode = useMemo(() => {
@@ -307,6 +321,30 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     };
   }, [amount, currency, paymentMethod, expensePlanData, employeeRuleId, currentTitle, selectedCurrencyCode]);
 
+  // Check if form is valid
+  const isFormValid = useMemo(() => {
+    const amountValue = parseFloat(amount) || 0;
+    const hasAmountError = !!amountError;
+    const hasPaymentMethodError = !!paymentMethodError;
+    const hasAdvancePaymentError = !!advancePaymentError;
+    
+    // Form is valid if:
+    // 1. No amount error
+    // 2. No payment method error (only if amount > 0)
+    // 3. No advance payment error
+    // 4. Amount is valid (not 0 or empty)
+    const isValid = !hasAmountError && 
+                   !hasAdvancePaymentError && 
+                   (amountValue === 0 || (!hasPaymentMethodError && !!paymentMethod));
+    
+    return isValid;
+  }, [amount, amountError, paymentMethodError, advancePaymentError, paymentMethod]);
+
+  // Update form validation in context
+  useEffect(() => {
+    updateTripFormValidation(isFormValid);
+  }, [isFormValid, updateTripFormValidation]);
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid="payment-screen-container">
       {/* Form Section - Takes available space */}
@@ -402,8 +440,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                   )}
                   name="paymentMethod"
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.payment_method_placeholder',
-                    'Select Method'
+                        'lowcoder:create_expense_request.add_request_trip_details.payment_method_placeholder',
+                        'Select Method'
                   )}
                   data-testid="payment-method-select"
                   isDataSorted={false}
@@ -413,6 +451,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                     handlePaymentMethodChange(value);
                   }}
                   required={true}
+                  disabled={isPaymentMethodDisabled}
                 />
               </Form.Item>
             </div>
