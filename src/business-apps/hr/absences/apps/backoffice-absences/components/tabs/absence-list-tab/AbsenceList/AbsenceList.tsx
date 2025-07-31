@@ -630,7 +630,87 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     }
   };
 
+  // Client-side filtering for preFilteredData (when drill-down data needs further filtering)
+  const applyClientSideFiltering = () => {
+    if (!preFilteredData) return;
 
+    let filteredData = [...preFilteredData] as EnhancedAbsence[];
+
+    // Apply text search
+    if (search && search.trim()) {
+      const searchTerm = search.toLowerCase().trim();
+      filteredData = filteredData.filter((absence: any) => {
+        const employeeName = absence.employeeName?.toLowerCase() || '';
+        const groupName = absence.groupName?.toLowerCase() || '';
+        const status = absence.status?.toLowerCase() || '';
+        const departmentName = absence.employee?.employeePosition?.organizationalUnit?.name?.toLowerCase() || '';
+        
+        return employeeName.includes(searchTerm) ||
+               groupName.includes(searchTerm) ||
+               status.includes(searchTerm) ||
+               departmentName.includes(searchTerm);
+      });
+    }
+
+    // Apply selectedFilters
+    if (selectedFilters.length > 0) {
+      // Employee filters (no prefix)
+      const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('status-') && !f.startsWith('group-'));
+      if (employeeFilters.length > 0) {
+        filteredData = filteredData.filter((absence: any) => 
+          employeeFilters.includes(absence.employeeId)
+        );
+      }
+
+      // Department filters
+      const departmentFilters = selectedFilters.filter(f => f.startsWith('department-')).map(f => f.replace('department-', ''));
+      if (departmentFilters.length > 0) {
+        filteredData = filteredData.filter((absence: any) => {
+          const deptId = absence.employee?.employeePosition?.organizationalUnit?.id;
+          const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
+          
+          // Handle "No Department" special case
+          if (departmentFilters.includes('no-department')) {
+            return !deptName || deptName === 'No Department';
+          }
+          
+          return departmentFilters.includes(deptId);
+        });
+      }
+
+      // Status filters  
+      const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
+      if (statusFilters.length > 0) {
+        filteredData = filteredData.filter((absence: any) => 
+          statusFilters.includes(absence.status)
+        );
+      }
+
+      // Group filters
+      const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
+      if (groupFilters.length > 0) {
+        filteredData = filteredData.filter((absence: any) => 
+          groupFilters.includes(absence.groupId)
+        );
+      }
+    }
+
+    console.log('🔍 Client-side filtering applied:', {
+      originalCount: preFilteredData.length,
+      filteredCount: filteredData.length,
+      appliedFilters: {
+        search: search || 'none',
+        selectedFilters: selectedFilters.length,
+        employeeFilters: selectedFilters.filter(f => !f.includes('-')).length,
+        departmentFilters: selectedFilters.filter(f => f.startsWith('department-')).length,
+        statusFilters: selectedFilters.filter(f => f.startsWith('status-')).length,
+        groupFilters: selectedFilters.filter(f => f.startsWith('group-')).length
+      }
+    });
+
+    setAbsences(filteredData);
+    setTotal(filteredData.length);
+  };
 
   // Effect for preFilteredData (dashboard drill-down) - process immediately
   useEffect(() => {
@@ -660,7 +740,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   }, [accessToken, currentPage, pageSize, preFilteredData]);
 
   // Search and filter effects (including date ranges like manager-absences)
-  // DON'T call fetchAbsences if preFilteredData is provided (dashboard drill-down)
   useEffect(() => {
     if (initialLoadDone.current && !preFilteredData) {
       console.log('🔍 AbsenceList: Search/filter effect triggered (no preFilteredData)', {
@@ -668,11 +747,13 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       });
       setCurrentPage(1);
       fetchAbsences();
-    } else if (preFilteredData) {
-      console.log('⚠️ AbsenceList: Search/filter effect blocked (preFilteredData exists)', {
+    } else if (preFilteredData && initialLoadDone.current) {
+      console.log('🔍 AbsenceList: Applying client-side filtering on preFilteredData', {
         preFilteredDataCount: preFilteredData.length,
         search, selectedFilters, startDate, endDate
       });
+      setCurrentPage(1);
+      applyClientSideFiltering();
     }
   }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate, preFilteredData]);
 
