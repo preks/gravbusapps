@@ -15,7 +15,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the advance payment filters hook
+  // Use the enhanced advance payment filters hook
   const {
     searchTerm,
     setSearchTerm,
@@ -28,6 +28,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    selectedFilters,
+    setFilters,
+    removeFilter,
+    clearFilters,
   } = useAdvancePaymentFilters();
 
   // Create memoized content header with statistics component
@@ -55,13 +59,22 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     handleDataFilterChange(filterId, selected);
   }, [handleDataFilterChange]);
 
-  // Handle clearing all filters
-  const clearAllFilters = useCallback(() => {
-    setSearchTerm('');
-    setStatusFilter([]);
-    setAmountRange(null);
-    setAdvanceRange(null);
-  }, [setSearchTerm, setStatusFilter, setAmountRange, setAdvanceRange]);
+  // Handle clearing all filters with proper coordination
+  const handleClearAllFilters = useCallback((filters: string[]) => {
+    // If clearing all filters (empty array), use the proper clearFilters function
+    if (filters.length === 0) {
+      clearFilters(); // This properly clears all filters including ranges
+    } else {
+      // Otherwise, set specific filters
+      setFilters(filters);
+    }
+  }, [clearFilters, setFilters]);
+
+  // Wrapper for clear all filters without parameters (for table clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
+  }, [setFilters]);
 
   return (
     <AdvancePaymentsTable
@@ -69,16 +82,15 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       search={searchTerm}
       onSearchChange={handleSearchChange}
       activeFilter={statusFilter} // Pass raw status values - DataController will handle display
-      onFilterChange={(filter) => {
-        // Update status filter when pills are removed
-        setStatusFilter(filter);
-      }}
-      onClearFilters={clearAllFilters}
+      onFilterChange={setFilters} // Use enhanced setFilters for individual filter removal
+      onClearFilters={handleClearAllFiltersNoParams} // Use wrapper for clear all
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       filterLabelMap={filterLabelMap}
       amountRange={amountRange}
       advanceRange={advanceRange}
+      selectedFilters={selectedFilters}
+      removeFilter={removeFilter}
     />
   );
 };

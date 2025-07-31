@@ -1,22 +1,33 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Typography, Spin, Descriptions, Divider, Card, Image, Alert, Modal } from 'antd';
+import { 
+  Badge,
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@newwork/nw-design-system';
 import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
-import Pill from '@/components/pill/Pill';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
-
-const { Text } = Typography;
+import dayjs from 'dayjs';
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null;
   onClose: () => void;
 }
-
-
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   selectedItem,
@@ -98,105 +109,106 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     
     try {
       // Process each file attachment
-      const filesPromises = item.expenseItemFile.map(async (file: any, index: number) => {
-        const fileId = file.fileUrl?.split('/').pop();
-        
-        if (!fileId) {
-          return null;
-        }
-        
-        try {
-          // Fetch the file blob using the FileClient with proper authorization
-          const blob = await fileClient.getFile(
-            { 
-              accessScope: 'tenant', 
-              fileId 
-            },
-            { 
-              appName: 'expenses',
-              folderPath: `/expenseItemsDocuments/${employeeId}`
-            }
-          );
-          
-          // Create an object URL from the blob
-          const objectUrl = URL.createObjectURL(blob);
-          
-          // Create an UploadFile object for the antd Upload component
-          const uploadFile = {
-            uid: `-${index}`,
-            name: file.fileName ?? `Receipt-${index + 1}`,
-            status: 'done',
-            url: objectUrl,
-            originFileObj: new File([blob], file.fileName ?? `Receipt-${index + 1}`, {
-              type: blob.type
-            })
-          } as UploadFile;
-          
-          return uploadFile;
-        } catch (err) {
-          console.error(`Error fetching file ${fileId}:`, err);
-          // Fall back to using the direct URL if blob fetching fails
-          return {
-            uid: `-${index}`,
-            name: file.fileName ?? `Receipt-${index + 1}`,
-            status: 'done',
-            url: file.fileUrl
-          } as UploadFile;
-        }
-      });
+      const processedFiles: UploadFile[] = [];
       
-      const files = await Promise.all(filesPromises);
-      const validFiles = files.filter(Boolean) as UploadFile[];
+      for (const fileInfo of item.expenseItemFile) {
+        try {
+          // Use the fileInfo.id as the file identifier
+          const pathParams = {
+            accessScope: 'tenant',
+            fileId: fileInfo.id
+          };
+          
+          // Get file as blob and create object URL
+          const fileBlob = await fileClient.getFile(pathParams, {
+            appName: 'expenses',
+            folderPath: `employees/${employeeId}/expense-items/${item.id}`
+          });
+          
+          if (fileBlob && isMounted.current) {
+            // Create object URL for the blob
+            const downloadUrl = URL.createObjectURL(fileBlob);
+            
+            // Create UploadFile object
+            const uploadFile: UploadFile = {
+              uid: fileInfo.id,
+              name: fileInfo.fileName || fileInfo.id, // Use fileName from fileInfo
+              status: 'done',
+              url: downloadUrl,
+              size: fileBlob.size,
+              type: fileBlob.type || 'application/octet-stream'
+            };
+            
+            processedFiles.push(uploadFile);
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${fileInfo.id}:`, fileError);
+          // Continue with other files even if one fails
+        }
+      }
       
       if (isMounted.current) {
-        setFileList(validFiles);
+        setFileList(processedFiles);
       }
     } catch (error) {
-      console.error('Error processing file attachments:', error);
+      console.error('Error fetching file attachments:', error);
       if (isMounted.current) {
         setFileList([]);
       }
     } finally {
-      // Ensure fileLoading is set to false with a small delay to allow React to process state updates
-      setTimeout(() => {
-        if (isMounted.current) {
-          setFileLoading(false);
-          console.log('File loading state set to false (with timeout)');
-        }
-      }, 100);
+      if (isMounted.current) {
+        setFileLoading(false);
+      }
     }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+  }, [fileClient, contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken]);
   
-  // Load file attachments when detailedItem changes
+  // Fetch file attachments when detailed item changes
   useEffect(() => {
     if (detailedItem) {
       fetchFileAttachments(detailedItem);
-    } else {
-      setFileList([]);
     }
   }, [detailedItem, fetchFileAttachments]);
   
-  
-  
-  // We're not using any DOM manipulation anymore, just proper CSS
-  
-  // Render attachment preview section
+  // Get status badge variant
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'CREATED':
+        return 'secondary' as const;
+      case 'PENDING':
+        return 'warning' as const;
+      case 'APPROVED':
+        return 'success' as const;
+      case 'REJECTED':
+        return 'destructive' as const;
+      case 'CLOSED':
+        return 'success' as const;
+      default:
+        return 'default' as const;
+    }
+  };
+
+  // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
     if (fileLoading) {
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="expense-file-loading">
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} size="large" />
-        </div>
+        <Card className="gba:text-center gba:py-8" data-testid="expense-file-loading">
+          <Spinner />
+          <div className="gba:mt-2">
+            <p className="gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel('expense.item.loadingReceipt', 'Loading receipt...')}
+            </p>
+          </div>
+        </Card>
       );
     }
 
     if (fileList.length > 0) {
       return (
-        <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:py-4" data-testid="expense-file-list">
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:sm:gba:grid-cols-3 gba:md:gba:grid-cols-4 gba:lg:gba:grid-cols-5" data-testid="expense-files-grid">
           {fileList.map((file, idx) => {
-            const fileType = file.originFileObj?.type || '';
             const fileName = file.name || '';
             const fileUrl = file.url || '';
+            const fileType = file.type || '';
             const ext = fileName.split('.').pop()?.toLowerCase() || '';
             
             // Helper: Render icon by file type
@@ -212,20 +224,11 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             const renderPreview = () => {
               if (fileType.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) {
                 return (
-                  <Image
+                  <img
                     src={fileUrl}
                     alt={fileName}
-                    className="gba:rounded-md gba:shadow"
-                    width={90}
-                    height={90}
+                    className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:object-cover gba:cursor-pointer"
                     data-testid={`expense-file-image-${idx}`}
-                    preview={{
-                      visible: previewOpen && previewImage === fileUrl,
-                      onVisibleChange: (visible) => {
-                        setPreviewOpen(visible);
-                        if (!visible) setPreviewImage('');
-                      },
-                    }}
                     onClick={() => {
                       setPreviewImage(fileUrl);
                       setPreviewOpen(true);
@@ -282,7 +285,9 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       <Card className="gba:text-center gba:py-8" data-testid="expense-file-empty">
         <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
         <div className="gba:mt-2">
-          <Text type="secondary">{getTranslationFromI18nKeyAndLabel('expense.item.noReceipt', 'No receipt attached')}</Text>
+          <p className="gba:text-sm gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel('expense.item.noReceipt', 'No receipt attached')}
+          </p>
         </div>
       </Card>
     );
@@ -292,7 +297,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   if (isItemLoading) {
     return (
       <div className="gba:p-4 gba:flex gba:justify-center gba:items-center gba:py-8">
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} size="large" />
+        <Spinner />
       </div>
     );
   }
@@ -301,112 +306,150 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   if (itemError) {
     return (
       <div className="gba:p-4">
-        <Alert message="Error" description={itemError} type="error" showIcon />
+        <Alert>
+          <AlertDescription>{itemError}</AlertDescription>
+        </Alert>
       </div>
     );
   }
 
-// Use the detailed item if available, otherwise fall back to the selectedItem
-const displayItem = detailedItem || selectedItem;
-if (!displayItem) return null;
+  // Use the detailed item if available, otherwise fall back to the selectedItem
+  const displayItem = detailedItem || selectedItem;
+  if (!displayItem) return null;
 
-return (
-  <div className="gba:p-4 gba:relative gba:mb-6">
-    {/* Header: Title, Code, Status Pill */}
-    <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-      <div>
-        <Typography.Title level={4} className="gba:mb-1">
-          {typeof displayItem.title === 'string' ? displayItem.title : ''}
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          {typeof displayItem.code === 'string' ? displayItem.code : ''}
-        </Typography.Text>
+  return (
+    <div className="gba:space-y-6">
+      {/* Header: Title, Code, Status Badge */}
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
+            {typeof displayItem.title === 'string' ? displayItem.title : ''}
+          </h2>
+          <p className="gba:text-sm gba:text-gray-600">
+            {typeof displayItem.code === 'string' ? displayItem.code : ''}
+          </p>
+        </div>
+        <Badge
+          variant={getStatusBadgeVariant(displayItem.status)}
+          data-testid="expense-item-status-badge"
+        >
+          {getExpenseItemStatusDisplay(displayItem.status).label}
+        </Badge>
       </div>
-      <Pill
-        type={getExpenseItemStatusDisplay(displayItem.status).type}
-        label={getExpenseItemStatusDisplay(displayItem.status).label}
-        className="gba:text-base"
-        data-testid="expense-item-status-pill"
-      />
+
+      {/* Dates Section */}
+                <Card>
+            <CardContent className="gba:p-4 gba:space-y-3">
+              {displayItem.expenseDate && (
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <span className="gba:text-sm gba:text-gray-700">
+                    {getTranslationFromI18nKeyAndLabel('expense.item.expenseDate', 'Expense Date')}: {' '}
+                    {dayjs(displayItem.expenseDate).format(getDateFormat('date-long'))}
+                  </span>
+                </div>
+              )}
+              {displayItem.invoiceDate && (
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <span className="gba:text-sm gba:text-gray-700">
+                    {getTranslationFromI18nKeyAndLabel('expense.item.invoiceDate', 'Invoice Date')}: {' '}
+                    {dayjs(displayItem.invoiceDate).format(getDateFormat('date-long'))}
+                  </span>
+                </div>
+              )}
+              {!displayItem.expenseDate && !displayItem.invoiceDate && (
+                <div className="gba:text-center gba:py-4 gba:text-sm gba:text-gray-500">
+                  {getTranslationFromI18nKeyAndLabel('expense.item.noDates', 'No date information available')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+      {/* Description Section */}
+      {typeof displayItem.description === 'string' && displayItem.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-base gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('expense.item.description', 'Description')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="gba:text-sm gba:text-gray-700">{displayItem.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-base gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('expense.item.details', 'Item Details')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:space-y-3 gba:text-sm">
+            {displayItem.employee && displayItem.employee.fullName && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('expense.item.requester', 'Requester')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.employee.fullName)}</span>
+              </div>
+            )}
+            {displayItem.expenseClass && displayItem.expenseClass.value && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('expense.item.class', 'Expense Class')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.expenseClass.value)}</span>
+              </div>
+            )}
+            {displayItem.costCenter && displayItem.costCenter.name && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('expense.item.costCenter', 'Cost Center')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
+              </div>
+            )}
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('expense.item.amount', 'Amount')}:
+              </span>
+              <span className="gba:text-gray-900 gba:font-semibold">
+                €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* File Viewer Section */}
+      <div className="gba:mt-2">
+        {renderAttachmentPreview()}
+      </div>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('expense.item.pdfPreview', 'PDF Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4">
+            <iframe
+              src={pdfPreviewUrl}
+              className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
+              title="PDF Preview"
+              data-testid="pdf-preview-iframe"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-
-    {/* Dates Section */}
-    {displayItem.invoiceDate && (
-      <div className="gba:flex gba:items-center gba:mb-2">
-        <span className="gba:mr-2"><FileImageOutlined /></span>
-        <Typography.Text className="gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('expense.item.invoiceDate', 'Invoice Date')}: {typeof displayItem.invoiceDate === 'string' ? displayItem.invoiceDate : ''}
-        </Typography.Text>
-      </div>
-    )}
-    {'creationDate' in displayItem && displayItem.creationDate && (
-      <div className="gba:flex gba:items-center gba:mb-2">
-        <span className="gba:mr-2"><FileImageOutlined /></span>
-        <Typography.Text className="gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('expense.item.creationDate', 'Creation Date')}: {typeof displayItem.creationDate === 'string' ? displayItem.creationDate : ''}
-        </Typography.Text>
-      </div>
-    )}
-    {/* Add more date rows as needed, matching plan details style */}
-
-    {/* Description Section */}
-    {typeof displayItem.description === 'string' && displayItem.description && (
-      <Typography.Text className="gba:block gba:mb-4">
-        {displayItem.description}
-      </Typography.Text>
-    )}
-
-    {/* Details Section */}
-    <Descriptions size="small" column={1}>
-      {displayItem.employee && displayItem.employee.fullName && (
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.requester', 'Requester')}>
-          {String(displayItem.employee.fullName)}
-        </Descriptions.Item>
-      )}
-      {displayItem.expenseClass && displayItem.expenseClass.value && (
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.class', 'Expense Class')}>
-          {String(displayItem.expenseClass.value)}
-        </Descriptions.Item>
-      )}
-      {displayItem.costCenter && displayItem.costCenter.name && (
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.costCenter', 'Cost Center')}>
-          {String(displayItem.costCenter.name)}
-        </Descriptions.Item>
-      )}
-      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.item.amount', 'Amount')}>
-        <span style={{ fontWeight: 'bold' }}>
-          €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
-        </span>
-      </Descriptions.Item>
-    </Descriptions>
-
-    <Divider />
-
-    {/* File Viewer Section */}
-    <div className="gba:mt-2">
-      {renderAttachmentPreview()}
-    </div>
-
-    <Modal
-      open={pdfPreviewOpen}
-      title={getTranslationFromI18nKeyAndLabel('expense.item.pdfPreview', 'PDF Preview')}
-      footer={null}
-      onCancel={() => setPdfPreviewOpen(false)}
-      width="90vw"
-      style={{ top: 20 }}
-      destroyOnClose
-      data-testid="pdf-preview-modal"
-    >
-      <iframe
-        src={pdfPreviewUrl}
-        style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-        title="PDF Preview"
-        data-testid="pdf-preview-iframe"
-      />
-    </Modal>
-  </div>
-);
-
-}
+  );
+};
 
 export default ExpenseItemDetails;
