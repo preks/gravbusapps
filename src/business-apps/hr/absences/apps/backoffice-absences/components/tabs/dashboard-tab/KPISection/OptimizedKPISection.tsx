@@ -22,6 +22,7 @@ interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
   timeFilter?: TimeFilter;
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void;
+  onNavigateToEntitlements?: () => void;
 }
 
 /**
@@ -32,7 +33,8 @@ interface OptimizedKPISectionProps extends BusinessAppContextProps {
 export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({ 
   dashboardData,
   timeFilter = 'current-year',
-  onNavigateToDetails
+  onNavigateToDetails,
+  onNavigateToEntitlements
 }) => {
   const {
     totalAbsences,
@@ -255,7 +257,11 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         </div>
         <div className="gba:h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={departmentChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <BarChart 
+              data={departmentChartData} 
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              style={{ cursor: 'pointer' }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="department" 
@@ -299,7 +305,9 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                 dataKey="absences" 
                 fill="#3498db" 
                 onClick={handleBarChartClick}
+                onMouseDown={handleBarChartClick}
                 style={{ cursor: 'pointer' }}
+                radius={[2, 2, 0, 0]}
               />
             </BarChart>
           </ResponsiveContainer>
@@ -351,7 +359,8 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                       : 0;
                     
                     return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
+                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow"
+                           style={{ pointerEvents: 'none' }}>
                         <p className="gba:font-medium">{entry.name}</p>
                         <p>Count: {entry.value} requests</p>
                         <p>Days: {entry.totalDays} total days</p>
@@ -361,6 +370,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                   }
                   return null;
                 }}
+                wrapperStyle={{ pointerEvents: 'none' }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -391,7 +401,11 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       </Card>
 
       {/* 🏖️ Vacation Entitlements Analytics Card */}
-      <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="entitlements-card">
+      <Card 
+        className="gba:hover:shadow-md gba:transition-shadow gba:p-4 gba:cursor-pointer" 
+        data-testid="entitlements-card"
+        onClick={onNavigateToEntitlements}
+      >
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
           <RiBarChart2Line className="gba:text-purple-600" size={20} />
           <div>
