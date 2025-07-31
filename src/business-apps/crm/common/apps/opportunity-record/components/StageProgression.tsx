@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { Modal, Tooltip } from 'antd';
+import { Modal, Tooltip, message } from 'antd';
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { ReferenceData } from '../types';
 import { useUpdateOpportunityStage } from '../hooks/useUpdateOpportunityStage';
+import { WorkflowsStatusModal } from './WorkflowsStatusModal';
+import { WorkflowStatusService } from '../services/WorkflowStatusService';
+import { getStageTransitionConditions, hasStageTransitionConditions } from '../config/stageTransitionConditions';
+import { StageTransitionCondition } from '../types/stageTransition';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // TEST-DEBUG: Mock conditions data for tooltips - REVERT THIS
 interface StageCondition {
@@ -124,42 +129,172 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ReferenceData | null>(null);
+  const [workflowsModalVisible, setWorkflowsModalVisible] = useState(false);
+  const [activeWorkflows, setActiveWorkflows] = useState<any[]>([]);
+  const [transitionConditions, setTransitionConditions] = useState<StageTransitionCondition[]>([]);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   
   const { updateStage, isLoading } = useUpdateOpportunityStage(accessToken);
 
-  const handleStageClick = (stage: ReferenceData) => {
+  const handleStageClick = async (stage: ReferenceData) => {
     // Don't show modal if clicking on current stage
     if (stage.value.toLowerCase() === currentStage.toLowerCase()) {
       return;
     }
     
     setSelectedStage(stage);
-    setModalVisible(true);
+    
+    // Check if transition conditions exist for this stage change
+    const conditions = getStageTransitionConditions(
+      currentStage,
+      stage.value,
+      'default-pipeline', // TODO: Get actual pipeline ID from opportunity data
+      0 // TODO: Get actual opportunity value
+    );
+    
+    if (conditions.length > 0) {
+      // Check for existing active workflows
+      setLoadingWorkflows(true);
+      try {
+        const existingWorkflows = await WorkflowStatusService.getStageTransitionWorkflows(
+          opportunityId,
+          currentStage,
+          stage.value,
+          accessToken
+        );
+        
+        if (existingWorkflows.length > 0) {
+          // Show existing workflows status
+          setActiveWorkflows(existingWorkflows);
+          setWorkflowsModalVisible(true);
+        } else {
+          // Start new workflows
+          setTransitionConditions(conditions);
+          setModalVisible(true);
+        }
+      } catch (error) {
+        console.error('Error checking workflows:', error);
+        message.error(
+          getTranslationFromI18nKeyAndLabel(
+            'crm:opportunity.workflowStatus.checkError',
+            'Failed to check approval status'
+          )
+        );
+        // Fallback to direct stage change
+        setModalVisible(true);
+      } finally {
+        setLoadingWorkflows(false);
+      }
+    } else {
+      // No conditions required - direct stage change
+      setModalVisible(true);
+    }
   };
 
   const handleConfirmStageChange = async () => {
     if (!selectedStage) return;
     
-    try {
-      await updateStage(
-        opportunityId, 
-        opportunityVersion, 
-        selectedStage.id, // Use stage id as the reference
-        selectedStage.value, // Display name for the success message
-        () => {
-          setModalVisible(false);
-          setSelectedStage(null);
-          onStageUpdate();
+    // If there are transition conditions, start workflows instead of direct stage change
+    if (transitionConditions.length > 0) {
+      try {
+        setLoadingWorkflows(true);
+        
+        // Start workflows for each condition
+        for (const condition of transitionConditions) {
+          await WorkflowStatusService.startStageTransitionWorkflow(
+            opportunityId,
+            condition,
+            {}, // TODO: Pass actual opportunity data
+            accessToken
+          );
         }
-      );
-    } catch (error) {
-      console.error('Error updating stage:', error);
+        
+        message.success(
+          getTranslationFromI18nKeyAndLabel(
+            'crm:opportunity.workflowStatus.workflowsStarted',
+            'Approval workflows have been started'
+          )
+        );
+        
+        // Close the modal and show workflows status
+        setModalVisible(false);
+        setSelectedStage(null);
+        
+        // Refresh workflows and show status modal
+        const workflows = await WorkflowStatusService.getStageTransitionWorkflows(
+          opportunityId,
+          currentStage,
+          selectedStage.value,
+          accessToken
+        );
+        setActiveWorkflows(workflows);
+        setWorkflowsModalVisible(true);
+        
+      } catch (error) {
+        console.error('Error starting workflows:', error);
+        message.error(
+          getTranslationFromI18nKeyAndLabel(
+            'crm:opportunity.workflowStatus.startError',
+            'Failed to start approval workflows'
+          )
+        );
+      } finally {
+        setLoadingWorkflows(false);
+      }
+    } else {
+      // Direct stage change (no conditions)
+      try {
+        await updateStage(
+          opportunityId, 
+          opportunityVersion, 
+          selectedStage.id,
+          selectedStage.value,
+          () => {
+            setModalVisible(false);
+            setSelectedStage(null);
+            onStageUpdate();
+          }
+        );
+      } catch (error) {
+        console.error('Error updating stage:', error);
+      }
     }
   };
 
   const handleCancelModal = () => {
     setModalVisible(false);
     setSelectedStage(null);
+    setTransitionConditions([]);
+  };
+
+  const handleWorkflowsCompleted = async () => {
+    if (!selectedStage) return;
+    
+    try {
+      // All workflows completed - proceed with stage change
+      await updateStage(
+        opportunityId, 
+        opportunityVersion, 
+        selectedStage.id,
+        selectedStage.value,
+        () => {
+          setWorkflowsModalVisible(false);
+          setSelectedStage(null);
+          setActiveWorkflows([]);
+          setTransitionConditions([]);
+          onStageUpdate();
+        }
+      );
+    } catch (error) {
+      console.error('Error updating stage after workflow completion:', error);
+    }
+  };
+
+  const handleCancelWorkflowsModal = () => {
+    setWorkflowsModalVisible(false);
+    setSelectedStage(null);
+    setActiveWorkflows([]);
+    setTransitionConditions([]);
   };
 
   const getCurrentStageIndex = () => {
@@ -513,24 +648,97 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
       
       {/* Stage Change Confirmation Modal */}
       <Modal
-        title="Confirm Stage Change"
+        title={
+          transitionConditions.length > 0 
+            ? getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.approvalRequired',
+                'Approval Required for Stage Change'
+              )
+            : getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.confirm',
+                'Confirm Stage Change'
+              )
+        }
         open={modalVisible}
         onOk={handleConfirmStageChange}
         onCancel={handleCancelModal}
-        confirmLoading={isLoading}
-        okText="Confirm"
-        cancelText="Cancel"
+        confirmLoading={isLoading || loadingWorkflows}
+        okText={
+          transitionConditions.length > 0
+            ? getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.startApprovals',
+                'Start Approvals'
+              )
+            : getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.confirm',
+                'Confirm'
+              )
+        }
+        cancelText={getTranslationFromI18nKeyAndLabel(
+          'crm:opportunity.stageChange.cancel',
+          'Cancel'
+        )}
         okType="primary"
         data-testid="stage-change-modal"
       >
-        <p>
-          Are you sure you want to change the opportunity stage to{' '}
-          <strong>{selectedStage?.value}</strong>?
-        </p>
-        <p style={{ color: '#666', fontSize: '14px', marginTop: '8px' }}>
-          This action will update the opportunity's current stage and may trigger additional workflows.
-        </p>
+        {transitionConditions.length > 0 ? (
+          <div>
+            <p>
+              {getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.approvalRequiredMessage',
+                'Changing the opportunity stage to'
+              )} <strong>{selectedStage?.value}</strong> {getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.requiresApproval',
+                'requires the following approvals:'
+              )}
+            </p>
+            <ul className="gba:mt-3 gba:space-y-2">
+              {transitionConditions.map(condition => 
+                condition.conditions.map((item, index) => (
+                  <li key={`${condition.id}-${index}`} className="gba:flex gba:items-center">
+                    <CheckCircleFilled className="gba:text-blue-500 gba:mr-2" />
+                    <span className="gba:text-sm">{item.title || item.description}</span>
+                  </li>
+                ))
+              )}
+            </ul>
+            <p className="gba:mt-3 gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.approvalProcess',
+                'Click "Start Approvals" to initiate the approval process. The stage change will be completed once all approvals are received.'
+              )}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p>
+              {getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.confirmMessage',
+                'Are you sure you want to change the opportunity stage to'
+              )} <strong>{selectedStage?.value}</strong>?
+            </p>
+            <p className="gba:mt-2 gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel(
+                'crm:opportunity.stageChange.directChange',
+                'This action will update the opportunity\'s current stage.'
+              )}
+            </p>
+          </div>
+        )}
       </Modal>
+
+      {/* Workflows Status Modal */}
+      <WorkflowsStatusModal
+        visible={workflowsModalVisible}
+        workflows={activeWorkflows}
+        opportunityId={opportunityId}
+        fromStage={currentStage}
+        toStage={selectedStage?.value || ''}
+        opportunityData={{}}
+        accessToken={accessToken}
+        onWorkflowsCompleted={handleWorkflowsCompleted}
+        onCancel={handleCancelWorkflowsModal}
+      />
     </div>
   );
 }; 

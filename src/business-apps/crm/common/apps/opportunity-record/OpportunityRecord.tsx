@@ -22,6 +22,7 @@ import { OpportunityDetails } from "./components/OpportunityDetails";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { StageProgression } from "./components/StageProgression";
+import { StageTransitionWorkflowCard } from "./components/StageTransitionWorkflowCard";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -136,6 +137,17 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         <div style={{ textAlign: "center", padding: "20px", color: "#8c8c8c" }}>
           <p>No sales pipeline assigned to this opportunity</p>
         </div>
+      )}
+
+      {/* Stage Transition Workflow Card - New dedicated testing interface */}
+      {!loadingStages && !stagesError && opportunityStages.length > 0 && (
+        <StageTransitionWorkflowCard
+          opportunityId={opportunityId}
+          opportunityData={opportunityData}
+          accessToken={props.accessToken}
+          currentStage={opportunityData?.salesPipelineStage?.value || "Discovery"}
+          stages={opportunityStages}
+        />
       )}
 
       <div
