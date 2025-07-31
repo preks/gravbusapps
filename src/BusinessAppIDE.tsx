@@ -291,18 +291,33 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
 
     // Set open keys based on the currently selected app (from URL)
+    // Only if menu is not collapsed initially
     const initialSelectedApp = getAppByName(appFromUrl || "");
-    const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp);
-    setOpenKeys(requiredKeys);
+    const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true";
+    if (!initialCollapsed) {
+      const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp);
+      setOpenKeys(requiredKeys);
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SIDEBAR_COLLAPSED, String(collapsed));
-  }, [collapsed]);
+    
+    // When menu expands, restore open keys for current app
+    // When menu collapses, clear open keys
+    if (!collapsed && selectedApp) {
+      const requiredKeys = getRequiredOpenKeysForApp(selectedApp);
+      setOpenKeys(requiredKeys);
+    } else if (collapsed) {
+      // Don't clear the openKeys state, just let the Menu component ignore them
+      // This way when we expand again, the state is preserved
+    }
+  }, [collapsed, selectedApp]);
 
   useEffect(() => {
     // Update open keys when selected app changes to ensure the path is visible
-    if (selectedApp) {
+    // Only do this when menu is not collapsed
+    if (selectedApp && !collapsed) {
       const requiredKeys = getRequiredOpenKeysForApp(selectedApp);
       setOpenKeys(prevKeys => {
         // Only add required keys if they're not already open
@@ -314,7 +329,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         return prevKeys;
       });
     }
-  }, [selectedApp]);
+  }, [selectedApp, collapsed]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -400,7 +415,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
    * Handles menu open keys change
    */
   const handleOpenChange = (keys: string[]): void => {
-    setOpenKeys(keys);
+    // Only update open keys when menu is not collapsed
+    if (!collapsed) {
+      setOpenKeys(keys);
+    }
   };
 
   /**
@@ -740,10 +758,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <Menu
               mode="inline"
               selectedKeys={selectedApp ? [selectedApp.screenKey] : ["home"]}
-              openKeys={openKeys}
+              openKeys={collapsed ? [] : openKeys}
               onOpenChange={handleOpenChange}
               style={{ borderRight: 0 }}
               items={getMenuItems()}
+              inlineCollapsed={collapsed}
             />
           </div>
 
