@@ -434,3 +434,78 @@ export const GET_SPEND_COMPARISON_QUARTERLY = `
     }
   }
 `;
+
+export const GET_ADVANCE_PAYMENTS_APPROVED = `
+  query GetAdvancePaymentsApproved($selectedCurrency: String) {
+    advancePaymentsApproved: AdvancePaymentAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "APPROVED" } },
+          { currencyRef: { _eq: $selectedCurrency } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+  }
+`;
+
+export const GET_ADVANCE_PAYMENTS_APPROVED_YEARLY = `
+  query GetAdvancePaymentsApprovedYearly($selectedCurrency: String, $currentYearStart: timestamptz, $currentYearEnd: timestamptz) {
+    advancePaymentsApproved: AdvancePaymentAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "APPROVED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { createdAt: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+  }
+`;
+
+export const GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY = `
+  query GetAdvancePaymentsApprovedMonthly($selectedCurrency: String, $currentMonthStart: timestamptz, $currentMonthEnd: timestamptz) {
+    advancePaymentsApproved: AdvancePaymentAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "APPROVED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { createdAt: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+  }
+`;
+
+export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
+  query GetAdvancePaymentsApprovedQuarterly($selectedCurrency: String, $quarterStart: timestamptz, $quarterEnd: timestamptz) {
+    advancePaymentsApproved: AdvancePaymentAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "APPROVED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { createdAt: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+  }
+`;

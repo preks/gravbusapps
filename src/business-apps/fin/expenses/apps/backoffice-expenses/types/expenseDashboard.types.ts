@@ -34,6 +34,12 @@ export interface MonthlySpendComparison {
   isIncrease: boolean;
 }
 
+// Data structure for advance payments statistics
+export interface AdvancePaymentsStats {
+  count: number;
+  totalAmount: number;
+}
+
 // The comprehensive data structure for all dashboard stats
 export interface DashboardStats {
   expensePlanYearly: ExpensePlanYearly;
@@ -44,4 +50,5 @@ export interface DashboardStats {
   pendingRequestsCount: number;
   avgSpendPerTrip: number;
   travelExpensesCount: number;
+  advancePaymentsApproved: AdvancePaymentsStats;
 }

@@ -20,6 +20,10 @@ import {
   GET_AVG_SPEND_PER_TRIP_YEARLY,
   GET_AVG_SPEND_PER_TRIP_MONTHLY,
   GET_AVG_SPEND_PER_TRIP_QUARTERLY,
+  GET_ADVANCE_PAYMENTS_APPROVED,
+  GET_ADVANCE_PAYMENTS_APPROVED_YEARLY,
+  GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
+  GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY,
 } from "../queries/expenseDashboard.queries";
 import { DashboardStats } from "../types";
 
@@ -66,6 +70,7 @@ export const useDashboardStats = ({
     pendingRequestsCount: 0,
     avgSpendPerTrip: 0,
     travelExpensesCount: 0,
+    advancePaymentsApproved: { count: 0, totalAmount: 0 },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -378,6 +383,74 @@ export const useDashboardStats = ({
             avgSpendPerTrip: avgSpendPerTripResponse.avgSpendPerTrip,
           };
 
+          // Get advance payments approved based on period
+          let advancePaymentsResponse;
+          if (filters.period === "yearly") {
+            advancePaymentsResponse = await client.request(
+              GET_ADVANCE_PAYMENTS_APPROVED_YEARLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentYearStart: new Date(currentYear, 0, 1).toISOString(),
+                currentYearEnd: new Date(
+                  currentYear,
+                  11,
+                  31,
+                  23,
+                  59,
+                  59
+                ).toISOString(),
+              }
+            );
+          } else if (filters.period === "quarterly") {
+            advancePaymentsResponse = await client.request(
+              GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY,
+              {
+                selectedCurrency: selectedCurrency,
+                quarterStart: new Date(
+                  currentYear,
+                  Math.floor(currentDate.getMonth() / 3) * 3,
+                  1
+                ).toISOString(),
+                quarterEnd: new Date(
+                  currentYear,
+                  Math.floor(currentDate.getMonth() / 3) * 3 + 2 + 1,
+                  0,
+                  23,
+                  59,
+                  59
+                ).toISOString(),
+              }
+            );
+          } else {
+            // monthly (default)
+            advancePaymentsResponse = await client.request(
+              GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentMonthStart: new Date(
+                  currentYear,
+                  currentDate.getMonth(),
+                  1
+                ).toISOString(),
+                currentMonthEnd: new Date(
+                  currentYear,
+                  currentDate.getMonth() + 1,
+                  0,
+                  23,
+                  59,
+                  59
+                ).toISOString(),
+              }
+            );
+          }
+
+          // Merge the advance payments response
+          additionalMetricsResponse = {
+            ...additionalMetricsResponse,
+            advancePaymentsApproved:
+              advancePaymentsResponse.advancePaymentsApproved,
+          };
+
           // ⚡ OPTIMIZATION: Cache the result
           setCurrencyCache((prev) =>
             new Map(prev).set(cacheKey, additionalMetricsResponse)
@@ -509,6 +582,74 @@ export const useDashboardStats = ({
           ...additionalMetricsResponse,
           avgSpendPerTrip: avgSpendPerTripResponse.avgSpendPerTrip,
         };
+
+        // Get advance payments approved based on period
+        let advancePaymentsResponse;
+        if (filters.period === "yearly") {
+          advancePaymentsResponse = await client.request(
+            GET_ADVANCE_PAYMENTS_APPROVED_YEARLY,
+            {
+              selectedCurrency: selectedCurrency,
+              currentYearStart: new Date(currentYear, 0, 1).toISOString(),
+              currentYearEnd: new Date(
+                currentYear,
+                11,
+                31,
+                23,
+                59,
+                59
+              ).toISOString(),
+            }
+          );
+        } else if (filters.period === "quarterly") {
+          advancePaymentsResponse = await client.request(
+            GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY,
+            {
+              selectedCurrency: selectedCurrency,
+              quarterStart: new Date(
+                currentYear,
+                Math.floor(currentDate.getMonth() / 3) * 3,
+                1
+              ).toISOString(),
+              quarterEnd: new Date(
+                currentYear,
+                Math.floor(currentDate.getMonth() / 3) * 3 + 2 + 1,
+                0,
+                23,
+                59,
+                59
+              ).toISOString(),
+            }
+          );
+        } else {
+          // monthly (default)
+          advancePaymentsResponse = await client.request(
+            GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
+            {
+              selectedCurrency: selectedCurrency,
+              currentMonthStart: new Date(
+                currentYear,
+                currentDate.getMonth(),
+                1
+              ).toISOString(),
+              currentMonthEnd: new Date(
+                currentYear,
+                currentDate.getMonth() + 1,
+                0,
+                23,
+                59,
+                59
+              ).toISOString(),
+            }
+          );
+        }
+
+        // Merge the responses
+        additionalMetricsResponse = {
+          ...additionalMetricsResponse,
+          advancePaymentsApproved:
+            advancePaymentsResponse.advancePaymentsApproved,
+        };
       }
 
       // ⚡ FIXED: Restore real monthly trends data (was accidentally using placeholders)
@@ -536,6 +677,14 @@ export const useDashboardStats = ({
             avgSpendPerTrip:
               additionalMetricsResponse?.avgSpendPerTrip?.aggregate?.avg
                 ?.totalAmount || 0,
+            advancePaymentsApproved: {
+              count:
+                additionalMetricsResponse?.advancePaymentsApproved?.aggregate
+                  ?.count || 0,
+              totalAmount:
+                additionalMetricsResponse?.advancePaymentsApproved?.aggregate
+                  ?.sum?.amount || 0,
+            },
           }
         : {
             expensePlanYearly: {
@@ -610,6 +759,14 @@ export const useDashboardStats = ({
               additionalMetricsResponse?.avgSpendPerTrip?.aggregate?.avg
                 ?.totalAmount || 0,
             travelExpensesCount: 0, // Not available in current query
+            advancePaymentsApproved: {
+              count:
+                additionalMetricsResponse?.advancePaymentsApproved?.aggregate
+                  ?.count || 0,
+              totalAmount:
+                additionalMetricsResponse?.advancePaymentsApproved?.aggregate
+                  ?.sum?.amount || 0,
+            },
           };
 
       // Calculate monthly comparison percentage (only for full refresh)

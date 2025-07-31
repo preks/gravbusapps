@@ -228,6 +228,17 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           return 'Requests awaiting approval this month';
       }
     };
+
+    const getAdvancePaymentFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Approved - waiting to pay this year';
+        case 'quarterly':
+          return 'Approved - waiting to pay this quarter';
+        default:
+          return 'Approved - waiting to pay this month';
+      }
+    };
     
     cards.push({
       id: 'pending-requests',
@@ -238,7 +249,17 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       iconColor: '#faad14'
     });
 
-    // 6. Average Spend Per Trip Card
+    // 6. Advance Payment Card
+    cards.push({
+      id: 'advance-payment',
+      title: 'Advance Payment',
+      value: stats.advancePaymentsApproved.count.toString(),
+      footer: getAdvancePaymentFooter(),
+      icon: 'credit-card',
+      iconColor: '#52c41a'
+    });
+
+    // 7. Average Spend Per Trip Card
     const getPeriodText = () => {
       switch (currentFilters.period) {
         case 'yearly':
