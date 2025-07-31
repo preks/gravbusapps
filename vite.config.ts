@@ -527,8 +527,24 @@ export default wrapWithUiCatalog(OriginalComponent);
   console.log("[vite.config.ts] wrappedEntries:", wrappedEntries);
 
   return {
-    // Minimal dependency optimization - only exclude the heaviest chart libraries
     optimizeDeps: {
+      include: [
+          'antd', 
+          'recharts', 
+          '@newwork/nw-design-system', 
+          'dayjs', 
+          'react-i18next', 
+          '@newwork/gravity-ui-catalog',
+          '@phosphor-icons/react',
+          'lucide-react',
+          '@dnd-kit/core',
+          '@dnd-kit/sortable',
+          '@dnd-kit/utilities',
+          'zustand',
+          'react',
+          'react-icons',
+          'react-dom'
+        ],
       // Optimize caching strategy
       esbuildOptions: {
         target: 'es2020'
