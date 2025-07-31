@@ -11,7 +11,6 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge, 
   Alert,
   Checkbox,
   Sheet,
@@ -19,48 +18,22 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
-import Pill, { PillType } from '@/components/pill';
-import { PiFileText, PiImage, PiArrowUp, PiArrowDown, PiCalendar, PiPlus } from 'react-icons/pi';
+import Pill from '@/components/pill';
+import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { useGetExpenseItems, ExpenseFilter, ExpenseItem } from '../../../hooks/useGetExpenseItems';
+import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import { startProcess } from '@/common/utils/start-process';
+import { notification } from 'antd';
+
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable';
 
-// Status badge variant function (following manager absences pattern)
-const getStatusBadgeVariant = (status: string) => {
-  switch (status.toUpperCase()) {
-    case 'CREATED':
-      return 'secondary' as const;
-    case 'ASSIGNED':
-      return 'info' as const;
-    case 'PENDING':
-      return 'warning' as const;
-    case 'APPROVED':
-      return 'success' as const;
-    case 'VERIFIED':
-      return 'success' as const;
-    case 'BOOKED':
-      return 'success' as const;
-    case 'TRANSFERRED':
-      return 'success' as const;
-    case 'PAID':
-      return 'success' as const;
-    case 'REJECTED':
-      return 'destructive' as const;
-    case 'CLOSED':
-      return 'success' as const;
-    default:
-      return 'default' as const;
-  }
-};
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   onAddExpenseItem: () => void;
@@ -165,19 +138,49 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const handleCreateExpenseRequest = useCallback(() => {
     if (!selectedRowKeys.length) return;
     const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
-    // Only allow creation if all items are in 'CREATED' status (draft)
+    
+    // Check if all items are in 'CREATED' status (draft)
     const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
     if (!allDraft) {
-      console.warn(
-        getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.createRequestDraftOnly',
-          'An Expense Request can be started only with items in status draft.'
-        )
+      const errorMessage = getTranslationFromI18nKeyAndLabel(
+        'gba.expenseItems.createRequestDraftOnly',
+        'An Expense Request can be started only with items in status DRAFT.'
       );
+      notification.error({
+        message: getTranslationFromI18nKeyAndLabel(
+          'gba.expenseItems.createRequestError',
+          'Cannot Create Expense Request'
+        ),
+        description: errorMessage,
+        placement: 'bottomRight',
+        duration: 5,
+        className: 'gba:error-toast'
+      });
       return;
     }
+    
+    // Check if all items have the same currency
+    const currencies = selectedItems.map((item: any) => item.currency?.code || item.currencyId);
+    const uniqueCurrencies = [...new Set(currencies)];
+    if (uniqueCurrencies.length > 1) {
+      const errorMessage = getTranslationFromI18nKeyAndLabel(
+        'gba.expenseItems.createRequestCurrencyMismatch',
+        'All selected items must have the same currency to create an expense request.'
+      );
+      notification.error({
+        message: getTranslationFromI18nKeyAndLabel(
+          'gba.expenseItems.createRequestError',
+          'Cannot Create Expense Request'
+        ),
+        description: errorMessage,
+        placement: 'bottomRight',
+        duration: 5,
+        className: 'gba:error-toast'
+      });
+      return;
+    }
+    
     const expenseItems = selectedItems.map((element: any) => ({
-      
       itemId: element.id,
       currencyId: element.currencyId
     }));
@@ -190,7 +193,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
       payload,
-      builderType: 'NATIVE_SCREEN'
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
@@ -200,7 +202,20 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
     const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
     if (!allAllowed) {
-      console.warn('You can only discard items with status "Created" or "Assigned".');
+      const errorMessage = getTranslationFromI18nKeyAndLabel(
+        'gba.expenseItems.deleteSelectionStatusError',
+        'You can only discard items with status "Created" or "Assigned".'
+      );
+      notification.error({
+        message: getTranslationFromI18nKeyAndLabel(
+          'gba.expenseItems.deleteSelectionError',
+          'Cannot Delete Selection'
+        ),
+        description: errorMessage,
+        placement: 'bottomRight',
+        duration: 5,
+        className: 'gba:error-toast'
+      });
       return;
     }
     const payload = {
@@ -289,6 +304,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         filter: allSelectedFilters,
         setFilter: setFilters,
         filterLabelMap: filterLabelMap,
+        addButton: {
+          onClick: handleAddExpenseItem,
+          label: 'Add',
+          'data-testid': 'add-expense-item-button',
+        },
         actions: [
           ...(selectedRowKeys.length > 0
             ? [
@@ -312,22 +332,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                 </Button>
               ]
             : []),
-          <Button
-            key="add-expense-item"
-            variant="default"
-            data-testid="add-expense-item-btn"
-            onClick={handleAddExpenseItem}
-            className="gba:inline-flex gba:items-center gba:gap-2"
-          >
-            <PiPlus className="gba:h-4 gba:w-4" />
-            {getTranslationFromI18nKeyAndLabel('gba.expenseItems.add', 'Add')}
-          </Button>
         ],
       }}
       dataFilterProps={{
         filterGroups: filterGroups,
         onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
       }}
+      contentBackground="white"
       dataBody={
         <div className="gba:pr-6">
           <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -476,8 +487,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                       payload: {
                                         employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                         expenseItemsIds: [record.id]
-                                      },
-                                       builderType: 'NATIVE_SCREEN'
+                                      }
                                     });
                                   }
                                 }]: [],

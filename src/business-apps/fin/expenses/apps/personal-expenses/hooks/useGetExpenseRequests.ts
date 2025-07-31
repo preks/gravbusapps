@@ -65,7 +65,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const fetchItems = useCallback(async (
     filters: any = {}, 
     page: number = 1, 
-    pageSize: number = 10,
+    pageSize: number = 20,
     sortField?: string | null,
     sortOrder?: 'ascend' | 'descend' | null
   ) => {
