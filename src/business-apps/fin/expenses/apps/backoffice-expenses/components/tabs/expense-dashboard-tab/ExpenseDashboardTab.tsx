@@ -21,27 +21,21 @@ interface ExpenseDashboardTabProps extends BusinessAppContextProps {
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
-  
-  // State for filter options - initialize with default currency
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
     department: '',
     currency: 'Currency:v1:RON', // Initialize with default currency
     period: 'monthly'
   });
   
-  // State for currency change loading
   const [isCurrencyLoading, setIsCurrencyLoading] = useState(false);
   
-  // ⚡ OPTIMIZATION: Debounce timer for currency changes
   const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   
-  // Use the dashboard stats hook with filters
   const { stats, loading, error } = useDashboardStats({ 
     accessToken, 
     filters: currentFilters 
   });
 
-  // ⚡ OPTIMIZATION: Cleanup timer on unmount
   React.useEffect(() => {
     return () => {
       if (currencyDebounceTimer) {
@@ -50,7 +44,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     };
   }, [currencyDebounceTimer]);
 
-  // Helper functions for KPI data formatting
   const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -93,45 +86,65 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
      }
    };
 
-  // Helper function to extract currency code from currencyRef
   const extractCurrencyCode = (currencyRef: string): string => {
     return currencyRef.split(':').pop() || 'RON';
   };
 
-  // Get the current selected currency code
-  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
+  const kpiCards = useMemo(() => {
 
-  // ⚡ PERFORMANCE: Memoize KPI cards creation to prevent unnecessary recalculations
-  const kpiCards = useMemo((): KpiCardData[] => {
+    const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
+    
     const cards: KpiCardData[] = [];
 
-    // 1. Total Spend YTD Card
-    const ytdCalculation = () => {
-      let percentChange = 0;
-      if (stats.ytdStats.previousTotalAmount > 0) {
-        percentChange = ((stats.ytdStats.totalAmount - stats.ytdStats.previousTotalAmount) / stats.ytdStats.previousTotalAmount) * 100;
-      } else if (stats.ytdStats.totalAmount > 0) {
-        percentChange = 100;
-      }
-      const isIncrease = stats.ytdStats.totalAmount > stats.ytdStats.previousTotalAmount;
-      return { percentChange, isIncrease };
+    const getTotalCompanySpendTitle = () => {
+      const title = (() => {
+        switch (currentFilters.period) {
+          case 'yearly':
+            return `Total Company Spend YTD (${selectedCurrencyCode})`;
+          case 'quarterly':
+            return `Total Company Spend QTD (${selectedCurrencyCode})`;
+          default:
+            return `Total Company Spend MTD (${selectedCurrencyCode})`;
+        }
+      })();
+      console.log("🔍 getTotalCompanySpendTitle called with:", {
+        period: currentFilters.period,
+        selectedCurrencyCode,
+        title
+      });
+      return title;
     };
-    const { percentChange: ytdPercentChange, isIncrease: ytdIsIncrease } = ytdCalculation();
-    
+
+    const getTotalCompanySpendFooter = () => {
+      const currentPeriodName = getCurrentPeriodName();
+      const previousPeriodName = getPreviousPeriodName();
+      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} expenses) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} expenses)`;
+      return footer;
+    };
+
+    const getTotalCompanySpendDescription = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last YTD' : 'decrease vs last YTD';
+        case 'quarterly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last QTD' : 'decrease vs last QTD';
+        default:
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last MTD' : 'decrease vs last MTD';
+      }
+    };
+
     cards.push({
-      id: 'total-spend-ytd',
-      title: 'Total Company Spend YTD (EUR, Paid Status)',
-      value: stats.ytdStats.totalAmount.toString(),
-      suffix: 'EUR',
-      decimalPlaces: 2,
-      footer: `Based on ${stats.ytdStats.count} expense requests this year vs ${stats.ytdStats.previousCount} last year`,
+      id: 'total-company-spend',
+      title: getTotalCompanySpendTitle(),
+      value: formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode),
+      footer: getTotalCompanySpendFooter(),
       trend: {
-        value: Math.abs(ytdPercentChange).toFixed(1),
-        positive: !ytdIsIncrease,
-        description: 'vs last year'
+        value: Math.abs(stats.totalCompanySpend.percentChange).toFixed(1),
+        positive: stats.totalCompanySpend.isIncrease,
+        description: getTotalCompanySpendDescription()
       },
-      icon: 'euro',
-      iconColor: '#1890ff'
+      icon: 'building',
+      iconColor: stats.totalCompanySpend.isIncrease ? '#ff4d4f' : '#52c41a'
     });
 
     // 2. Actual vs Planned Card
@@ -285,11 +298,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
 
   // Handle filter changes and update dashboard stats with debouncing
   const handleFiltersChange = (newFilters: FilterOptions) => {
-    // Debounce currency changes to prevent rate limiting
+    
     if (newFilters.currency !== currentFilters.currency) {
       setIsCurrencyLoading(true);
       
-      // ⚡ OPTIMIZATION: Clear existing timer and set new one
       if (currencyDebounceTimer) {
         clearTimeout(currencyDebounceTimer);
       }

@@ -12,18 +12,18 @@ import {
   GET_SPEND_COMPARISON_YEARLY,
   GET_SPEND_COMPARISON_QUARTERLY,
   GET_YTD_STATS,
-  GET_MONTHLY_EXPENSE_TRENDS,
-  GET_ADDITIONAL_DASHBOARD_METRICS,
   GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY,
   GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY,
   GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY,
   GET_AVG_SPEND_PER_TRIP_YEARLY,
   GET_AVG_SPEND_PER_TRIP_MONTHLY,
   GET_AVG_SPEND_PER_TRIP_QUARTERLY,
-  GET_ADVANCE_PAYMENTS_APPROVED,
   GET_ADVANCE_PAYMENTS_APPROVED_YEARLY,
   GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
   GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY,
+  GET_TOTAL_COMPANY_SPEND_MONTHLY,
+  GET_TOTAL_COMPANY_SPEND_QUARTERLY,
+  GET_TOTAL_COMPANY_SPEND_YEARLY,
 } from "../queries/expenseDashboard.queries";
 import { DashboardStats } from "../types";
 
@@ -71,24 +71,26 @@ export const useDashboardStats = ({
     avgSpendPerTrip: 0,
     travelExpensesCount: 0,
     advancePaymentsApproved: { count: 0, totalAmount: 0 },
+    totalCompanySpend: {
+      currentPeriodTotal: 0,
+      previousPeriodTotal: 0,
+      currentPeriodCount: 0,
+      previousPeriodCount: 0,
+      percentChange: 0,
+      isIncrease: false,
+    },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // ⚡ PERFORMANCE: Separate loading state for expensive monthly trends
-  const [trendsLoading, setTrendsLoading] = useState(false);
-
-  // ⚡ OPTIMIZATION: Cache for currency-specific data to prevent redundant requests
   const [currencyCache, setCurrencyCache] = useState<Map<string, any>>(
     new Map()
   );
 
-  // ⚡ OPTIMIZATION: Track last request to prevent duplicate requests
   const [lastRequestId, setLastRequestId] = useState<string>("");
 
   const client = useGraphqlClient(accessToken);
 
-  // ⚡ PERFORMANCE: Phase 1 - Load essential dashboard data quickly
   const fetchEssentialStats = useCallback(async () => {
     if (!accessToken || !client) {
       setError(new Error("Access token and GraphQL client are required."));
@@ -96,7 +98,6 @@ export const useDashboardStats = ({
       return;
     }
 
-    // ⚡ OPTIMIZATION: Generate request ID to prevent duplicate requests
     const requestId = `${JSON.stringify(filters)}-${Date.now()}`;
     if (requestId === lastRequestId) {
       console.log("Duplicate request detected, skipping");
@@ -111,7 +112,6 @@ export const useDashboardStats = ({
       const currentYear = new Date().getFullYear();
       const currentDate = new Date();
 
-      // Calculate date ranges for queries
       const startOfYear = new Date(currentYear, 0, 1)
         .toISOString()
         .split("T")[0];
@@ -143,7 +143,6 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // Current and previous month dates
       const currentMonthStart = new Date(currentYear, currentDate.getMonth(), 1)
         .toISOString()
         .split("T")[0];
@@ -158,7 +157,6 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // Calculate year end date
       const currentYearEnd = new Date(currentYear, 11, 31, 23, 59, 59)
         .toISOString()
         .split("T")[0];
@@ -180,15 +178,12 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // Calculate quarter dates
       const getQuarterDates = (date: Date) => {
         const month = date.getMonth();
         const year = date.getFullYear();
 
-        // Determine which quarter we're in (0-3)
         const quarter = Math.floor(month / 3);
 
-        // Calculate start and end of quarter
         const quarterStartMonth = quarter * 3; // 0, 3, 6, 9
         const quarterEndMonth = quarterStartMonth + 2; // 2, 5, 8, 11
 
@@ -204,26 +199,22 @@ export const useDashboardStats = ({
 
       const { quarterStart, quarterEnd } = getQuarterDates(currentDate);
 
-      // Calculate previous periods for comparison
       const getPreviousQuarterDates = (date: Date) => {
         const month = date.getMonth();
         const year = date.getFullYear();
 
-        // Determine which quarter we're in (0-3)
         const quarter = Math.floor(month / 3);
 
-        // Calculate previous quarter
         let previousQuarter = quarter - 1;
         let previousYear = year;
 
         if (previousQuarter < 0) {
-          previousQuarter = 3; // Q4 of previous year
+          previousQuarter = 3;
           previousYear = year - 1;
         }
 
-        // Calculate start and end of previous quarter
-        const previousQuarterStartMonth = previousQuarter * 3; // 0, 3, 6, 9
-        const previousQuarterEndMonth = previousQuarterStartMonth + 2; // 2, 5, 8, 11
+        const previousQuarterStartMonth = previousQuarter * 3;
+        const previousQuarterEndMonth = previousQuarterStartMonth + 2;
 
         const previousQuarterStart = new Date(
           previousYear,
@@ -249,7 +240,6 @@ export const useDashboardStats = ({
       const { previousQuarterStart, previousQuarterEnd } =
         getPreviousQuarterDates(currentDate);
 
-      // Calculate previous year dates for comparison
       const previousYearStartForComparison = new Date(currentYear - 1, 0, 1)
         .toISOString()
         .split("T")[0];
@@ -264,7 +254,6 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // Calculate previous month dates for comparison
       const previousMonthStartForComparison = new Date(
         currentYear,
         currentDate.getMonth() - 1,
@@ -283,18 +272,14 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      // ⚡ OPTIMIZATION: Only fetch currency-dependent data when currency changes
       const selectedCurrency =
         filters.currency && filters.currency.trim() !== ""
           ? filters.currency
-          : "Currency:v1:RON"; // Default to RON when no currency is selected
-      console.log("Selected currency for transfer required:", selectedCurrency);
+          : "Currency:v1:RON";
 
-      // Check if we only need to update currency-dependent data
       const isCurrencyOnlyUpdate =
         Object.keys(filters).length === 1 && filters.currency;
 
-      // ⚡ OPTIMIZATION: Check cache for currency-specific data
       const cacheKey = `currency-${selectedCurrency}`;
       const cachedData = currencyCache.get(cacheKey);
 
@@ -304,16 +289,9 @@ export const useDashboardStats = ({
         additionalMetricsResponse: any = null;
 
       if (isCurrencyOnlyUpdate) {
-        // ⚡ OPTIMIZATION: Check cache first
         if (cachedData) {
-          console.log("Using cached currency data for:", selectedCurrency);
           additionalMetricsResponse = cachedData;
         } else {
-          // ⚡ OPTIMIZATION: Only fetch the currency-dependent query
-          console.log(
-            "Currency-only update detected, fetching only transfer required data"
-          );
-          // Get additional metrics based on period
           let additionalMetricsResponse;
           if (filters.period === "yearly") {
             additionalMetricsResponse = await client.request(
@@ -334,7 +312,6 @@ export const useDashboardStats = ({
               }
             );
           } else {
-            // monthly (default)
             additionalMetricsResponse = await client.request(
               GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY,
               {
@@ -345,7 +322,6 @@ export const useDashboardStats = ({
             );
           }
 
-          // Get average spend per trip based on period
           let avgSpendPerTripResponse;
           if (filters.period === "yearly") {
             avgSpendPerTripResponse = await client.request(
@@ -366,7 +342,6 @@ export const useDashboardStats = ({
               }
             );
           } else {
-            // monthly (default)
             avgSpendPerTripResponse = await client.request(
               GET_AVG_SPEND_PER_TRIP_MONTHLY,
               {
@@ -377,13 +352,11 @@ export const useDashboardStats = ({
             );
           }
 
-          // Merge the responses
           additionalMetricsResponse = {
             ...additionalMetricsResponse,
             avgSpendPerTrip: avgSpendPerTripResponse.avgSpendPerTrip,
           };
 
-          // Get advance payments approved based on period
           let advancePaymentsResponse;
           if (filters.period === "yearly") {
             advancePaymentsResponse = await client.request(
@@ -422,7 +395,6 @@ export const useDashboardStats = ({
               }
             );
           } else {
-            // monthly (default)
             advancePaymentsResponse = await client.request(
               GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
               {
@@ -444,14 +416,53 @@ export const useDashboardStats = ({
             );
           }
 
-          // Merge the advance payments response
           additionalMetricsResponse = {
             ...additionalMetricsResponse,
             advancePaymentsApproved:
               advancePaymentsResponse.advancePaymentsApproved,
           };
 
-          // ⚡ OPTIMIZATION: Cache the result
+          let totalCompanySpendResponse;
+          if (filters.period === "yearly") {
+            totalCompanySpendResponse = await client.request(
+              GET_TOTAL_COMPANY_SPEND_YEARLY,
+              {
+                selectedCurrency: selectedCurrency,
+                yearStart: startOfYear,
+                currentDate: currentDate.toISOString().split("T")[0],
+                previousYearStart: previousYearStartForComparison,
+                previousYearEnd: previousYearEndForComparison,
+              }
+            );
+          } else if (filters.period === "quarterly") {
+            totalCompanySpendResponse = await client.request(
+              GET_TOTAL_COMPANY_SPEND_QUARTERLY,
+              {
+                selectedCurrency: selectedCurrency,
+                quarterStart: quarterStart,
+                currentDate: currentDate.toISOString().split("T")[0],
+                previousQuarterStart: previousQuarterStart,
+                previousQuarterEnd: previousQuarterEnd,
+              }
+            );
+          } else {
+            totalCompanySpendResponse = await client.request(
+              GET_TOTAL_COMPANY_SPEND_MONTHLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentMonthStart: currentMonthStart,
+                currentDate: currentDate.toISOString().split("T")[0],
+                previousMonthStart: previousMonthStartForComparison,
+                previousMonthEnd: previousMonthEndForComparison,
+              }
+            );
+          }
+
+          additionalMetricsResponse = {
+            ...additionalMetricsResponse,
+            totalCompanySpend: totalCompanySpendResponse,
+          };
+
           setCurrencyCache((prev) =>
             new Map(prev).set(cacheKey, additionalMetricsResponse)
           );
@@ -644,16 +655,55 @@ export const useDashboardStats = ({
           );
         }
 
-        // Merge the responses
         additionalMetricsResponse = {
           ...additionalMetricsResponse,
           advancePaymentsApproved:
             advancePaymentsResponse.advancePaymentsApproved,
         };
+
+        let totalCompanySpendResponse;
+        if (filters.period === "yearly") {
+          totalCompanySpendResponse = await client.request(
+            GET_TOTAL_COMPANY_SPEND_YEARLY,
+            {
+              selectedCurrency: selectedCurrency,
+              yearStart: startOfYear,
+              currentDate: currentDate.toISOString().split("T")[0],
+              previousYearStart: previousYearStartForComparison,
+              previousYearEnd: previousYearEndForComparison,
+            }
+          );
+        } else if (filters.period === "quarterly") {
+          totalCompanySpendResponse = await client.request(
+            GET_TOTAL_COMPANY_SPEND_QUARTERLY,
+            {
+              selectedCurrency: selectedCurrency,
+              quarterStart: quarterStart,
+              currentDate: currentDate.toISOString().split("T")[0],
+              previousQuarterStart: previousQuarterStart,
+              previousQuarterEnd: previousQuarterEnd,
+            }
+          );
+        } else {
+          // monthly (default)
+          totalCompanySpendResponse = await client.request(
+            GET_TOTAL_COMPANY_SPEND_MONTHLY,
+            {
+              selectedCurrency: selectedCurrency,
+              currentMonthStart: currentMonthStart,
+              currentDate: currentDate.toISOString().split("T")[0],
+              previousMonthStart: previousMonthStartForComparison,
+              previousMonthEnd: previousMonthEndForComparison,
+            }
+          );
+        }
+
+        additionalMetricsResponse = {
+          ...additionalMetricsResponse,
+          totalCompanySpend: totalCompanySpendResponse,
+        };
       }
 
-      // ⚡ FIXED: Restore real monthly trends data (was accidentally using placeholders)
-      // Temporarily use placeholder data to avoid rate limiting issues
       const monthlyTrendsResponse = Array.from({ length: 12 }, (_, index) => ({
         ExpenseRequestAggregate: {
           aggregate: {
@@ -663,12 +713,9 @@ export const useDashboardStats = ({
         },
       }));
 
-      // Process the responses
       const processedStats: DashboardStats = isCurrencyOnlyUpdate
         ? {
-            // Keep existing stats for non-currency-dependent data
             ...stats,
-            // Only update currency-dependent data
             transferRequired:
               additionalMetricsResponse?.transferRequired?.aggregate?.sum
                 ?.totalAmount || 0,
@@ -684,6 +731,22 @@ export const useDashboardStats = ({
               totalAmount:
                 additionalMetricsResponse?.advancePaymentsApproved?.aggregate
                   ?.sum?.amount || 0,
+            },
+            totalCompanySpend: {
+              currentPeriodTotal:
+                additionalMetricsResponse?.totalCompanySpend?.currentPeriodSpend
+                  ?.aggregate?.sum?.totalAmount || 0,
+              previousPeriodTotal:
+                additionalMetricsResponse?.totalCompanySpend
+                  ?.previousPeriodSpend?.aggregate?.sum?.totalAmount || 0,
+              currentPeriodCount:
+                additionalMetricsResponse?.totalCompanySpend?.currentPeriodSpend
+                  ?.aggregate?.count || 0,
+              previousPeriodCount:
+                additionalMetricsResponse?.totalCompanySpend
+                  ?.previousPeriodSpend?.aggregate?.count || 0,
+              percentChange: 0, // Will be calculated below
+              isIncrease: false, // Will be calculated below
             },
           }
         : {
@@ -767,9 +830,24 @@ export const useDashboardStats = ({
                 additionalMetricsResponse?.advancePaymentsApproved?.aggregate
                   ?.sum?.amount || 0,
             },
+            totalCompanySpend: {
+              currentPeriodTotal:
+                additionalMetricsResponse?.totalCompanySpend?.currentPeriodSpend
+                  ?.aggregate?.sum?.totalAmount || 0,
+              previousPeriodTotal:
+                additionalMetricsResponse?.totalCompanySpend
+                  ?.previousPeriodSpend?.aggregate?.sum?.totalAmount || 0,
+              currentPeriodCount:
+                additionalMetricsResponse?.totalCompanySpend?.currentPeriodSpend
+                  ?.aggregate?.count || 0,
+              previousPeriodCount:
+                additionalMetricsResponse?.totalCompanySpend
+                  ?.previousPeriodSpend?.aggregate?.count || 0,
+              percentChange: 0, // Will be calculated below
+              isIncrease: false, // Will be calculated below
+            },
           };
 
-      // Calculate monthly comparison percentage (only for full refresh)
       if (!isCurrencyOnlyUpdate) {
         const currentTotal =
           processedStats.monthlySpendComparison.currentMonthTotal;
@@ -780,6 +858,20 @@ export const useDashboardStats = ({
             ((currentTotal - previousTotal) / previousTotal) * 100;
           processedStats.monthlySpendComparison.isIncrease =
             currentTotal > previousTotal;
+        }
+
+        const currentCompanyTotal =
+          processedStats.totalCompanySpend.currentPeriodTotal;
+        const previousCompanyTotal =
+          processedStats.totalCompanySpend.previousPeriodTotal;
+
+        if (previousCompanyTotal > 0) {
+          processedStats.totalCompanySpend.percentChange =
+            ((currentCompanyTotal - previousCompanyTotal) /
+              previousCompanyTotal) *
+            100;
+          processedStats.totalCompanySpend.isIncrease =
+            currentCompanyTotal > previousCompanyTotal;
         }
       }
 
@@ -799,7 +891,7 @@ export const useDashboardStats = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, client, filters.currency, filters.period]); // Refetch when currency or period changes
+  }, [accessToken, client, filters.currency, filters.period]);
 
   useEffect(() => {
     fetchEssentialStats();

@@ -509,3 +509,102 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
     }
   }
 `;
+
+export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
+  query GetTotalCompanySpendMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentDate: timestamp, $previousMonthStart: timestamp, $previousMonthEnd: timestamp) {
+    currentPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentMonthStart, _lte: $currentDate } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    previousPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $previousMonthStart, _lte: $previousMonthEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
+  query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $currentDate: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp) {
+    currentPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $quarterStart, _lte: $currentDate } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    previousPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
+  query GetTotalCompanySpendYearly($selectedCurrency: String, $yearStart: timestamp, $currentDate: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp) {
+    currentPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $yearStart, _lte: $currentDate } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    previousPeriodSpend: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;

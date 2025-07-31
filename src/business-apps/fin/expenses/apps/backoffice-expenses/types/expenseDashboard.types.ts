@@ -40,6 +40,16 @@ export interface AdvancePaymentsStats {
   totalAmount: number;
 }
 
+// Data structure for total company spend comparison
+export interface TotalCompanySpendComparison {
+  currentPeriodTotal: number;
+  previousPeriodTotal: number;
+  currentPeriodCount: number;
+  previousPeriodCount: number;
+  percentChange: number;
+  isIncrease: boolean;
+}
+
 // The comprehensive data structure for all dashboard stats
 export interface DashboardStats {
   expensePlanYearly: ExpensePlanYearly;
@@ -51,4 +61,5 @@ export interface DashboardStats {
   avgSpendPerTrip: number;
   travelExpensesCount: number;
   advancePaymentsApproved: AdvancePaymentsStats;
+  totalCompanySpend: TotalCompanySpendComparison;
 }
