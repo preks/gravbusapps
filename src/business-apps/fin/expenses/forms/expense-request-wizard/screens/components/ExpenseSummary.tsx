@@ -18,10 +18,10 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
    */
   const whatToDisplay = () => {
     const displayObject = {
-      displayExpenses: true,
-      displayAdvance: true,
-      displayNonReimbursable: true,
-      displayRemaining: true
+      displayExpenses: false,
+      displayAdvance: false,
+      displayNonReimbursable: false,
+      displayRemaining: false
     };
 
     if (
@@ -134,7 +134,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
   let currentSectionIndex = 0;
 
   return (
-    <div className="gba:expense-summary-container gba:mt-4" data-testid="expense-summary-container">
+    <div className="gba:expense-summary-container" data-testid="expense-summary-container">
       <Divider className="gba:mb-4" data-testid="expense-summary-divider" />
       
       {displayObject.displayExpenses && (

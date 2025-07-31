@@ -63,6 +63,7 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     totalAmountExpense
     totalAmountMileage
     totalRemainingAmount
+    advancePaymentTotalAmount
     status
     planDate
     startDate

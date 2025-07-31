@@ -49,30 +49,63 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     return 'EUR';
   }, [expensePlanData]);
 
-  // Set initial form values
+  // Check for initial advance payment
+  const initialAdvancePayment = useMemo(() => {
+    const planData = expensePlanData?.ExpensePlanByPk;
+    if (planData?.advancePayment && planData.advancePayment.length > 0) {
+      return planData.advancePayment[0];
+    }
+    return null;
+  }, [expensePlanData]);
+
+  // Set initial form values based on existing advance payment
   useEffect(() => {
-    form.setFieldsValue({
-      amount: '0.00',
-      currency: currency
-      // Don't set paymentMethod initially so placeholder shows
-    });
-  }, [form, currency]);
+    if (initialAdvancePayment) {
+      // Prefill with existing advance payment data
+      const amountValue = formatNumberFunction(initialAdvancePayment.amount ? initialAdvancePayment.amount.toString() : '0.00', "0.00[,]00") 
+      const currencyValue = initialAdvancePayment.currencyRef || '';
+      const paymentMethodValue = initialAdvancePayment.paymentMethod || '';
+      
+      setAmount(amountValue);
+      setCurrency(currencyValue);
+      setPaymentMethod(paymentMethodValue);
+      
+      form.setFieldsValue({
+        amount: amountValue,
+        currency: currencyValue,
+        paymentMethod: paymentMethodValue
+      });
+    } else {
+      // Default values
+      form.setFieldsValue({
+        amount: formatNumberFunction('0.00', "0.00[,]00"),
+        currency: currency
+        // Don't set paymentMethod initially so placeholder shows
+      });
+    }
+  }, [form, currency, initialAdvancePayment]);
 
   // Set default currency when currencies are loaded
   useEffect(() => {
-    if (defaultCurrency && currencies.length > 0) {
-      // Find the currency ID that matches the default currency code
-      const matchingCurrency = currencies.find(c => c.code === defaultCurrency);
-      if (matchingCurrency) {
-        setCurrency(matchingCurrency.id);
-        form.setFieldsValue({ currency: matchingCurrency.id });
-      } else {
-        // Fallback to first currency or default
-        setCurrency(currencies[0].id);
-        form.setFieldsValue({ currency: currencies[0].id });
+    if (currencies.length > 0) {
+      if (initialAdvancePayment && initialAdvancePayment.currencyRef) {
+        // If we have an initial advance payment with a currency, use that
+        setCurrency(initialAdvancePayment.currencyRef);
+        form.setFieldsValue({ currency: initialAdvancePayment.currencyRef });
+      } else if (defaultCurrency) {
+        // Find the currency ID that matches the default currency code
+        const matchingCurrency = currencies.find(c => c.code === defaultCurrency);
+        if (matchingCurrency) {
+          setCurrency(matchingCurrency.id);
+          form.setFieldsValue({ currency: matchingCurrency.id });
+        } else {
+          // Fallback to first currency or default
+          setCurrency(currencies[0].id);
+          form.setFieldsValue({ currency: currencies[0].id });
+        }
       }
     }
-  }, [defaultCurrency, currencies, form]);
+  }, [defaultCurrency, currencies, form, initialAdvancePayment]);
 
   // Fetch currencies
   useEffect(() => {
@@ -158,11 +191,11 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     return parseFloat(expensePlanData?.ExpensePlanByPk?.totalAmount) || 0;
   }, [expensePlanData]);
 
-  // Check if currency should be disabled (if it exists in expense plan data)
+  // Check if currency should be disabled (if it exists in expense plan data or initial advance payment)
   const isCurrencyDisabled = useMemo(() => {
     const items = expensePlanData?.ExpensePlanItem || [];
-    return items.length > 0 && items[0].currency?.code;
-  }, [expensePlanData]);
+    return (items.length > 0 && items[0].currency?.code) || (initialAdvancePayment && initialAdvancePayment.currencyRef);
+  }, [expensePlanData, initialAdvancePayment]);
 
   // Check if payment method should be disabled (if amount is 0 or empty)
   const isPaymentMethodDisabled = useMemo(() => {
@@ -279,8 +312,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         EVENTS.SAVE,
         skipStep
       );
-      
-      console.log("logObject",logObject)
       dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
     }
   };
@@ -309,7 +340,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         skipStep
       );
       
-      console.log("logObject",logObject)
       dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
     }
   };

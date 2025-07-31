@@ -193,21 +193,6 @@ export const handleTripSubmitAction = (
     expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialPlan.expenseRequestTrip || [])
   };
 
-  (logObject as LogObject).createBusinessTrip = true;
-
-  const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
-  const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
-  
-  (logObject as LogObject).employeeAbsence = {
-    typeRef: "AbsenceType:v1:A101",
-    employeeId: initialPlan.employeeId,
-    startDate:  startTripDateTime,
-    endDate:  endTripDateTime,
-    description:  initialPlan.description,
-    substituteEmployee: ""
-};
-  //remove it
-  console.log("logObject",logObject)
   dispatchProcessContinueEvent(event, logObject);
   return true;
 };

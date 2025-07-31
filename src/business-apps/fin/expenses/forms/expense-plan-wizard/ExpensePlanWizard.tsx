@@ -16,6 +16,9 @@ import LoadScreen from '../expense-request-wizard/screens/LoadScreen';
 import ProgressIndicator from '../expense-request-wizard/components/ProgressIndicator';
 
 import PlanTripScreen from './screens/PlanTripScreen';
+import PlanItemsScreen from './screens/PlanItemsScreen';
+import PaymentScreen from './screens/PaymentScreen';
+import PlanSummaryScreen from './screens/PlanSummaryScreen';
 
 // Import context provider and hook
 import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './context/ExpensePlanWizardContext';
@@ -24,9 +27,7 @@ import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './contex
 import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 
 import { setInitialScreen } from './utils/tripScreenUtils';
-import PlanItemsScreen from './screens/PlanItemsScreen';
 import ExpensePlanItem from '../expense-plan-item';
-import PaymentScreen from './screens/PaymentScreen';
 
 const { Title } = Typography;
 
@@ -247,9 +248,11 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         );
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" data-testid="expense-plan-wizard-summary-screen">
-            <p>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')} - Coming Soon</p>
-          </div>
+          <PlanSummaryScreen
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+          />
         );
       default:
         return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
