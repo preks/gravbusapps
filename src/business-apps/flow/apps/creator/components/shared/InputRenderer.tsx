@@ -82,6 +82,17 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
           />
         );
         
+      case InputType.DATETIME:
+        return (
+          <DatePicker
+            showTime={{ format: 'HH:mm' }}
+            format="YYYY-MM-DD HH:mm"
+            placeholder={input.placeholder || `Select ${input.label}`}
+            data-testid={`${testId}-input-${index}`}
+            disabled={readOnly}
+          />
+        );
+        
       case InputType.NUMBER:
         return (
           <Input

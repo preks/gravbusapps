@@ -15,23 +15,38 @@ interface StepData {
   stepIndex: number;
   title: string;
   type: string;
-  assignmentMode: string;
-  allowReassignment: boolean;
   status: 'COMPLETED' | 'IN_PROGRESS' | 'SCHEDULED' | 'QUEUED';
-  isFuture: boolean;
-  isActive: boolean;
-  assignedTo?: string[];
-  completedAt?: string;
-  completedBy?: string;
-  startedAt?: string;
+  assignmentMode: string;
+  // Additional step properties that might be used in rendering
   dueDate?: string;
+  completedBy?: string;
+  completedAt?: string;
+  assignedTo?: string[];
+  startedAt?: string;
   scheduledAt?: string;
   expectedStartAt?: string;
-  expectedFinishAt?: string;
   dueInMinutes?: number;
+  isFuture?: boolean;
+  isActive?: boolean;
   message?: string;
-  inputs?: any[];
-  links?: any[];
+  // Fork data for approval steps
+  totalForks?: number;
+  completedForks?: number;
+  rejectedForks?: number;
+  failedForks?: number;
+  canceledForks?: number;
+  inProgressForks?: number;
+  // Approval-specific fields for APPROVAL type steps
+  approvalStatus?: 'APPROVED' | 'REJECTED' | 'PENDING' | 'MIXED';
+  approvalCount?: {
+    approved: number;
+    rejected: number;
+    failed: number;
+    canceled: number;
+    total: number;
+    pending: number;
+  };
+  approvalRate?: number; // percentage of approvals
 }
 
 interface ProgressData {
@@ -103,31 +118,71 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
         let actualCompletedSteps = 0;
         if (stepsData.status === 'success' && stepsData.data?.steps) {
           transformedSteps = stepsData.data.steps.map((step: any, index: number) => {
-            console.log(`Debug - Step ${index}:`, { title: step.rootTaskTitle, status: step.stepStatus }); // Debug logging
-            
-            return {
-              stepIndex: step.rootTaskIndex,
-              title: step.rootTaskTitle,
-              type: 'TASK', // Default type, could be enhanced with more API data
-              assignmentMode: step.assignmentMode,
-              allowReassignment: true, // Default, could be enhanced with more API data
-              status: step.stepStatus as 'COMPLETED' | 'IN_PROGRESS' | 'SCHEDULED' | 'QUEUED',
-              isFuture: step.stepStatus === 'QUEUED' || step.stepStatus === 'SCHEDULED',
-              isActive: step.stepStatus === 'IN_PROGRESS',
-              // Optional fields - would need more API data to populate these properly
-              assignedTo: undefined,
-              completedAt: undefined,
-              completedBy: undefined,
-              startedAt: undefined,
-              dueDate: undefined,
-              scheduledAt: undefined,
-              expectedStartAt: undefined,
-              expectedFinishAt: undefined,
-              dueInMinutes: undefined,
-              message: undefined,
-              inputs: undefined,
-              links: undefined
+            const mappedStep: StepData = {
+              stepIndex: step.rootTaskIndex ?? index,
+              title: step.rootTaskTitle || `Step ${index + 1}`,
+              type: step.stepType || 'TASK', // Use backend-provided step type
+              assignmentMode: step.assignmentMode || 'CLAIM',
+              status: step.stepStatus || 'QUEUED',
+              totalForks: step.totalForks,
+              completedForks: step.completedForks,
+              rejectedForks: step.rejectedForks,
+              failedForks: step.failedForks,
+              canceledForks: step.canceledForks,
+              inProgressForks: step.inProgressForks
             };
+
+            // Determine step type based on title or other criteria (fallback if backend doesn't provide type)
+            if (!step.stepType && mappedStep.title && (
+              mappedStep.title.toLowerCase().includes('approval') || 
+              mappedStep.title.toLowerCase().includes('approve') ||
+              mappedStep.title.toLowerCase().includes('review')
+            )) {
+              mappedStep.type = 'APPROVAL';
+            }
+
+            // Add real approval data for APPROVAL type steps using fork statistics
+            if (mappedStep.type === 'APPROVAL') {
+              // Use actual fork data from backend to determine approval status
+              const totalForks = step.totalForks || 1;
+              const completedForks = step.completedForks || 0; // Completed (approved)
+              const rejectedForks = step.rejectedForks || 0;   // Rejected  
+              const failedForks = step.failedForks || 0; // Failed
+              const canceledForks = step.canceledForks || 0; // Canceled
+              const inProgressForks = step.inProgressForks || 0; // Pending
+              const pendingForks = Math.max(0, totalForks - completedForks - rejectedForks - failedForks - canceledForks - inProgressForks);
+              
+              // Determine overall approval status based on real task statuses
+              let approvalStatus: 'APPROVED' | 'REJECTED' | 'PENDING' | 'MIXED' = 'PENDING';
+              
+              if (mappedStep.status === 'COMPLETED') {
+                // Step is completed - determine if approved or rejected based on fork results
+                if (rejectedForks > 0 && completedForks === 0) {
+                  approvalStatus = 'REJECTED';
+                } else if (completedForks > 0 && rejectedForks === 0) {
+                  approvalStatus = 'APPROVED';
+                } else if (completedForks > 0 && rejectedForks > 0) {
+                  approvalStatus = 'MIXED';
+                } else if (completedForks > 0) {
+                  approvalStatus = 'APPROVED';
+                }
+              } else if (mappedStep.status === 'IN_PROGRESS') {
+                approvalStatus = 'PENDING';
+              }
+              
+              mappedStep.approvalStatus = approvalStatus;
+              mappedStep.approvalCount = {
+                approved: completedForks,
+                rejected: rejectedForks,
+                failed: failedForks,
+                canceled: canceledForks,
+                total: totalForks,
+                pending: pendingForks + inProgressForks
+              };
+              mappedStep.approvalRate = totalForks > 0 ? Math.round((completedForks / totalForks) * 100) : 0;
+            }
+
+            return mappedStep;
           });
           
           // Count actual completed steps from step data
@@ -243,6 +298,97 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
     return step.message || `${step.assignmentMode} mode - ${step.type}`;
   };
 
+  // Get approval status tags for APPROVAL type steps
+  const getApprovalStatusTags = (step: StepData) => {
+    if (step.type !== 'APPROVAL' || !step.approvalStatus) {
+      return null;
+    }
+
+    const tags = [];
+
+    // Overall approval status tag
+    switch (step.approvalStatus) {
+      case 'APPROVED':
+        tags.push(
+          <Tag key="approved" color="green" icon={<CheckCircleOutlined />}>
+            Approved
+          </Tag>
+        );
+        break;
+      case 'REJECTED':
+        tags.push(
+          <Tag key="rejected" color="red" icon={<WarningOutlined />}>
+            Rejected
+          </Tag>
+        );
+        break;
+      case 'PENDING':
+        tags.push(
+          <Tag key="pending" color="orange" icon={<ClockCircleOutlined />}>
+            Awaiting Approval
+          </Tag>
+        );
+        break;
+      case 'MIXED':
+        tags.push(
+          <Tag key="mixed" color="purple" icon={<PlayCircleOutlined />}>
+            Partial Approval
+          </Tag>
+        );
+        break;
+    }
+
+    // Approval count/progress tag for multi-approver steps
+    if (step.approvalCount && step.approvalCount.total > 1) {
+      const { approved, rejected, failed, canceled, total, pending } = step.approvalCount;
+      const approvalRate = Math.round((approved / total) * 100);
+      
+      tags.push(
+        <Tag key="count" color="blue">
+          {approved}/{total} Approved ({approvalRate}%)
+        </Tag>
+      );
+
+      if (rejected > 0) {
+        tags.push(
+          <Tag key="rejected-count" color="volcano">
+            {rejected} Rejected
+          </Tag>
+        );
+      }
+
+      if (failed > 0) {
+        tags.push(
+          <Tag key="failed-count" color="red">
+            {failed} Failed
+          </Tag>
+        );
+      }
+
+      if (canceled > 0) {
+        tags.push(
+          <Tag key="canceled-count" color="default">
+            {canceled} Canceled
+          </Tag>
+        );
+      }
+
+      if (pending > 0) {
+        tags.push(
+          <Tag key="pending-count" color="default">
+            {pending} Pending
+          </Tag>
+        );
+      }
+    }
+
+    return (
+      <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+        {tags}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
@@ -325,7 +471,7 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
           {progressData.steps.map((step) => (
             <Timeline.Item
               key={step.stepIndex}
-              dot={getStepIcon(step.status, step.isActive)}
+              dot={getStepIcon(step.status, step.isActive ?? false)}
               color={getStepColor(step.status)}
             >
               <div>
@@ -362,6 +508,8 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
                     </Tag>
                   )}
                 </div>
+                {/* Approval status tags for APPROVAL type steps */}
+                {getApprovalStatusTags(step)}
               </div>
             </Timeline.Item>
           ))}

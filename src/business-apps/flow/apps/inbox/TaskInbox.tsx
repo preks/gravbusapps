@@ -26,9 +26,9 @@ interface TaskInboxProps extends BusinessAppContextProps {
 interface Task {
   id: string;
   flowId: string;
-  referenceTaskName: string;
-  type: string;
-  name: string;
+  referenceTaskName?: string;
+  type?: string;
+  name?: string;
   status: string;
   priority?: number;
   title?: string;
@@ -41,19 +41,19 @@ interface Task {
   dueDate?: string;
   scheduledAt?: string;
   availableActions?: {
-    canClaim: boolean;
-    canComplete: boolean;
-    canReassign: boolean;
-    canReject: boolean;
-    canUnclaim: boolean;
+    canClaim?: boolean;
+    canComplete?: boolean;
+    canReassign?: boolean;
+    canReject?: boolean;
+    canUnclaim?: boolean;
   };
   assignment?: {
-    assignmentMode: string;
-    currentStatus: string;
+    assignmentMode?: string;
+    currentStatus?: string;
     assignedTo?: string;
     assignedAt?: string;
-    isUserOwner: boolean;
-    allowReassignment: boolean;
+    isUserOwner?: boolean;
+    allowReassignment?: boolean;
     targets?: any;
     assignmentHistory?: Array<{
       action: string;
@@ -134,11 +134,11 @@ const isJustClaimable = (task: Task): boolean => {
   const actions = task.availableActions;
   if (!actions) return false;
   
-  return actions.canClaim && 
-         !actions.canComplete && 
-         !actions.canReject && 
-         !actions.canReassign && 
-         !actions.canUnclaim;
+  return actions.canClaim === true && 
+         actions.canComplete !== true && 
+         actions.canReject !== true && 
+         actions.canReassign !== true && 
+         actions.canUnclaim !== true;
 };
 
 const getDueDateTag = (task: Task): React.ReactNode => {
@@ -184,6 +184,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
+  const [taskModalLoading, setTaskModalLoading] = useState(false);
   const [taskFormData, setTaskFormData] = useState<any>({});
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [rejectionComment, setRejectionComment] = useState<string>('');
@@ -194,6 +195,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   // Fetch tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
     setLoading(true);
+    setTaskModalLoading(false); // Reset task modal loading when refreshing list
     setError(null);
 
     try {
@@ -307,35 +309,84 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     }
   };
 
+  // Fetch fresh task data when opening modal
+  const fetchFreshTaskData = async (taskId: string): Promise<Task | null> => {
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+      };
+
+      const response = await fetch(`${API_BASE}/tasks/${taskId}`, { headers });
+      
+      if (response.ok) {
+        const taskData = await response.json();
+        return taskData.task || taskData;
+      } else {
+        console.warn(`Failed to fetch fresh task data: ${response.status}`);
+        return null;
+      }
+    } catch (err) {
+      console.error('Error fetching fresh task data:', err);
+      return null;
+    }
+  };
+
   const handleTaskClick = async (task: Task) => {
+    // Show modal immediately with cached data
     setSelectedTask(task);
     setIsTaskModalVisible(true);
+    setTaskModalLoading(true);
     
-    const initialFormData: any = {};
-    (task.form || task.inputs)?.forEach((input: any) => {
-      // Initialize different input types with appropriate default values
-      switch (input.type) {
-        case 'CHECKBOX':
-          initialFormData[input.name] = input.options && input.options.length > 0 ? [] : false;
-          break;
-        case 'MULTISELECT':
-          initialFormData[input.name] = [];
-          break;
-        case 'SELECT':
-          initialFormData[input.name] = '';
-          break;
-        case 'NUMBER':
-          initialFormData[input.name] = undefined;
-          break;
-        case 'DATE':
-          initialFormData[input.name] = null;
-          break;
-        default:
-          initialFormData[input.name] = '';
+    // Initialize form with cached data first
+    const initializeFormData = (taskData: Task) => {
+      const initialFormData: any = {};
+      (taskData.form || taskData.inputs)?.forEach((input: any) => {
+        // Initialize different input types with appropriate default values
+        switch (input.type) {
+          case 'CHECKBOX':
+            initialFormData[input.name] = input.options && input.options.length > 0 ? [] : false;
+            break;
+          case 'MULTISELECT':
+            initialFormData[input.name] = [];
+            break;
+          case 'SELECT':
+            initialFormData[input.name] = '';
+            break;
+          case 'NUMBER':
+            initialFormData[input.name] = undefined;
+            break;
+          case 'DATE':
+            initialFormData[input.name] = null;
+            break;
+          case 'DATETIME':
+            initialFormData[input.name] = null;
+            break;
+          default:
+            initialFormData[input.name] = '';
+        }
+      });
+      setTaskFormData(initialFormData);
+      form.setFieldsValue(initialFormData);
+    };
+
+    // Initialize with cached data
+    initializeFormData(task);
+
+    // Fetch fresh task data
+    try {
+      const freshTaskData = await fetchFreshTaskData(task.id);
+      if (freshTaskData) {
+        // Update with fresh data
+        setSelectedTask(freshTaskData);
+        initializeFormData(freshTaskData);
+        console.log('Refreshed task data:', freshTaskData.id);
       }
-    });
-    setTaskFormData(initialFormData);
-    form.setFieldsValue(initialFormData);
+    } catch (err) {
+      console.warn('Using cached task data due to fetch error:', err);
+    } finally {
+      setTaskModalLoading(false);
+    }
   };
 
   const getTaskStatusColor = (status: string) => {
@@ -634,6 +685,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           open={isTaskModalVisible}
           onCancel={() => {
             setIsTaskModalVisible(false);
+            setTaskModalLoading(false);
             setTaskFormData({});
             setReassignUserId('');
             setRejectionComment('');
@@ -641,10 +693,20 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           }}
           width={800}
           footer={null}
+          confirmLoading={taskModalLoading}
         >
-          <Tabs 
-            defaultActiveKey="details"
-            items={[
+          {taskModalLoading && (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <Spin size="large" />
+              <div style={{ marginTop: '8px' }}>
+                <Text type="secondary">Refreshing task data...</Text>
+              </div>
+            </div>
+          )}
+          {!taskModalLoading && (
+            <Tabs 
+              defaultActiveKey="details"
+              items={[
               {
                 key: 'details',
                 label: 'Task Details',
@@ -676,6 +738,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
                     isTaskDueSoon={isTaskDueSoon}
                     formatDueDate={formatDueDate}
                     isJustClaimable={isJustClaimable}
+                    accessToken={accessToken}
                     {...context}
                   />
                 )
@@ -719,6 +782,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
               }
             ]}
           />
+          )}
         </Modal>
       )}
     </div>

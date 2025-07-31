@@ -142,6 +142,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 <Select.Option value={InputType.TEXT}>Text</Select.Option>
                 <Select.Option value={InputType.NUMBER}>Number</Select.Option>
                 <Select.Option value={InputType.DATE}>Date</Select.Option>
+                <Select.Option value={InputType.DATETIME}>DateTime</Select.Option>
                 <Select.Option value={InputType.TEXTAREA}>Textarea</Select.Option>
                 <Select.Option value={InputType.SELECT}>Select</Select.Option>
                 <Select.Option value={InputType.MULTISELECT}>Multi-Select</Select.Option>
