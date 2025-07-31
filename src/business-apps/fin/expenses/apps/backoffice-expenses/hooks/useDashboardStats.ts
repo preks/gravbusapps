@@ -12,6 +12,12 @@ import {
   GET_YTD_STATS,
   GET_MONTHLY_EXPENSE_TRENDS,
   GET_ADDITIONAL_DASHBOARD_METRICS,
+  GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY,
+  GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY,
+  GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY,
+  GET_AVG_SPEND_PER_TRIP_YEARLY,
+  GET_AVG_SPEND_PER_TRIP_MONTHLY,
+  GET_AVG_SPEND_PER_TRIP_QUARTERLY,
 } from "../queries/expenseDashboard.queries";
 import { DashboardStats } from "../types";
 
@@ -144,6 +150,11 @@ export const useDashboardStats = ({
       )
         .toISOString()
         .split("T")[0];
+
+      // Calculate year end date
+      const currentYearEnd = new Date(currentYear, 11, 31, 23, 59, 59)
+        .toISOString()
+        .split("T")[0];
       const previousMonthStart = new Date(
         currentYear,
         currentDate.getMonth() - 1,
@@ -161,6 +172,30 @@ export const useDashboardStats = ({
       )
         .toISOString()
         .split("T")[0];
+
+      // Calculate quarter dates
+      const getQuarterDates = (date: Date) => {
+        const month = date.getMonth();
+        const year = date.getFullYear();
+
+        // Determine which quarter we're in (0-3)
+        const quarter = Math.floor(month / 3);
+
+        // Calculate start and end of quarter
+        const quarterStartMonth = quarter * 3; // 0, 3, 6, 9
+        const quarterEndMonth = quarterStartMonth + 2; // 2, 5, 8, 11
+
+        const quarterStart = new Date(year, quarterStartMonth, 1)
+          .toISOString()
+          .split("T")[0];
+        const quarterEnd = new Date(year, quarterEndMonth + 1, 0, 23, 59, 59)
+          .toISOString()
+          .split("T")[0];
+
+        return { quarterStart, quarterEnd };
+      };
+
+      const { quarterStart, quarterEnd } = getQuarterDates(currentDate);
 
       // ⚡ OPTIMIZATION: Only fetch currency-dependent data when currency changes
       const selectedCurrency =
@@ -192,12 +227,75 @@ export const useDashboardStats = ({
           console.log(
             "Currency-only update detected, fetching only transfer required data"
           );
-          additionalMetricsResponse = await client.request(
-            GET_ADDITIONAL_DASHBOARD_METRICS,
-            {
-              selectedCurrency: selectedCurrency,
-            }
-          );
+          // Get additional metrics based on period
+          let additionalMetricsResponse;
+          if (filters.period === "yearly") {
+            additionalMetricsResponse = await client.request(
+              GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentYearStart: startOfYear,
+                currentYearEnd: currentYearEnd,
+              }
+            );
+          } else if (filters.period === "quarterly") {
+            additionalMetricsResponse = await client.request(
+              GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY,
+              {
+                selectedCurrency: selectedCurrency,
+                quarterStart: quarterStart,
+                quarterEnd: quarterEnd,
+              }
+            );
+          } else {
+            // monthly (default)
+            additionalMetricsResponse = await client.request(
+              GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentMonthStart: currentMonthStart,
+                currentMonthEnd: currentMonthEnd,
+              }
+            );
+          }
+
+          // Get average spend per trip based on period
+          let avgSpendPerTripResponse;
+          if (filters.period === "yearly") {
+            avgSpendPerTripResponse = await client.request(
+              GET_AVG_SPEND_PER_TRIP_YEARLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentYearStart: startOfYear,
+                currentYearEnd: currentYearEnd,
+              }
+            );
+          } else if (filters.period === "quarterly") {
+            avgSpendPerTripResponse = await client.request(
+              GET_AVG_SPEND_PER_TRIP_QUARTERLY,
+              {
+                selectedCurrency: selectedCurrency,
+                quarterStart: quarterStart,
+                quarterEnd: quarterEnd,
+              }
+            );
+          } else {
+            // monthly (default)
+            avgSpendPerTripResponse = await client.request(
+              GET_AVG_SPEND_PER_TRIP_MONTHLY,
+              {
+                selectedCurrency: selectedCurrency,
+                currentMonthStart: currentMonthStart,
+                currentMonthEnd: currentMonthEnd,
+              }
+            );
+          }
+
+          // Merge the responses
+          additionalMetricsResponse = {
+            ...additionalMetricsResponse,
+            avgSpendPerTrip: avgSpendPerTripResponse.avgSpendPerTrip,
+          };
 
           // ⚡ OPTIMIZATION: Cache the result
           setCurrencyCache((prev) =>
@@ -237,10 +335,77 @@ export const useDashboardStats = ({
             previousYearStart,
             previousYTD,
           }),
-          client.request(GET_ADDITIONAL_DASHBOARD_METRICS, {
-            selectedCurrency: selectedCurrency,
-          }),
+          // Get additional metrics based on period
+          (async () => {
+            if (filters.period === "yearly") {
+              return await client.request(
+                GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY,
+                {
+                  selectedCurrency: selectedCurrency,
+                  currentYearStart: startOfYear,
+                  currentYearEnd: currentYearEnd,
+                }
+              );
+            } else if (filters.period === "quarterly") {
+              return await client.request(
+                GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY,
+                {
+                  selectedCurrency: selectedCurrency,
+                  quarterStart: quarterStart,
+                  quarterEnd: quarterEnd,
+                }
+              );
+            } else {
+              // monthly (default)
+              return await client.request(
+                GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY,
+                {
+                  selectedCurrency: selectedCurrency,
+                  currentMonthStart: currentMonthStart,
+                  currentMonthEnd: currentMonthEnd,
+                }
+              );
+            }
+          })(),
         ]);
+
+        // Get average spend per trip based on period
+        let avgSpendPerTripResponse;
+        if (filters.period === "yearly") {
+          avgSpendPerTripResponse = await client.request(
+            GET_AVG_SPEND_PER_TRIP_YEARLY,
+            {
+              selectedCurrency: selectedCurrency,
+              currentYearStart: startOfYear,
+              currentYearEnd: currentYearEnd,
+            }
+          );
+        } else if (filters.period === "quarterly") {
+          avgSpendPerTripResponse = await client.request(
+            GET_AVG_SPEND_PER_TRIP_QUARTERLY,
+            {
+              selectedCurrency: selectedCurrency,
+              quarterStart: quarterStart,
+              quarterEnd: quarterEnd,
+            }
+          );
+        } else {
+          // monthly (default)
+          avgSpendPerTripResponse = await client.request(
+            GET_AVG_SPEND_PER_TRIP_MONTHLY,
+            {
+              selectedCurrency: selectedCurrency,
+              currentMonthStart: currentMonthStart,
+              currentMonthEnd: currentMonthEnd,
+            }
+          );
+        }
+
+        // Merge the responses
+        additionalMetricsResponse = {
+          ...additionalMetricsResponse,
+          avgSpendPerTrip: avgSpendPerTripResponse.avgSpendPerTrip,
+        };
       }
 
       // ⚡ FIXED: Restore real monthly trends data (was accidentally using placeholders)
@@ -265,6 +430,9 @@ export const useDashboardStats = ({
                 ?.totalAmount || 0,
             pendingRequestsCount:
               additionalMetricsResponse?.pendingRequests?.aggregate?.count || 0,
+            avgSpendPerTrip:
+              additionalMetricsResponse?.avgSpendPerTrip?.aggregate?.avg
+                ?.totalAmount || 0,
           }
         : {
             expensePlanYearly: {
@@ -319,7 +487,9 @@ export const useDashboardStats = ({
                 ?.totalAmount || 0,
             pendingRequestsCount:
               additionalMetricsResponse?.pendingRequests?.aggregate?.count || 0,
-            avgSpendPerTrip: 0, // Not available in current query
+            avgSpendPerTrip:
+              additionalMetricsResponse?.avgSpendPerTrip?.aggregate?.avg
+                ?.totalAmount || 0,
             travelExpensesCount: 0, // Not available in current query
           };
 
@@ -353,7 +523,7 @@ export const useDashboardStats = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, client, filters.currency]); // Only refetch when currency changes, not all filters
+  }, [accessToken, client, filters.currency, filters.period]); // Refetch when currency or period changes
 
   useEffect(() => {
     fetchEssentialStats();

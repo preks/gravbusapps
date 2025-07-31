@@ -187,12 +187,13 @@ export const GET_YTD_STATS = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS = `
-  query GetAdditionalDashboardMetrics($selectedCurrency: String) {
+  query GetAdditionalDashboardMetrics($selectedCurrency: String, $currentYearStart: timestamp, $currentMonthStart: timestamp, $quarterStart: timestamp, $quarterEnd: timestamp) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _eq: "BOOKED" } },
-          { currencyRef: { _eq: $selectedCurrency } }
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentYearStart } }
         ]
       }
     ) {
@@ -200,7 +201,167 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS = `
         sum { totalAmount }
       }
     }
-    pendingRequests: ExpenseRequestAggregate(where: { status: { _eq: "PENDING" } }) {
+    pendingRequests: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { endDate: { _gte: $currentYearStart } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
+  query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp) {
+    avgSpendPerTrip: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { totalAmount: { _gt: 0 } },
+          { endDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        avg { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
+  query GetAvgSpendPerTripMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp) {
+    avgSpendPerTrip: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { totalAmount: { _gt: 0 } },
+          { endDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        avg { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
+  query GetAvgSpendPerTripQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    avgSpendPerTrip: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { totalAmount: { _gt: 0 } },
+          { endDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        avg { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
+  query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp) {
+    transferRequired: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+      }
+    }
+    pendingRequests: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { endDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
+  query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp) {
+    transferRequired: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+      }
+    }
+    pendingRequests: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { endDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+  }
+`;
+
+export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
+  query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    transferRequired: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "BOOKED" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+      }
+    }
+    pendingRequests: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _eq: "PENDING" } },
+          { endDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+    ) {
       aggregate {
         count
       }

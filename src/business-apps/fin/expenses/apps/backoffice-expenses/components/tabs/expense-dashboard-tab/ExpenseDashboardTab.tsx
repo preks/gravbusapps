@@ -153,31 +153,64 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     });
 
     // 4. Transfer Required Card
+    const getTransferRequiredFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Pending transfers this year in ${selectedCurrencyCode}`;
+        case 'quarterly':
+          return `Pending transfers this quarter in ${selectedCurrencyCode}`;
+        default:
+          return `Pending transfers this month in ${selectedCurrencyCode}`;
+      }
+    };
+    
     cards.push({
       id: 'transfer-required',
       title: `Transfer Required (${selectedCurrencyCode})`,
       value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
-      footer: `Pending transfers in ${selectedCurrencyCode}`,
+      footer: getTransferRequiredFooter(),
       icon: 'exclamation',
       iconColor: '#ff4d4f'
     });
 
     // 5. Pending Requests Card
+    const getPendingRequestsFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Requests awaiting approval this year';
+        case 'quarterly':
+          return 'Requests awaiting approval this quarter';
+        default:
+          return 'Requests awaiting approval this month';
+      }
+    };
+    
     cards.push({
       id: 'pending-requests',
       title: 'Pending Requests',
       value: stats.pendingRequestsCount.toString(),
-      footer: 'Requests awaiting approval',
+      footer: getPendingRequestsFooter(),
       icon: 'clock',
       iconColor: '#faad14'
     });
 
     // 6. Average Spend Per Trip Card
+    const getPeriodText = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'year';
+        case 'quarterly':
+          return 'quarter';
+        default:
+          return 'month';
+      }
+    };
+    
     cards.push({
       id: 'avg-spend-per-trip',
-      title: 'Average Spend Per Trip',
-      value: formatCurrency(stats.avgSpendPerTrip),
-      footer: 'Based on completed trips',
+      title: `Average Spend Per Trip (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
+      footer: `Based on completed trips this ${getPeriodText()}`,
       icon: 'car',
       iconColor: '#722ed1'
     });
