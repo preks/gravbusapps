@@ -109,6 +109,13 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
           startDate: creationStartDate, 
           endDate: creationEndDate 
         } : undefined,
+        // 🔧 FIX: Pass current date ranges to parent for dynamic analysis
+        currentDateRange: {
+          startDate,
+          endDate,
+          creationStartDate,
+          creationEndDate
+        }
       };
 
       onDataChange({
