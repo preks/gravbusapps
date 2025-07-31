@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
 import { AbsenceList } from '../../tabs/absence-list-tab/AbsenceList/AbsenceList';
-import { useDashboardData } from '../../../hooks/useDashboardData';
+import { DashboardData } from '../../../types';
 
 interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
@@ -11,8 +11,8 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   endDate?: string;
   status?: string;
   department?: string;
-  departmentId?: string;
   timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
+  dashboardData: DashboardData;
   onNavigateBack: () => void;
 }
 
@@ -24,12 +24,26 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   endDate,
   status,
   department,
-  departmentId,
-  timeFilter,
+  dashboardData,
   onNavigateBack
 }) => {
-  // Get dashboard data to show calculations - USE SAME TIME FILTER AS MAIN DASHBOARD
-  const dashboardData = useDashboardData({ accessToken, timeFilter });
+  // 🚀 PHASE 2: Track current filtered data for dynamic analysis
+  const [currentFilteredData, setCurrentFilteredData] = useState<{
+    absences: any[];
+    total: number;
+    isFiltered: boolean;
+    appliedFilters: any;
+  } | null>(null);
+
+  // 🚀 PHASE 2: Callback to receive filtered data from AbsenceList
+  const handleDataChange = useCallback((data: {
+    absences: any[];
+    total: number;
+    isFiltered: boolean;
+    appliedFilters: any;
+  }) => {
+    setCurrentFilteredData(data);
+  }, []);
 
   // 🎯 FILTER rawAbsences for the specific month/date range - MOVE THIS BEFORE EARLY RETURNS
   const filteredAbsencesForMonth = useMemo(() => {
@@ -113,40 +127,59 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       spanningAcrossRequests
     };
 
-    console.log('🎯 AbsenceDetails: Filtering rawAbsences for specific month/range', {
-      totalRawAbsences: dashboardData.rawAbsences.length,
-      dateRange: `${startDate} to ${endDate}`,
-      filteredCount: filtered.length,
-      month,
-      department,
-      status,
-      filteringLogic: {
-        dateOverlap: 'absenceStart <= rangeEnd && absenceEnd >= rangeStart',
-        departmentFilter: department ? `employee.employeePosition.organizationalUnit.name === "${department}"` : 'none',
-        statusFilter: status ? `absence.status === "${status}"` : 'none'
-      },
-      overlappingBreakdown: overlappingInfo
-    });
+
 
     return { absences: filtered, overlappingInfo };
   }, [dashboardData.rawAbsences, startDate, endDate, month, department, status]);
 
-  // Debug: Log to confirm we're using the dashboard data source
-  console.log('🔍 AbsenceDetails Data Source:', {
-    timeFilter,
-    dataSource: 'Dashboard rawAbsences (will be filtered for specific month/department/status)',
-    isLoading: dashboardData.isLoading,
-    error: dashboardData.error,
-    totalDashboardAbsences: dashboardData.totalAbsences,
-    totalRawAbsences: dashboardData.rawAbsences?.length,
-    monthlyDataAvailable: !!dashboardData.monthlyData?.length,
-    departmentStatsAvailable: !!dashboardData.departmentStats?.length,
-    monthRequested: month,
-    departmentRequested: department,
-    statusRequested: status,
-    dateRange: `${startDate} to ${endDate}`,
-    note: 'Checking if calculations data is available...'
-  });
+  // 🚀 PHASE 2: Dynamic analysis calculations based on current filtered table data
+  const dynamicAnalysis = useMemo(() => {
+    if (!currentFilteredData?.absences?.length) {
+      return null;
+    }
+
+    const filteredAbsences = currentFilteredData.absences;
+    
+    // Calculate core metrics from currently visible table data
+    const totalRequests = filteredAbsences.length;
+    const totalDays = filteredAbsences.reduce((sum: number, absence: any) => 
+      sum + (absence.effectiveDays || absence.calendarDays || 0), 0
+    );
+    
+    // Calculate unique employees from filtered data
+    const uniqueEmployeeIds = new Set(filteredAbsences.map((absence: any) => absence.employee?.id));
+    const uniqueEmployees = uniqueEmployeeIds.size;
+    
+    // Calculate averages
+    const avgDaysPerEmployee = uniqueEmployees > 0 ? Math.round((totalDays / uniqueEmployees) * 100) / 100 : 0;
+    const avgDaysPerRequest = totalRequests > 0 ? Math.round((totalDays / totalRequests) * 100) / 100 : 0;
+
+    // Status breakdown from current filtered data
+    const statusBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
+      const status = absence.status || 'Unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Department breakdown from current filtered data
+    const departmentBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
+      const deptName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
+      acc[deptName] = (acc[deptName] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      totalRequests,
+      totalDays,
+      uniqueEmployees,
+      avgDaysPerEmployee,
+      avgDaysPerRequest,
+      statusBreakdown,
+      departmentBreakdown,
+      isFiltered: currentFilteredData.isFiltered,
+      appliedFilters: currentFilteredData.appliedFilters
+    };
+  }, [currentFilteredData]);
 
   // 🚀 CRITICAL: Handle loading state properly - AFTER ALL HOOKS
   if (dashboardData.isLoading) {
@@ -183,82 +216,6 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     );
   }
 
-  const getMonthDisplayName = (shortMonth?: string) => {
-    const monthMap: Record<string, string> = {
-      'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
-      'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
-      'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
-    };
-    return monthMap[shortMonth || ''] || shortMonth || 'Unknown Month';
-  };
-
-  // Get calculations for the specific month
-  const getMonthCalculations = () => {
-    console.log('🔍 getMonthCalculations: Function called', {
-      month,
-      hasDashboardData: !!dashboardData,
-      isLoading: dashboardData?.isLoading,
-      error: dashboardData?.error,
-      hasMonthlyData: !!dashboardData?.monthlyData,
-      monthlyDataLength: dashboardData?.monthlyData?.length,
-      firstMonthExample: dashboardData?.monthlyData?.[0]
-    });
-    
-    if (!dashboardData?.monthlyData || !month) {
-      console.log('❌ getMonthCalculations: Early return', {
-        hasMonthlyData: !!dashboardData?.monthlyData,
-        monthlyDataLength: dashboardData?.monthlyData?.length,
-        hasMonth: !!month,
-        month,
-        isLoading: dashboardData?.isLoading,
-        error: dashboardData?.error
-      });
-      return null;
-    }
-
-    const monthName = getMonthDisplayName(month);
-    // Try both full month name and short month name for matching
-    const monthData = dashboardData.monthlyData.find((trend: any) => 
-      trend.month === monthName || trend.month === month
-    );
-    
-    console.log('🔍 getMonthCalculations: Looking for month data', {
-      requestedMonth: month,
-      monthDisplayName: monthName,
-      availableMonths: dashboardData.monthlyData.map((d: any) => d.month),
-      foundMonthData: !!monthData,
-      monthDataStructure: monthData ? Object.keys(monthData) : null,
-      exactMatches: dashboardData.monthlyData.filter((d: any) => d.month === monthName),
-      partialMatches: dashboardData.monthlyData.filter((d: any) => d.month.includes(monthName.substring(0, 3)))
-    });
-    
-    if (!monthData) return null;
-
-    const calculations = {
-      totalRequests: Object.values(monthData.typeBreakdown || {}).reduce((sum: number, count: number) => sum + count, 0),
-      uniqueEmployees: monthData.uniqueEmployees || 0,
-      avgRequestsPerEmployee: monthData.avgRequestsPerEmployee || 0,
-      avgDurationPerRequest: monthData.avgDurationPerRequest || 0,
-      totalDuration: monthData.totalDuration || 0
-    };
-
-    console.log('✅ getMonthCalculations: Calculated', calculations);
-    return calculations;
-  };
-
-  const monthCalculations = getMonthCalculations();
-
-  // Debug: Log filtering results
-  console.log('✅ AbsenceDetails: Month filtering completed:', {
-    totalRawAbsences: dashboardData.rawAbsences?.length,
-    filteredForMonth: filteredAbsencesForMonth?.absences?.length,
-    overlappingBreakdown: filteredAbsencesForMonth?.overlappingInfo,
-    monthRequested: month,
-    dateRange: `${startDate} to ${endDate}`,
-    dataConsistency: '🎯 AbsenceList will now use month-filtered data only!',
-    expectedResult: `January should show ${filteredAbsencesForMonth?.absences?.length} absences (not ${dashboardData.rawAbsences?.length})`
-  });
-
   return (
     <div data-testid="absence-details-page" className="gba:space-y-6">
       {/* Back Navigation - Above everything */}
@@ -282,7 +239,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             <PiCalendarBlank size={24} className="gba:text-blue-600" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {month ? `${getMonthDisplayName(month)} Absence Details` : 
+                {month ? `${month} Absence Details` : 
                  department ? `${department} Department Details` : 'Absence Details'}
               </h1>
               <p className="gba:text-gray-600 gba:mt-1">
@@ -303,7 +260,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               Absence Dashboard
             </span>
             <span className="gba:mx-2">/</span>
-            <span>{month ? `${getMonthDisplayName(month)} Details` : 
+            <span>{month ? `${month} Details` : 
                   department ? `${department} Department` : 'Filtered Details'}</span>
           </div>
         </div>
@@ -311,213 +268,96 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
 
 
-      {/* Month Analysis - Show Calculations */}
-      {month && monthCalculations && (
-        <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-6">
+      {/* 🚀 PHASE 2: Universal Dynamic Analysis - Shows when table is filtered */}
+      {dynamicAnalysis && (
+        <div className="gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:p-6">
           <div className="gba:flex gba:items-start gba:gap-4">
-            <span className="gba:text-blue-600 gba:text-2xl">📊</span>
+            <span className="gba:text-green-600 gba:text-2xl">📊</span>
             <div className="gba:flex-1">
-              <div className="gba:text-blue-800 gba:font-bold gba:text-lg gba:mb-3">
-                Showing absences for {getMonthDisplayName(month)}
+              <div className="gba:text-green-800 gba:font-bold gba:text-lg gba:mb-3">
+                {month ? `Analysis: ${month}` : 
+                 department ? `Analysis: ${department} Department` : 'Absence Analysis'}
+                <span className="gba:ml-2 gba:text-sm gba:bg-green-100 gba:text-green-700 gba:px-2 gba:py-1 gba:rounded">
+                  {dynamicAnalysis.isFiltered ? 'Filtered' : 'Live'}
+                </span>
               </div>
-              <div className="gba:text-blue-600 gba:text-sm gba:mb-4">
-                Drilled down from dashboard chart • {startDate} to {endDate}
-              </div>
-              
-              {/* Calculations Grid */}
-              <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4">
-                <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
-                  <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations?.totalRequests || 0}
-                  </div>
-                  <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
-                    Total Requests
-                  </div>
-                </div>
-                
-                <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
-                  <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations.uniqueEmployees}
-                  </div>
-                  <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
-                    Unique Employees
-                  </div>
-                </div>
-                
-                <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
-                  <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations.avgRequestsPerEmployee.toFixed(1)}
-                  </div>
-                  <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
-                    Avg per Employee
-                  </div>
-                </div>
-                
-                <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
-                  <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations.avgDurationPerRequest.toFixed(1)} days
-                  </div>
-                  <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
-                    Avg Duration
-                  </div>
-                </div>
-                
-                <div className="gba:bg-white gba:p-3 gba:rounded-lg gba:border">
-                  <div className="gba:text-blue-800 gba:font-semibold gba:text-lg">
-                    {monthCalculations.totalDuration}
-                  </div>
-                  <div className="gba:text-blue-600 gba:text-xs gba:uppercase gba:tracking-wide">
-                    Total Duration (days)
-                  </div>
-                </div>
+              <div className="gba:text-green-600 gba:text-sm gba:mb-4">
+                {month && startDate && endDate ? `📅 ${startDate} to ${endDate}` :
+                 department ? `🏢 Drilled down from department chart` :
+                 '📊 Current table data analysis'}
+                {dynamicAnalysis.isFiltered && (
+                  <span className="gba:ml-2">• Updates automatically with your filters ✨</span>
+                )}
               </div>
               
-              {/* Calculation Explanation */}
-              <div className="gba:mt-4 gba:p-3 gba:bg-blue-100 gba:rounded-lg">
-                <div className="gba:text-blue-700 gba:text-sm gba:font-medium gba:mb-1">
-                  Calculation Details:
+              {/* Dynamic Analysis Grid */}
+              <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-green-800">
+                    {dynamicAnalysis.totalDays}
+                  </div>
+                  <div className="gba:text-xs gba:text-green-600 gba:font-medium">Total Days (Filtered)</div>
                 </div>
-                <div className="gba:text-blue-600 gba:text-xs gba:space-y-1">
-                  <div>• Avg per Employee: {monthCalculations.totalRequests} requests ÷ {monthCalculations.uniqueEmployees} employees = {monthCalculations.avgRequestsPerEmployee.toFixed(2)}</div>
-                  <div>• Avg Duration: {monthCalculations.totalDuration} total days ÷ {monthCalculations.totalRequests} requests = {monthCalculations.avgDurationPerRequest.toFixed(2)} days</div>
-                  <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-blue-200">
-                    <div className="gba:font-medium gba:mb-1">Overlapping Requests (cross-month absences):</div>
-                    <div>• Fully within month: {filteredAbsencesForMonth.overlappingInfo.fullyWithin} requests</div>
-                    <div>• Spanning into month: {filteredAbsencesForMonth.overlappingInfo.spanningInto} requests (started before, ended within)</div>
-                    <div>• Spanning out of month: {filteredAbsencesForMonth.overlappingInfo.spanningOut} requests (started within, ended after)</div>
-                    <div>• Spanning across month: {filteredAbsencesForMonth.overlappingInfo.spanningAcross} requests (started before, ended after)</div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-green-800">
+                    {dynamicAnalysis.totalRequests}
+                  </div>
+                  <div className="gba:text-xs gba:text-green-600 gba:font-medium">Total Requests (Filtered)</div>
+                </div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-green-800">
+                    {dynamicAnalysis.uniqueEmployees}
+                  </div>
+                  <div className="gba:text-xs gba:text-green-600 gba:font-medium">Employees (Filtered)</div>
+                </div>
+                
+                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-2xl gba:font-bold gba:text-green-800">
+                    {dynamicAnalysis.avgDaysPerEmployee}
+                  </div>
+                  <div className="gba:text-xs gba:text-green-600 gba:font-medium">Avg Days/Employee</div>
+                </div>
+              </div>
+
+              {/* Additional Metrics */}
+              <div className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+                <div className="gba:bg-white gba:p-3 gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-green-700 gba:font-medium gba:text-sm gba:mb-2">Performance Metrics</div>
+                  <div className="gba:text-green-600 gba:text-xs gba:space-y-1">
+                    <div>• Avg Duration per Request: {dynamicAnalysis.avgDaysPerRequest} days</div>
+                    <div>• Requests per Employee: {dynamicAnalysis.uniqueEmployees > 0 ? Math.round((dynamicAnalysis.totalRequests / dynamicAnalysis.uniqueEmployees) * 100) / 100 : 0}</div>
+                  </div>
+                </div>
+
+                <div className="gba:bg-white gba:p-3 gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-green-700 gba:font-medium gba:text-sm gba:mb-2">Filter Status</div>
+                  <div className="gba:text-green-600 gba:text-xs gba:space-y-1">
+                    {dynamicAnalysis.appliedFilters.search && (
+                      <div>• Search Active: "{dynamicAnalysis.appliedFilters.search}"</div>
+                    )}
+                    <div>• Active Filters: {dynamicAnalysis.appliedFilters.selectedFilters?.length || 0}</div>
+                    {dynamicAnalysis.appliedFilters.dateRange && (
+                      <div>• Date Range Applied ✓</div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Minimal Cross-Month Details */}
-              {(filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 || 
-                filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0) && (
-                <div className="gba:mt-2 gba:p-2 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded">
-                  <div className="gba:text-amber-800 gba:text-xs gba:font-medium gba:mb-1">
-                    🔍 Cross-Month: 
-                    {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 && (
-                      <span className="gba:ml-1">
-                        INTO ({filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length}): {
-                          filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.map((absence: any, index: number) => {
-                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            return (
-                              <span key={absence.id || index} className="gba:text-amber-600">
-                                {index > 0 && ', '}
-                                {absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()} 
-                                ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
-                              </span>
-                            );
-                          })
-                        }
-                      </span>
-                    )}
-                    {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 0 && 
-                     filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0 && (
-                      <span className="gba:mx-2">•</span>
-                    )}
-                    {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 0 && (
-                      <span>
-                        OUT ({filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length}): {
-                          filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.map((absence: any, index: number) => {
-                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            return (
-                              <span key={absence.id || index} className="gba:text-amber-600">
-                                {index > 0 && ', '}
-                                {absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()} 
-                                ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
-                              </span>
-                            );
-                          })
-                        }
-                      </span>
-                    )}
+              {/* Status Breakdown */}
+              {Object.keys(dynamicAnalysis.statusBreakdown).length > 0 && (
+                <div className="gba:mt-4 gba:bg-white gba:p-3 gba:rounded gba:border gba:border-green-200">
+                  <div className="gba:text-green-700 gba:font-medium gba:text-sm gba:mb-2">Status Distribution (Filtered Data)</div>
+                  <div className="gba:flex gba:gap-4 gba:text-xs">
+                    {Object.entries(dynamicAnalysis.statusBreakdown).map(([status, count]) => (
+                      <div key={status} className="gba:text-green-600">
+                        <span className="gba:font-medium">{status}:</span> {count as number}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Department Analysis - Show Department Statistics */}
-      {department && !month && (
-        <div className="gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-lg gba:p-6">
-          <div className="gba:flex gba:items-start gba:gap-4">
-            <span className="gba:text-gray-600 gba:text-2xl">🏢</span>
-            <div className="gba:flex-1">
-              <div className="gba:text-gray-800 gba:font-bold gba:text-lg gba:mb-3">
-                Department Analysis: {department}
-              </div>
-              <div className="gba:text-gray-600 gba:text-sm gba:mb-4">
-                Drilled down from department chart • {startDate && endDate ? `${startDate} to ${endDate}` : 'All time'}
-              </div>
-              
-              {/* Department Statistics Grid */}
-              {(() => {
-                const deptStats = dashboardData?.departmentStats?.find(d => d.name === department);
-                console.log('🔍 Department Stats Debug:', {
-                  department,
-                  hasDepartmentStats: !!dashboardData?.departmentStats,
-                  departmentStatsCount: dashboardData?.departmentStats?.length,
-                  availableDepartments: dashboardData?.departmentStats?.map(d => d.name),
-                  foundDeptStats: !!deptStats,
-                  deptStatsStructure: deptStats ? Object.keys(deptStats) : null,
-                  deptStatsValues: deptStats
-                });
-                return null;
-              })()}
-              <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
-                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
-                    {dashboardData?.departmentStats?.find(d => d.name === department)?.totalDays || 0}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Total Days</div>
-                </div>
-                
-                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
-                    {dashboardData?.departmentStats?.find(d => d.name === department)?.totalRequests || 0}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Total Requests</div>
-                </div>
-                
-                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
-                    {dashboardData?.departmentStats?.find(d => d.name === department)?.uniqueEmployees || 0}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Employees</div>
-                </div>
-                
-                <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
-                  <div className="gba:text-2xl gba:font-bold gba:text-gray-800">
-                    {dashboardData?.departmentStats?.find(d => d.name === department)?.avgDaysPerEmployee || 0}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-600 gba:font-medium">Avg Days/Employee</div>
-                </div>
-              </div>
-              
-              <div className="gba:mt-4 gba:text-gray-700 gba:text-sm">
-                <strong>Department Performance:</strong> This department has{' '}
-                {dashboardData?.departmentStats?.find(d => d.name === department)?.avgRequestsPerEmployee || 0} avg requests per employee.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fallback if no calculations available */}
-      {month && !monthCalculations && (
-        <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <span className="gba:text-blue-600 gba:text-lg">📊</span>
-            <div>
-              <div className="gba:text-blue-800 gba:font-medium">
-                Showing absences for {getMonthDisplayName(month)}
-              </div>
-              <div className="gba:text-blue-600 gba:text-sm">
-                Drilled down from dashboard chart • {startDate} to {endDate}
-              </div>
             </div>
           </div>
         </div>
@@ -530,12 +370,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         initialFilters={{
           startDate,
           endDate,
-          month,
           status,
-          department,
-          departmentId
+          department
         }}
         preFilteredData={filteredAbsencesForMonth.absences}
+        dashboardData={dashboardData}
+        onDataChange={handleDataChange}
       />
     </div>
   );

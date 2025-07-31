@@ -4,9 +4,5 @@
  
 export { getDashboardQuery, getDateFilters } from './DashboardQueries';
 
-// ✅ NEW: Server-Side Aggregation Queries
-export { 
-  getDashboardKPIAggregations,
-  getVacationEntitlementsAggregations,
-  getHybridAbsenceData
-} from './ServerSideAggregationQueries'; 
+// ✅ WORKING: Optimized Dashboard Query  
+export { getOptimizedDashboardQuery } from './ServerSideAggregationQueries'; 

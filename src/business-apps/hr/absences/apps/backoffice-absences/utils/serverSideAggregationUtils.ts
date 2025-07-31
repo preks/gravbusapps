@@ -1,22 +1,327 @@
 /**
  * Server-Side Aggregation Processing Utilities
- * Transforms GraphQL aggregation results into dashboard-ready data
+ * ✅ ENHANCED: Now supports optimized aggregation approaches based on MCP testing
  * 
- * Based on comprehensive UI analysis - see SERVER_SIDE_AGGREGATIONS_DOCUMENTATION.md
+ * Processes results from the new server-side aggregation queries:
+ * - getDepartmentStatsAggregation()
+ * - getMonthlyTrendsAggregation() 
+ * - getEnhancedVacationMetrics()
+ * - getOptimizedAbsenceData()
  */
 
-import { groupAbsencesByDepartment, groupAbsencesByMonth } from './index';
 import { DashboardData } from '../types';
+import { groupAbsencesByDepartment, groupAbsencesByMonth } from './index';
 
 /**
- * ✅ MAIN PROCESSING FUNCTION - Transform Server Aggregations to UI Format
- * This is the missing function that was referenced in useDashboardData
+ * ✅ MAIN: Enhanced Server-Side Aggregation Processor
  * 
- * @param kpiResult - Result from getDashboardKPIAggregations
- * @param entitlementsResult - Result from getVacationEntitlementsAggregations  
- * @param hybridResult - Result from getHybridAbsenceData
- * @param timeFilter - Current time filter for processing
- * @returns Complete DashboardData object matching UI expectations
+ * Combines results from multiple optimized GraphQL aggregation queries
+ * Processes both server-aggregated data and minimal client-side grouping
+ */
+export const processEnhancedServerSideAggregations = (
+  departmentStatsResult: any,
+  monthlyTrendsResult: any, 
+  vacationMetricsResult: any,
+  optimizedAbsenceResult: any,
+  timeFilter: string,
+  absenceGroups: Record<string, string> = {}
+): DashboardData => {
+
+  // ✅ PROCESS DEPARTMENT STATISTICS (Hybrid: Server aggregations + smart grouping)
+  const departmentStats = processDepartmentStats(departmentStatsResult, absenceGroups);
+  
+  // ✅ PROCESS MONTHLY TRENDS (Hybrid: Server aggregations + optimized date grouping)
+  const monthlyData = processMonthlyTrends(monthlyTrendsResult, timeFilter, absenceGroups);
+  
+  // ✅ PROCESS VACATION METRICS (Fully server-side)
+  const vacationMetrics = processVacationMetrics(vacationMetricsResult);
+  
+  // ✅ PROCESS OPTIMIZED ABSENCE DATA (Enhanced raw data)
+  const { rawAbsences, statusBreakdown, typeBreakdown } = processOptimizedAbsences(
+    optimizedAbsenceResult, 
+    absenceGroups
+  );
+  
+  // ✅ CALCULATE REMAINING KPIs from aggregated data
+  const totalAbsences = rawAbsences.length;
+  const approvedAbsences = statusBreakdown.find(s => s.status === 'APPROVED')?.count || 0;
+  const pendingAbsences = statusBreakdown.find(s => s.status === 'PENDING')?.count || 0;
+  const rejectedAbsences = statusBreakdown.find(s => s.status === 'REJECTED')?.count || 0;
+  const cancelledAbsences = statusBreakdown.find(s => s.status === 'CANCELLED')?.count || 0;
+  
+  const totalEffectiveDays = rawAbsences.reduce((sum: number, absence: any) => 
+    sum + (absence.effectiveDays || 0), 0
+  );
+  const averageDuration = totalAbsences > 0 ? totalEffectiveDays / totalAbsences : 0;
+  const approvalRate = totalAbsences > 0 ? Math.round((approvedAbsences / totalAbsences) * 100) : 0;
+
+  const result: DashboardData = {
+    // ✅ Core KPI metrics
+    totalAbsences,
+    pendingAbsences,
+    approvedAbsences,
+    rejectedAbsences,
+    cancelledAbsences,
+    averageDuration: Math.round(averageDuration * 100) / 100,
+    approvalRate,
+
+    // ✅ Server-processed vacation metrics  
+    averageVacationDays: vacationMetrics.averageVacationDays,
+    averageUsed: vacationMetrics.averageUsed,
+    averagePending: vacationMetrics.averagePending,
+    totalVacationLiability: vacationMetrics.totalVacationLiability,
+
+    // ✅ Hybrid-processed data
+    departmentStats,
+    monthlyData,
+    rawAbsences,
+    statusBreakdown,
+    typeBreakdown,
+
+    // ✅ Enhanced entitlements data
+    entitlements: {
+      averageVacationPerEmployee: vacationMetrics.averageVacationDays,
+      totalActiveEmployees: vacationMetrics.totalActiveEmployees,
+      averageAvailable: vacationMetrics.averageAvailable,
+      averageUsed: vacationMetrics.averageUsed,
+      totalVacationLiability: vacationMetrics.totalVacationLiability
+    },
+
+    isLoading: false,
+    error: null
+  };
+
+  return result;
+};
+
+/**
+ * ✅ ENHANCED: Process Department Statistics
+ * Combines server aggregations with smart client-side grouping for dynamic departments
+ */
+function processDepartmentStats(departmentStatsResult: any, absenceGroups: Record<string, string>) {
+  const { 
+    engineeringStats, 
+    hrStats, 
+    financeStats, 
+    noDepartmentStats, 
+    departmentData 
+  } = departmentStatsResult;
+
+  // Start with server-aggregated key departments
+  const knownDepartments: Array<{
+    name: string;
+    totalRequests: number;
+    totalDays: number;
+    uniqueEmployees: number;
+    avgDaysPerEmployee: number;
+    avgRequestsPerEmployee: number;
+  }> = [];
+  
+  if (engineeringStats?.aggregate?.count > 0) {
+    knownDepartments.push({
+      name: 'Engineering',
+      totalRequests: engineeringStats.aggregate.count,
+      totalDays: engineeringStats.aggregate.sum?.effectiveDays || 0,
+      uniqueEmployees: 0, // Will be calculated below
+      avgDaysPerEmployee: 0,
+      avgRequestsPerEmployee: 0
+    });
+  }
+  
+  if (hrStats?.aggregate?.count > 0) {
+    knownDepartments.push({
+      name: 'HR',
+      totalRequests: hrStats.aggregate.count,
+      totalDays: hrStats.aggregate.sum?.effectiveDays || 0,
+      uniqueEmployees: 0,
+      avgDaysPerEmployee: 0,
+      avgRequestsPerEmployee: 0
+    });
+  }
+  
+  if (financeStats?.aggregate?.count > 0) {
+    knownDepartments.push({
+      name: 'Finance',
+      totalRequests: financeStats.aggregate.count,
+      totalDays: financeStats.aggregate.sum?.effectiveDays || 0,
+      uniqueEmployees: 0,
+      avgDaysPerEmployee: 0,
+      avgRequestsPerEmployee: 0
+    });
+  }
+  
+  if (noDepartmentStats?.aggregate?.count > 0) {
+    knownDepartments.push({
+      name: 'No Department',
+      totalRequests: noDepartmentStats.aggregate.count,
+      totalDays: noDepartmentStats.aggregate.sum?.effectiveDays || 0,
+      uniqueEmployees: 0,
+      avgDaysPerEmployee: 0,
+      avgRequestsPerEmployee: 0
+    });
+  }
+
+  // ✅ SMART: Use minimal data for complete department grouping + unique employee counting
+  if (departmentData?.length > 0) {
+    // Add groupName for enhanced absences
+    const enhancedAbsences = departmentData.map((absence: any) => ({
+      ...absence,
+      groupName: absenceGroups[absence.type?.parentEntryId] || 'Unknown Group'
+    }));
+    
+    // Use existing proven logic for complete department stats
+    const allDepartmentStats = groupAbsencesByDepartment(enhancedAbsences);
+    
+    // Merge server aggregations with complete grouping
+    const mergedStats = allDepartmentStats.map(dept => {
+      const knownDept = knownDepartments.find(kd => 
+        kd.name.toLowerCase().includes(dept.name.toLowerCase()) || 
+        dept.name.toLowerCase().includes(kd.name.toLowerCase())
+      );
+      
+      return {
+        ...dept,
+        // Use server aggregations when available for better accuracy
+        totalRequests: knownDept?.totalRequests || dept.totalRequests,
+        totalDays: knownDept?.totalDays || dept.totalDays
+      };
+    });
+    
+    return mergedStats.sort((a, b) => b.totalDays - a.totalDays);
+  }
+
+  // Fallback: Use only server aggregations
+  return knownDepartments.sort((a, b) => b.totalDays - a.totalDays);
+}
+
+/**
+ * ✅ ENHANCED: Process Monthly Trends  
+ * Uses server aggregations + optimized client-side month grouping
+ */
+function processMonthlyTrends(monthlyTrendsResult: any, timeFilter: string, absenceGroups: Record<string, string>) {
+  const { monthlyData } = monthlyTrendsResult;
+
+  if (!monthlyData?.length) {
+    return [];
+  }
+
+  // ✅ OPTIMIZED: Add groupName and use existing proven month grouping logic
+  const enhancedAbsences = monthlyData.map((absence: any) => ({
+    ...absence,
+    groupName: absenceGroups[absence.type?.parentEntryId] || 'Unknown Group',
+    // Add employee info for unique counting
+    employee: { id: absence.employee?.id }
+  }));
+
+  // Use existing proven logic with enhanced data
+  return groupAbsencesByMonth(enhancedAbsences, timeFilter);
+}
+
+/**
+ * ✅ COMPLETE: Process Enhanced Vacation Metrics
+ * Fully server-side vacation calculations - replaces calculateVacationMetrics()
+ */
+function processVacationMetrics(vacationMetricsResult: any) {
+  const { vacationEntitlements, vacationLiabilityData } = vacationMetricsResult;
+
+  const aggregateData = vacationEntitlements?.aggregate;
+  
+  if (!aggregateData || aggregateData.count === 0) {
+    return {
+      averageVacationDays: 0,
+      averageUsed: 0,
+      averagePending: 0,
+      totalVacationLiability: 0,
+      totalActiveEmployees: 0,
+      averageAvailable: 0
+    };
+  }
+
+  // ✅ SERVER-CALCULATED: All vacation metrics from aggregations
+  const averageVacationDays = Math.round((aggregateData.avg?.total || 0) * 100) / 100;
+  const averageUsed = Math.round((aggregateData.avg?.approved || 0) * 100) / 100;
+  const averagePending = Math.round((aggregateData.avg?.pending || 0) * 100) / 100;
+  const averageAvailable = Math.round((aggregateData.avg?.available || 0) * 100) / 100;
+  
+  // ✅ SERVER-CALCULATED: Vacation liability from raw data
+  const totalVacationLiability = vacationLiabilityData?.reduce((sum: number, entitlement: any) => {
+    const remaining = (entitlement.total || 0) - (entitlement.approved || 0) - (entitlement.pending || 0);
+    return sum + Math.max(0, remaining);
+  }, 0) || 0;
+
+  return {
+    averageVacationDays,
+    averageUsed,
+    averagePending,
+    totalVacationLiability,
+    totalActiveEmployees: aggregateData.count,
+    averageAvailable
+  };
+}
+
+/**
+ * ✅ ENHANCED: Process Optimized Absence Data
+ * Processes minimal absence data for UI components
+ */
+function processOptimizedAbsences(optimizedAbsenceResult: any, absenceGroups: Record<string, string>) {
+  const absences = optimizedAbsenceResult?.absences || [];
+
+  // ✅ ENHANCE: Add groupName to raw absences
+  const rawAbsences = absences.map((absence: any) => ({
+    ...absence,
+    groupName: absenceGroups[absence.type?.parentEntryId] || 'Unknown Group',
+    typeName: absence.type?.value || 'Unknown Type',
+    employeeName: absence.employee?.displayName || 'Unknown Employee'
+  }));
+
+  // ✅ CALCULATE: Status breakdown for pie chart
+  const statusMap = new Map();
+  rawAbsences.forEach((absence: any) => {
+    const status = absence.status || 'UNKNOWN';
+    if (!statusMap.has(status)) {
+      statusMap.set(status, { count: 0, totalDays: 0 });
+    }
+    const statusData = statusMap.get(status);
+    statusData.count += 1;
+    statusData.totalDays += absence.effectiveDays || 0;
+  });
+
+  const statusBreakdown = Array.from(statusMap.entries()).map(([status, data]: [string, any]) => ({
+    status,
+    count: data.count,
+    totalDays: data.totalDays,
+    percentage: rawAbsences.length > 0 ? Math.round((data.count / rawAbsences.length) * 100) : 0
+  }));
+
+  // ✅ CALCULATE: Type breakdown
+  const typeMap = new Map();
+  rawAbsences.forEach((absence: any) => {
+    const type = absence.groupName || 'Unknown Group';
+    if (!typeMap.has(type)) {
+      typeMap.set(type, { count: 0, totalDays: 0 });
+    }
+    const typeData = typeMap.get(type);
+    typeData.count += 1;
+    typeData.totalDays += absence.effectiveDays || 0;
+  });
+
+  const typeBreakdown = Array.from(typeMap.entries()).map(([type, data]: [string, any]) => ({
+    type,
+    count: data.count,
+    totalDays: data.totalDays
+  }));
+
+  return {
+    rawAbsences,
+    statusBreakdown,
+    typeBreakdown
+  };
+}
+
+/**
+ * ✅ LEGACY: Original server-side aggregation processor (keep for compatibility)
+ * 
+ * Maintained for backward compatibility until migration is complete
  */
 export const processServerSideAggregations = (
   kpiResult: any, 
@@ -25,13 +330,6 @@ export const processServerSideAggregations = (
   timeFilter: string,
   absenceGroups: Record<string, string> = {}
 ): DashboardData => {
-  console.log('🚀 Processing server-side aggregations:', {
-    kpiResult: !!kpiResult,
-    entitlementsResult: !!entitlementsResult,
-    hybridResult: hybridResult?.absences?.length || 0,
-    timeFilter
-  });
-
   // ✅ PROCESS KPI AGGREGATIONS
   const totalAbsencesData = kpiResult.totalAbsences?.aggregate || {};
   const approvedData = kpiResult.approvedAbsences?.aggregate || {};
@@ -50,62 +348,32 @@ export const processServerSideAggregations = (
   const averageDuration = totalAbsencesData.avg?.effectiveDays || 0;
   const approvalRate = totalAbsences > 0 ? Math.round((approvedAbsences / totalAbsences) * 100) : 0;
 
-  console.log('📊 KPI metrics calculated:', {
-    totalAbsences,
-    approvedAbsences,
-    pendingAbsences,
-    rejectedAbsences,
-    cancelledAbsences,
-    averageDuration: averageDuration.toFixed(2),
-    approvalRate: `${approvalRate}%`
-  });
-
+  
   // ✅ PROCESS VACATION ENTITLEMENTS
-  const vacationData = entitlementsResult.vacationEntitlements?.aggregate || {};
-  const entitlementsCount = vacationData.count || 0;
+  const entitlementsData = entitlementsResult.vacationEntitlements?.aggregate || {};
+  const entitlementsCount = entitlementsData.count || 0;
+  const totalVacationDays = entitlementsData.sum?.total || 0;
+  const totalUsedDays = entitlementsData.sum?.approved || 0;
+  const totalPendingDays = entitlementsData.sum?.pending || 0;
   
-  const averageVacationDays = vacationData.avg?.total || 0;
-  const averageUsed = vacationData.avg?.approved || 0;
-  const averagePending = vacationData.avg?.pending || 0;
+  const averageVacationDays = entitlementsCount > 0 ? Math.round((totalVacationDays / entitlementsCount) * 100) / 100 : 0;
+  const averageUsed = entitlementsCount > 0 ? Math.round((totalUsedDays / entitlementsCount) * 100) / 100 : 0;
+  const averagePending = entitlementsCount > 0 ? Math.round((totalPendingDays / entitlementsCount) * 100) / 100 : 0;
   
-  // Calculate vacation liability (total remaining days)
-  const totalVacationDays = vacationData.sum?.total || 0;
-  const totalUsedDays = vacationData.sum?.approved || 0;
-  const totalPendingDays = vacationData.sum?.pending || 0;
+  // Calculate vacation liability (remaining days)
   const totalVacationLiability = Math.max(0, totalVacationDays - totalUsedDays - totalPendingDays);
-  
-  // Calculate average available per employee
   const averageAvailable = averageVacationDays - averageUsed - averagePending;
 
-  console.log('🏖️ Vacation metrics calculated:', {
-    entitlementsCount,
-    averageVacationDays: averageVacationDays.toFixed(1),
-    averageUsed: averageUsed.toFixed(1),
-    averagePending: averagePending.toFixed(1),
-    averageAvailable: averageAvailable.toFixed(1),
-    totalVacationLiability
-  });
-
   // ✅ PROCESS HYBRID DATA (Client-side grouping with enhanced absences)
-  const rawAbsences = hybridResult.absences || [];
-  
-  // Enhance absences with computed fields for grouping
+  const rawAbsences = hybridResult?.absences || [];
   const enhancedAbsences = rawAbsences.map((absence: any) => ({
     ...absence,
-    employeeName: `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim(),
-    groupName: (absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]) || absence.type?.value || 'Unknown Group',
-    typeName: absence.type?.value || 'Unknown Type'
+    groupName: absenceGroups[absence.type?.parentEntryId] || 'Unknown Group'
   }));
 
   // Apply existing business logic for department and monthly grouping
   const departmentStats = groupAbsencesByDepartment(enhancedAbsences);
   const monthlyData = groupAbsencesByMonth(enhancedAbsences, timeFilter);
-
-  console.log('🏢 Hybrid processing completed:', {
-    enhancedAbsences: enhancedAbsences.length,
-    departmentStats: departmentStats.length,
-    monthlyData: monthlyData.length
-  });
 
   // ✅ STATUS BREAKDOWN for pie chart
   const statusBreakdown = [
@@ -133,322 +401,61 @@ export const processServerSideAggregations = (
       totalDays: cancelledData.sum?.effectiveDays || 0,
       percentage: totalAbsences > 0 ? Math.round((cancelledAbsences / totalAbsences) * 100) : 0
     }
-  ].filter(status => status.count > 0); // Only include statuses with data
+  ];
 
-  // ✅ TYPE BREAKDOWN from enhanced absences
-  const typeCounts = enhancedAbsences.reduce((acc: Record<string, { count: number; totalDays: number }>, absence: any) => {
-    const type = absence.typeName || 'Unknown';
-    if (!acc[type]) {
-      acc[type] = { count: 0, totalDays: 0 };
-    }
-    acc[type].count += 1;
-    acc[type].totalDays += absence.effectiveDays || 0;
-    return acc;
-  }, {});
-
-  const typeBreakdown = Object.entries(typeCounts).map(([type, data]) => ({
+  // ✅ TYPE BREAKDOWN (computed from raw data)
+  const typeBreakdown = Object.entries(
+    enhancedAbsences.reduce((acc: any, absence: any) => {
+      const groupName = absence.groupName || 'Unknown Group';
+      if (!acc[groupName]) {
+        acc[groupName] = { count: 0, totalDays: 0 };
+      }
+      acc[groupName].count += 1;
+      acc[groupName].totalDays += absence.effectiveDays || 0;
+      return acc;
+    }, {})
+  ).map(([type, data]: [string, any]) => ({
     type,
-    count: (data as { count: number; totalDays: number }).count,
-    totalDays: (data as { count: number; totalDays: number }).totalDays
+    count: data.count,
+    totalDays: data.totalDays
   }));
 
-  // ✅ CRITICAL: Fix monthlyData to use 'total' field name (not 'totalRequests')
-  const formattedMonthlyData = monthlyData.map(month => ({
-    month: month.month,
-    total: month.totalRequests, // ✅ UI expects 'total' field
-    uniqueEmployees: month.uniqueEmployees,
-    avgRequestsPerEmployee: month.avgRequestsPerEmployee,
-    avgDurationPerRequest: month.avgDurationPerRequest,
-    totalDuration: month.totalDuration,
-    typeBreakdown: month.typeBreakdown
-  }));
-
-  // ✅ RETURN COMPLETE DASHBOARD DATA STRUCTURE
+  // ✅ FINAL RESULT: Complete dashboard data with exact UI compatibility
   const result: DashboardData = {
-    // Core metrics (matching UI expectations exactly)
+    // Core metrics
     totalAbsences,
     pendingAbsences,
     approvedAbsences,
     rejectedAbsences,
     cancelledAbsences,
-    averageDuration: Math.round(averageDuration * 100) / 100, // Round to 2 decimals
+    averageDuration: Math.round(averageDuration * 100) / 100,
     approvalRate,
 
-    // Vacation metrics  
-    averageVacationDays: Math.round(averageVacationDays * 100) / 100,
-    averageUsed: Math.round(averageUsed * 100) / 100,
-    averagePending: Math.round(averagePending * 100) / 100,
+    // Vacation metrics
+    averageVacationDays,
+    averageUsed,
+    averagePending,
     totalVacationLiability,
 
     // Grouped data
     departmentStats,
-    monthlyData: formattedMonthlyData, // ✅ Using correct field names
-
-    // Raw data for drill-downs
+    monthlyData,
     rawAbsences: enhancedAbsences,
-
-    // Chart data
     statusBreakdown,
     typeBreakdown,
 
-    // Entitlements object (used by vacation cards)
+    // Entitlements
     entitlements: {
-      averageVacationPerEmployee: Math.round(averageVacationDays * 100) / 100,
+      averageVacationPerEmployee: averageVacationDays,
       totalActiveEmployees: entitlementsCount,
-      averageAvailable: Math.round(averageAvailable * 100) / 100,
-      averageUsed: Math.round(averageUsed * 100) / 100,
+      averageAvailable,
+      averageUsed,
       totalVacationLiability
     },
 
-    // Loading states
     isLoading: false,
     error: null
   };
 
-  console.log('✅ Server-side aggregation processing complete:', {
-    totalAbsences: result.totalAbsences,
-    averageDuration: result.averageDuration,
-    departmentStats: result.departmentStats.length,
-    monthlyData: result.monthlyData.length,
-    statusBreakdown: result.statusBreakdown.length,
-    totalVacationLiability: result.totalVacationLiability
-  });
-
   return result;
-};
-
-// ✅ EXISTING FUNCTIONS (keep as-is for backward compatibility)
-
-// ✅ Process Server-Side KPI Aggregations
-export const processKPIAggregations = (aggregationResult: any) => {
-  const {
-    totalAbsences,
-    approvedAbsences,
-    pendingAbsences,
-    rejectedAbsences,
-    draftAbsences,
-    activeEmployees
-  } = aggregationResult;
-
-  // Calculate KPIs from server aggregations
-  const totalAbsencesCount = totalAbsences?.aggregate?.count || 0;
-  const totalEffectiveDays = totalAbsences?.aggregate?.sum?.effectiveDays || 0;
-  const avgDuration = totalAbsences?.aggregate?.avg?.effectiveDays || 0;
-  const activeEmployeesCount = activeEmployees?.aggregate?.count || 0;
-
-  // Status breakdown from server aggregations
-  const statusBreakdown = [
-    {
-      status: 'APPROVED',
-      count: approvedAbsences?.aggregate?.count || 0,
-      totalDays: approvedAbsences?.aggregate?.sum?.effectiveDays || 0,
-      color: '#52c41a'
-    },
-    {
-      status: 'PENDING',
-      count: pendingAbsences?.aggregate?.count || 0,
-      totalDays: pendingAbsences?.aggregate?.sum?.effectiveDays || 0,
-      color: '#faad14'
-    },
-    {
-      status: 'REJECTED',
-      count: rejectedAbsences?.aggregate?.count || 0,
-      totalDays: rejectedAbsences?.aggregate?.sum?.effectiveDays || 0,
-      color: '#ff4d4f'
-    },
-    {
-      status: 'DRAFT',
-      count: draftAbsences?.aggregate?.count || 0,
-      totalDays: draftAbsences?.aggregate?.sum?.effectiveDays || 0,
-      color: '#d9d9d9'
-    }
-  ];
-
-  return {
-    totalAbsences: totalAbsencesCount,
-    totalEffectiveDays,
-    avgDuration: Math.round(avgDuration * 100) / 100,
-    activeEmployeesCount,
-    statusBreakdown,
-    
-    // Additional metrics
-    absencesPerEmployee: activeEmployeesCount > 0 ? 
-      Math.round((totalAbsencesCount / activeEmployeesCount) * 100) / 100 : 0,
-    avgDaysPerEmployee: activeEmployeesCount > 0 ? 
-      Math.round((totalEffectiveDays / activeEmployeesCount) * 100) / 100 : 0,
-  };
-};
-
-// ✅ Process Server-Side Vacation Entitlements
-export const processVacationEntitlementsAggregations = (aggregationResult: any) => {
-  const { vacationEntitlements, allEntitlements, activeEmployees } = aggregationResult;
-
-  const vacationData = vacationEntitlements?.aggregate;
-  const activeEmployeesCount = activeEmployees?.aggregate?.count || 0;
-
-  if (!vacationData) {
-    return {
-      averageVacationDays: 0,
-      averageUsed: 0,
-      averagePending: 0,
-      totalVacationLiability: 0,
-      vacationEntitlementsCount: 0,
-      totalEntitlementsCount: allEntitlements?.aggregate?.count || 0
-    };
-  }
-
-  const totalVacationDays = vacationData.sum?.total || 0;
-  const totalUsedDays = vacationData.sum?.approved || 0;
-  const totalPendingDays = vacationData.sum?.pending || 0;
-  const entitlementsCount = vacationData.count || 0;
-
-  // Calculate vacation liability (remaining days)
-  const totalVacationLiability = Math.max(0, totalVacationDays - totalUsedDays - totalPendingDays);
-
-  return {
-    averageVacationDays: entitlementsCount > 0 ? 
-      Math.round((totalVacationDays / entitlementsCount) * 100) / 100 : 0,
-    averageUsed: entitlementsCount > 0 ? 
-      Math.round((totalUsedDays / entitlementsCount) * 100) / 100 : 0,
-    averagePending: entitlementsCount > 0 ? 
-      Math.round((totalPendingDays / entitlementsCount) * 100) / 100 : 0,
-    totalVacationLiability,
-    vacationEntitlementsCount: entitlementsCount,
-    totalEntitlementsCount: allEntitlements?.aggregate?.count || 0,
-    activeEmployeesCount
-  };
-};
-
-// ✅ Hybrid Processing: Server Aggregations + Client Grouping
-export const processHybridDashboardData = (aggregationResult: any, catalogMaps: any) => {
-  const { rawAbsences, ...aggregations } = aggregationResult;
-
-  console.log('🚀 Processing Hybrid Dashboard Data', {
-    totalAggregations: Object.keys(aggregations).length,
-    rawAbsencesCount: rawAbsences?.length || 0,
-    catalogs: {
-      absenceGroups: Object.keys(catalogMaps.absenceGroupsMap || {}).length,
-      absenceTypes: Object.keys(catalogMaps.absenceTypesMap || {}).length
-    }
-  });
-
-  // ✅ SERVER-SIDE: Process KPI aggregations
-  const kpiData = processKPIAggregations(aggregations);
-
-  // ✅ SERVER-SIDE: Process vacation entitlements
-  const vacationData = processVacationEntitlementsAggregations(aggregations);
-
-  // ✅ CLIENT-SIDE: Process department grouping (using existing utilities)
-  const departmentStats = rawAbsences ? 
-    groupAbsencesByDepartment(rawAbsences.map((absence: any) => ({
-      ...absence,
-      groupName: catalogMaps.absenceGroupsMap[absence.type?.parentEntry?.id] || 'Unknown Group'
-    }))) : [];
-
-  // ✅ CLIENT-SIDE: Process monthly trends (using existing utilities)
-  const monthlyData = rawAbsences ? 
-    groupAbsencesByMonth(rawAbsences.map((absence: any) => ({
-      ...absence,
-      groupName: catalogMaps.absenceGroupsMap[absence.type?.parentEntry?.id] || 'Unknown Group'
-    }))) : [];
-
-  // ✅ CLIENT-SIDE: Enhanced type breakdown using server data
-  const typeBreakdown = kpiData.statusBreakdown.reduce((acc: any, status: any) => {
-    acc[status.status] = status.count;
-    return acc;
-  }, {});
-
-  console.log('✅ Hybrid Processing Complete', {
-    serverSideKPIs: {
-      totalAbsences: kpiData.totalAbsences,
-      avgDuration: kpiData.avgDuration,
-      statusBreakdown: kpiData.statusBreakdown.length
-    },
-    serverSideVacation: {
-      averageVacationDays: vacationData.averageVacationDays,
-      totalLiability: vacationData.totalVacationLiability
-    },
-    clientSideGrouping: {
-      departmentStats: departmentStats.length,
-      monthlyData: monthlyData.length
-    }
-  });
-
-  return {
-    // Raw data (for drill-downs)
-    rawAbsences: rawAbsences || [],
-    
-    // Server-side aggregated KPIs
-    totalAbsences: kpiData.totalAbsences,
-    avgDuration: kpiData.avgDuration,
-    absencesPerEmployee: kpiData.absencesPerEmployee,
-    avgDaysPerEmployee: kpiData.avgDaysPerEmployee,
-    
-    // Server-side vacation metrics
-    ...vacationData,
-    
-    // Client-side grouped data (for charts)
-    departmentStats,
-    monthlyData,
-    typeBreakdown,
-    
-    // Status breakdown for pie chart
-    statusBreakdown: kpiData.statusBreakdown,
-    
-    // Additional metrics
-    activeEmployeesCount: kpiData.activeEmployeesCount,
-    totalEffectiveDays: kpiData.totalEffectiveDays
-  };
-};
-
-// ✅ Data Validation & Comparison
-export const validateServerClientConsistency = (serverData: any, clientData: any) => {
-  const serverTotal = serverData.totalAbsences || 0;
-  const clientTotal = clientData.totalAbsences || 0;
-  const difference = Math.abs(serverTotal - clientTotal);
-  const tolerance = 0.01; // Allow small rounding differences
-
-  console.log('🔍 Server vs Client Data Validation', {
-    server: {
-      totalAbsences: serverTotal,
-      avgDuration: serverData.avgDuration
-    },
-    client: {
-      totalAbsences: clientTotal,
-      avgDuration: clientData.avgDuration
-    },
-    difference,
-    isConsistent: difference <= tolerance
-  });
-
-  return {
-    isConsistent: difference <= tolerance,
-    difference,
-    details: {
-      server: serverTotal,
-      client: clientTotal,
-      tolerance
-    }
-  };
-};
-
-// ✅ Performance Metrics
-export const measureAggregationPerformance = (startTime: number, dataSize: number) => {
-  const endTime = performance.now();
-  const processingTime = endTime - startTime;
-  const throughput = dataSize > 0 ? (dataSize / processingTime) * 1000 : 0;
-
-  console.log('📈 Aggregation Performance Metrics', {
-    processingTime: `${processingTime.toFixed(2)}ms`,
-    dataSize: `${dataSize} records`,
-    throughput: `${throughput.toFixed(0)} records/second`,
-    efficiency: processingTime < 100 ? 'Excellent' : processingTime < 500 ? 'Good' : 'Needs Optimization'
-  });
-
-  return {
-    processingTime,
-    dataSize,
-    throughput,
-    efficiency: processingTime < 100 ? 'Excellent' : processingTime < 500 ? 'Good' : 'Needs Optimization'
-  };
 }; 

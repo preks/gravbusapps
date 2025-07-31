@@ -185,8 +185,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           endDate={absenceDetailsFilter.endDate}
           status={absenceDetailsFilter.status}
           department={displayDepartment}
-          departmentId={absenceDetailsFilter.departmentId}
-          timeFilter={timeFilter}
+          dashboardData={dashboardData}
           onNavigateBack={handleNavigateBackToDashboard}
         />
       </div>
