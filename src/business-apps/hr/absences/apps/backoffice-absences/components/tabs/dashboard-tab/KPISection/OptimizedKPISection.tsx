@@ -276,7 +276,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                   if (active && payload && payload.length > 0) {
                     const data = payload[0].payload;
                     return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px]">
+                      <div 
+                        className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-[200px] gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
+                        onClick={() => handleBarChartClick(data)}
+                        onMouseDown={() => handleBarChartClick(data)}
+                        title="Click to view department details"
+                      >
                         <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
                         <div className="gba:space-y-1 gba:text-sm">
                           <p className="gba:text-blue-600">
@@ -295,12 +300,25 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                             Total: {data.totalRequests} requests
                           </p>
                         </div>
+                        <div className="gba:text-xs gba:text-blue-500 gba:mt-3 gba:pt-2 gba:border-t gba:border-gray-200 gba:text-center">
+                          💡 Click to view department details
+                        </div>
                       </div>
                     );
                   }
                   return null;
                 }}
               />
+              {/* Invisible larger clickable area for easier interaction */}
+              <Bar 
+                dataKey="absences" 
+                fill="transparent" 
+                onClick={handleBarChartClick}
+                onMouseDown={handleBarChartClick}
+                style={{ cursor: 'pointer' }}
+                barSize={40}
+              />
+              {/* Visual bar - smaller but sits on top */}
               <Bar 
                 dataKey="absences" 
                 fill="#3498db" 
@@ -308,6 +326,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                 onMouseDown={handleBarChartClick}
                 style={{ cursor: 'pointer' }}
                 radius={[2, 2, 0, 0]}
+                barSize={24}
               />
             </BarChart>
           </ResponsiveContainer>
