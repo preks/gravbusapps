@@ -9,6 +9,8 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import {
   GET_EXPENSE_PLAN_YEARLY_TOTAL,
   GET_MONTHLY_SPEND_COMPARISON,
+  GET_SPEND_COMPARISON_YEARLY,
+  GET_SPEND_COMPARISON_QUARTERLY,
   GET_YTD_STATS,
   GET_MONTHLY_EXPENSE_TRENDS,
   GET_ADDITIONAL_DASHBOARD_METRICS,
@@ -197,6 +199,85 @@ export const useDashboardStats = ({
 
       const { quarterStart, quarterEnd } = getQuarterDates(currentDate);
 
+      // Calculate previous periods for comparison
+      const getPreviousQuarterDates = (date: Date) => {
+        const month = date.getMonth();
+        const year = date.getFullYear();
+
+        // Determine which quarter we're in (0-3)
+        const quarter = Math.floor(month / 3);
+
+        // Calculate previous quarter
+        let previousQuarter = quarter - 1;
+        let previousYear = year;
+
+        if (previousQuarter < 0) {
+          previousQuarter = 3; // Q4 of previous year
+          previousYear = year - 1;
+        }
+
+        // Calculate start and end of previous quarter
+        const previousQuarterStartMonth = previousQuarter * 3; // 0, 3, 6, 9
+        const previousQuarterEndMonth = previousQuarterStartMonth + 2; // 2, 5, 8, 11
+
+        const previousQuarterStart = new Date(
+          previousYear,
+          previousQuarterStartMonth,
+          1
+        )
+          .toISOString()
+          .split("T")[0];
+        const previousQuarterEnd = new Date(
+          previousYear,
+          previousQuarterEndMonth + 1,
+          0,
+          23,
+          59,
+          59
+        )
+          .toISOString()
+          .split("T")[0];
+
+        return { previousQuarterStart, previousQuarterEnd };
+      };
+
+      const { previousQuarterStart, previousQuarterEnd } =
+        getPreviousQuarterDates(currentDate);
+
+      // Calculate previous year dates for comparison
+      const previousYearStartForComparison = new Date(currentYear - 1, 0, 1)
+        .toISOString()
+        .split("T")[0];
+      const previousYearEndForComparison = new Date(
+        currentYear - 1,
+        11,
+        31,
+        23,
+        59,
+        59
+      )
+        .toISOString()
+        .split("T")[0];
+
+      // Calculate previous month dates for comparison
+      const previousMonthStartForComparison = new Date(
+        currentYear,
+        currentDate.getMonth() - 1,
+        1
+      )
+        .toISOString()
+        .split("T")[0];
+      const previousMonthEndForComparison = new Date(
+        currentYear,
+        currentDate.getMonth(),
+        0,
+        23,
+        59,
+        59
+      )
+        .toISOString()
+        .split("T")[0];
+
       // ⚡ OPTIMIZATION: Only fetch currency-dependent data when currency changes
       const selectedCurrency =
         filters.currency && filters.currency.trim() !== ""
@@ -322,13 +403,35 @@ export const useDashboardStats = ({
             startOfYearTs,
             endOfYearTs,
           }),
-          client.request(GET_MONTHLY_SPEND_COMPARISON, {
-            currentMonthStart,
-            currentMonthEnd,
-            previousMonthStart,
-            previousMonthEnd,
-            selectedCurrency: selectedCurrency,
-          }),
+          // Get spend comparison based on period
+          (async () => {
+            if (filters.period === "yearly") {
+              return await client.request(GET_SPEND_COMPARISON_YEARLY, {
+                selectedCurrency: selectedCurrency,
+                currentYearStart: startOfYear,
+                currentYearEnd: currentYearEnd,
+                previousYearStart: previousYearStartForComparison,
+                previousYearEnd: previousYearEndForComparison,
+              });
+            } else if (filters.period === "quarterly") {
+              return await client.request(GET_SPEND_COMPARISON_QUARTERLY, {
+                selectedCurrency: selectedCurrency,
+                currentQuarterStart: quarterStart,
+                currentQuarterEnd: quarterEnd,
+                previousQuarterStart: previousQuarterStart,
+                previousQuarterEnd: previousQuarterEnd,
+              });
+            } else {
+              // monthly (default)
+              return await client.request(GET_MONTHLY_SPEND_COMPARISON, {
+                currentMonthStart,
+                currentMonthEnd,
+                previousMonthStart: previousMonthStartForComparison,
+                previousMonthEnd: previousMonthEndForComparison,
+                selectedCurrency: selectedCurrency,
+              });
+            }
+          })(),
           client.request(GET_YTD_STATS, {
             currentYearStart,
             currentYTD,
@@ -469,15 +572,31 @@ export const useDashboardStats = ({
             monthlySpendComparison: {
               currentMonthTotal:
                 monthlyStatsResponse?.currentMonthExpenses?.aggregate?.sum
-                  ?.totalAmount || 0,
+                  ?.totalAmount ||
+                monthlyStatsResponse?.currentYearExpenses?.aggregate?.sum
+                  ?.totalAmount ||
+                monthlyStatsResponse?.currentQuarterExpenses?.aggregate?.sum
+                  ?.totalAmount ||
+                0,
               previousMonthTotal:
                 monthlyStatsResponse?.previousMonthExpenses?.aggregate?.sum
-                  ?.totalAmount || 0,
+                  ?.totalAmount ||
+                monthlyStatsResponse?.previousYearExpenses?.aggregate?.sum
+                  ?.totalAmount ||
+                monthlyStatsResponse?.previousQuarterExpenses?.aggregate?.sum
+                  ?.totalAmount ||
+                0,
               currentMonthCount:
                 monthlyStatsResponse?.currentMonthExpenses?.aggregate?.count ||
+                monthlyStatsResponse?.currentYearExpenses?.aggregate?.count ||
+                monthlyStatsResponse?.currentQuarterExpenses?.aggregate
+                  ?.count ||
                 0,
               previousMonthCount:
                 monthlyStatsResponse?.previousMonthExpenses?.aggregate?.count ||
+                monthlyStatsResponse?.previousYearExpenses?.aggregate?.count ||
+                monthlyStatsResponse?.previousQuarterExpenses?.aggregate
+                  ?.count ||
                 0,
               percentChange: 0, // Will be calculated below
               isIncrease: false, // Will be calculated below

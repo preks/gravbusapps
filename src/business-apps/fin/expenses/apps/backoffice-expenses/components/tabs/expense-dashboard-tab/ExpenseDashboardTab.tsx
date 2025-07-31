@@ -60,16 +60,38 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     }).format(value);
   };
 
-  const getCurrentMonthName = (): string => {
-    const date = new Date();
-    return date.toLocaleString('default', { month: 'long' });
-  };
+     const getCurrentPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return date.getFullYear().toString();
+       case 'quarterly':
+         const quarter = Math.floor(date.getMonth() / 3) + 1;
+         return `Q${quarter} ${date.getFullYear()}`;
+       default:
+         return date.toLocaleString('default', { month: 'long' });
+     }
+   };
 
-  const getPreviousMonthName = (): string => {
-    const date = new Date();
-    const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-    return previousMonth.toLocaleString('default', { month: 'long' });
-  };
+   const getPreviousPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return (date.getFullYear() - 1).toString();
+       case 'quarterly':
+         const currentQuarter = Math.floor(date.getMonth() / 3);
+         let previousQuarter = currentQuarter - 1;
+         let previousYear = date.getFullYear();
+         if (previousQuarter < 0) {
+           previousQuarter = 3;
+           previousYear = previousYear - 1;
+         }
+         return `Q${previousQuarter + 1} ${previousYear}`;
+       default:
+         const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+         return previousMonth.toLocaleString('default', { month: 'long' });
+     }
+   };
 
   // Helper function to extract currency code from currencyRef
   const extractCurrencyCode = (currencyRef: string): string => {
@@ -135,22 +157,44 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       iconColor: actualVsPlannedPercentage <= 100 ? '#52c41a' : '#ff4d4f'
     });
 
-    // 3. Monthly Spend Comparison Card
-    const monthlyComparison = stats.monthlySpendComparison;
-    cards.push({
-      id: 'monthly-spend-comparison',
-      title: `Monthly Spend Comparison (${selectedCurrencyCode})`,
-      value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
-      decimalPlaces: 1,
-      footer: `${getCurrentMonthName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
-      trend: {
-        value: Math.abs(monthlyComparison.percentChange).toFixed(1),
-        positive: monthlyComparison.isIncrease,
-        description: monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month'
-      },
-      icon: 'calendar',
-      iconColor: monthlyComparison.isIncrease ? '#ff4d4f' : '#52c41a'
-    });
+         // 3. Spend Comparison Card
+     const monthlyComparison = stats.monthlySpendComparison;
+     const getComparisonTitle = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return `Yearly Spend Comparison (${selectedCurrencyCode})`;
+         case 'quarterly':
+           return `Quarterly Spend Comparison (${selectedCurrencyCode})`;
+         default:
+           return `Monthly Spend Comparison (${selectedCurrencyCode})`;
+       }
+     };
+
+     const getComparisonDescription = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return monthlyComparison.isIncrease ? 'increase vs last year' : 'decrease vs last year';
+         case 'quarterly':
+           return monthlyComparison.isIncrease ? 'increase vs last quarter' : 'decrease vs last quarter';
+         default:
+           return monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month';
+       }
+     };
+
+     cards.push({
+       id: 'monthly-spend-comparison',
+       title: getComparisonTitle(),
+       value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
+       decimalPlaces: 1,
+       footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
+       trend: {
+         value: Math.abs(monthlyComparison.percentChange).toFixed(1),
+         positive: monthlyComparison.isIncrease,
+         description: getComparisonDescription()
+       },
+       icon: 'calendar',
+       iconColor: monthlyComparison.isIncrease ? '#ff4d4f' : '#52c41a'
+     });
 
     // 4. Transfer Required Card
     const getTransferRequiredFooter = () => {

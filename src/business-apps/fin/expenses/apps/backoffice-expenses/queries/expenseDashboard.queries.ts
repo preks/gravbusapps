@@ -368,3 +368,69 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
     }
   }
 `;
+
+export const GET_SPEND_COMPARISON_YEARLY = `
+  query GetSpendComparisonYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp) {
+    currentYearExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    previousYearExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_SPEND_COMPARISON_QUARTERLY = `
+  query GetSpendComparisonQuarterly($selectedCurrency: String, $currentQuarterStart: timestamp, $currentQuarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp) {
+    currentQuarterExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $currentQuarterStart, _lte: $currentQuarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    previousQuarterExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { endDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;
