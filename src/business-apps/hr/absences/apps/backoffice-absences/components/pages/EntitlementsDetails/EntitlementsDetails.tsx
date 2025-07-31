@@ -16,7 +16,7 @@ import { DataContainer } from '../../../../../../../../components/layout/dataCon
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../../../common/network/catalogs/useCatalogManagerClient';
-import { TimeFilter } from '../../../types';
+import { TimeFilter, DataFilterGroup } from '../../../types';
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter;
@@ -36,23 +36,6 @@ interface DetailedEntitlement {
   used: number;
   available: number;
   status: string;
-}
-
-// Filter interfaces matching DataContainer expectations
-interface DataFilter {
-  id: string;
-  label: string;
-  selected: boolean;
-  count?: number;
-}
-
-interface DataFilterGroup {
-  id: string;
-  title: string;
-  filters?: DataFilter[];
-  backendSearch?: (search: string) => { filters: DataFilter[]; loading: boolean; error: any };
-  customComponent?: React.ReactElement;
-  hideSearch?: boolean;
 }
 
 type SortField = 'employeeName' | 'organizationalUnit' | 'absenceType' | 'entitlement' | 'validFrom' | 'validTo' | 'used' | 'available';

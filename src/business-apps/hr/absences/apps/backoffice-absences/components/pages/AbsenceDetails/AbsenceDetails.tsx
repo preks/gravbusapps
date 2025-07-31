@@ -31,49 +31,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   // Get dashboard data to show calculations - USE SAME TIME FILTER AS MAIN DASHBOARD
   const dashboardData = useDashboardData({ accessToken, userInfo, timeFilter });
 
-      // Debug: Log to confirm we're using the dashboard data source
-    console.log('🔍 AbsenceDetails Data Source:', {
-      timeFilter,
-      dataSource: 'Dashboard rawAbsences (will be filtered for specific month)',
-      totalDashboardAbsences: dashboardData.totalAbsences,
-      totalRawAbsences: dashboardData.rawAbsences?.length,
-      monthRequested: month,
-      dateRange: `${startDate} to ${endDate}`,
-      note: 'Filtering will happen next...'
-    });
-
-  const getMonthDisplayName = (shortMonth?: string) => {
-    const monthMap: Record<string, string> = {
-      'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
-      'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
-      'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
-    };
-    return monthMap[shortMonth || ''] || shortMonth || 'Unknown Month';
-  };
-
-  // Get calculations for the specific month
-  const getMonthCalculations = () => {
-    if (!dashboardData?.monthlyData || !month) {
-      return null;
-    }
-
-    const monthName = getMonthDisplayName(month);
-    const monthData = dashboardData.monthlyData.find((trend: any) => trend.month === monthName);
-    
-    if (!monthData) return null;
-
-    return {
-      totalRequests: Object.values(monthData.typeBreakdown || {}).reduce((sum: number, count: number) => sum + count, 0),
-      uniqueEmployees: monthData.uniqueEmployees || 0,
-      avgRequestsPerEmployee: monthData.avgRequestsPerEmployee || 0,
-      avgDurationPerRequest: monthData.avgDurationPerRequest || 0,
-      totalDuration: monthData.totalDuration || 0
-    };
-  };
-
-  const monthCalculations = getMonthCalculations();
-
-  // 🎯 FILTER rawAbsences for the specific month/date range
+  // 🎯 FILTER rawAbsences for the specific month/date range - MOVE THIS BEFORE EARLY RETURNS
   const filteredAbsencesForMonth = useMemo(() => {
     if (!startDate || !endDate || !dashboardData.rawAbsences) {
       return { 
@@ -93,54 +51,46 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
     const rangeStart = new Date(startDate);
     const rangeEnd = new Date(endDate);
-    
-    let fullyWithin = 0;
-    let spanningInto = 0; // starts before, ends within
-    let spanningOut = 0;  // starts within, ends after
-    let spanningAcross = 0; // starts before, ends after (spans across entire month)
 
-    // Collect actual requests for each category
+    // Filter absences using overlap logic
+    const filtered = dashboardData.rawAbsences.filter((absence: any) => {
+      const absenceStart = new Date(absence.startDate);
+      const absenceEnd = new Date(absence.endDate);
+      
+      // Overlap logic: absence overlaps with the month if:
+      // absence start <= month end AND absence end >= month start
+      return absenceStart <= rangeEnd && absenceEnd >= rangeStart;
+    });
+
+    // Categorize overlapping types for analysis
+    const fullyWithinRequests: any[] = [];
     const spanningIntoRequests: any[] = [];
     const spanningOutRequests: any[] = [];
-    const fullyWithinRequests: any[] = [];
     const spanningAcrossRequests: any[] = [];
 
-    const filtered = dashboardData.rawAbsences.filter((absence: any) => {
-      // Use overlap logic: absence overlaps with the requested date range
+    filtered.forEach((absence: any) => {
       const absenceStart = new Date(absence.startDate);
       const absenceEnd = new Date(absence.endDate);
 
-      const overlaps = absenceStart <= rangeEnd && absenceEnd >= rangeStart;
-      
-      if (overlaps) {
-        // Categorize the type of overlap and collect the requests
-        if (absenceStart >= rangeStart && absenceEnd <= rangeEnd) {
-          fullyWithin++;
-          fullyWithinRequests.push(absence);
-        } else if (absenceStart < rangeStart && absenceEnd <= rangeEnd) {
-          spanningInto++;
-          spanningIntoRequests.push(absence);
-        } else if (absenceStart >= rangeStart && absenceEnd > rangeEnd) {
-          spanningOut++;
-          spanningOutRequests.push(absence);
-        } else if (absenceStart < rangeStart && absenceEnd > rangeEnd) {
-          spanningAcross++;
-          spanningAcrossRequests.push(absence);
-        }
+      if (absenceStart >= rangeStart && absenceEnd <= rangeEnd) {
+        fullyWithinRequests.push(absence);
+      } else if (absenceStart < rangeStart && absenceEnd <= rangeEnd) {
+        spanningIntoRequests.push(absence);
+      } else if (absenceStart >= rangeStart && absenceEnd > rangeEnd) {
+        spanningOutRequests.push(absence);
+      } else if (absenceStart < rangeStart && absenceEnd > rangeEnd) {
+        spanningAcrossRequests.push(absence);
       }
-
-      return overlaps;
     });
 
-    const overlappingInfo = { 
-      fullyWithin, 
-      spanningInto, 
-      spanningOut, 
-      spanningAcross,
-      // Add the actual requests for each category
+    const overlappingInfo = {
+      fullyWithin: fullyWithinRequests.length,
+      spanningInto: spanningIntoRequests.length,
+      spanningOut: spanningOutRequests.length,
+      spanningAcross: spanningAcrossRequests.length,
+      fullyWithinRequests,
       spanningIntoRequests,
       spanningOutRequests,
-      fullyWithinRequests,
       spanningAcrossRequests
     };
 
@@ -155,6 +105,104 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
     return { absences: filtered, overlappingInfo };
   }, [dashboardData.rawAbsences, startDate, endDate, month]);
+
+  // Debug: Log to confirm we're using the dashboard data source
+  console.log('🔍 AbsenceDetails Data Source:', {
+    timeFilter,
+    dataSource: 'Dashboard rawAbsences (will be filtered for specific month)',
+    isLoading: dashboardData.isLoading,
+    error: dashboardData.error,
+    totalDashboardAbsences: dashboardData.totalAbsences,
+    totalRawAbsences: dashboardData.rawAbsences?.length,
+    monthlyDataAvailable: !!dashboardData.monthlyData?.length,
+    departmentStatsAvailable: !!dashboardData.departmentStats?.length,
+    monthRequested: month,
+    dateRange: `${startDate} to ${endDate}`,
+    note: 'Checking if calculations data is available...'
+  });
+
+  // 🚀 CRITICAL: Handle loading state properly - AFTER ALL HOOKS
+  if (dashboardData.isLoading) {
+    return (
+      <div className="gba:p-6">
+        <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
+          <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
+            <PiArrowLeft />
+            Back to Dashboard
+          </Button>
+        </div>
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+          <div className="gba:text-gray-600">Loading absence details...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🚀 CRITICAL: Handle error state properly - AFTER ALL HOOKS 
+  if (dashboardData.error) {
+    return (
+      <div className="gba:p-6">
+        <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
+          <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
+            <PiArrowLeft />
+            Back to Dashboard
+          </Button>
+        </div>
+        <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg gba:p-4">
+          <div className="gba:text-red-800 gba:font-medium">Error loading absence details</div>
+          <div className="gba:text-red-600 gba:text-sm gba:mt-1">{dashboardData.error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const getMonthDisplayName = (shortMonth?: string) => {
+    const monthMap: Record<string, string> = {
+      'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+      'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+      'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+    };
+    return monthMap[shortMonth || ''] || shortMonth || 'Unknown Month';
+  };
+
+  // Get calculations for the specific month
+  const getMonthCalculations = () => {
+    if (!dashboardData?.monthlyData || !month) {
+      console.log('🔍 getMonthCalculations: Early return', {
+        hasMonthlyData: !!dashboardData?.monthlyData,
+        monthlyDataLength: dashboardData?.monthlyData?.length,
+        hasMonth: !!month,
+        month
+      });
+      return null;
+    }
+
+    const monthName = getMonthDisplayName(month);
+    const monthData = dashboardData.monthlyData.find((trend: any) => trend.month === monthName);
+    
+    console.log('🔍 getMonthCalculations: Looking for month data', {
+      requestedMonth: month,
+      monthDisplayName: monthName,
+      availableMonths: dashboardData.monthlyData.map((d: any) => d.month),
+      foundMonthData: !!monthData,
+      monthDataStructure: monthData ? Object.keys(monthData) : null
+    });
+    
+    if (!monthData) return null;
+
+    const calculations = {
+      totalRequests: Object.values(monthData.typeBreakdown || {}).reduce((sum: number, count: number) => sum + count, 0),
+      uniqueEmployees: monthData.uniqueEmployees || 0,
+      avgRequestsPerEmployee: monthData.avgRequestsPerEmployee || 0,
+      avgDurationPerRequest: monthData.avgDurationPerRequest || 0,
+      totalDuration: monthData.totalDuration || 0
+    };
+
+    console.log('✅ getMonthCalculations: Calculated', calculations);
+    return calculations;
+  };
+
+  const monthCalculations = getMonthCalculations();
 
   // Debug: Log filtering results
   console.log('✅ AbsenceDetails: Month filtering completed:', {
@@ -360,6 +408,19 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               </div>
               
               {/* Department Statistics Grid */}
+              {(() => {
+                const deptStats = dashboardData?.departmentStats?.find(d => d.name === department);
+                console.log('🔍 Department Stats Debug:', {
+                  department,
+                  hasDepartmentStats: !!dashboardData?.departmentStats,
+                  departmentStatsCount: dashboardData?.departmentStats?.length,
+                  availableDepartments: dashboardData?.departmentStats?.map(d => d.name),
+                  foundDeptStats: !!deptStats,
+                  deptStatsStructure: deptStats ? Object.keys(deptStats) : null,
+                  deptStatsValues: deptStats
+                });
+                return null;
+              })()}
               <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
                 <div className="gba:text-center gba:p-3 gba:bg-white gba:rounded gba:border gba:border-gray-200">
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-800">

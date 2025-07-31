@@ -20,53 +20,7 @@ import { useCatalogManagerClient } from '../../../../../../../../../common/netwo
 import dayjs from 'dayjs';
 import { DateRangeFilter } from './DateRangeFilter';
 import { CreationDateFilter } from './CreationDateFilter';
-
-// Enhanced absence interface matching manager-absences pattern
-export interface EnhancedAbsence {
-  id: string;
-  employee: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    pictureThumbnail: string;
-    employeePosition: {
-      organizationalUnit: {
-        id: string;
-        name: string;
-      };
-    };
-  };
-  type: {
-    id: string;
-    value: string;
-    parentEntryId: string;
-  };
-  startDate: string;
-  endDate: string;
-  effectiveDays: number;
-  calendarDays: number;
-  status: string;
-  createdAt: string;
-  employeeName: string;
-  groupName: string;
-}
-
-// Filter interfaces matching DataContainer expectations
-interface DataFilter {
-  id: string;
-  label: string;
-  selected: boolean;
-  count?: number;
-}
-
-interface DataFilterGroup {
-  id: string;
-  title: string;
-  filters?: DataFilter[];
-  backendSearch?: (search: string) => { filters: DataFilter[]; loading: boolean; error: any };
-  customComponent?: React.ReactElement;
-  hideSearch?: boolean;
-}
+import { EnhancedAbsence, DataFilterGroup } from '../../../../types';
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList';
 
@@ -166,6 +120,45 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   useEffect(() => {
     fetchTeamEmployees();
   }, [fetchTeamEmployees]);
+
+  // 🚀 FIX: Always fetch absence groups catalog data (regardless of preFilteredData)
+  useEffect(() => {
+    const fetchAbsenceGroupsCatalog = async () => {
+      if (!accessToken) return;
+
+      try {
+        console.log('🔍 Fetching absence groups catalog for filters...');
+        
+        // Fetch catalog data for absence groups with proper auth parameters
+        const catalogData = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        );
+        
+        const groupsMap: Record<string, string> = {};
+        catalogData.data.forEach((entry: any) => {
+          groupsMap[entry.id] = entry.value;
+          // Map by both the main id and the catalogEntryLocalId for compatibility
+          if (entry.catalogEntryLocalId) {
+            groupsMap[entry.catalogEntryLocalId] = entry.value;
+          }
+        });
+        
+        setAbsenceGroups(groupsMap);
+        console.log('✅ Absence groups loaded for filters:', {
+          groupCount: Object.keys(groupsMap).length,
+          groups: Object.values(groupsMap),
+          note: 'Groups will now appear in filter options'
+        });
+        
+      } catch (error) {
+        console.error('❌ Error fetching absence groups catalog:', error);
+        setAbsenceGroups({});
+      }
+    };
+
+    fetchAbsenceGroupsCatalog();
+  }, [accessToken, catalogClient]);
 
   // Fetch organizational units for department filter (only those with employees)
   const fetchOrganizationalUnits = useCallback(async () => {
@@ -487,21 +480,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         return;
       }
       
-      // Fetch catalog data for absence groups with proper auth parameters
-      const catalogData = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      );
-      
-      const groupsMap: Record<string, string> = {};
-      catalogData.data.forEach((entry: any) => {
-        groupsMap[entry.id] = entry.value;
-        // Map by both the main id and the catalogEntryLocalId for compatibility
-        if (entry.catalogEntryLocalId) {
-          groupsMap[entry.catalogEntryLocalId] = entry.value;
-        }
-      });
-      setAbsenceGroups(groupsMap);
+      // 🚀 Catalog data is now fetched in separate useEffect
 
       const whereConditions = buildWhereConditions();
       
@@ -593,7 +572,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         return {
           ...absence,
           employeeName,
-          groupName: groupsMap[absence.type.parentEntryId] || absence.type.value
+          groupName: absenceGroups[absence.type.parentEntryId] || absence.type.value
         };
       });
 

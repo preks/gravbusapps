@@ -79,8 +79,9 @@ export const getDateFilters = (timeFilter: string) => {
 };
 
 // Dashboard query using string interpolation (ORIGINAL WORKING APPROACH)
-export const getDashboardQuery = (dateFilters: any): string => {
+export const getDashboardQuery = (timeFilter: string): string => {
   const currentDate = new Date().toISOString();
+  const dateFilters = getDateFilters(timeFilter);
   
   let absenceWhere = `where: { 
     _and: [

@@ -9,6 +9,7 @@ interface DashboardTabProps extends TabComponentProps {
   timeFilter?: TimeFilter;
   onTimeFilterChange?: (filter: TimeFilter) => void;
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void;
+  onNavigateToEntitlements?: () => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -18,7 +19,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onMonthClick,
   timeFilter = 'current-year',
   onTimeFilterChange,
-  onNavigateToDetails
+  onNavigateToDetails,
+  onNavigateToEntitlements
 }) => {
   if (!dashboardData) {
     return <div>Loading dashboard data...</div>;
@@ -57,6 +59,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         dashboardData={dashboardData}
         timeFilter={timeFilter}
         onNavigateToDetails={onNavigateToDetails}
+        onNavigateToEntitlements={onNavigateToEntitlements}
       />
       
       <OptimizedAbsenceTrends

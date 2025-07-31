@@ -6,7 +6,7 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
 
 // 🚀 OPTIMIZED: Using new organized tab structure following manager-absences pattern
 import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab } from './components/tabs';
-import { AbsenceDetails } from './components/pages/AbsenceDetails';
+import { AbsenceDetails, EntitlementsDetails } from './components/pages';
 import { useDashboardData } from './hooks/useDashboardData';
 import { AbsenceDetailsFilter } from './types';
 
@@ -14,7 +14,7 @@ export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
 const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, userInfo }) => {
   // State for current view/page - following manager-absences pattern
-  const [currentView, setCurrentView] = useState<'tabs' | 'absence-details'>('tabs');
+  const [currentView, setCurrentView] = useState<'tabs' | 'absence-details' | 'entitlements-details'>('tabs');
   // State for active tab within the tabs view
   const [activeTab, setActiveTab] = useState('dashboard');
   // State for absence details page filters
@@ -70,6 +70,11 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     setCurrentView('absence-details');
   };
 
+  // Handle navigation to entitlements details
+  const handleNavigateToEntitlementsDetails = () => {
+    setCurrentView('entitlements-details');
+  };
+
   // Tab view options like in manager expenses
   const viewOptions = [
     {
@@ -106,6 +111,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
             timeFilter={timeFilter}
             onTimeFilterChange={setTimeFilter}
             onNavigateToDetails={handleNavigateToAbsenceDetailsWithFilters}
+            onNavigateToEntitlements={handleNavigateToEntitlementsDetails}
           />
         );
       case 'absence-list':
@@ -156,6 +162,20 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           status={absenceDetailsFilter.status}
           department={displayDepartment}
           departmentId={absenceDetailsFilter.departmentId}
+          timeFilter={timeFilter}
+          onNavigateBack={handleNavigateBackToDashboard}
+        />
+      </div>
+    );
+  }
+
+  // Render entitlements details page
+  if (currentView === 'entitlements-details') {
+    return (
+      <div data-testid="backoffice-absences-container">
+        <EntitlementsDetails
+          accessToken={accessToken}
+          userInfo={userInfo}
           timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />

@@ -45,6 +45,9 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: D
     setData(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
+      // 🔧 FIX: Set access token for catalog client
+      catalogClient.setAccessToken(accessToken);
+      
       // Fetch both absence groups AND absence types from catalogs with correct parameters
       console.log('🔍 Fetching absence catalogs with proper auth parameters...');
       const [groupsCatalogData, typesCatalogData] = await Promise.all([
@@ -100,7 +103,7 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: D
         expectedResult: 'Chart (37) and list (35) should now match!'
       });
       
-      const query = getDashboardQuery(dateFilters);
+      const query = getDashboardQuery(timeFilter);
       const result = await graphQLClient.request(query);
 
       const rawAbsences = result?.employeeAbsences || [];

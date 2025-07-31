@@ -130,6 +130,23 @@ export interface DateFilters {
   endDate: string;
 }
 
+// Filter interfaces for DataContainer (centralized)
+export interface DataFilter {
+  id: string;
+  label: string;
+  selected: boolean;
+  count?: number;
+}
+
+export interface DataFilterGroup {
+  id: string;
+  title: string;
+  filters?: DataFilter[];
+  backendSearch?: (search: string) => { filters: DataFilter[]; loading: boolean; error: any };
+  customComponent?: React.ReactElement;
+  hideSearch?: boolean;
+}
+
 // Component props interfaces
 export interface TabComponentProps extends BusinessAppContextProps {
   dashboardData?: DashboardData;
