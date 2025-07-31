@@ -303,14 +303,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SIDEBAR_COLLAPSED, String(collapsed));
     
-    // When menu expands, restore open keys for current app
-    // When menu collapses, clear open keys
+    // When menu expands, restore the path to current app
     if (!collapsed && selectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(selectedApp);
       setOpenKeys(requiredKeys);
-    } else if (collapsed) {
-      // Don't clear the openKeys state, just let the Menu component ignore them
-      // This way when we expand again, the state is preserved
     }
   }, [collapsed, selectedApp]);
 
@@ -415,10 +411,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
    * Handles menu open keys change
    */
   const handleOpenChange = (keys: string[]): void => {
-    // Only update open keys when menu is not collapsed
-    if (!collapsed) {
-      setOpenKeys(keys);
-    }
+    setOpenKeys(keys);
   };
 
   /**
@@ -758,7 +751,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <Menu
               mode="inline"
               selectedKeys={selectedApp ? [selectedApp.screenKey] : ["home"]}
-              openKeys={collapsed ? [] : openKeys}
+              openKeys={openKeys}
               onOpenChange={handleOpenChange}
               style={{ borderRight: 0 }}
               items={getMenuItems()}
