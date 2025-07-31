@@ -61,13 +61,14 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   };
 
   const getCurrentMonthName = (): string => {
-    return new Date().toLocaleString('default', { month: 'long' });
+    const date = new Date();
+    return date.toLocaleString('default', { month: 'long' });
   };
 
   const getPreviousMonthName = (): string => {
     const date = new Date();
-    date.setMonth(date.getMonth() - 1);
-    return date.toLocaleString('default', { month: 'long' });
+    const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+    return previousMonth.toLocaleString('default', { month: 'long' });
   };
 
   // Helper function to extract currency code from currencyRef
@@ -138,14 +139,13 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const monthlyComparison = stats.monthlySpendComparison;
     cards.push({
       id: 'monthly-spend-comparison',
-      title: 'Monthly Spend Comparison',
-      value: Math.abs(monthlyComparison.percentChange).toFixed(1),
-      suffix: '%',
+      title: `Monthly Spend Comparison (${selectedCurrencyCode})`,
+      value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
       decimalPlaces: 1,
-      footer: `${getCurrentMonthName()}: ${formatCurrency(monthlyComparison.currentMonthTotal)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(monthlyComparison.previousMonthTotal)} (${monthlyComparison.previousMonthCount} expenses)`,
+      footer: `${getCurrentMonthName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
       trend: {
         value: Math.abs(monthlyComparison.percentChange).toFixed(1),
-        positive: !monthlyComparison.isIncrease,
+        positive: monthlyComparison.isIncrease,
         description: monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month'
       },
       icon: 'calendar',

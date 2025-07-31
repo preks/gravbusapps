@@ -123,30 +123,36 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
 `;
 
 export const GET_MONTHLY_SPEND_COMPARISON = `
-  query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!) {
-    currentMonthExpenses: ExpenseRequest(
+  query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedCurrency: String) {
+    currentMonthExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _eq: "PAID" } },
-          { currencyRef: { _eq: "Currency:v1:EUR" } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
           { endDate: { _gte: $currentMonthStart } },
           { endDate: { _lt: $currentMonthEnd } }
         ]
       }
     ) {
-      totalAmount
+      aggregate {
+        sum { totalAmount }
+        count
+      }
     }
-    previousMonthExpenses: ExpenseRequest(
+    previousMonthExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _eq: "PAID" } },
-          { currencyRef: { _eq: "Currency:v1:EUR" } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
           { endDate: { _gte: $previousMonthStart } },
           { endDate: { _lt: $previousMonthEnd } }
         ]
       }
     ) {
-      totalAmount
+      aggregate {
+        sum { totalAmount }
+        count
+      }
     }
   }
 `;

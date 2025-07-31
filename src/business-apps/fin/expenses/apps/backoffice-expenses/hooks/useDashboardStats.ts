@@ -229,6 +229,7 @@ export const useDashboardStats = ({
             currentMonthEnd,
             previousMonthStart,
             previousMonthEnd,
+            selectedCurrency: selectedCurrency,
           }),
           client.request(GET_YTD_STATS, {
             currentYearStart,
@@ -299,21 +300,17 @@ export const useDashboardStats = ({
             ),
             monthlySpendComparison: {
               currentMonthTotal:
-                monthlyStatsResponse?.currentMonthExpenses?.reduce(
-                  (sum: number, expense: any) =>
-                    sum + (expense.totalAmount || 0),
-                  0
-                ) || 0,
+                monthlyStatsResponse?.currentMonthExpenses?.aggregate?.sum
+                  ?.totalAmount || 0,
               previousMonthTotal:
-                monthlyStatsResponse?.previousMonthExpenses?.reduce(
-                  (sum: number, expense: any) =>
-                    sum + (expense.totalAmount || 0),
-                  0
-                ) || 0,
+                monthlyStatsResponse?.previousMonthExpenses?.aggregate?.sum
+                  ?.totalAmount || 0,
               currentMonthCount:
-                monthlyStatsResponse?.currentMonthExpenses?.length || 0,
+                monthlyStatsResponse?.currentMonthExpenses?.aggregate?.count ||
+                0,
               previousMonthCount:
-                monthlyStatsResponse?.previousMonthExpenses?.length || 0,
+                monthlyStatsResponse?.previousMonthExpenses?.aggregate?.count ||
+                0,
               percentChange: 0, // Will be calculated below
               isIncrease: false, // Will be calculated below
             },
