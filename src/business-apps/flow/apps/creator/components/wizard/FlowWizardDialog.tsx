@@ -39,7 +39,6 @@ export const FlowWizardDialog: React.FC<FlowWizardDialogProps> = ({
       footer={null}
       width="90vw"
       style={{ maxWidth: '1400px' }}
-      bodyStyle={{ padding: 0, margin: 0 }}
       centered
       destroyOnClose
       maskClosable={false}

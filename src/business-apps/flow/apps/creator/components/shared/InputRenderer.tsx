@@ -1,8 +1,7 @@
 import React from 'react';
-import { Form, Input, Select, Upload, Button, Checkbox, Radio } from 'antd';
-import { PaperClipOutlined } from '@ant-design/icons';
+import { Form, Input, Select, DatePicker, Checkbox } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { InputType } from '../../types/flowTemplate';
+import { InputType } from '@/common/network/flows/FlowTemplateClient';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -54,21 +53,33 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
           </Select>
         );
         
-      case InputType.RADIO:
-      case 'radio': // Handle lowercase for backward compatibility
+      case InputType.MULTISELECT:
         return (
-          <Radio.Group
+          <Select
+            mode="multiple"
+            placeholder={input.placeholder || `Select ${input.label}`}
             data-testid={`${testId}-input-${index}`}
             disabled={readOnly}
           >
-            {input.options?.map((option: any, optIndex: number) => (
-              <div key={optIndex} style={{ marginBottom: '8px' }}>
-                <Radio value={option.value} disabled={readOnly}>
-                  {option.label}
-                </Radio>
-              </div>
-            ))}
-          </Radio.Group>
+            {input.options?.map((option: any, optIndex: number) => {
+              // Handle both string options and {label, value} objects
+              if (typeof option === 'string') {
+                return <Option key={optIndex} value={option}>{option}</Option>;
+              } else if (option && typeof option === 'object' && option.value && option.label) {
+                return <Option key={optIndex} value={option.value}>{option.label}</Option>;
+              }
+              return null;
+            })}
+          </Select>
+        );
+        
+      case InputType.DATE:
+        return (
+          <DatePicker
+            placeholder={input.placeholder || `Select ${input.label}`}
+            data-testid={`${testId}-input-${index}`}
+            disabled={readOnly}
+          />
         );
         
       case InputType.NUMBER:
@@ -79,20 +90,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
             data-testid={`${testId}-input-${index}`}
             disabled={readOnly}
           />
-        );
-
-        
-      case InputType.FILE:
-        return (
-          <Upload
-            beforeUpload={() => false} // Prevent auto upload
-            data-testid={`${testId}-input-${index}`}
-            disabled={readOnly}
-          >
-            <Button icon={<PaperClipOutlined />} disabled={readOnly}>
-              {getTranslationFromI18nKeyAndLabel('flow.step.selectFile', 'Select File')}
-            </Button>
-          </Upload>
         );
         
       case InputType.CHECKBOX:
@@ -141,23 +138,33 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
       label={input.type === InputType.CHECKBOX ? undefined : input.label}
       valuePropName={input.type === InputType.CHECKBOX ? "checked" : "value"}
       rules={[
-        ...(input.type === InputType.CHECKBOX && input.required && !readOnly 
+        // Validation for checkbox groups and multiselect (array values)
+        ...((input.type === InputType.CHECKBOX || input.type === InputType.MULTISELECT) && input.required && !readOnly 
           ? [{ validator: (_: any, value: boolean | string[]) => {
-              // For checkbox groups (multiple options), check if at least one is selected
-              if (input.options && input.options.length > 0) {
+              if (input.type === InputType.CHECKBOX && input.options && input.options.length > 0) {
+                // Checkbox group - check if at least one is selected
+                return (Array.isArray(value) && value.length > 0) 
+                  ? Promise.resolve() 
+                  : Promise.reject(new Error(`${input.label} is required`));
+              } else if (input.type === InputType.CHECKBOX) {
+                // Single checkbox - check if it's checked
+                return value ? Promise.resolve() : Promise.reject(new Error(`${input.label} is required`));
+              } else if (input.type === InputType.MULTISELECT) {
+                // Multiselect - check if at least one is selected
                 return (Array.isArray(value) && value.length > 0) 
                   ? Promise.resolve() 
                   : Promise.reject(new Error(`${input.label} is required`));
               }
-              // For single checkbox, check if it's checked
-              return value ? Promise.resolve() : Promise.reject(new Error(`${input.label} is required`));
+              return Promise.resolve();
             }}]
           : []
         ),
-        ...(input.type !== InputType.CHECKBOX && input.required && !readOnly 
+        // Standard validation for other input types
+        ...(![InputType.CHECKBOX, InputType.MULTISELECT].includes(input.type) && input.required && !readOnly 
           ? [{ required: true, message: `${input.label} is required` }]
           : []
         ),
+        // Number type validation
         ...(input.type === InputType.NUMBER ? [{ type: 'number' as const, message: 'Please enter a valid number' }] : [])
       ]}
     >

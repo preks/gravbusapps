@@ -84,7 +84,7 @@ export const LinksContent: React.FC<LinksContentProps> = ({
       </div>
       
       {links.length > 0 && links.map((link: any, index: number) => (
-        <div key={index} className="gba:p-3 gba:border gba:rounded gba:bg-gray-50">
+        <div key={`link-${index}-${link.name || 'unnamed'}`} className="gba:p-3 gba:border gba:rounded gba:bg-gray-50">
           <div className="gba:flex gba:gap-2 gba:items-center">
             <Input
               value={link.name || ''}

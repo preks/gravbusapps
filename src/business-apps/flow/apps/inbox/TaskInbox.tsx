@@ -312,8 +312,27 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     setIsTaskModalVisible(true);
     
     const initialFormData: any = {};
-            (task.form || task.inputs)?.forEach((input: any) => {
-      initialFormData[input.name] = input.type === 'CHECKBOX' ? [] : '';
+    (task.form || task.inputs)?.forEach((input: any) => {
+      // Initialize different input types with appropriate default values
+      switch (input.type) {
+        case 'CHECKBOX':
+          initialFormData[input.name] = input.options && input.options.length > 0 ? [] : false;
+          break;
+        case 'MULTISELECT':
+          initialFormData[input.name] = [];
+          break;
+        case 'SELECT':
+          initialFormData[input.name] = '';
+          break;
+        case 'NUMBER':
+          initialFormData[input.name] = undefined;
+          break;
+        case 'DATE':
+          initialFormData[input.name] = null;
+          break;
+        default:
+          initialFormData[input.name] = '';
+      }
     });
     setTaskFormData(initialFormData);
     form.setFieldsValue(initialFormData);

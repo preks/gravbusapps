@@ -3,6 +3,7 @@ import { Button, Input } from '@newwork/nw-design-system';
 import { Select } from 'antd';
 import { FormInput, Trash2 } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { InputType } from '@/common/network/flows/FlowTemplateClient';
 
 interface InputFieldsConfigurationProps {
   step: any;
@@ -56,7 +57,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   const handleAddInput = () => {
     const newInputs = [...inputs, { 
       id: `input-${Date.now()}`,
-      type: 'text',
+      type: InputType.TEXT,
       name: `field${inputs.length + 1}`,
       label: 'New Field',
       required: false
@@ -69,7 +70,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
     newInputs[index] = { ...newInputs[index], [field]: value };
     
     // Clear options when changing away from multi-option types
-    if (field === 'type' && !['select', 'radio', 'checkbox'].includes(value)) {
+    if (field === 'type' && ![InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(value)) {
       delete newInputs[index].options;
     }
     
@@ -103,7 +104,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
     const newInputs = [...inputs];
     const options = (newInputs[inputIndex].options || []).filter((_: any, i: number) => i !== optionIndex);
     newInputs[inputIndex] = { ...newInputs[inputIndex], options };
-    onUpdateStep({ inputs: newInputs });
+    onUpdateStep({ form: newInputs });  // Use 'form' to match backend
   };
 
   return (
@@ -124,7 +125,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       
       <div className="gba:space-y-3">
         {inputs.length > 0 && inputs.map((input: any, index: number) => (
-          <div key={index} className="gba:space-y-2 gba:p-3 gba:border gba:rounded gba:bg-gray-50">
+          <div key={`input-${input.id || index}`} className="gba:space-y-2 gba:p-3 gba:border gba:rounded gba:bg-gray-50">
             <div className="gba:flex gba:gap-2 gba:items-center">
               <Input
                 value={input.label || ''}
@@ -133,20 +134,19 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 data-testid={`${testId}-input-label-${index}`}
               />
               <Select 
-                value={input.type || 'text'} 
+                value={input.type || InputType.TEXT} 
                 onChange={(value) => handleUpdateInput(index, 'type', value)}
                 style={{ width: '120px' }}
                 data-testid={`${testId}-input-type-${index}`}
               >
-                <Select.Option value="text">Text</Select.Option>
-                <Select.Option value="email">Email</Select.Option>
-                <Select.Option value="number">Number</Select.Option>
-                <Select.Option value="date">Date</Select.Option>
-                <Select.Option value="textarea">Textarea</Select.Option>
-                <Select.Option value="select">Select</Select.Option>
-                <Select.Option value="radio">Radio</Select.Option>
-                <Select.Option value="checkbox">Checkbox</Select.Option>
-                <Select.Option value="file">File</Select.Option>
+                <Select.Option value={InputType.TEXT}>Text</Select.Option>
+                <Select.Option value={InputType.NUMBER}>Number</Select.Option>
+                <Select.Option value={InputType.DATE}>Date</Select.Option>
+                <Select.Option value={InputType.TEXTAREA}>Textarea</Select.Option>
+                <Select.Option value={InputType.SELECT}>Select</Select.Option>
+                <Select.Option value={InputType.MULTISELECT}>Multi-Select</Select.Option>
+                <Select.Option value={InputType.CHECKBOX}>Checkbox</Select.Option>
+                <Select.Option value={InputType.FILE}>File</Select.Option>
               </Select>
               <Button
                 variant="ghost"
@@ -159,7 +159,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
             </div>
             
             {/* Options for multi-value inputs */}
-            {['select', 'radio', 'checkbox'].includes(input.type) && (
+            {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) && (
               <div className="gba:space-y-2">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <span className="gba:text-xs gba:text-gray-600">Options:</span>
@@ -174,7 +174,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 </div>
                 
                 {(input.options || []).map((option: any, optionIndex: number) => (
-                  <div key={optionIndex} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
+                  <div key={`option-${index}-${optionIndex}-${option.value || optionIndex}`} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
                     <Input
                       value={option.label || ''}
                       onChange={(e) => handleUpdateOption(index, optionIndex, 'label', e.target.value)}

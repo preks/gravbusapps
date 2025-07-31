@@ -2,7 +2,9 @@
  * Mock Users Data
  * 
  * Centralized user data for Flow UI components.
- * This data matches the mock users from the backend assignmentResolutionService.ts
+ * Simplified structure with 6 users across 4 departments to demonstrate
+ * assignment resolution functionality with clear department-based naming.
+ * This data matches the mock users from the backend mockOrganizationalData.ts
  * and will be replaced with real user data integration in the future.
  */
 
@@ -15,72 +17,51 @@ export interface User {
 }
 
 /**
- * Mock users - cross-functional organization matching backend exactly
- * Data sourced from custom-flow-engine/src/services/assignment/assignmentResolutionService.ts
+ * Mock users - simplified organization matching backend exactly
+ * Data sourced from custom-flow-engine/src/data/mockOrganizationalData.ts
  */
 export const mockUsers: User[] = [
   {
     id: 'user-001',
-    name: 'Alice Johnson',
-    email: 'alice.johnson@newwork.com',
+    name: 'Hanna Johnson',
+    email: 'hanna.johnson@newwork.com',
     department: 'Human Resources',
     role: 'HR Manager'
   },
   {
-    id: 'user-007',
-    name: 'David Wilson',
-    email: 'david.wilson@newwork.com',
-    department: 'Engineering',
-    role: 'Engineering Manager'
+    id: 'user-002',
+    name: 'Henry Taylor',
+    email: 'henry.taylor@newwork.com',
+    department: 'Human Resources',
+    role: 'HR Specialist'
   },
   {
-    id: 'emp-001',
-    name: 'John Dan',
-    email: 'john.dan@newwork.com',
+    id: 'user-003',
+    name: 'Ian Martinez',
+    email: 'ian.martinez@newwork.com',
     department: 'IT Department',
     role: 'IT Manager'
   },
   {
-    id: 'user-002',
-    name: 'Bob Smith',
-    email: 'bob.smith@newwork.com',
+    id: 'user-004',
+    name: 'Emma Davis',
+    email: 'emma.davis@newwork.com',
+    department: 'Engineering',
+    role: 'Engineering Manager'
+  },
+  {
+    id: 'user-005',
+    name: 'Sam Wilson',
+    email: 'sam.wilson@newwork.com',
     department: 'Finance',
     role: 'Finance Manager'
   },
   {
-    id: 'user-003',
-    name: 'Grace Lee',
-    email: 'grace.lee@newwork.com',
+    id: 'user-006',
+    name: 'Ethan Rodriguez',
+    email: 'ethan.rodriguez@newwork.com',
     department: 'Engineering',
-    role: 'Senior Software Engineer'
-  },
-  {
-    id: 'user-004',
-    name: 'Henry Taylor',
-    email: 'henry.taylor@newwork.com',
-    department: 'Sales',
-    role: 'Sales Manager'
-  },
-  {
-    id: 'user-005',
-    name: 'Ivy Chen',
-    email: 'ivy.chen@newwork.com',
-    department: 'Marketing',
-    role: 'Marketing Manager'
-  },
-  {
-    id: 'user-008',
-    name: 'Emma Davis',
-    email: 'emma.davis@newwork.com',
-    department: 'Sales',
-    role: 'Sales Director'
-  },
-  {
-    id: 'user-009',
-    name: 'Frank Martinez',
-    email: 'frank.martinez@newwork.com',
-    department: 'Marketing',
-    role: 'Marketing Director'
+    role: 'Engineering Director'
   }
 ];
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { BusinessPattern, WizardState, WizardStep, PatternSelection } from '../types/businessPatterns';
-import { FlowTemplate, FlowStep, FlowStepType, AssignmentMode } from '../types/flowTemplate';
+import { FlowTemplate, FlowStep, FlowStepType, AssignmentMode, TaskAssignment } from '@/common/network/flows/FlowTemplateClient';
 import { validateTemplateAgainstPattern, ValidationResult } from '../utils/patternValidation';
 import { useFlowTemplateStore } from './useFlowTemplateStore';
 
@@ -219,7 +219,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
       type: 'TEMPLATE',
       name: configuration.title || flowTemplate.name || (selectedPattern ? `${selectedPattern.title} Workflow` : 'Custom Workflow'),
       description: configuration.description || flowTemplate.description || (selectedPattern ? selectedPattern.description : ''),
-      assignmentMode: configuration.assignmentMode || flowTemplate.assignmentMode || AssignmentMode.CLAIM,
+      version: flowTemplate.version || 1,
       steps
     };
     
@@ -285,18 +285,36 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
   },
   
   initializeForEdit: (template: FlowTemplate) => {
-    // Initialize the flow template store with the existing template
+    // Normalize the template to ensure all required arrays exist and required fields are set
+    const normalizedTemplate: FlowTemplate = {
+      ...template,
+      version: template.version || 1, // Ensure version is set
+      steps: (template.steps || []).map(step => ({
+        ...step,
+        form: step.form || step.inputs || [],
+        inputs: step.inputs || step.form || [],
+        links: step.links || [],
+        // Ensure assignment is set - required by client interface
+        assignment: step.assignment || {
+          targets: null,
+          assignmentMode: AssignmentMode.CLAIM,
+          allowReassignment: true
+        }
+      }))
+    };
+    
+    // Initialize the flow template store with the normalized template
     const { initializeTemplate } = useFlowTemplateStore.getState();
-    initializeTemplate(template);
+    initializeTemplate(normalizedTemplate);
     
     set({
       ...initialState,
       isEditMode: true,
       currentStep: 0, // Single step wizard
       configuration: {
-        title: template.name,
-        description: template.description,
-        steps: template.steps,
+        title: normalizedTemplate.name,
+        description: normalizedTemplate.description,
+        steps: normalizedTemplate.steps,
         patternId: 'custom' // Assume custom for existing templates
       },
       isValid: true

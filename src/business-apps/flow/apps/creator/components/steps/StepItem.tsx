@@ -1,15 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@newwork/nw-design-system';
+import { Accordion } from '@newwork/nw-design-system';
 import { Button } from '@newwork/nw-design-system';
-import { Trash2, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
 
 import { BasicConfiguration } from './BasicConfiguration';
-import { AssignmentTrigger, AssignmentContent } from './AssignmentConfiguration';
-import { LinksTrigger, LinksContent } from './LinksConfiguration';
-import { InputFieldsTrigger, InputFieldsContent } from './InputFieldsConfiguration';
+import { AssignmentContent } from './AssignmentConfiguration';
+import { LinksContent } from './LinksConfiguration';
+import { InputFieldsContent } from './InputFieldsConfiguration';
 
 interface StepItemProps {
   step: any;
@@ -24,6 +24,20 @@ export const StepItem: React.FC<StepItemProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(stepIndex === 0); // First step always expanded
   const { removeStep, updateStep } = useFlowTemplateStore();
+  
+  // Defensive programming: ensure step has all required properties
+  const normalizedStep = {
+    id: step?.id || `step-${stepIndex}`,
+    title: step?.title || `Step ${stepIndex + 1}`,
+    message: step?.message || '',
+    type: step?.type || 'task',
+    inputs: step?.inputs || step?.form || [], // Handle both legacy and new field names
+    form: step?.form || step?.inputs || [], // Ensure both properties exist for compatibility
+    links: step?.links || [],
+    assignment: step?.assignment || null,
+    dueInMinutes: step?.dueInMinutes || undefined,
+    ...step // Spread the original step to preserve any other properties
+  };
   
   const handleRemoveStep = useCallback(() => {
     removeStep(stepIndex);
@@ -59,12 +73,12 @@ export const StepItem: React.FC<StepItemProps> = ({
               )}
             </Button>
             <CardTitle className="gba:text-lg gba:font-medium gba:text-gray-800 gba:flex-1">
-              {step.title || `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${stepIndex + 1}`}
+              {normalizedStep.title || `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${stepIndex + 1}`}
             </CardTitle>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-sm gba:text-gray-500 gba:capitalize">
-              {step.type || 'task'}
+              {normalizedStep.type || 'task'}
             </span>
             <Button
               variant="ghost"
@@ -82,81 +96,69 @@ export const StepItem: React.FC<StepItemProps> = ({
       {isExpanded && (
         <CardContent className="gba:pt-0">
           <div className="gba:space-y-4">
-            <Accordion type="multiple" defaultValue={["basic"]} className="gba:w-full" data-testid={`${testId}-accordion-${stepIndex}`}>
-              
-              {/* Basic Configuration */}
-              <AccordionItem value="basic" data-testid={`${testId}-basic-accordion`}>
-                <AccordionTrigger data-testid={`${testId}-basic-trigger`}>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <User className="gba:h-4 gba:w-4" />
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.basic', 'Basic Configuration')}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent data-testid={`${testId}-basic-content`}>
-                  <BasicConfiguration
-                    step={step}
-                    stepIndex={stepIndex}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Links Configuration */}
-              <AccordionItem value="links" data-testid={`${testId}-links-accordion`}>
-                <AccordionTrigger data-testid={`${testId}-links-trigger`}>
-                  <LinksTrigger
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionTrigger>
-                <AccordionContent data-testid={`${testId}-links-content`}>
-                  <LinksContent
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Input Fields Configuration */}
-              <AccordionItem value="inputs" data-testid={`${testId}-inputs-accordion`}>
-                <AccordionTrigger data-testid={`${testId}-inputs-trigger`}>
-                  <InputFieldsTrigger
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionTrigger>
-                <AccordionContent data-testid={`${testId}-inputs-content`}>
-                  <InputFieldsContent
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Assignment Configuration - Last section */}
-              <AccordionItem value="assignment" data-testid={`${testId}-assignment-accordion`}>
-                <AccordionTrigger data-testid={`${testId}-assignment-trigger`}>
-                  <AssignmentTrigger
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionTrigger>
-                <AccordionContent data-testid={`${testId}-assignment-content`}>
-                  <AssignmentContent
-                    step={step}
-                    testId={testId}
-                    onUpdateStep={handleUpdateStep}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-            </Accordion>
+            {normalizedStep && normalizedStep.id ? (
+              <Accordion
+                type="multiple"
+                defaultValue={["basic"]}
+                className="gba:w-full"
+                data-testid={`${testId}-accordion-${stepIndex}`}
+                items={[
+                  {
+                    id: "basic",
+                    title: getTranslationFromI18nKeyAndLabel('flow.creator.basic', 'Basic Configuration'),
+                    content: (
+                      <BasicConfiguration
+                        step={normalizedStep}
+                        stepIndex={stepIndex}
+                        testId={testId}
+                        onUpdateStep={handleUpdateStep}
+                      />
+                    )
+                  },
+                  {
+                    id: "links",
+                    title: getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links'),
+                    badgeText: normalizedStep.links && normalizedStep.links.length > 0 ? `${normalizedStep.links.length}` : undefined,
+                    content: (
+                      <LinksContent
+                        step={normalizedStep}
+                        testId={testId}
+                        onUpdateStep={handleUpdateStep}
+                      />
+                    )
+                  },
+                  {
+                    id: "inputs",
+                    title: getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields'),
+                    badgeText: normalizedStep.inputs && normalizedStep.inputs.length > 0 ? `${normalizedStep.inputs.length}` : undefined,
+                    content: (
+                      <InputFieldsContent
+                        step={normalizedStep}
+                        testId={testId}
+                        onUpdateStep={handleUpdateStep}
+                      />
+                    )
+                  },
+                  {
+                    id: "assignment",
+                    title: getTranslationFromI18nKeyAndLabel('flow.creator.assignment', 'Assignment'),
+                    badgeText: normalizedStep.assignment ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured') : undefined,
+                    badgeVariant: normalizedStep.assignment ? "success" : undefined,
+                    content: (
+                      <AssignmentContent
+                        step={normalizedStep}
+                        testId={testId}
+                        onUpdateStep={handleUpdateStep}
+                      />
+                    )
+                  }
+                ]}
+              />
+            ) : (
+              <div className="gba:text-center gba:text-gray-500 gba:p-4">
+                Loading step configuration...
+              </div>
+            )}
           </div>
         </CardContent>
       )}

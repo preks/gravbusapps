@@ -62,14 +62,18 @@ const createEmptyStep = (): FlowStep => ({
   type: FlowStepType.TASK,
   inputs: [],
   links: [],
-  assignment: undefined // No default assignment - let users choose to add
+  assignment: {
+    targets: null,
+    assignmentMode: AssignmentMode.CLAIM,
+    allowReassignment: true
+  }
 });
 
 const createEmptyTemplate = (): FlowTemplate => ({
   type: 'TEMPLATE',
   name: 'New Flow Template',
   description: '',
-  assignmentMode: AssignmentMode.CLAIM,
+  version: 1,
   steps: [createEmptyStep()]
 });
 
@@ -117,7 +121,29 @@ export const useFlowTemplateStore = create<FlowTemplateState>((set, get) => ({
   },
   
   initializeTemplate: (template: FlowTemplate) => {
-    set({ flowTemplate: template });
+    // Normalize template to ensure all required arrays exist
+    const normalizedTemplate = {
+      ...template,
+      steps: (template.steps || []).map(step => ({
+        ...step,
+        inputs: (step.inputs || step.form || []).map((input: any) => ({
+          ...input,
+          options: input.options || [] // Ensure options array always exists
+        })),
+        form: (step.form || step.inputs || []).map((input: any) => ({
+          ...input,
+          options: input.options || [] // Ensure options array always exists
+        })),
+        links: step.links || [],
+        // Ensure assignment exists with proper structure - always provide valid assignment
+        assignment: step.assignment || {
+          targets: null,
+          assignmentMode: AssignmentMode.CLAIM,
+          allowReassignment: true
+        }
+      }))
+    };
+    set({ flowTemplate: normalizedTemplate });
   },
   
   resetTemplate: () => {
