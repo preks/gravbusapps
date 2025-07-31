@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { SCREEN_NAMES_ENUM } from '../constants/constants';
 import { EVENTS } from '../../../utils/constants';
 
@@ -50,13 +49,13 @@ export interface PaymentScreenLogObject {
 }
 
 export const createAdvanceObject = (
-  selectedCurrency: string,
+  selectedCurrencyId: string,
   amount: string,
   paymentMethod: string | null,
   expensePlanData: any
 ): AdvanceObject => {
   return {
-    currencyRef: selectedCurrency,
+    currencyRef: selectedCurrencyId,
     amount: parseFloat(amount),
     paymentMethod: paymentMethod,
     status: "PREPARED",
@@ -71,12 +70,12 @@ export const createPaymentScreenLogObject = (
   currentTitle: string,
   advanceObject: AdvanceObject,
   expensePlanData: any,
-  event: string
+  event: string,
+  skipStep:boolean
 ): PaymentScreenLogObject => {
   const planItemsArray: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
-  
-  if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
-    expensePlanData.ExpenseItem.forEach((item: any) => {
+  if (expensePlanData.ExpensePlanItem && Array.isArray(expensePlanData.ExpensePlanItem)) {
+    expensePlanData.ExpensePlanItem.forEach((item: any) => {
       if (item) {
         planItemsArray.push({
           id: item.id,
@@ -90,7 +89,7 @@ export const createPaymentScreenLogObject = (
   }
   
   return {
-    stepKey: SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + event,
+    stepKey: SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + event + (skipStep ? ("_"+ EVENTS.SKIP) : ""),
     event: event,
     expensePlan: {
       id: initialPlan?.id,
@@ -115,7 +114,7 @@ export const createPaymentScreenLogObject = (
       planItems: planItemsArray
     },
     expenseRequestTrips: {
-      expenseTrips: (expensePlanData?.ExpensePlanByPk?.expensePlanTrip || [])
+      expenseTrips: (expensePlanData?.ExpensePlanByPk?.expenseRequestTrip || [])
     },
     advancePayment: advanceObject
   };

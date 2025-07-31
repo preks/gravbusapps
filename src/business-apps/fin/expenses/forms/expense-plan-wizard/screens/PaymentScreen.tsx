@@ -31,7 +31,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const graphQLClient = useGraphqlClient(accessToken);
   
   const [amount, setAmount] = useState<string>('0.00');
-  const [currency, setCurrency] = useState<string>('EUR');
+  const [currency, setCurrency] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [isLoadingCurrencies, setIsLoadingCurrencies] = useState<boolean>(false);
@@ -259,8 +259,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   // Handle save event
   const handleSave = () => {
     if (expensePlanData?.ExpensePlanByPk) {
+      let skipStep =false
+      if(additionalData?.psi_taskPayload.stepKey){
+        skipStep = true
+      }
       const advanceObject = createAdvanceObject(
-        selectedCurrencyCode,
+        currency, // Use currency ID instead of selectedCurrencyCode
         amount,
         paymentMethod,
         expensePlanData
@@ -272,9 +276,11 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         currentTitle || '',
         advanceObject,
         expensePlanData,
-        EVENTS.SAVE
+        EVENTS.SAVE,
+        skipStep
       );
       
+      console.log("logObject",logObject)
       dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
     }
   };
@@ -282,8 +288,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   // Handle next event
   const handleNext = () => {
     if (expensePlanData?.ExpensePlanByPk) {
+      let skipStep =false
+      if(additionalData?.psi_taskPayload.stepKey){
+        skipStep = true
+      }
       const advanceObject = createAdvanceObject(
-        selectedCurrencyCode,
+        currency, // Use currency ID instead of selectedCurrencyCode
         amount,
         paymentMethod,
         expensePlanData
@@ -295,9 +305,11 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         currentTitle || '',
         advanceObject,
         expensePlanData,
-        EVENTS.NEXT
+        EVENTS.NEXT,
+        skipStep
       );
       
+      console.log("logObject",logObject)
       dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
     }
   };
