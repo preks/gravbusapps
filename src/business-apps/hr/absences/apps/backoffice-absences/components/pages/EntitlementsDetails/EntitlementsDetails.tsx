@@ -16,8 +16,7 @@ import { DataContainer } from '../../../../../../../../components/layout/dataCon
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../../../common/network/catalogs/useCatalogManagerClient';
-
-export type TimeFilter = 'current-year' | 'current-quarter' | 'current-month' | 'all-time';
+import { TimeFilter } from '../../../types';
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter;
@@ -61,7 +60,6 @@ type SortOrder = 'asc' | 'desc';
 
 const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({ 
   accessToken, 
-  userInfo, 
   timeFilter = 'current-year',
   onNavigateBack 
 }) => {
@@ -91,7 +89,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [total, setTotal] = useState(0);
 
   // Get date filter for the current time filter
   const getDateFilters = () => {
@@ -103,7 +100,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           startDate: `${now.getFullYear()}-01-01`,
           endDate: `${now.getFullYear()}-12-31`
         };
-      case 'current-quarter':
+      case 'quarter':
         const quarter = Math.floor(now.getMonth() / 3);
         const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
         const quarterEnd = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
@@ -111,12 +108,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           startDate: quarterStart.toISOString().split('T')[0],
           endDate: quarterEnd.toISOString().split('T')[0]
         };
-      case 'current-month':
+      case 'month':
         return {
           startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
           endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
         };
-      case 'all-time':
+      case 'everything':
       default:
         return null;
     }
@@ -438,7 +435,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         });
 
         setEntitlements(transformedData);
-        setTotal(transformedData.length);
 
       } catch (err) {
         console.error('❌ Error loading entitlements:', err);
