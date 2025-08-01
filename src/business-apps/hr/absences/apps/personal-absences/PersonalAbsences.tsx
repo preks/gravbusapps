@@ -100,7 +100,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
         setAbsenceList(
           absences.map((absence: any) => ({
-            type: getCatalogValue(absence.type) || "",
+            type: absence.type ? getCatalogValue(absence.type) || "" : "",
             status: (() => {
               switch ((absence.status || "").toUpperCase()) {
                 case "PENDING":
@@ -127,7 +127,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                   return absence.status;
               }
             })(),
-            title: getCatalogValue(absence.type) || "",
+            title: absence.type ? getCatalogValue(absence.type) || "" : "",
             startDate: absence.startDate,
             endDate: absence.endDate,
             duration: absence.workingDays
@@ -172,7 +172,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .filter((a: any) => dayjs(a.startDate).isAfter(dayjs()))
             .map((a: any, idx: number) => ({
               id: a.id || idx,
-              type: getCatalogValue(a.type),
+              type: a.type ? getCatalogValue(a.type) || "" : "",
               icon: (
                 <Paperclip
                   className="gba:w-4 gba:h-4"
@@ -197,7 +197,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         setEntitlements(
           (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
             (ent: any) => ({
-              type: getCatalogValue(ent.type),
+              type: ent.type ? getCatalogValue(ent.type) || "" : "",
               color: ent.type?.objectValue?.color || "blue",
               used: ent.approved,
               total: ent.total,
@@ -221,7 +221,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         setStats(
           (entitlementRes?.EmployeeAbsenceEntitlement || []).map(
             (ent: any) => ({
-              title: getCatalogValue(ent.type),
+              title: ent.type ? getCatalogValue(ent.type) || "" : "",
               used: ent.approved,
               total: ent.total,
               progress: ent.total

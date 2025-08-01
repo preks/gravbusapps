@@ -52,7 +52,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     setStep, 
     loading,
     setLoading,
-    expenseCatalogueData
+    expenseCatalogueData,
+    costCenters,
+    projects,
+    selectedCostCenter,
+    setSelectedCostCenter
   } = useExpenseRequestContext();
   
   const [showTransportation, setShowTransportation] = React.useState(false);
@@ -248,6 +252,12 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                     form={form} 
                     showTransportation={selectedPlan.planType === 'TRIP'} 
                     setFormIsValid={setFormIsValid} 
+                    testIdPrefix="expense"
+                    costCenters={costCenters}
+                    projects={projects}
+                    selectedCostCenter={selectedCostCenter}
+                    setSelectedCostCenter={setSelectedCostCenter}
+                    expenseCatalogueData={expenseCatalogueData}
                   />
                 </>
               ) : (
@@ -263,6 +273,12 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               form={form} 
               showTransportation={showTransportation} 
               setFormIsValid={setFormIsValid} 
+              testIdPrefix="expense"
+              costCenters={costCenters}
+              projects={projects}
+              selectedCostCenter={selectedCostCenter}
+              setSelectedCostCenter={setSelectedCostCenter}
+              expenseCatalogueData={expenseCatalogueData}
             />
           )}
           
@@ -274,6 +290,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               formIsValid={formIsValid}
               onCancel={handleCancel} 
               onSubmit={handleSubmit} 
+              testIdPrefix="expense"
             />
           )}
         </>
@@ -384,6 +401,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         <FormFooter 
           step={step} 
           onCancel={handleCancel} 
+          testIdPrefix="expense"
         />
       </>
       )}
