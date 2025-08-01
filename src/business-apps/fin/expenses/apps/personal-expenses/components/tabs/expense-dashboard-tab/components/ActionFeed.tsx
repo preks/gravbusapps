@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Button, List, Space, Typography, Tag, Empty, Spin, Alert } from 'antd';
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner, Badge } from '@newwork/nw-design-system';
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
-import { formatNumber, getStatusColor } from '../utils/formatters';
-
-const { Text } = Typography;
+import { formatNumber } from '../utils/formatters';
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined;
@@ -12,13 +10,33 @@ interface ActionFeedProps {
   error: Error | null;
 }
 
+// Status badge variant function (same pattern as manager absences)
+const getStatusBadgeVariant = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'APPROVED':
+      return 'success' as const;
+    case 'PENDING':
+      return 'warning' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    case 'PAID':
+      return 'success' as const;
+    case 'DRAFT':
+    case 'CREATED':
+      return 'secondary' as const;
+    default:
+      return 'default' as const;
+  }
+};
+
 export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error }) => {
   const [showAll, setShowAll] = useState(false);
+  
   if (isLoading) {
     return (
-      <Card className="gba:action-feed-card">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
-          <Spin size="large" />
+      <Card className="gba:action-feed-card" data-testid="action-feed-loading">
+        <div className="gba:flex gba:justify-center gba:p-6">
+          <Spinner size="lg" />
         </div>
       </Card>
     );
@@ -26,13 +44,11 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
 
   if (error) {
     return (
-      <Card className="gba:action-feed-card">
-        <Alert
-          message="Error loading action feed"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+      <Card className="gba:action-feed-card" data-testid="action-feed-error">
+        <Alert variant="destructive">
+          <h4 className="gba:font-semibold">Error loading action feed</h4>
+          <p>{error.message}</p>
+        </Alert>
       </Card>
     );
   }
@@ -41,80 +57,95 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
   const activitiesToShow = showAll ? recentActivity : recentActivity.slice(0, 10);
 
   return (
-    <Card
-      title="Action Feed"
-      className="gba:action-feed-card"
-      size="small"
-      styles={{ 
-        body: { padding: '6px 8px' }, 
-        header: { paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' } 
-      }}
-      extra={
-        recentActivity.length > 10 ? (
-          showAll ? (
+    <Card className="gba:action-feed-card" data-testid="action-feed-card">
+      <CardHeader className="gba:py-3">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:text-sm">Action Feed</CardTitle>
+          {recentActivity.length > 10 && (
             <Button
-              type="link"
-              icon={<EyeInvisibleOutlined />}
-              size="small"
-              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
-              onClick={() => setShowAll(false)}
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAll(!showAll)}
+              className="gba:text-xs gba:h-auto gba:p-1"
+              data-testid="action-feed-toggle"
             >
-              View Less
+              {showAll ? (
+                <>
+                  <EyeInvisibleOutlined className="gba:mr-1" />
+                  View Less
+                </>
+              ) : (
+                <>
+                  <EyeOutlined className="gba:mr-1" />
+                  View All
+                </>
+              )}
             </Button>
-          ) : (
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              size="small"
-              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
-              onClick={() => setShowAll(true)}
-            >
-              View All
-            </Button>
-          )
-        ) : null
-      }
-    >
-      {recentActivity.length > 0 ? (
-        <div style={showAll ? { maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' } : {}}>
-          <List
-            size="small"
-            itemLayout="horizontal"
-            dataSource={activitiesToShow}
-            split={false}
-            renderItem={(item: RecentActivity) => (
-              <List.Item style={{ padding: '4px 0' }}>
-                <Space size={4} style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: '13px' }}>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="gba:py-1 gba:px-2">
+        {recentActivity.length > 0 ? (
+          <div 
+            className={showAll ? "gba:max-h-[300px] gba:overflow-y-auto gba:pr-2" : ""}
+            data-testid="activity-list"
+          >
+            {/* Header Row */}
+            <div className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1 gba:border-b gba:border-gray-200 gba:mb-2">
+              <div className="gba:col-span-5 gba:text-xs gba:font-semibold gba:text-gray-600">
+                Description
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                Status
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                Type
+              </div>
+              <div className="gba:col-span-3 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-right">
+                Amount
+              </div>
+            </div>
+            <div className="gba:space-y-1">
+              {activitiesToShow.map((item: RecentActivity, index: number) => (
+                <div 
+                  key={index} 
+                  className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1"
+                  data-testid={`activity-item-${index}`}
+                >
+                  <div className="gba:col-span-5 gba:text-xs gba:font-medium gba:truncate">
                     {item.title}
-                  </Text>
-                  <Space size={4}>
-                    <Tag
-                      color={getStatusColor(item.status)}
-                      style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
+                  </div>
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
+                    <Badge 
+                      variant={getStatusBadgeVariant(item.status)} 
+                      className="gba:text-xs gba:px-1 gba:py-0"
                     >
                       {item.status}
-                    </Tag>
-                    {item.expenseType && (
-                      <Tag
-                        color="blue"
-                        style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
-                      >
+                    </Badge>
+                  </div>
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
+                    {item.expenseType ? (
+                      <Badge variant="outline" className="gba:text-xs gba:px-1 gba:py-0">
                         {item.expenseType}
-                      </Tag>
+                      </Badge>
+                    ) : (
+                      <div className="gba:text-xs gba:text-gray-400">-</div>
                     )}
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      <DollarCircleOutlined /> {formatNumber(Number(item.totalAmount))}
-                    </Text>
-                  </Space>
-                </Space>
-              </List.Item>
-            )}
-          />
-        </div>
-      ) : (
-        <Empty description="No recent activity" />
-      )}
+                  </div>
+                  <div className="gba:col-span-3 gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-end">
+                    <DollarCircleOutlined className="gba:mr-1" />
+                    {formatNumber(Number(item.totalAmount))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="gba:text-center gba:py-4 gba:text-gray-500" data-testid="empty-activity">
+            <p className="gba:text-sm">No recent activity</p>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };

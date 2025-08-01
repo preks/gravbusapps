@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@newwork/nw-design-system';
-import { Target, PieChart } from 'lucide-react';
+import { PageLayout } from '@newwork/nw-design-system';
+import { Handshake, TrendUp } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PipelineOverview } from './components/PipelineOverview';
 
@@ -33,43 +33,53 @@ const PipelineData: React.FC<PipelineDataProps> = ({
   // Default to CRM if no valid sourceApp parameter
   const validSourceApp: 'CRM' | 'IRM' = sourceApp && ['CRM', 'IRM'].includes(sourceApp) ? sourceApp : 'CRM';
 
-  // Determine title and icon based on sourceApp
+  // Determine title, description and icon based on sourceApp
   const getAppConfig = () => {
     switch (validSourceApp) {
       case 'IRM':
         return {
-          title: t('crm.investment_pipeline_data_management', 'Investment Pipeline Data Management'),
-          icon: <Target className="gba:w-6 gba:h-6" />
+          title: t('crm.investment_pipeline_management', 'Investment Pipeline Management'),
+          description: t('crm.investment_pipeline_description', 'Manage investment pipeline stages, probabilities, and conversion rates'),
+          icon: TrendUp,
+          variant: 'premium' as const
         };
       case 'CRM':
       default:
         return {
-          title: t('crm.sales_pipeline_data_management', 'Sales Pipeline Data Management'),
-          icon: <PieChart className="gba:w-6 gba:h-6" />
+          title: t('crm.sales_pipeline_management', 'Sales Pipeline Management'),
+          description: t('crm.sales_pipeline_description', 'Manage sales pipeline stages, probabilities, and conversion rates'),
+          icon: Handshake,
+          variant: 'strategy' as const
         };
     }
   };
 
-  const { title, icon } = getAppConfig();
+  const { title, description, icon, variant } = getAppConfig();
 
   return (
     <div 
       className={`gba:h-full gba:w-full ${className || ''}`}
       data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
     >
-      <PageHeader
-        title={title}
-        icon={icon}
-        className="gba:mb-6"
-      />
-      
-      <div className="gba:w-full gba:h-full gba:px-6 gba:pb-6">
-        <PipelineOverview 
-          {...contextProps}
-          sourceApp={validSourceApp}
-          prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-        />
-      </div>
+      <PageLayout
+        headerPhosphorIcon={{
+          icon: icon,
+          variant: variant,
+          size: "lg",
+          label: title
+        }}
+        headerTitle={title}
+        headerDescription={description}
+        className="gba:min-h-screen"
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          <PipelineOverview 
+            {...contextProps}
+            sourceApp={validSourceApp}
+            prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+          />
+        </div>
+      </PageLayout>
     </div>
   );
 };

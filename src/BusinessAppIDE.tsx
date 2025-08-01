@@ -259,6 +259,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     []
   );
   const [lastPublishedDate, setLastPublishedDate] = useState<string>("");
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
@@ -288,11 +289,43 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
         console.error("Failed to parse recent apps:", error);
       }
     }
+
+    // Set open keys based on the currently selected app (from URL)
+    // Only if menu is not collapsed initially
+    const initialSelectedApp = getAppByName(appFromUrl || "");
+    const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true";
+    if (!initialCollapsed) {
+      const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp);
+      setOpenKeys(requiredKeys);
+    }
   }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SIDEBAR_COLLAPSED, String(collapsed));
-  }, [collapsed]);
+    
+    // When menu expands, restore the path to current app
+    if (!collapsed && selectedApp) {
+      const requiredKeys = getRequiredOpenKeysForApp(selectedApp);
+      setOpenKeys(requiredKeys);
+    }
+  }, [collapsed, selectedApp]);
+
+  useEffect(() => {
+    // Update open keys when selected app changes to ensure the path is visible
+    // Only do this when menu is not collapsed
+    if (selectedApp && !collapsed) {
+      const requiredKeys = getRequiredOpenKeysForApp(selectedApp);
+      setOpenKeys(prevKeys => {
+        // Only add required keys if they're not already open
+        // This ensures the path to the selected app is visible without disrupting user's menu state
+        const missingKeys = requiredKeys.filter(key => !prevKeys.includes(key));
+        if (missingKeys.length > 0) {
+          return [...prevKeys, ...missingKeys];
+        }
+        return prevKeys;
+      });
+    }
+  }, [selectedApp, collapsed]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -349,6 +382,36 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       console.warn(`Failed to fetch last published date for ${app.name}:`, error);
       setLastPublishedDate("");
     }
+  };
+
+  /**
+   * Calculates which menu keys should be open to show the path to the selected app
+   */
+  const getRequiredOpenKeysForApp = (app: BusinessAppInfo | null): string[] => {
+    if (!app) return [];
+    
+    const requiredKeys: string[] = [];
+    
+    // Always open the module
+    requiredKeys.push(app.module);
+    
+    // If there's a submodule, open it too
+    if (app.subModule) {
+      const subModuleParts = app.subModule.split("/");
+      const firstSubModule = subModuleParts[0];
+      if (firstSubModule !== "default") {
+        requiredKeys.push(`${app.module}/${firstSubModule}`);
+      }
+    }
+    
+    return requiredKeys;
+  };
+
+  /**
+   * Handles menu open keys change
+   */
+  const handleOpenChange = (keys: string[]): void => {
+    setOpenKeys(keys);
   };
 
   /**
@@ -688,8 +751,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <Menu
               mode="inline"
               selectedKeys={selectedApp ? [selectedApp.screenKey] : ["home"]}
+              openKeys={openKeys}
+              onOpenChange={handleOpenChange}
               style={{ borderRight: 0 }}
               items={getMenuItems()}
+              inlineCollapsed={collapsed}
             />
           </div>
 

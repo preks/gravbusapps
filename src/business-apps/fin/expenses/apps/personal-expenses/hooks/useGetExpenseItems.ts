@@ -100,13 +100,21 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       // Map UI sort field to GraphQL field names
       const fieldMap: Record<string, string> = {
         title: 'title',
-        invoiceDate: 'expenseDate',
+        expenseDate: 'expenseDate',
         status: 'status',
-        amount: 'reimbursableAmount', // or 'totalAmount' if preferred
+        reimbursableAmount: 'reimbursableAmount',
+        totalAmount: 'totalAmount',
+        createdAt: 'createdAt',
+        updatedAt: 'updatedAt',
+        code: 'code',
+        description: 'description'
       };
       const gqlField = fieldMap[sortField] || sortField;
       const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
       variables.orderBy = [{ [gqlField]: direction }];
+    } else {
+      // Default sorting by expense date descending
+      variables.orderBy = [{ expenseDate: 'DESC' }];
     }
     
     // Only include filter variables if they are provided
@@ -169,7 +177,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
   const fetchItems = useCallback(async (
     searchTerm = '%', 
     page = 1, 
-    pageSize = 10,
+    pageSize = 20,
     filter?: ExpenseFilter,
     sortField?: string | null,
     sortOrder?: 'ascend' | 'descend' | null
