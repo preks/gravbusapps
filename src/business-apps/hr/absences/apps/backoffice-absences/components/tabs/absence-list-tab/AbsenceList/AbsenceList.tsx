@@ -174,8 +174,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       if (!accessToken) return;
 
       try {
-        console.log('🔍 Fetching absence groups catalog for filters...');
-        
         // Fetch catalog data for absence groups with proper auth parameters
         const catalogData = await catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
@@ -192,11 +190,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         });
         
         setAbsenceGroups(groupsMap);
-        console.log('✅ Absence groups loaded for filters:', {
-          groupCount: Object.keys(groupsMap).length,
-          groups: Object.values(groupsMap),
-          note: 'Groups will now appear in filter options'
-        });
         
       } catch (error) {
         console.error('❌ Error fetching absence groups catalog:', error);
@@ -248,7 +241,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       });
 
       const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-      console.log('Organizational Units with employees loaded:', uniqueOrgUnits.length); // Debug
       setOrganizationalUnits(uniqueOrgUnits);
     } catch (error) {
       console.error('Error fetching organizational units:', error);
@@ -361,15 +353,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         return dept?.name;
       }).filter(Boolean); // Remove undefined values
 
-      console.log('🔧 Building department filter conditions (CALENDAR PATTERN):', {
-        departmentFilters,
-        hasNoDepartmentFilter,
-        regularDepartmentIds,
-        regularDepartmentNames,
-        selectedFiltersState: selectedFilters,
-        note: 'Converting IDs to names for GraphQL filter'
-      });
-
       let departmentCondition;
 
       if (hasNoDepartmentFilter && regularDepartmentNames.length > 0) {
@@ -380,15 +363,12 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             { organizationalUnit: { _isNull: true } }
           ]
         };
-        console.log('🔧 Using combined department condition (regular + no-department) - BY NAME:', departmentCondition);
       } else if (hasNoDepartmentFilter) {
         // Only "No Department" selected
         departmentCondition = { organizationalUnit: { _isNull: true } };
-        console.log('🔧 Using "No Department" condition (organizationalUnit IS NULL):', departmentCondition);
       } else if (regularDepartmentNames.length > 0) {
         // Only regular departments selected - USE NAMES LIKE CALENDAR
         departmentCondition = { organizationalUnit: { name: { _in: regularDepartmentNames } } };
-        console.log('🔧 Using regular department condition - BY NAME:', departmentCondition);
       }
 
       if (conditions.employee) {
@@ -474,29 +454,13 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       
       // 🚀 USE PRE-FILTERED DATA FROM DASHBOARD IF AVAILABLE
       if (preFilteredData && preFilteredData.length >= 0) {
-        console.log('🚀 AbsenceList: Using pre-filtered data from dashboard', {
-          count: preFilteredData.length,
-          dataSource: 'Same as dashboard (ensuring consistency)',
-          note: 'Will apply additional client-side filtering for status/department',
-          sampleDataStructure: preFilteredData.slice(0, 2).map((item: any) => ({
-            id: item.id,
-            hasEmployeeName: !!item.employeeName,
-            hasGroupName: !!item.groupName,
-            hasCreatedAt: !!item.createdAt,
-            fields: Object.keys(item || {})
-          })),
-          initialFilters,
-          actionTaken: 'Applying client-side filtering to preFilteredData'
-        });
         
         // Apply client-side filtering for status/department filters from initialFilters
         let finalData = [...preFilteredData] as EnhancedAbsence[];
         
         // Apply status filter if provided in initialFilters
         if (initialFilters?.status) {
-          const beforeStatusFilter = finalData.length;
           finalData = finalData.filter((absence: any) => absence.status === initialFilters.status);
-          console.log(`🎯 Applied status filter "${initialFilters.status}": ${beforeStatusFilter} → ${finalData.length} absences`);
         }
         
         // Apply department filter if provided in initialFilters  
@@ -506,7 +470,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
             return deptName === initialFilters.department;
           });
-          console.log(`🎯 Applied department filter "${initialFilters.department}": ${beforeDeptFilter} → ${finalData.length} absences`);
         } else if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
           // Handle "No Department" special case
           const beforeNoDeptFilter = finalData.length;
@@ -514,23 +477,12 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
             return !deptName || deptName === 'No Department';
           });
-          console.log(`🎯 Applied "No Department" filter: ${beforeNoDeptFilter} → ${finalData.length} absences`);
         }
         
         setAbsences(finalData);
         setTotal(finalData.length);
         setLoading(false);
         initialLoadDone.current = true; // Mark as loaded to prevent other effects
-        console.log('✅ AbsenceList: State updated with filtered preFilteredData', {
-          originalCount: preFilteredData.length,
-          finalCount: finalData.length,
-          appliedFilters: {
-            status: initialFilters?.status,
-            department: initialFilters?.department
-          },
-          loadingSet: false,
-          initialLoadDoneSet: true
-        });
         return;
       }
       
@@ -614,13 +566,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         
         // Debug logging for position filtering
         if (employeeName.toLowerCase().includes('zsolt')) {
-          console.log('🔍 AbsenceList Zsolt Position Debug (Query-Level Filtered):', {
-            employeeName,
-            employeePosition: absence.employee?.employeePosition,
-            departmentName: absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department',
-            departmentId: absence.employee?.employeePosition?.organizationalUnit?.id,
-            note: 'Should now show only active position due to exitDate filter'
-          });
         }
         
         return {
@@ -633,29 +578,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       setAbsences(enhancedAbsences);
       setTotal(result.EmployeeAbsenceAggregate.aggregate.count);
 
-      console.log('📊 AbsenceList: GraphQL query completed', {
-        totalAbsencesFound: enhancedAbsences.length,
-        totalCountFromAggregate: result.EmployeeAbsenceAggregate.aggregate.count,
-        appliedFilters: {
-          search,
-          selectedFilters,
-          departmentFilters: selectedFilters.filter(f => f.startsWith('department-')),
-          startDate,
-          endDate
-        },
-        noDepartmentEmployees: enhancedAbsences.filter(a => 
-          !a.employee?.employeePosition?.organizationalUnit?.name
-        ).length,
-        activePositionFiltering: 'Applied exitDate IS NULL filter at query level for consistent current positions',
-        sampleData: enhancedAbsences.slice(0, 3).map(a => ({
-          employeeName: a.employeeName,
-          department: a.employee?.employeePosition?.organizationalUnit?.name || 'No Department',
-          status: a.status
-        }))
-      });
-    } catch (err) {
-      console.error('BackofficeAbsenceList API call failed:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch absences'));
+    } catch (error) {
+      console.error('BackofficeAbsenceList API call failed:', error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch absences'));
       setAbsences([]);
       setTotal(0);
     } finally {
@@ -674,34 +599,10 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     
     const hasUserChangedFilters = selectedFilters.length > 0 && (statusChanged || departmentChanged || newFilterTypes);
 
-    console.log('🔍 DETAILED SMART FILTERING DEBUG:', {
-      selectedFilters: selectedFilters,
-      selectedFiltersLength: selectedFilters.length,
-      initialFilters: initialFilters,
-      statusChanged: statusChanged,
-      departmentChanged: departmentChanged, 
-      newFilterTypes: newFilterTypes,
-      hasUserChangedFilters: hasUserChangedFilters,
-      statusComparison: initialFilters?.status ? {
-        initialStatus: initialFilters.status,
-        expectedFilter: `status-${initialFilters.status}`,
-        actualFilters: selectedFilters.filter(f => f.startsWith('status-')),
-        different: selectedFilters.filter(f => f.startsWith('status-') && f !== `status-${initialFilters.status}`)
-      } : 'no initial status'
-    });
-
     // Use full dataset if user changed filters, otherwise use prefiltered data
     const sourceData = hasUserChangedFilters && dashboardData?.rawAbsences 
       ? dashboardData.rawAbsences 
       : (preFilteredData || []);
-
-    console.log('🔍 SMART FILTERING:', {
-      hasUserChangedFilters,
-      sourceDataCount: sourceData.length,
-      selectedFiltersCount: selectedFilters.length,
-      usingFullDataset: hasUserChangedFilters && !!dashboardData?.rawAbsences,
-      initialFilters: initialFilters
-    });
 
     let filteredData = [...sourceData] as EnhancedAbsence[];
 
@@ -723,10 +624,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
     // Apply selectedFilters
     if (selectedFilters.length > 0) {
-      console.log('🎯 DEBUG: Processing selectedFilters', {
-        selectedFilters: selectedFilters,
-        beforeFilteringCount: filteredData.length
-      });
 
       // Employee filters (no prefix) - Use employee.id like server-side filtering
       const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('status-') && !f.startsWith('group-'));
@@ -764,11 +661,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       // Status filters  
       const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
       if (statusFilters.length > 0) {
-        console.log('🎯 DEBUG: Applying status filters', {
-          statusFilters: statusFilters,
-          beforeCount: filteredData.length,
-          afterCount: filteredData.filter((absence: any) => statusFilters.includes(absence.status)).length
-        });
         filteredData = filteredData.filter((absence: any) => 
           statusFilters.includes(absence.status)
         );
@@ -828,12 +720,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
     // ✅ BACKUP APPROACH: If we got 0 results but have selectedFilters and full dataset, retry with full dataset
     if (filteredData.length === 0 && selectedFilters.length > 0 && !hasUserChangedFilters && dashboardData?.rawAbsences && dashboardData.rawAbsences.length > 0) {
-      console.log('🔄 BACKUP: Retrying with full dataset due to 0 results', {
-        originalSourceCount: sourceData.length,
-        fullDatasetCount: dashboardData.rawAbsences.length,
-        selectedFilters: selectedFilters
-      });
-      
       // Retry with full dataset
       filteredData = [...dashboardData.rawAbsences] as EnhancedAbsence[];
       
@@ -881,14 +767,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
         const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
         if (statusFilters.length > 0) {
-          console.log('🔄 BACKUP: Re-applying status filters on full dataset', {
-            statusFilters: statusFilters,
-            beforeCount: filteredData.length
-          });
           filteredData = filteredData.filter((absence: any) => 
             statusFilters.includes(absence.status)
           );
-          console.log('🔄 BACKUP: Status filters applied, afterCount:', filteredData.length);
         }
 
         const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
@@ -969,26 +850,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // Effect for preFilteredData (dashboard drill-down) - process immediately
   useEffect(() => {
-    console.log('🔍 AbsenceList: preFilteredData useEffect triggered', {
-      hasPreFilteredData: !!preFilteredData,
-      dataCount: preFilteredData?.length || 0,
-      hasAccessToken: !!accessToken,
-      initialLoadDone: initialLoadDone.current
-    });
-    
     if (preFilteredData && accessToken) {
-      console.log('🚀 AbsenceList: Processing preFilteredData via useEffect', {
-        dataCount: preFilteredData.length,
-        initialLoadDone: initialLoadDone.current
-      });
-      fetchAbsences(); // This will use preFilteredData and return early
+      applyClientSideFiltering();
     }
   }, [preFilteredData, accessToken]);
 
   // Initial load effect - DON'T call fetchAbsences if preFilteredData is provided
   useEffect(() => {
     if (!initialLoadDone.current && accessToken && !preFilteredData) {
-      console.log('🔄 AbsenceList: Initial load effect triggered (no preFilteredData)');
       initialLoadDone.current = true;
       fetchAbsences();
     }
@@ -997,19 +866,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   // Search and filter effects (including date ranges like manager-absences)
   useEffect(() => {
     if (initialLoadDone.current && !preFilteredData) {
-      console.log('🔍 AbsenceList: Search/filter effect triggered (no preFilteredData)', {
-        search, selectedFilters, startDate, endDate
-      });
       setCurrentPage(1);
       fetchAbsences();
     } else if (preFilteredData) {
       // ✅ FIX: Remove initialLoadDone.current condition for client-side filtering
       // This allows immediate filtering when user changes filters on drill-down data
-      console.log('🔍 AbsenceList: Applying client-side filtering on preFilteredData', {
-        preFilteredDataCount: preFilteredData.length,
-        selectedFiltersCount: selectedFilters.length,
-        hasSearch: !!search
-      });
       setCurrentPage(1);
       applyClientSideFiltering();
     }
@@ -1020,17 +881,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     if (initialFilters?.department) {
       // Special handling for "No Department" case
       if (initialFilters.department === 'NO_DEPARTMENT_SPECIAL') {
-        console.log('🎯 Applying "No Department" filter for drill-down', {
-          initialFilters,
-          action: 'Setting department-no-department filter'
-        });
         setSelectedFilters(prev => {
           if (!prev.includes('department-no-department')) {
             const newFilters = [...prev, 'department-no-department'];
-            console.log('🔧 "No Department" filter applied:', { 
-              previousFilters: prev, 
-              newFilters 
-            });
             return newFilters;
           }
           return prev;
@@ -1054,11 +907,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             if (!filtered.includes(correctDepartmentFilter)) {
               filtered.push(correctDepartmentFilter);
             }
-            console.log('🔧 Department filter mapped:', { 
-              from: incorrectDepartmentFilter, 
-              to: correctDepartmentFilter,
-              departmentId: departmentFromName.id 
-            });
             return filtered;
           });
         } else {
@@ -1073,20 +921,9 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     if (initialFilters?.status) {
       const statusFilter = `status-${initialFilters.status}`;
       
-      console.log('🎯 DEBUG: Applying status filter for drill-down', {
-        initialFiltersStatus: initialFilters.status,
-        statusFilter: statusFilter,
-        currentSelectedFilters: selectedFilters
-      });
-      
       setSelectedFilters(prev => {
         if (!prev.includes(statusFilter)) {
           const newFilters = [...prev, statusFilter];
-          console.log('🔧 Status filter applied for drill-down:', { 
-            previousFilters: prev, 
-            newFilters,
-            addedFilter: statusFilter
-          });
           return newFilters;
         }
         return prev;
@@ -1306,11 +1143,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // Filter handlers (enhanced for date ranges)
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    console.log('🔄 DEBUG: handleFilterChange called', {
-      filterId,
-      selected,
-      currentSelectedFilters: selectedFilters
-    });
     // Handle date range filters specially
     if (filterId === 'absenceDateRange') {
       if (!selected) {

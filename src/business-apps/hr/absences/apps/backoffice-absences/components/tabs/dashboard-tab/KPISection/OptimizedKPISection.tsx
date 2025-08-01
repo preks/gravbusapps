@@ -164,8 +164,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     const status = data.status;
     const dateRange = getDateRangeForTimeFilter();
     
-    console.log('🎯 Pie slice clicked:', { status, dateRange });
-    
     // Navigate to absence details with status and date filters
     onNavigateToDetails({
       status,
@@ -180,29 +178,14 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     const department = data.fullName; // Use full department name
     const dateRange = getDateRangeForTimeFilter();
     
-    console.log('🎯 Department bar clicked:', { 
-      department, 
-      dateRange, 
-      departmentData: data,
-      chartStats: {
-        totalDays: data.absences,
-        uniqueEmployees: data.uniqueEmployees,
-        totalRequests: data.totalRequests,
-        avgDaysPerEmployee: data.avgDaysPerEmployee,
-        avgRequestsPerEmployee: data.avgRequestsPerEmployee
-      }
-    });
-    
     // Special handling for "No Department" case
     if (department === 'No Department') {
-      console.log('🏢 "No Department" bar clicked - using special identifier for filtering');
       // For "No Department", we need to use a special filter identifier
       onNavigateToDetails({
         department: 'NO_DEPARTMENT_SPECIAL', // Special identifier
         ...dateRange
       });
     } else {
-      console.log('🏢 Regular department bar clicked:', department);
       // Navigate to absence details with regular department name
       onNavigateToDetails({
         department,

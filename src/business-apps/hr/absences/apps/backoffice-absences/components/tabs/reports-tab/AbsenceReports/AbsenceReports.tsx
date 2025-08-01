@@ -64,7 +64,6 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
       setLoading(true);
       try {
         // 🚨 TEMPORARY: Skip navigation service call to isolate 401 error
-        console.log('🔍 TEMPORARILY SKIPPING navigation service call...');
         setLoading(false);
         return;
         

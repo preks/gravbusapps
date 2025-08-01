@@ -326,8 +326,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           }
         });
         setAbsenceTypesMap(typesMap);
-        
-        console.log('✅ Types catalog loaded:', Object.keys(typesMap).length, 'types');
       } catch (err) {
         console.error('❌ Error loading catalog:', err);
       }
@@ -339,7 +337,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Initial load effect (like AbsenceList)
   useEffect(() => {
     if (!initialLoadDone.current && accessToken) {
-      console.log('🔄 EntitlementsDetails: Initial load');
       initialLoadDone.current = true;
       fetchEntitlements();
     }
@@ -348,7 +345,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Search and filter effects (like AbsenceList) 
   useEffect(() => {
     if (initialLoadDone.current) {
-      console.log('🔍 EntitlementsDetails: Filter/search change');
       setCurrentPage(1); // Reset pagination like AbsenceList
       fetchEntitlements();
     }
@@ -376,7 +372,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         
         // Log search queries for debugging
         if (search && search.trim()) {
-          console.log('🔍 Search applied:', search);
         }
         
         const query = getDetailedEntitlementsQuery();
@@ -462,14 +457,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       selected: selectedFilters.includes(employee.id)
     }));
 
-    // 🎯 DEBUG: Filter UI staying smooth 
-    if (searchTerm && filterResults.length > 0) {
-      console.log('EMPLOYEE FILTER: Smooth operation', { 
-        searchTerm,
-        foundEmployees: filterResults.length,
-        selectedEmployees: filterResults.filter(f => f.selected).length
-      });
-    }
+
 
     return {
       filters: filterResults,

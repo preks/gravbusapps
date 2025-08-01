@@ -178,8 +178,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     setError(null)
 
     try {
-      console.log('=== ENHANCED FETCH START ===');
-      console.log('Fetching data for departments:', departments);
       
       // Step 1: Fetch employees from EmployeePosition table (ensures department data)
       let employeesQuery;
@@ -219,12 +217,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         // Filter by selected departments using _in clause
         const currentDate = new Date().toISOString();
         const departmentNames = departments.map(dept => `"${dept}"`).join(', ');
-        
-        console.log('🎯 DEPARTMENT FILTERING DEBUG:', {
-          selectedDepartments: departments,
-          departmentNamesForQuery: departmentNames,
-          queryType: 'GetEmployeesByDepartments'
-        });
         
         employeesQuery = `
           query GetEmployeesByDepartments {
@@ -276,21 +268,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }));
       
       setAllEmployees(employees);
-      console.log('=== EMPLOYEE DATA DEBUG ===');
-      console.log('Selected departments for filtering:', departments);
-      console.log('Total employee positions fetched:', employeePositions.length);
-      console.log('Total employees extracted:', employees.length);
-      console.log('Sample employee data:', employees.slice(0, 3));
-      console.log('All employees have position data: 100%');
-      
-      // Debug: Show department distribution
-      const deptDistribution = employees.reduce((acc: Record<string, number>, emp) => {
-        const dept = emp.employeePosition?.organizationalUnit?.name || 'No Department';
-        acc[dept] = (acc[dept] || 0) + 1;
-        return acc;
-      }, {});
-      console.log('Department distribution in fetched employees:', deptDistribution);
-      console.log('============================');
       
       // Step 2: Fetch 2025 absences for these employees using proper schema structure
       let absenceQuery = ABSENCE_QUERY_2025;
@@ -353,15 +330,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery);
       const absences = absenceResult?.EmployeeAbsence || [];
       setEmployeeAbsences(absences);
-      
-      console.log('=== ENHANCED FETCH COMPLETE ===');
-      console.log('Input departments:', departments);
-      console.log('Total employees fetched:', employees.length);
-      console.log('Total absences fetched:', absences.length);
-      console.log('Sample absence data:', absences.slice(0, 2));
-      console.log('✅ Enhanced 2-step fetch successful!');
-      console.log('🎯 Expected behavior: Calendar should now show ONLY employees and absences from selected departments');
-      console.log('============================');
     
     } catch (err) {
       console.error('Error in enhanced fetch:', err)
@@ -372,14 +340,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   }, [graphQLClient, selectedOrgUnits])
 
   useEffect(() => {
-    console.log('🔄 DEPARTMENT FILTER TRIGGER:', {
-      accessToken: !!accessToken,
-      selectedOrgUnits,
-      triggerReason: 'useEffect dependency change'
-    });
-    
     if (accessToken) {
-      console.log('🚀 CALLING fetchData() due to department change...');
       fetchData();
     }
   }, [accessToken, selectedOrgUnits, fetchData]);
@@ -409,76 +370,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         });
 
         const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-        console.log('=== ORGANIZATIONAL UNITS DEBUG ===');
-        console.log('Total employee positions found:', allEmployeePositions.length);
-      
-      // Debug: Check for Paul specifically
-      const paulPositions = allEmployeePositions.filter(pos => 
-        pos.employee.firstName?.toLowerCase().includes('paul') || 
-        pos.employee.lastName?.toLowerCase().includes('paul')
-      );
-      console.log('🔍 Paul Debug in Calendar (with exitDate filter):', {
-        currentDateFilter: currentDate,
-        foundPaulPositions: paulPositions.length,
-        paulDetails: paulPositions.map(pos => ({
-          name: `${pos.employee.firstName} ${pos.employee.lastName}`,
-          orgUnit: pos.organizationalUnit?.name || 'No Org Unit',
-          employeeId: pos.employee.id
-        })),
-        filteringLogic: 'exitDate IS NULL OR exitDate >= currentDate',
-        note: 'If Paul has exitDate set but in the future, he should appear. If exitDate is in the past, he will be filtered out.'
-      });
-
-      // DETAILED Paul investigation - check ALL positions without filters
-      console.log('🔍 INVESTIGATING PAUL - Running unfiltered query to check his exit date...');
-      
-      const paulInvestigationQuery = `
-        query InvestigatePaul {
-          EmployeePosition(
-            where: {
-              employee: {
-                _or: [
-                  { firstName: { _ilike: "%paul%" } },
-                  { lastName: { _ilike: "%paul%" } }
-                ]
-              }
-            }
-          ) {
-            id
-            exitDate
-            employee {
-              id
-              firstName
-              lastName
-            }
-            organizationalUnit {
-              id
-              name
-            }
-          }
-        }
-      `;
-      
-      try {
-        const paulResult = await graphQLClient.request<any>(paulInvestigationQuery);
-        console.log('🔍 PAUL INVESTIGATION RESULTS:', {
-          totalPaulPositions: paulResult?.EmployeePosition?.length || 0,
-          paulPositions: paulResult?.EmployeePosition?.map((pos: any) => ({
-            positionId: pos.id,
-            employeeName: `${pos.employee.firstName} ${pos.employee.lastName}`,
-            employeeId: pos.employee.id,
-            organizationalUnit: pos.organizationalUnit?.name || 'No Org Unit',
-            exitDate: pos.exitDate, // THIS IS THE KEY FIELD
-            hasExitDate: !!pos.exitDate,
-            exitDateStatus: pos.exitDate ? (new Date(pos.exitDate) > new Date() ? 'FUTURE' : 'PAST') : 'NO_EXIT_DATE'
-          })) || []
-        });
-      } catch (error) {
-        console.error('🔍 Paul investigation failed:', error);
-      }
-        console.log('Unique org units found:', uniqueOrgUnits.length);
-        console.log('Org units:', uniqueOrgUnits.map(org => org.name));
-        console.log('====================================');
         setOrganizationalUnits(uniqueOrgUnits);
       } catch (error) {
         console.error('Error fetching organizational units:', error);
@@ -492,12 +383,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create timeline items for ALL employees (data is already filtered server-side)
   const timelineItems = useMemo(() => {
-    console.log('🗓️ TIMELINE ITEMS CREATION:', {
-      employeeCount: allEmployees.length,
-      selectedDepartments: selectedOrgUnits,
-      triggerReason: 'allEmployees dependency change'
-    });
-    
     const items = allEmployees.map(employee => {
       const empId = employee.id;
       const empName = `${employee.firstName} ${employee.lastName}`.trim();
@@ -512,7 +397,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       };
     });
     
-    console.log('✅ Timeline items created:', items.length);
     return items;
   }, [allEmployees, selectedOrgUnits]);
 
@@ -550,22 +434,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create timeline events from absences (data is already filtered server-side)
   const timelineEvents = useMemo(() => {
-    console.log('📅 TIMELINE EVENTS CREATION:', {
-      absenceCount: employeeAbsences.length,
-      selectedDepartments: selectedOrgUnits,
-      triggerReason: 'employeeAbsences dependency change'
-    });
-    
     const events: any[] = [];
     const eventIdSet = new Set();
-    
-    // Debug: Show absence distribution by employee and department
-    const absenceByDept = employeeAbsences.reduce((acc: Record<string, number>, absence) => {
-      const dept = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
-      acc[dept] = (acc[dept] || 0) + 1;
-      return acc;
-    }, {});
-    console.log('Absences by department:', absenceByDept);
     
     employeeAbsences.forEach(absence => {
       const eventId = `${absence.employee.id}-${absence.startDate}-${absence.endDate}-${absence.type.value}`;
@@ -589,7 +459,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       }
     });
 
-    console.log('✅ Timeline events created:', events.length);
     return events;
   }, [employeeAbsences, selectedOrgUnits]);
 
@@ -634,18 +503,9 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           value={selectedOrgUnits}
           mode="multiple"
           onChange={(values: string[]) => {
-            console.log('=== MULTI-SELECT DEBUG ===');
-            console.log('Selected values:', values);
-            console.log('Type of values:', typeof values);
-            console.log('Is array:', Array.isArray(values));
-            console.log('Available org units:', organizationalUnits.map(org => org.name));
-            console.log('Current selected:', selectedOrgUnits);
-            console.log('==============================');
-            
             // Handle edge cases from Ant Design Select
             if (!values || values.length === 0) {
               // If nothing selected, default to "All Departments"
-              console.log('Empty selection - setting to All Departments');
               setSelectedOrgUnits(['--- All Departments']);
               return;
             }
@@ -659,7 +519,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
             );
             
             if (validValues.length === 0) {
-              console.log('No valid values - setting to All Departments');
               setSelectedOrgUnits(['--- All Departments']);
               return;
             }
@@ -672,36 +531,22 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
             const newHasAllDepartments = newSelection.includes('--- All Departments');
             const specificDepartmentsInNew = newSelection.filter(val => val !== '--- All Departments');
             
-            console.log('=== SELECTION ANALYSIS ===');
-            console.log('Current state:', currentState);
-            console.log('New selection:', newSelection);
-            console.log('Current has All Departments:', currentHasAllDepartments);
-            console.log('New has All Departments:', newHasAllDepartments);
-            console.log('Specific departments in new:', specificDepartmentsInNew);
-            console.log('========================');
-            
             if (currentHasAllDepartments && newHasAllDepartments && specificDepartmentsInNew.length > 0) {
               // User had "All Departments" and clicked on a specific department
               // Ant Design gives us both, but user intent is to switch to specific department
-              console.log('🎯 Auto-removing All Departments - user clicked specific department');
               setSelectedOrgUnits(specificDepartmentsInNew);
             } else if (newHasAllDepartments && !currentHasAllDepartments) {
               // User explicitly clicked "All Departments" - clear others
-              console.log('All Departments explicitly selected - clearing other selections');
               setSelectedOrgUnits(['--- All Departments']);
             } else if (newHasAllDepartments && specificDepartmentsInNew.length === 0) {
               // Only "All Departments" in new selection
-              console.log('Only All Departments selected');
               setSelectedOrgUnits(['--- All Departments']);
             } else {
               // Regular multi-select behavior (no "All Departments" involved)
-              console.log('Regular multi-select - setting departments:', validValues);
               setSelectedOrgUnits(validValues);
             }
           }}
           onClear={() => {
-            console.log('=== CLEAR BUTTON CLICKED ===');
-            console.log('Setting to All Departments');
             setSelectedOrgUnits(['--- All Departments']);
           }}
           placeholder="Filter by Department"
