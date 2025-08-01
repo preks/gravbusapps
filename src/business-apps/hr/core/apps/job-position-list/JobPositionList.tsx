@@ -6,9 +6,10 @@ import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useJobPositionListData, VacancyFilter, JobPosition } from './hooks/useJobPositionListData';
 import { useJobPositionFilters } from './hooks/useJobPositionFilters';
+import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount';
 import { JobPositionTable } from './components/JobPositionTable';
 import { JobPositionDetails } from './components/JobPositionDetails';
-import { VacancyStatusToggle } from './components/VacancyStatusToggle';
+import { VacancyStatusToggle, ExtendedVacancyFilter } from './components/VacancyStatusToggle';
 import { PiBriefcase } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
@@ -19,12 +20,17 @@ import { startProcess } from '@/common/utils/start-process';
  * @returns {JSX.Element}
  */
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
-  console.log('JobPositionList', props.additionalData?.jobPositionId);
-  const { accessToken } = props;
+  const { accessToken, additionalData } = props;
   const { t } = useTranslation();
-  const [vacancyFilter, setVacancyFilter] = useState<VacancyFilter>('vacant'); // Default to vacant positions
+  const [vacancyFilter, setVacancyFilter] = useState<ExtendedVacancyFilter>('vacant'); // Default to vacant positions
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
   const initialLoadDone = useRef(false);
+
+
+
+
 
   // Use the centralized job position filters hook
   const {
@@ -36,20 +42,27 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    getFilters,
+    filtersInitialized,
+    enableFilters
   } = useJobPositionFilters(accessToken);
 
-  // Convert vacancy filter to boolean for the query
-  const getVacantParam = (filter: VacancyFilter): boolean | undefined => {
+  // Get missing job profile count for display in the filter button - ALWAYS LOADED
+  const { count: missingJobProfileCount } = useMissingJobProfileCount(accessToken, true);
+
+  // Convert vacancy filter to boolean or missing profile flag for the query
+  const getFilterParams = (filter: ExtendedVacancyFilter): { vacant?: boolean; missingJobProfile?: boolean } => {
     switch (filter) {
       case 'vacant':
-        return true;
+        return { vacant: true };
       case 'filled':
-        return false;
+        return { vacant: false };
+      case 'missing-profile':
+        return { missingJobProfile: true };
       case 'all':
-        return undefined;
+        return {};
       default:
-        return true; // Default to vacant
+        return { vacant: true }; // Default to vacant
     }
   };
 
@@ -65,11 +78,18 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    // Enable filters when user first interacts with them (lazy loading)
+    enableFilters();
     // Use the appropriate function directly
     selected ? addFilter(filterId) : removeFilter(filterId);
-  }, [addFilter, removeFilter]);
+  }, [addFilter, removeFilter, enableFilters]);
+
+
 
   // Get job position data with filters (computed inline to avoid dependency issues)
+  const filterParams = getFilterParams(vacancyFilter);
+  const currentFilters = getFilters();
+  
   const { 
     jobPositions, 
     total, 
@@ -81,37 +101,58 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     retry 
   } = useJobPositionListData({
     search,
-    jobProfiles: selectedFilters, // Backend will filter by the IDs that match
+    departments: currentFilters.departments,
+    jobProfiles: selectedFilters,
     jobFunctions: selectedFilters,
-    jobLevels: selectedFilters,
-    jobFamilies: selectedFilters,
-    contractTypes: selectedFilters,
-    employmentTypes: selectedFilters,
-    vacant: getVacantParam(vacancyFilter),
+    ...filterParams, // vacant or missingJobProfile
     accessToken
   });
   
-  // Trigger initial data loading when component mounts
+  // Handle page changes
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    const filters = getFilters();
+    loadPage(page, pageSize, {
+      ...filters,
+      ...getFilterParams(vacancyFilter)
+    });
+  }, [loadPage, pageSize, getFilters, vacancyFilter]);
+
+  // Handle page size changes
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    const filters = getFilters();
+    loadPage(1, newPageSize, {
+      ...filters,
+      ...getFilterParams(vacancyFilter)
+    });
+  }, [loadPage, getFilters, vacancyFilter]);
+  
+  // Trigger initial data loading when component mounts - OPTIMIZED: Don't wait for filters
   useEffect(() => {
     if (!initialLoadDone.current && accessToken) {
       initialLoadDone.current = true;
-      loadPage(1); // Load first page instead of loadMore
+      loadPage(1, pageSize); // Load first page immediately, don't wait for filters
     }
-  }, [loadPage, accessToken]);
+  }, [loadPage, accessToken, pageSize]);
 
-  // Trigger search when filters change
+
+
+  // Trigger search when filters change - reset to page 1
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
+      setCurrentPage(1);
       const filters = getFilters();
-      loadPage(1, 20, {
+      loadPage(1, pageSize, {
         ...filters,
-        vacant: getVacantParam(vacancyFilter)
+        ...getFilterParams(vacancyFilter)
       }); // Reset to first page when filters change
     }
-  }, [search, selectedFilters, vacancyFilter]); // Removed loadPage from dependencies to avoid loop
+  }, [search, selectedFilters, vacancyFilter, pageSize, filtersInitialized]);
 
   // Handle vacancy filter changes
-  const handleVacancyFilterChange = useCallback((value: VacancyFilter) => {
+  const handleVacancyFilterChange = useCallback((value: ExtendedVacancyFilter) => {
     setVacancyFilter(value);
   }, []);
 
@@ -135,7 +176,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   const activeFilters = useMemo(() => selectedFilters, [selectedFilters]);
 
   return (
-    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white">
+    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white gba:overflow-hidden">
       <PageLayout
         variant="default"
         headerIcon={<PiBriefcase size={24} className="gba:text-primary" />}
@@ -159,6 +200,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                   <VacancyStatusToggle
                     value={vacancyFilter}
                     onChange={handleVacancyFilterChange}
+                    missingJobProfileCount={missingJobProfileCount}
                   />
                 </div>
               ),
@@ -173,7 +215,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
               onFilterChange: handleFilterChange,
             }}
             dataBody={
-              <div data-testid="job-position-table-container">
+              <div data-testid="job-position-table-container" className="gba:h-full">
                 <JobPositionTable
                   jobPositions={jobPositions}
                   loading={loading}
@@ -186,6 +228,10 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                   onSelectJobPosition={handleSelectJobPosition}
                   selectedJobPositionId={selectedJobPosition?.id}
                   accessToken={accessToken}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
                 />
               </div>
             }
