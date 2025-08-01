@@ -95,6 +95,7 @@ export const createTripLogObject = (
     },
     advancePayment: initialAdvancePayment ? {
       id: initialAdvancePayment.id,
+      version: initialAdvancePayment.version,
       currencyRef: initialAdvancePayment.currencyRef,
       amount: initialAdvancePayment.amount,
       paymentMethod: initialAdvancePayment.paymentMethod,
@@ -142,12 +143,13 @@ export const handleTripSubmitAction = (
     return false;
   }
   const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,skipStep);
-  const planItems: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const planItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
     expensePlanData.ExpenseItem.forEach((item: any) => {
       if (item) {
         planItems.push({
           id: item.id,
+          version: item.version,
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
@@ -156,12 +158,13 @@ export const handleTripSubmitAction = (
       }
     });
   }
-  const additionalItems: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
       Array.isArray(expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
         expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
+        version: item.version,
         code: item.code || '',
         title: item.title || '',
         ruleId: item.expenseRuleId || '',

@@ -272,7 +272,7 @@ export const handleSubmit = async (
   employeeId?: string,
   additionalData?: any,
   userInfo?: any,
-  expenseItemId?:string
+  itemValues?: { id: string; version: string | number }
 ) => {
   try {
     setLoading(true);
@@ -357,7 +357,8 @@ export const handleSubmit = async (
     });
     const submitData = {
       expenseItem: {
-        ...(expenseItemId && { id: expenseItemId }),
+        ...(itemValues?.id && { id: itemValues.id }),
+        ...(itemValues?.version && { version: itemValues.version }),
         title: values.title,
         expenseDate: values.date
           ? formatDateToISOString(values.date)

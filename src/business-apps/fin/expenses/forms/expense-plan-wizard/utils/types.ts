@@ -33,6 +33,7 @@
   export interface LogObject {
     advancePayment: { 
       id: any; 
+      version: any;
       currencyRef: any; 
       amount: any; 
       paymentMethod: any; 

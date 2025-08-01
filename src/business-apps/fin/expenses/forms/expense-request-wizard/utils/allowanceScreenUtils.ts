@@ -35,6 +35,7 @@ export const createAllowanceScreenLogObject = (
   // Map allowance items
   const allowanceItems: ExpenseItem[] = expenseItems.map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     expenseRequest: initialRequest?.id || '',
@@ -45,6 +46,7 @@ export const createAllowanceScreenLogObject = (
   // Map non-allowance items
   const nonAllowanceItems: ExpenseItem[] = noAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',

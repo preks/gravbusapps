@@ -336,12 +336,13 @@ export const handleTripSubmitAction = (
     return false;
   }
   const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency,event);
-  const requestItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  const requestItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
   if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
     expenseRequestData.ExpenseItem.forEach((item: any) => {
       if (item) {
         requestItems.push({
           id: item.id,
+          version: item.version,
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
@@ -350,12 +351,13 @@ export const handleTripSubmitAction = (
       }
     });
   }
-  const additionalItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
   if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
       Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
     expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
+        version: item.version,
         code: item.code || '',
         title: item.title || '',
         ruleId: item.expenseRuleId || '',

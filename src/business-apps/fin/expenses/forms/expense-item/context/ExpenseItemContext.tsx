@@ -91,6 +91,7 @@ interface ExpenseItemContextProps {
   handleCurrencyChange: (currencyId: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
+  setInitialItemValues: (id: string, version: string | number) => void;
 }
 
 interface ExpenseItemProviderProps {
@@ -147,6 +148,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
+  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
 
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
@@ -427,7 +429,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             customFields,
             setCustomFields,
             employeeRuleId,
-            t
+            t,
+            setInitialItemValues
           );
           setIsEditMode(true);
         }
@@ -765,7 +768,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       userInfo?.employeeDetails?.employeeId,
       additionalData,
       userInfo,
-      expenseIdValue
+      itemValues || undefined
     );
   };
 
@@ -917,6 +920,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   };
 
+  const setInitialItemValues = (id: string, version: string | number) => {
+    setItemValues({ id, version });
+  };
+
   const contextValue: ExpenseItemContextProps = {
     form,
     currentStep,
@@ -955,6 +962,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
+    setInitialItemValues: setInitialItemValues,
   };
 
   return (

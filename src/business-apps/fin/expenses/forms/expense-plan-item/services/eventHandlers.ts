@@ -30,7 +30,8 @@ export const handleSubmit = async (
   accessToken?: string,
   userInfo?: any,
   additionalData?: any,
-  setIsEditMode?: (isEdit: boolean) => void
+  setIsEditMode?: (isEdit: boolean) => void,
+  itemValues?: { id: string; version: string | number }
 ) => {
   try {
     setLoading(true);
@@ -102,6 +103,8 @@ export const handleSubmit = async (
 
     const submitData = {
       expensePlanItem: {
+        ...(itemValues?.id && { id: itemValues.id }),
+        ...(itemValues?.version && { version: itemValues.version }),
         title: values.title,
         totalAmount: values.amount || 0,
         currencyRef: values.currency || "Currency:v1:EUR",

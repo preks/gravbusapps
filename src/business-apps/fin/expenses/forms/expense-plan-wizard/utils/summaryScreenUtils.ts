@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 
 interface ExpenseItem {
   id: any;
+  version: string|number;
   code: string;
   title: string;
   ruleId?: string;
@@ -32,6 +33,7 @@ export const createSummaryScreenLogObject = (
 ) => {
   const expenseItemsArray: ExpenseItem[] = (expensePlanData?.ExpensePlanItem || []).map((item: any) => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
@@ -68,6 +70,7 @@ export const createSummaryScreenLogObject = (
     },
     advancePayment: initialAdvancePayment ? {
         id: initialAdvancePayment.id,
+        version: initialAdvancePayment.version,
         currencyRef: initialAdvancePayment.currencyRef,
         amount: initialAdvancePayment.amount,
         paymentMethod: initialAdvancePayment.paymentMethod,

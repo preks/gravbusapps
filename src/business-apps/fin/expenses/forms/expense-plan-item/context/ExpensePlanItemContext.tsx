@@ -51,6 +51,7 @@ interface ExpensePlanItemContextProps {
 
   employeeRuleId: string | null | object;
   expenseRuleError: string | null;
+  itemValues: { id: string; version: string | number } | null;
 
   handleSubmit: () => Promise<void>;
   handleCancel: () => void;
@@ -59,6 +60,7 @@ interface ExpensePlanItemContextProps {
   handleCurrencyChange: (currencyId: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
+  setInitialItemValues: (id: string, version: string | number) => void;
 }
 
 interface ExpensePlanItemProviderProps {
@@ -101,6 +103,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
   const [rerunRule, setRerunRule] = useState<boolean>(false);
+  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
@@ -390,6 +393,9 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         return;
       }
 
+      // Set initial item values for edit mode
+      setInitialItemValues(item.id, item.version);
+
       // Prefill form fields
       form.setFieldsValue({
         title: item.title,
@@ -470,7 +476,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       accessToken,
       userInfo,
       additionalData,
-      setIsEditMode
+      setIsEditMode,
+      itemValues || undefined
     );
   };
 
@@ -505,6 +512,10 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     );
   };
 
+  const setInitialItemValues = (id: string, version: string | number) => {
+    setItemValues({ id, version });
+  };
+
   const contextValue: ExpensePlanItemContextProps = {
     form,
     loading,
@@ -520,6 +531,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     currencies,
     employeeRuleId,
     expenseRuleError,
+    itemValues,
     handleSubmit: handleSubmitWrapper,
     handleCancel: handleCancelWrapper,
     handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
@@ -527,6 +539,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
+    setInitialItemValues: setInitialItemValues,
   };
 
   return (

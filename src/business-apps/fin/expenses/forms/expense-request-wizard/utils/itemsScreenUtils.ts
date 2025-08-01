@@ -50,6 +50,7 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
 
     return {
       "id": element.id,
+      "version": element.version,
       "title": element.title,
       "date": element.expenseDate,
       "amount": element.totalAmount,
@@ -91,12 +92,14 @@ export const createItemsScreenLogObject = (
 ) => {
   const expenseItemsArray = expenseItems.map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expenseRequest: initialRequest?.id || ''
   })).concat(getAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',

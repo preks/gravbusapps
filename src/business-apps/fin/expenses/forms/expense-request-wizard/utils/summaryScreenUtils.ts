@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 
 interface ExpenseItem {
   id: any;
+  version: string|number;
   code: string;
   title: string;
   ruleId?: string;
@@ -29,7 +30,8 @@ export const createSummaryScreenLogObject = (
   event: string
 ) => {
   const expenseItemsArray: ExpenseItem[] = (expenseRequestData?.ExpenseItem || []).map((item: any) => ({
-    id: item.id,
+    id: item.id,  
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',

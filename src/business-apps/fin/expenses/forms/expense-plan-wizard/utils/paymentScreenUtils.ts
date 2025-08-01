@@ -36,6 +36,7 @@ export interface PaymentScreenLogObject {
   expensePlanItems: {
     planItems: Array<{
       id: string;
+      version: string|number;
       code: string;
       title: string;
       ruleId: string;
@@ -73,12 +74,13 @@ export const createPaymentScreenLogObject = (
   event: string,
   skipStep:boolean
 ): PaymentScreenLogObject => {
-  const planItemsArray: Array<{id: string, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const planItemsArray: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.ExpensePlanItem && Array.isArray(expensePlanData.ExpensePlanItem)) {
     expensePlanData.ExpensePlanItem.forEach((item: any) => {
       if (item) {
         planItemsArray.push({
           id: item.id,
+          version: item.version,
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',

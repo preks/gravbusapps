@@ -74,12 +74,14 @@ export const createItemsScreenLogObject = (
   const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
   const expenseItemsArray = expenseItems.map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expensePlan: initialPlan?.id || ''
   })).concat(getAllowanceItemsFunction(expensePlanData?.ExpensePlanItem || []).map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
@@ -109,6 +111,7 @@ export const createItemsScreenLogObject = (
     },
     advancePayment: initialAdvancePayment ? {
       id: initialAdvancePayment.id,
+      version: initialAdvancePayment.version,
       currencyRef: initialAdvancePayment.currencyRef,
       amount: initialAdvancePayment.amount,
       paymentMethod: initialAdvancePayment.paymentMethod,
