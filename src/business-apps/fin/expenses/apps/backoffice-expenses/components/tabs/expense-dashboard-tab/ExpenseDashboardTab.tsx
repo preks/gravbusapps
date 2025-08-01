@@ -36,6 +36,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     filters: currentFilters 
   });
 
+
   React.useEffect(() => {
     return () => {
       if (currencyDebounceTimer) {
@@ -107,11 +108,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
             return `Total Company Spend MTD (${selectedCurrencyCode})`;
         }
       })();
-      console.log("🔍 getTotalCompanySpendTitle called with:", {
-        period: currentFilters.period,
-        selectedCurrencyCode,
-        title
-      });
       return title;
     };
 

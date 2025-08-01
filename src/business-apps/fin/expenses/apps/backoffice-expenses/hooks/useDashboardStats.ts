@@ -24,6 +24,7 @@ import {
   GET_TOTAL_COMPANY_SPEND_MONTHLY,
   GET_TOTAL_COMPANY_SPEND_QUARTERLY,
   GET_TOTAL_COMPANY_SPEND_YEARLY,
+  GET_MONTHLY_EXPENSE_TRENDS,
 } from "../queries/expenseDashboard.queries";
 import { DashboardStats } from "../types";
 
@@ -100,7 +101,6 @@ export const useDashboardStats = ({
 
     const requestId = `${JSON.stringify(filters)}-${Date.now()}`;
     if (requestId === lastRequestId) {
-      console.log("Duplicate request detected, skipping");
       return;
     }
     setLastRequestId(requestId);
@@ -143,9 +143,12 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      const currentMonthStart = new Date(currentYear, currentDate.getMonth(), 1)
-        .toISOString()
-        .split("T")[0];
+      const currentMonthStart = new Date(
+        currentYear,
+        currentDate.getMonth(),
+        1
+      ).toISOString();
+
       const currentMonthEnd = new Date(
         currentYear,
         currentDate.getMonth() + 1,
@@ -153,9 +156,7 @@ export const useDashboardStats = ({
         23,
         59,
         59
-      )
-        .toISOString()
-        .split("T")[0];
+      ).toISOString();
 
       const currentYearEnd = new Date(currentYear, 11, 31, 23, 59, 59)
         .toISOString()
@@ -474,7 +475,6 @@ export const useDashboardStats = ({
         ytdStatsResponse = null;
       } else {
         // Full dashboard refresh
-        console.log("Full dashboard refresh");
         [
           expensePlanResponse,
           monthlyStatsResponse,
@@ -638,19 +638,8 @@ export const useDashboardStats = ({
             GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY,
             {
               selectedCurrency: selectedCurrency,
-              currentMonthStart: new Date(
-                currentYear,
-                currentDate.getMonth(),
-                1
-              ).toISOString(),
-              currentMonthEnd: new Date(
-                currentYear,
-                currentDate.getMonth() + 1,
-                0,
-                23,
-                59,
-                59
-              ).toISOString(),
+              currentMonthStart: currentMonthStart,
+              currentMonthEnd: currentMonthEnd,
             }
           );
         }
@@ -704,14 +693,39 @@ export const useDashboardStats = ({
         };
       }
 
-      const monthlyTrendsResponse = Array.from({ length: 12 }, (_, index) => ({
-        ExpenseRequestAggregate: {
-          aggregate: {
-            sum: { totalAmount: 0 },
-            count: 0,
-          },
-        },
-      }));
+      // Fetch monthly trends data for the current year
+      const monthlyTrendsResponse = await Promise.all(
+        Array.from({ length: 12 }, async (_, index) => {
+          const monthStart = new Date(currentYear, index, 1).toISOString();
+          const monthEnd = new Date(
+            currentYear,
+            index + 1,
+            0,
+            23,
+            59,
+            59
+          ).toISOString();
+
+          try {
+            const response = await client.request(GET_MONTHLY_EXPENSE_TRENDS, {
+              selectedCurrency: selectedCurrency,
+              startDate: monthStart,
+              endDate: monthEnd,
+            });
+            return response;
+          } catch (error) {
+            console.error(`Error fetching data for month ${index + 1}:`, error);
+            return {
+              ExpenseRequestAggregate: {
+                aggregate: {
+                  sum: { totalAmount: 0 },
+                  count: 0,
+                },
+              },
+            };
+          }
+        })
+      );
 
       const processedStats: DashboardStats = isCurrencyOnlyUpdate
         ? {
@@ -777,8 +791,10 @@ export const useDashboardStats = ({
                     month: "short",
                   }
                 ),
-                totalAmount: 0,
-                count: 0,
+                totalAmount:
+                  response?.ExpenseRequestAggregate?.aggregate?.sum
+                    ?.totalAmount || 0,
+                count: response?.ExpenseRequestAggregate?.aggregate?.count || 0,
               })
             ),
             monthlySpendComparison: {

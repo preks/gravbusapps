@@ -103,20 +103,8 @@ export const useFilterData = ({
       // Process organizational units from expense requests
       const allOrgUnits = new Map<string, any>();
 
-      console.log("Processing organizational units from expense requests...");
-      console.log(
-        "Total expense requests:",
-        orgUnitsResponse?.ExpenseRequest?.length || 0
-      );
-
       if (orgUnitsResponse?.ExpenseRequest) {
         orgUnitsResponse.ExpenseRequest.forEach((item: any, index: number) => {
-          console.log(`Request ${index}:`, {
-            hasEmployeePosition: !!item.employeePosition,
-            hasOrgUnit: !!item.employeePosition?.organizationalUnit,
-            orgUnit: item.employeePosition?.organizationalUnit,
-          });
-
           const orgUnit = item.employeePosition?.organizationalUnit;
           if (orgUnit && orgUnit.id) {
             allOrgUnits.set(orgUnit.id, {
