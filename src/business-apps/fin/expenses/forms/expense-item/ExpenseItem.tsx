@@ -119,6 +119,7 @@ const ExpenseItemContent: React.FC<ExpenseItemContentProps> = ({ onClose }) => {
           fileList={fileList}
           setFileList={setFileList}
           setCurrentStep={setCurrentStep}
+          handleCancel={handleCancelWithCallback}
         />
       ) : (
         <FormScreenComponent
