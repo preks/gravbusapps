@@ -783,6 +783,49 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       }
     }
 
+    // ✅ MISSING: Apply date range filters (startDate, endDate) from initialFilters
+    if (startDate || endDate) {
+      filteredData = filteredData.filter((absence: any) => {
+        const absenceStart = new Date(absence.startDate);
+        const absenceEnd = new Date(absence.endDate);
+        
+        // Apply start date filter (overlap logic: absence must end on or after filter start)
+        if (startDate) {
+          const filterStart = new Date(startDate);
+          if (absenceEnd < filterStart) return false;
+        }
+        
+        // Apply end date filter (overlap logic: absence must start on or before filter end)
+        if (endDate) {
+          const filterEnd = new Date(endDate);
+          if (absenceStart > filterEnd) return false;
+        }
+        
+        return true;
+      });
+    }
+
+    // ✅ MISSING: Apply creation date range filters
+    if (creationStartDate || creationEndDate) {
+      filteredData = filteredData.filter((absence: any) => {
+        if (!absence.createdAt) return true; // Keep items without creation date
+        
+        const createdDate = new Date(absence.createdAt);
+        
+        if (creationStartDate) {
+          const filterStart = new Date(creationStartDate);
+          if (createdDate < filterStart) return false;
+        }
+        
+        if (creationEndDate) {
+          const filterEnd = new Date(creationEndDate);
+          if (createdDate > filterEnd) return false;
+        }
+        
+        return true;
+      });
+    }
+
     // ✅ BACKUP APPROACH: If we got 0 results but have selectedFilters and full dataset, retry with full dataset
     if (filteredData.length === 0 && selectedFilters.length > 0 && !hasUserChangedFilters && dashboardData?.rawAbsences && dashboardData.rawAbsences.length > 0) {
       console.log('🔄 BACKUP: Retrying with full dataset due to 0 results', {
@@ -853,6 +896,49 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
           filteredData = filteredData.filter((absence: any) => 
             groupFilters.includes(absence.type?.parentEntryId)
           );
+        }
+        
+        // ✅ BACKUP: Apply date range filters (startDate, endDate) - SAME AS MAIN LOGIC
+        if (startDate || endDate) {
+          filteredData = filteredData.filter((absence: any) => {
+            const absenceStart = new Date(absence.startDate);
+            const absenceEnd = new Date(absence.endDate);
+            
+            // Apply start date filter (overlap logic: absence must end on or after filter start)
+            if (startDate) {
+              const filterStart = new Date(startDate);
+              if (absenceEnd < filterStart) return false;
+            }
+            
+            // Apply end date filter (overlap logic: absence must start on or before filter end)
+            if (endDate) {
+              const filterEnd = new Date(endDate);
+              if (absenceStart > filterEnd) return false;
+            }
+            
+            return true;
+          });
+        }
+
+        // ✅ BACKUP: Apply creation date range filters - SAME AS MAIN LOGIC
+        if (creationStartDate || creationEndDate) {
+          filteredData = filteredData.filter((absence: any) => {
+            if (!absence.createdAt) return true; // Keep items without creation date
+            
+            const createdDate = new Date(absence.createdAt);
+            
+            if (creationStartDate) {
+              const filterStart = new Date(creationStartDate);
+              if (createdDate < filterStart) return false;
+            }
+            
+            if (creationEndDate) {
+              const filterEnd = new Date(creationEndDate);
+              if (createdDate > filterEnd) return false;
+            }
+            
+            return true;
+          });
         }
       }
     }

@@ -33,8 +33,6 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
 
   // Navigation handlers - following manager-absences pattern
   const handleNavigateToAbsenceDetails = (month: string, year: number = new Date().getFullYear()) => {
-    console.log('🔍 Navigating to absence details:', { month, year });
-    
     // Handle month names that might include year (e.g., "Dec 2024", "Jan 2025")
     let monthName = month;
     let actualYear = year;
@@ -44,7 +42,6 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     if (yearMatch) {
       monthName = yearMatch[1]; // Extract month part
       actualYear = parseInt(yearMatch[2]); // Extract year part
-      console.log('📅 Extracted from month string:', { monthName, actualYear });
     }
     
     // Calculate start and end dates for the selected month
@@ -59,18 +56,9 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     }
     
     const startDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-01`;
-    
-    // Create a date for the last day of the month (avoiding timezone issues)
     const lastDayOfMonth = new Date(actualYear, monthIndex + 1, 0);
     const endDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
     const shortMonth = monthName.substring(0, 3);
-    
-    console.log('✅ Setting absence details filter:', {
-      month: shortMonth,
-      startDate,
-      endDate,
-      actualYear
-    });
     
     // Set filters and navigate to details page
     setAbsenceDetailsFilter({

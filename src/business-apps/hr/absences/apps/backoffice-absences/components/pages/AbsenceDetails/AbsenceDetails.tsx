@@ -134,7 +134,17 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
 
     return { absences: filtered, overlappingInfo };
-  }, [dashboardData.rawAbsences, startDate, endDate, month, department, status, currentFilteredData]);
+  }, [
+    dashboardData.rawAbsences, 
+    startDate, 
+    endDate, 
+    month, 
+    department, 
+    status,
+    // ✅ RESTORED: Add current date range from table to allow date filter updates
+    currentFilteredData?.appliedFilters?.currentDateRange?.startDate,
+    currentFilteredData?.appliedFilters?.currentDateRange?.endDate
+  ]);
 
   // 🚀 PHASE 2: Dynamic analysis calculations based on current filtered table data
   const dynamicAnalysis = useMemo(() => {
@@ -207,7 +217,20 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       isFiltered: isFiltered,
       appliedFilters: appliedFilters
     };
-  }, [currentFilteredData, filteredAbsencesForMonth, startDate, endDate, month, department, status]);
+  }, [
+    filteredAbsencesForMonth, 
+    startDate, 
+    endDate, 
+    month, 
+    department, 
+    status,
+    // ✅ RESTORED: Add specific currentFilteredData properties to restore live dashboard
+    currentFilteredData?.absences?.length,
+    currentFilteredData?.total,
+    currentFilteredData?.isFiltered,
+    // Use JSON.stringify for appliedFilters to detect deep changes safely
+    JSON.stringify(currentFilteredData?.appliedFilters || {})
+  ]);
 
   // 🎯 Dynamic UI Labels - Show current filter state
   const currentUIState = useMemo(() => {
@@ -272,7 +295,16 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       hasChangedFilters,
       currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
     };
-  }, [currentFilteredData, startDate, endDate, month, department, status]);
+  }, [
+    startDate, 
+    endDate, 
+    month, 
+    department, 
+    status,
+    // ✅ RESTORED: Add specific currentFilteredData properties to restore live UI updates
+    currentFilteredData?.isFiltered,
+    JSON.stringify(currentFilteredData?.appliedFilters || {})
+  ]);
 
   // 🚀 CRITICAL: Handle loading state properly - AFTER ALL HOOKS
   if (dashboardData.isLoading) {
