@@ -416,8 +416,7 @@ export const handleSubmit = async (
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
         
-        //dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
-        console.log("submitData", submitData);
+        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
         // operationSuccessful = true;
       } catch (processError) {
         showToast(
