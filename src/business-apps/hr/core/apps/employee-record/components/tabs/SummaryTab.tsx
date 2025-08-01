@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { navigateTo } from '@/common/utils/navigationUtils';
 import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsence';
 import dayjs from 'dayjs';
@@ -23,6 +23,10 @@ import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from 'antd';
+import JobDetailsDrawer from './JobDetailsDrawer';
+import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent';
+import JobFunctionDrawerContent, { getJobFunctionIcon, getJobFunctionTitle } from './drawer-content/JobFunctionDrawerContent';
+import JobLevelDrawerContent, { getJobLevelIcon, getJobLevelTitle } from './drawer-content/JobLevelDrawerContent';
 
 interface SummaryTabProps {
   employee: Employee;
@@ -44,6 +48,32 @@ interface SummaryTabProps {
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId, isSelfView }) => {
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id);
+  
+  // State for managing drawer visibility and content using a single state object
+  const [drawerState, setDrawerState] = useState({
+    visible: false,
+    title: '',
+    content: <></> as React.ReactElement, // Empty fragment as initial content
+    icon: null as React.ReactNode
+  });
+  
+  // Function to open the drawer with specific content
+  const openDrawer = (title: string, content: React.ReactElement, icon: React.ReactNode) => {
+    setDrawerState({
+      visible: true,
+      title,
+      content,
+      icon
+    });
+  };
+  
+  // Function to close the drawer
+  const closeDrawer = () => {
+    setDrawerState(prevState => ({
+      ...prevState,
+      visible: false
+    }));
+  };
   // Get additional attributes from additionalProperties
   const getAdditionalAttributes = () => {
     if (!employee.additionalProperties) return [];
@@ -82,8 +112,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
   }, [employee.employeePosition]);
 
   return (
-    <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
-      {/* Summary Overview Headline with Action Button */}
+      <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
+        {/* Summary Overview Headline with Action Button */}
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="summary-header">
         <div className="gba:summary-header">
           <div
@@ -107,7 +137,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
         </div>
         
         {/* Action Button - Only visible when viewing own profile */}
-        {isSelfView && (
+        {isSelfView && useMemo(() => (
           <div>
             <AppActionButton 
               data-testid="employee-action-button"
@@ -119,6 +149,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               prefixDataTestId="employee-action"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
+              deferMainContextRequestsUntilClick={true}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_employee.action",
@@ -126,7 +157,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               )}
             </AppActionButton>
           </div>
-        )}
+        ), [employee?.id, accessToken])}
       </div>
       
       {/* Main grid layout for content blocks */}
@@ -285,9 +316,23 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
                     <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                    <div>
+                    <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
-                      <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.organizationalUnit?.name || "Not assigned"}</div>
+                      <button 
+                        onClick={() => openDrawer(
+                          getJobFamilyTitle(employee),
+                          <JobFamilyDrawerContent 
+                            employee={employee} 
+                            accessToken={accessToken} 
+                          />,
+                          getJobFamilyIcon()
+                        )}                        
+                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        data-testid="job-family-button"
+                      >
+                        {/* Display job family from updated data structure, fallback to organizationalUnit name */}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || "Not assigned"}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -296,9 +341,25 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
                     <PiFunction className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                    <div>
-                      <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
-                      <div className="gba:text-sm gba:text-gray-600">{employee.employeePosition?.jobPosition?.name || "Not assigned"}</div>
+                    <div className="gba:w-full">
+                      <div className="gba:flex gba:justify-between gba:w-full">
+                        <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
+                      </div>
+                      <button 
+                        onClick={() => openDrawer(
+                          getJobFunctionTitle(employee),
+                          <JobFunctionDrawerContent 
+                            employee={employee} 
+                            accessToken={accessToken} 
+                            isVisible={true}
+                          />,
+                          getJobFunctionIcon()
+                        )}                        
+                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        data-testid="job-function-button"
+                      >
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned"}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -307,9 +368,22 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 {employee.employeePosition?.jobPosition?.name && (
                   <div className="gba:flex gba:items-center">
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
-                    <div>
+                    <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
-                      <div className="gba:text-sm gba:text-gray-600">{"Not assigned"}</div>
+                      <button 
+                        onClick={() => openDrawer(
+                          getJobLevelTitle(employee),
+                          <JobLevelDrawerContent 
+                            employee={employee}
+                            accessToken={accessToken} 
+                          />,
+                          getJobLevelIcon()
+                        )}
+                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        data-testid="job-level-button"
+                      >
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name || "Not assigned"}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -470,7 +544,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
           </div>
         )}
       </div>
-    </div>
+      
+      {/* Job Details Drawer */}
+      <JobDetailsDrawer
+        title={drawerState.title}
+        open={drawerState.visible}
+        onClose={closeDrawer}
+        content={drawerState.content}
+        icon={drawerState.icon}
+      />
+   </div>
   );
 };
 

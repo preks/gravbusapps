@@ -560,22 +560,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                         "Not assigned"
                       : "No manager"
                   }
-                  linkTo={undefined}
-                  onClick={
+                  linkTo={
                     employee.employeePosition?.supervisor?.id &&
                     employee.employeePosition.supervisor.id !== employee.id
-                      ? () => {
-                          const url = new URL(window.location.href);
-                          url.searchParams.set(
-                            "employeeId",
-                            employee.employeePosition?.supervisor?.id || ""
-                          );
-                          window.history.pushState({}, "", url.toString());
-                        }
+                      ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ""}`
                       : undefined
                   }
                 />
-                
                 {/* Job Position */}
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
@@ -599,6 +590,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
                       : undefined
                   }
+                  openInNewTab={true}
                 />
                 {/* Hire Date */}
                 <ProfileInfoItem

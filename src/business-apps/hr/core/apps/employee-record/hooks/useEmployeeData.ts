@@ -10,264 +10,268 @@ import { useGraphqlClient } from '../../../../../../common/network/graphql/useGr
  * - Performance goals
  */
 export const GET_EMPLOYEE_DATA = /*sql*/`
-  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
-    EmployeePosition(where: {
-      employeeId: {_eq: $employeeId}
-    }) {
+ query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
+  EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
+    id
+    organizationalUnitId
+    organizationalUnit {
       id
-      organizationalUnitId
-      organizationalUnit {
-        name
-      }
-      supervisor {
-        firstName
-        lastName
-        displayName
-        id
-        pictureThumbnail
-        employeePosition{
-          jobPosition{
-            name
-          }
+      name
+      description
+      organizationalUnitEmployeeAggregate {
+        aggregate {
+          count
         }
       }
-      jobPosition {
-        name
+    }
+    supervisor {
+      firstName
+      lastName
+      displayName
+      id
+      pictureThumbnail
+      employeePosition {
+        jobPosition {
+          name
+        }
       }
-      jobPositionId
-      siteLocation {
-        name
+    }
+    jobPosition {
+      id
+      name
+      jobFunction {
         id
-      }
-      companyId
-      company {
         name
+        jobFamily {
+          value
+        }
       }
-      siteLocationId
-      costCenterId
-      costCenter {
+      jobLevel{
         id
         name
       }
-      # Matrix teams data
-      matrixUnitEmployees(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
-        structureId
-        matrixUnit {
+    }
+    jobPositionId
+    siteLocation {
+      name
+      id
+    }
+    companyId
+    company {
+      name
+    }
+    siteLocationId
+    costCenterId
+    costCenter {
+      id
+      name
+    }
+    matrixUnitEmployees(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
+      structureId
+      matrixUnit {
+        id
+        name
+      }
+    }
+    employeeCapabilities(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
+      structureId
+      capability {
+        id
+        name
+      }
+    }
+    employee {
+      id
+      code
+      fullName
+      displayName
+      workspace
+      version
+      pictureThumbnail
+      additionalProperties
+      skills(where: {isDeleted: {_eq: false}}) {
+        level
+        skill {
           id
           name
         }
       }
-      # Capabilities data
-      employeeCapabilities(where: {structureId: {_eq: $structureId}}) @include(if: $hasStructureId) {
-        structureId
-        capability {
-          id
-          name
-        }
-      }
-      employee {
+      salutation {
+        value
         id
-        code
-        fullName
-        displayName
-        workspace
-        version
-        pictureThumbnail
-        additionalProperties
-        # Skills data
-        skills(where: {isDeleted: {_eq: false}}) {
-          level
-          skill {
-            id
-            name
-          }
-        }
-        salutation {
-          value
-          id
-        }
-        maritalStatus {
-          id
-          value
-        }
-        gender {
-          value
-          id
-        }
-        academicTitleRef
-        firstName
-        preferredName
-        birthDate
-        birthName
-        lastName
-        jobHistories {
-          activeFrom
-          activeTo
-          company
-          exitDate
-          hireDate
-          jobPosition
-          locality
-        }
-        addresses {
-          id
-          version
-          addressLine
-          postalCode
-          locality
-          type
-        }
-        relationship {
-          isEmergencyContact
-          type {
-            id
-            value
-          }
-          firstName
-          lastName
-          birthDate
-          phoneNumber
-          email
-        }
-        communication {
-          id
-          version
-          channelRef
-          value
-          purpose
-          type {
-            value
-          }
-          channel {
-            value
-            code
-            additionalValue1
-          }
-        }
-        workingCondition {
-          id
-          version
-          regionRef
-          probationEnd
-          contractType {
-            value
-            id
-          }
-          employmentType {
-            value
-            id
-          }
-          region {
-            value
-            id
-          }
-          remote {
-            id
-            value
-          }
-          hireDate
-          vacationDays
-          exitDate
-        }
-        workingHours {
-          id
-          version
-          weeklyHours
-          fullTimeEquivalent
-          mondayHours
-          remote {
-            id
-            value
-          }
-          thursdayHours
-          wednesdayHours
-          tuesdayHours
-          fridayHours
-          saturdayHours
-          sundayHours
-          weeklyDays
-        }
-        # Second skills field removed to avoid inconsistent arguments
-        workPermit {
-          type {
-            value
-          }
-        }
-        bankAccounts {
-          iban
-          bankName
-          accountHolder
-        }
-        taxDetails {
-          taxNumber
-          taxBracketRef
-          taxIdentificationNumber
-          socialSecurityNumber
-          taxableChurchAffiliationRef
-          childTaxAllowance
-          healthInsuranceName
-          healthInsuranceTypeRef
-        }
       }
-    }
-
-    Subordinates: EmployeePosition(where: {supervisorEmployeeId: {_eq: $employeeId}}) {
-      employee {
-        id
-        firstName
-        lastName
-        pictureThumbnail
-        picture
-      }
-      jobPosition {
-        name
-      }
-    }
-    
-    EmployeeFeedback(where: {
-      isDeleted: {_eq: false}, 
-      employeeId: {_eq: $employeeId}
-    }) {
-      feedback
-      feedbackDate
-      senderEmployeeId
-      senderEmployee {
-        firstName
-        lastName
-        employeePosition {
-          employee {
-            pictureThumbnail
-            picture
-          }
-        }
-      }
-    }
-    EmployeeAbsenceEntitlement(where: {
-      isDeleted: {_eq: false}, 
-      employeeId: {_eq: $employeeId}
-    }) {
-      employeeId
-      type {
+      maritalStatus {
         id
         value
       }
-      available
-      pending
-      total
-      approved
-    }
-    EmployeePerformanceGoal(where: {
-      isDeleted: {_eq: false}, 
-      employeeId: {_eq: $employeeId}
-    }, orderBy: {progressPercent: DESC}) {
-      dueDate
-      completionDate
-      startDate
-      status
-      title
-      progressPercent
+      gender {
+        value
+        id
+      }
+      academicTitleRef
+      firstName
+      preferredName
+      birthDate
+      birthName
+      lastName
+      jobHistories {
+        activeFrom
+        activeTo
+        company
+        exitDate
+        hireDate
+        jobPosition
+        locality
+      }
+      addresses {
+        id
+        version
+        addressLine
+        postalCode
+        locality
+        type
+      }
+      relationship {
+        isEmergencyContact
+        type {
+          id
+          value
+        }
+        firstName
+        lastName
+        birthDate
+        phoneNumber
+        email
+      }
+      communication {
+        id
+        version
+        channelRef
+        value
+        purpose
+        type {
+          value
+        }
+        channel {
+          value
+          code
+          additionalValue1
+        }
+      }
+      workingCondition {
+        id
+        version
+        regionRef
+        probationEnd
+        contractType {
+          value
+          id
+        }
+        employmentType {
+          value
+          id
+        }
+        region {
+          value
+          id
+        }
+        remote {
+          id
+          value
+        }
+        hireDate
+        vacationDays
+        exitDate
+      }
+      workingHours {
+        id
+        version
+        weeklyHours
+        fullTimeEquivalent
+        mondayHours
+        remote {
+          id
+          value
+        }
+        thursdayHours
+        wednesdayHours
+        tuesdayHours
+        fridayHours
+        saturdayHours
+        sundayHours
+        weeklyDays
+      }
+      workPermit {
+        type {
+          value
+        }
+      }
+      bankAccounts {
+        iban
+        bankName
+        accountHolder
+      }
+      taxDetails {
+        taxNumber
+        taxBracketRef
+        taxIdentificationNumber
+        socialSecurityNumber
+        taxableChurchAffiliationRef
+        childTaxAllowance
+        healthInsuranceName
+        healthInsuranceTypeRef
+      }
     }
   }
+  Subordinates: EmployeePosition(where: {supervisorEmployeeId: {_eq: $employeeId}}) {
+    employee {
+      id
+      firstName
+      lastName
+      pictureThumbnail
+      picture
+    }
+    jobPosition {
+      id
+      name
+    }
+  }
+  EmployeeFeedback(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    feedback
+    feedbackDate
+    senderEmployeeId
+    senderEmployee {
+      firstName
+      lastName
+      employeePosition {
+        employee {
+          pictureThumbnail
+          picture
+        }
+      }
+    }
+  }
+  EmployeeAbsenceEntitlement(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    employeeId
+    type {
+      id
+      value
+    }
+    available
+    pending
+    total
+    approved
+  }
+  EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}, orderBy: {progressPercent: DESC}) {
+    dueDate
+    completionDate
+    startDate
+    status
+    title
+    progressPercent
+  }
+}
+ 
 `;
 
 /**
@@ -285,7 +289,6 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
-    console.log('Fetching employee data...');
     if (skipRequest || !accessToken || !employeeId) {
       setData(null);
       setIsLoading(false);
@@ -434,8 +437,24 @@ interface EmployeePosition {
   };
   jobPosition: {
     name: string;
+    id?: string;
+    jobFunction?: {
+      id: string;
+      name: string;
+      jobFamily?: {
+        value: string;
+      };
+    };
+    jobLevel?: {
+      id: string;
+      name: string;
+    };
   };
   jobPositionId: string;
+  jobLevel?: {
+    name: string;
+    id: string;
+  };
   siteLocation: {
     name: string;
     id: string;
