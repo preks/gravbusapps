@@ -1,4 +1,13 @@
 import { InvestmentArea, InvestmentQuickAction } from '../types';
+import { 
+  UserPlus, 
+  Target, 
+  Building,
+  AddressBook,
+  FileText,
+  ChartBar,
+  Wallet
+} from '@phosphor-icons/react';
 
 export const investmentAreas: InvestmentArea[] = [
   // CRM Areas (identical to CRM functionality)
@@ -6,7 +15,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'leads',
     title: 'Leads',
     description: 'Manage prospects and potential customers in your sales pipeline',
-    icon: 'RiUserAddLine',
+    icon: UserPlus,
     category: 'crm',
     path: '/crm/leads'
   },
@@ -14,7 +23,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'opportunities',
     title: 'Opportunities',
     description: 'Track and manage sales opportunities through your pipeline',
-    icon: 'RiTargetLine',
+    icon: Target,
     category: 'crm',
     path: '/crm/opportunities'
   },
@@ -22,7 +31,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'accounts',
     title: 'Accounts',
     description: 'Manage company and organization records and relationships',
-    icon: 'RiBuildingLine',
+    icon: Building,
     category: 'crm',
     path: '/crm/accounts'
   },
@@ -30,7 +39,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'contacts',
     title: 'Contacts',
     description: 'Maintain individual person records and contact information',
-    icon: 'RiContactsLine',
+    icon: AddressBook,
     category: 'crm',
     path: '/crm/contacts'
   },
@@ -40,7 +49,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'investments',
     title: 'Investments',
     description: 'Comprehensive investment portfolio management and tracking',
-    icon: 'RiFundsLine',
+    icon: Wallet,
     category: 'portfolio',
     path: '/investments'
   },
@@ -50,7 +59,7 @@ export const investmentAreas: InvestmentArea[] = [
     id: 'analytics-reporting',
     title: 'Analytics & Reporting',
     description: 'Advanced analytics, performance metrics, and comprehensive reporting',
-    icon: 'RiBarChartLine',
+    icon: ChartBar,
     category: 'analytics',
     path: '/investments/analytics'
   }
@@ -60,37 +69,37 @@ export const investmentQuickActions: InvestmentQuickAction[] = [
   {
     id: 'add-lead',
     label: 'Add New Lead',
-    icon: 'RiUserAddLine',
+    icon: UserPlus,
     action: 'create-lead'
   },
   {
     id: 'create-opportunity',
     label: 'Create Opportunity',
-    icon: 'RiTargetLine',
+    icon: Target,
     action: 'create-opportunity'
   },
   {
     id: 'add-contact',
     label: 'Add Contact',
-    icon: 'RiContactsLine',
+    icon: AddressBook,
     action: 'create-contact'
   },
   {
     id: 'add-account',
     label: 'Add Account',
-    icon: 'RiBuildingLine',
+    icon: Building,
     action: 'create-account'
   },
   {
     id: 'add-investment',
     label: 'Add Investment',
-    icon: 'RiFundsLine',
+    icon: Wallet,
     action: 'create-investment'
   },
   {
     id: 'generate-report',
     label: 'Generate Report',
-    icon: 'RiFileTextLine',
+    icon: FileText,
     action: 'generate-report'
   }
 ];

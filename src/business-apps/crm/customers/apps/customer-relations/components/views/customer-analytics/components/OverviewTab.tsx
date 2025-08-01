@@ -212,7 +212,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                       config={{
                         value: {
                           label: "Leads",
-                          color: "#3b82f6"
+                          color: "hsl(var(--chart-2))"
                         }
                       }} 
                       className="gba:w-[300px] gba:h-[300px]"
@@ -239,7 +239,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                     </ChartContainer>
                     
                     {/* Center content overlay */}
-                    <div className="gba:absolute gba:top-1/2 gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:-translate-y-1/2 gba:pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
+                    <div className="gba:absolute gba:pointer-events-none" style={{ transform: 'translate(-50%, -50%)', left: '50%', top: '50%' }}>
                       <div className="gba:text-center">
                         <div className="gba:text-base gba:font-semibold gba:text-gray-700">
                           Total Leads

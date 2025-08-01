@@ -20,6 +20,7 @@ interface LeadFormContextValue extends LeadContextState {
   setFormValues: (updates: Partial<LeadFormValues>) => void;
   onSubmit: (values: LeadFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
+  accessToken: string;
   
   // Employee positions (already searchable)
   employeePositions: SelectOption[];
@@ -395,6 +396,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     setFormValues,
     onSubmit,
     onCancel,
+    accessToken: businessAppContext.accessToken,
     
     // Global state
     isLoading,

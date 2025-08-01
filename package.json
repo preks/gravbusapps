@@ -10,8 +10,7 @@
     "publish:screen": "node ./scripts/publish-dev-screen.js",
     "publish:prod:screens": "npm run build:prod && node ./scripts/publish-prod-screens.js",
     "serve": "vite serve --port 5001 --strictPort",
-    "lint": "eslint .",
-    "postinstall": "npm install @newwork/nw-design-system@latest"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ant-design/charts": "^2.3.0",
@@ -20,7 +19,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "7.10.4",
-    "@newwork/nw-design-system": "^0.0.1-71",
+    "@newwork/nw-design-system": "0.0.1-78",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.25.1",
     "clsx": "^2.1.1",

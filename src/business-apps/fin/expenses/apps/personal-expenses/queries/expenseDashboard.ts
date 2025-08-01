@@ -35,6 +35,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     ) {
       aggregate {
+       count
         sum {
           totalAmount
         }
@@ -51,6 +52,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     ) {
       aggregate {
+        count
         sum {
           amount
         }
