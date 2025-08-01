@@ -74,7 +74,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     setActiveTab('dashboard');
     // Clear any filters when returning to dashboard
     setAbsenceDetailsFilter({});
-  };
+    };
 
   // Handle navigation to absence details with filters (status, date range, etc.)
   const handleNavigateToAbsenceDetailsWithFilters = (filters: AbsenceDetailsFilter) => {
@@ -163,7 +163,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
       ? 'No Department' 
       : absenceDetailsFilter.department;
 
-    return (
+  return (
       <div data-testid="backoffice-absences-container">
         <AbsenceDetails
           accessToken={accessToken}
@@ -190,7 +190,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />
-      </div>
+        </div>
     );
   }
 

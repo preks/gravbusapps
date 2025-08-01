@@ -220,14 +220,27 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
               onClick={(data) => {
                 if (data && data.activeLabel && onMonthClick) {
                   const monthLabel = data.activeLabel as string;
-                  // Convert short month back to full month name
+                  
+                  // Handle month labels that might include year (e.g., "Dec 2024", "Jan 2025")
+                  let monthPart = monthLabel;
+                  let yearPart = new Date().getFullYear();
+                  
+                  // Check if the label includes a year
+                  const yearMatch = monthLabel.match(/(\w+)\s+(\d{4})/);
+                  if (yearMatch) {
+                    monthPart = yearMatch[1]; // Extract month part ("Dec")
+                    yearPart = parseInt(yearMatch[2]); // Extract year part (2024)
+                  }
+                  
+                  // Convert short month to full month name
                   const monthMap: Record<string, string> = {
                     'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
                     'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
                     'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
                   };
-                  const fullMonth = monthMap[monthLabel] || monthLabel;
-                  onMonthClick(fullMonth, new Date().getFullYear());
+                  
+                  const fullMonth = monthMap[monthPart] || monthPart;
+                  onMonthClick(fullMonth, yearPart);
                 }
               }}
             >

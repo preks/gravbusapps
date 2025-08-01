@@ -109,18 +109,18 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       const absenceStart = new Date(absence.startDate);
       const absenceEnd = new Date(absence.endDate);
 
-      if (absenceStart >= rangeStart && absenceEnd <= rangeEnd) {
-        fullyWithinRequests.push(absence);
-      } else if (absenceStart < rangeStart && absenceEnd <= rangeEnd) {
-        spanningIntoRequests.push(absence);
-      } else if (absenceStart >= rangeStart && absenceEnd > rangeEnd) {
-        spanningOutRequests.push(absence);
-      } else if (absenceStart < rangeStart && absenceEnd > rangeEnd) {
-        spanningAcrossRequests.push(absence);
+        if (absenceStart >= rangeStart && absenceEnd <= rangeEnd) {
+          fullyWithinRequests.push(absence);
+        } else if (absenceStart < rangeStart && absenceEnd <= rangeEnd) {
+          spanningIntoRequests.push(absence);
+        } else if (absenceStart >= rangeStart && absenceEnd > rangeEnd) {
+          spanningOutRequests.push(absence);
+        } else if (absenceStart < rangeStart && absenceEnd > rangeEnd) {
+          spanningAcrossRequests.push(absence);
       }
     });
 
-    const overlappingInfo = {
+    const overlappingInfo = { 
       fullyWithin: fullyWithinRequests.length,
       spanningInto: spanningIntoRequests.length,
       spanningOut: spanningOutRequests.length,
@@ -405,7 +405,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               <span className="gba:ml-2 gba:text-xs gba:bg-gray-100 gba:text-gray-700 gba:px-2 gba:py-1 gba:rounded">
                 {dynamicAnalysis.isFiltered ? 'Filtered' : 'Live'}
               </span>
-            </div>
+                  </div>
             <div className="gba:text-gray-600 gba:text-sm">
               {currentUIState.hasChangedFilters ? (
                 currentUIState.currentDateRange.startDate && currentUIState.currentDateRange.endDate ? 
@@ -420,9 +420,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               {dynamicAnalysis.isFiltered && (
                 <span className="gba:ml-2">• Updates automatically</span>
               )}
-            </div>
-          </div>
-          
+                  </div>
+                </div>
+                
           {/* Dynamic Analysis Grid - Main Metrics as Cards */}
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
             <Card>
@@ -472,8 +472,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
               </CardContent>
             </Card>
-          </div>
-
+              </div>
+              
           {/* Detailed Analysis - 4 Cards in a Row */}
           <div className="gba:mt-3 gba:grid gba:gap-3 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
             {/* Cross-Month Analysis Card - First Position */}
@@ -500,7 +500,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     {filteredAbsencesForMonth.overlappingInfo.spanningAcross > 0 && (
                       <div>Spanning ACROSS period: {filteredAbsencesForMonth.overlappingInfo.spanningAcross} requests</div>
                     )}
-                    
+
                     {/* Detailed Employee Info for Spanning Requests */}
                     {(filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests?.length > 0 || 
                       filteredAbsencesForMonth.overlappingInfo.spanningOutRequests?.length > 0) && (
@@ -509,35 +509,35 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                           <div className="gba:mb-1">
                             <span className="gba:font-medium">INTO:</span> {
                               filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.slice(0, 2).map((absence: any, index: number) => {
-                                const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                                 const employeeName = absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim();
-                                return (
+                            return (
                                   <span key={absence.id || index} className="gba:text-gray-500">
-                                    {index > 0 && ', '}
+                                {index > 0 && ', '}
                                     {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
-                                  </span>
-                                );
-                              })
-                            }
+                              </span>
+                            );
+                          })
+                        }
                             {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 2 && (
                               <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length - 2} more</span>
                             )}
                           </div>
-                        )}
+                    )}
                         {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests?.length > 0 && (
                           <div>
                             <span className="gba:font-medium">OUT:</span> {
                               filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.slice(0, 2).map((absence: any, index: number) => {
-                                const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                                 const employeeName = absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim();
-                                return (
+                            return (
                                   <span key={absence.id || index} className="gba:text-gray-500">
-                                    {index > 0 && ', '}
+                                {index > 0 && ', '}
                                     {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
-                                  </span>
-                                );
-                              })
-                            }
+                              </span>
+                            );
+                          })
+                        }
                             {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 2 && (
                               <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length - 2} more</span>
                             )}
@@ -578,9 +578,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     {Object.entries(dynamicAnalysis.statusBreakdown).map(([status, count]) => (
                       <div key={status} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
                         <span className="gba:font-medium">{status}:</span> {count as number}
-                      </div>
+            </div>
                     ))}
-                  </div>
+          </div>
                 ) : (
                   <div className="gba:text-xs gba:text-gray-500">No status data</div>
                 )}
@@ -598,9 +598,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     {Object.entries(dynamicAnalysis.departmentBreakdown).map(([dept, count]) => (
                       <div key={dept} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
                         <span className="gba:font-medium">{dept}:</span> {count as number}
-                      </div>
+              </div>
                     ))}
-                  </div>
+              </div>
                 ) : (
                   <div className="gba:text-xs gba:text-gray-500">No department data</div>
                 )}

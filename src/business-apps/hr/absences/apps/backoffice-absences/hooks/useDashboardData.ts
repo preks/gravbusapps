@@ -56,8 +56,6 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
       // ✅ STEP 1: Fetch absence groups catalog (required for proper type mapping)
-      console.log('📋 Fetching absence groups catalog...');
-      
       await catalogClient.setAccessToken(accessToken);
       const absenceGroupsData = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier: "AbsenceGroup", version: "v1" },
@@ -77,53 +75,31 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
         }
       });
 
-      console.log('✅ Absence groups loaded:', Object.keys(absenceGroups).length, 'groups');
-
-      // ✅ STEP 2: Find vacation group ID for entitlement filtering
+      // ✅ STEP 2: Find vacation group ID for entitlement filtering (FIXED LOGIC)
       const vacationGroup = absenceGroupsData.data.find((group: any) => 
-        group.value && group.value.toLowerCase().includes('leave')
+        group.value && (
+          group.value.toLowerCase().includes('vacation') ||
+          group.value.toLowerCase().includes('annual') ||
+          group.value.toLowerCase().includes('holiday') ||
+          (group.value.toLowerCase().includes('leave') && !group.value.toLowerCase().includes('sick'))
+        )
       );
       const vacationGroupId = vacationGroup?.id;
       
-      if (vacationGroupId) {
-        console.log('🏖️ Vacation group found:', { id: vacationGroupId, name: vacationGroup.value });
-      } else {
-        console.warn('⚠️ No vacation group found - vacation metrics may be limited');
-      }
-
       // ✅ SERVER-SIDE AGGREGATIONS: True server-side processing
-      console.log('🚀 Using server-side aggregations for optimal performance');
-      
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId);
+      
       const result = await graphQLClient.request<any>(query);
       
-      console.log('📊 Server aggregation results received:', {
-        totalAbsencesCount: result.totalAbsences?.aggregate?.count,
-        approvedCount: result.approvedAbsences?.aggregate?.count,
-        pendingCount: result.pendingAbsences?.aggregate?.count,
-        vacationEntitlementsCount: result.vacationEntitlements?.aggregate?.count,
-        rawDataCount: result.employeeAbsences?.length,
-        avgDuration: result.totalAbsences?.aggregate?.avg?.effectiveDays
-      });
-
       // Process aggregation results with minimal client-side work
       const processedData = processCompleteServerSideAggregations(
         result,
-        timeFilter,
-        absenceGroups
+        absenceGroups,
+        timeFilter
       );
 
       setData(processedData);
       
-      console.log('✅ Server-side aggregations processing complete!', {
-        totalAbsences: processedData.totalAbsences,
-        averageDuration: processedData.averageDuration,
-        approvalRate: processedData.approvalRate,
-        averageVacationDays: processedData.averageVacationDays,
-        totalVacationLiability: processedData.totalVacationLiability,
-        performanceGain: 'Significant - server-side calculations used'
-      });
-
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
       setData(prev => ({ 

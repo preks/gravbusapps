@@ -31,27 +31,6 @@ export const formatDateFull = (dateStr: string): string => {
   });
 };
 
-// Absence calculation utilities
-export const calculateAverageDuration = (absences: any[]): number => {
-  if (absences.length === 0) return 0;
-  
-  const totalDays = absences.reduce((sum, absence) => {
-    return sum + (absence.effectiveDays || absence.calendarDays || 0);
-  }, 0);
-  
-  return Math.round((totalDays / absences.length) * 100) / 100; // Round to 2 decimal places
-};
-
-export const calculateApprovalRate = (absences: any[]): number => {
-  if (absences.length === 0) return 0;
-  
-  const approvedCount = absences.filter(absence => 
-    absence.status === 'APPROVED'
-  ).length;
-  
-  return Math.round((approvedCount / absences.length) * 100);
-};
-
 // Department statistics utilities
 export const groupAbsencesByDepartment = (absences: any[]) => {
   const departmentMap = new Map();
@@ -114,26 +93,8 @@ export const groupAbsencesByMonth = (absences: any[], timeFilter?: string) => {
         targetDate = startDate; // Absence starts in target year
       } else if (endDate.getFullYear() === filterYear) {
         targetDate = endDate; // Absence ends in target year
-        
-        // ✅ DEBUG: Log year-spanning absences
-        console.log('🔄 Year-spanning absence mapped to target year:', {
-          absenceId: absence.id,
-          originalStart: absence.startDate,
-          originalEnd: absence.endDate,
-          startYear: startDate.getFullYear(),
-          endYear: endDate.getFullYear(),
-          filterYear,
-          mappedToMonth: targetDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          logic: `Moved from ${startDate.getFullYear()} to ${filterYear} because it ends in target year`
-        });
       } else {
         // Absence doesn't overlap with target year, skip it
-        console.log('⏭️ Skipping absence - no overlap with target year:', {
-          absenceId: absence.id,
-          startYear: startDate.getFullYear(),
-          endYear: endDate.getFullYear(),
-          filterYear
-        });
         return;
       }
     } else {
@@ -204,7 +165,20 @@ export const groupAbsencesByMonth = (absences: any[], timeFilter?: string) => {
     });
 };
 
-// Vacation entitlements utilities
+// Color utilities for charts
+export const getAbsenceGroupColor = (groupName: string): string => {
+  const colorMap: Record<string, string> = {
+    'Vacation': '#3b82f6',
+    'Sick Leave': '#ef4444',
+    'Special Leave': '#8b5cf6',
+    'Work Leave': '#f59e0b',
+    'Unknown Group': '#6b7280'
+  };
+  
+  return colorMap[groupName] || '#6b7280';
+};
+
+// Vacation entitlements utilities (RESTORED - part of hybrid approach)
 export const calculateVacationMetrics = (entitlements: any[]) => {
   if (entitlements.length === 0) {
     return {
@@ -251,19 +225,6 @@ export const calculateVacationMetrics = (entitlements: any[]) => {
   };
 };
 
-// Color utilities for charts
-export const getAbsenceGroupColor = (groupName: string): string => {
-  const colorMap: Record<string, string> = {
-    'Vacation': '#3b82f6',
-    'Sick Leave': '#ef4444',
-    'Special Leave': '#8b5cf6',
-    'Work Leave': '#f59e0b',
-    'Unknown Group': '#6b7280'
-  };
-  
-  return colorMap[groupName] || '#6b7280';
-};
-
 // Navigation utilities
 export const getMonthDateRange = (month: string, year: number = new Date().getFullYear()) => {
   const monthIndex = [
@@ -285,6 +246,5 @@ export const getMonthDateRange = (month: string, year: number = new Date().getFu
 
 // ✅ Server-Side Aggregation Utilities
 export {
-  processServerSideAggregations,
-  processEnhancedServerSideAggregations
+  processCompleteServerSideAggregations
 } from './serverSideAggregationUtils'; 

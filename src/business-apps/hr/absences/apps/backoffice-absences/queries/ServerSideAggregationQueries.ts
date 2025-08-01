@@ -78,9 +78,15 @@ export const getKPIAggregationsQuery = (timeFilter: string) => {
 
 /**
  * ✅ Vacation Entitlements Aggregations Query
- * Server-side vacation metrics aggregation
+ * Server-side vacation metrics aggregation with TIME FILTER
  */
-export const getVacationEntitlementsAggregationsQuery = (vacationGroupId?: string) => {
+export const getVacationEntitlementsAggregationsQuery = (timeFilter: string, vacationGroupId?: string) => {
+  const dateFilters = getDateFilters(timeFilter);
+  
+  if (!dateFilters) {
+    throw new Error(`Invalid time filter: ${timeFilter}`);
+  }
+
   // Base where condition for vacation entitlements
   let entitlementWhere = `{
     _and: [
@@ -98,6 +104,52 @@ export const getVacationEntitlementsAggregationsQuery = (vacationGroupId?: strin
         { employee: { employeePosition: { id: { _isNull: false } } } }
       ]
     }`;
+  }
+
+  // CRITICAL: Apply time filter to vacation entitlements (regardless of vacation group)
+  if (dateFilters && dateFilters.startDate && dateFilters.endDate) {
+    if (vacationGroupId) {
+      // With vacation group filter + time filter
+      entitlementWhere = `{
+        _and: [
+          { isDeleted: { _eq: false } },
+          { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
+          {
+            _or: [
+              { validFrom: { _gte: "${dateFilters.startDate}" } },
+              { validTo: { _gte: "${dateFilters.startDate}" } },
+              { 
+                _and: [
+                  { validFrom: { _lte: "${dateFilters.endDate}" } },
+                  { validTo: { _gte: "${dateFilters.startDate}" } }
+                ]
+              }
+            ]
+          },
+          { employee: { employeePosition: { id: { _isNull: false } } } }
+        ]
+      }`;
+    } else {
+      // No vacation group but still apply time filter
+      entitlementWhere = `{
+        _and: [
+          { isDeleted: { _eq: false } },
+          {
+            _or: [
+              { validFrom: { _gte: "${dateFilters.startDate}" } },
+              { validTo: { _gte: "${dateFilters.startDate}" } },
+              { 
+                _and: [
+                  { validFrom: { _lte: "${dateFilters.endDate}" } },
+                  { validTo: { _gte: "${dateFilters.startDate}" } }
+                ]
+              }
+            ]
+          },
+          { employee: { employeePosition: { id: { _isNull: false } } } }
+        ]
+      }`;
+    }
   }
 
   return `
@@ -179,16 +231,18 @@ export const getHybridDataQuery = (timeFilter: string) => {
  * ✅ Complete Server-Side Aggregation System
  * Combines all aggregation queries for maximum efficiency
  */
-export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId?: string) => {
+export const getCompleteAggregationsQuery = (
+  timeFilter: string,
+  vacationGroupId: string | null = null
+): string => {
   const dateFilters = getDateFilters(timeFilter);
+  const currentDate = new Date().toISOString();
   
   if (!dateFilters) {
     throw new Error(`Invalid time filter: ${timeFilter}`);
   }
 
-  const currentDate = new Date().toISOString();
-
-  // Base where condition
+  // Base where condition for all absences
   const baseWhere = `{
     _and: [
       { isDeleted: { _eq: false } },
@@ -203,61 +257,90 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
     ]
   }`;
 
-  // Vacation entitlements where condition
-  let vacationWhere = `{
-    _and: [
-      { isDeleted: { _eq: false } },
-      { employee: { employeePosition: { id: { _isNull: false } } } }
-    ]
-  }`;
-  
+  // Vacation entitlements specific where condition
+  let vacationWhereCondition = '';
   if (vacationGroupId) {
-    vacationWhere = `{
+    vacationWhereCondition = `
+    where: {
       _and: [
         { isDeleted: { _eq: false } },
+        { validFrom: { _lte: "${dateFilters.endDate}" } },
+        { validTo: { _gte: "${dateFilters.startDate}" } },
         { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
-        { employee: { employeePosition: { id: { _isNull: false } } } }
+        { employee: { employeePosition: { 
+          _or: [
+            { exitDate: { _isNull: true } },
+            { exitDate: { _gte: "${currentDate}" } }
+          ]
+        } } }
       ]
     }`;
   }
 
   return `
-  query GetCompleteServerSideAggregations {
-    # ✅ CORE KPI AGGREGATIONS
+  query GetCompleteAggregations {
+    # ✅ CORE KPI AGGREGATIONS (server-side)
     totalAbsences: EmployeeAbsenceAggregate(where: ${baseWhere}) {
       aggregate {
         count
-        sum { effectiveDays calendarDays workingDays }
+        sum { effectiveDays }
         avg { effectiveDays }
       }
     }
     
-    approvedAbsences: EmployeeAbsenceAggregate(where: { _and: [${baseWhere}, { status: { _eq: "APPROVED" } }] }) {
-      aggregate { count sum { effectiveDays } }
+    # ✅ STATUS BREAKDOWN AGGREGATIONS (server-side)
+    approvedAbsences: EmployeeAbsenceAggregate(where: { 
+      _and: [${baseWhere}, { status: { _eq: "APPROVED" } }] 
+    }) {
+      aggregate { 
+        count 
+        sum { effectiveDays } 
+      }
     }
     
-    pendingAbsences: EmployeeAbsenceAggregate(where: { _and: [${baseWhere}, { status: { _eq: "PENDING" } }] }) {
-      aggregate { count sum { effectiveDays } }
+    pendingAbsences: EmployeeAbsenceAggregate(where: { 
+      _and: [${baseWhere}, { status: { _eq: "PENDING" } }] 
+    }) {
+      aggregate { 
+        count 
+        sum { effectiveDays } 
+      }
     }
     
-    rejectedAbsences: EmployeeAbsenceAggregate(where: { _and: [${baseWhere}, { status: { _eq: "REJECTED" } }] }) {
-      aggregate { count sum { effectiveDays } }
+    rejectedAbsences: EmployeeAbsenceAggregate(where: { 
+      _and: [${baseWhere}, { status: { _eq: "REJECTED" } }] 
+    }) {
+      aggregate { 
+        count 
+        sum { effectiveDays } 
+      }
     }
     
-    cancelledAbsences: EmployeeAbsenceAggregate(where: { _and: [${baseWhere}, { status: { _eq: "CANCELLED" } }] }) {
-      aggregate { count sum { effectiveDays } }
-    }
-
-    # ✅ VACATION ENTITLEMENTS AGGREGATIONS
-    vacationEntitlements: EmployeeAbsenceEntitlementAggregate(where: ${vacationWhere}) {
-      aggregate {
-        count
-        sum { total approved pending available }
-        avg { total approved pending available }
+    cancelledAbsences: EmployeeAbsenceAggregate(where: { 
+      _and: [${baseWhere}, { status: { _eq: "CANCELLED" } }] 
+    }) {
+      aggregate { 
+        count 
+        sum { effectiveDays } 
       }
     }
 
-    # ✅ RAW DATA FOR COMPLEX GROUPING
+    # ✅ VACATION ENTITLEMENTS AGGREGATIONS (server-side)
+    ${vacationGroupId ? `
+    vacationEntitlements: EmployeeAbsenceEntitlementAggregate(${vacationWhereCondition}) {
+      aggregate {
+        count
+        sum { total }
+        sum { approved }
+        sum { pending }
+        avg { total }
+        avg { approved }
+        avg { pending }
+      }
+    }
+    ` : ''}
+
+    # ✅ FULL RAW DATA (needed for frontend calculations per documentation)
     employeeAbsences: EmployeeAbsence(where: ${baseWhere}) {
       id
       status
@@ -280,6 +363,7 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
         id
         firstName
         lastName
+        displayName
         employeePosition {
           organizationalUnit {
             id
@@ -289,29 +373,48 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
       }
     }
 
-    # ✅ VACATION ENTITLEMENTS RAW DATA
-    EmployeeAbsenceEntitlement(where: ${vacationWhere}) {
-      employeeId
-      available
-      approved
+    # ✅ VACATION ENTITLEMENTS RAW DATA (needed for entitlements page)
+    ${vacationGroupId ? `
+    EmployeeAbsenceEntitlement(${vacationWhereCondition}) {
+      id
       total
+      approved
       pending
+      validFrom
+      validTo
       type {
         id
         value
         parentEntryId
       }
+      employee {
+        id
+        firstName
+        lastName
+        displayName
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
+      }
     }
-  }`;
+    ` : ''}
+  }
+`;
 };
 
-// Export main function for useDashboardData
+// ✅ HYBRID APPROACH: Keep working vacation aggregations + frontend calculations
+// (Following documentation recommendations for incremental migration)
+
 export const getOptimizedDashboardQuery = getCompleteAggregationsQuery;
 
 // Export specific functions for modular usage
 export const getDepartmentStatsAggregation = getHybridDataQuery;
 export const getMonthlyTrendsAggregation = getHybridDataQuery;
-export const getEnhancedVacationMetrics = getVacationEntitlementsAggregationsQuery;
+export const getEnhancedVacationMetrics = (timeFilter: string, vacationGroupId?: string) => 
+  getVacationEntitlementsAggregationsQuery(timeFilter, vacationGroupId);
 export const getOptimizedAbsenceData = getKPIAggregationsQuery;
 
  
