@@ -620,8 +620,6 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           status,
           department
         }}
-        preFilteredData={filteredAbsencesForMonth.absences}
-        dashboardData={dashboardData}
         onDataChange={handleDataChange}
       />
     </div>

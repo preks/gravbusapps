@@ -20,7 +20,7 @@ import { useCatalogManagerClient } from '../../../../../../../../../common/netwo
 import dayjs from 'dayjs';
 import { DateRangeFilter } from './DateRangeFilter';
 import { CreationDateFilter } from './CreationDateFilter';
-import { EnhancedAbsence, DataFilterGroup, DashboardData } from '../../../../types';
+import { EnhancedAbsence, DataFilterGroup } from '../../../../types';
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList';
 
@@ -40,8 +40,6 @@ interface AbsenceListProps extends BusinessAppContextProps {
     status?: string;
     department?: string;
   };
-  preFilteredData?: EnhancedAbsence[];
-  dashboardData?: DashboardData;
   onDataChange?: (data: {
     absences: EnhancedAbsence[];
     total: number;
@@ -56,10 +54,10 @@ interface AbsenceListProps extends BusinessAppContextProps {
 }
 
 /**
- * Modern Absence List component matching manager-absences design exactly
+ * Modern Absence List component with server-side pagination
  */
 export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
-  const { accessToken, initialFilters, preFilteredData, dashboardData, onDataChange } = props;
+  const { accessToken, initialFilters, onDataChange } = props;
   const graphQLClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
 
@@ -441,60 +439,67 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     return conditions;
   };
 
-  // Fetch absence data
   const fetchAbsences = async () => {
     if (!accessToken) {
       console.log('No access token available for BackofficeAbsenceList');
-      setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      
-      // 🚀 USE PRE-FILTERED DATA FROM DASHBOARD IF AVAILABLE
-      if (preFilteredData && preFilteredData.length >= 0) {
-        
-        // Apply client-side filtering for status/department filters from initialFilters
-        let finalData = [...preFilteredData] as EnhancedAbsence[];
-        
-        // Apply status filter if provided in initialFilters
-        if (initialFilters?.status) {
-          finalData = finalData.filter((absence: any) => absence.status === initialFilters.status);
-        }
-        
-        // Apply department filter if provided in initialFilters  
-        if (initialFilters?.department && initialFilters.department !== 'NO_DEPARTMENT_SPECIAL') {
-          const beforeDeptFilter = finalData.length;
-          finalData = finalData.filter((absence: any) => {
-            const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
-            return deptName === initialFilters.department;
-          });
-        } else if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
-          // Handle "No Department" special case
-          const beforeNoDeptFilter = finalData.length;
-          finalData = finalData.filter((absence: any) => {
-            const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
-            return !deptName || deptName === 'No Department';
-          });
-        }
-        
-        setAbsences(finalData);
-        setTotal(finalData.length);
-        setLoading(false);
-        initialLoadDone.current = true; // Mark as loaded to prevent other effects
-        return;
-      }
-      
-      // 🚀 Catalog data is now fetched in separate useEffect
 
+      // Build where conditions from all filters and initialFilters
       const whereConditions = buildWhereConditions();
-      
-      // Build order by
-      const orderBy = [];
+
+      // Add initial filter conditions to where clause
+      if (initialFilters?.startDate && initialFilters?.endDate) {
+        const startDateTime = `${initialFilters.startDate} 00:00:00+00`;
+        const endDateTime = `${initialFilters.endDate} 23:59:59+00`;
+        whereConditions.startDate = { _lte: endDateTime };
+        whereConditions.endDate = { _gte: startDateTime };
+      }
+
+      if (initialFilters?.status) {
+        whereConditions.status = { _eq: initialFilters.status };
+      }
+
+      if (initialFilters?.department && initialFilters.department !== 'NO_DEPARTMENT_SPECIAL') {
+        if (organizationalUnits.length > 0) {
+          const dept = organizationalUnits.find(ou => ou.name === initialFilters.department);
+          if (dept) {
+            if (whereConditions.employee) {
+              whereConditions.employee = { 
+                ...whereConditions.employee, 
+                employeePosition: { organizationalUnit: { name: { _eq: initialFilters.department } } }
+              };
+            } else {
+              whereConditions.employee = { 
+                employeePosition: { organizationalUnit: { name: { _eq: initialFilters.department } } }
+              };
+            }
+          }
+        }
+      } else if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
+        if (whereConditions.employee) {
+          whereConditions.employee = { 
+            ...whereConditions.employee, 
+            employeePosition: { organizationalUnit: { _isNull: true } }
+          };
+        } else {
+          whereConditions.employee = { 
+            employeePosition: { organizationalUnit: { _isNull: true } }
+          };
+        }
+      }
+
+      // Build order by clause
+      let orderBy: any[] = [];
       if (sortField && sortOrder) {
-        if (sortField === 'employee.firstName') {
+        if (sortField === 'employeeName') {
           orderBy.push({ employee: { firstName: sortOrder } });
+          orderBy.push({ employee: { lastName: sortOrder } });
+        } else if (sortField === 'groupName') {
+          orderBy.push({ type: { value: sortOrder } });
         } else {
           orderBy.push({ [sortField]: sortOrder });
         }
@@ -564,10 +569,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         // employeePosition is now a single active position (filtered at query level)
         const employeeName = `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim();
         
-        // Debug logging for position filtering
-        if (employeeName.toLowerCase().includes('zsolt')) {
-        }
-        
         return {
         ...absence,
           employeeName,
@@ -577,6 +578,21 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
       setAbsences(enhancedAbsences);
       setTotal(result.EmployeeAbsenceAggregate.aggregate.count);
+
+      // Notify parent component of data changes for dynamic analysis
+      if (onDataChange) {
+        onDataChange({
+          absences: enhancedAbsences,
+          total: result.EmployeeAbsenceAggregate.aggregate.count,
+          isFiltered: selectedFilters.length > 0 || !!search || !!startDate || !!endDate,
+          appliedFilters: {
+            search,
+            selectedFilters,
+            dateRange: { startDate, endDate },
+            creationDateRange: { startDate: creationStartDate, endDate: creationEndDate }
+          }
+        });
+      }
 
     } catch (error) {
       console.error('BackofficeAbsenceList API call failed:', error);
@@ -588,293 +604,28 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     }
   };
 
-  // Client-side filtering for preFilteredData (when drill-down data needs further filtering)
-  const applyClientSideFiltering = () => {
-    if (!preFilteredData && !dashboardData?.rawAbsences) return;
-
-    // ✅ SMART FILTERING: Detect if user changed filters beyond initial drill-down
-    const statusChanged = initialFilters?.status && selectedFilters.some(f => f.startsWith('status-') && f !== `status-${initialFilters.status}`);
-    const departmentChanged = initialFilters?.department && selectedFilters.some(f => f.startsWith('department-') && !f.includes(initialFilters.department!));
-    const newFilterTypes = selectedFilters.some(f => f.startsWith('group-') || (!f.startsWith('status-') && !f.startsWith('department-')));
-    
-    const hasUserChangedFilters = selectedFilters.length > 0 && (statusChanged || departmentChanged || newFilterTypes);
-
-    // Use full dataset if user changed filters, otherwise use prefiltered data
-    const sourceData = hasUserChangedFilters && dashboardData?.rawAbsences 
-      ? dashboardData.rawAbsences 
-      : (preFilteredData || []);
-
-    let filteredData = [...sourceData] as EnhancedAbsence[];
-
-    // Apply text search
-    if (search && search.trim()) {
-      const searchTerm = search.toLowerCase().trim();
-      filteredData = filteredData.filter((absence: any) => {
-        const employeeName = absence.employeeName?.toLowerCase() || '';
-        const groupName = absence.groupName?.toLowerCase() || '';
-        const status = absence.status?.toLowerCase() || '';
-        const departmentName = absence.employee?.employeePosition?.organizationalUnit?.name?.toLowerCase() || '';
-        
-        return employeeName.includes(searchTerm) ||
-               groupName.includes(searchTerm) ||
-               status.includes(searchTerm) ||
-               departmentName.includes(searchTerm);
-      });
-    }
-
-    // Apply selectedFilters
-    if (selectedFilters.length > 0) {
-
-      // Employee filters (no prefix) - Use employee.id like server-side filtering
-      const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('status-') && !f.startsWith('group-'));
-      if (employeeFilters.length > 0) {
-        filteredData = filteredData.filter((absence: any) => 
-          employeeFilters.includes(absence.employee?.id)
-        );
-      }
-
-      // Department filters
-      const departmentFilters = selectedFilters.filter(f => f.startsWith('department-')).map(f => f.replace('department-', ''));
-      if (departmentFilters.length > 0) {
-        // Convert department IDs to names for client-side filtering
-        const departmentNames = departmentFilters.map(deptId => {
-          if (deptId === 'no-department') return deptId;
-          const dept = organizationalUnits.find(ou => ou.id === deptId);
-          return dept?.name;
-        }).filter(Boolean);
-        
-        filteredData = filteredData.filter((absence: any) => {
-          const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
-          
-          // Handle "No Department" special case
-          if (departmentNames.includes('no-department')) {
-            return !deptName || deptName === 'No Department';
-          }
-          
-          // Use converted department names for filtering
-          const matches = departmentNames.includes(deptName);
-          
-          return matches;
-        });
-      }
-
-      // Status filters  
-      const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
-      if (statusFilters.length > 0) {
-        filteredData = filteredData.filter((absence: any) => 
-          statusFilters.includes(absence.status)
-        );
-      }
-
-      // Group filters - Use type.parentEntryId like server-side filtering  
-      const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
-      if (groupFilters.length > 0) {
-        filteredData = filteredData.filter((absence: any) => 
-          groupFilters.includes(absence.type?.parentEntryId)
-        );
-      }
-    }
-
-    // ✅ MISSING: Apply date range filters (startDate, endDate) from initialFilters
-    if (startDate || endDate) {
-      filteredData = filteredData.filter((absence: any) => {
-        const absenceStart = new Date(absence.startDate);
-        const absenceEnd = new Date(absence.endDate);
-        
-        // Apply start date filter (overlap logic: absence must end on or after filter start)
-        if (startDate) {
-          const filterStart = new Date(startDate);
-          if (absenceEnd < filterStart) return false;
-        }
-        
-        // Apply end date filter (overlap logic: absence must start on or before filter end)
-        if (endDate) {
-          const filterEnd = new Date(endDate);
-          if (absenceStart > filterEnd) return false;
-        }
-        
-        return true;
-      });
-    }
-
-    // ✅ MISSING: Apply creation date range filters
-    if (creationStartDate || creationEndDate) {
-      filteredData = filteredData.filter((absence: any) => {
-        if (!absence.createdAt) return true; // Keep items without creation date
-        
-        const createdDate = new Date(absence.createdAt);
-        
-        if (creationStartDate) {
-          const filterStart = new Date(creationStartDate);
-          if (createdDate < filterStart) return false;
-        }
-        
-        if (creationEndDate) {
-          const filterEnd = new Date(creationEndDate);
-          if (createdDate > filterEnd) return false;
-        }
-        
-        return true;
-      });
-    }
-
-    // ✅ BACKUP APPROACH: If we got 0 results but have selectedFilters and full dataset, retry with full dataset
-    if (filteredData.length === 0 && selectedFilters.length > 0 && !hasUserChangedFilters && dashboardData?.rawAbsences && dashboardData.rawAbsences.length > 0) {
-      // Retry with full dataset
-      filteredData = [...dashboardData.rawAbsences] as EnhancedAbsence[];
-      
-      // Re-apply the same filtering logic
-      if (search && search.trim()) {
-        const searchTerm = search.toLowerCase().trim();
-        filteredData = filteredData.filter((absence: any) => {
-          const employeeName = absence.employeeName?.toLowerCase() || '';
-          const groupName = absence.groupName?.toLowerCase() || '';
-          const status = absence.status?.toLowerCase() || '';
-          const departmentName = absence.employee?.employeePosition?.organizationalUnit?.name?.toLowerCase() || '';
-          
-          return employeeName.includes(searchTerm) ||
-                 groupName.includes(searchTerm) ||
-                 status.includes(searchTerm) ||
-                 departmentName.includes(searchTerm);
-        });
-      }
-
-      if (selectedFilters.length > 0) {
-        // Re-apply all the same filter logic...
-        const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('status-') && !f.startsWith('group-'));
-        if (employeeFilters.length > 0) {
-          filteredData = filteredData.filter((absence: any) => 
-            employeeFilters.includes(absence.employee?.id)
-          );
-        }
-
-        const departmentFilters = selectedFilters.filter(f => f.startsWith('department-')).map(f => f.replace('department-', ''));
-        if (departmentFilters.length > 0) {
-          const departmentNames = departmentFilters.map(deptId => {
-            if (deptId === 'no-department') return deptId;
-            const dept = organizationalUnits.find(ou => ou.id === deptId);
-            return dept?.name;
-          }).filter(Boolean);
-          
-          filteredData = filteredData.filter((absence: any) => {
-            const deptName = absence.employee?.employeePosition?.organizationalUnit?.name;
-            if (departmentNames.includes('no-department')) {
-              return !deptName || deptName === 'No Department';
-            }
-            return departmentNames.includes(deptName);
-          });
-        }
-
-        const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
-        if (statusFilters.length > 0) {
-          filteredData = filteredData.filter((absence: any) => 
-            statusFilters.includes(absence.status)
-          );
-        }
-
-        const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
-        if (groupFilters.length > 0) {
-          filteredData = filteredData.filter((absence: any) => 
-            groupFilters.includes(absence.type?.parentEntryId)
-          );
-        }
-        
-        // ✅ BACKUP: Apply date range filters (startDate, endDate) - SAME AS MAIN LOGIC
-        if (startDate || endDate) {
-          filteredData = filteredData.filter((absence: any) => {
-            const absenceStart = new Date(absence.startDate);
-            const absenceEnd = new Date(absence.endDate);
-            
-            // Apply start date filter (overlap logic: absence must end on or after filter start)
-            if (startDate) {
-              const filterStart = new Date(startDate);
-              if (absenceEnd < filterStart) return false;
-            }
-            
-            // Apply end date filter (overlap logic: absence must start on or before filter end)
-            if (endDate) {
-              const filterEnd = new Date(endDate);
-              if (absenceStart > filterEnd) return false;
-            }
-            
-            return true;
-          });
-        }
-
-        // ✅ BACKUP: Apply creation date range filters - SAME AS MAIN LOGIC
-        if (creationStartDate || creationEndDate) {
-          filteredData = filteredData.filter((absence: any) => {
-            if (!absence.createdAt) return true; // Keep items without creation date
-            
-            const createdDate = new Date(absence.createdAt);
-            
-            if (creationStartDate) {
-              const filterStart = new Date(creationStartDate);
-              if (createdDate < filterStart) return false;
-            }
-            
-            if (creationEndDate) {
-              const filterEnd = new Date(creationEndDate);
-              if (createdDate > filterEnd) return false;
-            }
-            
-            return true;
-          });
-        }
-      }
-    }
-
-    // ✅ FIX: Add creation date filtering (missing from client-side logic)
-    if (creationStartDate || creationEndDate) {
-      filteredData = filteredData.filter((absence: any) => {
-        if (!absence.createdAt) return false; // Skip if no creation date
-        
-        const createdAt = new Date(absence.createdAt);
-        const createdDateStr = createdAt.toISOString().split('T')[0]; // Get YYYY-MM-DD format
-        
-        if (creationStartDate && creationEndDate) {
-          return createdDateStr >= creationStartDate && createdDateStr <= creationEndDate;
-        } else if (creationStartDate) {
-          return createdDateStr >= creationStartDate;
-        } else if (creationEndDate) {
-          return createdDateStr <= creationEndDate;
-        }
-        
-        return true;
-      });
-    }
-
-    setAbsences(filteredData);
-    setTotal(filteredData.length);
-  };
-
-  // Effect for preFilteredData (dashboard drill-down) - process immediately
+  // Initial load effect
   useEffect(() => {
-    if (preFilteredData && accessToken) {
-      applyClientSideFiltering();
-    }
-  }, [preFilteredData, accessToken]);
-
-  // Initial load effect - DON'T call fetchAbsences if preFilteredData is provided
-  useEffect(() => {
-    if (!initialLoadDone.current && accessToken && !preFilteredData) {
+    if (!initialLoadDone.current && accessToken) {
       initialLoadDone.current = true;
       fetchAbsences();
     }
-  }, [accessToken, currentPage, pageSize, preFilteredData]);
+  }, [accessToken, currentPage, pageSize]);
 
-  // Search and filter effects (including date ranges like manager-absences)
+  // Pagination effect - fetch new page when currentPage changes
   useEffect(() => {
-    if (initialLoadDone.current && !preFilteredData) {
-      setCurrentPage(1);
+    if (initialLoadDone.current) {
       fetchAbsences();
-    } else if (preFilteredData) {
-      // ✅ FIX: Remove initialLoadDone.current condition for client-side filtering
-      // This allows immediate filtering when user changes filters on drill-down data
-      setCurrentPage(1);
-      applyClientSideFiltering();
     }
-  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate, preFilteredData]);
+  }, [currentPage]);
+
+  // Search and filter effects - reset to page 1 and fetch
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1);
+      // fetchAbsences will be called by the currentPage useEffect above
+    }
+  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate]);
 
   // Map department name to department ID once organizational units are loaded
   useEffect(() => {
@@ -1043,7 +794,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         onDateRangeChange: handleDateRangeChangeForFilter
       }),
       hideSearch: true
-    } as any, // Temporary type assertion to bypass interface issue
+    },
     {
       id: 'creationDateRange',
       title: 'Creation Date',
@@ -1054,7 +805,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         onCreationDateRangeChange: handleCreationDateRangeChangeForFilter
       }),
       hideSearch: true
-    } as any, // Temporary type assertion to bypass interface issue
+    },
     {
       id: 'employee',
       title: 'Employee (Requester)',
@@ -1270,12 +1021,12 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                 <TableRow className="gba:border-b gba:bg-gray-50">
                   <TableHead 
                     className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort('employee.firstName')}
+                    onClick={() => handleSort('employeeName')}
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                   >
                     <div className="gba:flex gba:items-center">
                       Employee
-                      {renderSortIcon('employee.firstName')}
+                      {renderSortIcon('employeeName')}
                     </div>
                   </TableHead>
                   <TableHead 
