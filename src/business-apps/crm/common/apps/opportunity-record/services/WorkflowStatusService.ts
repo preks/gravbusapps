@@ -28,11 +28,11 @@ export class WorkflowStatusService {
        const stored = localStorage.getItem(this.STORAGE_KEY);
        if (stored) {
          const parsed = JSON.parse(stored);
-         const storage = new Map(Object.entries(parsed));
+         const storage = new Map(Object.entries(parsed)) as Map<string, WorkflowStatus[]>;
          
          // Ensure all workflows have proper step structure
          for (const [opportunityId, workflows] of storage.entries()) {
-           for (const workflow of workflows) {
+           for (const workflow of workflows as WorkflowStatus[]) {
              if (!workflow.steps || workflow.steps.length === 0) {
                console.warn(`Workflow ${workflow.id} has no steps, adding default steps`);
                workflow.steps = this.getDefaultStepsForTemplate(workflow.templateId);
@@ -122,136 +122,115 @@ export class WorkflowStatusService {
     opportunityId: string,
     accessToken: string
   ): Promise<WorkflowStatus[]> {
+    // First try to get workflows by workflow ID from localStorage
+    const storage = this.getWorkflowStorage();
+    const storedWorkflows = storage.get(opportunityId) || [];
+    
+    // If we have stored workflows, return them
+    if (storedWorkflows.length > 0) {
+      console.log(`Found ${storedWorkflows.length} workflows in localStorage for opportunity ${opportunityId}`);
+      return storedWorkflows;
+    }
+    
+    // Fallback: try to get workflows by opportunity ID from the API
+    try {
+      const response = await fetch(`${this.FLOW_ENGINE_BASE_URL}/api/flow/correlation/${opportunityId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`API returned ${result.data?.flows?.length || 0} workflows for opportunity ${opportunityId}`);
+        return result.data?.flows || [];
+      } else {
+        console.warn(`Failed to get workflows from API: ${response.status}`);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error getting workflows from API:', error);
+      return [];
+    }
     try {
       console.log('Getting active workflows for opportunity:', opportunityId);
       
-      const workflows: WorkflowStatus[] = [];
+      // Use the new correlation-based API endpoint
+      const response = await fetch(
+        `${this.FLOW_ENGINE_BASE_URL}/api/flow/correlation/${opportunityId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       
-      // 1. Get stored workflow IDs from localStorage first
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`API response for correlation ${opportunityId}:`, data);
+        
+        if (data.status === 'success' && data.data?.flows) {
+          // Transform the API response to match our WorkflowStatus interface
+          const workflows: WorkflowStatus[] = data.data.flows.map((flow: any) => ({
+            id: flow.workflow_id,
+            templateId: flow.template_id,
+            name: flow.workflow_name,
+            status: this.mapWorkflowStatus(flow),
+            createdAt: flow.started_at,
+            progress: flow.progress_percentage || 0,
+            steps: [], // We'll need to fetch steps separately if needed
+            input: {
+              context: flow.context ? JSON.parse(flow.context) : undefined,
+              runtimeParameters: flow.runtime_parameters ? JSON.parse(flow.runtime_parameters) : undefined
+            },
+            currentStep: 0, // Will be calculated from steps
+            totalSteps: flow.total_tasks || 0,
+            completedSteps: flow.completed_tasks || 0
+          }));
+          
+          console.log(`Successfully fetched ${workflows.length} workflows for opportunity ${opportunityId}`);
+          return workflows;
+        }
+      } else {
+        console.warn(`Failed to fetch workflows for correlation ${opportunityId}:`, response.statusText);
+      }
+      
+      // Fallback to localStorage if API fails
+      console.log('Falling back to localStorage data...');
       const storage = this.getWorkflowStorage();
       const storedWorkflows = storage.get(opportunityId) || [];
       console.log(`Found ${storedWorkflows.length} stored workflows for opportunity ${opportunityId}`);
       
-      // 2. Try to get detailed workflow info from custom-flow-engine API using workflow IDs
-      try {
-        console.log('Attempting to fetch workflow details from custom-flow-engine API...');
-        
-        for (const storedWorkflow of storedWorkflows) {
-          const workflowId = storedWorkflow.id;
-          console.log(`Fetching details for workflow: ${workflowId}`);
-          
-          const response = await fetch(
-            `${this.FLOW_ENGINE_BASE_URL}/api/flow/${workflowId}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`API response for workflow ${workflowId}:`, data);
-            
-                         // Update the stored workflow with fresh data from API
-             const apiData = data.data;
-             const mappedSteps = apiData?.steps?.map((step: any) => ({
-               id: `step_${step.stepIndex}`,
-               name: step.title,
-               status: step.status,
-               type: step.type,
-               message: step.message,
-               dueDate: step.dueDate,
-               expectedStartAt: step.expectedStartAt,
-               expectedFinishAt: step.expectedFinishAt,
-               assignmentMode: step.assignmentMode,
-               allowReassignment: step.allowReassignment,
-               assignmentTargets: step.assignmentTargets
-             })) || storedWorkflow.steps;
-             
-             console.log(`Mapped steps for workflow ${workflowId}:`, mappedSteps);
-             
-             const updatedWorkflow: WorkflowStatus = {
-               id: workflowId,
-               templateId: storedWorkflow.templateId,
-               status: apiData?.status || storedWorkflow.status,
-               createdAt: storedWorkflow.createdAt,
-               progress: apiData?.progress?.percentage || storedWorkflow.progress,
-               steps: mappedSteps,
-               input: apiData?.input || storedWorkflow.input,
-               name: apiData?.name,
-               currentStep: apiData?.progress?.currentStep,
-               totalSteps: apiData?.progress?.totalSteps,
-               completedSteps: apiData?.progress?.completedSteps
-             };
-            
-            workflows.push(updatedWorkflow);
-          } else {
-            console.warn(`Failed to fetch workflow ${workflowId}:`, response.statusText);
-            // Keep the stored workflow as fallback, but ensure it has proper step structure
-            console.log(`Using stored workflow as fallback for ${workflowId}:`, storedWorkflow);
-            workflows.push(storedWorkflow);
-          }
-        }
-        
-        console.log(`Successfully fetched ${workflows.length} workflows from API for opportunity ${opportunityId}`);
-      } catch (apiError) {
-        console.warn('Error fetching from API, using localStorage data only:', apiError);
-        // Use stored workflows as fallback
-        workflows.push(...storedWorkflows);
-      }
-      
-      // 3. Also try to get any additional workflows from the active flows endpoint
-      try {
-        console.log('Checking for additional active flows...');
-        const activeResponse = await fetch(
-          `${this.FLOW_ENGINE_BASE_URL}/api/flow/active`,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (activeResponse.ok) {
-          const activeData = await activeResponse.json();
-          console.log('Active flows response:', activeData);
-          
-          if (activeData.data?.summary) {
-            const opportunityActiveFlows = activeData.data.summary.filter((flow: any) => {
-              const input = flow.metadata?.context || flow.metadata?.runtimeParameters;
-              return input?.opportunityId === opportunityId || input?.entityId === opportunityId;
-            });
-            
-            // Add any new workflows we don't already have
-            const existingIds = new Set(workflows.map(w => w.id));
-            for (const flow of opportunityActiveFlows) {
-              if (!existingIds.has(flow.workflowId)) {
-                workflows.push({
-                  id: flow.workflowId,
-                  templateId: flow.templateId,
-                  status: flow.status,
-                  createdAt: flow.createdAt,
-                  progress: flow.progress || 0,
-                  steps: flow.steps || [],
-                  input: flow.metadata
-                });
-              }
-            }
-          }
-        }
-      } catch (activeError) {
-        console.warn('Error fetching active flows:', activeError);
-      }
-      
-      console.log(`Total workflows found: ${workflows.length}`);
-      return workflows;
+      return storedWorkflows;
     } catch (error) {
       console.error('Error fetching active workflows:', error);
-      return [];
+      
+      // Fallback to localStorage
+      const storage = this.getWorkflowStorage();
+      const storedWorkflows = storage.get(opportunityId) || [];
+      console.log(`Using ${storedWorkflows.length} stored workflows as fallback`);
+      return storedWorkflows;
     }
+  }
+
+  /**
+   * Map workflow status from API response
+   */
+  private static mapWorkflowStatus(flow: any): 'RUNNING' | 'COMPLETED' | 'FAILED' | 'TERMINATED' {
+    const progress = flow.progress_percentage || 0;
+    const totalTasks = flow.total_tasks || 0;
+    const completedTasks = flow.completed_tasks || 0;
+    
+    if (progress === 100 || completedTasks === totalTasks) {
+      return 'COMPLETED';
+    }
+    
+    // For now, assume RUNNING if not completed
+    // In a real implementation, you'd check the actual status from the API
+    return 'RUNNING';
   }
   
   /**
@@ -474,6 +453,7 @@ export class WorkflowStatusService {
     const assignments = this.getTemplateAssignments(templateId, opportunityData);
     
     return {
+      correlationId: opportunityId, // Add correlationId for workflow tracking
       runtimeParameters: {
         opportunityId,
         opportunityName: opportunityData?.name || 'Unknown Opportunity',
@@ -607,7 +587,7 @@ export class WorkflowStatusService {
     
     const result = await response.json();
     
-         // Store workflow information for tracking
+         // Store workflow information for tracking (as backup)
      const opportunityId = executionParams.runtimeParameters?.opportunityId;
      if (opportunityId) {
        const workflowStatus: WorkflowStatus = {
@@ -616,7 +596,7 @@ export class WorkflowStatusService {
          status: 'RUNNING',
          createdAt: new Date().toISOString(),
          progress: 0,
-         steps: []
+         steps: this.getDefaultStepsForTemplate(result.data.templateId)
        };
        
        const storage = this.getWorkflowStorage();
@@ -625,7 +605,7 @@ export class WorkflowStatusService {
        storage.set(opportunityId, existingWorkflows);
        this.saveWorkflowStorage(storage);
        
-       console.log(`Stored workflow ${result.data.workflowId} for opportunity ${opportunityId}`);
+       console.log(`Stored workflow ${result.data.workflowId} for opportunity ${opportunityId} as backup`);
      }
     
     return {
