@@ -113,6 +113,37 @@ const formatDueDate = (dueDateISO?: string): string => {
   }
 };
 
+const formatCompletionDate = (completionDateISO?: string): string => {
+  if (!completionDateISO) return 'Unknown completion date';
+  
+  try {
+    const completionDate = new Date(completionDateISO);
+    const now = new Date();
+    const diffMs = now.getTime() - completionDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    const dateStr = completionDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    if (diffHours < 1) {
+      return `${dateStr} (just now)`;
+    } else if (diffHours < 24) {
+      return `${dateStr} (${diffHours}h ago)`;
+    } else if (diffDays < 7) {
+      return `${dateStr} (${diffDays}d ago)`;
+    }
+    
+    return dateStr;
+  } catch (error) {
+    return completionDateISO;
+  }
+};
+
 const isTaskOverdue = (dueDateISO?: string): boolean => {
   if (!dueDateISO) return false;
   try {
@@ -168,6 +199,29 @@ const getDueDateTag = (task: Task): React.ReactNode => {
   }
 };
 
+const getCompletionDateTag = (task: Task): React.ReactNode => {
+  if (task.status !== 'COMPLETED') return null;
+  
+  // Look for completion date in assignment history
+  const completionEntry = task.assignment?.assignmentHistory
+    ?.filter((entry: any) => entry.action === 'COMPLETE')
+    ?.sort((a: any, b: any) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0];
+  
+  if (completionEntry) {
+    return (
+      <Tag color="green" icon={<CheckCircleOutlined />}>
+        {formatCompletionDate(completionEntry.changedAt)}
+      </Tag>
+    );
+  }
+  
+  return (
+    <Tag color="green" icon={<CheckCircleOutlined />}>
+      Completed
+    </Tag>
+  );
+};
+
 // Import mock users data
 import { mockUsers, type User as MockUser } from '../../data/mockUsers';
 
@@ -178,10 +232,13 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('user-001');
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [completedLoading, setCompletedLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [completedError, setCompletedError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
   const [taskModalLoading, setTaskModalLoading] = useState(false);
@@ -192,7 +249,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 
   const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
 
-  // Fetch tasks and stats for selected user
+  // Fetch open tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
     setLoading(true);
     setTaskModalLoading(false); // Reset task modal loading when refreshing list
@@ -229,9 +286,38 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     }
   };
 
+  // Fetch completed tasks for selected user
+  const fetchCompletedTasks = async (userId: string) => {
+    setCompletedLoading(true);
+    setCompletedError(null);
+
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+      };
+
+      const response = await fetch(`${API_BASE}/tasks/user/${userId}/completed`, { headers });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCompletedTasks(data.tasks || []);
+      } else {
+        throw new Error('Failed to fetch completed tasks');
+      }
+
+    } catch (err) {
+      setCompletedError(err instanceof Error ? err.message : 'Failed to fetch completed tasks');
+      console.error('Error fetching completed tasks:', err);
+    } finally {
+      setCompletedLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedUserId) {
       fetchUserData(selectedUserId);
+      fetchCompletedTasks(selectedUserId);
     }
   }, [selectedUserId]);
 
@@ -288,6 +374,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
       if (response.ok) {
         message.success(`Task ${action.toLowerCase()}ed successfully`);
         await fetchUserData(selectedUserId);
+        // If task was completed, refresh completed tasks too
+        if (action === 'COMPLETE') {
+          await fetchCompletedTasks(selectedUserId);
+        }
         
         if (isTaskModalVisible) {
           setIsTaskModalVisible(false);
@@ -307,6 +397,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Refresh all data
+  const refreshAllData = () => {
+    fetchUserData(selectedUserId);
+    fetchCompletedTasks(selectedUserId);
   };
 
   // Fetch fresh task data when opening modal
@@ -470,6 +566,28 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
+  // Sort completed tasks by completion date (most recent first)
+  const sortedCompletedTasks = [...completedTasks].sort((a: any, b: any) => {
+    // If we have assignment history, sort by the most recent completion date
+    const getCompletionDate = (task: any) => {
+      if (task.assignment?.assignmentHistory) {
+        const completionEntry = task.assignment.assignmentHistory
+          .filter((entry: any) => entry.action === 'COMPLETE')
+          .sort((a: any, b: any) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0];
+        return completionEntry?.changedAt;
+      }
+      return null;
+    };
+
+    const aCompletion = getCompletionDate(a);
+    const bCompletion = getCompletionDate(b);
+
+    if (!aCompletion && !bCompletion) return 0;
+    if (!aCompletion) return 1;
+    if (!bCompletion) return -1;
+    return new Date(bCompletion).getTime() - new Date(aCompletion).getTime();
+  });
+
   return (
     <div 
       data-testid={prefixDataTestId}
@@ -515,8 +633,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             ))}
           </Select>
           <Button 
-            onClick={() => fetchUserData(selectedUserId)} 
-            loading={loading}
+            onClick={refreshAllData} 
+            loading={loading || completedLoading}
             icon={<ReloadOutlined />}
             data-testid={`${prefixDataTestId}-RefreshButton`}
           >
@@ -525,25 +643,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         </div>
       </Card>
 
-      {/* Task Statistics */}
-      {/* Temporarily disabled - Task Statistics section */}
-      {/*
-      {taskStats && (
-        <Card style={{ marginBottom: '16px' }}>
-          <Title level={5}>Task Statistics for {taskStats.userName || mockUsers.find(u => u.id === selectedUserId)?.name}</Title>
-          <Space size="large">
-            <div><Badge count={taskStats.assigned || 0} color="blue"><Tag color="blue">Assigned</Tag></Badge></div>
-            <div><Badge count={taskStats.claimable || 0} color="orange"><Tag color="orange">Claimable</Tag></Badge></div>
-            <div><Badge count={taskStats.inProgress || 0} color="processing"><Tag color="processing">In Progress</Tag></Badge></div>
-            <div><Badge count={taskStats.scheduled || 0} color="default"><Tag color="default">Scheduled</Tag></Badge></div>
-            <div><Badge count={taskStats.completed || 0} color="green"><Tag color="green">Completed</Tag></Badge></div>
-            <div><Badge count={taskStats.overdue || 0} color="red"><Tag color="red" icon={<WarningOutlined />}>Overdue</Tag></Badge></div>
-            <div><Badge count={taskStats.dueSoon || 0} color="orange"><Tag color="orange" icon={<ClockCircleOutlined />}>Due Soon</Tag></Badge></div>
-            <div><Text strong>Total: {taskStats.total || 0}</Text></div>
-          </Space>
-        </Card>
-      )}
-      */}
+
 
       {/* Error Display */}
       {error && (
@@ -567,106 +667,233 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         </div>
       )}
 
-      {/* Tasks Display */}
-      {!loading && (
-        <div style={{ display: 'flex', gap: '16px' }}>
-          {/* Assigned Tasks */}
-          <Card 
-            title={
+      {/* Tasks Display - Tabbed Layout */}
+      <Tabs 
+        defaultActiveKey="open"
+        data-testid={`${prefixDataTestId}-TaskTabs`}
+        items={[
+          {
+            key: 'open',
+            label: (
               <Space>
-                <UserOutlined />
-                <span>My Assigned Tasks</span>
-                <Badge count={sortedAssignedTasks.length} color="blue" />
+                <span>Open Tasks</span>
+                <Badge count={sortedAssignedTasks.length + sortedClaimableTasks.length} color="blue" />
               </Space>
-            } 
-            style={{ flex: 1 }}
-          >
-            {sortedAssignedTasks.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                <FileTextOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-                <div>No assigned tasks</div>
-              </div>
-            ) : (
-              <List
-                dataSource={sortedAssignedTasks}
-                renderItem={(task) => (
-                  <TaskListCard
-                    key={task.id}
-                    task={task}
-                    stepType={task.type}
-                    assignmentStatus={task.assignment?.currentStatus}
-                    hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
-                    hasLinks={!!(task.links && task.links.length > 0)}
-                    actionLoading={actionLoading}
-                    prefixDataTestId={prefixDataTestId}
-                    onTaskClick={handleTaskClick}
-                    onQuickClaim={handleQuickClaim}
-                    getTaskTypeIcon={getTaskTypeIcon}
-                    getTaskStatusColor={getTaskStatusColor}
-                    getStepTypeColor={getStepTypeColor}
-                    getAssignmentStatusColor={getAssignmentStatusColor}
-                    getDueDateTag={getDueDateTag}
-                    isTaskOverdue={isTaskOverdue}
-                    isTaskDueSoon={isTaskDueSoon}
-                    formatDueDate={formatDueDate}
-                    accessToken={accessToken}
-                    {...context}
-                  />
+            ),
+            children: (
+              <div>
+                {/* Loading State for Open Tasks */}
+                {loading && (
+                  <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: '16px' }}>
+                      <Text>Loading open tasks...</Text>
+                    </div>
+                  </div>
                 )}
-                size="small"
-              />
-            )}
-          </Card>
 
-          {/* Claimable Tasks */}
-          <Card 
-            title={
-              <Space>
-                <ExclamationCircleOutlined />
-                <span>Claimable Tasks</span>
-                <Badge count={sortedClaimableTasks.length} color="orange" />
-              </Space>
-            } 
-            style={{ flex: 1 }}
-          >
-            {sortedClaimableTasks.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                <CheckCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-                <div>No claimable tasks</div>
-              </div>
-            ) : (
-              <List
-                dataSource={sortedClaimableTasks}
-                renderItem={(task) => (
-                  <TaskListCard
-                    key={task.id}
-                    task={task}
-                    stepType={task.type}
-                    assignmentStatus={task.assignment?.currentStatus}
-                    hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
-                    hasLinks={!!(task.links && task.links.length > 0)}
-                    actionLoading={actionLoading}
-                    prefixDataTestId={prefixDataTestId}
-                    onTaskClick={handleTaskClick}
-                    onQuickClaim={handleQuickClaim}
-                    getTaskTypeIcon={getTaskTypeIcon}
-                    getTaskStatusColor={getTaskStatusColor}
-                    getStepTypeColor={getStepTypeColor}
-                    getAssignmentStatusColor={getAssignmentStatusColor}
-                    getDueDateTag={getDueDateTag}
-                    isTaskOverdue={isTaskOverdue}
-                    isTaskDueSoon={isTaskDueSoon}
-                    formatDueDate={formatDueDate}
-                    accessToken={accessToken}
-                    {...context}
+                {/* Error State for Open Tasks */}
+                {error && (
+                  <Alert
+                    message="Error Loading Open Tasks"
+                    description={error}
+                    type="error"
+                    closable
+                    onClose={() => setError(null)}
+                    style={{ marginBottom: '16px' }}
                   />
                 )}
-                size="small"
-              />
-            )}
-          </Card>
-        </div>
-      )}
+
+                {/* Open Tasks Content */}
+                {!loading && (
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    {/* Assigned Tasks */}
+                    <Card 
+                      title={
+                        <Space>
+                          <UserOutlined />
+                          <span>My Assigned Tasks</span>
+                          <Badge count={sortedAssignedTasks.length} color="blue" />
+                        </Space>
+                      } 
+                      style={{ flex: '1 1 400px', minWidth: '400px' }}
+                    >
+                      {sortedAssignedTasks.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                          <FileTextOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                          <div>No assigned tasks</div>
+                        </div>
+                      ) : (
+                        <List
+                          dataSource={sortedAssignedTasks}
+                          renderItem={(task) => (
+                            <TaskListCard
+                              key={task.id}
+                              task={task}
+                              stepType={task.type}
+                              assignmentStatus={task.assignment?.currentStatus}
+                              hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
+                              hasLinks={!!(task.links && task.links.length > 0)}
+                              actionLoading={actionLoading}
+                              prefixDataTestId={prefixDataTestId}
+                              onTaskClick={handleTaskClick}
+                              onQuickClaim={handleQuickClaim}
+                              getTaskTypeIcon={getTaskTypeIcon}
+                              getTaskStatusColor={getTaskStatusColor}
+                              getStepTypeColor={getStepTypeColor}
+                              getAssignmentStatusColor={getAssignmentStatusColor}
+                              getDueDateTag={getDueDateTag}
+                              isTaskOverdue={isTaskOverdue}
+                              isTaskDueSoon={isTaskDueSoon}
+                              formatDueDate={formatDueDate}
+                              accessToken={accessToken}
+                              {...context}
+                            />
+                          )}
+                          size="small"
+                        />
+                      )}
+                    </Card>
+
+                    {/* Claimable Tasks */}
+                    <Card 
+                      title={
+                        <Space>
+                          <ExclamationCircleOutlined />
+                          <span>Claimable Tasks</span>
+                          <Badge count={sortedClaimableTasks.length} color="orange" />
+                        </Space>
+                      } 
+                      style={{ flex: '1 1 400px', minWidth: '400px' }}
+                    >
+                      {sortedClaimableTasks.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                          <CheckCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                          <div>No claimable tasks</div>
+                        </div>
+                      ) : (
+                        <List
+                          dataSource={sortedClaimableTasks}
+                          renderItem={(task) => (
+                            <TaskListCard
+                              key={task.id}
+                              task={task}
+                              stepType={task.type}
+                              assignmentStatus={task.assignment?.currentStatus}
+                              hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
+                              hasLinks={!!(task.links && task.links.length > 0)}
+                              actionLoading={actionLoading}
+                              prefixDataTestId={prefixDataTestId}
+                              onTaskClick={handleTaskClick}
+                              onQuickClaim={handleQuickClaim}
+                              getTaskTypeIcon={getTaskTypeIcon}
+                              getTaskStatusColor={getTaskStatusColor}
+                              getStepTypeColor={getStepTypeColor}
+                              getAssignmentStatusColor={getAssignmentStatusColor}
+                              getDueDateTag={getDueDateTag}
+                              isTaskOverdue={isTaskOverdue}
+                              isTaskDueSoon={isTaskDueSoon}
+                              formatDueDate={formatDueDate}
+                              accessToken={accessToken}
+                              {...context}
+                            />
+                          )}
+                          size="small"
+                        />
+                      )}
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )
+          },
+          {
+            key: 'completed',
+            label: (
+              <Space>
+                <span>Completed Tasks</span>
+                <Badge count={completedTasks.length} color="green" />
+              </Space>
+            ),
+            children: (
+              <div>
+                {/* Loading State for Completed Tasks */}
+                {completedLoading && (
+                  <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: '16px' }}>
+                      <Text>Loading completed tasks...</Text>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error State for Completed Tasks */}
+                {completedError && (
+                  <Alert
+                    message="Error Loading Completed Tasks"
+                    description={completedError}
+                    type="error"
+                    closable
+                    onClose={() => setCompletedError(null)}
+                    style={{ marginBottom: '16px' }}
+                  />
+                )}
+
+                {/* Completed Tasks Content */}
+                {!completedLoading && (
+                  <Card 
+                    title={
+                      <Space>
+                        <CheckCircleOutlined />
+                        <span>Completed Tasks</span>
+                        <Badge count={completedTasks.length} color="green" />
+                      </Space>
+                    }
+                  >
+                    {sortedCompletedTasks.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                        <CheckCircleOutlined style={{ fontSize: '64px', marginBottom: '16px' }} />
+                        <div style={{ fontSize: '16px', marginBottom: '8px' }}>No completed tasks</div>
+                        <div style={{ fontSize: '14px' }}>Completed tasks will appear here</div>
+                      </div>
+                    ) : (
+                      <List
+                        dataSource={sortedCompletedTasks}
+                        renderItem={(task) => (
+                          <TaskListCard
+                            key={task.id}
+                            task={task}
+                            stepType={task.type}
+                            assignmentStatus={task.assignment?.currentStatus}
+                            hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
+                            hasLinks={!!(task.links && task.links.length > 0)}
+                            actionLoading={actionLoading}
+                            prefixDataTestId={prefixDataTestId}
+                            isCompleted={true}
+                            onTaskClick={handleTaskClick}
+                            onQuickClaim={handleQuickClaim}
+                            getTaskTypeIcon={getTaskTypeIcon}
+                            getTaskStatusColor={getTaskStatusColor}
+                            getStepTypeColor={getStepTypeColor}
+                            getAssignmentStatusColor={getAssignmentStatusColor}
+                            getDueDateTag={getCompletionDateTag}
+                            isTaskOverdue={isTaskOverdue}
+                            isTaskDueSoon={isTaskDueSoon}
+                            formatDueDate={formatDueDate}
+                            accessToken={accessToken}
+                            {...context}
+                          />
+                        )}
+                        size="small"
+                      />
+                    )}
+                  </Card>
+                )}
+              </div>
+            )
+          }
+        ]}
+      />
 
       {/* Task Modal using modular components */}
       {selectedTask && (
@@ -722,6 +949,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
                     form={form}
                     actionLoading={actionLoading}
                     prefixDataTestId={prefixDataTestId}
+                    isCompleted={selectedTask.status === 'COMPLETED'}
                     onComplete={taskHandlers.onComplete}
                     onClaim={taskHandlers.onClaim}
                     onRelease={taskHandlers.onRelease}

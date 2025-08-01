@@ -132,7 +132,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid={`${testId}-header`}>
         <h1 className="gba:text-2xl gba:font-bold" data-testid={`${testId}-title`}>
-          {getTranslationFromI18nKeyAndLabel('flow.creator.listTitle', 'Flow Templates')}
+          {getTranslationFromI18nKeyAndLabel('flow.creator.listTitle', 'Flow Definitions')}
         </h1>
       </div>
       

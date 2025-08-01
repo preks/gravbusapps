@@ -58,6 +58,7 @@ interface TaskDetailsTabProps extends BusinessAppContextProps {
   form: any;
   actionLoading: string | null;
   prefixDataTestId: string;
+  isCompleted?: boolean;
   onComplete: () => void;
   onClaim: () => void;
   onRelease: () => void;
@@ -87,6 +88,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   form,
   actionLoading,
   prefixDataTestId,
+  isCompleted = false,
   onComplete,
   onClaim,
   onRelease,
@@ -169,60 +171,64 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       {/* Input Form Section */}
       {hasInputBlocks && !isJustClaimable(task) && (
         <div style={{ marginBottom: '16px' }}>
-          <Title level={5}>Form Fields</Title>
+          <Title level={5}>{isCompleted ? 'Submitted Data' : 'Form Fields'}</Title>
           <Form
             form={form}
             layout="vertical"
-            onValuesChange={(changedValues, allValues) => {
+            disabled={isCompleted}
+            onValuesChange={!isCompleted ? (changedValues, allValues) => {
               setTaskFormData(allValues);
-            }}
+            } : undefined}
           >
             {(task.form || task.inputs)!.map((input: any, index: number) => (
               <InputRenderer 
                 key={index}
                 input={input}
                 index={index}
+                disabled={isCompleted}
               />
             ))}
           </Form>
         </div>
       )}
 
-      {/* Comment Field */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <MessageOutlined />
-          <Text>Add Comment (Optional)</Text>
-          <Switch
-            checked={showComment}
-            onChange={(checked) => {
-              setShowComment(checked);
-              if (!checked) {
-                setComment('');
+      {/* Comment Field - Only show for active tasks */}
+      {!isCompleted && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <MessageOutlined />
+            <Text>Add Comment (Optional)</Text>
+            <Switch
+              checked={showComment}
+              onChange={(checked) => {
+                setShowComment(checked);
+                if (!checked) {
+                  setComment('');
+                }
+              }}
+              size="small"
+            />
+          </div>
+          {showComment && (
+            <TextArea
+              rows={3}
+              placeholder={
+                stepType === 'APPROVAL' 
+                  ? "Add approval comment or rejection reason..." 
+                  : "Add comment about this action..."
               }
-            }}
-            size="small"
-          />
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              maxLength={500}
+              showCount
+              style={{ marginBottom: '8px' }}
+            />
+          )}
         </div>
-        {showComment && (
-          <TextArea
-            rows={3}
-            placeholder={
-              stepType === 'APPROVAL' 
-                ? "Add approval comment or rejection reason..." 
-                : "Add comment about this action..."
-            }
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            maxLength={500}
-            showCount
-            style={{ marginBottom: '8px' }}
-          />
-        )}
-      </div>
+      )}
 
-      {/* Reassignment UI */}
-      {task.availableActions?.canReassign && showReassignUI && (
+      {/* Reassignment UI - Only show for active tasks */}
+      {!isCompleted && task.availableActions?.canReassign && showReassignUI && (
         <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #d9d9d9', borderRadius: '6px', backgroundColor: '#fafafa' }}>
           <div style={{ marginBottom: '12px' }}>
             <Text strong>Reassign Task</Text>
@@ -289,8 +295,9 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* Action Buttons - Only show for active tasks */}
+      {!isCompleted && (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {/* Primary Complete Action - context-aware based on task type */}
         {task.availableActions?.canComplete && (
           <Button
@@ -366,7 +373,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             Unclaim
           </Button>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

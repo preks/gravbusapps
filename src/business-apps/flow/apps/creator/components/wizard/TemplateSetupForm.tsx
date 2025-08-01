@@ -109,13 +109,13 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
       <div className="gba:text-center" data-testid={`${testId}-header`}>
         <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">
           {isEditMode 
-            ? getTranslationFromI18nKeyAndLabel('flow.wizard.editTemplate', 'Edit Workflow Template')
-            : getTranslationFromI18nKeyAndLabel('flow.wizard.createTemplate', 'Create Workflow Template')
+            ? getTranslationFromI18nKeyAndLabel('flow.wizard.editTemplate', 'Edit Workflow Definition')
+            : getTranslationFromI18nKeyAndLabel('flow.wizard.createTemplate', 'Create Workflow Definition')
           }
         </h2>
         <p className="gba:text-gray-600">
           {isEditMode
-            ? getTranslationFromI18nKeyAndLabel('flow.wizard.editTemplateDescription', 'Update your workflow template details')
+            ? getTranslationFromI18nKeyAndLabel('flow.wizard.editTemplateDescription', 'Update your workflow definition details')
             : getTranslationFromI18nKeyAndLabel('flow.wizard.createTemplateDescription', 'Start with a business pattern or create a custom workflow')
           }
         </p>
@@ -206,7 +206,7 @@ export const TemplateSetupForm: React.FC<TemplateSetupFormProps> = ({
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <FileText className="gba:w-5 gba:h-5 gba:text-gray-600" />
-            {getTranslationFromI18nKeyAndLabel('flow.wizard.templateDetails', 'Template Details')}
+            {getTranslationFromI18nKeyAndLabel('flow.wizard.templateDetails', 'Definition Details')}
           </CardTitle>
         </CardHeader>
         <CardContent>

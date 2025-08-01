@@ -44,14 +44,14 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
       };
       
       const savedTemplate = await flowTemplateClient.createTemplate(templateData);
-      message.success('Template saved as draft successfully!');
+      message.success('Definition saved as draft successfully!');
       
       if (onSaved) {
         onSaved(savedTemplate);
       }
     } catch (error) {
-      console.error('Error saving template as draft:', error);
-      message.error('Failed to save template as draft');
+      console.error('Error saving definition as draft:', error);
+      message.error('Failed to save definition as draft');
     }
   }, [flowTemplate, flowTemplateClient, onSaved]);
 
@@ -64,14 +64,14 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
       };
       
       const publishedTemplate = await flowTemplateClient.createTemplate(templateData);
-      message.success('Template published successfully!');
+      message.success('Definition published successfully!');
       
       if (onSaved) {
         onSaved(publishedTemplate);
       }
     } catch (error) {
-      console.error('Error publishing template:', error);
-      message.error('Failed to publish template');
+      console.error('Error publishing definition:', error);
+      message.error('Failed to publish definition');
     }
   }, [flowTemplate, flowTemplateClient, onSaved]);
 

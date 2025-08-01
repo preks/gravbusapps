@@ -21,6 +21,7 @@ interface TaskListCardProps<T = any> extends BusinessAppContextProps {
   hasLinks: boolean;
   actionLoading: string | null;
   prefixDataTestId: string;
+  isCompleted?: boolean;
   onTaskClick: (task: T) => void;
   onQuickClaim: (e: React.MouseEvent, taskId: string) => void;
   getTaskTypeIcon: (task: T) => React.ReactNode;
@@ -41,6 +42,7 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
   hasLinks,
   actionLoading,
   prefixDataTestId,
+  isCompleted = false,
   onTaskClick,
   onQuickClaim,
   getTaskTypeIcon,
@@ -59,7 +61,7 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
       onClick={() => onTaskClick(task)}
       style={{ cursor: 'pointer' }}
       data-testid={`${prefixDataTestId}-task-item-${task.id}`}
-      actions={task.availableActions?.canClaim ? [
+      actions={!isCompleted && task.availableActions?.canClaim ? [
         <Button
           key="quick-claim"
           type="primary"
@@ -116,7 +118,7 @@ export const TaskListCard: React.FC<TaskListCardProps<any>> = ({
                 Assigned to: {task.assignment.assignedTo}
               </Text>
             )}
-            {task.dueDate && (
+            {!isCompleted && task.dueDate && (
               <div style={{ marginTop: '4px' }}>
                 <Text 
                   type="secondary" 

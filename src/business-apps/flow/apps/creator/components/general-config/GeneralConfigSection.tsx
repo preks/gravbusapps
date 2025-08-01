@@ -30,13 +30,13 @@ export const GeneralConfigSection: React.FC = () => {
           {/* Template Name */}
           <div className="gba:space-y-2">
             <Label htmlFor="template-name">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_name', 'Template Name')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_name', 'Definition Name')}
             </Label>
             <Input
               id="template-name"
               value={flowTemplate.name}
               onChange={(e) => updateTitle(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_name_placeholder', 'Enter template name')}
+              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_name_placeholder', 'Enter definition name')}
               data-testid="template-name-input"
             />
           </div>
@@ -44,13 +44,13 @@ export const GeneralConfigSection: React.FC = () => {
           {/* Template Description */}
           <div className="gba:space-y-2">
             <Label htmlFor="template-description">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_description', 'Template Description')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_description', 'Definition Description')}
             </Label>
             <Textarea
               id="template-description"
               value={flowTemplate.description || ''}
               onChange={(e) => updateDescription(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_description_placeholder', 'Enter template description')}
+              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_description_placeholder', 'Enter definition description')}
               rows={3}
               data-testid="template-description-input"
             />
@@ -59,7 +59,7 @@ export const GeneralConfigSection: React.FC = () => {
           {/* Template Type */}
           <div className="gba:space-y-2">
             <Label htmlFor="template-type">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type', 'Template Type')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type', 'Definition Type')}
             </Label>
             <Select
               value={flowTemplate.type}
@@ -67,11 +67,11 @@ export const GeneralConfigSection: React.FC = () => {
               data-testid="template-type-select"
             >
               <SelectTrigger>
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.select_template_type', 'Select template type')} />
+                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.select_template_type', 'Select definition type')} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="TEMPLATE">
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_template', 'Template')}
+                  {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_template', 'Definition')}
                 </SelectItem>
                 <SelectItem value="SELF_SERVICE">
                   {getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_self_service', 'Self-Service')}
@@ -80,7 +80,7 @@ export const GeneralConfigSection: React.FC = () => {
             </Select>
             <p className="gba:text-sm gba:text-gray-500">
               {flowTemplate.type === 'TEMPLATE' 
-                ? getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_template_description', 'Template flows require configuration before execution')
+                ? getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_template_description', 'Definition flows require configuration before execution')
                 : getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_self_service_description', 'Self-service flows can be launched directly with predefined inputs')
               }
             </p>

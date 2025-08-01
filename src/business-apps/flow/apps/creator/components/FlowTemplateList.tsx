@@ -34,11 +34,11 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
 
     try {
       await onDelete(deletingTemplate);
-      message.success(getTranslationFromI18nKeyAndLabel('flow.creator.deleteSuccess', 'Template deleted successfully'));
+      message.success(getTranslationFromI18nKeyAndLabel('flow.creator.deleteSuccess', 'Definition deleted successfully'));
       setDeletingTemplate(null);
     } catch (error) {
       console.error('Failed to delete template:', error);
-      message.error(getTranslationFromI18nKeyAndLabel('flow.creator.deleteError', 'Failed to delete template'));
+      message.error(getTranslationFromI18nKeyAndLabel('flow.creator.deleteError', 'Failed to delete definition'));
     }
   };
 
@@ -52,10 +52,10 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between" data-testid={`${testId}-header`}>
           <div data-testid={`${testId}-header-title`}>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesList', 'Flow Templates')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesList', 'Flow Definitions')}
             </CardTitle>
             <CardDescription>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesDescription', 'Create and manage flow templates')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesDescription', 'Create and manage flow definitions')}
             </CardDescription>
           </div>
           
@@ -71,7 +71,7 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
         <CardContent data-testid={`${testId}-content`}>
           {templates.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${testId}-empty`}>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.noTemplates', 'No flow templates found. Create your first template!')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.noTemplates', 'No flow definitions found. Create your first definition!')}
             </div>
           ) : (
             <Table data-testid={`${testId}-table`}>
@@ -96,7 +96,7 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                 {templates.map((template, index) => (
                   <TableRow key={template.id || index} data-testid={`${testId}-row-${index}`}>
                     <TableCell className="gba:font-medium" data-testid={`${testId}-title-${index}`}>
-                      {template.name || 'Untitled Template'}
+                      {template.name || 'Untitled Definition'}
                     </TableCell>
                     <TableCell data-testid={`${testId}-description-${index}`}>
                       {template.description || 'No description'}
@@ -152,10 +152,10 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
           <ExclamationCircleOutlined className="gba:text-yellow-500 gba:text-xl" />
           <div>
             <p className="gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel('flow.creator.deleteMessage', 'Are you sure you want to delete this flow template?')}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.deleteMessage', 'Are you sure you want to delete this flow definition?')}
             </p>
             <p className="gba:font-medium">
-              "{deletingTemplate?.name || 'Untitled Template'}"
+              "{deletingTemplate?.name || 'Untitled Definition'}"
             </p>
             <p className="gba:text-sm gba:text-gray-500 gba:mt-2">
               {getTranslationFromI18nKeyAndLabel('flow.creator.deleteWarning', 'This action cannot be undone.')}

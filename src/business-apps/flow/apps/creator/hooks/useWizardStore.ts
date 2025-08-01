@@ -298,6 +298,8 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         form: step.form || step.inputs || [],
         inputs: step.inputs || step.form || [],
         links: step.links || [],
+        // Preserve timing-related fields
+        dueInMinutes: step.dueInMinutes,
         // Ensure assignment is set - required by client interface
         assignment: step.assignment || {
           targets: null,
