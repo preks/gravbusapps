@@ -157,6 +157,9 @@ export const handleExpenseTypeChange = async (
     
 
     if (form) {
+      form.setFieldsValue({
+        [`expenseType-${positionIndex}`]: value || undefined
+      });
 
       const prevExpenseType = positions[positionIndex]?.expenseType;
       
@@ -358,7 +361,7 @@ export const handleSubmit = async (
     const submitData = {
       expenseItem: {
         ...(itemValues?.id && { id: itemValues.id }),
-        ...(itemValues?.version && { version: itemValues.version }),
+        ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         expenseDate: values.date
           ? formatDateToISOString(values.date)
@@ -412,7 +415,9 @@ export const handleSubmit = async (
 
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        
+        //dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        console.log("submitData", submitData);
         // operationSuccessful = true;
       } catch (processError) {
         showToast(

@@ -104,7 +104,7 @@ export const handleSubmit = async (
     const submitData = {
       expensePlanItem: {
         ...(itemValues?.id && { id: itemValues.id }),
-        ...(itemValues?.version && { version: itemValues.version }),
+        ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         totalAmount: values.amount || 0,
         currencyRef: values.currency || "Currency:v1:EUR",

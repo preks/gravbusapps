@@ -176,6 +176,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         <div className={`gba:relativePosition`}>
           <Form.Item
             name="expenseType"
+            rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
             style={{ marginBottom: 0 }}
           >
             <SelectField
@@ -195,9 +196,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 }))
               }
               onChange={(value: any) => {
-                form.setFieldsValue({ expenseType: value?.value || "" });
-                handleExpenseTypeChange(value?.value || "");
+                form.setFieldsValue({ expenseType: value.value });
+                handleExpenseTypeChange(value.value);
               }}
+              required={true}
             />
           </Form.Item>
         </div>

@@ -749,8 +749,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   };
 
   const handleSubmitWrapper = async (): Promise<void> => {
-    const expenseIdValue =
-    additionalData?.psi_taskPayload?.initialParameters?.expenseId
     return await handleSubmit(
       form,
       positions,
