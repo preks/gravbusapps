@@ -78,6 +78,7 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   advanceRange?: { min?: number; max?: number } | null;
   selectedFilters?: string[];
   removeFilter?: (filterId: string) => void;
+  tableRefreshTrigger?: number;
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
@@ -139,6 +140,23 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       });
     }
   }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams]);
+
+  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
+  useEffect(() => {
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
+      // Trigger a refresh by calling fetchItems with current parameters
+      if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+        fetchItems(
+          fetchParams.searchText,
+          fetchParams.currentPage,
+          fetchParams.pageSize,
+          fetchParams.currentStatusFilter,
+          fetchParams.currentAmountRange,
+          fetchParams.currentAdvanceRange
+        );
+      }
+    }
+  }, [props.tableRefreshTrigger, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams]);
 
   // Create a memoized setSearch function to prevent re-renders
   const handleSearchChange = useCallback((value: string) => {

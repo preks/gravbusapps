@@ -54,7 +54,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       {
         key: 'pending-payouts',
         title: 'Pending Payouts',
-        value: stats?.pendingPayouts + '' + '€'|| 0,
+        value: stats?.pendingPayouts + '€'|| 0,
         prefix: <PiCurrencyCircleDollar />,
         color: '#1890ff',
         valueIsString: true,

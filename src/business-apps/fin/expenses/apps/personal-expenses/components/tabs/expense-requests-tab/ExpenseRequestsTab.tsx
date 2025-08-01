@@ -27,6 +27,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const [sortField, setSortField] = useState<string>('requestDate');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
 
+  // Table refresh trigger state
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+
   const {
     filterGroups,
     selectedFilters,
@@ -129,6 +132,72 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     }
   }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
 
+  // Process completion event listener to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Refresh expense requests data after successful process completion
+          if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+            fetchItems(
+              memoizedFilters,
+              currentPage,
+              pageSize,
+              sortField,
+              sortOrder
+            );
+          }
+          
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
+
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
     return (
@@ -212,6 +281,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       clearFilters={clearFilters}
       filterLabelMap={filterLabelMap}
       onAddExpenseRequest={handleAddExpenseRequest}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

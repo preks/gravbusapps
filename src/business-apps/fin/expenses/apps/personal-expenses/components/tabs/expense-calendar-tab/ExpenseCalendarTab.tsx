@@ -133,7 +133,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   }, [fetchExpensesErrorHook]);
 
   useEffect(() => {
-    fetchPlansHookItems().catch(err => {
+    fetchPlansHookItems({}, 1, 20).catch(err => {
       console.error('Failed to fetch expense plans:', err);
       setPlansError(err.message || 'Failed to fetch expense plans');
     });
@@ -198,7 +198,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   }, [rawExpensePlans]);
 
   useEffect(() => {
-    fetchRequestsHookItems().catch(err => {
+    fetchRequestsHookItems({}, 1, 20).catch(err => {
       console.error('Failed to fetch expense requests:', err);
       setRequestsError(err.message || 'Failed to fetch expense requests');
     });
@@ -384,7 +384,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
         width={500}
         onClose={handleCloseDrawer}
         open={isDetailsDrawerVisible}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedItemForDetails && (
           <ExpenseItemDetails 
@@ -402,7 +402,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
         )}
         {selectedRequestForDetails && (
           <ExpenseRequestDetails 
-            request={selectedRequestForDetails} 
+            selectedItem={selectedRequestForDetails} 
             onClose={handleCloseDrawer} 
             {...props} // Pass other context props if needed by ExpenseRequestDetails
           />

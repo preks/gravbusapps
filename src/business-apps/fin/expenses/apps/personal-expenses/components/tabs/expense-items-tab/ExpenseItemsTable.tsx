@@ -47,6 +47,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   setFilters: (filters: string[]) => void;
   availableStatuses: string[];
   amountRange?: { min?: number; max?: number } | null;
+  tableRefreshTrigger?: number;
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -82,6 +83,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const apiFilters = getFilters(allSelectedFilters);
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
   }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
+
+  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
+  useEffect(() => {
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
+      const apiFilters = getFilters(allSelectedFilters);
+      fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+    }
+  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, allSelectedFilters, getFilters, sortField, sortOrder]);
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);

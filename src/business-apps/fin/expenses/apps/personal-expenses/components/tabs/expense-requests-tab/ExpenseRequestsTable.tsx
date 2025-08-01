@@ -49,6 +49,7 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   clearFilters?: () => void;
   filterLabelMap?: Record<string, string>;
   onAddExpenseRequest?: () => void;
+  tableRefreshTrigger?: number;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -77,7 +78,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     handleFilterChange,
     clearFilters,
     filterLabelMap = {},
-    onAddExpenseRequest
+    onAddExpenseRequest,
+    tableRefreshTrigger
   } = props;
 
   // Local search state for immediate UI feedback
@@ -115,6 +117,20 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
       onSearchChange(debouncedSearchTerm);
     }
   }, [debouncedSearchTerm, onSearchChange, search]);
+
+  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
+  useEffect(() => {
+    if (tableRefreshTrigger && tableRefreshTrigger > 0) {
+      // Trigger a refresh by calling onTableChange with current parameters
+      if (onTableChange) {
+        onTableChange(
+          { current: currentPage, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+    }
+  }, [tableRefreshTrigger, onTableChange, currentPage, pageSize, sortField, sortOrder]);
 
   // Handle search input changes (immediate UI update)
   const handleSearchChange = useCallback((value: string) => {

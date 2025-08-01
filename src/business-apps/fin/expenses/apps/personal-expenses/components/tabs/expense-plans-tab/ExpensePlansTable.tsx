@@ -126,6 +126,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string, selected: boolean) => void;
   removeFilter: (filterId: string) => void;
+  tableRefreshTrigger?: number;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
@@ -297,6 +298,19 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
   }, [plans, sortConfig]);
+
+  // Watch for table refresh trigger from parent
+  useEffect(() => {
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
+      // Trigger a table refresh by calling onTableChange with current state
+      const pagination = {
+        current: currentPage,
+        pageSize: pageSize,
+        total: totalCount
+      };
+      onTableChange(pagination, {}, {});
+    }
+  }, [props.tableRefreshTrigger, currentPage, pageSize, totalCount, onTableChange]);
 
   const renderDataBody = useMemo(() => {
     return (
@@ -475,7 +489,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                     key: 'create-expense-request',
                                     label: 'Create Expense Request',
                                     onClick: () => {
-    
                                       startProcess({
                                         domain: 'employee-expense',
                                         processName: 'changeExpenseRequest',
@@ -780,7 +793,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         }}
         width="90vw"
         style={{ top: 20 }}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         data-testid="print-plan-modal"
       >
         {printLoading ? (
