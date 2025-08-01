@@ -453,7 +453,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.organizationalUnitId
-                      ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
+                      ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
                       : undefined
                   }
                   openInNewTab={true}
@@ -470,7 +470,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.siteLocation?.id
-                      ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
+                      ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
                       : undefined
                   }
                   openInNewTab={true}
@@ -545,7 +545,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.costCenter?.id
-                      ? `/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
+                      ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
                       : undefined
                   }
                 />
