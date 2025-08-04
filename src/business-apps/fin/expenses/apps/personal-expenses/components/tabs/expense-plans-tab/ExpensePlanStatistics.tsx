@@ -1,4 +1,4 @@
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import React, { useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { 
@@ -126,24 +126,24 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-plans',
-      title: `Total Plans for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_plans_for_month','Total Plans for {month}').replace('{month}', currentMonthName),
       value: totalPlans,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Closed expense plans',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.closed_expense_plans','Closed expense plans'),
       trend: plansTrend,
       active: activeWidgetKey === 'total-plans',
       onClick: () => handleWidgetClick('total-plans')
     },
     {
       key: 'total-estimated',
-      title: `Total Estimated for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for {month}').replace('{month}', currentMonthName),
       value: `${formatNumberFunction(String(totalEstimated ?? '0'))} €`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Estimated expenses',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.estimated_expenses','Estimated expenses'),
       trend: estimatedAmountTrend,
       valueIsString: true,
       active: activeWidgetKey === 'total-estimated',
@@ -151,23 +151,23 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     },
     {
       key: 'pending-approval',
-      title: 'Pending Approval',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval','Pending Approval'),
       value: pendingApproval,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Requires action',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action','Requires action'),
       active: activeWidgetKey === 'pending-approval',
       onClick: () => handleWidgetClick('pending-approval')
     },
     {
       key: 'top-destinations',
-      title: 'Top Destination',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination','Top Destination'),
       value: topDestination,
       prefix: <CompassOutlined />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, md: 6 },
-      description: topDestination && topDestination !== 'N/A' ? 'Most frequent' : 'No data available',
+      description: topDestination && topDestination !== 'N/A' ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent','Most frequent') : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available','No data available'),
       active: activeWidgetKey === 'top-destinations',
       onClick: () => {
         handleWidgetClick('top-destinations');
@@ -183,7 +183,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       onRetry={fetchPlanStatistics}
       onWidgetClick={onWidgetClick}
       skeletonCount={4}
-      emptyText="No expense plan statistics available."
+      emptyText={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan_statistics_available','No expense plan statistics available.')}
       data-testid="expense-plan-statistics"
     />
   );

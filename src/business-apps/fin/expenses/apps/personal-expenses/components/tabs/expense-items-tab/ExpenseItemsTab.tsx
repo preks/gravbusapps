@@ -9,6 +9,7 @@ import ExpenseItemsTable from './ExpenseItemsTable';
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -507,7 +508,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
               console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-        console.warn('User information not loaded yet. Please wait a moment and try again.');
+        console.warn(getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.user_information_not_loaded','User information not loaded yet. Please wait a moment and try again.'));
       return;
     }
     

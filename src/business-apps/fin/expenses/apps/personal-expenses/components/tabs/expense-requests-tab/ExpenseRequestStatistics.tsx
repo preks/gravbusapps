@@ -8,6 +8,7 @@ import {
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean;
@@ -69,21 +70,21 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (totalRequestsPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = totalRequestsPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${totalRequestsPercentageChange.toFixed(0)}%`,
       positive: totalRequestsPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [totalRequestsPercentageChange, statistics.currentMonthTotal, statistics.previousMonthTotal]);
 
@@ -92,21 +93,21 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (totalAmountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = totalAmountPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${totalAmountPercentageChange.toFixed(0)}%`,
       positive: totalAmountPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [totalAmountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount]);
 
@@ -127,48 +128,48 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   const widgets: WidgetItem[] = [
     {
       key: 'total-requests',
-      title: `Total Requests for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_requests_for_month',`Total Requests for ${currentMonthName}`),
       value: statistics.currentMonthTotal,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Submitted expense requests',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submitted_expense_requests','Submitted expense requests'),
       trend: totalRequestsTrend,
       active: activeWidgetKey === 'total-requests'
     },
     {
       key: 'total-amount',
-      title: `Total Amount for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for ${currentMonthName}`),
       value: statistics.currentMonthAmount,
       prefix: <DollarOutlined />,
       suffix: '€',
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Across all requests',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.across_all_requests','Across all requests'),
       trend: totalAmountTrend,
       active: activeWidgetKey === 'total-amount'
     },
     {
       key: 'pending-approval',
-      title: 'Pending Approval',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval','Pending Approval'),
       value: statistics.pendingApproval,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Requires action',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action','Requires action'),
       active: activeWidgetKey === 'pending-approval'
     },
     {
       key: 'reimbursable',
-      title: 'Reimbursable',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.reimbursable','Reimbursable'),
       value: statistics.reimbursableAmount,
       prefix: <DollarOutlined />,
       suffix: '€',
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'To be reimbursed',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed','To be reimbursed'),
       active: activeWidgetKey === 'reimbursable'
     }
   ];
@@ -180,7 +181,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       error={error}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
-      emptyText="No expense request statistics available."
+      emptyText={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_request_statistics_available','No expense request statistics available.')}
       data-testid="expense-request-statistics"
       onWidgetClick={handleWidgetClick}
     />

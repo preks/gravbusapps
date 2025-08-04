@@ -8,6 +8,7 @@ import { useExpensePlanWidgetFilters, getActiveWidgetFromFilters } from '../../.
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import dayjs from 'dayjs';
 import { ExpenseStatus } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
