@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDepartmentFilters, DepartmentFilterOption } from './useDepartmentFilters';
 import { useJobProfileFilters, JobProfileFilterOption } from './useJobProfileFilters';
 import { useJobFunctionFilters, JobFunctionFilterOption } from './useJobFunctionFilters';
-import { useJobLevelFilters, JobLevelFilterOption } from './useJobLevelFilters';
-import { useJobFamilyFilters, JobFamilyFilterOption } from './useJobFamilyFilters';
-import { useContractTypeFilters, ContractTypeFilterOption } from './useContractTypeFilters';
-import { useEmploymentTypeFilters, EmploymentTypeFilterOption } from './useEmploymentTypeFilters';
 
 /**
  * Filter option interface for consistent typing
@@ -15,6 +12,7 @@ import { useEmploymentTypeFilters, EmploymentTypeFilterOption } from './useEmplo
 export interface FilterOption {
   id: string;
   label: string;
+  value: string;
   selected: boolean;
 }
 
@@ -33,12 +31,9 @@ export interface FilterGroup {
  */
 export interface JobPositionFilters {
   search: string;
+  departments: string[];
   jobProfiles: string[];
   jobFunctions: string[];
-  jobLevels: string[];
-  jobFamilies: string[];
-  contractTypes: string[];
-  employmentTypes: string[];
   vacant?: boolean;
 }
 
@@ -48,68 +43,98 @@ export interface JobPositionFilters {
  */
 export function useJobPositionFilters(accessToken: string) {
   const { t } = useTranslation();
-  
-  // Search and filter state
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [filtersInitialized, setFiltersInitialized] = useState(true); // OPTIMIZED: Initialize immediately
+  
+  // Lazy loading state for filters
+  const [filtersEnabled, setFiltersEnabled] = useState(false);
+  
+  // Department filters - LAZY LOADED
+  const [departmentSearch, setDepartmentSearch] = useState("");
+  const { departments: departmentOptions, loading: departmentLoading, error: departmentError } = useDepartmentFilters(accessToken, departmentSearch, 0, filtersEnabled);
+  
+  // Job profile filters - LAZY LOADED
+  const [jobProfileSearch, setJobProfileSearch] = useState("");
+  const { profiles: jobProfileOptions, loading: jobProfileLoading, error: jobProfileError } = useJobProfileFilters(accessToken, jobProfileSearch, 0, filtersEnabled);
+  
+  // Job function filters - LAZY LOADED
+  const [jobFunctionSearch, setJobFunctionSearch] = useState("");
+  const { functions: jobFunctionOptions, loading: jobFunctionLoading, error: jobFunctionError } = useJobFunctionFilters(accessToken, jobFunctionSearch, 0, filtersEnabled);
 
-  // Individual filter search states
-  const [jobProfileSearch, setJobProfileSearch] = useState('');
-  const [jobFunctionSearch, setJobFunctionSearch] = useState('');
-  const [jobLevelSearch, setJobLevelSearch] = useState('');
-  const [jobFamilySearch, setJobFamilySearch] = useState('');
-  const [contractTypeSearch, setContractTypeSearch] = useState('');
-  const [employmentTypeSearch, setEmploymentTypeSearch] = useState('');
+  // Function to enable filter loading when filters are needed (lazy loading)
+  const enableFilters = useCallback(() => {
+    if (!filtersEnabled) {
+      setFiltersEnabled(true);
+    }
+  }, [filtersEnabled]);
 
-  // Individual filter hooks
-  const { profiles: jobProfileOptions, loading: jobProfileLoading, error: jobProfileError } = 
-    useJobProfileFilters(accessToken, jobProfileSearch);
-  const { functions: jobFunctionOptions, loading: jobFunctionLoading, error: jobFunctionError } = 
-    useJobFunctionFilters(accessToken, jobFunctionSearch);
-  const { levels: jobLevelOptions, loading: jobLevelLoading, error: jobLevelError } = 
-    useJobLevelFilters(accessToken, jobLevelSearch);
-  const { families: jobFamilyOptions, loading: jobFamilyLoading, error: jobFamilyError } = 
-    useJobFamilyFilters(accessToken, jobFamilySearch);
-  const { types: contractTypeOptions, loading: contractTypeLoading, error: contractTypeError } = 
-    useContractTypeFilters(accessToken, contractTypeSearch);
-  const { types: employmentTypeOptions, loading: employmentTypeLoading, error: employmentTypeError } = 
-    useEmploymentTypeFilters(accessToken, employmentTypeSearch);
-
-  // Add a filter to the selected filters
+  /**
+   * Add a filter to the selected filters
+   */
   const addFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => [...prev, filterId]);
+    setSelectedFilters(prev => {
+      if (!prev.includes(filterId)) {
+        return [...prev, filterId];
+      }
+      return prev;
+    });
   }, []);
 
-  // Remove a filter from the selected filters
+  /**
+   * Remove a filter from the selected filters
+   */
   const removeFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => prev.filter(id => id !== filterId));
   }, []);
 
-  // Get selected filter IDs by type
-  const getSelectedFiltersByType = useCallback(() => {
-    return {
-      jobProfiles: selectedFilters.filter(f => 
-        jobProfileOptions.map(p => p.id).includes(f)),
-      jobFunctions: selectedFilters.filter(f => 
-        jobFunctionOptions.map(fn => fn.id).includes(f)),
-      jobLevels: selectedFilters.filter(f => 
-        jobLevelOptions.map(l => l.id).includes(f)),
-      jobFamilies: selectedFilters.filter(f => 
-        jobFamilyOptions.map(fam => fam.id).includes(f)),
-      contractTypes: selectedFilters.filter(f => 
-        contractTypeOptions.map(t => t.id).includes(f)),
-      employmentTypes: selectedFilters.filter(f => 
-        employmentTypeOptions.map(t => t.id).includes(f))
-    };
-  }, [selectedFilters, jobProfileOptions, jobFunctionOptions, jobLevelOptions, jobFamilyOptions, contractTypeOptions, employmentTypeOptions]);
+  /**
+   * Clear all selected filters
+   */
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+  }, []);
 
-  // Backend search functions
+  /**
+   * Get selected filters by type
+   */
+  const getSelectedFiltersByType = useCallback((filterType: string): string[] => {
+    return selectedFilters.filter(filterId => {
+      if (filterType === 'departments') {
+        return departmentOptions.some(dept => dept.id === filterId);
+      }
+      if (filterType === 'jobProfiles') {
+        return jobProfileOptions.some(profile => profile.id === filterId);
+      }
+      if (filterType === 'jobFunctions') {
+        return jobFunctionOptions.some(func => func.id === filterId);
+      }
+      return false;
+    });
+  }, [selectedFilters, departmentOptions, jobProfileOptions, jobFunctionOptions]);
+
+  // Backend search functions for each filter type
+  const getDepartmentFilters = useCallback((search: string) => {
+    setDepartmentSearch(search);
+    return {
+      filters: departmentOptions.map(dept => ({
+        id: dept.id,
+        label: dept.name,
+        value: dept.name,
+        selected: selectedFilters.includes(dept.id),
+      })),
+      loading: departmentLoading,
+      error: departmentError
+    };
+  }, [departmentOptions, selectedFilters, departmentLoading, departmentError]);
+
   const getJobProfileFilters = useCallback((search: string) => {
     setJobProfileSearch(search);
     return {
-      filters: jobProfileOptions.map(profile => ({
+      filters: jobProfileOptions.map((profile: JobProfileFilterOption) => ({
         id: profile.id,
         label: profile.name,
+        value: profile.name,
         selected: selectedFilters.includes(profile.id),
       })),
       loading: jobProfileLoading,
@@ -120,9 +145,10 @@ export function useJobPositionFilters(accessToken: string) {
   const getJobFunctionFilters = useCallback((search: string) => {
     setJobFunctionSearch(search);
     return {
-      filters: jobFunctionOptions.map(func => ({
+      filters: jobFunctionOptions.map((func: JobFunctionFilterOption) => ({
         id: func.id,
         label: func.name,
+        value: func.name,
         selected: selectedFilters.includes(func.id),
       })),
       loading: jobFunctionLoading,
@@ -130,64 +156,12 @@ export function useJobPositionFilters(accessToken: string) {
     };
   }, [jobFunctionOptions, selectedFilters, jobFunctionLoading, jobFunctionError]);
 
-  const getJobLevelFilters = useCallback((search: string) => {
-    setJobLevelSearch(search);
-    return {
-      filters: jobLevelOptions.map(level => ({
-        id: level.id,
-        label: level.name,
-        selected: selectedFilters.includes(level.id),
-      })),
-      loading: jobLevelLoading,
-      error: jobLevelError
-    };
-  }, [jobLevelOptions, selectedFilters, jobLevelLoading, jobLevelError]);
-
-  const getJobFamilyFilters = useCallback((search: string) => {
-    setJobFamilySearch(search);
-    return {
-      filters: jobFamilyOptions.map((family: JobFamilyFilterOption) => ({
-        id: family.id,
-        label: family.name,
-        selected: selectedFilters.includes(family.id),
-      })),
-      loading: jobFamilyLoading,
-      error: jobFamilyError
-    };
-  }, [jobFamilyOptions, selectedFilters, jobFamilyLoading, jobFamilyError]);
-
-  const getContractTypeFilters = useCallback((search: string) => {
-    setContractTypeSearch(search);
-    return {
-      filters: contractTypeOptions.map(type => ({
-        id: type.id,
-        label: type.name,
-        selected: selectedFilters.includes(type.id),
-      })),
-      loading: contractTypeLoading,
-      error: contractTypeError
-    };
-  }, [contractTypeOptions, selectedFilters, contractTypeLoading, contractTypeError]);
-
-  const getEmploymentTypeFilters = useCallback((search: string) => {
-    setEmploymentTypeSearch(search);
-    return {
-      filters: employmentTypeOptions.map(type => ({
-        id: type.id,
-        label: type.name,
-        selected: selectedFilters.includes(type.id),
-      })),
-      loading: employmentTypeLoading,
-      error: employmentTypeError
-    };
-  }, [employmentTypeOptions, selectedFilters, employmentTypeLoading, employmentTypeError]);
-
-  // Filter groups for DataContainer
+  // Filter groups for DataContainer - Only Department, Job Functions, and Job Profiles
   const filterGroups: FilterGroup[] = useMemo(() => [
     {
-      id: 'jobProfiles',
-      title: t('job_position.filter.job_profiles', 'Job Profiles'),
-      backendSearch: getJobProfileFilters
+      id: 'departments',
+      title: t('job_position.filter.departments', 'Department'),
+      backendSearch: getDepartmentFilters
     },
     {
       id: 'jobFunctions',
@@ -195,64 +169,40 @@ export function useJobPositionFilters(accessToken: string) {
       backendSearch: getJobFunctionFilters
     },
     {
-      id: 'jobLevels',
-      title: t('job_position.filter.job_levels', 'Job Levels'),
-      backendSearch: getJobLevelFilters
-    },
-    {
-      id: 'jobFamilies',
-      title: t('job_position.filter.job_families', 'Job Families'),
-      backendSearch: getJobFamilyFilters
-    },
-    {
-      id: 'contractTypes',
-      title: t('job_position.filter.contract_types', 'Contract Types'),
-      backendSearch: getContractTypeFilters
-    },
-    {
-      id: 'employmentTypes',
-      title: t('job_position.filter.employment_types', 'Employment Types'),
-      backendSearch: getEmploymentTypeFilters
+      id: 'jobProfiles',
+      title: t('job_position.filter.job_profiles', 'Job Profiles'),
+      backendSearch: getJobProfileFilters
     }
-  ], [t, getJobProfileFilters, getJobFunctionFilters, getJobLevelFilters, getJobFamilyFilters, getContractTypeFilters, getEmploymentTypeFilters]);
+  ], [t, getDepartmentFilters, getJobFunctionFilters, getJobProfileFilters]);
 
   // Filter label map for DataController
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {};
     
-    jobProfileOptions.forEach(profile => {
+    departmentOptions.forEach((dept: DepartmentFilterOption) => {
+      labelMap[dept.id] = dept.name;
+    });
+    
+    jobProfileOptions.forEach((profile: JobProfileFilterOption) => {
       labelMap[profile.id] = profile.name;
     });
-    jobFunctionOptions.forEach(func => {
+    
+    jobFunctionOptions.forEach((func: JobFunctionFilterOption) => {
       labelMap[func.id] = func.name;
-    });
-    jobLevelOptions.forEach(level => {
-      labelMap[level.id] = level.name;
-    });
-    jobFamilyOptions.forEach((family: JobFamilyFilterOption) => {
-      labelMap[family.id] = family.name;
-    });
-    contractTypeOptions.forEach(type => {
-      labelMap[type.id] = type.name;
-    });
-    employmentTypeOptions.forEach(type => {
-      labelMap[type.id] = type.name;
     });
     
     return labelMap;
-  }, [jobProfileOptions, jobFunctionOptions, jobLevelOptions, jobFamilyOptions, contractTypeOptions, employmentTypeOptions]);
+  }, [departmentOptions, jobProfileOptions, jobFunctionOptions]);
 
-  // Get filters for API calls
+  /**
+   * Get the current filter configuration for API calls
+   */
   const getFilters = useCallback((): JobPositionFilters => {
-    const filtersByType = getSelectedFiltersByType();
     return {
       search,
-      jobProfiles: filtersByType.jobProfiles,
-      jobFunctions: filtersByType.jobFunctions,
-      jobLevels: filtersByType.jobLevels,
-      jobFamilies: filtersByType.jobFamilies,
-      contractTypes: filtersByType.contractTypes,
-      employmentTypes: filtersByType.employmentTypes
+      departments: getSelectedFiltersByType('departments'),
+      jobProfiles: getSelectedFiltersByType('jobProfiles'),
+      jobFunctions: getSelectedFiltersByType('jobFunctions')
     };
   }, [search, getSelectedFiltersByType]);
 
@@ -265,6 +215,9 @@ export function useJobPositionFilters(accessToken: string) {
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
+    clearAllFilters,
+    getFilters,
+    filtersInitialized,
+    enableFilters
   };
 } 

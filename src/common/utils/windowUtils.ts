@@ -32,6 +32,11 @@ export function getCurrentActiveUserLocale(): string {
 }
 
 export function getCatalogValue(catalogEntry: any): string {
+  // Handle null, undefined, or empty catalogEntry
+  if (!catalogEntry) {
+    return "";
+  }
+
   try {
     const currentLocale = (
       window?.lowcoder?.i18n?.selectedLocale || "en-US"
@@ -44,7 +49,7 @@ export function getCatalogValue(catalogEntry: any): string {
     }
     return catalogEntry.value || "";
   } catch {
-    return catalogEntry.value || "";
+    return catalogEntry?.value || "";
   }
 }
 
@@ -84,7 +89,6 @@ export const formatDate = (
   if (typeof window?.lowcoder?.i18n?.formatDate !== "function") {
     return date.toISOString();
   }
-  
 
   return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat);
 };

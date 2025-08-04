@@ -6,8 +6,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { ExpenseStatus } from '../../../utils';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
 import ExpenseItemsTable from './ExpenseItemsTable';
-import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
-import { useExpenseItemsTabFilters } from '../../../hooks/useExpenseItemsTabFilters';
+import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
 
@@ -20,10 +19,27 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+    userInfo: props.userInfo,
+    additionalData: props.additionalData
+  }), [props.accessToken, props.userInfo, props.additionalData]);
   
-  // Use our simplified expense filters hook
+  // Get all available statuses from the enum
+  const availableStatuses = useMemo(() => [
+    'PREPARED',
+    'CREATED', 
+    'ASSIGNED',
+    'PENDING',
+    'APPROVED',
+    'RETURNED',
+    'REJECTED',
+    'VERIFIED',
+    'BOOKED',
+    'PAID',
+    'CLOSED',
+    'TRANSFERRED'
+  ], []);
+  
+  // Use our expense items filters hook
   const {
     addFilter,
     removeFilter,
@@ -34,15 +50,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     getFilters,
     setFilters,
     setExpenseDateRange,
-    expenseDateRange
-  } = useExpenseFilters();
+    expenseDateRange,
+    amountRange,
+    setAmountRange,
+    onStatusFilterChange
+  } = useExpenseItemsFilters(availableStatuses);
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
-    setActiveCard(null);
+  const handleClearAllFilters = useCallback(() => {
+    setFilters([]);
     setExpenseDateRange(null);
   }, [setFilters, setExpenseDateRange]);
   
@@ -136,14 +154,8 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
 
 
-  // Handle status filter changes
-  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
-    if (selected) {
-      addFilter(status.toLowerCase());
-    } else {
-      removeFilter(status.toLowerCase());
-    }
-  }, [addFilter, removeFilter]);
+  // Handle status filter changes - use the hook's function
+  const handleStatusFilterChange = onStatusFilterChange;
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -239,8 +251,24 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchItemStatistics();
   }, [fetchItemStatistics]);
 
-  // Combine UI and card filters using the dedicated hook
-  const finalFilters = useExpenseItemsTabFilters(selectedFilters, activeCard);
+  // Combine UI and card filters
+  const finalFilters = useMemo(() => {
+    let filters = [...selectedFilters];
+    
+    // Map card keys to filter values as needed
+    if (activeCard === 'pending-reimbursement' && !filters.includes('pending')) {
+      filters.push('pending');
+    }
+    
+    if (activeCard === 'total-expenses') {
+      // Only filter paid or closed items for total expenses
+      filters = filters.filter(f => f !== 'pending' && f !== 'submitted' && f !== 'in progress');
+      if (!filters.includes('paid')) filters.push('paid');
+      if (!filters.includes('closed')) filters.push('closed');
+    }
+    
+    return filters;
+  }, [selectedFilters, activeCard]);
 
   // Create a custom getFilters function that includes date range parameters
   const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
@@ -394,26 +422,23 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-       startProcess({
-            domain: 'employee-expense',
-            processName: 'changeExpenseItem',
-            payload: {
-              employeeId: contextProps.userInfo?.employeeDetails?.employeeId
-            },
-            builderType: 'NATIVE_SCREEN'
-          });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+        console.warn('User information not loaded yet. Please wait a moment and try again.');
+      return;
     }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
-
-  // Compute availableStatuses from allItems (unfiltered, for current search/page)
-  const availableStatuses = useMemo(() => {
-    const statusSet = new Set<string>();
-    allItems.forEach(item => {
-      if (item.status) statusSet.add(item.status);
+    
+    console.log('Starting create expense process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
     });
-    return Array.from(statusSet);
-  }, [allItems]);
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   return (
     <ExpenseItemsTable 
@@ -429,6 +454,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       getFilters={getFiltersWithDateRange}
       setFilters={handleClearAllFilters}
       availableStatuses={availableStatuses}
+      amountRange={amountRange}
     />
   );
 };

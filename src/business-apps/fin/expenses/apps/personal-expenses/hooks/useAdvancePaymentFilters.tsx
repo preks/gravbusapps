@@ -17,6 +17,10 @@ export interface UseAdvancePaymentFiltersReturn {
   filterGroups: DataFilterGroup[];
   handleDataFilterChange: (filterId: string, selected: boolean) => void;
   filterLabelMap: Record<string, string>;
+  selectedFilters: string[];
+  setFilters: (filters: string[]) => void;
+  removeFilter: (filterId: string) => void;
+  clearFilters: () => void;
 }
 
 // Move these outside the component to make them truly stable
@@ -51,6 +55,7 @@ const STATUS_DISPLAY_MAP: Partial<Record<ExpenseStatus, string>> = {
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
   const [searchTerm, setSearchTerm] = useState<string>('');
+  // Active prefiltering: Start with PREPARED and PENDING statuses
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING]);
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
   const [advanceRange, setAdvanceRange] = useState<{ min?: number; max?: number } | null>(null);
@@ -75,6 +80,36 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     // Note: Amount and advance ranges are now handled by custom components
   }, []);
 
+  // Helper function to format range for display
+  const formatRangeLabel = useCallback((range: { min?: number; max?: number } | null, prefix: string): string => {
+    if (!range || (range.min === undefined && range.max === undefined)) return '';
+    
+    if (range.min !== undefined && range.max !== undefined) {
+      return `${prefix}: ${range.min} - ${range.max}`;
+    } else if (range.min !== undefined) {
+      return `${prefix}: ≥${range.min}`;
+    } else if (range.max !== undefined) {
+      return `${prefix}: ≤${range.max}`;
+    }
+    
+    return '';
+  }, []);
+
+  // Get all selected filters including active ranges
+  const getAllSelectedFilters = useMemo(() => {
+    const filters = [...statusFilter]; // Use the status filter state
+    
+    // Add range filters if they're active
+    if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
+      filters.push('amountRange');
+    }
+    if (advanceRange && (advanceRange.min !== undefined || advanceRange.max !== undefined)) {
+      filters.push('advanceRange');
+    }
+    
+    return filters;
+  }, [statusFilter, amountRange, advanceRange]);
+
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -88,15 +123,72 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
       map[status] = displayLabel;
     });
     
+    // Add range labels if active
+    const amountLabel = formatRangeLabel(amountRange, 'Amount');
+    if (amountLabel) {
+      map['amountRange'] = amountLabel;
+    }
+    
+    const advanceLabel = formatRangeLabel(advanceRange, 'Advance');
+    if (advanceLabel) {
+      map['advanceRange'] = advanceLabel;
+    }
+    
     return map;
-  }, []); // Empty dependency array since AVAILABLE_FILTER_STATUSES and STATUS_DISPLAY_MAP are now truly stable
+  }, [amountRange, advanceRange, formatRangeLabel]);
+
+  // Enhanced setFilters function that properly handles clearing all filters
+  const setFilters = useCallback((filters: string[]) => {
+    // If the filters array is empty, clear everything including ranges
+    if (filters.length === 0) {
+      setStatusFilter([]);
+      setAmountRange(null);
+      setAdvanceRange(null);
+      setSearchTerm('');
+      return;
+    }
+    
+    // Separate range filters from status filters
+    const rangeFilters = ['amountRange', 'advanceRange'];
+    const statusFilters = filters.filter(f => !rangeFilters.includes(f));
+    const newRangeFilters = filters.filter(f => rangeFilters.includes(f));
+    
+    // Set status filters
+    setStatusFilter(statusFilters);
+    
+    // Clear ranges that are not in the new filter list
+    if (!newRangeFilters.includes('amountRange')) {
+      setAmountRange(null);
+    }
+    if (!newRangeFilters.includes('advanceRange')) {
+      setAdvanceRange(null);
+    }
+  }, []);
+
+  // Remove filter function that handles all filter types
+  const removeFilter = useCallback((filterId: string) => {
+    if (filterId === 'amountRange') {
+      setAmountRange(null);
+    } else if (filterId === 'advanceRange') {
+      setAdvanceRange(null);
+    } else {
+      setStatusFilter(prev => prev.filter(id => id !== filterId));
+    }
+  }, []);
+
+  // Clear all filters including ranges and search
+  const clearFilters = useCallback(() => {
+    setStatusFilter([]);
+    setAmountRange(null);
+    setAdvanceRange(null);
+    setSearchTerm('');
+  }, []);
 
   // Create the custom components for range filters
   const amountRangeComponent = useMemo(() => (
     <CompactRangeFilter
       range={amountRange}
       onRangeChange={setAmountRange}
-      currency="EUR"
       label="Amount Range"
       dataTestIdPrefix="amount-range"
     />
@@ -106,7 +198,6 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     <CompactRangeFilter
       range={advanceRange}
       onRangeChange={setAdvanceRange}
-      currency="EUR"
       label="Advance Range"
       dataTestIdPrefix="advance-range"
     />
@@ -157,5 +248,9 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    selectedFilters: getAllSelectedFilters,
+    setFilters,
+    removeFilter,
+    clearFilters,
   };
 }; 

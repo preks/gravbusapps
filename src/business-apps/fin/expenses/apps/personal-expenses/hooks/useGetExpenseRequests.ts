@@ -1,9 +1,10 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests';
 import { CatalogEntry } from './useGetExpensePlans';
 import { ExpenseRequestFilter } from './useExpenseRequestFilters';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { ExpenseStatus } from '../utils';
 
 // Type for expense request data
 export interface ExpenseRequest {
@@ -23,6 +24,21 @@ export interface ExpenseRequest {
   reimbursableAmount: number;
   nonReimbursableAmount: number;
   requestType: CatalogEntry;
+  currency?: {
+    code: string;
+  };
+  employeeDocument?: {
+    file: string;
+  };
+  expensePlan?: {
+    advancePaymentAggregate?: {
+      aggregate?: {
+        sum?: {
+          amount: number;
+        };
+      };
+    };
+  };
 }
 
 // Type for the hook return value
@@ -31,7 +47,7 @@ export interface ExpenseRequestsDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, filter?: ExpenseRequestFilter) => Promise<void>;
+  fetchItems: (filters: any, page?: number, pageSize?: number, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
 }
 
 export const useGetExpenseRequests = (context?: BusinessAppContextProps): ExpenseRequestsDataView => {
@@ -45,13 +61,19 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const accessToken = context?.accessToken || '';
   const client = useGraphqlClient(accessToken);
 
-  // Function to fetch items with search, pagination, and filters
-  const fetchItems = useCallback(async (searchTerm: string = '%', page: number = 1, pageSize: number = 10, filter: ExpenseRequestFilter = {}) => {
+  // Function to fetch items with search, pagination, filters, and sorting
+  const fetchItems = useCallback(async (
+    filters: any = {}, 
+    page: number = 1, 
+    pageSize: number = 20,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
+  ) => {
     // Set loading state immediately when function is called
     setIsLoading(true);
     setError(null);
     
-    console.log('ExpenseRequests: fetchItems called with filter:', filter);
+    console.log('ExpenseRequests: fetchItems called with filters:', filters, 'sortField:', sortField, 'sortOrder:', sortOrder);
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -74,78 +96,56 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     try {
       const offset = (page - 1) * pageSize;
 
-      // Base where clause
-      const whereClause: any = {
+      // Build the where clause by combining employee filter with the provided filters
+      const whereClause = {
         _and: [
           { employeeId: { _eq: employeeId } },
           { isDeleted: { _eq: false } },
-        ],
+          filters // This is the GraphQL where clause from getFilters()
+        ]
       };
 
-      // Add search term filter
-      if (searchTerm && searchTerm.trim() !== '') {
-        const formattedSearchTerm = `%${searchTerm.trim()}%`;
-        (whereClause._and as any[]).push({
-          _or: [
-            { title: { _ilike: formattedSearchTerm } },
-            { code: { _ilike: formattedSearchTerm } },
-            { description: { _ilike: formattedSearchTerm } },
-            // Removed status from general text search to avoid conflicts with specific status filter
-          ],
-        });
-      }
-
-      // Add status filter
-      if (filter.status && filter.status.length > 0) {
-        console.log('ExpenseRequests: Adding status filter:', filter.status);
-        (whereClause._and as any[]).push({
-          status: { _in: filter.status },
-        });
-      } else {
-        console.log('ExpenseRequests: No status filter applied');
-      }
-      
-      // Add date range filters
-      if (filter.requestDateStart) {
-        (whereClause._and as any[]).push({
-          createdAt: { _gte: filter.requestDateStart }, // Changed from requestDate to createdAt
-        });
-      }
-      if (filter.requestDateEnd) {
-        (whereClause._and as any[]).push({
-          createdAt: { _lte: filter.requestDateEnd }, // Changed from requestDate to createdAt
-        });
-      }
-
-      // Add request type filter
-      if (filter.requestType && filter.requestType.value) {
-        console.log('ExpenseRequests: Adding requestType filter:', filter.requestType);
-        // The requestType is a nested object in the GraphQL schema
-        // The correct structure is: requestType: { value: { _eq: "value" } }
-        (whereClause._and as any[]).push({
-          requestType: { value: { _eq: filter.requestType.value } }
-        });
-      } else {
-        console.log('ExpenseRequests: No requestType filter applied');
-      }
-
-      const variables = {
+      // Build variables object
+      const variables: Record<string, any> = {
         limit: pageSize,
         offset: offset,
         where: whereClause,
       };
+
+      // Add orderBy for server-side sorting
+      if (sortField && sortOrder) {
+        // Map UI sort field to GraphQL field names - only include fields that exist in the schema
+        const fieldMap: Record<string, string> = {
+          code: 'code',
+          title: 'title',
+          requestDate: 'requestDate',
+          startDate: 'startDate',
+          endDate: 'endDate',
+          status: 'status',
+          reimbursableAmount: 'reimbursableAmount',
+          totalAmount: 'totalAmount',
+          createdAt: 'createdAt',
+          updatedAt: 'updatedAt',
+          description: 'description',
+          currencyRef: 'currencyRef',
+          nonReimbursableAmount: 'nonReimbursableAmount'
+        };
+        const gqlField = fieldMap[sortField] || sortField;
+        const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
+        variables.orderBy = [{ [gqlField]: direction }];
+      } else {
+        // Default sorting by request date descending
+        variables.orderBy = [{ requestDate: 'DESC' }];
+      }
       
       // Log the complete where clause for debugging
       console.log('ExpenseRequests: Final whereClause:', JSON.stringify(whereClause, null, 2));
-
       console.log('ExpenseRequests: GraphQL request sent with variables:', variables);
       
       // Start a performance measurement to track request time
       const requestStartTime = performance.now();
       
       // Make the request using the GraphQL client
-      // Even though the browser shows AjaxRequestInterceptor as initiator,
-      // we're still getting better performance than raw fetch
       const data = await client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables);
       
       // Log the request duration
@@ -153,7 +153,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       console.log(`ExpenseRequests: GraphQL request completed in ${requestDuration.toFixed(2)}ms`);
       
       // Set loading to false immediately after receiving the response
-      // This ensures the UI updates as soon as possible
       setIsLoading(false);
       
       // Get total count from aggregate query
@@ -174,15 +173,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       setTotalCount(0);
       setIsLoading(false); // Make sure to set loading to false in case of error
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setIsLoading, setError, setItems, setTotalCount]); // Added dependencies for useCallback
-
-  // Initial fetch on component mount - using useLayoutEffect to ensure it happens synchronously before browser painting
-  // This runs synchronously immediately after the component mounts and before the browser has a chance to paint
-  useLayoutEffect(() => {
-    console.log('useLayoutEffect: Triggering immediate data fetch on mount with high priority');
-    // Using a faster minimal fetch for the initial load to maximize speed
-    fetchItems();
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]); // Only re-run when employeeId or accessToken changes
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, setIsLoading, setError, setItems, setTotalCount]);
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

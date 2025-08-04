@@ -10,7 +10,7 @@ export interface JobPositionQueryVariables {
   search: string;
 }
 
-// GraphQL query to fetch job positions with employee positions
+// GraphQL query to fetch job positions with employee positions (RESTORED ORIGINAL)
 export const JOB_POSITION_QUERY = `
   query MyQuery(
     $structureId: uuid!,

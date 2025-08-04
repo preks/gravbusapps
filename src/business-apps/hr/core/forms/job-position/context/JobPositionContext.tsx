@@ -1,13 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { JobPositionFormValues, SelectOption, JobPositionContextState } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { JobPositionFormValues, JobPositionContextState, SelectOption } from '../types';
 import { useJobProfiles } from '../hooks/useJobProfiles';
 import { useOrganizationalUnits } from '../hooks/useOrganizationalUnits';
 import { useJobFamilies } from '../hooks/useJobFamilies';
 import { useJobFunctions } from '../hooks/useJobFunctions';
 import { useJobLevelGroups } from '../hooks/useJobLevelGroups';
 import { useJobLevels } from '../hooks/useJobLevels';
-import { useEmploymentTypes } from '../hooks/useEmploymentTypes';
-import { useContractTypes } from '../hooks/useContractTypes';
+// import { useEmploymentTypes } from '../hooks/useEmploymentTypes';
+// import { useContractTypes } from '../hooks/useContractTypes';
 import { useGetJobPositionById } from '../queries/JobPositionQueries';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
@@ -26,17 +26,17 @@ export const JobPositionProvider: React.FC<{
   additionalData?: BusinessAppContextProps['additionalData'];
   structureId: string;
   children: React.ReactNode;
-}> = ({ initialValues = {}, accessToken, userInfo, additionalData, structureId, children }) => {
+}> = ({ initialValues = {}, accessToken, additionalData, structureId, children }) => {
   const [formValues, setFormValuesState] = useState<JobPositionFormValues>({
     name: '',
-    jobProfileId: '',
+    jobProfileId: undefined, // Now optional
     jobFamilyId: '',
     jobFunctionId: '',
-    jobLevelGroupId: '',
-    jobLevelId: '',
+    jobLevelGroupId: undefined, // Made optional - auto-selected from job function
+    jobLevelId: undefined, // Made optional - not shown in form
     organizationalUnitId: '',
-    employmentTypeId: '',
-    contractTypeId: '',
+    employmentTypeId: undefined, // Made optional - not shown in form
+    contractTypeId: undefined, // Made optional - not shown in form
     ...initialValues,
   });
   
@@ -50,22 +50,17 @@ export const JobPositionProvider: React.FC<{
   // State for managing organizational unit search
   const [organizationalUnitSearch, setOrganizationalUnitSearch] = useState<string | undefined>(undefined);
   
+  // State for lazy loading optional fields
+  const [enableJobProfiles, setEnableJobProfiles] = useState(false);
+  
   // Hook for fetching job position by ID
   const { fetchJobPosition } = useGetJobPositionById(accessToken);
 
-  // Extract jobPositionId from additionalData
-  const jobPositionId = additionalData?.jobPositionId;
+  // Extract jobPositionId from additionalData (complete job position object format)
+  const jobPositionId = additionalData?.id;
   const isEdit = !!jobPositionId;
 
-  // Log the jobPositionId detection
-  useEffect(() => {
-    if (jobPositionId) {
-      console.log('🔍 Job Position ID found in additionalData:', jobPositionId);
-      console.log('📝 Loading job position for editing:', jobPositionId);
-    } else {
-      console.log('✨ Creating new job position (no ID provided)');
-    }
-  }, [jobPositionId]);
+
   
   // Use the job profiles hook with search parameter
   const {
@@ -76,7 +71,7 @@ export const JobPositionProvider: React.FC<{
     hasMore: hasMoreJobProfiles,
     loadMore: loadMoreJobProfiles,
     searchProfiles: searchJobProfilesInternal
-  } = useJobProfiles({ accessToken, search: jobProfileSearch });
+  } = useJobProfiles({ accessToken, search: jobProfileSearch, enabled: enableJobProfiles });
 
   // Use the organizational units hook with search parameter
   const {
@@ -85,33 +80,19 @@ export const JobPositionProvider: React.FC<{
     error: organizationalUnitsError,
     hasMore: hasMoreOrganizationalUnits,
     loadMore: loadMoreOrganizationalUnits,
-    searchUnits: searchOrganizationalUnitsInternal,
-    retry: retryOrganizationalUnits
+    searchUnits: searchOrganizationalUnitsInternal
   } = useOrganizationalUnits({ accessToken, structureId, search: organizationalUnitSearch });
 
-  // Debug organizational units in context
-  useEffect(() => {
-    console.log('JobPositionContext - Organizational Units State:', {
-      accessToken: !!accessToken,
-      structureId,
-      organizationalUnitSearch,
-      organizationalUnits,
-      organizationalUnitsLoading,
-      organizationalUnitsError,
-      hasMoreOrganizationalUnits
-    });
-  }, [accessToken, structureId, organizationalUnitSearch, organizationalUnits, organizationalUnitsLoading, organizationalUnitsError, hasMoreOrganizationalUnits]);
+  // Debug logging removed for performance
 
   // Wrapper function for job profile search that updates the search state
   const searchJobProfiles = useCallback((searchTerm?: string) => {
-    console.log('Searching job profiles with term:', searchTerm);
     setJobProfileSearch(searchTerm);
     searchJobProfilesInternal(searchTerm);
   }, [searchJobProfilesInternal]);
 
   // Wrapper function for organizational unit search that updates the search state
   const searchOrganizationalUnits = useCallback((searchTerm?: string) => {
-    console.log('Searching organizational units with term:', searchTerm);
     setOrganizationalUnitSearch(searchTerm);
     searchOrganizationalUnitsInternal(searchTerm);
   }, [searchOrganizationalUnitsInternal]);
@@ -137,6 +118,7 @@ export const JobPositionProvider: React.FC<{
     fetchJobFunctionsByFamily
   } = useJobFunctions({ accessToken });
 
+  // Lazy load job level groups - only load if needed
   const {
     jobLevelGroups,
     loading: jobLevelGroupsLoading,
@@ -157,23 +139,38 @@ export const JobPositionProvider: React.FC<{
     fetchJobLevelsByGroup
   } = useJobLevels({ accessToken });
 
-  const {
-    employmentTypes,
-    loading: employmentTypesLoading,
-    error: employmentTypesError,
-    hasMore: hasMoreEmploymentTypes,
-    searchEmploymentTypes: searchEmploymentTypesInternal,
-    loadMoreEmploymentTypes
-  } = useEmploymentTypes(accessToken);
+  // PERFORMANCE: Disabled - these fields are not displayed in the form UI
+  // const {
+  //   employmentTypes,
+  //   loading: employmentTypesLoading,
+  //   error: employmentTypesError,
+  //   hasMore: hasMoreEmploymentTypes,
+  //   searchEmploymentTypes: searchEmploymentTypesInternal,
+  //   loadMoreEmploymentTypes
+  // } = useEmploymentTypes(accessToken);
 
-  const {
-    contractTypes,
-    loading: contractTypesLoading,
-    error: contractTypesError,
-    hasMore: hasMoreContractTypes,
-    searchContractTypes: searchContractTypesInternal,
-    loadMoreContractTypes
-  } = useContractTypes(accessToken);
+  // const {
+  //   contractTypes,
+  //   loading: contractTypesLoading,
+  //   error: contractTypesError,
+  //   hasMore: hasMoreContractTypes,
+  //   searchContractTypes: searchContractTypesInternal,
+  //   loadMoreContractTypes
+  // } = useContractTypes(accessToken);
+
+  // Default empty arrays for disabled hooks
+  const employmentTypes: SelectOption[] = [];
+  const contractTypes: SelectOption[] = [];
+  const employmentTypesLoading = false;
+  const contractTypesLoading = false;
+  const employmentTypesError = null;
+  const contractTypesError = null;
+  const hasMoreEmploymentTypes = false;
+  const hasMoreContractTypes = false;
+  const searchEmploymentTypesInternal = (_searchTerm?: string) => {};
+  const searchContractTypesInternal = (_searchTerm?: string) => {};
+  const loadMoreEmploymentTypes = () => {};
+  const loadMoreContractTypes = () => {};
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,25 +179,23 @@ export const JobPositionProvider: React.FC<{
   useEffect(() => {
     // Only load if we have a jobPositionId, accessToken, isEdit is true, and we haven't already loaded this specific job position
     if (jobPositionId && accessToken && isEdit && loadedJobPositionId !== jobPositionId) {
-      console.log('🔄 Loading job position data for ID:', jobPositionId);
       setIsLoadingJobPosition(true);
       setError(null);
       
       fetchJobPosition(jobPositionId)
         .then((jobPositionData) => {
           if (jobPositionData) {
-            console.log('✅ Job position data loaded successfully:', jobPositionData);
             const updates: Partial<JobPositionFormValues> = {
               id: jobPositionData.id,
               name: jobPositionData.name,
               version: jobPositionData.version,
-              jobProfileId: jobPositionData.jobProfile?.id || '',
+              jobProfileId: jobPositionData.jobProfile?.id || undefined, // Set to undefined if not present
               jobFunctionId: jobPositionData.jobFunction?.id || '',
               jobFamilyId: jobPositionData.jobFunction?.jobFamily?.id || '',
-              jobLevelId: jobPositionData.jobLevel?.id || '',
-              jobLevelGroupId: jobPositionData.jobLevel?.jobLevelGroup?.id || '',
-              contractTypeId: jobPositionData.contractType?.id || '',
-              employmentTypeId: jobPositionData.employmentType?.id || '',
+              jobLevelId: jobPositionData.jobLevel?.id || undefined, // Optional - not shown in form
+              jobLevelGroupId: jobPositionData.jobLevel?.jobLevelGroup?.id || undefined, // Optional - auto-selected
+              contractTypeId: jobPositionData.contractType?.id || undefined, // Optional - not shown in form
+              employmentTypeId: jobPositionData.employmentType?.id || undefined, // Optional - not shown in form
               organizationalUnitId: jobPositionData.organizationalUnitEmployees?.[0]?.organizationalUnit?.id || '',
             };
             
@@ -246,55 +241,6 @@ export const JobPositionProvider: React.FC<{
     searchContractTypesInternal(searchTerm);
   }, [searchContractTypesInternal]);
 
-
-
-  // Auto-fill fields when job profile is selected
-  useEffect(() => {
-    if (formValues.jobProfileId) {
-      const selectedProfile = allJobProfiles.find(profile => profile.id === formValues.jobProfileId);
-      if (selectedProfile) {
-        console.log('Selected job profile:', selectedProfile);
-        
-        // Auto-fill based on job profile data
-        const updates: Partial<JobPositionFormValues> = {};
-        
-        // Set job level and job level group based on the selected profile
-        if (selectedProfile.jobLevel) {
-          updates.jobLevelId = selectedProfile.jobLevel.id;
-          
-          if (selectedProfile.jobLevel.jobLevelGroup) {
-            updates.jobLevelGroupId = selectedProfile.jobLevel.jobLevelGroup.id;
-          }
-        }
-        
-        // Set job function and job family based on the selected profile
-        if (selectedProfile.jobFunction) {
-          updates.jobFunctionId = selectedProfile.jobFunction.id;
-          
-          if (selectedProfile.jobFunction.jobFamily) {
-            updates.jobFamilyId = selectedProfile.jobFunction.jobFamily.id;
-          }
-          
-          // Also set job level group from job function if not already set from job level
-          if (!updates.jobLevelGroupId && selectedProfile.jobFunction.jobLevelGroup) {
-            updates.jobLevelGroupId = selectedProfile.jobFunction.jobLevelGroup.id;
-          }
-        }
-        
-        // Set employment type and contract type based on the selected profile
-        if (selectedProfile.employmentType) {
-          updates.employmentTypeId = selectedProfile.employmentType.id;
-        }
-        
-        if (selectedProfile.contractType) {
-          updates.contractTypeId = selectedProfile.contractType.id;
-        }
-        
-        setFormValuesState(prev => ({ ...prev, ...updates }));
-      }
-    }
-  }, [formValues.jobProfileId, allJobProfiles]);
-
   // Fetch job functions when job family changes
   const fetchJobFunctions = useCallback((jobFamilyId: string) => {
     if (jobFamilyId) {
@@ -315,13 +261,19 @@ export const JobPositionProvider: React.FC<{
     }
   }, [fetchJobLevelsByGroup, searchJobLevelsInternal]);
 
-  // Initial load of all job functions and job levels
+  // Initial load only for job levels (job functions load when family is selected)
   useEffect(() => {
     if (accessToken) {
-      searchJobFunctionsInternal('');
       searchJobLevelsInternal('');
     }
-  }, [accessToken, searchJobFunctionsInternal, searchJobLevelsInternal]);
+  }, [accessToken, searchJobLevelsInternal]);
+
+  // Fetch job functions when job family changes
+  useEffect(() => {
+    if (accessToken && formValues.jobFamilyId) {
+      fetchJobFunctions(formValues.jobFamilyId);
+    }
+  }, [accessToken, formValues.jobFamilyId, fetchJobFunctions]);
 
   // Update form values
   const setFormValues = (values: Partial<JobPositionFormValues>) => {
@@ -334,7 +286,6 @@ export const JobPositionProvider: React.FC<{
     setError(null);
     try {
       // Just handle the loading state - the actual dispatch is handled by the form component
-      console.log(`${isEdit ? 'Updating' : 'Creating'} job position:`, formValues);
       
       // TODO: Replace with real API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -345,6 +296,8 @@ export const JobPositionProvider: React.FC<{
       setLoading(false);
     }
   };
+
+
 
   // Combine errors from different sources
   const combinedError = error || jobProfilesError || organizationalUnitsError || jobFamiliesError || jobFunctionsError || jobLevelGroupsError || jobLevelsError || 
@@ -366,7 +319,14 @@ export const JobPositionProvider: React.FC<{
         organizationalUnits,
         employmentTypes,
         contractTypes,
-        loading: loading || isLoadingJobPosition || jobProfilesLoading || organizationalUnitsLoading || jobFamiliesLoading || jobFunctionsLoading || jobLevelGroupsLoading || jobLevelsLoading || employmentTypesLoading || contractTypesLoading,
+        loading: useMemo(() => 
+          loading || isLoadingJobPosition || 
+          organizationalUnitsLoading || jobFamiliesLoading || jobFunctionsLoading || 
+          jobLevelGroupsLoading || jobLevelsLoading,
+          [loading, isLoadingJobPosition, 
+           organizationalUnitsLoading, jobFamiliesLoading, jobFunctionsLoading, 
+           jobLevelGroupsLoading, jobLevelsLoading]
+        ),
         error: combinedError,
         fetchJobFunctions,
         fetchJobLevels,
@@ -380,6 +340,7 @@ export const JobPositionProvider: React.FC<{
         hasMoreJobProfiles,
         jobProfilesError,
         jobProfilesLoading,
+        enableJobProfilesLoading: () => setEnableJobProfiles(true),
         // Organizational unit specific methods
         searchOrganizationalUnits,
         loadMoreOrganizationalUnits,

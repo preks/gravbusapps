@@ -33,7 +33,7 @@ const GET_JOB_FUNCTIONS_QUERY = `
  * @param search Search string for filtering
  * @param offset Pagination offset
  */
-export function useJobFunctionFilters(accessToken: string, search: string = '', offset: number = 0) {
+export function useJobFunctionFilters(accessToken: string, search: string = '', offset: number = 0, enabled: boolean = true) {
   const [functions, setFunctions] = useState<JobFunctionFilterOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -41,7 +41,7 @@ export function useJobFunctionFilters(accessToken: string, search: string = '', 
   const client = useGraphqlClient(accessToken);
 
   useEffect(() => {
-    if (!client) return;
+    if (!enabled || !client) return;
 
     setLoading(true);
     setError(null);
@@ -70,7 +70,7 @@ export function useJobFunctionFilters(accessToken: string, search: string = '', 
     .finally(() => {
       setLoading(false);
     });
-  }, [search, offset, client]);
+  }, [enabled, search, offset, client]);
 
   return { functions, loading, error };
 } 

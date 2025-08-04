@@ -53,6 +53,7 @@ export interface JobFunction {
 export interface JobProfileItem {
   id: string;
   name: string;
+  code?: string; // Job profile core field
   jobLevel: JobLevel;
   jobFunction: JobFunction;
   contractType: ContractType;
@@ -66,7 +67,11 @@ const createSearchCondition = (search?: string, jobProfileId?: string): string =
   // Escape the search term to prevent GraphQL injection
   const escapedSearch = search.replace(/"/g, '\\"');
   
-  return `name: { _ilike: "%${escapedSearch}%" }`;
+  // Search both name and code fields
+  return `_or: [
+    { name: { _ilike: "%${escapedSearch}%" } },
+    { code: { _ilike: "%${escapedSearch}%" } }
+  ]`;
 };
 
 export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): string => {
@@ -105,6 +110,7 @@ export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): strin
     ) {
       id
       name
+      code
       jobLevel {
         id
         name
@@ -184,6 +190,12 @@ export const fetchJobProfileData = async (
   variables: QueryVariablesJobProfile = {}
 ): Promise<JobProfileData> => {
   const query = GET_JOB_PROFILE_DATA(variables);
-  console.log('Executing JobProfile query:', query);
-  return await client.request(query);
+  
+  try {
+    const result = await client.request(query);
+    return result;
+  } catch (error) {
+    console.error('❌ GraphQL query failed:', error);
+    throw error;
+  }
 }; 

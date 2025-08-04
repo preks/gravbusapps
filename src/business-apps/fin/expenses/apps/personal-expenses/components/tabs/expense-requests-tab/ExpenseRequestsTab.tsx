@@ -1,457 +1,412 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+/**
+ * Dashboard Tab Component for Expense Management Overview
+ * Displays KPIs and statistics for expense management by composing various dashboard cards.
+ */
+
+/**
+ * ExpenseDashboardTab component with integrated filter bar.
+ * Displays KPIs and statistics for expense management by composing various dashboard cards.
+ */
+
+import React, { useState, useMemo } from 'react';
+import { Alert, Spinner, SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import { 
-  Alert, 
-  Empty
-} from 'antd';
-import { DataTable, ActionButton } from '@newwork/gravity-ui-catalog';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters, ExpenseRequestFilter, ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
-import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils';
-import { InfoCircleOutlined } from '@ant-design/icons';
-import Pill, { PillType } from '@/components/pill';
-import ExpenseRequestStatistics from './ExpenseRequestStatistics';
-import ExpenseRequestDetails from './ExpenseRequestDetails';
+import { useDashboardStats } from '../../../hooks/useDashboardStats';
+import MonthlyExpenseTrendsCard from '../../cards/MonthlyExpenseTrendsCard';
+import { ExpenseFilterBar, FilterOptions } from '../../filter-bar';
 
-
-
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: ReactNode) => void;
+interface ExpenseDashboardTabProps extends BusinessAppContextProps {
+  prefixDataTestId?: string;
 }
 
-const DEFAULT_PAGE_SIZE = 10;
-
-const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+  const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
+  const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
+    department: '',
+    currency: 'Currency:v1:RON', // Initialize with default currency
+    period: 'monthly'
+  });
   
-  // Use the expense request filters hook
-  const {
-    search,
-    selectedFilters,
-    filterGroups,
-    filterLabelMap,
-    addFilter,
-    removeFilter,
-    getFilters
-  } = useExpenseRequestFilters();
-
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
-
-  const [searchInput, setSearchInput] = useState(''); // Live input value
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Debounced value for API
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-
-  // Statistics are now calculated in the ExpenseRequestStatistics component
+  const [isCurrencyLoading, setIsCurrencyLoading] = useState(false);
   
-  // No need for client-side filtering as we're using server-side search
+  const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   
-  // Create memoized content header with statistics component
-  const contentHeader = useMemo(() => {
-    return items && items.length > 0 ? <ExpenseRequestStatistics items={items} /> : null;
-  }, [items]);
-  
-  // Update the content header only when it changes and when items are loaded
-  const onContentHeaderChange = props.onContentHeaderChange;
-  useEffect(() => {
-    // Only update content header when we have items and the callback exists
-    if (onContentHeaderChange && items && items.length > 0) {
-      // Use a small timeout to ensure proper React rendering cycle
-      const timerId = setTimeout(() => {
-        onContentHeaderChange(contentHeader);
-      }, 0);
-      return () => clearTimeout(timerId);
-    }
-  }, [onContentHeaderChange, contentHeader, items]);
+  const { stats, loading, error } = useDashboardStats({ 
+    accessToken, 
+    filters: currentFilters 
+  });
 
-  // Unified useEffect for fetching data whenever pagination or filters change
-  // We don't need to respond to debouncedSearchTerm changes anymore since we're fetching immediately in handleSearchChange
-  useEffect(() => {
-    const currentFilters = getFilters();
-    console.log('Pagination or filters changed, fetching data immediately');
-    fetchItems(searchInput, currentPage, pageSize, currentFilters);
-  }, [fetchItems, currentPage, pageSize, selectedFilters, searchInput]); // Using searchInput directly
 
-  // Define constants for filter options to avoid TypeScript errors
-  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-  const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
-
-  // Create memoized search handler with NO debounce for immediate API calls
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchInput(value);
-    // Immediately update the debounced value without waiting
-    setDebouncedSearchTerm(value);
-    
-    // Also trigger an immediate fetch with the new search value
-    const currentFilters = getFilters();
-    fetchItems(value, currentPage, pageSize, currentFilters);
-  }, [fetchItems, currentPage, pageSize, getFilters]);
-
-  // Handle filter changes
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Update filter state
-    if (selected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
-    }
-    
-    // Reset to first page when filters change
-    setCurrentPage(1);
-    
-    // Get updated filters and trigger API call immediately
-    // We need to manually calculate the updated filters since the state update hasn't processed yet
-    const updatedFilters = {...getFilters()};
-    if (selected && !updatedFilters.status?.includes(filterId.toUpperCase())) {
-      // If adding a status filter
-      if (Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(filterId)) {
-        // Map UI status to backend status
-        let backendStatus;
-        switch (filterId) {
-          case 'draft': backendStatus = ExpenseStatus.CREATED; break;
-          case 'submitted': backendStatus = ExpenseStatus.PENDING; break;
-          case 'approved': backendStatus = ExpenseStatus.APPROVED; break;
-          case 'rejected': backendStatus = ExpenseStatus.REJECTED; break;
-          case 'paid': backendStatus = ExpenseStatus.PAID; break;
-          case 'cancelled': backendStatus = ExpenseStatus.CLOSED; break;
-          default: backendStatus = filterId.toUpperCase();
-        }
-        
-        updatedFilters.status = updatedFilters.status ? [...updatedFilters.status, backendStatus] : [backendStatus];
+  React.useEffect(() => {
+    return () => {
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
       }
-      // Handle other filter types if needed
-    } else if (!selected) {
-      // If removing a filter, we'll just use getFilters() which should have the updated state
-    }
+    };
+  }, [currencyDebounceTimer]);
+
+  const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+     const getCurrentPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return date.getFullYear().toString();
+       case 'quarterly':
+         const quarter = Math.floor(date.getMonth() / 3) + 1;
+         return `Q${quarter} ${date.getFullYear()}`;
+       default:
+         return date.toLocaleString('default', { month: 'long' });
+     }
+   };
+
+   const getPreviousPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return (date.getFullYear() - 1).toString();
+       case 'quarterly':
+         const currentQuarter = Math.floor(date.getMonth() / 3);
+         let previousQuarter = currentQuarter - 1;
+         let previousYear = date.getFullYear();
+         if (previousQuarter < 0) {
+           previousQuarter = 3;
+           previousYear = previousYear - 1;
+         }
+         return `Q${previousQuarter + 1} ${previousYear}`;
+       default:
+         const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+         return previousMonth.toLocaleString('default', { month: 'long' });
+     }
+   };
+
+  const extractCurrencyCode = (currencyRef: string): string => {
+    return currencyRef.split(':').pop() || 'RON';
+  };
+
+  const kpiCards = useMemo(() => {
+
+    const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
     
-    // Trigger API call immediately with the updated filters
-    console.log('Filter change handler - making immediate API call');
-    fetchItems(searchInput, 1, pageSize, updatedFilters);
-  }, [addFilter, removeFilter, setCurrentPage, getFilters, fetchItems, debouncedSearchTerm, pageSize]);
+    const cards: KpiCardData[] = [];
 
-  // Unified table change handler for DataTable
-  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-    fetchItems(debouncedSearchTerm, pagination.current, pagination.pageSize, getFilters());
-  }, [fetchItems, debouncedSearchTerm, getFilters]);
-
-  // Handle adding a new expense request
-  const handleAddExpenseRequest = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-      startProcess({
-        domain: 'employee-expense',
-        processName: 'changeExpenseRequest',
-        payload: {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId
+    const getTotalCompanySpendTitle = () => {
+      const title = (() => {
+        switch (currentFilters.period) {
+          case 'yearly':
+            return `Total Company Spend YTD (${selectedCurrencyCode})`;
+          case 'quarterly':
+            return `Total Company Spend QTD (${selectedCurrencyCode})`;
+          default:
+            return `Total Company Spend MTD (${selectedCurrencyCode})`;
         }
-      });
-    }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+      })();
+      return title;
+    };
 
-  // Helper function to determine status display with memoization
-  const getStatusDisplay = useCallback((status: string): { type: PillType; text: string } => {
-    const statusConfig = getExpenseRequestStatusDisplay(status);
-    return { type: statusConfig.type, text: statusConfig.label };
-  }, []);
+    const getTotalCompanySpendFooter = () => {
+      const currentPeriodName = getCurrentPeriodName();
+      const previousPeriodName = getPreviousPeriodName();
+      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} expenses) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} expenses)`;
+      return footer;
+    };
 
-  // Selected item for details panel
-  const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
+    const getTotalCompanySpendDescription = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last YTD' : 'decrease vs last YTD';
+        case 'quarterly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last QTD' : 'decrease vs last QTD';
+        default:
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last MTD' : 'decrease vs last MTD';
+      }
+    };
 
-  // Selected row keys for table
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    cards.push({
+      id: 'total-company-spend',
+      title: getTotalCompanySpendTitle(),
+      value: formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode),
+      footer: getTotalCompanySpendFooter(),
+      trend: {
+        value: Math.abs(stats.totalCompanySpend.percentChange).toFixed(1),
+        positive: stats.totalCompanySpend.isIncrease,
+        description: getTotalCompanySpendDescription()
+      },
+      icon: 'building',
+      iconColor: stats.totalCompanySpend.isIncrease ? '#ff4d4f' : '#52c41a'
+    });
 
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  }, []);
-
-  // Handle item selection
-  const handleSelectItem = useCallback((item: typeof items[0]) => {
-    setSelectedItem(item);
-  }, []);
-
-  // Handle editing an expense request
-  const handleEditExpenseRequest = useCallback((item: typeof items[0]) => {
-    // Add logic to edit the expense request
-    console.log('Editing expense request:', item.id);
-  }, []);
-
-  // Render the data body with memoization
-  const renderDataBody = useCallback(() => {
-    // Show error message if there's an error
-    if (error) {
-      const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || 'Failed to load expense requests.';
-      return <Alert message="Error" description={errorMessage} type="error" showIcon />;
-    }
-
-    // Show empty state only when not loading and there are no items
-    if (!isLoading && (!items || items.length === 0)) {
-      return <Empty 
-        description="No expense requests found matching your criteria." 
-        style={{ margin: '40px 0' }}
-      />;
-    }
+    // 2. Actual vs Planned Card
+    const actualVsPlannedData = stats.actualVsPlanned;
+    const actualAmount = actualVsPlannedData.actualExpenses.totalAmount;
+    const plannedAmount = actualVsPlannedData.plannedExpenses.totalAmount;
+    const actualCount = actualVsPlannedData.actualExpenses.count;
+    const plannedCount = actualVsPlannedData.plannedExpenses.count;
     
-    // Always render the table, but use the loading prop to show loading state
-    // This keeps the table visible during loading for better UX
+    const actualVsPlannedPercentage = plannedAmount > 0 
+      ? ((actualAmount / plannedAmount) * 100) 
+      : 0;
+    
+    const getActualVsPlannedTitle = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Actual vs Planned ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        case 'quarterly':
+          const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+          return `Actual vs Planned Q${currentQuarter} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        default:
+          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+          return `Actual vs Planned ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+      }
+    };
+    
+    cards.push({
+      id: 'actual-vs-planned',
+      title: getActualVsPlannedTitle(),
+      value: actualVsPlannedPercentage.toFixed(1),
+      suffix: '%',
+      decimalPlaces: 1,
+      footer: `Planned: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} plans) | Actual: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} expenses)`,
+      trend: {
+        value: actualVsPlannedPercentage.toFixed(1),
+        positive: actualVsPlannedPercentage <= 100,
+        description: actualVsPlannedPercentage <= 100 ? 'within budget' : 'over budget'
+      },
+      icon: 'target',
+      iconColor: actualVsPlannedPercentage <= 100 ? '#52c41a' : '#ff4d4f'
+    });
 
+         // 3. Spend Comparison Card
+     const monthlyComparison = stats.monthlySpendComparison;
+     const getComparisonTitle = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return `Yearly Spend Comparison (${selectedCurrencyCode})`;
+         case 'quarterly':
+           return `Quarterly Spend Comparison (${selectedCurrencyCode})`;
+         default:
+           return `Monthly Spend Comparison (${selectedCurrencyCode})`;
+       }
+     };
+
+     const getComparisonDescription = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return monthlyComparison.isIncrease ? 'increase vs last year' : 'decrease vs last year';
+         case 'quarterly':
+           return monthlyComparison.isIncrease ? 'increase vs last quarter' : 'decrease vs last quarter';
+         default:
+           return monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month';
+       }
+     };
+
+     cards.push({
+       id: 'monthly-spend-comparison',
+       title: getComparisonTitle(),
+       value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
+       decimalPlaces: 1,
+       footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
+       trend: {
+         value: Math.abs(monthlyComparison.percentChange).toFixed(1),
+         positive: monthlyComparison.isIncrease,
+         description: getComparisonDescription()
+       },
+       icon: 'calendar',
+       iconColor: monthlyComparison.isIncrease ? '#ff4d4f' : '#52c41a'
+     });
+
+    // 4. Transfer Required Card
+    const getTransferRequiredFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Pending transfers this year in ${selectedCurrencyCode}`;
+        case 'quarterly':
+          return `Pending transfers this quarter in ${selectedCurrencyCode}`;
+        default:
+          return `Pending transfers this month in ${selectedCurrencyCode}`;
+      }
+    };
+    
+    cards.push({
+      id: 'transfer-required',
+      title: `Transfer Required (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
+      footer: getTransferRequiredFooter(),
+      icon: 'exclamation',
+      iconColor: '#ff4d4f'
+    });
+
+    // 5. Pending Requests Card
+    const getPendingRequestsFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Requests awaiting approval this year';
+        case 'quarterly':
+          return 'Requests awaiting approval this quarter';
+        default:
+          return 'Requests awaiting approval this month';
+      }
+    };
+
+    const getAdvancePaymentFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Approved - waiting to pay this year';
+        case 'quarterly':
+          return 'Approved - waiting to pay this quarter';
+        default:
+          return 'Approved - waiting to pay this month';
+      }
+    };
+    
+    cards.push({
+      id: 'pending-requests',
+      title: 'Pending Requests',
+      value: stats.pendingRequestsCount.toString(),
+      footer: getPendingRequestsFooter(),
+      icon: 'clock',
+      iconColor: '#faad14'
+    });
+
+    // 6. Advance Payment Card
+    cards.push({
+      id: 'advance-payment',
+      title: 'Advance Payment',
+      value: stats.advancePaymentsApproved.count.toString(),
+      footer: getAdvancePaymentFooter(),
+      icon: 'credit-card',
+      iconColor: '#52c41a'
+    });
+
+    // 7. Average Spend Per Trip Card
+    const getPeriodText = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'year';
+        case 'quarterly':
+          return 'quarter';
+        default:
+          return 'month';
+      }
+    };
+    
+    cards.push({
+      id: 'avg-spend-per-trip',
+      title: `Average Spend Per Trip (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
+      footer: `Based on completed trips this ${getPeriodText()}`,
+      icon: 'car',
+      iconColor: '#722ed1'
+    });
+
+    return cards;
+  }, [stats, currentFilters]); // Recalculate when stats or filters change
+
+  // Handle filter changes and update dashboard stats with debouncing
+  const handleFiltersChange = (newFilters: FilterOptions) => {
+    
+    if (newFilters.currency !== currentFilters.currency) {
+      setIsCurrencyLoading(true);
+      
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
+      }
+      
+      const newTimer = setTimeout(() => {
+        setCurrentFilters(newFilters);
+        setIsCurrencyLoading(false);
+        setCurrencyDebounceTimer(null);
+      }, 500); // Increased delay to 500ms
+      
+      setCurrencyDebounceTimer(newTimer);
+    } else {
+      // For non-currency changes, update immediately
+      setCurrentFilters(newFilters);
+    }
+  };
+
+  if (loading && !isCurrencyLoading) {
     return (
-      <div className="expense-requests-table">
-        <DataTable
-          rowKey="id"
-          dataSource={items}
-          loading={isLoading}
-          rowSelection={{
-            type: 'checkbox',
-            selectedRowKeys,
-            onChange: handleRowSelectionChange,
-            columnWidth: 48
-          }}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: totalCount,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-            showTotal: (total) => `Total ${total} items`
-          }}
-          onChange={handleTableChange}
-          data-testid="expense-requests-data-table"
-          columns={[
-            {
-              title: 'Title',
-              dataIndex: 'title',
-              key: 'title',
-              render: (text, record: any) => (
-                <div>
-                  <div style={{ fontWeight: 'bold' }}>{text}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {record.code}
-                  </div>
-                </div>
-              )
-            },
-            {
-              title: 'Type',
-              key: 'requestType',
-              render: (_, record: any) => (
-                <div>
-                  {record.requestType?.value ?? 'General Expense'}
-                </div>
-              )
-            },
-            {
-              title: 'Date Range',
-              key: 'dateRange',
-              render: (_, record: any) => (
-                <div>
-                  {(record.startDate && record.endDate) 
-                    ? `${new Date(record.startDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})} - ${new Date(record.endDate).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}`
-                    : 'No dates specified'}
-                </div>
-              )
-            },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (status: any) => {
-                const { type, text } = getStatusDisplay(status);
-                return <Pill type={type} label={text} />;
-              }
-            },
-            {
-              title: 'Total Amount',
-              dataIndex: 'totalAmount',
-              key: 'totalAmount',
-              align: 'right',
-              render: (amount, record: any) => {
-                const currencySymbol = record.currencyRef?.symbol || '€';
-                return <span style={{ fontWeight: 'bold' }}>{currencySymbol}{amount?.toFixed(2) || '0.00'}</span>;
-              }
-            },
-            {
-              title: 'Reimbursable',
-              dataIndex: 'reimbursableAmount',
-              key: 'reimbursableAmount',
-              align: 'right',
-              render: (amount: number) => (
-                <div>
-                  €{amount?.toFixed(2) || '0.00'}
-                </div>
-              )
-            },
-            {
-              title: '',
-              key: 'actions',
-              width: 60,
-              align: 'center',
-              render: (_: any, record: any) => (
-                <ActionButton
-                  onClick={(e) => e.stopPropagation()}
-                  flowData={[
-                    {
-                      category: 'Actions',
-                      key: 'edit',
-                      label: 'Edit',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        handleEditExpenseRequest(record as any);
-                      }
-                    },
-                    {
-                      category: 'Navigations',
-                      key: 'view',
-                      label: 'View Details',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        handleSelectItem(record as any);
-                      }
-                    },
-                    {
-                      category: 'Actions',
-                      key: 'delete',
-                      label: 'Delete',
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation();
-                        console.log('Delete expense request:', record.id);
-                      }
-                    }
-                  ]}
-                  portalContainer={document.body}
-                  data-testid={`actions-${record.id}`}
-                  size="md"
-                />
-              )
-            }
-          ]}
-          onRow={(record: any) => ({
-            onClick: () => handleSelectItem(record as any)
-          })}
-        />
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
+        <Spinner size="lg" />
       </div>
     );
-  }, [items, isLoading, error, getStatusDisplay, currentPage, pageSize, totalCount, 
-      handleTableChange, selectedRowKeys, handleRowSelectionChange, 
-      handleEditExpenseRequest, handleSelectItem]);
-      
-  // Memoized details panel render function using the new component
-  const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-  }, []);
+  }
 
-  const renderExpenseRequestDetails = useCallback(() => {
-    if (!selectedItem) return null;
+  if (error) {
     return (
-      <ExpenseRequestDetails 
-        selectedItem={selectedItem} 
-        onClose={handleCloseDetails}
-        onEdit={handleEditExpenseRequest}
-      />
+      <Alert variant="destructive" className="gba:mb-4" data-testid="expense-dashboard-error">
+        <div>
+          <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
+          <p className="gba:text-sm gba:mt-1">
+            {error.message || 'An error occurred while loading dashboard data'}
+          </p>
+        </div>
+      </Alert>
     );
-  }, [selectedItem, handleCloseDetails, handleEditExpenseRequest]);
+  }
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid={`${prefixDataTestId}-loading`}>
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
+        <Alert
+          variant="destructive"
+          className="gba:mb-4"
+        >
+          <div>
+            <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
+            <p className="gba:text-sm gba:mt-1">
+              An error occurred while loading dashboard data
+            </p>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
-      <DataContainer
-        dataControllerProps={{
-          search: search,
-          filter: selectedFilters,
-          setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
-            requestAnimationFrame(() => {
-              console.time('filter-processing');
-              
-              const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
-              filtersToRemove.forEach(filterId => removeFilter(filterId));
-              
-              // Always fetch new data with the remaining filters
-              setCurrentPage(1); // Reset to first page
-              
-              // Build filters based on newFilters (remaining filters)
-              const filter: ExpenseRequestFilter = {};
-              
-              // Extract filters by types using our immediate newFilters
-              const timePeriod = newFilters.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
-              
-              // Get status filters and convert back to uppercase
-              const statusFilters = newFilters.filter(f => 
-                Object.values(ExpenseRequestStatus).map(s => s.toLowerCase()).includes(f));
-              const statuses = statusFilters.map(f => f.toUpperCase());
-              
-              // Process status filters
-              if (statuses.length > 0) {
-                filter.status = statuses;
-              }
-              
-              // Process time period filters
-              if (timePeriod) {
-                const today = new Date();
-                const endDate = new Date(today).toISOString().split('T')[0];
-                
-                // Calculate start date based on selected time period
-                let startDate = new Date(today);
-                if (timePeriod === 'last30days') {
-                  startDate.setDate(today.getDate() - 30);
-                } else if (timePeriod === 'last90days') {
-                  startDate.setDate(today.getDate() - 90);
-                } else if (timePeriod === 'last180days') {
-                  startDate.setDate(today.getDate() - 180);
-                }
-                
-                filter.requestDateStart = startDate.toISOString().split('T')[0];
-                filter.requestDateEnd = endDate;
-              }
-              
-              // Process request type filters
-              const requestTypes = newFilters.filter(f => REQUEST_TYPE_OPTIONS.includes(f));
-              if (requestTypes.length > 0) {
-                const selectedType = requestTypes[0];
-                if (selectedType === 'general') {
-                  filter.requestType = { value: 'General Expense' };
-                } else if (selectedType === 'trip') {
-                  filter.requestType = { value: 'Trip' };
-                }
-              }
-              
-              console.log('Fetching with remaining filters:', filter);
-              console.timeEnd('filter-processing');
-              
-              // Use the current search input value directly to avoid debounce delay
-              fetchItems(searchInput, 1, pageSize, filter);
-            });
-          },
-          addButton: {
-            onClick: handleAddExpenseRequest,
-            label: 'Add',
-            'data-testid': 'add-expense-request-button'
-          },
-          listTitle: "My Expense Requests",
-          listAmount: totalCount ? `${totalCount}` : undefined,
-          filterLabelMap: filterLabelMap,
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        hideFilter={false}
-        dataBody={renderDataBody()}
-        contentBackground="white"
-        floatingDetails={true}
-        dataDetails={selectedItem ? {
-          title: selectedItem.title ?? 'Expense Request Details',
-          icon: <InfoCircleOutlined />,
-          content: renderExpenseRequestDetails(),
-          onClose: handleCloseDetails
-        } : undefined}
+    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
+      {/* Filter Bar */}
+      <ExpenseFilterBar
+        accessToken={accessToken}
+        onFiltersChange={handleFiltersChange}
+        currentFilters={currentFilters}
+        data-testid="expense-dashboard-filter-bar"
       />
+
+      {/* KPI Cards Section */}
+      <div data-testid={`${prefixDataTestId}-kpi-section`}>
+        <SectionKpiCards 
+          cards={kpiCards} 
+          data-testid={`${prefixDataTestId}-kpi-cards`}
+        />
+      </div>
+
+      {/* Monthly Expense Trends Chart */}
+      <div className="gba:px-6" data-testid={`${prefixDataTestId}-chart-section`}>
+        <MonthlyExpenseTrendsCard
+          loading={loading}
+          error={error}
+          monthlyTrends={stats.monthlyTrends}
+        />
+      </div>
+    </div>
   );
 };
 
-export default ExpenseRequestsTab;
+export default ExpenseDashboardTab;
