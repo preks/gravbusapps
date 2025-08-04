@@ -6,6 +6,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
+
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
 import { 
   Table, 
   TableHeader, 
@@ -25,31 +37,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Card,
+  CardContent
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, FileText } from 'lucide-react';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import Pill from '@/components/pill/Pill';
-import { FileTextOutlined } from '@ant-design/icons';
 
 
-const ADVANCE_PAYMENT_COLUMNS = {
-  title: { key: 'description' as keyof any, type: 'string' as const },
-  employeeFullName: { key: 'expensePlan.employee.firstName' as keyof any, type: 'string' as const },
-  orgUnit: { key: 'expensePlan.employee.employeePosition.organizationalUnit.name' as keyof any, type: 'string' as const },
-  costCenter: { key: 'costCenter.name' as keyof any, type: 'string' as const },
-  planCode: { key: 'expensePlan.code' as keyof any, type: 'string' as const },
-  status: { key: 'status' as keyof any, type: 'string' as const },
-  totalAmount: { key: 'expensePlan.totalAmount' as keyof any, type: 'number' as const, nullable: true },
-  amount: { key: 'amount' as keyof any, type: 'number' as const, nullable: true },
-  paymentMethod: { key: 'paymentMethod' as keyof any, type: 'string' as const },
-} as const;
+
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -136,7 +139,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
   const debouncedFetchPayments = useMemo(() => 
-    debounce((searchTerm: string, page: number, size: number, status?: string, amountMin?: string, amountMax?: string, advanceMin?: string, advanceMax?: string, reporter?: string, sortField?: string, sortOrder?: 'ascend' | 'descend' | null) => {
+    debounce((searchTerm: string, page: number, size: number, status?: string, amountMin?: string, amountMax?: string, advanceMin?: string, advanceMax?: string, reporter?: string) => {
       fetchPayments(searchTerm, page, size, status, amountMin, amountMax, advanceMin, advanceMax, reporter);
     }, 300),
     [] // Stable - no dependencies needed as fetchPayments is already stable
@@ -144,7 +147,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   
   useEffect(() => {
-    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
   }, [debouncedFetchPayments, searchText, currentPage, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
 
   // Load available statuses from backend
@@ -166,7 +169,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (search !== undefined && search !== searchText) {
       setSearchText(search);
       setCurrentPage(1);
-      debouncedFetchPayments(search, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+      debouncedFetchPayments(search, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     }
   }, [search, debouncedFetchPayments, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
 
@@ -174,7 +177,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     setCurrentPage(1);
-    debouncedFetchPayments(value, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+    debouncedFetchPayments(value, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     
     // Notify parent if callback exists
     if (onSearchChange) {
@@ -227,22 +230,31 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
 
     return (
-      <div data-testid="advance-payments-data-table">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[60px]">Actions</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Reporter</TableHead>
-              <TableHead>Org Unit</TableHead>
-              <TableHead>Cost Center</TableHead>
-              <TableHead>Plan Id</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="gba:text-right">Amount</TableHead>
-              <TableHead className="gba:text-right">Advance</TableHead>
-              <TableHead>Payment Method</TableHead>
-            </TableRow>
-          </TableHeader>
+      <div className="gba:pr-6 gba:overflow-hidden">
+        <Card data-testid="advance-payments-container">
+          <CardContent className="gba:p-0">
+            {isLoading && (
+              <div className="gba:flex gba:justify-center gba:p-4">
+                <Spinner />
+              </div>
+            )}
+            
+            <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
+              <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">Actions</TableHead>
+                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Reporter</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Org Unit</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Cost Center</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Plan Id</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Amount</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Advance</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Payment Method</TableHead>
+                  </TableRow>
+                </TableHeader>
           <TableBody>
             {payments.map((record: any) => {
               const hasExpenseRequest = record.expensePlan && 
@@ -399,51 +411,54 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             })}
           </TableBody>
         </Table>
-        
-        {/* Pagination */}
-        {totalCount > 0 && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
-            <div className="gba:text-sm gba:text-gray-600">
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} items`}
-            </div>
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
-                    className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                  />
-                </PaginationItem>
-                {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
-                  .filter(page => page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1)
-                  .map((page, index, array) => (
-                    <React.Fragment key={page}>
-                      {index > 0 && array[index - 1] !== page - 1 && (
-                        <PaginationItem>
-                          <span className="gba:px-2">...</span>
-                        </PaginationItem>
-                      )}
-                      <PaginationItem>
-                        <PaginationLink
-                          onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
-                          className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    </React.Fragment>
-                  ))}
-                <PaginationItem>
-                  <PaginationNext 
-                    onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
-                    className={currentPage >= Math.ceil(totalCount / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
       </div>
+      
+      {/* Pagination */}
+      {totalCount > 0 && (
+        <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
+          <div className="gba:text-sm gba:text-gray-600">
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} items`}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                  className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+              {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1)
+                .map((page, index, array) => (
+                  <React.Fragment key={page}>
+                    {index > 0 && array[index - 1] !== page - 1 && (
+                      <PaginationItem>
+                        <span className="gba:px-2">...</span>
+                      </PaginationItem>
+                    )}
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                        className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </React.Fragment>
+                ))}
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                  className={currentPage >= Math.ceil(totalCount / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</div>
     );
   }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken]);
 
@@ -520,7 +535,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       
                       // Reset to page 1 when applying filters to ensure results are visible
                       setCurrentPage(1);
-                      debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','), undefined, undefined);
+                      debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','));
                     }}
                     data-testid={`reporter-option-${reporter}`}
                   >
@@ -547,7 +562,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, e.target.value, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, e.target.value, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -562,7 +577,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, e.target.value, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, e.target.value, advanceMinFilter, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -586,7 +601,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, e.target.value, advanceMaxFilter, reporterFilter, undefined, undefined);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, e.target.value, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -601,7 +616,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, e.target.value, reporterFilter, undefined, undefined);
+                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, e.target.value, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -633,7 +648,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       const newStatusFilter = selected ? [...statusFilter, filterId] : statusFilter.filter(status => status !== filterId);
       setStatusFilter(newStatusFilter);
       setCurrentPage(1);
-      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter.length > 0 ? newStatusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, undefined, undefined);
+      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter.length > 0 ? newStatusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     }
   }, [availableStatuses, searchText, pageSize, debouncedFetchPayments, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, statusFilter]);
 
@@ -647,7 +662,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setAdvanceMinFilter('');
     setAdvanceMaxFilter('');
     setCurrentPage(1);
-    debouncedFetchPayments(searchText, 1, pageSize, undefined, '', '', '', '', '', undefined, undefined);
+    debouncedFetchPayments(searchText, 1, pageSize, undefined, '', '', '', '', '');
   }, [searchText, pageSize, debouncedFetchPayments]);
 
   return (
@@ -675,7 +690,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             : selectedActionType === 'plan'
             ? (selectedItem.expensePlan?.title || 'Plan Details')
             : (selectedItem.expensePlan?.expenseRequest?.title || 'Request Details'),
-          icon: <FileTextOutlined />,
+          icon: <FileText className="gba:w-4 gba:h-4" />,
           content: renderAdvancePaymentDetails,
           onClose: handleCloseDetails
         } : undefined}
@@ -684,17 +699,5 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     </>
   );
 };
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
 
 export default AdvancePaymentsTable;

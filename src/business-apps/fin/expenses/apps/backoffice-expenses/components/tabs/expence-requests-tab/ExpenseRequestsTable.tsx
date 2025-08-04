@@ -12,10 +12,13 @@ import {
   TableBody, 
   TableHead,
   TableRow,
+  TableCell,
   Alert, 
   Spinner,
   Button,
-  Checkbox
+  Checkbox,
+  Card,
+  CardContent
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -474,58 +477,80 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               No expense requests found matching the current filters.
             </div>
           ) : (
-            <div data-testid="expense-requests-data-table">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-[50px]">
-                      {bookableRecordsCount > 0 && (
-                        <Checkbox
-                          checked={allBookableSelected}
-                          onCheckedChange={handleSelectAllRecords}
-                          data-testid="select-all-records-checkbox"
-                        />
-                      )}
-                    </TableHead>
-                    <TableHead className="gba:w-[60px]">Actions</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Employee Code</TableHead>
-                    <TableHead>SAP Number</TableHead>
-                    <TableHead>Request Number</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Creation Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="gba:text-right">Remaining Amount</TableHead>
-                    <TableHead className="gba:text-right">Total Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenses.map((record: ExpenseData) => (
-                    <ExpenseRequestTableRow
-                      key={record.id}
-                      record={record}
-                      onRowClick={handleRowClick}
-                      onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
-                      onDownloadAccountingNote={handleDownloadAccountingNote}
-                      onTriggerCSV={handleTriggerCSV}
-                      onPrintExpenseRequest={handlePrintExpenseRequest}
-                      onTransferPayment={handleTransferPayment}
-                      isSelected={selectedRowKeys.includes(record.id)}
-                      onSelectRecord={handleSelectRecord}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-              
-              {/* Pagination */}
-              <ExpenseRequestPagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={totalItems}
-                onPageChange={handleEnhancedTableChange}
-              />
+            <div className="gba:pr-6 gba:overflow-hidden">
+              <Card data-testid="expense-requests-container">
+                <CardContent className="gba:p-0">
+                  {loading && (
+                    <div className="gba:flex gba:justify-center gba:p-4">
+                      <Spinner />
+                    </div>
+                  )}
+                  
+                  <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
+                    <Table data-testid="expense-requests-data-table" className="gba:min-w-[1600px] gba:w-full">
+                      <TableHeader>
+                        <TableRow className="gba:border-b gba:bg-gray-50">
+                          <TableHead className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
+                            {bookableRecordsCount > 0 && (
+                              <Checkbox
+                                checked={allBookableSelected}
+                                onCheckedChange={handleSelectAllRecords}
+                                data-testid="select-all-records-checkbox"
+                              />
+                            )}
+                          </TableHead>
+                          <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">Actions</TableHead>
+                          <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee Code</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">SAP Number</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Request Number</TableHead>
+                          <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Start Date</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">End Date</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Creation Date</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Remaining Amount</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Total Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {!loading && (!expenses || expenses.length === 0) ? (
+                          <TableRow>
+                            <TableCell colSpan={12} className="gba:py-8 gba:text-center">
+                              <div className="gba:text-gray-500">
+                                No expense requests found matching the current filters.
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          expenses?.map((record: ExpenseData) => (
+                            <ExpenseRequestTableRow
+                              key={record.id}
+                              record={record}
+                              onRowClick={handleRowClick}
+                              onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+                              onDownloadAccountingNote={handleDownloadAccountingNote}
+                              onTriggerCSV={handleTriggerCSV}
+                              onPrintExpenseRequest={handlePrintExpenseRequest}
+                              onTransferPayment={handleTransferPayment}
+                              isSelected={selectedRowKeys.includes(record.id)}
+                              onSelectRecord={handleSelectRecord}
+                            />
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Pagination */}
+                  <ExpenseRequestPagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={totalItems}
+                    onPageChange={handleEnhancedTableChange}
+                  />
+                </CardContent>
+              </Card>
             </div>
           )
         }
