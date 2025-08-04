@@ -113,6 +113,10 @@ export const useDashboardStats = ({
     setLoading(true);
     setError(null);
 
+    // Declare variables outside try block so they're accessible in catch
+    let selectedCurrency: string = "Currency:v1:RON";
+    let selectedDepartment: string | null = null;
+
     try {
       const currentYear = new Date().getFullYear();
       const currentDate = new Date();
@@ -278,13 +282,22 @@ export const useDashboardStats = ({
         .toISOString()
         .split("T")[0];
 
-      const selectedCurrency =
+      selectedCurrency =
         filters.currency && filters.currency.trim() !== ""
           ? filters.currency
           : "Currency:v1:RON";
 
-      const isCurrencyOnlyUpdate =
-        Object.keys(filters).length === 1 && filters.currency;
+      // Handle department filter: convert empty string or "all" to null, otherwise use the department ID
+      selectedDepartment =
+        filters.department &&
+        filters.department.trim() !== "" &&
+        filters.department !== "all"
+          ? filters.department
+          : null;
+
+      // Check if this is a currency-only update by comparing with previous state
+      // We'll use a more robust approach - always do full refresh when department or period changes
+      const isCurrencyOnlyUpdate = false; // Disable currency-only updates for now to avoid edge cases
 
       const cacheKey = `currency-${selectedCurrency}`;
       const cachedData = currencyCache.get(cacheKey);
@@ -306,6 +319,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 currentYearStart: startOfYear,
                 currentYearEnd: currentYearEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else if (filters.period === "quarterly") {
@@ -315,6 +329,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 quarterStart: quarterStart,
                 quarterEnd: quarterEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else {
@@ -324,6 +339,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 currentMonthStart: currentMonthStart,
                 currentMonthEnd: currentMonthEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           }
@@ -336,6 +352,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 currentYearStart: startOfYear,
                 currentYearEnd: currentYearEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else if (filters.period === "quarterly") {
@@ -345,6 +362,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 quarterStart: quarterStart,
                 quarterEnd: quarterEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else {
@@ -354,6 +372,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 currentMonthStart: currentMonthStart,
                 currentMonthEnd: currentMonthEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           }
@@ -438,6 +457,7 @@ export const useDashboardStats = ({
                 currentDate: currentDate.toISOString().split("T")[0],
                 previousYearStart: previousYearStartForComparison,
                 previousYearEnd: previousYearEndForComparison,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else if (filters.period === "quarterly") {
@@ -449,6 +469,7 @@ export const useDashboardStats = ({
                 currentDate: currentDate.toISOString().split("T")[0],
                 previousQuarterStart: previousQuarterStart,
                 previousQuarterEnd: previousQuarterEnd,
+                selectedDepartment: selectedDepartment,
               }
             );
           } else {
@@ -460,6 +481,7 @@ export const useDashboardStats = ({
                 currentDate: currentDate.toISOString().split("T")[0],
                 previousMonthStart: previousMonthStartForComparison,
                 previousMonthEnd: previousMonthEndForComparison,
+                selectedDepartment: selectedDepartment,
               }
             );
           }
@@ -494,6 +516,7 @@ export const useDashboardStats = ({
                 currentYearEnd: currentYearEnd,
                 previousYearStart: previousYearStartForComparison,
                 previousYearEnd: previousYearEndForComparison,
+                selectedDepartment: selectedDepartment,
               });
             } else if (filters.period === "quarterly") {
               return await client.request(GET_SPEND_COMPARISON_QUARTERLY, {
@@ -502,6 +525,7 @@ export const useDashboardStats = ({
                 currentQuarterEnd: quarterEnd,
                 previousQuarterStart: previousQuarterStart,
                 previousQuarterEnd: previousQuarterEnd,
+                selectedDepartment: selectedDepartment,
               });
             } else {
               // monthly (default)
@@ -511,6 +535,7 @@ export const useDashboardStats = ({
                 previousMonthStart: previousMonthStartForComparison,
                 previousMonthEnd: previousMonthEndForComparison,
                 selectedCurrency: selectedCurrency,
+                selectedDepartment: selectedDepartment,
               });
             }
           })(),
@@ -519,6 +544,7 @@ export const useDashboardStats = ({
             currentYTD,
             previousYearStart,
             previousYTD,
+            selectedDepartment: selectedDepartment,
           }),
           // Get additional metrics based on period
           (async () => {
@@ -529,6 +555,7 @@ export const useDashboardStats = ({
                   selectedCurrency: selectedCurrency,
                   currentYearStart: startOfYear,
                   currentYearEnd: currentYearEnd,
+                  selectedDepartment: selectedDepartment,
                 }
               );
             } else if (filters.period === "quarterly") {
@@ -538,6 +565,7 @@ export const useDashboardStats = ({
                   selectedCurrency: selectedCurrency,
                   quarterStart: quarterStart,
                   quarterEnd: quarterEnd,
+                  selectedDepartment: selectedDepartment,
                 }
               );
             } else {
@@ -548,6 +576,7 @@ export const useDashboardStats = ({
                   selectedCurrency: selectedCurrency,
                   currentMonthStart: currentMonthStart,
                   currentMonthEnd: currentMonthEnd,
+                  selectedDepartment: selectedDepartment,
                 }
               );
             }
@@ -559,12 +588,14 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 yearStart: startOfYear,
                 yearEnd: currentYearEnd,
+                selectedDepartment: selectedDepartment,
               });
             } else if (filters.period === "quarterly") {
               return await client.request(GET_ACTUAL_VS_PLANNED_QUARTERLY, {
                 selectedCurrency: selectedCurrency,
                 quarterStart: quarterStart,
                 quarterEnd: quarterEnd,
+                selectedDepartment: selectedDepartment,
               });
             } else {
               // monthly (default)
@@ -572,6 +603,7 @@ export const useDashboardStats = ({
                 selectedCurrency: selectedCurrency,
                 monthStart: currentMonthStart,
                 monthEnd: currentMonthEnd,
+                selectedDepartment: selectedDepartment,
               });
             }
           })(),
@@ -586,6 +618,7 @@ export const useDashboardStats = ({
               selectedCurrency: selectedCurrency,
               currentYearStart: startOfYear,
               currentYearEnd: currentYearEnd,
+              selectedDepartment: selectedDepartment,
             }
           );
         } else if (filters.period === "quarterly") {
@@ -595,6 +628,7 @@ export const useDashboardStats = ({
               selectedCurrency: selectedCurrency,
               quarterStart: quarterStart,
               quarterEnd: quarterEnd,
+              selectedDepartment: selectedDepartment,
             }
           );
         } else {
@@ -605,6 +639,7 @@ export const useDashboardStats = ({
               selectedCurrency: selectedCurrency,
               currentMonthStart: currentMonthStart,
               currentMonthEnd: currentMonthEnd,
+              selectedDepartment: selectedDepartment,
             }
           );
         }
@@ -681,6 +716,7 @@ export const useDashboardStats = ({
               currentDate: currentDate.toISOString().split("T")[0],
               previousYearStart: previousYearStartForComparison,
               previousYearEnd: previousYearEndForComparison,
+              selectedDepartment: selectedDepartment,
             }
           );
         } else if (filters.period === "quarterly") {
@@ -692,6 +728,7 @@ export const useDashboardStats = ({
               currentDate: currentDate.toISOString().split("T")[0],
               previousQuarterStart: previousQuarterStart,
               previousQuarterEnd: previousQuarterEnd,
+              selectedDepartment: selectedDepartment,
             }
           );
         } else {
@@ -704,6 +741,7 @@ export const useDashboardStats = ({
               currentDate: currentDate.toISOString().split("T")[0],
               previousMonthStart: previousMonthStartForComparison,
               previousMonthEnd: previousMonthEndForComparison,
+              selectedDepartment: selectedDepartment,
             }
           );
         }
@@ -732,6 +770,7 @@ export const useDashboardStats = ({
               selectedCurrency: selectedCurrency,
               startDate: monthStart,
               endDate: monthEnd,
+              selectedDepartment: selectedDepartment,
             });
             return response;
           } catch (error) {
@@ -964,6 +1003,9 @@ export const useDashboardStats = ({
         message: err instanceof Error ? err.message : "Unknown error",
         stack: err instanceof Error ? err.stack : undefined,
         filters: filters,
+        selectedCurrency: selectedCurrency,
+        selectedDepartment: selectedDepartment,
+        period: filters.period,
       });
       setError(
         err instanceof Error
@@ -973,7 +1015,13 @@ export const useDashboardStats = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, client, filters.currency, filters.period]);
+  }, [
+    accessToken,
+    client,
+    filters.currency,
+    filters.period,
+    filters.department,
+  ]);
 
   useEffect(() => {
     fetchEssentialStats();

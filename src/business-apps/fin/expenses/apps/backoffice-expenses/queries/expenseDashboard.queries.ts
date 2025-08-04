@@ -3,7 +3,7 @@
  */
 
 export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
-  query GetTotalCompanySpendMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentDate: timestamp, $previousMonthStart: timestamp, $previousMonthEnd: timestamp) {
+  query GetTotalCompanySpendMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentDate: timestamp, $previousMonthStart: timestamp, $previousMonthEnd: timestamp, $selectedDepartment: uuid) {
     currentPeriodSpend: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -11,6 +11,7 @@ export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentMonthStart, _lte: $currentDate } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -25,6 +26,7 @@ export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
           { status: { _in: ["PAID", "CLOSED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $previousMonthStart, _lte: $previousMonthEnd } }
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -37,7 +39,7 @@ export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
 `;
 
 export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
-  query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $currentDate: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp) {
+  query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $currentDate: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
     currentPeriodSpend: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -45,6 +47,7 @@ export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $quarterStart, _lte: $currentDate } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -60,6 +63,7 @@ export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -72,7 +76,7 @@ export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
 `;
 
 export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
-  query GetTotalCompanySpendYearly($selectedCurrency: String, $yearStart: timestamp, $currentDate: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp) {
+  query GetTotalCompanySpendYearly($selectedCurrency: String, $yearStart: timestamp, $currentDate: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
     currentPeriodSpend: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -80,6 +84,7 @@ export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $yearStart, _lte: $currentDate } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -95,6 +100,7 @@ export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -107,7 +113,7 @@ export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
 `;
 
 export const GET_ACTUAL_VS_PLANNED_YEARLY = `
-  query GetActualVsPlannedYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
+  query GetActualVsPlannedYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp, $selectedDepartment: uuid) {
     actualExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -115,6 +121,7 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $yearStart, _lte: $yearEnd } },
           { isDeleted: { _eq: false } }
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -129,6 +136,7 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
           {
             _or: [
               { startDate: { _gte: $yearStart, _lte: $yearEnd } },
@@ -160,7 +168,7 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
 `;
 
 export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
-  query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+  query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
     actualExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -168,6 +176,7 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } },
           { isDeleted: { _eq: false } }
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -182,6 +191,7 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
           {
             _or: [
               { startDate: { _gte: $quarterStart, _lte: $quarterEnd } },
@@ -213,7 +223,7 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
 `;
 
 export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
-  query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
+  query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
     actualExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -221,6 +231,7 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $monthStart, _lte: $monthEnd } },
           { isDeleted: { _eq: false } }
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -235,6 +246,7 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
           {
             _or: [
               { startDate: { _gte: $monthStart, _lte: $monthEnd } },
@@ -266,7 +278,7 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
 `;
 
 export const GET_MONTHLY_EXPENSE_TRENDS = `
-  query GetMonthlyExpenseTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!) {
+  query GetMonthlyExpenseTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
     ExpenseRequestAggregate(
       where: {
         _and: [
@@ -276,6 +288,7 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
           { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
           { requestDate: { _gte: $startDate, _lte: $endDate } },
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -290,7 +303,7 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
 `;
 
 export const GET_SPEND_COMPARISON_YEARLY = `
-  query GetSpendComparisonYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp) {
+  query GetSpendComparisonYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
     currentYearExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -298,6 +311,7 @@ export const GET_SPEND_COMPARISON_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -313,6 +327,7 @@ export const GET_SPEND_COMPARISON_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -325,7 +340,7 @@ export const GET_SPEND_COMPARISON_YEARLY = `
 `;
 
 export const GET_SPEND_COMPARISON_QUARTERLY = `
-  query GetSpendComparisonQuarterly($selectedCurrency: String, $currentQuarterStart: timestamp, $currentQuarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp) {
+  query GetSpendComparisonQuarterly($selectedCurrency: String, $currentQuarterStart: timestamp, $currentQuarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
     currentQuarterExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -333,6 +348,7 @@ export const GET_SPEND_COMPARISON_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentQuarterStart, _lte: $currentQuarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -348,6 +364,7 @@ export const GET_SPEND_COMPARISON_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -360,7 +377,7 @@ export const GET_SPEND_COMPARISON_QUARTERLY = `
 `;
 
 export const GET_MONTHLY_SPEND_COMPARISON = `
-  query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedCurrency: String) {
+  query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedCurrency: String, $selectedDepartment: uuid) {
     currentMonthExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -369,6 +386,7 @@ export const GET_MONTHLY_SPEND_COMPARISON = `
           { requestDate: { _gte: $currentMonthStart } },
           { requestDate: { _lt: $currentMonthEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -385,6 +403,7 @@ export const GET_MONTHLY_SPEND_COMPARISON = `
           { requestDate: { _gte: $previousMonthStart } },
           { requestDate: { _lt: $previousMonthEnd } },
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -397,13 +416,14 @@ export const GET_MONTHLY_SPEND_COMPARISON = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS = `
-  query GetAdditionalDashboardMetrics($selectedCurrency: String, $currentYearStart: timestamp, $currentMonthStart: timestamp, $quarterStart: timestamp, $quarterEnd: timestamp) {
+  query GetAdditionalDashboardMetrics($selectedCurrency: String, $currentYearStart: timestamp, $currentMonthStart: timestamp, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _eq: "BOOKED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { startDate: { _gte: $currentYearStart } }
+          { startDate: { _gte: $currentYearStart } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -415,7 +435,8 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS = `
       where: {
         _and: [
           { status: { _eq: "PENDING" } },
-          { startDate: { _gte: $currentYearStart } }
+          { startDate: { _gte: $currentYearStart } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -427,12 +448,13 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS = `
 `;
 
 export const GET_YTD_STATS = `
-  query GetYTDStats($currentYearStart: timestamp!, $currentYTD: timestamp!, $previousYearStart: timestamp!, $previousYTD: timestamp!) {
+  query GetYTDStats($currentYearStart: timestamp!, $currentYTD: timestamp!, $previousYearStart: timestamp!, $previousYTD: timestamp!, $selectedDepartment: uuid) {
     currentYearExpenses: ExpenseRequestAggregate(
       where: {
         status: { _eq: "PAID" }
         currencyRef: { _eq: "Currency:v1:EUR" }
         endDate: { _gte: $currentYearStart, _lt: $currentYTD }
+        employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } }
       }
     ) {
       aggregate {
@@ -445,6 +467,7 @@ export const GET_YTD_STATS = `
         status: { _eq: "PAID" }
         currencyRef: { _eq: "Currency:v1:EUR" }
         endDate: { _gte: $previousYearStart, _lt: $previousYTD }
+        employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } }
       }
     ) {
       aggregate {
@@ -456,7 +479,7 @@ export const GET_YTD_STATS = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
-  query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp) {
+  query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -465,6 +488,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
           { totalAmount: { _gt: 0 } },
           { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -479,6 +503,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -490,7 +515,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
-  query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp) {
+  query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -498,6 +523,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -512,6 +538,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -523,7 +550,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
 `;
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
-  query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+  query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -531,6 +558,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -545,6 +573,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
           { currencyRef: { _eq: $selectedCurrency } },
           { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -616,7 +645,7 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
 `;
 
 export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
-  query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp) {
+  query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -626,6 +655,7 @@ export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
           { totalAmount: { _gt: 0 } },
           { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -638,7 +668,7 @@ export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
 `;
 
 export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
-  query GetAvgSpendPerTripMonthly($selectedCurrency: String, $currentMonthStart: timestamp!, $currentMonthEnd: timestamp!) {
+  query GetAvgSpendPerTripMonthly($selectedCurrency: String, $currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -647,6 +677,7 @@ export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
           { totalAmount: { _gt: 0 } },
           { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } },
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
@@ -659,7 +690,7 @@ export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
 `;
 
 export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
-  query GetAvgSpendPerTripQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+  query GetAvgSpendPerTripQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
@@ -669,6 +700,7 @@ export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
           { totalAmount: { _gt: 0 } },
           { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
           {isDeleted: {_eq: false}}
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
       }
     ) {
