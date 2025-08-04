@@ -1,32 +1,34 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Modal, 
-  Form, 
-  Input, 
-  Button, 
-  Select, 
-  Space, 
-  Typography, 
-  Divider,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
   Card,
-  Row,
-  Col,
-  Tag,
-  Tooltip,
+  CardHeader,
+  CardTitle,
+  CardContent,
   Switch,
-  Alert,
-  message
-} from 'antd';
+  Alert
+} from '@newwork/nw-design-system';
+import { toast } from 'sonner';
 import { 
-  SaveOutlined, 
-  CloseOutlined, 
-  PlusOutlined, 
-  DeleteOutlined,
-  InfoCircleOutlined,
-  EditOutlined,
-  FormOutlined,
-  FormatPainterOutlined
-} from '@ant-design/icons';
+  FloppyDiskIcon, 
+  XIcon, 
+  PlusIcon, 
+  TrashIcon,
+  PaintBrushIcon
+} from '@phosphor-icons/react';
 import { 
   QueryDefinition, 
   QueryType, 
@@ -36,28 +38,21 @@ import {
   AdditionalColumn
 } from '@/common/network/dataset';
 
-const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
+// Environment detection utility
+const isLocalEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+};
 
 // Simple SQL formatter function
 const formatSQL = (sql: string): string => {
   if (!sql || typeof sql !== 'string') return '';
   
-  // Basic SQL formatting rules
   return sql
-    // Add line breaks before major keywords
     .replace(/\b(SELECT|FROM|JOIN|LEFT JOIN|RIGHT JOIN|INNER JOIN|WHERE|GROUP BY|HAVING|ORDER BY|UNION|LIMIT|OFFSET)\b/gi, '\n$1')
-    // Add line breaks before AND/OR in WHERE clauses
     .replace(/\b(AND|OR)\b(?![^(]*\))/gi, '\n  $1')
-    // Indent subparts
-    .replace(/\n(FROM|JOIN|LEFT JOIN|RIGHT JOIN|INNER JOIN|WHERE|GROUP BY|HAVING|ORDER BY)/gi, '\n$1')
-    .replace(/\n(AND|OR)/gi, '\n  $1')
-    // Clean up multiple line breaks
     .replace(/\n\s*\n/g, '\n')
-    // Trim and ensure proper spacing
     .trim()
-    // Add proper indentation for common patterns
     .split('\n')
     .map((line, index) => {
       const trimmed = line.trim();
@@ -92,68 +87,70 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   isLoading,
   defaultQueryType
 }) => {
-  const [form] = Form.useForm();
+  const [formValues, setFormValues] = useState({
+    name: '',
+    description: '',
+    query: '',
+    queryType: defaultQueryType || QueryType.DATASET,
+    status: QueryStatus.DRAFT
+  });
   const [parameters, setParameters] = useState<QueryParameter[]>([]);
   const [additionalColumns, setAdditionalColumns] = useState<AdditionalColumn[]>([]);
   const [isJsonMode, setIsJsonMode] = useState(false);
   const [jsonValue, setJsonValue] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [validateQuery, setValidateQuery] = useState(true);
-  const [formValues, setFormValues] = useState<any>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isEditing = !!query;
+  const isLocal = isLocalEnvironment();
 
-  // Format SQL function for the current query
+  // Format SQL function
   const handleFormatSQL = () => {
-    const currentQuery = form.getFieldValue('query');
-    if (currentQuery) {
-      const formattedSQL = formatSQL(currentQuery);
-      form.setFieldValue('query', formattedSQL);
-      setFormValues((prev: any) => ({ ...prev, query: formattedSQL }));
-      message.success('SQL query formatted successfully');
+    if (formValues.query) {
+      const formattedSQL = formatSQL(formValues.query);
+      setFormValues(prev => ({ ...prev, query: formattedSQL }));
+      toast.success('SQL query formatted successfully');
     }
   };
 
-  // Create the default JSON template
-  const getDefaultJsonTemplate = () => {
-    return {
-      name: "",
-      description: "",
-      query: "SELECT * FROM your_table WHERE date >= :startDate",
-      queryType: defaultQueryType || QueryType.DATASET,
-      status: QueryStatus.DRAFT,
-      parameters: [
-        {
-          name: "startDate",
-          type: ParameterType.DATE,
-          description: "Start date for filtering",
-          required: true,
-          defaultValue: undefined,
-          allowedValues: undefined
-        }
-      ],
-      additionalColumns: []
-    };
-  };
+  // Default template
+  const getDefaultJsonTemplate = () => ({
+    name: "",
+    description: "",
+    query: "SELECT * FROM your_table WHERE date >= :startDate",
+    queryType: defaultQueryType || QueryType.DATASET,
+    status: QueryStatus.DRAFT,
+    parameters: [
+      {
+        name: "startDate",
+        type: ParameterType.DATE,
+        description: "Start date for filtering",
+        required: true,
+        defaultValue: undefined,
+        allowedValues: undefined
+      }
+    ],
+    additionalColumns: []
+  });
 
-  // Convert form data to JSON object
-  const formDataToJson = useMemo(() => {
-    return {
-      name: formValues.name || "",
-      description: formValues.description || "",
-      query: formValues.query || "",
-      queryType: formValues.queryType || defaultQueryType || QueryType.DATASET,
-      status: formValues.status || QueryStatus.DRAFT,
-      parameters: parameters,
-      additionalColumns: additionalColumns
-    };
-  }, [formValues, parameters, additionalColumns, defaultQueryType]);
+  // Convert form data to JSON
+  const formDataToJson = useMemo(() => ({
+    name: formValues.name || "",
+    description: formValues.description || "",
+    query: formValues.query || "",
+    queryType: formValues.queryType,
+    status: formValues.status,
+    parameters: parameters,
+    additionalColumns: additionalColumns
+  }), [formValues, parameters, additionalColumns]);
 
+  // Initialize form
   useEffect(() => {
     if (visible && query) {
       // Editing existing query
       const formattedQuery = query.query ? formatSQL(query.query) : '';
-      form.setFieldsValue({
+      setFormValues({
         name: query.name,
         description: query.description,
         query: formattedQuery,
@@ -162,13 +159,6 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
       });
       setParameters(query.parameters || []);
       setAdditionalColumns(query.additionalColumns || []);
-      setFormValues({
-        name: query.name,
-        description: query.description,
-        query: formattedQuery,
-        queryType: query.queryType,
-        status: query.status
-      });
       setJsonValue(JSON.stringify({
         name: query.name,
         description: query.description,
@@ -181,540 +171,526 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
     } else if (visible) {
       // Creating new query
       const defaultTemplate = getDefaultJsonTemplate();
-      form.resetFields();
-              form.setFieldsValue({
-          name: defaultTemplate.name,
-          description: defaultTemplate.description,
-          query: defaultTemplate.query,
-          queryType: defaultTemplate.queryType,
-          status: defaultTemplate.status
-        });
-        setFormValues({
-          name: defaultTemplate.name,
-          description: defaultTemplate.description,
-          query: defaultTemplate.query,
-          queryType: defaultTemplate.queryType,
-          status: defaultTemplate.status
-        });
-        setParameters(defaultTemplate.parameters);
-        setAdditionalColumns(defaultTemplate.additionalColumns);
-        setJsonValue(JSON.stringify(defaultTemplate, null, 2));
+      setFormValues({
+        name: defaultTemplate.name,
+        description: defaultTemplate.description,
+        query: defaultTemplate.query,
+        queryType: defaultTemplate.queryType,
+        status: defaultTemplate.status
+      });
+      setParameters(defaultTemplate.parameters);
+      setAdditionalColumns(defaultTemplate.additionalColumns);
+      setJsonValue(JSON.stringify(defaultTemplate, null, 2));
     }
-    setJsonError(null);
-    setIsJsonMode(false);
-  }, [visible, query, form, defaultQueryType]);
+  }, [visible, query, defaultQueryType]);
 
-  // Update JSON when form data changes (only in form mode)
+  // Update JSON when form changes
   useEffect(() => {
     if (!isJsonMode) {
       setJsonValue(JSON.stringify(formDataToJson, null, 2));
     }
   }, [formDataToJson, isJsonMode]);
 
-  const handleModeSwitch = (checked: boolean) => {
-    if (checked) {
-      // Switching to JSON mode - update JSON with current form data (and format SQL)
-      const currentFormData = { ...formDataToJson };
-      if (currentFormData.query) {
-        currentFormData.query = formatSQL(currentFormData.query);
-      }
-      setJsonValue(JSON.stringify(currentFormData, null, 2));
-      setJsonError(null);
-    } else {
-            // Switching to form mode - validate and apply JSON data
-      try {
-        const parsedJson = JSON.parse(jsonValue);
-        
-        // Only validate JSON structure, not field values - let form validation handle empty fields
-        if (typeof parsedJson !== 'object' || parsedJson === null) {
-          throw new Error('JSON must be an object');
-        }
-
-        // Update form and state with whatever values exist (including empty strings)
-        const formData = {
-          name: parsedJson.name || '',
-          description: parsedJson.description || '',
-          query: parsedJson.query ? formatSQL(parsedJson.query) : '',
-          queryType: parsedJson.queryType || QueryType.DATASET,
-          status: parsedJson.status || QueryStatus.DRAFT
-        };
-        form.setFieldsValue(formData);
-        setFormValues(formData);
-        setParameters(parsedJson.parameters || []);
-        setAdditionalColumns(parsedJson.additionalColumns || []);
-        setJsonError(null);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Invalid JSON format';
-        setJsonError(errorMessage);
-        message.error(`Cannot switch to form mode: ${errorMessage}`);
-        return; // Don't switch mode if JSON is invalid
-      }
-    }
-    setIsJsonMode(checked);
-  };
-
+  // Handle JSON change
   const handleJsonChange = (value: string) => {
     setJsonValue(value);
+    setJsonError(null);
+    
     try {
-      JSON.parse(value);
-      setJsonError(null);
+      const parsed = JSON.parse(value);
+      setFormValues({
+        name: parsed.name || '',
+        description: parsed.description || '',
+        query: parsed.query || '',
+        queryType: parsed.queryType || QueryType.DATASET,
+        status: parsed.status || QueryStatus.DRAFT
+      });
+      setParameters(parsed.parameters || []);
+      setAdditionalColumns(parsed.additionalColumns || []);
     } catch (error) {
-      setJsonError(error instanceof Error ? error.message : 'Invalid JSON');
+      setJsonError('Invalid JSON format');
     }
   };
 
+  // Validation
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formValues.name.trim()) {
+      newErrors.name = 'Query name is required';
+    } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(formValues.name)) {
+      newErrors.name = 'Name must start with letter and contain only letters, numbers, and underscores';
+    }
+    
+    if (!formValues.description.trim()) {
+      newErrors.description = 'Description is required';
+    }
+    
+    if (!formValues.query.trim()) {
+      newErrors.query = 'SQL query is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle save
   const handleSave = () => {
     if (isJsonMode) {
-      // Save from JSON mode
+      if (jsonError) {
+        toast.error('Please fix JSON errors before saving');
+        return;
+      }
       try {
-        const parsedJson = JSON.parse(jsonValue);
-        
-        // Validate required fields
-        if (!parsedJson.name || !parsedJson.description || !parsedJson.query) {
-          message.error('Missing required fields: name, description, and query are required');
-          return;
-        }
-
-                 const queryData: Omit<QueryDefinition, 'id' | 'createdAt' | 'updatedAt'> = {
-           name: parsedJson.name,
-           description: parsedJson.description,
-           query: parsedJson.query,
-           queryType: parsedJson.queryType || QueryType.DATASET,
-           status: parsedJson.status || QueryStatus.DRAFT,
-           parameters: parsedJson.parameters || [],
-           additionalColumns: parsedJson.additionalColumns || []
-         };
-         onSave(queryData, validateQuery);
+        const parsed = JSON.parse(jsonValue);
+        onSave(parsed, validateQuery);
       } catch (error) {
-        message.error('Invalid JSON format. Please fix the JSON before saving.');
+        toast.error('Invalid JSON format');
         return;
       }
     } else {
-      // Save from form mode
-      form.validateFields().then((values) => {
-        const queryData: Omit<QueryDefinition, 'id' | 'createdAt' | 'updatedAt'> = {
-          ...values,
-          parameters,
-          additionalColumns
-        };
-        onSave(queryData, validateQuery);
-      });
+      if (!validateForm()) {
+        toast.error('Please fix form errors before saving');
+        return;
+      }
+      onSave(formDataToJson, validateQuery);
     }
   };
 
+  // Handle input change
+  const handleInputChange = (field: string, value: any) => {
+    setFormValues(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Add parameter
   const addParameter = () => {
     const newParam: QueryParameter = {
-      name: '',
+      name: `param${parameters.length + 1}`,
       type: ParameterType.STRING,
       description: '',
       required: false,
-      allowedValues: null
+      defaultValue: undefined,
+      allowedValues: undefined
     };
     setParameters([...parameters, newParam]);
   };
 
-  const updateParameter = (index: number, field: keyof QueryParameter, value: any) => {
+  // Remove parameter
+  const removeParameter = (index: number) => {
+    setParameters(parameters.filter((_, i) => i !== index));
+  };
+
+  // Update parameter
+  const updateParameter = (index: number, field: string, value: any) => {
     const updated = [...parameters];
     updated[index] = { ...updated[index], [field]: value };
     setParameters(updated);
   };
 
-  const removeParameter = (index: number) => {
-    setParameters(parameters.filter((_, i) => i !== index));
-  };
-
-  const addAdditionalColumn = () => {
-    const newColumn: AdditionalColumn = {
-      name: '',
-      type: 'STRING'
-    };
-    setAdditionalColumns([...additionalColumns, newColumn]);
-  };
-
-  const updateAdditionalColumn = (index: number, field: keyof AdditionalColumn, value: string) => {
-    const updated = [...additionalColumns];
-    updated[index] = { ...updated[index], [field]: value };
-    setAdditionalColumns(updated);
-  };
-
-  const removeAdditionalColumn = (index: number) => {
-    setAdditionalColumns(additionalColumns.filter((_, i) => i !== index));
+  // Environment-specific dialog content styling
+  const getDialogContentProps = () => {
+    if (isLocal) {
+      // Local environment - use design system defaults
+      return {
+        className: "gba:max-w-[90vw] gba:w-[90vw] gba:max-h-[90vh] gba:overflow-y-auto",
+        style: { 
+          maxWidth: '1200px', 
+          width: '90vw',
+          maxHeight: '90vh'
+        }
+      };
+    } else {
+      // Platform environment - explicit centering
+      return {
+        className: "gba:max-w-[90vw] gba:w-[90vw] gba:max-h-[90vh] gba:overflow-y-auto gba:fixed gba:top-1/2 gba:left-1/2",
+        style: { 
+          maxWidth: '1200px', 
+          width: '90vw',
+          maxHeight: '90vh',
+          position: 'fixed' as const,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 9999
+        }
+      };
+    }
   };
 
   return (
-    <Modal
-      title={
-        <Space>
-          <SaveOutlined />
-          <span>{isEditing ? 'Edit Query Definition' : 'Create New Query Definition'}</span>
-        </Space>
-      }
-      open={visible}
-      onCancel={onCancel}
-      width={900}
-      footer={null}
-      data-testid="query-definition-modal"
-    >
-      <div className="gba:space-y-6">
-        {/* Mode Toggle */}
-        <Card size="small">
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Space>
-                <Text strong>Editing Mode:</Text>
-                <Tag color={isJsonMode ? "orange" : "blue"} icon={isJsonMode ? <EditOutlined /> : <FormOutlined />}>
-                  {isJsonMode ? "JSON Editor" : "Form Fields"}
-                </Tag>
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                <FormOutlined />
-                <Switch
-                  checked={isJsonMode}
-                  onChange={handleModeSwitch}
-                  data-testid="mode-toggle-switch"
-                />
-                <EditOutlined />
-              </Space>
-            </Col>
-          </Row>
-          
-          <Divider style={{ margin: '12px 0' }} />
-          
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Space>
-                <Text strong>Validation:</Text>
-                <Tag color={validateQuery ? "green" : "orange"}>
-                  {validateQuery ? "Enabled" : "Disabled"}
-                </Tag>
-                <Tooltip title="When enabled, the SQL query will be validated on the server before saving">
-                  <InfoCircleOutlined />
-                </Tooltip>
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                <Text type="secondary">Off</Text>
-                <Switch
-                  checked={validateQuery}
-                  onChange={setValidateQuery}
-                  data-testid="validation-toggle-switch"
-                />
-                <Text type="secondary">On</Text>
-              </Space>
-            </Col>
-          </Row>
-          
-          {isJsonMode && (
-            <div className="gba:mt-3">
-              <Text type="secondary">
-                Edit the complete query definition as JSON. Use this mode for quick generation and bulk modifications.
-              </Text>
-            </div>
-          )}
-        </Card>
+    <Dialog open={visible} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent {...getDialogContentProps()}>
+        <DialogHeader>
+          <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+            <FloppyDiskIcon />
+            <span>{isEditing ? 'Edit Query Definition' : 'Create Query Definition'}</span>
+          </DialogTitle>
+        </DialogHeader>
 
-        {isJsonMode ? (
-          /* JSON Mode */
-          <div className="gba:space-y-4">
-            {jsonError && (
-              <Alert
-                message="JSON Validation Error"
-                description={jsonError}
-                type="error"
-                showIcon
-              />
-            )}
-            <Card title="JSON Editor" size="small">
-              <TextArea
-                value={jsonValue}
-                onChange={(e) => handleJsonChange(e.target.value)}
-                rows={20}
-                style={{ 
-                  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                  fontSize: '13px'
-                }}
-                placeholder="Enter query definition JSON..."
-                data-testid="json-editor-textarea"
-              />
-            </Card>
-            <Card size="small">
-              <Text type="secondary">
+        <div 
+          className="gba:overflow-y-auto"
+          style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-6)',
+            maxHeight: '60vh',
+            overflowY: 'auto'
+          }}
+        >
+          {/* Mode Toggle */}
+          <Card>
+            <CardHeader style={{ paddingBottom: 'var(--spacing-3)' }}>
+              <CardTitle className="gba:text-base gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                Mode Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--spacing-4)'
+            }}>
+              <div className="gba:flex gba:flex-col" style={{ gap: 'var(--spacing-3)' }}>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+                  <Label htmlFor="json-mode-switch" style={{ fontWeight: '500' }}>JSON Mode</Label>
+                  <Switch 
+                    id="json-mode-switch"
+                    checked={isJsonMode} 
+                    onCheckedChange={setIsJsonMode}
+                    data-testid="json-mode-switch"
+                  />
+                </div>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+                  <Label htmlFor="validate-query-switch" style={{ fontWeight: '500' }}>Validate Query</Label>
+                  <Switch 
+                    id="validate-query-switch"
+                    checked={validateQuery} 
+                    onCheckedChange={setValidateQuery}
+                    data-testid="validate-query-switch"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {isJsonMode ? (
+            /* JSON Mode */
+            <div style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--spacing-4)'
+            }}>
+              {jsonError && (
+                <Alert>
+                  <h4 style={{ 
+                    color: 'var(--color-destructive)',
+                    margin: 'var(--spacing-0)'
+                  }}>JSON Validation Error</h4>
+                  <p style={{ margin: 'var(--spacing-0)' }}>{jsonError}</p>
+                </Alert>
+              )}
+              <Card>
+                <CardHeader>
+                  <CardTitle>JSON Editor</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={jsonValue}
+                    onChange={(e) => handleJsonChange(e.target.value)}
+                    rows={20}
+                    className="gba:font-mono gba:text-sm"
+                    placeholder="Enter query definition JSON..."
+                  />
+                </CardContent>
+              </Card>
+              <div style={{ 
+                padding: 'var(--spacing-4)', 
+                backgroundColor: 'var(--color-muted)',
+                borderRadius: 'var(--border-radius-md)',
+                fontSize: '0.875rem'
+              }}>
                 <strong>Required fields:</strong> name, description, query<br/>
                 <strong>Optional fields:</strong> queryType (DATASET|TIMESERIES), status (DRAFT|ACTIVE), parameters, additionalColumns
-              </Text>
-            </Card>
-          </div>
-        ) : (
-          /* Form Mode */
-          <>
-            <Form
-              form={form}
-              layout="vertical"
-              onValuesChange={(_, allValues) => setFormValues(allValues)}
-              data-testid="query-definition-form"
-            >
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="name"
-                    label="Query Name"
-                    rules={[
-                      { required: true, message: 'Query name is required' },
-                      { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: 'Name must start with letter and contain only letters, numbers, and underscores' }
-                    ]}
-                  >
-                    <Input placeholder="Enter unique query name" />
-                  </Form.Item>
-                </Col>
-                <Col span={6}>
-                  <Form.Item
-                    name="queryType"
-                    label="Query Type"
-                    rules={[{ required: true, message: 'Query type is required' }]}
-                  >
-                    <Select placeholder="Select type">
-                      <Option value={QueryType.DATASET}>Dataset</Option>
-                      <Option value={QueryType.TIMESERIES}>Timeseries</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={6}>
-                  <Form.Item
-                    name="status"
-                    label="Status"
-                    rules={[{ required: true, message: 'Status is required' }]}
-                  >
-                    <Select placeholder="Select status">
-                      <Option value={QueryStatus.DRAFT}>Draft</Option>
-                      <Option value={QueryStatus.ACTIVE}>Active</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                name="description"
-                label="Description"
-                rules={[{ required: true, message: 'Description is required' }]}
-              >
-                <TextArea
-                  rows={2}
-                  placeholder="Describe what this query does..."
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="query"
-                label={
-                  <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
-                    <Space>
-                      <span>SQL Query</span>
-                      <Tooltip title="Use :paramName for bound parameters and ${paramName} for template variables">
-                        <InfoCircleOutlined />
-                      </Tooltip>
-                    </Space>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<FormatPainterOutlined />}
-                      onClick={handleFormatSQL}
-                      className="gba:text-blue-600 hover:gba:text-blue-800"
-                    >
-                      Format SQL
-                    </Button>
+              </div>
+            </div>
+          ) : (
+            /* Form Mode */
+            <div style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--spacing-6)'
+            }}>
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Basic Information</CardTitle>
+                </CardHeader>
+                <CardContent style={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-4)'
+                }}>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                    <div style={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-2)'
+                    }}>
+                      <Label>Query Name *</Label>
+                      <Input
+                        value={formValues.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        placeholder="Enter unique query name"
+                        style={errors.name ? { borderColor: 'var(--color-destructive)' } : {}}
+                      />
+                      {errors.name && (
+                        <p className="gba:text-sm" style={{ 
+                          color: 'var(--color-destructive)',
+                          margin: 'var(--spacing-0)'
+                        }}>
+                          {errors.name}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-2)'
+                    }}>
+                      <Label>Query Type *</Label>
+                      <Select value={formValues.queryType} onValueChange={(value) => handleInputChange('queryType', value)}>
+                        <SelectTrigger style={{ width: '200px' }}>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent style={{ zIndex: 10000 }}>
+                          <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
+                          <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                }
-                rules={[{ required: true, message: 'SQL query is required' }]}
-              >
-                <TextArea
-                  rows={8}
-                  placeholder="SELECT category, value FROM dataset WHERE date >= :startDate..."
-                  style={{ 
-                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", Consolas, "Courier New", monospace',
-                    fontSize: '13px',
-                    lineHeight: '1.4',
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #d9d9d9',
-                    borderRadius: '6px',
-                    padding: '8px 12px'
-                  }}
-                  className="gba:resize-y"
-                />
-              </Form.Item>
-            </Form>
 
-            <Divider />
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                    <div style={{ 
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--spacing-2)'
+                    }}>
+                      <Label>Status *</Label>
+                      <Select value={formValues.status} onValueChange={(value) => handleInputChange('status', value)}>
+                        <SelectTrigger style={{ width: '200px' }}>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent style={{ zIndex: 10000 }}>
+                          <SelectItem value={QueryStatus.DRAFT}>Draft</SelectItem>
+                          <SelectItem value={QueryStatus.ACTIVE}>Active</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-            {/* Parameters Section */}
-            <Card 
-              title="Parameters" 
-              size="small"
-              extra={
-                <Button 
-                  type="dashed" 
-                  icon={<PlusOutlined />} 
-                  onClick={addParameter}
-                  data-testid="add-parameter-button"
-                >
-                  Add Parameter
-                </Button>
-              }
-            >
-              {parameters.length === 0 ? (
-                <Text type="secondary">No parameters defined</Text>
-              ) : (
-                <div className="gba:space-y-3">
-                  {parameters.map((param, index) => (
-                    <Card key={index} size="small" className="gba:bg-gray-50">
-                      <Row gutter={8} align="middle">
-                        <Col span={4}>
-                          <Input
-                            placeholder="Name"
-                            value={param.name}
-                            onChange={(e) => updateParameter(index, 'name', e.target.value)}
-                            data-testid={`param-name-${index}`}
-                          />
-                        </Col>
-                        <Col span={3}>
-                          <Select
-                            placeholder="Type"
-                            value={param.type}
-                            onChange={(value) => updateParameter(index, 'type', value)}
-                            style={{ width: '100%' }}
-                            data-testid={`param-type-${index}`}
-                          >
-                            {Object.values(ParameterType).map(type => (
-                              <Option key={type} value={type}>{type}</Option>
-                            ))}
-                          </Select>
-                        </Col>
-                        <Col span={6}>
-                          <Input
-                            placeholder="Description"
-                            value={param.description}
-                            onChange={(e) => updateParameter(index, 'description', e.target.value)}
-                            data-testid={`param-description-${index}`}
-                          />
-                        </Col>
-                        <Col span={3}>
-                          <Input
-                            placeholder="Default"
-                            value={param.defaultValue || ''}
-                            onChange={(e) => updateParameter(index, 'defaultValue', e.target.value)}
-                            data-testid={`param-default-${index}`}
-                          />
-                        </Col>
-                        <Col span={4}>
-                          <Input
-                            placeholder="Allowed values (comma-separated)"
-                            value={param.allowedValues?.join(',') || ''}
-                            onChange={(e) => updateParameter(index, 'allowedValues', 
-                              e.target.value ? e.target.value.split(',').map(v => v.trim()) : null
-                            )}
-                            data-testid={`param-allowed-${index}`}
-                          />
-                        </Col>
-                        <Col span={2}>
-                          <Space>
-                            <Tag color={param.required ? 'red' : 'default'}>
-                              {param.required ? 'Required' : 'Optional'}
-                            </Tag>
-                          </Space>
-                        </Col>
-                        <Col span={2}>
-                          <Button
-                            icon={<DeleteOutlined />}
-                            size="small"
-                            danger
-                            onClick={() => removeParameter(index)}
-                            data-testid={`remove-param-${index}`}
-                          />
-                        </Col>
-                      </Row>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </Card>
+                  <div style={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-2)'
+                  }}>
+                    <Label>Description *</Label>
+                    <Textarea
+                      value={formValues.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      placeholder="Describe what this query does..."
+                      rows={3}
+                      style={errors.description ? { borderColor: 'var(--color-destructive)' } : {}}
+                    />
+                    {errors.description && (
+                      <p className="gba:text-sm" style={{ 
+                        color: 'var(--color-destructive)',
+                        margin: 'var(--spacing-0)'
+                      }}>
+                        {errors.description}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Additional Columns Section */}
-            <Card 
-              title="Additional Columns" 
-              size="small"
-              extra={
-                <Button 
-                  type="dashed" 
-                  icon={<PlusOutlined />} 
-                  onClick={addAdditionalColumn}
-                  data-testid="add-column-button"
-                >
-                  Add Column
-                </Button>
-              }
-            >
-              {additionalColumns.length === 0 ? (
-                <Text type="secondary">No additional columns defined</Text>
-              ) : (
-                <div className="gba:space-y-3">
-                  {additionalColumns.map((column, index) => (
-                    <Row key={index} gutter={8} align="middle">
-                      <Col span={10}>
-                        <Input
-                          placeholder="Column Name"
-                          value={column.name}
-                          onChange={(e) => updateAdditionalColumn(index, 'name', e.target.value)}
-                          data-testid={`column-name-${index}`}
-                        />
-                      </Col>
-                      <Col span={10}>
-                        <Input
-                          placeholder="Column Type"
-                          value={column.type}
-                          onChange={(e) => updateAdditionalColumn(index, 'type', e.target.value)}
-                          data-testid={`column-type-${index}`}
-                        />
-                      </Col>
-                      <Col span={4}>
-                        <Button
-                          icon={<DeleteOutlined />}
-                          size="small"
-                          danger
-                          onClick={() => removeAdditionalColumn(index)}
-                          data-testid={`remove-column-${index}`}
-                        />
-                      </Col>
-                    </Row>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </>
-        )}
+              {/* SQL Query */}
+              <Card>
+                <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between" style={{ rowGap: '0' }}>
+                  <CardTitle>SQL Query</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFormatSQL}
+                    className="gba:flex gba:items-center"
+                    style={{ gap: 'var(--spacing-2)' }}
+                  >
+                    <PaintBrushIcon />
+                    Format SQL
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div style={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-2)'
+                  }}>
+                    <Textarea
+                      value={formValues.query}
+                      onChange={(e) => handleInputChange('query', e.target.value)}
+                      placeholder="Enter your SQL query..."
+                      rows={12}
+                      style={errors.query ? { borderColor: 'var(--color-destructive)' } : {}}
+                    />
+                    {errors.query && (
+                      <p className="gba:text-sm" style={{ 
+                        color: 'var(--color-destructive)',
+                        margin: 'var(--spacing-0)'
+                      }}>
+                        {errors.query}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Footer Actions */}
-        <div className="gba:flex gba:justify-end gba:space-x-2 gba:pt-4">
-          <Button 
-            onClick={onCancel}
-            icon={<CloseOutlined />}
-            data-testid="cancel-form-button"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="primary"
-            onClick={handleSave}
-            loading={isLoading}
-            icon={<SaveOutlined />}
-            disabled={isJsonMode && !!jsonError}
-            data-testid="save-query-button"
-          >
-            {isEditing ? 'Update Query' : 'Create Query'}
-          </Button>
+              {/* Query Parameters */}
+              <Card>
+                <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between" style={{ rowGap: '0' }}>
+                  <CardTitle>Query Parameters</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={addParameter}
+                    className="gba:flex gba:items-center"
+                    style={{ gap: 'var(--spacing-2)' }}
+                  >
+                    <PlusIcon />
+                    Add Parameter
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div style={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-4)'
+                  }}>
+                    <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--spacing-4)' }}>
+                      <p style={{ 
+                        color: 'var(--color-muted-foreground)',
+                        fontSize: '0.875rem',
+                        margin: 'var(--spacing-0)'
+                      }}>
+                        Define parameters that can be passed to your query at execution time.
+                      </p>
+                    </div>
+
+                    {parameters.length === 0 ? (
+                      <p className="gba:text-center" style={{ 
+                        color: 'var(--color-muted-foreground)',
+                        margin: 'var(--spacing-0)'
+                      }}>
+                        No parameters defined. Click "Add Parameter" to create one.
+                      </p>
+                    ) : (
+                      <div style={{ 
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 'var(--spacing-4)'
+                      }}>
+                        {parameters.map((param, index) => (
+                          <div key={index} className="gba:border gba:rounded-md" style={{ padding: 'var(--spacing-4)' }}>
+                            <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--spacing-4)' }}>
+                              <h4 className="gba:font-medium" style={{ margin: 'var(--spacing-0)' }}>
+                                Parameter {index + 1}
+                              </h4>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeParameter(index)}
+                                className="gba:flex gba:items-center"
+                                style={{ gap: 'var(--spacing-1)' }}
+                              >
+                                <TrashIcon />
+                                Remove
+                              </Button>
+                            </div>
+                            
+                            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                              <div style={{ 
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 'var(--spacing-2)'
+                              }}>
+                                <Label>Name *</Label>
+                                <Input
+                                  value={param.name}
+                                  onChange={(e) => updateParameter(index, 'name', e.target.value)}
+                                  placeholder="Parameter name"
+                                />
+                              </div>
+                              <div style={{ 
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 'var(--spacing-2)'
+                              }}>
+                                <Label>Type *</Label>
+                                <Select value={param.type} onValueChange={(value) => updateParameter(index, 'type', value)}>
+                                  <SelectTrigger style={{ width: '200px' }}>
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
+                                  <SelectContent style={{ zIndex: 10000 }}>
+                                    <SelectItem value="string">String</SelectItem>
+                                    <SelectItem value="number">Number</SelectItem>
+                                    <SelectItem value="boolean">Boolean</SelectItem>
+                                    <SelectItem value="date">Date</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div style={{ 
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 'var(--spacing-2)',
+                              marginTop: 'var(--spacing-4)'
+                            }}>
+                              <Label>Description</Label>
+                              <Input
+                                value={param.description || ''}
+                                onChange={(e) => updateParameter(index, 'description', e.target.value)}
+                                placeholder="Parameter description"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
-      </div>
-    </Modal>
+
+        <DialogFooter>
+          <div className="gba:flex gba:justify-end" style={{ gap: 'var(--spacing-2)' }}>
+            <Button variant="outline" onClick={onCancel}>
+              <XIcon style={{ marginRight: 'var(--spacing-2)' }} />
+              Cancel
+            </Button>
+            <Button variant="default" onClick={handleSave} disabled={isLoading}>
+              <FloppyDiskIcon style={{ marginRight: 'var(--spacing-2)' }} />
+              {isLoading ? 'Saving...' : (isEditing ? 'Update Query' : 'Create Query')}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }; 

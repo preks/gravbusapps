@@ -19,7 +19,7 @@ This project (`gravity-business-apps`) depends on several published packages tha
 - **Purpose**: Ensures proper design token usage, prevents hardcoded values and Tailwind bypasses
 
 ### Automatic Detection Triggers:
-The MCP server automatically detects and enforces design system compliance when you:
+The MCP server automatically detects and enforces design system compliance and makes sure that used components matches the design system implementation when you:
 1. **Import from @newwork/nw-design-system**: Any component import triggers design token enforcement
 2. **Mention component names**: LauncherLayout, Button, Card, Header, Layout, Page, Modal, Form, Input, Select
 3. **Work with .tsx/.ts files**: All React component files in gravity-business-apps
