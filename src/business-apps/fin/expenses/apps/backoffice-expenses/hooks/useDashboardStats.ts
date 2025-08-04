@@ -7,7 +7,6 @@ import { useState, useEffect, useCallback } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import {
-  GET_EXPENSE_PLAN_YEARLY_TOTAL,
   GET_MONTHLY_SPEND_COMPARISON,
   GET_SPEND_COMPARISON_YEARLY,
   GET_SPEND_COMPARISON_QUARTERLY,
@@ -25,6 +24,9 @@ import {
   GET_TOTAL_COMPANY_SPEND_QUARTERLY,
   GET_TOTAL_COMPANY_SPEND_YEARLY,
   GET_MONTHLY_EXPENSE_TRENDS,
+  GET_ACTUAL_VS_PLANNED_YEARLY,
+  GET_ACTUAL_VS_PLANNED_QUARTERLY,
+  GET_ACTUAL_VS_PLANNED_MONTHLY,
 } from "../queries/expenseDashboard.queries";
 import { DashboardStats } from "../types";
 
@@ -46,12 +48,15 @@ export const useDashboardStats = ({
   };
 }): UseDashboardStatsResult => {
   const [stats, setStats] = useState<DashboardStats>({
-    expensePlanYearly: { totalAmount: 0, count: 0 },
     ytdStats: {
       totalAmount: 0,
       count: 0,
       previousTotalAmount: 0,
       previousCount: 0,
+    },
+    actualVsPlanned: {
+      actualExpenses: { totalAmount: 0, count: 0 },
+      plannedExpenses: { totalAmount: 0, count: 0 },
     },
     monthlyTrends: Array.from({ length: 12 }).map((_, i) => ({
       month: i + 1,
@@ -284,10 +289,10 @@ export const useDashboardStats = ({
       const cacheKey = `currency-${selectedCurrency}`;
       const cachedData = currencyCache.get(cacheKey);
 
-      let expensePlanResponse: any = null,
-        monthlyStatsResponse: any = null,
+      let monthlyStatsResponse: any = null,
         ytdStatsResponse: any = null,
-        additionalMetricsResponse: any = null;
+        additionalMetricsResponse: any = null,
+        actualVsPlannedResponse: any = null;
 
       if (isCurrencyOnlyUpdate) {
         if (cachedData) {
@@ -470,23 +475,16 @@ export const useDashboardStats = ({
         }
 
         // Use existing stats for non-currency-dependent data
-        expensePlanResponse = null;
         monthlyStatsResponse = null;
         ytdStatsResponse = null;
       } else {
         // Full dashboard refresh
         [
-          expensePlanResponse,
           monthlyStatsResponse,
           ytdStatsResponse,
           additionalMetricsResponse,
+          actualVsPlannedResponse,
         ] = await Promise.all([
-          client.request(GET_EXPENSE_PLAN_YEARLY_TOTAL, {
-            startOfYear,
-            endOfYear,
-            startOfYearTs,
-            endOfYearTs,
-          }),
           // Get spend comparison based on period
           (async () => {
             if (filters.period === "yearly") {
@@ -552,6 +550,29 @@ export const useDashboardStats = ({
                   currentMonthEnd: currentMonthEnd,
                 }
               );
+            }
+          })(),
+          // Get actual vs planned based on period
+          (async () => {
+            if (filters.period === "yearly") {
+              return await client.request(GET_ACTUAL_VS_PLANNED_YEARLY, {
+                selectedCurrency: selectedCurrency,
+                yearStart: startOfYear,
+                yearEnd: currentYearEnd,
+              });
+            } else if (filters.period === "quarterly") {
+              return await client.request(GET_ACTUAL_VS_PLANNED_QUARTERLY, {
+                selectedCurrency: selectedCurrency,
+                quarterStart: quarterStart,
+                quarterEnd: quarterEnd,
+              });
+            } else {
+              // monthly (default)
+              return await client.request(GET_ACTUAL_VS_PLANNED_MONTHLY, {
+                selectedCurrency: selectedCurrency,
+                monthStart: currentMonthStart,
+                monthEnd: currentMonthEnd,
+              });
             }
           })(),
         ]);
@@ -762,14 +783,26 @@ export const useDashboardStats = ({
               percentChange: 0, // Will be calculated below
               isIncrease: false, // Will be calculated below
             },
+            actualVsPlanned: {
+              actualExpenses: {
+                totalAmount:
+                  additionalMetricsResponse?.actualVsPlanned?.actualExpenses
+                    ?.aggregate?.sum?.totalAmount || 0,
+                count:
+                  additionalMetricsResponse?.actualVsPlanned?.actualExpenses
+                    ?.aggregate?.count || 0,
+              },
+              plannedExpenses: {
+                totalAmount:
+                  additionalMetricsResponse?.actualVsPlanned?.plannedExpenses
+                    ?.aggregate?.sum?.totalAmount || 0,
+                count:
+                  additionalMetricsResponse?.actualVsPlanned?.plannedExpenses
+                    ?.aggregate?.count || 0,
+              },
+            },
           }
         : {
-            expensePlanYearly: {
-              totalAmount:
-                expensePlanResponse?.ExpensePlanAggregate?.aggregate?.sum
-                  ?.totalAmount || 0,
-              count: expensePlanResponse?.ExpensePlan?.length || 0,
-            },
             ytdStats: {
               totalAmount:
                 ytdStatsResponse?.currentYearExpenses?.aggregate?.sum
@@ -862,6 +895,24 @@ export const useDashboardStats = ({
               percentChange: 0, // Will be calculated below
               isIncrease: false, // Will be calculated below
             },
+            actualVsPlanned: {
+              actualExpenses: {
+                totalAmount:
+                  actualVsPlannedResponse?.actualExpenses?.aggregate?.sum
+                    ?.totalAmount || 0,
+                count:
+                  actualVsPlannedResponse?.actualExpenses?.aggregate?.count ||
+                  0,
+              },
+              plannedExpenses: {
+                totalAmount:
+                  actualVsPlannedResponse?.plannedExpenses?.aggregate?.sum
+                    ?.totalAmount || 0,
+                count:
+                  actualVsPlannedResponse?.plannedExpenses?.aggregate?.count ||
+                  0,
+              },
+            },
           };
 
       if (!isCurrencyOnlyUpdate) {
@@ -888,6 +939,21 @@ export const useDashboardStats = ({
             100;
           processedStats.totalCompanySpend.isIncrease =
             currentCompanyTotal > previousCompanyTotal;
+        }
+
+        const currentActualVsPlannedTotal =
+          processedStats.actualVsPlanned.actualExpenses.totalAmount;
+        const previousActualVsPlannedTotal =
+          processedStats.actualVsPlanned.plannedExpenses.totalAmount;
+
+        if (previousActualVsPlannedTotal > 0) {
+          // Calculate percentage difference between actual and planned
+          const percentDifference =
+            ((currentActualVsPlannedTotal - previousActualVsPlannedTotal) /
+              previousActualVsPlannedTotal) *
+            100;
+          // Note: We don't store percentChange and isIncrease in ActualVsPlannedData type
+          // These calculations would need to be done in the component if needed
         }
       }
 

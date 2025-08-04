@@ -106,57 +106,44 @@ export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
   }
 `;
 
-export const GET_EXPENSE_PLAN_YEARLY_TOTAL = `
-  query GetExpensePlanYearlyTotal($startOfYear: timestamp!, $endOfYear: timestamp!, $startOfYearTs: timestamptz!, $endOfYearTs: timestamptz!) {
-    ExpensePlan(where: {
-      _and: [
-        { currencyRef: { _eq: "Currency:v1:EUR" } },
-        { totalAmount: { _isNull: false } },
-        { status: { _nin: ["CREATED", "DISCARDED"] } },
-        {
-          _or: [
-            { startDate: { _gte: $startOfYear, _lte: $endOfYear } },
-            { endDate: { _gte: $startOfYear, _lte: $endOfYear } },
-            {
-              _and: [
-                { startDate: { _lte: $startOfYear } },
-                { endDate: { _gte: $endOfYear } }
-              ]
-            },
-            {
-              _and: [
-                { startDate: { _isNull: true } },
-                { endDate: { _isNull: true } },
-                { createdAt: { _gte: $startOfYearTs, _lte: $endOfYearTs } }
-              ]
-            }
-          ]
-        }
-      ]
-    }) {
-      id
-    }
-    ExpensePlanAggregate(
+export const GET_ACTUAL_VS_PLANNED_YEARLY = `
+  query GetActualVsPlannedYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
+    actualExpenses: ExpenseRequestAggregate(
       where: {
         _and: [
-          { currencyRef: { _eq: "Currency:v1:EUR" } },
-          { totalAmount: { _isNull: false } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { requestDate: { _gte: $yearStart, _lte: $yearEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
           { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
           {
             _or: [
-              { startDate: { _gte: $startOfYear, _lte: $endOfYear } },
-              { endDate: { _gte: $startOfYear, _lte: $endOfYear } },
+              { startDate: { _gte: $yearStart, _lte: $yearEnd } },
+              { endDate: { _gte: $yearStart, _lte: $yearEnd } },
               {
                 _and: [
-                  { startDate: { _lte: $startOfYear } },
-                  { endDate: { _gte: $endOfYear } }
+                  { startDate: { _lte: $yearStart } },
+                  { endDate: { _gte: $yearEnd } }
                 ]
               },
               {
                 _and: [
                   { startDate: { _isNull: true } },
                   { endDate: { _isNull: true } },
-                  { createdAt: { _gte: $startOfYearTs, _lte: $endOfYearTs } }
+                  { planDate: { _gte: $yearStart, _lte: $yearEnd } }
                 ]
               }
             ]
@@ -165,10 +152,114 @@ export const GET_EXPENSE_PLAN_YEARLY_TOTAL = `
       }
     ) {
       aggregate {
+        sum { totalAmount }
         count
-        sum {
-          totalAmount
-        }
+      }
+    }
+  }
+`;
+
+export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
+  query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    actualExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          {
+            _or: [
+              { startDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+              { endDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+              {
+                _and: [
+                  { startDate: { _lte: $quarterStart } },
+                  { endDate: { _gte: $quarterEnd } }
+                ]
+              },
+              {
+                _and: [
+                  { startDate: { _isNull: true } },
+                  { endDate: { _isNull: true } },
+                  { planDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+  }
+`;
+
+export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
+  query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
+    actualExpenses: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { requestDate: { _gte: $monthStart, _lte: $monthEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          {
+            _or: [
+              { startDate: { _gte: $monthStart, _lte: $monthEnd } },
+              { endDate: { _gte: $monthStart, _lte: $monthEnd } },
+              {
+                _and: [
+                  { startDate: { _lte: $monthStart } },
+                  { endDate: { _gte: $monthEnd } }
+                ]
+              },
+              {
+                _and: [
+                  { startDate: { _isNull: true } },
+                  { endDate: { _isNull: true } },
+                  { planDate: { _gte: $monthStart, _lte: $monthEnd } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
       }
     }
   }

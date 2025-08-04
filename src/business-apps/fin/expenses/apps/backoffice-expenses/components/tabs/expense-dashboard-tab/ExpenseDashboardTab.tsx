@@ -144,19 +144,36 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     });
 
     // 2. Actual vs Planned Card
-    const actualVsPlanned = stats.ytdStats.totalAmount;
-    const plannedAmount = stats.expensePlanYearly.totalAmount;
+    const actualVsPlannedData = stats.actualVsPlanned;
+    const actualAmount = actualVsPlannedData.actualExpenses.totalAmount;
+    const plannedAmount = actualVsPlannedData.plannedExpenses.totalAmount;
+    const actualCount = actualVsPlannedData.actualExpenses.count;
+    const plannedCount = actualVsPlannedData.plannedExpenses.count;
+    
     const actualVsPlannedPercentage = plannedAmount > 0 
-      ? ((actualVsPlanned / plannedAmount) * 100) 
+      ? ((actualAmount / plannedAmount) * 100) 
       : 0;
+    
+    const getActualVsPlannedTitle = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Actual vs Planned ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        case 'quarterly':
+          const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+          return `Actual vs Planned Q${currentQuarter} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        default:
+          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+          return `Actual vs Planned ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+      }
+    };
     
     cards.push({
       id: 'actual-vs-planned',
-      title: 'Actual vs Planned',
+      title: getActualVsPlannedTitle(),
       value: actualVsPlannedPercentage.toFixed(1),
       suffix: '%',
       decimalPlaces: 1,
-      footer: `Actual: ${formatCurrency(actualVsPlanned)} | Planned: ${formatCurrency(plannedAmount)}`,
+      footer: `Planned: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} plans) | Actual: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} expenses)`,
       trend: {
         value: actualVsPlannedPercentage.toFixed(1),
         positive: actualVsPlannedPercentage <= 100,

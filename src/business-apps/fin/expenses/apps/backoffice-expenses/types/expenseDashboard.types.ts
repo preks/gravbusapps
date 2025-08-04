@@ -2,18 +2,24 @@
  * This file contains all the type definitions for the expense dashboard.
  */
 
-// Data structure for the yearly expense plan stats
-export interface ExpensePlanYearly {
-  totalAmount: number;
-  count: number;
-}
-
 // Data structure for Year-to-Date (YTD) stats
 export interface YTDStats {
   totalAmount: number;
   count: number;
   previousTotalAmount: number;
   previousCount: number;
+}
+
+// Data structure for actual vs planned comparison
+export interface ActualVsPlannedData {
+  actualExpenses: {
+    totalAmount: number;
+    count: number;
+  };
+  plannedExpenses: {
+    totalAmount: number;
+    count: number;
+  };
 }
 
 // Data structure for a single month's expense trend data
@@ -52,8 +58,8 @@ export interface TotalCompanySpendComparison {
 
 // The comprehensive data structure for all dashboard stats
 export interface DashboardStats {
-  expensePlanYearly: ExpensePlanYearly;
   ytdStats: YTDStats;
+  actualVsPlanned: ActualVsPlannedData;
   monthlyTrends: MonthlyExpenseTrend[];
   monthlySpendComparison: MonthlySpendComparison;
   transferRequired: number;
