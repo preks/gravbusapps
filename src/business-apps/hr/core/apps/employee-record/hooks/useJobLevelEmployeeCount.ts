@@ -9,12 +9,6 @@ const GET_JOB_LEVEL_EMPLOYEE_COUNT = /*sql*/`
         count
       }
     }
-    EmployeePosition(where: {jobPosition: {jobLevel: {name: {_eq: $jobLevelName}}}}) {
-      employee {
-        id
-        displayName
-      }
-    }
   }
 `;
 
@@ -25,12 +19,6 @@ interface JobLevelEmployeeCountResponse {
       count: number;
     };
   };
-  EmployeePosition: {
-    employee: {
-      id: string;
-      displayName: string;
-    };
-  }[];
 }
 
 interface UseJobLevelEmployeeCountResult {

@@ -131,8 +131,7 @@ export const getJobFamilyTitle = (employee: Employee) => {
   const jobPosition = employee.employeePosition?.jobPosition as JobPosition;
   const jobFamily = jobPosition?.jobFunction?.jobFamily?.value;
   
-  // For backward compatibility, also check organizationalUnit
-  return jobFamily || employee.employeePosition?.organizationalUnit?.name || "Not assigned";
+  return jobFamily || "Not assigned";
 };
 
 export default JobFamilyDrawerContent;

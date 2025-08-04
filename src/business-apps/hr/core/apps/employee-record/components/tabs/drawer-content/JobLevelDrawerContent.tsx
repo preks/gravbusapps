@@ -69,6 +69,6 @@ const JobLevelDrawerContent: React.FC<JobLevelDrawerContentProps> = ({ employee,
 export const getJobLevelIcon = () => <PiListNumbers className="gba:h-5 gba:w-5" />;
 
 // Export the title to use for the drawer
-export const getJobLevelTitle = (employee: Employee) => employee?.employeePosition?.jobPosition?.jobLevel?.name || "N/A";
+export const getJobLevelTitle = (employee: Employee) => employee?.employeePosition?.jobPosition?.jobLevel?.name || "Not assigned";
 
 export default JobLevelDrawerContent;

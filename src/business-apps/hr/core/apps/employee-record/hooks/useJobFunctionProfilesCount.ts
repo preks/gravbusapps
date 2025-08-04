@@ -60,9 +60,7 @@ export const useJobFunctionProfilesCount = (
   accessToken: string, 
   jobFunctionName: string
 ): UseJobFunctionProfilesCountResult => {
-  jobFunctionName = 'Product Management'
   const [profilesCount, setProfilesCount] = useState<number | null>(null);
-  console.log("🚀 ~ useJobFunctionProfilesCount ~ profilesCount:", profilesCount)
   const [profileExamples, setProfileExamples] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);

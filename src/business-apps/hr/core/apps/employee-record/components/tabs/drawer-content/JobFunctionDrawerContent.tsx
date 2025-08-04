@@ -20,7 +20,7 @@ interface JobFunctionDrawerContentProps {
  */
 const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({ employee, isVisible = false, accessToken }) => {
   // Get the job function name
-  const jobFunctionName = employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned";
+  const jobFunctionName = employee.employeePosition?.jobPosition?.jobFunction?.name || "";
   
   // Fetch the number of employees with the same job function name, only when drawer is visible
   const { 
@@ -96,6 +96,6 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({ emp
 export const getJobFunctionIcon = () => <PiFunction className="gba:h-5 gba:w-5" />;
 
 // Export the title to use for the drawer
-export const getJobFunctionTitle = (employee: Employee) => employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned"
+export const getJobFunctionTitle = (employee: Employee) => employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned";
 
 export default JobFunctionDrawerContent;
