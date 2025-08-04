@@ -82,7 +82,16 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
   };
 
   const renderServiceContent = (service: Services) => (
-    <div className="gba:max-w-6xl gba:mx-auto">
+    <div style={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      paddingTop: 'var(--spacing-4)',
+      paddingBottom: 'var(--spacing-4)',
+      paddingLeft: 'var(--spacing-6)',
+      paddingRight: 'var(--spacing-6)',
+      width: '100%'
+    }}>
       {/* Error Display */}
       {error && (
         <Alert
@@ -114,7 +123,7 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
                 {formatErrorMessage(error)}
               </p>
             </div>
-            <Button size="sm" onClick={refetch} className="gba:shrink-0">
+            <Button size="sm" onClick={refetch} className="gba:shrink-0 gba:min-w-[70px] gba:h-8" style={{ fontSize: '12px', padding: 'var(--spacing-1) var(--spacing-3)' }}>
               Retry
             </Button>
           </div>
@@ -166,34 +175,55 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
           <span style={{ marginLeft: 'var(--spacing-3)' }}>Loading available queries...</span>
         </div>
       ) : (
-        <>
-          {/* Query List */}
-          {queries.length > 0 ? (
-            <QueryList
-              queries={queries}
-              onExecuteQuery={handleExecuteQuery}
-              isExecuting={isExecuting}
-            />
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          minHeight: 0
+        }}>
+          {/* Show QueryResults if available, otherwise show QueryList */}
+          {executionResults ? (
+            <div style={{ 
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
+            }}>
+              <QueryResults
+                results={executionResults}
+                onClear={clearResults}
+              />
+            </div>
           ) : (
-            <Alert
-              variant="default"
-              data-testid="no-queries-alert"
-            >
-              <InfoIcon className="h-4 w-4" />
-              <AlertTitle>No Queries Available</AlertTitle>
-              <AlertDescription>
-                There are no active queries available for execution in {getServiceLabel(service)}.
-                Please contact your administrator to create and activate queries.
-              </AlertDescription>
-            </Alert>
+            // Query List taking full available space
+            queries.length > 0 ? (
+              <div style={{ 
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0
+              }}>
+                <QueryList
+                  queries={queries}
+                  onExecuteQuery={handleExecuteQuery}
+                  isExecuting={isExecuting}
+                />
+              </div>
+            ) : (
+              <Alert
+                variant="default"
+                data-testid="no-queries-alert"
+              >
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>No Queries Available</AlertTitle>
+                <AlertDescription>
+                  There are no active queries available for execution in {getServiceLabel(service)}.
+                  Please contact your administrator to create and activate queries.
+                </AlertDescription>
+              </Alert>
+            )
           )}
-
-          {/* Query Results */}
-          <QueryResults
-            results={executionResults}
-            onClear={clearResults}
-          />
-        </>
+        </div>
       )}
 
       {/* Query Execution Form Modal */}
@@ -218,25 +248,50 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
             onClick={refetch}
             disabled={isLoading}
             data-testid="refresh-queries-button"
-            className="gba:flex gba:items-center"
-            style={{ gap: 'var(--spacing-2)' }}
+            className="gba:flex gba:items-center gba:min-w-[100px] gba:h-9"
+            style={{ 
+              gap: 'var(--spacing-2)',
+              fontSize: '14px',
+              padding: 'var(--spacing-2) var(--spacing-4)'
+            }}
           >
-            <ArrowClockwiseIcon />
+            <ArrowClockwiseIcon size={16} />
             Refresh
           </Button>
         }
         contentContainer={
-          <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full">
-            <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}>
+          <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full" style={{ display: 'flex', flexDirection: 'column' }}>
+            <TabsList style={{ 
+              display: 'inline-flex',
+              flexShrink: 0,
+              width: 'auto'
+            }}>
               {getAllServices().map(service => (
-                <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                  <DatabaseIcon />
+                <TabsTrigger 
+                  key={service} 
+                  value={service} 
+                  className="gba:flex gba:items-center gba:justify-center" 
+                  style={{ 
+                    gap: 'var(--spacing-2)',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    padding: 'var(--spacing-2) var(--spacing-4)',
+                    minWidth: 'auto'
+                  }}
+                >
+                  <DatabaseIcon size={16} />
                   {getServiceLabel(service)}
                 </TabsTrigger>
               ))}
             </TabsList>
             {getAllServices().map(service => (
-              <TabsContent key={service} value={service}>
+              <TabsContent key={service} value={service} style={{ 
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
                 {renderServiceContent(service)}
               </TabsContent>
             ))}

@@ -155,15 +155,24 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   };
 
   const renderQueryTypeContent = () => (
-    <div className="gba:max-w-7xl gba:mx-auto">
+    <div 
+      className="gba:h-full gba:w-full"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        gap: 'var(--spacing-4)'
+      }}
+    >
       {/* Action Error Display - Keep this separate since it's for actions */}
       {actionError && (
         <Alert 
-          className="gba:border-destructive gba:bg-destructive/10"
+          className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
           style={{ marginBottom: 'var(--spacing-4)' }}
           data-testid="action-error-alert"
         >
-          <div className="gba:flex gba:items-start" style={{ gap: 'var(--spacing-3)' }}>
+          <div className="gba:flex gba:items-start gba:w-full" style={{ gap: 'var(--spacing-3)' }}>
             <WarningCircleIcon 
               className="gba:shrink-0" 
               style={{ 
@@ -172,7 +181,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
               }}
               size={20}
             />
-            <div className="gba:flex-1">
+            <div className="gba:flex-1 gba:min-w-0">
               <h4 className="gba:font-semibold gba:text-lg" style={{ 
                 color: 'var(--color-destructive)',
                 margin: 'var(--spacing-0)'
@@ -196,7 +205,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="gba:flex gba:justify-center gba:items-center" style={{ 
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-full" style={{ 
           paddingTop: 'var(--spacing-12)', 
           paddingBottom: 'var(--spacing-12)' 
         }}>
@@ -204,24 +213,26 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
           <span style={{ marginLeft: 'var(--spacing-3)' }}>Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...</span>
         </div>
       ) : (
-        <QueryDefinitionList
-          queries={queries}
-          isLoading={isLoading}
-          isUpdating={isUpdating}
-          isDeleting={isDeleting}
-          totalQueries={totalQueries}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          onEdit={handleEditQuery}
-          onDelete={handleDeleteQuery}
-          onStatusChange={handleToggleQueryStatus}
-          onPageChange={(page, size) => loadQueries(filters, page - 1, size)}
-          onFilter={handleFiltersChange}
-          onCreateNew={handleCreateQuery}
-          error={error || undefined}
-          onRetry={refetch}
-          formatErrorMessage={formatErrorMessage}
-        />
+        <div className="gba:h-full gba:w-full gba:flex-1 gba:min-h-0">
+          <QueryDefinitionList
+            queries={queries}
+            isLoading={isLoading}
+            isUpdating={isUpdating}
+            isDeleting={isDeleting}
+            totalQueries={totalQueries}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onEdit={handleEditQuery}
+            onDelete={handleDeleteQuery}
+            onStatusChange={handleToggleQueryStatus}
+            onPageChange={(page, size) => loadQueries(filters, page - 1, size)}
+            onFilter={handleFiltersChange}
+            onCreateNew={handleCreateQuery}
+            error={error || undefined}
+            onRetry={refetch}
+            formatErrorMessage={formatErrorMessage}
+          />
+        </div>
       )}
 
       {/* Query Form Modal */}
@@ -238,7 +249,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
 
   const renderServiceContent = (service: Services) => {
     return (
-      <Tabs value={activeQueryType} onValueChange={(value) => setActiveQueryType(value as QueryType)} className="gba:h-full">
+      <Tabs value={activeQueryType} onValueChange={(value) => setActiveQueryType(value as QueryType)} className="gba:h-full gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
           <TabsTrigger value={QueryType.DATASET} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
             <DatabaseIcon />
@@ -249,10 +260,10 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
             Timeseries Queries
           </TabsTrigger>
         </TabsList>
-        <TabsContent value={QueryType.DATASET}>
+        <TabsContent value={QueryType.DATASET} className="gba:h-full gba:w-full">
           {renderQueryTypeContent()}
         </TabsContent>
-        <TabsContent value={QueryType.TIMESERIES}>
+        <TabsContent value={QueryType.TIMESERIES} className="gba:h-full gba:w-full">
           {renderQueryTypeContent()}
         </TabsContent>
       </Tabs>
@@ -268,43 +279,55 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
           <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-3)' }}>
             <Button
               variant="default"
+              size="default"
               onClick={handleCreateQuery}
               data-testid="create-query-button"
-              className="gba:flex gba:items-center"
+              className="gba:flex gba:items-center gba:whitespace-nowrap"
               style={{ gap: 'var(--spacing-2)' }}
             >
-              <PlusIcon />
+              <PlusIcon size={16} />
               Create Query
             </Button>
             <Button
               variant="outline"
+              size="default"
               onClick={refetch}
               disabled={isLoading}
               data-testid="refresh-queries-button"
-              className="gba:flex gba:items-center"
+              className="gba:flex gba:items-center gba:whitespace-nowrap"
               style={{ gap: 'var(--spacing-2)' }}
             >
-              <ArrowClockwiseIcon />
+              <ArrowClockwiseIcon size={16} />
               Refresh
             </Button>
           </div>
         }
         contentContainer={
-          <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full">
-            <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}>
+          <div 
+            className="gba:h-full gba:w-full gba:overflow-auto"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              maxHeight: '100%'
+            }}
+          >
+            <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full gba:w-full">
+              <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}>
+                {getAllServices().map(service => (
+                  <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                    <DatabaseIcon />
+                    {getServiceLabel(service)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
               {getAllServices().map(service => (
-                <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                  <DatabaseIcon />
-                  {getServiceLabel(service)}
-                </TabsTrigger>
+                <TabsContent key={service} value={service} className="gba:h-full gba:w-full">
+                  {renderServiceContent(service)}
+                </TabsContent>
               ))}
-            </TabsList>
-            {getAllServices().map(service => (
-              <TabsContent key={service} value={service}>
-                {renderServiceContent(service)}
-              </TabsContent>
-            ))}
-          </Tabs>
+            </Tabs>
+          </div>
         }
       />
       <Toaster />

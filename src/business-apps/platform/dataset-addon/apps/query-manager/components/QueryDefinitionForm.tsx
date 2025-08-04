@@ -18,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Badge,
   Switch,
   Alert
 } from '@newwork/nw-design-system';
@@ -38,6 +37,12 @@ import {
   QueryParameter,
   AdditionalColumn
 } from '@/common/network/dataset';
+
+// Environment detection utility
+const isLocalEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+};
 
 // Simple SQL formatter function
 const formatSQL = (sql: string): string => {
@@ -98,6 +103,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isEditing = !!query;
+  const isLocal = isLocalEnvironment();
 
   // Format SQL function
   const handleFormatSQL = () => {
@@ -286,12 +292,39 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
     setParameters(updated);
   };
 
+  // Environment-specific dialog content styling
+  const getDialogContentProps = () => {
+    if (isLocal) {
+      // Local environment - use design system defaults
+      return {
+        className: "gba:max-w-[90vw] gba:w-[90vw] gba:max-h-[90vh] gba:overflow-y-auto",
+        style: { 
+          maxWidth: '1200px', 
+          width: '90vw',
+          maxHeight: '90vh'
+        }
+      };
+    } else {
+      // Platform environment - explicit centering
+      return {
+        className: "gba:max-w-[90vw] gba:w-[90vw] gba:max-h-[90vh] gba:overflow-y-auto gba:fixed gba:top-1/2 gba:left-1/2",
+        style: { 
+          maxWidth: '1200px', 
+          width: '90vw',
+          maxHeight: '90vh',
+          position: 'fixed' as const,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 9999
+        }
+      };
+    }
+  };
+
   return (
     <Dialog open={visible} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent 
-        className="gba:max-h-[90vh] gba:overflow-y-auto"
-        style={{ maxWidth: '1200px', width: '90vw' }}
-      >
+      <DialogContent {...getDialogContentProps()}>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
             <FloppyDiskIcon />
@@ -299,11 +332,16 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div style={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--spacing-6)'
-        }}>
+        <div 
+          className="gba:overflow-y-auto"
+          style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-6)',
+            maxHeight: '60vh',
+            overflowY: 'auto'
+          }}
+        >
           {/* Mode Toggle */}
           <Card>
             <CardHeader style={{ paddingBottom: 'var(--spacing-3)' }}>
@@ -317,18 +355,22 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
               gap: 'var(--spacing-4)'
             }}>
               <div className="gba:flex gba:flex-col" style={{ gap: 'var(--spacing-3)' }}>
-                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                  <Label>JSON Mode</Label>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+                  <Label htmlFor="json-mode-switch" style={{ fontWeight: '500' }}>JSON Mode</Label>
                   <Switch 
+                    id="json-mode-switch"
                     checked={isJsonMode} 
                     onCheckedChange={setIsJsonMode}
+                    data-testid="json-mode-switch"
                   />
                 </div>
-                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                  <Label>Validate Query</Label>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+                  <Label htmlFor="validate-query-switch" style={{ fontWeight: '500' }}>Validate Query</Label>
                   <Switch 
+                    id="validate-query-switch"
                     checked={validateQuery} 
                     onCheckedChange={setValidateQuery}
+                    data-testid="validate-query-switch"
                   />
                 </div>
               </div>
@@ -425,7 +467,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                         <SelectTrigger style={{ width: '200px' }}>
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent style={{ zIndex: 10000 }}>
                           <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
                           <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
                         </SelectContent>
@@ -444,7 +486,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                         <SelectTrigger style={{ width: '200px' }}>
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent style={{ zIndex: 10000 }}>
                           <SelectItem value={QueryStatus.DRAFT}>Draft</SelectItem>
                           <SelectItem value={QueryStatus.ACTIVE}>Active</SelectItem>
                         </SelectContent>
@@ -602,7 +644,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                                   <SelectTrigger style={{ width: '200px' }}>
                                     <SelectValue placeholder="Select type" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent style={{ zIndex: 10000 }}>
                                     <SelectItem value="string">String</SelectItem>
                                     <SelectItem value="number">Number</SelectItem>
                                     <SelectItem value="boolean">Boolean</SelectItem>

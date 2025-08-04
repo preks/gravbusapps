@@ -131,44 +131,59 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
 
   return (
     <TooltipProvider>
-      <div style={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--spacing-4)'
-      }}>
+      <div 
+        className="gba:h-full gba:w-full"
+        style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--spacing-4)',
+          height: '100%',
+          width: '100%'
+        }}
+      >
         {/* Error Alert - Outside the list */}
         {error && (
           <Alert 
-            className="gba:border-destructive gba:bg-destructive/10 gba:flex"
+            className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
             style={{ marginBottom: 'var(--spacing-4)' }}
             data-testid="load-error-alert"
           >
-            <div className="gba:flex gba:items-start gba:w-full" style={{ gap: 'var(--spacing-3)' }}>
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'auto auto 1fr auto',
+              alignItems: 'center',
+              width: '100%',
+              gap: 'var(--spacing-3)'
+            }}>
               <WarningCircleIcon 
-                className="gba:shrink-0" 
                 style={{ 
-                  color: 'var(--color-destructive)',
-                  marginTop: 'var(--spacing-1)' 
+                  color: 'var(--color-destructive)'
                 }}
                 size={20}
               />
-              <div className="gba:flex-1 gba:min-w-0" style={{ flex: '1 1 0%' }}>
-                <h4 className="gba:font-semibold gba:text-lg" style={{ 
-                  color: 'var(--color-destructive)',
-                  margin: 'var(--spacing-0)'
-                }}>
-                  Unable to Load Queries
-                </h4>
-                <p className="gba:text-sm" style={{ 
-                  color: 'var(--color-muted-foreground)',
-                  margin: 'var(--spacing-0)',
-                  marginTop: 'var(--spacing-1)'
-                }}>
-                  {formatErrorMessage ? formatErrorMessage(error) : error}
-                </p>
-              </div>
+              <span style={{ 
+                color: 'var(--color-destructive)',
+                fontWeight: '600',
+                whiteSpace: 'nowrap'
+              }}>
+                Unable to Load Queries:
+              </span>
+              <span style={{ 
+                color: 'var(--color-muted-foreground)',
+                fontSize: '14px',
+                whiteSpace: 'nowrap'
+              }}>
+                {formatErrorMessage ? formatErrorMessage(error) : error}
+              </span>
               {onRetry && (
-                <Button size="sm" onClick={onRetry} className="gba:shrink-0" style={{ marginLeft: 'auto' }}>
+                <Button 
+                  size="sm" 
+                  onClick={onRetry}
+                  style={{
+                    justifySelf: 'end',
+                    marginLeft: 'auto'
+                  }}
+                >
                   Retry
                 </Button>
               )}
@@ -176,14 +191,19 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
           </Alert>
         )}
 
-        <Card data-testid="query-definition-list">
-          <CardContent style={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--spacing-6)'
-          }}>
+        <Card data-testid="query-definition-list" className="gba:h-full gba:w-full gba:flex gba:flex-col">
+          <CardContent 
+            className="gba:h-full gba:w-full gba:flex gba:flex-col"
+            style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--spacing-6)',
+              height: '100%',
+              width: '100%'
+            }}
+          >
             {/* Header */}
-            <div className="gba:flex gba:justify-between gba:items-center">
+            <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
               <h4 style={{ 
                 color: 'var(--color-foreground)', 
                 margin: 0,
@@ -192,77 +212,85 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
               }}>
                 Query Definitions ({totalQueries})
               </h4>
-              <Button
-                variant="default"
-                onClick={onCreateNew}
-                data-testid="create-new-query-button"
-                className="gba:flex gba:items-center"
-                style={{ gap: 'var(--spacing-2)' }}
-              >
-                <PlusIcon />
-                Create New Query
-              </Button>
             </div>
 
-            {/* Filters */}
+            {/* Filters and Actions */}
             <div 
-              className="gba:flex gba:flex-wrap gba:items-center gba:justify-end"
+              className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:w-full"
               style={{ 
                 gap: 'var(--spacing-3)'
               }}
             >
-              <Select 
-                value={filters.queryType || ''} 
-                onValueChange={(value) => handleFilterChange('queryType', value || undefined)}
-              >
-                <SelectTrigger data-testid="filter-by-type" className="gba:w-full gba:sm:w-40">
-                  <SelectValue placeholder="Filter by Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
-                  <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="gba:flex gba:flex-wrap gba:items-center" style={{ gap: 'var(--spacing-3)' }}>
+                <Select 
+                  value={filters.queryType || ''} 
+                  onValueChange={(value) => handleFilterChange('queryType', value || undefined)}
+                >
+                  <SelectTrigger data-testid="filter-by-type" className="gba:w-40">
+                    <SelectValue placeholder="Filter by Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
+                    <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Select 
-                value={filters.status || ''} 
-                onValueChange={(value) => handleFilterChange('status', value || undefined)}
-              >
-                <SelectTrigger data-testid="filter-by-status" className="gba:w-full gba:sm:w-40">
-                  <SelectValue placeholder="Filter by Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={QueryStatus.ACTIVE}>Active</SelectItem>
-                  <SelectItem value={QueryStatus.DRAFT}>Draft</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select 
+                  value={filters.status || ''} 
+                  onValueChange={(value) => handleFilterChange('status', value || undefined)}
+                >
+                  <SelectTrigger data-testid="filter-by-status" className="gba:w-40">
+                    <SelectValue placeholder="Filter by Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={QueryStatus.ACTIVE}>Active</SelectItem>
+                    <SelectItem value={QueryStatus.DRAFT}>Draft</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <div className="gba:relative gba:flex-1 gba:min-w-0 gba:sm:min-w-48">
-                <MagnifyingGlassIcon 
-                  className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2" 
-                  style={{ color: 'var(--color-muted-foreground)' }}
-                />
-                <Input
-                  placeholder="Search queries..."
-                  value={filters.search || ''}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  data-testid="search-queries"
-                  style={{ paddingLeft: 'var(--spacing-10)' }}
-                />
+                <div className="gba:relative gba:w-64">
+                  <MagnifyingGlassIcon 
+                    className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none" 
+                    style={{ color: 'var(--color-muted-foreground)' }}
+                    size={16}
+                  />
+                  <Input
+                    placeholder="Search queries..."
+                    value={filters.search || ''}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    data-testid="search-queries"
+                    className="gba:pl-10"
+                    style={{ paddingLeft: 'var(--spacing-10)' }}
+                  />
+                </div>
               </div>
 
-              <Button 
-                variant="outline" 
-                onClick={clearFilters}
-                data-testid="clear-filters-button"
-              >
-                Clear Filters
-              </Button>
+              <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                <Button
+                  variant="default"
+                  onClick={onCreateNew}
+                  data-testid="create-new-query-button"
+                  className="gba:flex gba:items-center gba:whitespace-nowrap"
+                  style={{ gap: 'var(--spacing-2)' }}
+                >
+                  <PlusIcon size={16} />
+                  Create New Query
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={clearFilters}
+                  data-testid="clear-filters-button"
+                  className="gba:flex gba:items-center gba:whitespace-nowrap"
+                  style={{ gap: 'var(--spacing-2)' }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
             </div>
 
           {/* Table */}
-          <div className="gba:border gba:rounded-md">
-            <Table data-testid="query-definitions-table">
+          <div className="gba:border gba:rounded-md gba:flex-1 gba:min-h-0 gba:overflow-auto gba:w-full">
+            <Table data-testid="query-definitions-table" className="gba:w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="gba:w-[300px]">Name</TableHead>

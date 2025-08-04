@@ -44,24 +44,44 @@ export const QueryList: React.FC<QueryListProps> = ({
       <div data-testid="query-executor-query-list" style={{ 
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--spacing-4)'
+        height: '100%',
+        minHeight: 0
       }}>
         <h4 className="gba:text-xl gba:font-semibold" style={{
           color: 'var(--color-foreground)',
-          margin: '0 0 var(--spacing-4) 0'
+          margin: '0 0 var(--spacing-4) 0',
+          flexShrink: 0
         }}>
           Available Queries ({queries.length})
         </h4>
-
-        {queries.map((query) => (
+        
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          paddingRight: 'var(--spacing-2)', // Account for scrollbar
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--spacing-4)'
+        }}>
+          {queries.map((query) => (
           <Card
             key={query.id || query.name}
             data-testid={`query-card-${query.name}`}
             style={{ marginBottom: 'var(--spacing-4)' }}
           >
-            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0" style={{ paddingBottom: 'var(--spacing-4)' }}>
-              <CardTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                <span className="gba:font-bold">{query.name}</span>
+            <CardHeader style={{ 
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 'var(--spacing-4)',
+              gap: 'var(--spacing-4)'
+            }}>
+              <CardTitle className="gba:flex gba:items-center gba:flex-1" style={{ 
+                gap: 'var(--spacing-2)',
+                minWidth: 0 /* Allow title to shrink */
+              }}>
+                <span className="gba:font-bold gba:truncate">{query.name}</span>
                 <Badge variant={getQueryTypeVariant(query.queryType)}>
                   {query.queryType}
                 </Badge>
@@ -75,17 +95,19 @@ export const QueryList: React.FC<QueryListProps> = ({
                   {query.status}
                 </Badge>
               </CardTitle>
-              <Button
-                variant="default"
-                onClick={() => onExecuteQuery(query)}
-                disabled={isExecuting}
-                data-testid={`execute-button-${query.name}`}
-                className="gba:flex gba:items-center"
-                style={{ gap: 'var(--spacing-2)' }}
-              >
-                <PlayCircleIcon />
-                Execute
-              </Button>
+              <div style={{ flexShrink: 0 }}>
+                <Button
+                  variant="default"
+                  onClick={() => onExecuteQuery(query)}
+                  disabled={isExecuting}
+                  data-testid={`execute-button-${query.name}`}
+                  className="gba:flex gba:items-center"
+                  style={{ gap: 'var(--spacing-2)' }}
+                >
+                  <PlayCircleIcon size={16} />
+                  Execute
+                </Button>
+              </div>
             </CardHeader>
 
             <CardContent style={{ 
@@ -144,6 +166,7 @@ export const QueryList: React.FC<QueryListProps> = ({
             </CardContent>
           </Card>
         ))}
+        </div>
       </div>
     </TooltipProvider>
   );

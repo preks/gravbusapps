@@ -39,6 +39,19 @@ export const QueryExecutionForm: React.FC<QueryExecutionFormProps> = ({
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const isPlatformEnvironment = typeof window !== 'undefined' && 
+    !window.location.href.includes('localhost');
+
+  // Platform-specific positioning styles
+  const platformModalStyles = isPlatformEnvironment ? {
+    position: 'fixed' as const,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 50,
+    margin: 0
+  } : {};
+
   // Initialize form values when query changes
   useEffect(() => {
     if (query) {
@@ -184,7 +197,7 @@ export const QueryExecutionForm: React.FC<QueryExecutionFormProps> = ({
             >
               <SelectValue placeholder={param.description} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent style={{ zIndex: 9999 }}>
               {param.allowedValues?.map((allowedValue: string) => (
                 <SelectItem key={allowedValue} value={allowedValue}>
                   {allowedValue}
@@ -238,96 +251,110 @@ export const QueryExecutionForm: React.FC<QueryExecutionFormProps> = ({
 
   return (
     <Dialog open={visible} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="gba:max-w-[600px]" data-testid="query-execution-modal">
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-            <PlayCircleIcon />
-            Execute Query: {query?.name}
-          </DialogTitle>
-          <DialogDescription>
-            <p style={{ 
-              margin: 'var(--spacing-0)', 
-              color: 'var(--color-muted-foreground)' 
-            }}>
-              This query requires parameters. Please provide values below.
-            </p>
-          </DialogDescription>
-        </DialogHeader>
-
-        {query && (
-          <div style={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--spacing-4)'
-          }}>
-            <div>
+      <DialogContent 
+        className="gba:max-w-[600px]" 
+        data-testid="query-execution-modal"
+        style={{
+          ...platformModalStyles,
+          backgroundColor: 'var(--color-background)',
+          borderRadius: 'var(--border-radius-lg)',
+          border: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-lg)'
+        }}
+      >
+          <DialogHeader>
+            <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+              <PlayCircleIcon size={20} />
+              Execute Query: {query?.name}
+            </DialogTitle>
+            <DialogDescription>
               <p style={{ 
                 margin: 'var(--spacing-0)', 
                 color: 'var(--color-muted-foreground)' 
               }}>
-                {query.description}
+                This query requires parameters. Please provide values below.
               </p>
-            </div>
+            </DialogDescription>
+          </DialogHeader>
 
-            <Separator />
-
+          {query && (
             <div style={{ 
               display: 'flex',
               flexDirection: 'column',
               gap: 'var(--spacing-4)'
-            }} data-testid="query-execution-form">
-              {query.parameters.map((param, index) => (
-                <div key={param.name} style={{ 
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--spacing-2)'
+            }}>
+              <div>
+                <p style={{ 
+                  margin: 'var(--spacing-0)', 
+                  color: 'var(--color-muted-foreground)' 
                 }}>
-                  <Label className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
-                    <span className="gba:font-bold">{param.name}</span>
-                    {param.required && <span style={{ color: 'var(--color-destructive)' }}>*</span>}
-                    <span className="gba:text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                      ({param.type})
-                    </span>
-                  </Label>
-                  {renderParameterInput(param)}
-                  {errors[param.name] && (
-                    <p className="gba:text-sm" style={{ 
-                      margin: 'var(--spacing-0)', 
-                      color: 'var(--color-destructive)' 
-                    }}>
-                      {errors[param.name]}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  {query.description}
+                </p>
+              </div>
 
-        <DialogFooter>
-          <div className="gba:flex gba:justify-end" style={{ gap: 'var(--spacing-2)' }}>
-            <Button 
-              variant="outline"
-              onClick={onCancel}
-              className="gba:flex gba:items-center"
-              style={{ gap: 'var(--spacing-2)' }}
-            >
-              <XIcon />
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleExecute}
-              disabled={isExecuting}
-              className="gba:flex gba:items-center"
-              style={{ gap: 'var(--spacing-2)' }}
-            >
-              <PlayCircleIcon />
-              Execute Query
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
+              <Separator />
+
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-4)'
+              }} data-testid="query-execution-form">
+                {query.parameters.map((param) => (
+                  <div key={param.name} style={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-2)'
+                  }}>
+                    <Label className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                      <span className="gba:font-bold">{param.name}</span>
+                      {param.required && <span style={{ color: 'var(--color-destructive)' }}>*</span>}
+                      <span className="gba:text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                        ({param.type})
+                      </span>
+                    </Label>
+                    {renderParameterInput(param)}
+                    {errors[param.name] && (
+                      <p className="gba:text-sm" style={{ 
+                        margin: 'var(--spacing-0)', 
+                        color: 'var(--color-destructive)' 
+                      }}>
+                        {errors[param.name]}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <div className="gba:flex gba:justify-end" style={{ gap: 'var(--spacing-2)' }}>
+              <Button 
+                variant="outline"
+                onClick={onCancel}
+                className="gba:flex gba:items-center gba:min-w-[100px] gba:h-9"
+                style={{ 
+                  gap: 'var(--spacing-2)',
+                  fontSize: '14px',
+                  padding: 'var(--spacing-2) var(--spacing-4)'
+                }}
+              >
+                <XIcon size={16} />
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={handleExecute}
+                disabled={isExecuting}
+                className="gba:flex gba:items-center"
+                style={{ gap: 'var(--spacing-2)' }}
+              >
+                <PlayCircleIcon size={16} />
+                Execute Query
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
     </Dialog>
   );
 }; 
