@@ -45,6 +45,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
   const [, setTravelRegionsData] = useState<any>(null);
   const [, setCostCentersData] = useState<any>(null);
   const [defaultCostCenter, setDefaultCostCenter] = useState<string>("");
+  const [defaultProject, setDefaultProject] = useState<string>("");
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [listDataArray, setListDataArray] = useState<any[]>([]);
   const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({});
@@ -109,8 +110,19 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     const requestProject = expenseRequestData.ExpenseRequestByPk;
     const allowanceData = getAllowanceItemsFunction(expenseRequestData.ExpenseItem);
     const tripData = requestProject.ExpenseItem?.expenseRequestTrip || [];
+    
+    // Set default project if it exists in the expense request
+    if (requestProject.project) {
+      setDefaultProject(requestProject.project.id || "");
+    }
+    
     const processedData = allowanceData.map((element) => {
       let updatedElement = { ...element };
+      
+      // Set default project for all allowances if it exists
+      if (!updatedElement.projectId && requestProject.project) {
+        updatedElement.projectId = requestProject.project.id || "";
+      }
       
       if (!updatedElement.projectId && requestProject && updatedElement.expenseDate && requestProject.validTo && 
           updatedElement.expenseDate <= requestProject.validTo) {
@@ -306,6 +318,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
                 defaultCostCenter={defaultCostCenter}
                 onCostCenterChange={handleCostCenterChange}
                 projects={projects}
+                defaultProject={defaultProject}
                 onProjectChange={handleProjectChange}
               />
             ))}

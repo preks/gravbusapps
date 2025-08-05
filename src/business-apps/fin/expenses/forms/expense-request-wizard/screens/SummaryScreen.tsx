@@ -157,7 +157,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
             </Col>
           </Row>
         </div>
-        
+        {requestData?.expensePlan && (
         <div className="gba:mt-6" data-testid="expense-request-plan-section">
           <span 
             className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
@@ -165,7 +165,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan')}
           </span>
-          {requestData?.expensePlan && (
+          
             <div className="gba:mb-4" data-testid="expense-request-plan-card-container">
               <div className="gba:summary-plan-card-container" data-testid="summary-plan-card-custom-container">
                 <PlanCard 
@@ -188,9 +188,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
                 />
               </div>
             </div>
-          )}
+          
         </div>
-        
+        )}
         <div className="gba:mt-6" data-testid="expense-request-allowances-section">
           <span 
             className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 

@@ -18,6 +18,7 @@ interface AllowanceContainerProps {
   defaultCostCenter?: string;
   onCostCenterChange: (index: number, value: string) => void;
   projects: any[];
+  defaultProject?: string;
   onProjectChange: (index: number, value: string) => void;
 }
 
@@ -33,6 +34,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   defaultCostCenter,
   onCostCenterChange,
   projects,
+  defaultProject,
   onProjectChange
 }) => {
   const dateToDisplay = item.allowanceDate || item.expenseDate;
@@ -115,10 +117,31 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               onProjectChange(index, value?.value);
             }}
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project_placeholder', 'Select Project')}
-            value={item.projectId ? {
-              value: item.projectId,
-              label: projects.find(p => p.id === item.projectId)?.name || item.projectId
-            } : undefined}
+            value={(() => {
+              // Get filtered projects to check if default project exists in available options
+              const filteredProjects = projects.filter((element) => {
+                const costCenter = costCenters.find(cc => cc.id === item.costCenterId);
+                return costCenter && element.structureId === costCenter.structureId && 
+                       (!element.validTo || new Date(element.validTo) > new Date(item.expenseDate || new Date()));
+              });
+              
+              if (item.projectId) {
+                return {
+                  value: item.projectId,
+                  label: projects.find(p => p.id === item.projectId)?.name || item.projectId
+                };
+              } else if (defaultProject) {
+                // Only set default project if it exists in the filtered options
+                const defaultProjectExists = filteredProjects.some(p => p.id === defaultProject);
+                if (defaultProjectExists) {
+                  return {
+                    value: defaultProject,
+                    label: projects.find(p => p.id === defaultProject)?.name || defaultProject
+                  };
+                }
+              }
+              return undefined;
+            })()}
           />
         </div>
       )}

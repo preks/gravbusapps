@@ -188,9 +188,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       }
       
       if (operationSuccessful) {
-        form.resetFields();
+        setTimeout(()=>{
+          form.resetFields();
         setSelectedPlan(null);
         setStep(FORM_STEPS.START);
+        }, 3000)
       }
     } catch (error) {
       showToast(

@@ -74,7 +74,7 @@ export const createTripLogObject = (
       startDate: startTripDateTime || initialRequest.startDate || "",
       endDate: endTripDateTime || initialRequest.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialRequest.version || "",
+      version: initialRequest.version || 0,
       description:initialRequest.description || "",
       costCenter: initialRequest.costCenterId || "",
       employee: initialRequest.employeeId || "",
@@ -559,7 +559,7 @@ export const setLocalitiesDefault = (expenseRequestData: any,
     expenseRequestData: any,
     isTrip:boolean,
     setCurrentScreen: React.Dispatch<React.SetStateAction<string>>)=>{
-    const stepKey = additionalData?.psi_taskPayload.stepKey
+    const stepKey = additionalData?.psi_taskPayload?.stepKey
     if(stepKey){
       if(stepKey.includes(EVENTS.SAVE)){
         switch(stepKey){

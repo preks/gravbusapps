@@ -67,7 +67,7 @@ interface ExpensePlanItemProviderProps {
   children: ReactNode;
   accessToken: string;
   userInfo?: any;
-  additionalData?: { [k: string]: any };
+  additionalData?: any;
 }
 
 export const ExpensePlanItemContext = createContext<

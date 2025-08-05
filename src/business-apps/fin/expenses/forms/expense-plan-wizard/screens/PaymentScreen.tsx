@@ -293,7 +293,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const handleSave = () => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey){
         skipStep = true
       }
       const advanceObject = createAdvanceObject(
@@ -320,7 +320,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const handleNext = () => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey){
         skipStep = true
       }
       const advanceObject = createAdvanceObject(

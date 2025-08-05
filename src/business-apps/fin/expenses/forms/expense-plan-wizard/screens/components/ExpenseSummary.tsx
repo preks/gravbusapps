@@ -124,7 +124,10 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
 
   return (
     <div className="gba:expense-summary-container" data-testid="expense-summary-container">
-      <Divider className="gba:mb-4" data-testid="expense-summary-divider" />
+      {(displayObject.displayExpenses || displayObject.displayNonReimbursable 
+      || displayObject.displayReimbursable || displayObject.displayAdvance) &&
+       (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
+)}
       
       {displayObject.displayExpenses && (
         <>

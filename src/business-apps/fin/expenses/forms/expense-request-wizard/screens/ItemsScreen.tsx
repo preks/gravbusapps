@@ -399,6 +399,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
+      console.log("logObject", logObject);
       dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);

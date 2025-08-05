@@ -95,7 +95,7 @@ export const createItemsScreenLogObject = (
       startDate: initialPlan?.startDate || "",
       endDate: initialPlan?.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialPlan?.version || "",
+      version: initialPlan?.version || 0,
       costCenter: initialPlan?.costCenterId || "",
       employee: initialPlan?.employeeId || "",
       title: currentTitle || initialPlan?.title || "",

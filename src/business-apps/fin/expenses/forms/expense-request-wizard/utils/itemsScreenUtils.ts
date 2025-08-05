@@ -113,7 +113,7 @@ export const createItemsScreenLogObject = (
       startDate: initialRequest?.startDate || "",
       endDate: initialRequest?.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialRequest?.version || "",
+      version: initialRequest?.version || 0,
       costCenter: initialRequest?.costCenterId || "",
       employee: initialRequest?.employeeId || "",
       expensePlan: initialRequest?.expensePlanId || "",
