@@ -6,18 +6,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
+import { useDebounce } from '@/common/hooks/useDebounce';
 
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
 import { 
   Table, 
   TableHeader, 
@@ -90,6 +80,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } = useAdvancePayments(context);
 
+  // Debounced values using useDebounce hook
+  const debouncedSearchText = useDebounce(searchText, 300);
+  const debouncedReporterSearchText = useDebounce(reporterSearchText, 300);
+
   // Navigation handler for plan details
   const handleNavigateToPlanDetails = useCallback((record: any) => {
     if (record.expensePlan?.id) {
@@ -102,11 +96,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // Navigation handler for request details
   const handleNavigateToRequestDetails = useCallback((record: any) => {
-    // Check if expenseRequest is an array and has elements
-    const expenseRequest = Array.isArray(record.expensePlan?.expenseRequest) 
-      ? record.expensePlan.expenseRequest[0] 
-      : record.expensePlan?.expenseRequest;
-    
+    const expenseRequest = record.expenseRequest;
     if (expenseRequest?.id) {
       const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
         expenseRequestId: expenseRequest.id
@@ -115,17 +105,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
   }, []);
 
-  // Debounced search for reporters
-  const debouncedSearchReporters = useMemo(() => 
-    debounce(async (searchTerm: string) => {
-      if (!searchTerm.trim()) {
+  // Handle debounced search for reporters
+  useEffect(() => {
+    const searchReportersDebounced = async () => {
+      if (!debouncedReporterSearchText.trim()) {
         setReporterSearchResults([]);
         return;
       }
       
       setReporterSearchLoading(true);
       try {
-        const results = await searchReporters(searchTerm);
+        const results = await searchReporters(debouncedReporterSearchText);
         setReporterSearchResults(results);
       } catch (error) {
         console.error('Error searching reporters:', error);
@@ -133,22 +123,36 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       } finally {
         setReporterSearchLoading(false);
       }
-    }, 300),
-    [searchReporters]
-  );
+    };
 
-  // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
-  const debouncedFetchPayments = useMemo(() => 
-    debounce((searchTerm: string, page: number, size: number, status?: string, amountMin?: string, amountMax?: string, advanceMin?: string, advanceMax?: string, reporter?: string) => {
-      fetchPayments(searchTerm, page, size, status, amountMin, amountMax, advanceMin, advanceMax, reporter);
-    }, 300),
-    [] // Stable - no dependencies needed as fetchPayments is already stable
-  );
+    searchReportersDebounced();
+  }, [debouncedReporterSearchText, searchReporters]);
 
-  
+  // Handle debounced fetch payments
   useEffect(() => {
-    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
-  }, [debouncedFetchPayments, searchText, currentPage, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
+    fetchPayments(
+      debouncedSearchText, 
+      currentPage, 
+      pageSize, 
+      statusFilter.length > 0 ? statusFilter.join(',') : undefined, 
+      amountMinFilter, 
+      amountMaxFilter, 
+      advanceMinFilter, 
+      advanceMaxFilter, 
+      reporterFilter
+    );
+  }, [
+    debouncedSearchText, 
+    currentPage, 
+    pageSize, 
+    statusFilter, 
+    amountMinFilter, 
+    amountMaxFilter, 
+    advanceMinFilter, 
+    advanceMaxFilter, 
+    reporterFilter, 
+    fetchPayments
+  ]);
 
   // Load available statuses from backend
   useEffect(() => {
@@ -169,21 +173,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (search !== undefined && search !== searchText) {
       setSearchText(search);
       setCurrentPage(1);
-      debouncedFetchPayments(search, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     }
-  }, [search, debouncedFetchPayments, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter]);
+  }, [search, searchText]);
 
-  // Handle search changes with debouncing
+  // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     setCurrentPage(1);
-    debouncedFetchPayments(value, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     
     // Notify parent if callback exists
     if (onSearchChange) {
       onSearchChange(value);
     }
-  }, [onSearchChange, pageSize, statusFilter, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, debouncedFetchPayments]);
+  }, [onSearchChange]);
 
   // Handle clicking outside dropdown to close it
   useEffect(() => {
@@ -500,7 +502,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             onChange={(e) => {
               setReporterSearchText(e.target.value);
               setShowReporterDropdown(true);
-              debouncedSearchReporters(e.target.value);
             }}
             onFocus={() => setShowReporterDropdown(true)}
             className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
@@ -535,7 +536,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       
                       // Reset to page 1 when applying filters to ensure results are visible
                       setCurrentPage(1);
-                      debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, newSelected.join(','));
                     }}
                     data-testid={`reporter-option-${reporter}`}
                   >
@@ -562,7 +562,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, e.target.value, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -577,7 +576,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAmountMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, e.target.value, advanceMinFilter, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -601,7 +599,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMinFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, e.target.value, advanceMaxFilter, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Min"
@@ -616,7 +613,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               onChange={(e) => {
                 setAdvanceMaxFilter(e.target.value);
                 setCurrentPage(1);
-                debouncedFetchPayments(searchText, 1, pageSize, statusFilter.length > 0 ? statusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, e.target.value, reporterFilter);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               placeholder="Max"
@@ -648,9 +644,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       const newStatusFilter = selected ? [...statusFilter, filterId] : statusFilter.filter(status => status !== filterId);
       setStatusFilter(newStatusFilter);
       setCurrentPage(1);
-      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter.length > 0 ? newStatusFilter.join(',') : undefined, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter);
     }
-  }, [availableStatuses, searchText, pageSize, debouncedFetchPayments, amountMinFilter, amountMaxFilter, advanceMinFilter, advanceMaxFilter, reporterFilter, statusFilter]);
+  }, [availableStatuses, statusFilter]);
 
   const setFilters = useCallback((filters: string[]) => {
     // Clear all filters
@@ -662,8 +657,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setAdvanceMinFilter('');
     setAdvanceMaxFilter('');
     setCurrentPage(1);
-    debouncedFetchPayments(searchText, 1, pageSize, undefined, '', '', '', '', '');
-  }, [searchText, pageSize, debouncedFetchPayments]);
+  }, []);
 
   return (
     <>

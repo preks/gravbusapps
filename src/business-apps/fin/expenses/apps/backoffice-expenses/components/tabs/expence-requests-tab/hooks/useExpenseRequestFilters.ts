@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useDebounce } from "@/common/hooks/useDebounce";
 
 interface Employee {
   id: string;
@@ -41,40 +42,37 @@ export const useExpenseRequestFilters = ({
   const [localAmountMin, setLocalAmountMin] = useState(amountMinFilter);
   const [localAmountMax, setLocalAmountMax] = useState(amountMaxFilter);
 
-  // Debounced search function
-  const debouncedSearchEmployees = useMemo(() => {
-    let timeout: NodeJS.Timeout;
-    return async (searchText: string) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(async () => {
-        if (searchText.trim().length >= 2) {
-          setEmployeeSearchLoading(true);
-          try {
-            const results = await searchEmployees(searchText);
-            setEmployeeSearchResults(results);
-          } catch (error) {
-            console.error("Error searching employees:", error);
-            setEmployeeSearchResults([]);
-          } finally {
-            setEmployeeSearchLoading(false);
-          }
-        } else {
-          setEmployeeSearchResults([]);
-        }
-      }, 300);
-    };
-  }, [searchEmployees]);
+  // Debounced values using useDebounce hook
+  const debouncedEmployeeSearchText = useDebounce(employeeSearchText, 300);
+  const debouncedAmountMin = useDebounce(localAmountMin, 500);
+  const debouncedAmountMax = useDebounce(localAmountMax, 500);
 
-  // Debounced amount filter
-  const debouncedAmountFilter = useMemo(() => {
-    let timeout: NodeJS.Timeout;
-    return (min: string, max: string) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        handleAmountFilter(min, max);
-      }, 500);
+  // Handle debounced employee search
+  useEffect(() => {
+    const searchEmployeesDebounced = async () => {
+      if (debouncedEmployeeSearchText.trim().length >= 2) {
+        setEmployeeSearchLoading(true);
+        try {
+          const results = await searchEmployees(debouncedEmployeeSearchText);
+          setEmployeeSearchResults(results);
+        } catch (error) {
+          console.error("Error searching employees:", error);
+          setEmployeeSearchResults([]);
+        } finally {
+          setEmployeeSearchLoading(false);
+        }
+      } else {
+        setEmployeeSearchResults([]);
+      }
     };
-  }, [handleAmountFilter]);
+
+    searchEmployeesDebounced();
+  }, [debouncedEmployeeSearchText, searchEmployees]);
+
+  // Handle debounced amount filter
+  useEffect(() => {
+    handleAmountFilter(debouncedAmountMin, debouncedAmountMax);
+  }, [debouncedAmountMin, debouncedAmountMax, handleAmountFilter]);
 
   // Update local amount filters when props change
   useEffect(() => {
@@ -121,7 +119,7 @@ export const useExpenseRequestFilters = ({
     employeeSearchLoading,
     selectedEmployees,
     setSelectedEmployees,
-    debouncedSearchEmployees,
+    debouncedSearchEmployees: setEmployeeSearchText,
 
     // Status filter
     statusFilter,
@@ -133,7 +131,10 @@ export const useExpenseRequestFilters = ({
     setLocalAmountMin,
     localAmountMax,
     setLocalAmountMax,
-    debouncedAmountFilter,
+    debouncedAmountFilter: (min: string, max: string) => {
+      setLocalAmountMin(min);
+      setLocalAmountMax(max);
+    },
 
     // Clear filters
     clearAllFilters,
