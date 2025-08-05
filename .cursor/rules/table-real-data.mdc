@@ -1,6 +1,4 @@
 ---
-description: When creating table components
-globs: 
 alwaysApply: true
 ---
 - Pagination of Table components should **ALWAYS** trigger a graphql query. So the new data should be query based.
