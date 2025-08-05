@@ -390,7 +390,8 @@ export function AdvancedShowcase() {
               Command Palette
             </h4>
             <Command
-              className="gba:rounded-lg gba:border gba:shadow-md gba:max-w-md"
+              className="gba:rounded-lg gba:border gba:max-w-md"
+              style={{ boxShadow: 'var(--shadow-md)' }}
               data-testid="command"
             >
               <CommandInput placeholder="Type a command or search..." />
