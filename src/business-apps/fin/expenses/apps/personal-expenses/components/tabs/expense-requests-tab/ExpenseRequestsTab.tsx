@@ -1,4 +1,15 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+/**
+ * Dashboard Tab Component for Expense Management Overview
+ * Displays KPIs and statistics for expense management by composing various dashboard cards.
+ */
+
+/**
+ * ExpenseDashboardTab component with integrated filter bar.
+ * Displays KPIs and statistics for expense management by composing various dashboard cards.
+ */
+
+import React, { useState, useMemo } from 'react';
+import { Alert, Spinner, SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
@@ -251,17 +262,57 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       setSortField(sorter.field);
       setSortOrder(sorter.order);
     } else {
-      // Reset to default sorting
-      setSortField('requestDate');
-      setSortOrder('descend');
+      // For non-currency changes, update immediately
+      setCurrentFilters(newFilters);
     }
-  }, []);
+  };
 
-  const handleClearAllFilters = useCallback(() => {
-    clearFilters();
-    setActiveWidget(null);
-    setCurrentPage(1);
-  }, [clearFilters]);
+  if (loading && !isCurrencyLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="gba:mb-4" data-testid="expense-dashboard-error">
+        <div>
+          <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
+          <p className="gba:text-sm gba:mt-1">
+            {error.message || 'An error occurred while loading dashboard data'}
+          </p>
+        </div>
+      </Alert>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid={`${prefixDataTestId}-loading`}>
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
+        <Alert
+          variant="destructive"
+          className="gba:mb-4"
+        >
+          <div>
+            <h4 className="gba:font-semibold">Error Loading Dashboard Data</h4>
+            <p className="gba:text-sm gba:mt-1">
+              An error occurred while loading dashboard data
+            </p>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <ExpenseRequestsTable
@@ -287,4 +338,4 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   );
 };
 
-export default ExpenseRequestsTab;
+export default ExpenseDashboardTab;
