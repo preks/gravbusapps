@@ -1,6 +1,5 @@
 ---
 description: Always use when currencies are required
-globs: 
 alwaysApply: false
 ---
 # Currency Handling Pattern

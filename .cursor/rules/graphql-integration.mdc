@@ -1,6 +1,5 @@
 ---
 description: When working with GraphQL and GraphQL queries
-globs: 
 alwaysApply: false
 ---
 # GraphQL Integration Pattern
