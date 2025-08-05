@@ -1,116 +1,143 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { ArrowDown, ArrowUpRight, DollarSign, TrendingUp, Target, Clock } from "lucide-react";
+import { Spinner, Alert } from "@newwork/nw-design-system";
+import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import {
+  DollarOutlined,
+  RiseOutlined,
+  AimOutlined,
+  AppstoreOutlined,
+} from "@ant-design/icons";
 import { InvestmentMetrics } from "../hooks/useInvestmentDataIntegration";
+import { useInvestmentComparisons } from "../hooks/useInvestmentComparisons";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
-interface MetricsCardsProps {
+interface MetricsCardsProps extends BusinessAppContextProps {
   metrics: InvestmentMetrics | null;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 /**
  * Component displaying key investment metrics cards at the top of the dashboard
  */
-const MetricsCards: React.FC<MetricsCardsProps> = ({ metrics }) => {
-  if (!metrics) {
+const MetricsCards: React.FC<MetricsCardsProps> = ({
+  metrics,
+  isLoading,
+  error,
+  accessToken,
+}) => {
+  // Fetch comparison data for meaningful percentages
+  const comparisons = useInvestmentComparisons(accessToken);
+
+  if (isLoading || comparisons.isLoading) {
     return (
-      <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-              <CardTitle className="gba:text-sm gba:font-medium gba:h-4 gba:bg-gray-200 gba:animate-pulse gba:rounded"></CardTitle>
-              <div className="gba:h-4 gba:w-4 gba:bg-gray-200 gba:animate-pulse gba:rounded"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="gba:h-8 gba:bg-gray-200 gba:animate-pulse gba:rounded gba:mb-2"></div>
-              <div className="gba:h-4 gba:bg-gray-200 gba:animate-pulse gba:rounded gba:w-3/4"></div>
-            </CardContent>
-          </Card>
-        ))}
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-64"
+        data-testid="investment-metrics-loading"
+      >
+        <Spinner size="lg" />
       </div>
     );
   }
 
+  if (error || comparisons.error) {
+    return (
+      <Alert
+        variant="destructive"
+        className="gba:mb-4"
+        data-testid="investment-metrics-error"
+      >
+        <div>
+          <h4 className="gba:font-semibold">
+            Error Loading Investment Metrics
+          </h4>
+          <p className="gba:text-sm gba:mt-1">
+            {error ||
+              comparisons.error ||
+              "An error occurred while loading investment metrics"}
+          </p>
+        </div>
+      </Alert>
+    );
+  }
+
+  if (!metrics) {
+    return null;
+  }
+
+  const widgets: WidgetItem[] = [
+    {
+      key: "total-invested",
+      title: "Total Invested",
+      value: metrics.totalInvested,
+      prefix: <DollarOutlined />,
+      color: "#1890ff",
+      span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
+      description: `Across ${metrics.investmentTypes} investment types`,
+      trend: {
+        value: `${Math.abs(comparisons.quarterlyPerformance)}%`,
+        positive: comparisons.quarterlyPerformance >= 0,
+        description: "quarterly growth",
+      },
+    },
+    {
+      key: "current-book-value",
+      title: "Current Book Value",
+      value: metrics.currentBookValue,
+      prefix: <RiseOutlined />,
+      color: "#52c41a",
+      span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
+      description: `${metrics.bookValueChange} from initial investment`,
+      trend: {
+        value: `${Math.abs(comparisons.portfolioGrowthRate)}%`,
+        positive: comparisons.portfolioGrowthRate >= 0,
+        description: "portfolio growth",
+      },
+    },
+    {
+      key: "avg-expected-roi",
+      title: "Avg. Expected ROI",
+      value: metrics.avgExpectedROI,
+      prefix: <AimOutlined />,
+      color: "#722ed1",
+      span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
+      description: "Across all investment types",
+      trend: {
+        value: `${Math.abs(comparisons.averageROI)}%`,
+        positive: comparisons.averageROI >= 0,
+        description: "actual ROI",
+      },
+    },
+    {
+      key: "total-investments",
+      title: "Total Investments",
+      value: metrics.totalInvestments,
+      prefix: <AppstoreOutlined />,
+      color: "#faad14",
+      span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
+      description: `${metrics.investmentTypes} different types`,
+      trend: {
+        value: `${comparisons.performingInvestmentsRate}%`,
+        positive: comparisons.performingInvestmentsRate >= 70,
+        description: "performing well",
+      },
+    },
+  ];
+
   return (
-    <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
-      {/* Total Invested Card */}
-      <Card className="gba:h-full">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
-              <DollarSign className="gba:h-5 gba:w-5 gba:text-blue-600" />
-            </div>
-            <div>
-              <CardTitle>Total Invested</CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-2xl gba:font-bold">{metrics.totalInvested}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            {metrics.bookValueChange} from initial investment
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Current Book Value Card */}
-      <Card className="gba:h-full">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-green-100 gba:rounded-lg">
-              <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />
-            </div>
-            <div>
-              <CardTitle>Current Book Value</CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-2xl gba:font-bold">{metrics.currentBookValue}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            {metrics.bookValueChange} from initial investment
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Avg. Expected ROI Card */}
-      <Card className="gba:h-full">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-amber-100 gba:rounded-lg">
-              <Target className="gba:h-5 gba:w-5 gba:text-amber-600" />
-            </div>
-            <div>
-              <CardTitle>Avg. Expected ROI</CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-2xl gba:font-bold">{metrics.avgExpectedROI}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            across all investment types
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Total Investments Card */}
-      <Card className="gba:h-full">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-purple-100 gba:rounded-lg">
-              <Clock className="gba:h-5 gba:w-5 gba:text-purple-600" />
-            </div>
-            <div>
-              <CardTitle>Total Investments</CardTitle>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-2xl gba:font-bold">{metrics.totalInvestments}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            {metrics.investmentTypes} types
-          </p>
-        </CardContent>
-      </Card>
+    <div data-testid="investment-metrics-container">
+      <WidgetGroup
+        widgets={widgets}
+        isLoading={isLoading || comparisons.isLoading}
+        error={
+          error || comparisons.error
+            ? new Error(error || comparisons.error || "Unknown error")
+            : null
+        }
+        skeletonCount={4}
+        emptyText="No investment metrics available."
+        data-testid="investment-metrics-widget-group"
+      />
     </div>
   );
 };

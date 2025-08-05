@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import { DataContainer } from '@/components/layout/dataContainer';
-import { useAccountListData } from './hooks/useAccountListData';
-import { useAccountFilters } from './hooks/useAccountFilters';
-import { AccountTable } from './components/AccountTable';
-import { AccountStatisticsWithTrend } from './components/AccountStatistics';
-import { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { DataContainer } from "@/components/layout/dataContainer";
+import { useAccountListData } from "./hooks/useAccountListData";
+import { useAccountFilters } from "./hooks/useAccountFilters";
+import { AccountTable } from "./components/AccountTable";
+import { AccountStatisticsWithTrend } from "./components/AccountStatistics";
+import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithTrend";
+import { DateRangeFilter } from "../lead-list/components/DateRangeFilter";
+import { ColumnVisibilityDropdown, ColumnConfig } from "./components/ColumnVisibilityDropdown";
 
-import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import { Account } from './types';
+import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from "react-icons/pi";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { startProcess } from "@/common/utils/start-process";
+import { Account } from "./types";
 
 export interface AccountListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -22,7 +24,9 @@ export interface AccountListProps extends BusinessAppContextProps {
  * Account List page component. Renders the account list module with a table view.
  * @returns {JSX.Element}
  */
-export const AccountList: React.FC<AccountListProps> = (props: AccountListProps) => {
+export const AccountList: React.FC<AccountListProps> = (
+  props: AccountListProps
+) => {
   const { accessToken, sourceApp } = props;
   const { t } = useTranslation();
 
@@ -40,25 +44,95 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
     handleDateRangeChange: filterHandleDateRangeChange,
-    filtersInitialized
+    filtersInitialized,
   } = useAccountFilters(props);
+
+  // Define available columns with default visibility
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: 'actions', label: 'Actions', visible: true, disabled: true }, // Always visible
+    { id: 'company', label: 'Company', visible: true },
+    { id: 'contact', label: 'Contact Info', visible: true },
+    { id: 'created', label: 'Creation Date', visible: true },
+    { id: 'owner', label: 'Owner', visible: true },
+    { id: 'legalForm', label: 'Legal Form', visible: true },
+    { id: 'industry', label: 'Industry', visible: true },
+    // New optional columns as requested
+    { id: 'website', label: 'Website', visible: false },
+    { id: 'country', label: 'Country', visible: false },
+    { id: 'region', label: 'Region/State', visible: false },
+    { id: 'city', label: 'City', visible: false },
+    { id: 'annualRevenue', label: 'Annual Revenue', visible: false },
+    { id: 'employees', label: 'Number of Employees', visible: false },
+    { id: 'foundationDate', label: 'Foundation Date', visible: false },
+    { id: 'phone', label: 'Phone', visible: false },
+    { id: 'email', label: 'Email', visible: false },
+    { id: 'fax', label: 'Fax', visible: false },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig(prev => 
+      prev.map(col => 
+        col.id === columnId ? { ...col, visible } : col
+      )
+    );
+  }, []);
+
+  // Filter groups based on visible columns
+  const visibleFilterGroups = useMemo(() => {
+    const columnToFilterMap: Record<string, string> = {
+      company: 'company',
+      contact: 'contactInfo', 
+      created: 'creationDate',
+      industry: 'industry',
+      owner: 'owner',
+      legalForm: 'legalForm',
+      // New column mappings
+      website: 'website',
+      country: 'location',
+      region: 'location', 
+      city: 'location',
+      annualRevenue: 'annualRevenue',
+      employees: 'numberOfEmployees',
+      phone: 'phone',
+      email: 'email',
+      fax: 'fax',
+      // Note: foundationDate doesn't have a filter (just sortable)
+    };
+
+    return filterGroups.filter(group => {
+      // Find the column that corresponds to this filter group
+      const correspondingColumn = Object.keys(columnToFilterMap).find(
+        columnId => columnToFilterMap[columnId] === group.id
+      );
+      
+      // If there's no corresponding column (shouldn't happen), show the filter
+      // If there is a corresponding column, only show the filter if the column is visible
+      return !correspondingColumn || visibleColumns.includes(correspondingColumn);
+    });
+  }, [filterGroups, visibleColumns]);
 
   // Get initial values from URL parameters using standard web APIs - ONLY ONCE
   const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return {
-      search: urlParams.get('search') || '',
-      page: parseInt(urlParams.get('page') || '1', 10),
-      pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      sortField: urlParams.get('sortField') || '',
-      sortOrder: urlParams.get('sortOrder') || 'DESC'
+      search: urlParams.get("search") || "",
+      page: parseInt(urlParams.get("page") || "1", 10),
+      pageSize: parseInt(urlParams.get("pageSize") || "20", 10),
+      sortField: urlParams.get("sortField") || "",
+      sortOrder: urlParams.get("sortOrder") || "DESC",
     };
   });
 
   const [currentPage, setCurrentPage] = useState(initialParams.page);
   const [pageSize, setPageSize] = useState(initialParams.pageSize);
   const [sortField, setSortField] = useState(initialParams.sortField);
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC');
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">(
+    initialParams.sortOrder as "ASC" | "DESC"
+  );
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const initialLoadDone = useRef(false);
 
@@ -70,98 +144,111 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, []); // Remove dependencies to prevent re-running
 
   // Update URL parameters using standard web APIs
-  const updateURLParams = useCallback((params: {
-    search?: string;
-    page?: number;
-    pageSize?: number;
-    sortField?: string;
-    sortOrder?: 'ASC' | 'DESC';
-  }) => {
-    const newSearchParams = new URLSearchParams(window.location.search);
-    
-    if (params.search !== undefined) {
-      if (params.search) {
-        newSearchParams.set('search', params.search);
-      } else {
-        newSearchParams.delete('search');
-      }
-    }
-    
-    if (params.page !== undefined) {
-      if (params.page > 1) {
-        newSearchParams.set('page', params.page.toString());
-      } else {
-        newSearchParams.delete('page');
-      }
-    }
-    
-    if (params.pageSize !== undefined) {
-      if (params.pageSize !== 20) {
-        newSearchParams.set('pageSize', params.pageSize.toString());
-      } else {
-        newSearchParams.delete('pageSize');
-      }
-    }
-    
-    if (params.sortField !== undefined) {
-      if (params.sortField !== 'createdAt' && params.sortField !== '') {
-        newSearchParams.set('sortField', params.sortField);
-      } else {
-        newSearchParams.delete('sortField');
-      }
-    }
-    
-    if (params.sortOrder !== undefined) {
-      if (params.sortOrder !== 'DESC') {
-        newSearchParams.set('sortOrder', params.sortOrder);
-      } else {
-        newSearchParams.delete('sortOrder');
-      }
-    }
+  const updateURLParams = useCallback(
+    (params: {
+      search?: string;
+      page?: number;
+      pageSize?: number;
+      sortField?: string;
+      sortOrder?: "ASC" | "DESC";
+    }) => {
+      const newSearchParams = new URLSearchParams(window.location.search);
 
-    const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
-    window.history.replaceState({}, '', newURL);
-  }, []);
+      if (params.search !== undefined) {
+        if (params.search) {
+          newSearchParams.set("search", params.search);
+        } else {
+          newSearchParams.delete("search");
+        }
+      }
+
+      if (params.page !== undefined) {
+        if (params.page > 1) {
+          newSearchParams.set("page", params.page.toString());
+        } else {
+          newSearchParams.delete("page");
+        }
+      }
+
+      if (params.pageSize !== undefined) {
+        if (params.pageSize !== 20) {
+          newSearchParams.set("pageSize", params.pageSize.toString());
+        } else {
+          newSearchParams.delete("pageSize");
+        }
+      }
+
+      if (params.sortField !== undefined) {
+        if (params.sortField !== "createdAt" && params.sortField !== "") {
+          newSearchParams.set("sortField", params.sortField);
+        } else {
+          newSearchParams.delete("sortField");
+        }
+      }
+
+      if (params.sortOrder !== undefined) {
+        if (params.sortOrder !== "DESC") {
+          newSearchParams.set("sortOrder", params.sortOrder);
+        } else {
+          newSearchParams.delete("sortOrder");
+        }
+      }
+
+      const newURL = `${
+        window.location.pathname
+      }?${newSearchParams.toString()}`;
+      window.history.replaceState({}, "", newURL);
+    },
+    []
+  );
 
   // Handle adding a new account
   const handleAddAccount = useCallback(() => {
     startProcess({
-      domain: 'customer-relations',
-      processName: 'createAccount',
-      builderType: 'NATIVE_SCREEN',
-      payload: {}
+      domain: "customer-relations",
+      processName: "saveAccount",
+      builderType: "NATIVE_SCREEN",
+      payload: {},
     });
   }, []);
 
   // Adapter function for DataFilter component
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    selected ? addFilter(filterId) : removeFilter(filterId);
-  }, [addFilter, removeFilter]);
+  const handleFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      selected ? addFilter(filterId) : removeFilter(filterId);
+    },
+    [addFilter, removeFilter]
+  );
 
   // Function for DataController setFilter requirement
-  const handleSetFilter = useCallback((filters: string[]) => {
-    // This is called by DataController's "Clear all filters" button or individual filter removal
-    if (filters.length === 0) {
-      // Clear all filters
-      clearAllFilters();
-    } else {
-      // Handle individual filter removal - find which filters were removed and remove them
-      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
-      removedFilters.forEach(filterId => removeFilter(filterId));
-    }
-  }, [clearAllFilters, selectedFilters, removeFilter]);
+  const handleSetFilter = useCallback(
+    (filters: string[]) => {
+      // This is called by DataController's "Clear all filters" button or individual filter removal
+      if (filters.length === 0) {
+        // Clear all filters
+        clearAllFilters();
+      } else {
+        // Handle individual filter removal - find which filters were removed and remove them
+        const removedFilters = selectedFilters.filter(
+          (f) => !filters.includes(f)
+        );
+        removedFilters.forEach((filterId) => removeFilter(filterId));
+      }
+    },
+    [clearAllFilters, selectedFilters, removeFilter]
+  );
 
   // Get account data with search, sorting, and filters
   const filters = getFilters();
-  const { 
-    accounts, 
-    total, 
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
+  const {
+    accounts,
+    total,
+    loading,
+    error,
+    hasMore,
+    loadMore,
     loadPage,
-    retry 
+    retry,
   } = useAccountListData({
     search: search,
     sortField: sortField,
@@ -169,9 +256,22 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     context: props,
     sourceApp: sourceApp,
     // accountTypes: filters.accountTypes || [], // REMOVED: field does not exist in GraphQL schema
+    companies: filters.companies || [],
+    contactInfo: filters.contactInfo || [],
     industries: filters.industries || [],
+    ownerEmployeeIds: filters.ownerEmployeeIds || [],
+    legalFormIds: filters.legalFormIds || [],
+    annualRevenueIds: filters.annualRevenueIds || [],
+    numberOfEmployeesIds: filters.numberOfEmployeesIds || [],
+    countryIds: filters.countryIds || [],
+    regionIds: filters.regionIds || [],
+    cities: filters.cities || [],
+    websiteFilters: filters.websiteFilters || [],
+    phoneFilters: filters.phoneFilters || [],
+    emailFilters: filters.emailFilters || [],
+    faxFilters: filters.faxFilters || [],
     createdAfter: filterCreatedAfter,
-    createdBefore: filterCreatedBefore
+    createdBefore: filterCreatedBefore,
   });
 
   // Get account statistics (independent from search/filters)
@@ -179,9 +279,9 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
     trendData,
     isLoading: statsLoading,
     error: statsError,
-    refetch: refetchStats
+    refetch: refetchStats,
   } = useAccountStatisticsWithTrend({ ...props, sourceApp });
-  
+
   // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
     if (!initialLoadDone.current && accessToken && filtersInitialized) {
@@ -205,7 +305,13 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
       setCurrentPage(1);
       loadPage(1, pageSize);
     }
-  }, [JSON.stringify(selectedFilters), filterCreatedAfter, filterCreatedBefore, pageSize, filtersInitialized]);
+  }, [
+    JSON.stringify(selectedFilters),
+    filterCreatedAfter,
+    filterCreatedBefore,
+    pageSize,
+    filtersInitialized,
+  ]);
 
   // Handle account selection
   const handleSelectAccount = useCallback((account: Account) => {
@@ -218,44 +324,55 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   }, []);
 
   // Handle search change
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-  }, [setSearch]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value);
+    },
+    [setSearch]
+  );
 
   // Handle pagination change
-  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    const targetPageSize = newPageSize || pageSize;
-    setCurrentPage(page);
-    setPageSize(targetPageSize);
-    updateURLParams({ page, pageSize: targetPageSize });
-    loadPage(page, targetPageSize);
-  }, [pageSize, updateURLParams, loadPage]);
+  const handlePaginationChange = useCallback(
+    (page: number, newPageSize?: number) => {
+      const targetPageSize = newPageSize || pageSize;
+      setCurrentPage(page);
+      setPageSize(targetPageSize);
+      updateURLParams({ page, pageSize: targetPageSize });
+      loadPage(page, targetPageSize);
+    },
+    [pageSize, updateURLParams, loadPage]
+  );
 
   // Handle sorting change
-  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
-    // When order is empty, clear sorting completely
-    if (order === '') {
-      setSortField('');
-      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
-      setCurrentPage(1);
-      updateURLParams({ 
-        sortField: '', 
-        sortOrder: 'DESC',
-        page: 1 
-      });
-    } else {
-      setSortField(field);
-      setSortOrder(order);
-      setCurrentPage(1);
-      updateURLParams({ 
-        sortField: field, 
-        sortOrder: order,
-        page: 1 
-      });
-    }
-    
-    loadPage(1, pageSize);
-  }, [pageSize, updateURLParams, loadPage]);
+  const handleSortingChange = useCallback(
+    (field: string, order: "ASC" | "DESC" | "") => {
+      // When order is empty, clear sorting completely
+      if (order === "") {
+        setSortField("");
+        setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
+        setCurrentPage(1);
+        updateURLParams({
+          sortField: "",
+          sortOrder: "DESC",
+          page: 1,
+        });
+        // Pass empty field to loadPage immediately
+        loadPage(1, pageSize, {}, "", "DESC");
+      } else {
+        setSortField(field);
+        setSortOrder(order);
+        setCurrentPage(1);
+        updateURLParams({
+          sortField: field,
+          sortOrder: order,
+          page: 1,
+        });
+        // Pass new sorting values to loadPage immediately
+        loadPage(1, pageSize, {}, field, order);
+      }
+    },
+    [pageSize, updateURLParams, loadPage]
+  );
 
   return (
     <div data-testid="account-list-content">
@@ -283,7 +400,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
           dateRange: {
             createdAfter: filterCreatedAfter,
             createdBefore: filterCreatedBefore,
-            onClear: () => filterHandleDateRangeChange(undefined, undefined)
+            onClear: () => filterHandleDateRangeChange(undefined, undefined),
           },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
@@ -295,13 +412,36 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
           ),
           addButton: {
             onClick: handleAddAccount,
-            label: 'Add',
-            'data-testid': 'add-account-button'
+            label: "Add",
+            "data-testid": "add-account-button",
           },
+          actions: [
+            <ColumnVisibilityDropdown
+              key="column-visibility"
+              columns={columnConfig}
+              onColumnVisibilityChange={handleColumnVisibilityChange}
+              data-testid="account-list-column-visibility"
+            />
+          ],
         }}
         dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
+          filterGroups: visibleFilterGroups.map(group => {
+            if (group.id === "creationDate") {
+              return {
+                ...group,
+                customComponent: (
+                  <DateRangeFilter
+                    createdAfter={filterCreatedAfter}
+                    createdBefore={filterCreatedBefore}
+                    onDateRangeChange={filterHandleDateRangeChange}
+                    className="gba:w-full"
+                  />
+                ),
+              };
+            }
+            return group;
+          }),
+          onFilterChange: handleFilterChange,
         }}
         dataBody={
           <div data-testid="account-table-container">
@@ -323,6 +463,7 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
               onPaginationChange={handlePaginationChange}
               onSortingChange={handleSortingChange}
               selectedAccountId={selectedAccount?.id}
+              visibleColumns={visibleColumns}
             />
           </div>
         }
@@ -331,4 +472,4 @@ export const AccountList: React.FC<AccountListProps> = (props: AccountListProps)
   );
 };
 
-export default AccountList; 
+export default AccountList;

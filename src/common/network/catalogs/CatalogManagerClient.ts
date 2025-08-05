@@ -71,7 +71,6 @@ export class CatalogManagerClient extends RestClient {
       queryParams.value = value;
     }
 
-    console.log(queryParams);
     return this.get<GetCatalogEntriesResponse>(path, {
       ...options,
       params: queryParams,

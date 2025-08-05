@@ -4,4 +4,7 @@ export { AccountStatisticsWithTrend } from './components/AccountStatistics';
 export { useAccountListData } from './hooks/useAccountListData';
 export { useAccountStatisticsWithTrend } from './hooks/useAccountStatisticsWithTrend';
 export { useAccountFilters } from './hooks/useAccountFilters';
-export type { Account, UseAccountListDataReturn } from './types'; 
+export type { Account, UseAccountListDataReturn } from './types';
+
+// Default export for publishing
+export { default } from './AccountList'; 

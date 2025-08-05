@@ -9,7 +9,29 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle,
+  Icon,
+  Progress,
+  ScrollArea,
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@newwork/nw-design-system';
+import { 
+  Clock, 
+  Calendar, 
+  User, 
+  ArrowSquareOut,
+  Flag,
+  Tag,
+  CheckCircle,
+  Link,
+  CalendarPlus,
+  ClockCounterClockwise,
+  Target,
+  Hash,
+  Icon as PhosphorIcon
+} from '@phosphor-icons/react';
 import { Task } from '../types/TaskTypes';
 import { 
   getTaskStatusBadgeVariant,
@@ -27,6 +49,26 @@ interface TaskDetailsProps {
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskDetails';
+
+// JIRA-style field component
+interface FieldRowProps {
+  icon: PhosphorIcon;
+  label: string;
+  children: React.ReactNode;
+  testId?: string;
+}
+
+const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
+  <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
+    <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
+      <Icon icon={IconComponent} size="xs" />
+      <span>{label}</span>
+    </div>
+    <div className="gba:flex-1">
+      {children}
+    </div>
+  </div>
+);
 
 export const TaskDetails: React.FC<TaskDetailsProps> = ({
   task,
@@ -48,6 +90,19 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   const getInitials = (firstName: string, lastName: string): string => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
+
+  // Calculate task progress based on status
+  const getTaskProgress = (status: string): number => {
+    switch (status) {
+      case 'completed': return 100;
+      case 'in_progress': return 60;
+      case 'pending': return 0;
+      default: return 0;
+    }
+  };
+
+  // Check if task is overdue
+  const isOverdue = task.dueDate && dayjs().isAfter(dayjs(task.dueDate)) && task.status !== 'completed';
 
   // Handle employee profile navigation
   const handleEmployeeClick = () => {
@@ -95,139 +150,205 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   };
 
   return (
-    <div className="gba:space-y-4" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      {/* Task Header Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-header`}>
-        <CardHeader>
-          <CardTitle>{task.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:gap-2">
-            <Badge variant={getTaskStatusBadgeVariant(task.status)}>
-              {task.status === 'in_progress' ? 'In Progress' : 
-               task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-            </Badge>
-            <Badge variant={getTaskPriorityBadgeVariant(task.priority)}>
-              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
-            </Badge>
-            <Badge variant={getTaskTypeBadgeVariant(task.type)}>
-              {task.type.charAt(0).toUpperCase() + task.type.slice(1).toLowerCase()}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+    <ScrollArea className="gba:h-full gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-scroll-area`}>
+      <div className="gba:space-y-4 gba:p-1" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
 
-      {/* Assigned To Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-section`}>
-        <CardHeader>
-          <CardTitle>Assigned To</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div 
-            className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-3 gba:rounded gba:transition-colors"
-            onClick={handleEmployeeClick}
-            data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link`}
-          >
-            <Avatar size="sm">
-              <AvatarFallback>
-                {getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="gba:flex gba:flex-col">
-              <span className="gba:font-medium gba:text-sm">{task.assignedTo.displayName}</span>
-              <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reference Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-reference-section`}>
-        <CardHeader>
-          <CardTitle>Reference</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div 
-            className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-3 gba:rounded gba:transition-colors"
-            onClick={handleReferenceClick}
-            data-testid={`${DATA_TEST_ID_PREFIX}-reference-link`}
-          >
-            <div className="gba:font-medium gba:text-sm gba:mb-2">
-              {task.reference.name}
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">
-                {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
+        {/* JIRA-Style Details Card */}
+        <Card data-testid={`${DATA_TEST_ID_PREFIX}-details-card`}>
+          <CardHeader className="gba:pb-3">
+            <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-1">
+            
+            {/* Status */}
+            <FieldRow 
+              icon={CheckCircle} 
+              label="Status" 
+              testId={`${DATA_TEST_ID_PREFIX}-status-field`}
+            >
+              <Badge variant={getTaskStatusBadgeVariant(task.status)}>
+                {task.status === 'in_progress' ? 'In Progress' : 
+                 task.status.charAt(0).toUpperCase() + task.status.slice(1)}
               </Badge>
-              {task.reference.description && (
-                <span className="gba:text-xs gba:text-muted-foreground">
-                  {task.reference.description}
-                </span>
+              {isOverdue && (
+                <Badge variant="destructive" className="gba:ml-2">
+                  Overdue
+                </Badge>
               )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </FieldRow>
 
-      {/* Schedule Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-schedule-section`}>
-        <CardHeader>
-          <CardTitle>Schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:text-muted-foreground">Due Date:</span>
-              <span className="gba:text-sm gba:font-medium">
+            {/* Assignee */}
+            <FieldRow 
+              icon={User} 
+              label="Assignee" 
+              testId={`${DATA_TEST_ID_PREFIX}-assignee-field`}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
+                    onClick={handleEmployeeClick}
+                  >
+                    <Avatar size="sm">
+                      <AvatarFallback>
+                        {getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="gba:flex gba:flex-col">
+                      <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department}</span>
+                    </div>
+                    <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>View employee profile</TooltipContent>
+              </Tooltip>
+            </FieldRow>
+
+            {/* Priority */}
+            <FieldRow 
+              icon={Flag} 
+              label="Priority" 
+              testId={`${DATA_TEST_ID_PREFIX}-priority-field`}
+            >
+              <Badge variant={getTaskPriorityBadgeVariant(task.priority)}>
+                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
+              </Badge>
+            </FieldRow>
+
+            {/* Type */}
+            <FieldRow 
+              icon={Tag} 
+              label="Type" 
+              testId={`${DATA_TEST_ID_PREFIX}-type-field`}
+            >
+              <Badge variant={getTaskTypeBadgeVariant(task.type)}>
+                {task.type.charAt(0).toUpperCase() + task.type.slice(1).toLowerCase()}
+              </Badge>
+            </FieldRow>
+
+            {/* Reference */}
+            <FieldRow 
+              icon={Link} 
+              label="Reference" 
+              testId={`${DATA_TEST_ID_PREFIX}-reference-field`}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
+                    onClick={handleReferenceClick}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <div>
+                        <div className="gba:text-sm gba:font-medium gba:mb-1">{task.reference.name}</div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">
+                            {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
+                          </Badge>
+                          {task.reference.description && (
+                            <span className="gba:text-xs gba:text-muted-foreground">
+                              {task.reference.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>View {task.reference.type} record</TooltipContent>
+              </Tooltip>
+            </FieldRow>
+
+            {/* Progress */}
+            <FieldRow 
+              icon={Target} 
+              label="Progress" 
+              testId={`${DATA_TEST_ID_PREFIX}-progress-field`}
+            >
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Progress value={getTaskProgress(task.status)} className="gba:h-2 gba:flex-1" />
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                    {getTaskProgress(task.status)}%
+                  </span>
+                </div>
+              </div>
+            </FieldRow>
+
+            <Separator className="gba:my-4" />
+
+            {/* Due Date */}
+            <FieldRow 
+              icon={Calendar} 
+              label="Due Date" 
+              testId={`${DATA_TEST_ID_PREFIX}-due-date-field`}
+            >
+              <span className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}>
                 {formatDate(task.dueDate)}
               </span>
-            </div>
+            </FieldRow>
+
+            {/* Schedule Date */}
             {task.scheduleDate && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:text-muted-foreground">Scheduled:</span>
-                <span className="gba:text-sm gba:font-medium">
+              <FieldRow 
+                icon={CalendarPlus} 
+                label="Scheduled" 
+                testId={`${DATA_TEST_ID_PREFIX}-schedule-date-field`}
+              >
+                <span className="gba:text-sm gba:text-foreground">
                   {formatDate(task.scheduleDate)}
                 </span>
-              </div>
+              </FieldRow>
             )}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Timeline Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-timeline-section`}>
-        <CardHeader>
-          <CardTitle>Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:text-muted-foreground">Created:</span>
-              <span className="gba:text-sm gba:font-medium">
+            <Separator className="gba:my-4" />
+
+            {/* Created */}
+            <FieldRow 
+              icon={ClockCounterClockwise} 
+              label="Created" 
+              testId={`${DATA_TEST_ID_PREFIX}-created-field`}
+            >
+              <span className="gba:text-sm gba:text-muted-foreground">
                 {formatDateTime(task.createdAt)}
               </span>
-            </div>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:text-muted-foreground">Last Updated:</span>
-              <span className="gba:text-sm gba:font-medium">
+            </FieldRow>
+
+            {/* Updated */}
+            <FieldRow 
+              icon={Clock} 
+              label="Updated" 
+              testId={`${DATA_TEST_ID_PREFIX}-updated-field`}
+            >
+              <span className="gba:text-sm gba:text-muted-foreground">
                 {formatDateTime(task.updatedAt)}
               </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </FieldRow>
 
-      {/* Task ID Card */}
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-metadata-section`}>
-        <CardContent>
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-xs gba:text-muted-foreground">Task ID:</span>
-            <span className="gba:text-xs gba:font-mono">
-              {task.id}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            {/* Task ID */}
+            <FieldRow 
+              icon={Hash} 
+              label="Task ID" 
+              testId={`${DATA_TEST_ID_PREFIX}-id-field`}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="gba:text-xs gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:cursor-help">
+                    {task.id}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Task identifier</TooltipContent>
+              </Tooltip>
+            </FieldRow>
+
+          </CardContent>
+        </Card>
+
+        {/* Bottom spacing for better scrolling */}
+        <div className="gba:h-4" />
+      </div>
+    </ScrollArea>
   );
 }; 

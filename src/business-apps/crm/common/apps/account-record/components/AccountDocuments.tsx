@@ -7,10 +7,6 @@ import {
   Spinner, 
   Alert, 
   Badge,
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
   Button,
   Input
 } from '@newwork/nw-design-system';
@@ -24,17 +20,14 @@ import {
   SearchOutlined,
   FolderOpenOutlined,
   DownloadOutlined,
-  EyeOutlined
+  EyeOutlined,
+  CaretRightOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-
-interface AccountDocumentsProps {
-  accountId: string;
-  context: BusinessAppContextProps;
-}
+import { startProcess } from '@/common/utils/start-process';
 
 interface Document {
   id: string;
@@ -54,7 +47,11 @@ interface DocumentFolder {
   name: string;
   count: number;
   documents: Document[];
-  color: string;
+}
+
+interface AccountDocumentsProps {
+  accountId: string;
+  context: BusinessAppContextProps;
 }
 
 export const AccountDocuments: React.FC<AccountDocumentsProps> = ({ 
@@ -65,6 +62,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
@@ -82,16 +80,9 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
       try {
         const GET_ACCOUNT_DOCUMENTS = `
           query GetAccountDocuments($accountId: uuid!) {
-            CrmDocument(
-              where: { 
-                accountId: { _eq: $accountId }
-                isDeleted: { _eq: false }
-              }
-              orderBy: { createdAt: DESC }
-              limit: 100
-            ) {
-              version
+            CrmDocument(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
               id
+              version
               name
               createdAt
               documentType {
@@ -109,7 +100,15 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
           CrmDocument: Document[];
         }>(GET_ACCOUNT_DOCUMENTS, { accountId });
 
-        setDocuments(result.CrmDocument || []);
+        // Ensure we always set an array, even if the response is malformed
+        const documents = result?.CrmDocument || [];
+        setDocuments(Array.isArray(documents) ? documents : []);
+        
+        // Auto-expand the first folder when documents are loaded
+        if (documents.length > 0) {
+          const firstFolderName = documents[0]?.documentType?.value || 'Other';
+          setExpandedFolders(new Set([firstFolderName]));
+        }
       } catch (err) {
         console.error('Error fetching account documents:', err);
         setError(err instanceof Error ? err.message : 'Failed to load documents');
@@ -150,14 +149,27 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
     });
   };
 
-  const filteredDocuments = documents.filter(doc => 
+  const filteredDocuments = Array.isArray(documents) ? documents.filter(doc => 
     !searchQuery || 
     (doc.name && doc.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (doc.documentType?.value && doc.documentType.value.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (doc.createdBy && getEmployeeDisplayName(doc.createdBy)?.toLowerCase()?.includes(searchQuery.toLowerCase()))
-  );
+  ) : [];
+
+  const toggleFolder = (folderName: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(folderName)) {
+      newExpanded.delete(folderName);
+    } else {
+      newExpanded.add(folderName);
+    }
+    setExpandedFolders(newExpanded);
+  };
 
   const documentFolders: DocumentFolder[] = React.useMemo(() => {
+    if (!Array.isArray(filteredDocuments)) {
+      return [];
+    }
     const grouped = filteredDocuments.reduce((acc, doc) => {
       const group = doc.documentType?.value || 'Other';
       if (!acc[group]) {
@@ -167,23 +179,10 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
       return acc;
     }, {} as Record<string, Document[]>);
 
-    const folderColors: Record<string, string> = {
-      'Contract': 'gba:bg-blue-50 gba:border-blue-200',
-      'Invoice': 'gba:bg-green-50 gba:border-green-200',
-      'Certificate': 'gba:bg-purple-50 gba:border-purple-200',
-      'Report': 'gba:bg-orange-50 gba:border-orange-200',
-      'Agreement': 'gba:bg-red-50 gba:border-red-200',
-      'Statement': 'gba:bg-yellow-50 gba:border-yellow-200',
-      'Proposal': 'gba:bg-pink-50 gba:border-pink-200',
-      'Other': 'gba:bg-gray-50 gba:border-gray-200',
-      'Unknown': 'gba:bg-slate-50 gba:border-slate-200'
-    };
-
-    return Object.entries(grouped).map(([group, docs]) => ({
-      name: group,
-      count: docs.length,
-      documents: docs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-      color: folderColors[group] || 'gba:bg-gray-50 gba:border-gray-200'
+    return Object.entries(grouped).map(([name, documents]) => ({
+      name,
+      count: documents.length,
+      documents
     }));
   }, [filteredDocuments]);
 
@@ -250,146 +249,138 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
   const totalSize = documents.reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
   return (
-    <Card className="gba:w-full" data-testid="account-documents-card">
+    <Card className="gba:h-full">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FolderOpenOutlined />
-            Documents ({totalDocuments})
-          </CardTitle>
-          <div className="gba:flex gba:gap-4 gba:text-sm">
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-blue-600">Total Files</div>
-              <div>{totalDocuments}</div>
-            </div>
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-green-600">Total Size</div>
-              <div className="gba:font-semibold">{formatFileSize(totalSize)}</div>
-            </div>
-            <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-purple-600">Folders</div>
-              <div>{documentFolders.length}</div>
-            </div>
-          </div>
+          <CardTitle>Documents</CardTitle>
+          <Button
+            variant="outline"
+            onClick={() => startProcess({
+              domain: 'customer-relations',
+              processName: 'saveCrmDocument',
+              payload: {
+                accountId,
+              },
+              builderType: 'NATIVE_SCREEN',
+            })}
+            className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-blue-600 gba:text-blue-600 gba:hover:bg-blue-50 gba:hover:border-blue-700 gba:transition-colors"
+          >
+            <FileOutlined className="gba:mr-2" />
+            Upload Document
+          </Button>
         </div>
-
-        {/* Search */}
-        <div className="gba:mt-4">
-          <div className="gba:relative">
-            <SearchOutlined className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:z-10" />
-            <DebouncedInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search documents..."
-              className="gba:pl-12 gba:pr-4 gba:py-2 gba:w-full gba:border gba:border-gray-300 gba:rounded-md gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-blue-500"
-              data-testid="documents-search-input"
-            />
-          </div>
-        </div>
-
-        {searchQuery && (
-          <div className="gba:text-sm gba:text-gray-500">
-            Found {filteredDocuments.length} documents matching "{searchQuery}"
-          </div>
-        )}
       </CardHeader>
-
       <CardContent>
+        {/* Search Input */}
+        <div className="gba:mb-4">
+                  <DebouncedInput
+          placeholder="Search documents..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="gba:w-full"
+          data-testid="documents-search-input"
+        />
+        </div>
+
         {loading ? (
-          <div className="gba:text-center gba:py-10">
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
-            <p className="gba:mt-4 gba:text-gray-500">Loading documents...</p>
           </div>
         ) : error ? (
           <Alert variant="destructive" className="gba:mb-4">
-            <div>Failed to load documents</div>
-            <div className="gba:text-sm gba:mt-2">{error}</div>
+            <div>
+              <h4 className="gba:font-medium">Error loading documents</h4>
+              <p className="gba:text-sm">{error}</p>
+            </div>
           </Alert>
         ) : documentFolders.length === 0 ? (
-          <div className="gba:text-center gba:py-10" data-testid="no-documents-message">
-            <div className="gba:text-4xl gba:mb-4">📁</div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-700 gba:mb-2">
-              {searchQuery ? 'No Documents Found' : 'No Documents Yet'}
-            </h3>
-            <p className="gba:text-gray-500">
-              {searchQuery 
-                ? `No documents match your search for "${searchQuery}"`
-                : 'This account doesn\'t have any documents yet.'
-              }
-            </p>
+          <div className="gba:text-center gba:py-10">
+            <FolderOpenOutlined className="gba:text-6xl gba:text-gray-300 gba:mb-4" />
+            <p className="gba:text-gray-500 gba:text-lg">No documents found</p>
+            <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
           </div>
         ) : (
-          <Accordion type="multiple" defaultValue={documentFolders.map(folder => folder.name)} className="gba:w-full">
-            {documentFolders.map((folder) => (
-              <AccordionItem key={folder.name} value={folder.name}>
-                <AccordionTrigger 
-                  className={`gba:px-4 gba:py-3 gba:rounded-lg gba:border-2 ${folder.color} gba:hover:shadow-md gba:transition-all`}
-                  data-testid={`document-folder-${folder.name.toLowerCase()}`}
-                >
-                  <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <FolderOpenOutlined className="gba:text-lg" />
-                      <span className="gba:font-medium">{folder.name}</span>
-                    </div>
-                    <Badge variant="secondary">{folder.count} files</Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="gba:px-4 gba:pb-4">
-                  <div className="gba:space-y-3">
-                    {folder.documents.map((document) => (
-                      <div 
-                        key={document.id}
-                        className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:hover:shadow-sm gba:transition-shadow"
-                        data-testid={`document-item-${document.id}`}
-                      >
-                                                <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
-                          <div className="gba:text-xl">
-                            {getFileIcon(document.mimeType)}
-                          </div>
-                          <div className="gba:flex-1">
-                            <div className="gba:font-medium gba:text-gray-900 gba:text-base">{document.name || 'Unnamed Document'}</div>
-                            <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                              {formatDate(document.createdAt)}{document.createdBy && ` - ${getEmployeeDisplayName(document.createdBy) || 'Unknown User'}`}
-                            </div>
-                            <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                              Type: {document.mimeType || 'Unknown'}
-                              {document.fileSize && (
-                                <span className="gba:ml-4">Size: {formatFileSize(document.fileSize)}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDocument(document)}
-                            data-testid={`view-document-${document.id}`}
-                            className="gba:px-2 gba:py-1"
-                          >
-                            <EyeOutlined className="gba:mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(document)}
-                            data-testid={`download-document-${document.id}`}
-                            className="gba:px-2 gba:py-1"
-                          >
-                            <DownloadOutlined className="gba:mr-1" />
-                            Download
-                          </Button>
-                        </div>
+          <div className="gba:w-full gba:space-y-4">
+            {Array.isArray(documentFolders) && documentFolders.length > 0 ? documentFolders.map((folder) => {
+              const isExpanded = expandedFolders.has(folder.name);
+              return (
+                <div key={folder.name} className="gba:border gba:border-gray-200 gba:rounded-lg">
+                  <div 
+                    className="gba:py-4 gba:px-6 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:cursor-pointer gba:hover:bg-gray-100 gba:transition-colors"
+                    onClick={() => toggleFolder(folder.name)}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <CaretRightOutlined 
+                          className={`gba:text-lg gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`} 
+                        />
+                        <FolderOpenOutlined className="gba:text-lg" />
+                        <span className="gba:font-medium">{folder.name}</span>
                       </div>
-                    ))}
+                      <Badge variant="secondary">{folder.count} files</Badge>
+                    </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  {isExpanded && (
+                    <div className="gba:px-6 gba:py-4">
+                      <div className="gba:space-y-3">
+                        {Array.isArray(folder.documents) ? folder.documents.map((document) => (
+                          <div 
+                            key={document.id}
+                            className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:hover:shadow-sm gba:transition-shadow"
+                            data-testid={`document-item-${document.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
+                              <div className="gba:text-xl">
+                                {getFileIcon(document.mimeType)}
+                              </div>
+                              <div className="gba:flex-1">
+                                <div className="gba:font-medium gba:text-gray-900 gba:text-base">{document.name || 'Unnamed Document'}</div>
+                                <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
+                                  {formatDate(document.createdAt)}{document.createdBy && ` - ${getEmployeeDisplayName(document.createdBy) || 'Unknown User'}`}
+                                </div>
+                                <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
+                                  Type: {document.mimeType || 'Unknown'}
+                                  {document.fileSize && (
+                                    <span className="gba:ml-4">Size: {formatFileSize(document.fileSize)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewDocument(document)}
+                                data-testid={`view-document-${document.id}`}
+                                className="gba:px-2 gba:py-1"
+                              >
+                                <EyeOutlined className="gba:mr-1" />
+                                View
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadDocument(document)}
+                                data-testid={`download-document-${document.id}`}
+                                className="gba:px-2 gba:py-1"
+                              >
+                                <DownloadOutlined className="gba:mr-1" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        )) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }) : null}
+          </div>
         )}
       </CardContent>
     </Card>
   );
-}; 
+};
+
+export default AccountDocuments; 

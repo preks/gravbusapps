@@ -597,15 +597,18 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
 
       {/* Task Details Sheet */}
       <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-        <SheetContent className="gba:w-[400px] gba:sm:w-[540px]">
-          <SheetHeader className="gba:px-6">
-            <SheetTitle>{selectedTask?.name}</SheetTitle>
+        <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+              {selectedTask?.name}
+            </SheetTitle>
           </SheetHeader>
-          <div className="gba:px-6 gba:mt-4">
+          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
             {selectedTask && (
               <TaskDetails
                 task={selectedTask}
                 sourceApp={sourceApp}
+                onClose={() => setSelectedTask(null)}
               />
             )}
           </div>

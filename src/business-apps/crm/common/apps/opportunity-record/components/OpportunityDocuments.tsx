@@ -7,10 +7,6 @@ import {
   Spinner, 
   Alert, 
   Badge,
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
   Button,
   Input
 } from '@newwork/nw-design-system';
@@ -24,12 +20,15 @@ import {
   SearchOutlined,
   FolderOpenOutlined,
   DownloadOutlined,
-  EyeOutlined
+  EyeOutlined,
+  CloudUploadOutlined,
+  CaretRightOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { startProcess } from '@/common/utils/start-process';
 
 interface Document {
   id: string;
@@ -65,9 +64,23 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+
+  const handleAddDocument = () => {
+    if (opportunityId) {
+      startProcess({
+        domain: 'customer-relations',
+        processName: 'saveCrmDocument',
+        payload: {
+          opportunityId,
+        },
+        builderType: 'NATIVE_SCREEN',
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -109,7 +122,15 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           CrmDocument: Document[];
         }>(GET_OPPORTUNITY_DOCUMENTS, { opportunityId });
 
-        setDocuments(result.CrmDocument || []);
+        // Ensure we always set an array, even if the response is malformed
+        const documents = result?.CrmDocument || [];
+        setDocuments(Array.isArray(documents) ? documents : []);
+        
+        // Auto-expand the first folder when documents are loaded
+        if (documents.length > 0) {
+          const firstFolderName = documents[0]?.documentType?.value || 'Other';
+          setExpandedFolders(new Set([firstFolderName]));
+        }
       } catch (err) {
         console.error('Error fetching opportunity documents:', err);
         setError(err instanceof Error ? err.message : 'Failed to load documents');
@@ -146,14 +167,18 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     });
   };
 
-  const filteredDocuments = documents.filter(doc => 
+  const filteredDocuments = Array.isArray(documents) ? documents.filter(doc => 
     !searchQuery || 
     (doc.name && doc.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (doc.documentType?.value && doc.documentType.value.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (doc.createdBy && getEmployeeDisplayName(doc.createdBy)?.toLowerCase()?.includes(searchQuery.toLowerCase()))
-  );
+  ) : [];
 
   const documentFolders: DocumentFolder[] = React.useMemo(() => {
+    if (!Array.isArray(filteredDocuments)) {
+      return [];
+    }
+
     const grouped = filteredDocuments.reduce((acc, doc) => {
       const group = doc.documentType?.value || 'Other';
       if (!acc[group]) {
@@ -254,6 +279,16 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const totalDocuments = documents.length;
   const totalSize = documents.reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
+  const toggleFolder = (folderName: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(folderName)) {
+      newExpanded.delete(folderName);
+    } else {
+      newExpanded.add(folderName);
+    }
+    setExpandedFolders(newExpanded);
+  };
+
   return (
     <Card className="gba:w-full" data-testid="opportunity-documents-card">
       <CardHeader>
@@ -262,6 +297,14 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             <FolderOpenOutlined className="gba:text-blue-600" />
             Documents ({totalDocuments})
           </CardTitle>
+          <Button
+            onClick={handleAddDocument}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid="upload-document-button"
+          >
+            <CloudUploadOutlined />
+            Upload Document
+          </Button>
         </div>
 
         {/* Summary Statistics */}
@@ -327,21 +370,30 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
           </div>
         ) : (
-          <Accordion type="multiple" className="gba:w-full">
-            {documentFolders.map((folder) => (
-              <AccordionItem key={folder.name} value={folder.name}>
-                <AccordionTrigger className="gba:py-4">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:mr-4">
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <FolderOpenOutlined className="gba:text-lg" />
-                      <span className="gba:font-medium">{folder.name}</span>
+          <div className="gba:w-full gba:space-y-4">
+            {Array.isArray(documentFolders) && documentFolders.length > 0 ? documentFolders.map((folder) => {
+              const isExpanded = expandedFolders.has(folder.name);
+              return (
+                <div key={folder.name} className="gba:border gba:border-gray-200 gba:rounded-lg">
+                  <div 
+                    className="gba:py-4 gba:px-6 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:cursor-pointer gba:hover:bg-gray-100 gba:transition-colors"
+                    onClick={() => toggleFolder(folder.name)}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <CaretRightOutlined 
+                          className={`gba:text-lg gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`} 
+                        />
+                        <FolderOpenOutlined className="gba:text-lg" />
+                        <span className="gba:font-medium">{folder.name}</span>
+                      </div>
+                      <Badge variant="secondary">{folder.count} files</Badge>
                     </div>
-                    <Badge variant="secondary">{folder.count} files</Badge>
                   </div>
-                </AccordionTrigger>
-                <AccordionContent className="gba:px-4 gba:pb-4">
+                  {isExpanded && (
+                    <div className="gba:px-6 gba:py-4">
                   <div className="gba:space-y-3">
-                    {folder.documents.map((document) => (
+                    {Array.isArray(folder.documents) ? folder.documents.map((document) => (
                       <div 
                         key={document.id}
                         className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:hover:shadow-sm gba:transition-shadow"
@@ -387,14 +439,18 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    )) : null}
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                    </div>
+                  )}
+                </div>
+              );
+            }) : null}
+          </div>
         )}
       </CardContent>
     </Card>
   );
-}; 
+};
+
+export default OpportunityDocuments; 
