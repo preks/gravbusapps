@@ -1,25 +1,51 @@
-import React from 'react';
-import { useContactFormContext } from '../context/ContactFormContext';
-import { Button, Spinner, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import OwnerInformationSection from './OwnerInformationSection';
-import PersonalInformationSection from './PersonalInformationSection';
-import ProfessionalInformationSection from './ProfessionalInformationSection';
+import React, { useState, useEffect, useRef } from "react";
+import { useContactFormContext } from "../context/ContactFormContext";
+import {
+  Button,
+  Spinner,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Alert,
+  AlertDescription,
+  Input,
+  Label,
+} from "@newwork/nw-design-system";
+import { DownOutlined, UpOutlined } from "@ant-design/icons";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 
-import AccountInformationSection from './AccountInformationSection';
-import AdditionalInformationSection from './AdditionalInformationSection';
+import OwnerInformationSection from "./OwnerInformationSection";
+import PersonalInformationSection from "./PersonalInformationSection";
+import ProfessionalInformationSection from "./ProfessionalInformationSection";
+import AdditionalInformationSection from "./AdditionalInformationSection";
 
-const prefixDataTestId = 'ContactForm';
+const prefixDataTestId = "ContactForm";
 
 const ContactFormComponent: React.FC = () => {
   const {
     formValues,
+    setFormValues,
     onSubmit,
     onCancel,
     isLoading,
     error,
+    businessAppContext,
+    accountSuggestions,
+    searchAccounts,
+    loadMoreAccounts,
+    accountsHasMore,
+    accountsLoading,
   } = useContactFormContext();
+
+  // Company search dropdown state
+  const [companyInputValue, setCompanyInputValue] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [visibleAccountsCount, setVisibleAccountsCount] = useState(5);
+  const companyContainerRef = useRef<HTMLDivElement>(null);
+  const suggestionsScrollRef = useRef<HTMLDivElement>(null);
 
   // Safety check - if context is not properly initialized, show error
   if (!formValues) {
@@ -32,11 +58,74 @@ const ContactFormComponent: React.FC = () => {
     );
   }
 
+  // Company input change handler
+  const handleCompanyInputChange = (value: string) => {
+    setCompanyInputValue(value);
+    if (value.trim().length >= 3) {
+      searchAccounts(value);
+      setIsDropdownOpen(true);
+    } else if (value.trim().length === 0) {
+      searchAccounts("");
+      setIsDropdownOpen(true);
+    }
+    // Clear accountId when user types manually
+    if (formValues.accountId) {
+      setFormValues({ accountId: "" });
+    }
+  };
+
+  // Arrow click handler
+  const handleArrowClick = () => {
+    if (!isDropdownOpen) {
+      // Load initial data when dropdown is opened
+      searchAccounts("");
+      setIsDropdownOpen(true);
+      setVisibleAccountsCount(5);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: any) => {
+    setCompanyInputValue(suggestion.name);
+    setFormValues({
+      accountId: String(suggestion.id),
+    });
+    setIsDropdownOpen(false);
+    setVisibleAccountsCount(5);
+  };
+
+  // Handle scroll to load more
+  const handleSuggestionsScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+    // Load more when user scrolls to 80% of the list
+    if (
+      scrollPercentage > 0.8 &&
+      accountsHasMore &&
+      !accountsLoading &&
+      accountSuggestions.length > 0
+    ) {
+      try {
+        await loadMoreAccounts();
+        // Show more items after loading
+        setVisibleAccountsCount((prev) =>
+          Math.min(prev + 10, accountSuggestions.length)
+        );
+      } catch (error) {
+        console.error("Error loading more accounts:", error);
+      }
+    }
+  };
+
   // Check if all mandatory fields are filled
-  const isFormValid = 
+  const isFormValid =
     formValues.firstName &&
     formValues.lastName &&
     formValues.email &&
+    formValues.accountId &&
     formValues.ownerEmployeeId;
 
   // Helper function to convert values to strings safely
@@ -48,10 +137,10 @@ const ContactFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await onSubmit(formValues);
-      
+
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
-      
+
       // Prepare comprehensive contact payload following the API structure
       const contactPayload: any = {
         sourceApp: "CRM",
@@ -65,18 +154,25 @@ const ContactFormComponent: React.FC = () => {
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
         contactRole: toStringOrUndefined(formValues.contactRole),
-        contactType: toStringOrUndefined(formValues.contactType),
-        workExperienceYears: formValues.workExperienceYears ? parseInt(formValues.workExperienceYears) : undefined,
+        //contactType: toStringOrUndefined(formValues.contactType),
+        workExperienceYears: formValues.workExperienceYears
+          ? parseInt(formValues.workExperienceYears)
+          : undefined,
         email: toStringOrUndefined(formValues.email),
         phone: toStringOrUndefined(formValues.phone),
         fax: toStringOrUndefined(formValues.fax),
         linkedinUrl: toStringOrUndefined(formValues.linkedinUrl),
         xingUrl: toStringOrUndefined(formValues.xingUrl),
+        companyName: companyInputValue
+          ? toStringOrUndefined(companyInputValue)
+          : undefined,
         accountId: toStringOrUndefined(formValues.accountId),
-        ownerEmployeeId: toStringOrUndefined(formValues.ownerEmployeeId),
-        ownerOrganizationId: toStringOrUndefined(formValues.ownerOrganizationId),
+        ownerEmployee:
+          businessAppContext.userInfo?.employeeDetails?.employeeId ||
+          toStringOrUndefined(formValues.ownerEmployeeId),
+        ownerOrganization: undefined, // Will be set by backend based on owner employee
         notesSummary: toStringOrUndefined(formValues.notesSummary),
-        recordState: formValues.recordState || 'ACTIVE',
+        recordState: formValues.recordState || "ACTIVE",
       };
 
       // For updates, include the contact ID and version
@@ -92,17 +188,31 @@ const ContactFormComponent: React.FC = () => {
       contactPayload.communicationChannels = [];
       contactPayload.tags = [];
 
+      // Determine change mode based on whether we have an ID
+      const changeMode = isUpdate ? "UPDATE" : "INSERT";
+
       const payload = {
-        contact: contactPayload
+        contact: contactPayload,
+        changeMode: changeMode,
       };
-      
+
+      // Debug logs for accountId
+      console.log("🔍 Contact Form Debug:");
+      console.log("  formValues.accountId:", formValues.accountId);
+      console.log("  companyInputValue:", companyInputValue);
+      console.log("  contactPayload.accountId:", contactPayload.accountId);
+      console.log("  contactPayload.companyName:", contactPayload.companyName);
+
       // Log the payload for debugging
-      console.log(`${isUpdate ? 'Updating' : 'Creating'} contact with payload:`, payload);
-      
+      console.log(
+        `${isUpdate ? "Updating" : "Creating"} contact with payload:`,
+        payload
+      );
+
       // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload);
+      dispatchProcessContinueEvent("pse_submit", payload);
     } catch (err) {
-      console.error('Error submitting contact form:', err);
+      console.error("Error submitting contact form:", err);
     }
   };
 
@@ -110,141 +220,103 @@ const ContactFormComponent: React.FC = () => {
   const handleCancel = async () => {
     try {
       await onCancel();
-      
+
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null);
+      dispatchProcessContinueEvent("pse_pause", null);
     } catch (err) {
-      console.error('Error cancelling contact form:', err);
+      console.error("Error cancelling contact form:", err);
     }
   };
 
-  // Debug: Test data loading vs AccountForm approach
-  const {
-    academicTitles,
-    languages,
-    contactTypes,
-    contactRoles,
-    departments,
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-  } = useContactFormContext();
-
-  const debugInfo = (() => {
-    try {
-      // Test Tailwind functionality and version
-      const tailwindStatus = (() => {
-        if (typeof window === 'undefined') return 'SSR';
-        
-        try {
-          // Detect Tailwind version and source
-          const versionInfo = (() => {
-            // Check for Tailwind global object
-            const tailwindGlobal = (window as any).tailwind || (window as any).Tailwind;
-            if (tailwindGlobal?.version) {
-              return `v${tailwindGlobal.version}`;
-            }
-            
-            // Check CSS stylesheets for version hints
-            const stylesheets = Array.from(document.styleSheets);
-            for (const sheet of stylesheets) {
-              try {
-                const href = (sheet as any).href || 'inline';
-                if (href.includes('tailwind') || href.includes('main.css') || href.includes('index.css')) {
-                  const sheetInfo = href.includes('main.css') ? 'main.css' : 
-                                   href.includes('index.css') ? 'index.css' :
-                                   href.includes('tailwind') ? 'tailwind.css' : 'unknown';
-                  return `${sheetInfo}`;
-                }
-              } catch (e) {
-                // Cross-origin or other stylesheet access error
-              }
-            }
-            
-            // Check for Tailwind CSS custom properties that indicate presence
-            const testEl = document.createElement('div');
-            document.body.appendChild(testEl);
-            const styles = window.getComputedStyle(testEl);
-            document.body.removeChild(testEl);
-            
-            // Check if CSS custom properties exist (Tailwind 3+ feature)
-            const hasTailwindProps = Object.keys(styles).some(key => 
-              styles.getPropertyValue(`--tw-${key}`) || 
-              key.includes('--tw-')
-            );
-            
-            return hasTailwindProps ? 'v3+detected' : 'unknown';
-          })();
-
-          // Test CSS loading sources
-          const cssSourceInfo = (() => {
-            const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
-            const sources = links.map(link => {
-              const href = link.getAttribute('href') || '';
-              if (href.includes('main.css')) return 'main.css';
-              if (href.includes('index.css')) return 'index.css';
-              if (href.includes('tailwind')) return 'tailwind.css';
-              if (href.includes('assets')) return 'assets/';
-              if (href.startsWith('http')) return 'external';
-              return href ? 'other' : '';
-            }).filter(Boolean);
-            
-            return sources.length > 0 ? `CSS:[${sources.join(',')}]` : 'CSS:none';
-          })();
-          
-          // Create a test element to check if Tailwind classes work
-          const testEl = document.createElement('div');
-          testEl.className = 'gba:hidden gba:bg-red-500 gba:p-4';
-          testEl.style.position = 'absolute';
-          testEl.style.top = '-9999px';
-          document.body.appendChild(testEl);
-          
-          const styles = window.getComputedStyle(testEl);
-          const isHidden = styles.display === 'none';
-          const hasBackground = styles.backgroundColor !== '' && styles.backgroundColor !== 'rgba(0, 0, 0, 0)';
-          const hasPadding = styles.padding !== '' && styles.padding !== '0px';
-          
-          document.body.removeChild(testEl);
-          
-          const workingClasses = [
-            isHidden ? 'hidden✅' : 'hidden❌',
-            hasBackground ? 'bg✅' : 'bg❌', 
-            hasPadding ? 'p✅' : 'p❌'
-          ].join('');
-          
-          return `TW:${workingClasses} ${versionInfo} ${cssSourceInfo}`;
-        } catch (e) {
-          return `TW:ERROR(${e instanceof Error ? e.message : 'unknown'})`;
-        }
-      })();
-
-      const dataStatus = {
-        tailwind: tailwindStatus,
-        staticData: `Titles:${academicTitles.length} Languages:${languages.length} Types:${contactTypes.length}`,
-        employees: `${employeePositions.length} items ${employeePositionsLoading ? '(Loading...)' : ''} ${employeePositionsError ? `(Error: ${employeePositionsError})` : ''}`,
-        contactData: `Roles:${contactRoles.length} Departments:${departments.length}`,
-        components: `Select:${typeof Select === 'function' ? '✅' : '❌'} Trigger:${typeof SelectTrigger === 'function' ? '✅' : '❌'}`
-      };
-      
-      return Object.entries(dataStatus).map(([key, value]) => `${key}:${value}`).join(' | ');
-    } catch (error) {
-      return `Debug Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  })();
-
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      {/* Debug Info */}
-      <div className="gba:bg-yellow-100 gba:border gba:border-yellow-400 gba:text-yellow-800 gba:px-3 gba:py-2 gba:rounded gba:text-xs gba:mb-4 gba:font-mono">
-        🔧 DEBUG: {debugInfo}
-      </div>
-      
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
+      <div
+        className="gba:h-full gba:flex gba:flex-col"
+        data-testid={formatDataTestId(prefixDataTestId, "Form")}
+      >
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          
           {/* Contact Owner Section - First and most important */}
           <OwnerInformationSection />
+
+          {/* Company Name Section - Second field */}
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Company Name <span className="gba:text-red-500">*</span>
+            </Label>
+            <div ref={companyContainerRef} className="gba:relative gba:w-full">
+              <Input
+                name="companyName"
+                value={companyInputValue}
+                onChange={(e) => handleCompanyInputChange(e.target.value)}
+                onFocus={() => setIsDropdownOpen(true)}
+                placeholder="Please Enter or Select..."
+                required
+                className="gba:border-gray-300 gba:bg-white gba:pr-14"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "CompanyNameInput"
+                )}
+              />
+              <div className="gba:absolute gba:inset-y-0 gba:right-0 gba:flex gba:items-center gba:pr-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-auto gba:w-auto gba:p-0 gba:bg-transparent gba:border-0 gba:shadow-none hover:gba:bg-transparent focus:gba:bg-transparent gba:cursor-pointer"
+                  onClick={handleArrowClick}
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    "CompanyNameArrowButton"
+                  )}
+                >
+                  {isDropdownOpen ? (
+                    <UpOutlined className="gba:text-xs gba:text-gray-600" />
+                  ) : (
+                    <DownOutlined className="gba:text-xs gba:text-gray-600" />
+                  )}
+                </Button>
+              </div>
+
+              {isDropdownOpen && (
+                <div
+                  ref={suggestionsScrollRef}
+                  className="gba:absolute gba:z-10 gba:w-full gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto"
+                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  onScroll={handleSuggestionsScroll}
+                >
+                  {accountsLoading && accountSuggestions.length === 0 && (
+                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
+                      Loading...
+                    </div>
+                  )}
+                  {accountSuggestions.length === 0 && !accountsLoading && (
+                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
+                      No companies found
+                    </div>
+                  )}
+                  {accountSuggestions
+                    .slice(0, visibleAccountsCount)
+                    .map((suggestion) => (
+                      <div
+                        key={suggestion.id}
+                        className="gba:px-3 gba:py-2 gba:cursor-pointer gba:hover:bg-gray-100"
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                      >
+                        {suggestion.name}
+                      </div>
+                    ))}
+                  {!accountsLoading &&
+                    accountSuggestions.length > visibleAccountsCount &&
+                    accountsHasMore && (
+                      <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-400 gba:text-center">
+                        Scroll down to load more companies
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Personal Information Section */}
           <PersonalInformationSection />
@@ -252,19 +324,17 @@ const ContactFormComponent: React.FC = () => {
           {/* Professional Information Section */}
           <ProfessionalInformationSection />
 
-          {/* Account Information Section */}
-          <AccountInformationSection />
-
           {/* Additional Information Section */}
           <AdditionalInformationSection />
 
           {/* Error Display */}
           {error && (
-            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">
-                {error}
-              </div>
-            </div>
+            <Alert
+              variant="destructive"
+              data-testid={formatDataTestId(prefixDataTestId, "ErrorAlert")}
+            >
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
         </div>
 
@@ -275,7 +345,7 @@ const ContactFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
           >
             Cancel
           </Button>
@@ -285,10 +355,10 @@ const ContactFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Contact' : 'Create Contact'}
+            {formValues.id ? "Update Contact" : "Create Contact"}
           </Button>
         </div>
       </div>
@@ -296,4 +366,4 @@ const ContactFormComponent: React.FC = () => {
   );
 };
 
-export default ContactFormComponent; 
+export default ContactFormComponent;

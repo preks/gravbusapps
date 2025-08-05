@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { DataContainer } from "@/components/layout/dataContainer";
 import { useAccountListData } from "./hooks/useAccountListData";
@@ -9,7 +15,10 @@ import { AccountTable } from "./components/AccountTable";
 import { AccountStatisticsWithTrend } from "./components/AccountStatistics";
 import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithTrend";
 import { DateRangeFilter } from "../lead-list/components/DateRangeFilter";
-import { ColumnVisibilityDropdown, ColumnConfig } from "./components/ColumnVisibilityDropdown";
+import {
+  ColumnVisibilityDropdown,
+  ColumnConfig,
+} from "./components/ColumnVisibilityDropdown";
 
 import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -49,69 +58,74 @@ export const AccountList: React.FC<AccountListProps> = (
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: 'actions', label: 'Actions', visible: true, disabled: true }, // Always visible
-    { id: 'company', label: 'Company', visible: true },
-    { id: 'contact', label: 'Contact Info', visible: true },
-    { id: 'created', label: 'Creation Date', visible: true },
-    { id: 'owner', label: 'Owner', visible: true },
-    { id: 'legalForm', label: 'Legal Form', visible: true },
-    { id: 'industry', label: 'Industry', visible: true },
+    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
+    { id: "company", label: "Company", visible: true },
+    { id: "contact", label: "Contact Info", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "legalForm", label: "Legal Form", visible: true },
+    { id: "industry", label: "Industry", visible: true },
     // New optional columns as requested
-    { id: 'website', label: 'Website', visible: false },
-    { id: 'country', label: 'Country', visible: false },
-    { id: 'region', label: 'Region/State', visible: false },
-    { id: 'city', label: 'City', visible: false },
-    { id: 'annualRevenue', label: 'Annual Revenue', visible: false },
-    { id: 'employees', label: 'Number of Employees', visible: false },
-    { id: 'foundationDate', label: 'Foundation Date', visible: false },
-    { id: 'phone', label: 'Phone', visible: false },
-    { id: 'email', label: 'Email', visible: false },
-    { id: 'fax', label: 'Fax', visible: false },
+    { id: "website", label: "Website", visible: false },
+    { id: "country", label: "Country", visible: false },
+    { id: "region", label: "Region/State", visible: false },
+    { id: "city", label: "City", visible: false },
+    { id: "annualRevenue", label: "Annual Revenue", visible: false },
+    { id: "employees", label: "Number of Employees", visible: false },
+    { id: "foundationDate", label: "Foundation Date", visible: false },
+    { id: "phone", label: "Phone", visible: false },
+    { id: "email", label: "Email", visible: false },
+    { id: "fax", label: "Fax", visible: false },
   ]);
 
   // Get visible columns for passing to table
-  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id);
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
 
   // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => 
-      prev.map(col => 
-        col.id === columnId ? { ...col, visible } : col
-      )
-    );
-  }, []);
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      company: 'company',
-      contact: 'contactInfo', 
-      created: 'creationDate',
-      industry: 'industry',
-      owner: 'owner',
-      legalForm: 'legalForm',
+      company: "company",
+      contact: "contactInfo",
+      created: "creationDate",
+      industry: "industry",
+      owner: "owner",
+      legalForm: "legalForm",
       // New column mappings
-      website: 'website',
-      country: 'location',
-      region: 'location', 
-      city: 'location',
-      annualRevenue: 'annualRevenue',
-      employees: 'numberOfEmployees',
-      phone: 'phone',
-      email: 'email',
-      fax: 'fax',
+      website: "website",
+      country: "location",
+      region: "location",
+      city: "location",
+      annualRevenue: "annualRevenue",
+      employees: "numberOfEmployees",
+      phone: "phone",
+      email: "email",
+      fax: "fax",
       // Note: foundationDate doesn't have a filter (just sortable)
     };
 
-    return filterGroups.filter(group => {
+    return filterGroups.filter((group) => {
       // Find the column that corresponds to this filter group
       const correspondingColumn = Object.keys(columnToFilterMap).find(
-        columnId => columnToFilterMap[columnId] === group.id
+        (columnId) => columnToFilterMap[columnId] === group.id
       );
-      
+
       // If there's no corresponding column (shouldn't happen), show the filter
       // If there is a corresponding column, only show the filter if the column is visible
-      return !correspondingColumn || visibleColumns.includes(correspondingColumn);
+      return (
+        !correspondingColumn || visibleColumns.includes(correspondingColumn)
+      );
     });
   }, [filterGroups, visibleColumns]);
 
@@ -421,26 +435,11 @@ export const AccountList: React.FC<AccountListProps> = (
               columns={columnConfig}
               onColumnVisibilityChange={handleColumnVisibilityChange}
               data-testid="account-list-column-visibility"
-            />
+            />,
           ],
         }}
         dataFilterProps={{
-          filterGroups: visibleFilterGroups.map(group => {
-            if (group.id === "creationDate") {
-              return {
-                ...group,
-                customComponent: (
-                  <DateRangeFilter
-                    createdAfter={filterCreatedAfter}
-                    createdBefore={filterCreatedBefore}
-                    onDateRangeChange={filterHandleDateRangeChange}
-                    className="gba:w-full"
-                  />
-                ),
-              };
-            }
-            return group;
-          }),
+          filterGroups,
           onFilterChange: handleFilterChange,
         }}
         dataBody={

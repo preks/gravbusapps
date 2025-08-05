@@ -1,16 +1,22 @@
-import React from 'react';
-import { useLeadFormContext } from '../context/LeadFormContext';
-import { Button } from '@newwork/gravity-ui-catalog';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { toStringOrUndefined } from '../utils/validationUtils';
-import LeadInformationSection from './LeadInformationSection';
-import ContactInformationSection from './ContactInformationSection';
-import CompanyInformationSection from './CompanyInformationSection';
-import AddressInformationSection from './AddressInformationSection';
-import DescriptionSection from './DescriptionSection';
+import React from "react";
+import { useLeadFormContext } from "../context/LeadFormContext";
+import {
+  Button,
+  Alert,
+  AlertDescription,
+  Label,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { toStringOrUndefined } from "../utils/validationUtils";
+import LeadInformationSection from "./LeadInformationSection";
+import ContactInformationSection from "./ContactInformationSection";
+import CompanyInformationSection from "./CompanyInformationSection";
+import AddressInformationSection from "./AddressInformationSection";
+import DescriptionSection from "./DescriptionSection";
+import OwnerSelector from "./OwnerSelector";
 
-const prefixDataTestId = 'LeadForm';
+const prefixDataTestId = "LeadForm";
 
 const LeadFormComponent: React.FC = () => {
   const {
@@ -19,10 +25,17 @@ const LeadFormComponent: React.FC = () => {
     onCancel,
     isLoading,
     error,
+    setFormValues,
+    employeePositions,
+    employeePositionsLoading,
+    employeePositionsError,
+    employeePositionsHasMore,
+    loadMoreEmployeePositions,
+    searchEmployeePositions,
   } = useLeadFormContext();
 
   // Check if all mandatory fields are filled
-  const isFormValid = 
+  const isFormValid =
     toStringOrUndefined(formValues.firstName) &&
     toStringOrUndefined(formValues.lastName) &&
     toStringOrUndefined(formValues.company) &&
@@ -32,23 +45,23 @@ const LeadFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await onSubmit(formValues);
-      
+      console.log("Comapny name value ", formValues.company);
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
-      
+
       // Prepare comprehensive lead payload following the API structure
       const leadPayload: any = {
         sourceApp: "CRM",
         leadRatingRef: toStringOrUndefined(formValues.rating),
         leadStatusRef: toStringOrUndefined(formValues.leadStatus),
         leadSourceRef: toStringOrUndefined(formValues.leadSource),
-        //academicTitleRef: toStringOrUndefined(formValues.salutation),
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
         phoneNumber: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
-        position: toStringOrUndefined(formValues.jobPosition) || toStringOrUndefined(formValues.title),
+        position: toStringOrUndefined(formValues.jobPosition),
         companyName: toStringOrUndefined(formValues.company),
+        accountId: toStringOrUndefined(formValues.accountId), // Include accountId from selected company
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
         industryRef: toStringOrUndefined(formValues.industry),
@@ -57,12 +70,14 @@ const LeadFormComponent: React.FC = () => {
         companyPhone: toStringOrUndefined(formValues.companyPhone),
         companyWebsite: toStringOrUndefined(formValues.website),
         countryRef: toStringOrUndefined(formValues.country),
-        regionRef: toStringOrUndefined(formValues.region),
-        addressLine: toStringOrUndefined(formValues.addressLine1) || toStringOrUndefined(formValues.address),
+        // regionRef: toStringOrUndefined(formValues.region),
+        addressLine:
+          toStringOrUndefined(formValues.addressLine1) ||
+          toStringOrUndefined(formValues.address),
         postalCode: toStringOrUndefined(formValues.postalCode),
         city: toStringOrUndefined(formValues.city),
         ownerEmployee: toStringOrUndefined(formValues.owner),
-        ownerOrganization: undefined, // Will be set by backend based on owner employee
+        description: toStringOrUndefined(formValues.notes), // Fixed: Use notes field from DescriptionSection
       };
 
       // For updates, include the lead ID and version
@@ -75,13 +90,23 @@ const LeadFormComponent: React.FC = () => {
 
       // Build addresses array if we have address data
       const addresses = [];
-      const addressLine = toStringOrUndefined(formValues.addressLine1) || 
-                         toStringOrUndefined(formValues.address) ||
-                         [formValues.addressLine1, formValues.addressLine2, formValues.addressLine3, formValues.addressLine4]
-                           .filter(line => toStringOrUndefined(line))
-                           .join(', ');
+      const addressLine =
+        toStringOrUndefined(formValues.addressLine1) ||
+        toStringOrUndefined(formValues.address) ||
+        [
+          formValues.addressLine1,
+          formValues.addressLine2,
+          formValues.addressLine3,
+          formValues.addressLine4,
+        ]
+          .filter((line) => toStringOrUndefined(line))
+          .join(", ");
 
-      if (addressLine || toStringOrUndefined(formValues.city) || toStringOrUndefined(formValues.postalCode)) {
+      if (
+        addressLine ||
+        toStringOrUndefined(formValues.city) ||
+        toStringOrUndefined(formValues.postalCode)
+      ) {
         addresses.push({
           addressType: "UNKNOWN_ADDRESS",
           addressLine: addressLine,
@@ -94,20 +119,20 @@ const LeadFormComponent: React.FC = () => {
 
       leadPayload.addresses = addresses;
 
-      // Initialize empty arrays for tags and communication channels
-      leadPayload.tags = [];
-
       const payload = {
-        lead: leadPayload
+        lead: leadPayload,
       };
-      
+
       // Log the payload for debugging
-      console.log(`${isUpdate ? 'Updating' : 'Creating'} lead with payload:`, payload);
-      
+      console.log(
+        `${isUpdate ? "Updating" : "Creating"} lead with payload:`,
+        payload
+      );
+
       // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload);
+      dispatchProcessContinueEvent("pse_submit", payload);
     } catch (err) {
-      console.error('Error submitting lead form:', err);
+      console.error("Error submitting lead form:", err);
     }
   };
 
@@ -115,20 +140,40 @@ const LeadFormComponent: React.FC = () => {
   const handleCancel = async () => {
     try {
       await onCancel();
-      
+
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null);
+      dispatchProcessContinueEvent("pse_pause", null);
     } catch (err) {
-      console.error('Error cancelling lead form:', err);
+      console.error("Error cancelling lead form:", err);
     }
   };
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
+      <div
+        className="gba:h-full gba:flex gba:flex-col"
+        data-testid={formatDataTestId(prefixDataTestId, "Form")}
+      >
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          
+          {/* Owner - Same pattern as contact form */}
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Owner <span className="gba:text-red-500">*</span>
+            </Label>
+            <OwnerSelector
+              value={formValues.owner}
+              onChange={(value) => setFormValues({ owner: value })}
+              employees={employeePositions}
+              loading={employeePositionsLoading}
+              hasMore={employeePositionsHasMore}
+              onLoadMore={loadMoreEmployeePositions}
+              onSearch={searchEmployeePositions}
+              error={employeePositionsError}
+              dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelector")}
+            />
+          </div>
+
           {/* Lead Information Section */}
           <LeadInformationSection />
 
@@ -146,11 +191,9 @@ const LeadFormComponent: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">
-                {error}
-              </div>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
         </div>
 
@@ -159,22 +202,25 @@ const LeadFormComponent: React.FC = () => {
           <Button
             variant="secondary"
             className="gba:flex-1"
-            size="large"
+            size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
           >
             Cancel
           </Button>
           <Button
-            variant="primary"
-            loading={isLoading}
+            variant="default"
             disabled={!isFormValid}
             className="gba:flex-1"
-            size="large"
+            size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
           >
-            {formValues.id ? 'Update Lead' : 'Create Lead'}
+            {isLoading
+              ? "Processing..."
+              : formValues.id
+              ? "Update Lead"
+              : "Create Lead"}
           </Button>
         </div>
       </div>
@@ -182,4 +228,4 @@ const LeadFormComponent: React.FC = () => {
   );
 };
 
-export default LeadFormComponent; 
+export default LeadFormComponent;
