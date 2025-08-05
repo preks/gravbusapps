@@ -47,8 +47,6 @@ export const useExpenseRequestFileService = (
           };
         }
 
-        const cleanEmployeeId = employeeId.toString().trim();
-
         const fileId = record.employeeDocument.file?.split("/").pop();
 
         if (!fileId) {
@@ -68,7 +66,7 @@ export const useExpenseRequestFileService = (
             folderPath: `/documents/${employeeId}`,
           }
         );
-        console.log("blob", blob);
+
         const objectUrl = URL.createObjectURL(blob);
 
         return {
