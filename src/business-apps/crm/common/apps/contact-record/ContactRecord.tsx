@@ -10,7 +10,7 @@ import {
 import {
   ArrowLeftOutlined,
   UserOutlined,
-  FolderOpenOutlined,
+
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -20,7 +20,7 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactPersonalInfo } from "./components/ContactPersonalInfo";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { ContactDocuments } from "./components/ContactDocuments";
+
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string;
@@ -149,10 +149,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({
               <UserOutlined className="gba:mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="overview" data-testid="overview-content">
@@ -183,9 +180,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="documents" data-testid="documents-content">
-            <ContactDocuments contactId={contactId} context={props} />
-          </TabsContent>
+
         </Tabs>
       </div>
     </div>

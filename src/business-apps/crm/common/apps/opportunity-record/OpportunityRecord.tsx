@@ -10,7 +10,7 @@ import {
 import {
   ArrowLeftOutlined,
   UserOutlined,
-  FolderOpenOutlined,
+
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -164,10 +164,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               <UserOutlined className="gba:mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="overview" data-testid="overview-content">
@@ -210,12 +207,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="documents" data-testid="documents-content">
-            <OpportunityDocuments
-              opportunityId={opportunityId}
-              context={props}
-            />
-          </TabsContent>
+
         </Tabs>
       </div>
     </div>

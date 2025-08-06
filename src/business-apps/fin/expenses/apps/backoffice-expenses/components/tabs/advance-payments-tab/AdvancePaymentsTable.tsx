@@ -6,25 +6,43 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
-import {
-  Button,
-  Alert,
-  Badge,
-  Spinner,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
+import { useDebounce } from '@/common/hooks/useDebounce';
+
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
   TableCell,
+  Alert, 
+  Spinner,
+  Button,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Card,
-  CardContent,
+  CardContent
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { MoreHorizontal, FileText } from 'lucide-react';
 
-import { getAdvancePaymentStatusConfig } from '../../../utils/badgeUtils';
-import { ExpenseStatus } from '../../../utils/utils';
-import ExpenseDetailDrawer from '../../details/ExpenseDetailDrawer';
+import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
+import AdvancePaymentDetails from './AdvancePaymentDetails';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import Pill from '@/components/pill/Pill';
+
+
+
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -32,354 +50,648 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
-  const { search, onSearchChange, accessToken } = props;
-  
-  // Local state management
-  const [searchText, setSearchText] = useState<string>(search ?? '');
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const { search, onSearchChange, ...context } = props;
+
+  const [searchText, setSearchText] = useState(search || '');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20); // ⚡ BEST PRACTICE: Match leads default (20)
-  
-  // Get advance payments data using the hook with optimized parameters
-  const { 
-    payments, 
-    isLoading, 
-    error, 
-    totalCount, 
-    fetchPayments 
-  } = useAdvancePayments({ accessToken });
+  const [pageSize, setPageSize] = useState(20);
 
-  // ⚡ PERFORMANCE: Properly memoized debounced function to prevent recreation on every render
-  const debouncedFetchPayments = useMemo(() => 
-    debounce((searchTerm: string, page: number, size: number, status?: string) => {
-      fetchPayments(searchTerm, page, size, status);
-    }, 300),
-    [] // Stable - no dependencies needed as fetchPayments is already stable
-  );
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [amountMinFilter, setAmountMinFilter] = useState('');
+  const [amountMaxFilter, setAmountMaxFilter] = useState('');
+  const [advanceMinFilter, setAdvanceMinFilter] = useState('');
+  const [advanceMaxFilter, setAdvanceMaxFilter] = useState('');
+  const [reporterFilter, setReporterFilter] = useState('');
 
-  // Initial data fetch on component mount - optimized
+  // Reporter search states
+  const [reporterSearchText, setReporterSearchText] = useState('');
+  const [showReporterDropdown, setShowReporterDropdown] = useState(false);
+  const [reporterSearchResults, setReporterSearchResults] = useState<string[]>([]);
+  const [reporterSearchLoading, setReporterSearchLoading] = useState(false);
+  const [selectedReporters, setSelectedReporters] = useState<string[]>([]);
+
+  // Status filter states
+  const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
+
+  // Selection states
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedActionType, setSelectedActionType] = useState<'advance-payment' | 'plan' | 'request'>('advance-payment');
+
+  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } = useAdvancePayments(context);
+
+  // Debounced values using useDebounce hook
+  const debouncedSearchText = useDebounce(searchText, 300);
+  const debouncedReporterSearchText = useDebounce(reporterSearchText, 300);
+
+  // Navigation handler for plan details
+  const handleNavigateToPlanDetails = useCallback((record: any) => {
+    if (record.expensePlan?.id) {
+      const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+        expensePlanId: record.expensePlan.id
+      });
+      navigateTo(url);
+    }
+  }, []);
+
+  // Navigation handler for request details
+  const handleNavigateToRequestDetails = useCallback((record: any) => {
+    const expenseRequest = record.expenseRequest;
+    if (expenseRequest?.id) {
+      const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+        expenseRequestId: expenseRequest.id
+      });
+      navigateTo(url);
+    }
+  }, []);
+
+  // Handle debounced search for reporters
   useEffect(() => {
-    debouncedFetchPayments(searchText, currentPage, pageSize, statusFilter !== '' ? statusFilter : undefined);
-  }, []); // Only run once on mount
+    const searchReportersDebounced = async () => {
+      if (!debouncedReporterSearchText.trim()) {
+        setReporterSearchResults([]);
+        return;
+      }
+      
+      setReporterSearchLoading(true);
+      try {
+        const results = await searchReporters(debouncedReporterSearchText);
+        setReporterSearchResults(results);
+      } catch (error) {
+        console.error('Error searching reporters:', error);
+        setReporterSearchResults([]);
+      } finally {
+        setReporterSearchLoading(false);
+      }
+    };
+
+    searchReportersDebounced();
+  }, [debouncedReporterSearchText, searchReporters]);
+
+  // Handle debounced fetch payments
+  useEffect(() => {
+    fetchPayments(
+      debouncedSearchText, 
+      currentPage, 
+      pageSize, 
+      statusFilter.length > 0 ? statusFilter.join(',') : undefined, 
+      amountMinFilter, 
+      amountMaxFilter, 
+      advanceMinFilter, 
+      advanceMaxFilter, 
+      reporterFilter
+    );
+  }, [
+    debouncedSearchText, 
+    currentPage, 
+    pageSize, 
+    statusFilter, 
+    amountMinFilter, 
+    amountMaxFilter, 
+    advanceMinFilter, 
+    advanceMaxFilter, 
+    reporterFilter, 
+    fetchPayments
+  ]);
+
+  // Load available statuses from backend
+  useEffect(() => {
+    const loadAvailableStatuses = async () => {
+      try {
+        const statuses = await searchStatuses();
+        setAvailableStatuses(statuses);
+      } catch (error) {
+        console.error('Error loading available statuses:', error);
+      }
+    };
+
+    loadAvailableStatuses();
+  }, [searchStatuses]);
 
   // Sync with parent search prop if provided
   useEffect(() => {
     if (search !== undefined && search !== searchText) {
       setSearchText(search);
       setCurrentPage(1);
-      debouncedFetchPayments(search, 1, pageSize, statusFilter !== '' ? statusFilter : undefined);
     }
-  }, [search, debouncedFetchPayments, pageSize, statusFilter]);
+  }, [search, searchText]);
 
-  // Handle search changes with debouncing
+  // Handle search changes
   const handleSearchChange = useCallback((value: string) => {
     setSearchText(value);
     setCurrentPage(1);
-    debouncedFetchPayments(value, 1, pageSize, statusFilter !== '' ? statusFilter : undefined);
     
     // Notify parent if callback exists
     if (onSearchChange) {
       onSearchChange(value);
     }
-  }, [onSearchChange, pageSize, statusFilter, debouncedFetchPayments]);
+  }, [onSearchChange]);
 
-  // Removed handleStatusChange - now using handleFilterChange
-
-  // Handle payment selection
-  const handleSelectPayment = useCallback((payment: any) => {
-    setSelectedPayment(payment);
-    setSelectedRowKeys([payment.id]);
-  }, []);
-
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected payment
-    if (newSelectedRowKeys.length === 1) {
-      const selectedPaymentId = newSelectedRowKeys[0];
-      const payment = payments?.find(payment => payment.id === selectedPaymentId);
-      if (payment) {
-        setSelectedPayment(payment);
+  // Handle clicking outside dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.reporter-search-container')) {
+        setShowReporterDropdown(false);
       }
-    } else {
-      // If multiple or no rows selected, clear the selected payment
-      setSelectedPayment(null);
-    }
-  }, [payments]);
+    };
 
-  const handleViewDetails = useCallback((record: any) => {
-    setSelectedPayment(record);
-    setSelectedRowKeys([record.id]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  // Column definitions removed - now building table manually with Table components
+  const handleCloseDetails = useCallback(() => {
+    setSelectedItem(null);
+    setSelectedActionType('advance-payment');
+  }, []);
 
-  // Render data body with optimized loading states
-  const renderDataBody = () => {
+  // Enhanced table change handler for sorting
+  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
+  };
+
+  const renderDataBody = useCallback(() => {
+    if (isLoading && !payments?.length) {
+      return <div className="gba:flex gba:justify-center gba:p-8"><Spinner /></div>;
+    }
+
     if (error) {
-      return (
-        <Alert variant="destructive" data-testid="advance-payment-error-alert">
-          <div>
-            <h4 className="gba:font-semibold">API Error</h4>
-            <p className="gba:text-sm gba:mt-1">{String(error)}</p>
-          </div>
-        </Alert>
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return <Alert variant="destructive">{errorMessage}</Alert>;
     }
 
-    if (!payments || payments.length === 0 && !isLoading) {
+    if (!payments || payments.length === 0) {
       return (
-        <div className="gba:text-center gba:p-5" data-testid="advance-payments-empty">
-          <p className="gba:text-muted-foreground">No advance payments found.</p>
-        </div>
-      );
-    }
-
-    if (isLoading) {
-      return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-32" data-testid="advance-payments-loading">
-          <Spinner size="lg" />
+        <div className="gba:p-8 gba:text-center gba:text-gray-500">
+          <div>No advance payments found matching the current filters. Clear all filters to see all payments.</div>
         </div>
       );
     }
 
     return (
-      <Card data-testid="advance-payments-table">
-        <CardContent className="gba:p-0">
-          {isLoading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-          
-          <div className="gba:overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Expense Plan Code</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Amount</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments?.map((record) => (
-                  <TableRow 
-                    key={record.id}
-                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
-                    data-testid={`advance-payment-row-${record.id}`}
-                  >
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <button
-                        onClick={() => handleViewDetails(record)}
-                        className="gba:cursor-pointer gba:hover:bg-gray-100 gba:p-1 gba:rounded"
-                        data-testid={`expense-plan-code-${record.id}`}
-                      >
-                        {record.code || 'N/A'}
-                      </button>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.employeeFullName}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">{record.amount}</TableCell>
-                    <TableCell className="gba:py-4 gba:px-6">
-                      {(() => {
-                        const { label, variant } = getAdvancePaymentStatusConfig(record.status);
-                        return (
-                          <Badge variant={variant} data-testid={`status-badge-${record.status?.toLowerCase()}`}>
-                            {label}
-                          </Badge>
-                        );
-                      })()}
-                    </TableCell>
+      <div className="gba:pr-6 gba:overflow-hidden">
+        <Card data-testid="advance-payments-container">
+          <CardContent className="gba:p-0">
+            {isLoading && (
+              <div className="gba:flex gba:justify-center gba:p-4">
+                <Spinner />
+              </div>
+            )}
+            
+            <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
+              <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">Actions</TableHead>
+                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Reporter</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Org Unit</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Cost Center</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Plan Id</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Amount</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Advance</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Payment Method</TableHead>
                   </TableRow>
+                </TableHeader>
+          <TableBody>
+            {payments.map((record: any) => {
+              const hasExpenseRequest = record.expensePlan && 
+                Array.isArray(record.expensePlan.expenseRequest) && 
+                record.expensePlan.expenseRequest.length > 0 && 
+                record.expensePlan.expenseRequest[0]?.id;
+              
+              const flowData = [
+                {
+                  category: 'Actions',
+                  key: 'view-advance-payment',
+                  label: 'View Advance Payment Details',
+                  onClick: () => {
+                    setSelectedItem(record);
+                    setSelectedActionType('advance-payment');
+                  }
+                },
+                {
+                  category: 'Actions',
+                  key: 'view-plan',
+                  label: 'View Plan Details',
+                  onClick: () => {
+                    handleNavigateToPlanDetails(record);
+                  }
+                },
+                ...(hasExpenseRequest ? [{
+                  category: 'Actions',
+                  key: 'view-request',
+                  label: 'View Request Details',
+                  onClick: () => {
+                    handleNavigateToRequestDetails(record);
+                  }
+                }] : [])
+              ];
+
+              return (
+                <TableRow 
+                  key={record.id}
+                  onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
+                    const target = event.target as HTMLElement;
+                    const isActionButton = target.closest('[data-testid*="actions"]');
+                    if (!isActionButton) {
+                      setSelectedItem(record);
+                    }
+                  }}
+                  className="gba:cursor-pointer gba:hover:bg-gray-50"
+                >
+                  <TableCell className="gba:w-[60px]">
+                    <div className="gba:flex gba:justify-center gba:items-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="gba:h-8 gba:w-8 p-0"
+                            data-testid={`actions-${record.id}`}
+                          >
+                            <span className="gba:sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedItem(record);
+                              setSelectedActionType('advance-payment');
+                            }}
+                            data-testid={`view-advance-payment-${record.id}`}
+                          >
+                            View Advance Payment Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              handleNavigateToPlanDetails(record);
+                            }}
+                            data-testid={`view-plan-${record.id}`}
+                          >
+                            View Plan Details
+                          </DropdownMenuItem>
+                          {hasExpenseRequest && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                handleNavigateToRequestDetails(record);
+                              }}
+                              data-testid={`view-request-${record.id}`}
+                            >
+                              View Request Details
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-title-cell">
+                      {record.title || record.description || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-reporter-cell">
+                      {record.employeeFullName || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-org-unit-cell">
+                      {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-cost-center-cell">
+                      {record.costCenter?.name || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-plan-id-cell">
+                      {record.expensePlan?.code || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-status-cell">
+                      <Pill 
+                        label={getAdvancePaymentStatusDisplay(record.status || 'N/A').label} 
+                        type={getAdvancePaymentStatusDisplay(record.status || 'N/A').type} 
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <span data-testid="advance-payment-amount-cell">
+                      {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))} {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                    </span>
+                  </TableCell>
+                  <TableCell className="gba:text-right">
+                    <span data-testid="advance-payment-advance-cell">
+                      {formatNumberFunction(String(record.amount ?? '0'))} {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div data-testid="advance-payment-method-cell">
+                      {record.paymentMethod === 'DIRECT_DEPOSIT' 
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                            'Direct Deposit'
+                          )
+                        : record.paymentMethod 
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                            'Cash Payment'
+                          )
+                        : 'N/A'
+                      }
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Pagination */}
+      {totalCount > 0 && (
+        <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
+          <div className="gba:text-sm gba:text-gray-600">
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} items`}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                  className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+              {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1)
+                .map((page, index, array) => (
+                  <React.Fragment key={page}>
+                    {index > 0 && array[index - 1] !== page - 1 && (
+                      <PaginationItem>
+                        <span className="gba:px-2">...</span>
+                      </PaginationItem>
+                    )}
+                    <PaginationItem>
+                      <PaginationLink
+                        onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
+                        className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </React.Fragment>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {totalCount > 0 
-                ? `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`
-                : '0-0 of 0 advance payments'}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    const newPageSize = Number(e.target.value);
-                    setPageSize(newPageSize);
-                    setCurrentPage(1);
-                    debouncedFetchPayments(searchText, 1, newPageSize, statusFilter !== 'all' ? statusFilter : undefined);
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="advance-payments-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                Page {currentPage} of {Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    setCurrentPage(1);
-                    debouncedFetchPayments(searchText, 1, pageSize, statusFilter !== 'all' ? statusFilter : undefined);
-                  }}
-                  data-testid="advance-payments-first-page"
-                >
-                  ⟨⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === 1}
-                  onClick={() => {
-                    const newPage = currentPage - 1;
-                    setCurrentPage(newPage);
-                    debouncedFetchPayments(searchText, newPage, pageSize, statusFilter !== 'all' ? statusFilter : undefined);
-                  }}
-                  data-testid="advance-payments-prev-page"
-                >
-                  ⟨
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-                  onClick={() => {
-                    const newPage = currentPage + 1;
-                    setCurrentPage(newPage);
-                    debouncedFetchPayments(searchText, newPage, pageSize, statusFilter !== 'all' ? statusFilter : undefined);
-                  }}
-                  data-testid="advance-payments-next-page"
-                >
-                  ⟩
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="gba:h-8 gba:w-8 gba:p-0" 
-                  disabled={currentPage === Math.max(1, Math.ceil((totalCount || 0) / pageSize))}
-                  onClick={() => {
-                    const totalPages = Math.max(1, Math.ceil((totalCount || 0) / pageSize));
-                    setCurrentPage(totalPages);
-                    debouncedFetchPayments(searchText, totalPages, pageSize, statusFilter !== 'all' ? statusFilter : undefined);
-                  }}
-                  data-testid="advance-payments-last-page"
-                >
-                  ⟩⟩
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                  className={currentPage >= Math.ceil(totalCount / pageSize) ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</div>
     );
-  };
+  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken]);
 
-  // Define available filter statuses for advance payments with comprehensive mapping
-  const availableAdvancePaymentStatuses = [
-    ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
-    ExpenseStatus.ASSIGNED,
-    ExpenseStatus.PENDING,
-    ExpenseStatus.APPROVED,
-    ExpenseStatus.VERIFIED,
-    ExpenseStatus.BOOKED,
-    ExpenseStatus.TRANSFERRED,
-    ExpenseStatus.PAID,
-    ExpenseStatus.REJECTED,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.DISCARDED,
-  ];
+  const renderAdvancePaymentDetails = useMemo(() => {
+    if (!selectedItem) return null;
 
-  // Create proper filter groups using advance payment status config mappings
-  const filterGroups = [
+    return (
+      <AdvancePaymentDetails
+        selectedItem={selectedItem}
+        onClose={handleCloseDetails}
+        accessToken={props.accessToken}
+        userInfo={props.userInfo}
+        type={selectedActionType}
+      />
+    );
+  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo, selectedActionType]);
+
+  // Filter groups for DataContainer
+  const filterGroups: DataFilterGroup[] = [
     {
       id: 'status',
       title: 'Status',
-      filters: availableAdvancePaymentStatuses.map(status => {
-        const { label } = getAdvancePaymentStatusConfig(status);
-        return {
-          id: status,
-          label: label,
-          selected: statusFilter === status
-        };
-      })
+      type: 'checkbox',
+      filters: availableStatuses.map(status => ({
+        id: status,
+        label: getAdvancePaymentStatusDisplay(status).label,
+        selected: statusFilter.includes(status)
+      }))
+    },
+    {
+      id: 'reporter',
+      title: 'Reporter',
+      type: 'custom',
+      customComponent: (
+        <div className="reporter-search-container gba:relative gba:p-2">
+          <input
+            type="text"
+            value={reporterSearchText}
+            onChange={(e) => {
+              setReporterSearchText(e.target.value);
+              setShowReporterDropdown(true);
+            }}
+            onFocus={() => setShowReporterDropdown(true)}
+            className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder="Search reporter..."
+            data-testid="reporter-search-input"
+          />
+          
+          {/* Dropdown with search results */}
+          {showReporterDropdown && reporterSearchText.trim() && (
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+              {reporterSearchLoading ? (
+                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                  Loading reporters...
+                </div>
+              ) : reporterSearchResults.length === 0 ? (
+                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                  No reporters found
+                </div>
+              ) : (
+                reporterSearchResults.map((reporter) => (
+                  <button
+                    key={reporter}
+                    className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
+                      selectedReporters.includes(reporter) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
+                    }`}
+                    onClick={() => {
+                      const newSelected = selectedReporters.includes(reporter)
+                        ? selectedReporters.filter(r => r !== reporter)
+                        : [...selectedReporters, reporter];
+                      setSelectedReporters(newSelected);
+                      setReporterFilter(newSelected.join(','));
+                      
+                      // Reset to page 1 when applying filters to ensure results are visible
+                      setCurrentPage(1);
+                    }}
+                    data-testid={`reporter-option-${reporter}`}
+                  >
+                    {reporter}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'amount',
+      title: 'Amount',
+      type: 'custom',
+      customComponent: (
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
+            <input
+              type="number"
+              value={amountMinFilter}
+              onChange={(e) => {
+                setAmountMinFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Min"
+              data-testid="amount-min-filter-input"
+            />
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
+            <input
+              type="number"
+              value={amountMaxFilter}
+              onChange={(e) => {
+                setAmountMaxFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Max"
+              data-testid="amount-max-filter-input"
+            />
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'advance',
+      title: 'Advance',
+      type: 'custom',
+      customComponent: (
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
+            <input
+              type="number"
+              value={advanceMinFilter}
+              onChange={(e) => {
+                setAdvanceMinFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Min"
+              data-testid="advance-min-filter-input"
+            />
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
+            <input
+              type="number"
+              value={advanceMaxFilter}
+              onChange={(e) => {
+                setAdvanceMaxFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Max"
+              data-testid="advance-max-filter-input"
+            />
+          </div>
+        </div>
+      )
     }
   ];
 
-  // Handle filter changes like leads table
+  const selectedFilters: string[] = [
+    ...(statusFilter.length > 0 ? ['status'] : []),
+    ...(reporterFilter ? ['reporter'] : []),
+    ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
+    ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
+  ];
+
+  const filterLabelMap: Record<string, string> = {
+    status: statusFilter.length > 0 ? `Status: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}` : 'Status: All',
+    reporter: `Reporter: ${selectedReporters.join(', ')}`,
+    amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
+    advance: `Advance: ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
+  };
+
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    // Status filters - check if it's one of our available advance payment status values
-    if (availableAdvancePaymentStatuses.includes(filterId as ExpenseStatus)) {
-      const newStatusFilter = selected ? filterId : '';
+    // Check if this is a status filter (any of the available statuses)
+    if (availableStatuses.includes(filterId)) {
+      const newStatusFilter = selected ? [...statusFilter, filterId] : statusFilter.filter(status => status !== filterId);
       setStatusFilter(newStatusFilter);
       setCurrentPage(1);
-      debouncedFetchPayments(searchText, 1, pageSize, newStatusFilter !== '' ? newStatusFilter : undefined);
     }
-  }, [availableAdvancePaymentStatuses, searchText, pageSize, debouncedFetchPayments]);
+  }, [availableStatuses, statusFilter]);
+
+  const setFilters = useCallback((filters: string[]) => {
+    // Clear all filters
+    setStatusFilter([]);
+    setReporterFilter('');
+    setSelectedReporters([]);
+    setAmountMinFilter('');
+    setAmountMaxFilter('');
+    setAdvanceMinFilter('');
+    setAdvanceMaxFilter('');
+    setCurrentPage(1);
+  }, []);
 
   return (
     <>
       <DataContainer
         dataControllerProps={{
+          listTitle: 'Advance Payments',
+          listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: 'Search advance payments...',
-          filter: [],
-          setFilter: () => { /* Placeholder for DataContainer prop */ },
-          listTitle: 'Advance Payments',
-          listAmount: totalCount || 0,
-          debounceDelay: 300,
+          placeholder: 'Search in Advance Payments',
+          filter: selectedFilters,
+          setFilter: setFilters,
+          filterLabelMap: filterLabelMap,
+          actions: [],
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
+          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
         }}
         dataBody={renderDataBody()}
-        contentBackground="white"
-        data-testid="advance-payments-container"
-      />
-      
-      {/* Use ExpenseDetailDrawer component for consistency */}
-      <ExpenseDetailDrawer
-        visible={!!selectedPayment}
-        onClose={() => {
-          setSelectedPayment(null);
-          setSelectedRowKeys([]);
-        }}
-        expenseId={null} // Not needed for advance payments
-        accessToken={accessToken}
-        type="advance-payment"
-        advancePaymentData={selectedPayment}
+        dataDetails={selectedItem ? {
+          title: selectedActionType === 'advance-payment' 
+            ? (selectedItem.title || selectedItem.description || 'Advance Payment Details')
+            : selectedActionType === 'plan'
+            ? (selectedItem.expensePlan?.title || 'Plan Details')
+            : (selectedItem.expensePlan?.expenseRequest?.title || 'Request Details'),
+          icon: <FileText className="gba:w-4 gba:h-4" />,
+          content: renderAdvancePaymentDetails,
+          onClose: handleCloseDetails
+        } : undefined}
+        floatingDetails={true}
       />
     </>
   );
 };
-
-// Simple debounce utility for performance optimization
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
 
 export default AdvancePaymentsTable;

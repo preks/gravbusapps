@@ -437,11 +437,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                         {formatDate(record.dueDate)}
                       </span>
                     </div>
-                    {record.scheduleDate && (
-                      <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                        {formatDate(record.scheduleDate)}
-                      </div>
-                    )}
                   </TableCell>
                 </TableRow>
               ))}

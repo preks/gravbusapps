@@ -4,31 +4,24 @@
 
 export const GET_ORGANIZATIONAL_UNITS = `
   query GetOrganizationalUnits {
-    OrganizationalUnit(
-      limit: 100
+    ExpenseRequest(
       where: {
-        _and: [
-          {isDeleted: {_eq: false}},
-          {name: {_neq: ""}},
-          {name: {_neq: "New Unit"}}
-        ]
+        isDeleted: { _eq: false }
       }
-      orderBy: [{structureId: ASC}, {name: ASC}]
     ) {
-      id
-      name
-      code
-      description
-      structureId
-      structure {
-        id
-        name
-        description
-      }
-      company {
-        id
-        name
-        code
+      employeePosition {
+        organizationalUnit {
+          id
+          name
+          code
+          description
+          structureId
+          company {
+            id
+            name
+            code
+          }
+        }
       }
     }
   }
@@ -36,32 +29,14 @@ export const GET_ORGANIZATIONAL_UNITS = `
 
 export const GET_EXPENSE_CURRENCIES = `
   query GetExpenseCurrencies {
-    expenseRequestCurrencies: ExpenseRequest(
-      limit: 20
-      distinctOn: [currencyRef]
-      where: { currencyRef: { _neq: "" } }
-    ) {
-      currencyRef
-      currency {
-        code
-        value
+    ExpenseRequest(
+      where: { 
+        _or: [
+          { currencyRef: { _isNull: false } },
+          { currencyRef: { _neq: "" } }
+        ],
+        isDeleted: { _eq: false }
       }
-    }
-    expensePlanCurrencies: ExpensePlan(
-      limit: 20
-      distinctOn: [currencyRef]
-      where: { currencyRef: { _neq: "" } }
-    ) {
-      currencyRef
-      currency {
-        code
-        value
-      }
-    }
-    advancePaymentCurrencies: AdvancePayment(
-      limit: 20
-      distinctOn: [currencyRef]
-      where: { currencyRef: { _neq: "" } }
     ) {
       currencyRef
       currency {

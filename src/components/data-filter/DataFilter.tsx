@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { PiMagnifyingGlass, PiCaretUp, PiCaretDown } from "react-icons/pi";
-import { Checkbox } from "@newwork/gravity-ui-catalog";
 import { Tooltip } from "antd";
 import { cn } from "../../common/utils/cn";
 import { DebouncedInput } from "./DebouncedInput";
@@ -278,14 +277,16 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     data-testid={`data-filter-option-${filter.id}`}
                   >
                     <div className="gba:flex gba:items-center gba:justify-center gba:mr-2">
-                      <Checkbox
-                        value={filter.selected}
+                      <input
+                        type="checkbox"
+                        checked={filter.selected}
                         onChange={() =>
                           onFilterChange?.(filter.id, !filter.selected)
                         }
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         name={filter.id}
                         data-testid={`data-filter-checkbox-${filter.id}`}
+                        className="gba:w-4 gba:h-4 gba:text-primary-600 gba:bg-gray-100 gba:border-gray-300 gba:rounded gba:focus:ring-primary-500 gba:focus:ring-2"
                       />
                     </div>
                     <Tooltip 

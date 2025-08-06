@@ -10,6 +10,7 @@ export interface ExpenseDashboard {
   pendingPayouts: number;
   bookedExpenseRequests: number;
   pendingAdvancePayments: number;
+  bookedAndPendingCount: number;
   currentMonthExpenses: {
     total: number;
     count: number;
@@ -121,11 +122,13 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
 
         const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
         const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
+        const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count ?? 0 + data?.pendingAdvancePayments?.aggregate?.count ?? 0;
 
         const expenseDashboard: ExpenseDashboard = {
           pendingPayouts: bookedExpenseRequests + pendingAdvancePayments,
           bookedExpenseRequests: bookedExpenseRequests,
           pendingAdvancePayments: pendingAdvancePayments,
+          bookedAndPendingCount: bookedAndPendingCount,
           currentMonthExpenses: {
             total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
             count: data?.currentMonthExpenses?.aggregate?.count ?? 0,

@@ -21,77 +21,159 @@ interface ExpenseDashboardTabProps extends BusinessAppContextProps {
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
+  const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
+    department: '',
+    currency: 'Currency:v1:RON', // Initialize with default currency
+    period: 'monthly'
+  });
   
-  // Use the dashboard stats hook
-  const { stats, loading, error } = useDashboardStats({ accessToken });
+  const [isCurrencyLoading, setIsCurrencyLoading] = useState(false);
+  
+  const [currencyDebounceTimer, setCurrencyDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  const { stats, loading, error } = useDashboardStats({ 
+    accessToken, 
+    filters: currentFilters 
+  });
 
-  // Helper functions for KPI data formatting
-  const formatCurrency = (value: number): string => {
+
+  React.useEffect(() => {
+    return () => {
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
+      }
+    };
+  }, [currencyDebounceTimer]);
+
+  const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: 'EUR',
+      currency: currencyCode,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
   };
 
-  const getCurrentMonthName = (): string => {
-    return new Date().toLocaleString('default', { month: 'long' });
+     const getCurrentPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return date.getFullYear().toString();
+       case 'quarterly':
+         const quarter = Math.floor(date.getMonth() / 3) + 1;
+         return `Q${quarter} ${date.getFullYear()}`;
+       default:
+         return date.toLocaleString('default', { month: 'long' });
+     }
+   };
+
+   const getPreviousPeriodName = (): string => {
+     const date = new Date();
+     switch (currentFilters.period) {
+       case 'yearly':
+         return (date.getFullYear() - 1).toString();
+       case 'quarterly':
+         const currentQuarter = Math.floor(date.getMonth() / 3);
+         let previousQuarter = currentQuarter - 1;
+         let previousYear = date.getFullYear();
+         if (previousQuarter < 0) {
+           previousQuarter = 3;
+           previousYear = previousYear - 1;
+         }
+         return `Q${previousQuarter + 1} ${previousYear}`;
+       default:
+         const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+         return previousMonth.toLocaleString('default', { month: 'long' });
+     }
+   };
+
+  const extractCurrencyCode = (currencyRef: string): string => {
+    return currencyRef.split(':').pop() || 'RON';
   };
 
-  const getPreviousMonthName = (): string => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 1);
-    return date.toLocaleString('default', { month: 'long' });
-  };
+  const kpiCards = useMemo(() => {
 
-  // ⚡ PERFORMANCE: Memoize KPI cards creation to prevent unnecessary recalculations
-  const kpiCards = useMemo((): KpiCardData[] => {
+    const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
+    
     const cards: KpiCardData[] = [];
 
-    // 1. Total Spend YTD Card
-    const ytdCalculation = () => {
-      let percentChange = 0;
-      if (stats.ytdStats.previousTotalAmount > 0) {
-        percentChange = ((stats.ytdStats.totalAmount - stats.ytdStats.previousTotalAmount) / stats.ytdStats.previousTotalAmount) * 100;
-      } else if (stats.ytdStats.totalAmount > 0) {
-        percentChange = 100;
-      }
-      const isIncrease = stats.ytdStats.totalAmount > stats.ytdStats.previousTotalAmount;
-      return { percentChange, isIncrease };
+    const getTotalCompanySpendTitle = () => {
+      const title = (() => {
+        switch (currentFilters.period) {
+          case 'yearly':
+            return `Total Company Spend YTD (${selectedCurrencyCode})`;
+          case 'quarterly':
+            return `Total Company Spend QTD (${selectedCurrencyCode})`;
+          default:
+            return `Total Company Spend MTD (${selectedCurrencyCode})`;
+        }
+      })();
+      return title;
     };
-    const { percentChange: ytdPercentChange, isIncrease: ytdIsIncrease } = ytdCalculation();
-    
+
+    const getTotalCompanySpendFooter = () => {
+      const currentPeriodName = getCurrentPeriodName();
+      const previousPeriodName = getPreviousPeriodName();
+      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} expenses) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} expenses)`;
+      return footer;
+    };
+
+    const getTotalCompanySpendDescription = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last YTD' : 'decrease vs last YTD';
+        case 'quarterly':
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last QTD' : 'decrease vs last QTD';
+        default:
+          return stats.totalCompanySpend.isIncrease ? 'increase vs last MTD' : 'decrease vs last MTD';
+      }
+    };
+
     cards.push({
-      id: 'total-spend-ytd',
-      title: 'Total Company Spend YTD (EUR, Paid Status)',
-      value: stats.ytdStats.totalAmount.toString(),
-      suffix: 'EUR',
-      decimalPlaces: 2,
-      footer: `Based on ${stats.ytdStats.count} expense requests this year vs ${stats.ytdStats.previousCount} last year`,
+      id: 'total-company-spend',
+      title: getTotalCompanySpendTitle(),
+      value: formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode),
+      footer: getTotalCompanySpendFooter(),
       trend: {
-        value: Math.abs(ytdPercentChange).toFixed(1),
-        positive: !ytdIsIncrease,
-        description: 'vs last year'
+        value: Math.abs(stats.totalCompanySpend.percentChange).toFixed(1),
+        positive: stats.totalCompanySpend.isIncrease,
+        description: getTotalCompanySpendDescription()
       },
-      icon: 'euro',
-      iconColor: '#1890ff'
+      icon: 'building',
+      iconColor: stats.totalCompanySpend.isIncrease ? '#ff4d4f' : '#52c41a'
     });
 
     // 2. Actual vs Planned Card
-    const actualVsPlanned = stats.ytdStats.totalAmount;
-    const plannedAmount = stats.expensePlanYearly.totalAmount;
+    const actualVsPlannedData = stats.actualVsPlanned;
+    const actualAmount = actualVsPlannedData.actualExpenses.totalAmount;
+    const plannedAmount = actualVsPlannedData.plannedExpenses.totalAmount;
+    const actualCount = actualVsPlannedData.actualExpenses.count;
+    const plannedCount = actualVsPlannedData.plannedExpenses.count;
+    
     const actualVsPlannedPercentage = plannedAmount > 0 
-      ? ((actualVsPlanned / plannedAmount) * 100) 
+      ? ((actualAmount / plannedAmount) * 100) 
       : 0;
+    
+    const getActualVsPlannedTitle = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Actual vs Planned ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        case 'quarterly':
+          const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+          return `Actual vs Planned Q${currentQuarter} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+        default:
+          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+          return `Actual vs Planned ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+      }
+    };
     
     cards.push({
       id: 'actual-vs-planned',
-      title: 'Actual vs Planned',
+      title: getActualVsPlannedTitle(),
       value: actualVsPlannedPercentage.toFixed(1),
       suffix: '%',
       decimalPlaces: 1,
-      footer: `Actual: ${formatCurrency(actualVsPlanned)} | Planned: ${formatCurrency(plannedAmount)}`,
+      footer: `Planned: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} plans) | Actual: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} expenses)`,
       trend: {
         value: actualVsPlannedPercentage.toFixed(1),
         positive: actualVsPlannedPercentage <= 100,
@@ -101,65 +183,156 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       iconColor: actualVsPlannedPercentage <= 100 ? '#52c41a' : '#ff4d4f'
     });
 
-    // 3. Monthly Spend Comparison Card
-    const monthlyComparison = stats.monthlySpendComparison;
-    cards.push({
-      id: 'monthly-spend-comparison',
-      title: 'Monthly Spend Comparison',
-      value: Math.abs(monthlyComparison.percentChange).toFixed(1),
-      suffix: '%',
-      decimalPlaces: 1,
-      footer: `${getCurrentMonthName()}: ${formatCurrency(monthlyComparison.currentMonthTotal)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(monthlyComparison.previousMonthTotal)} (${monthlyComparison.previousMonthCount} expenses)`,
-      trend: {
-        value: Math.abs(monthlyComparison.percentChange).toFixed(1),
-        positive: !monthlyComparison.isIncrease,
-        description: monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month'
-      },
-      icon: 'calendar',
-      iconColor: monthlyComparison.isIncrease ? '#ff4d4f' : '#52c41a'
-    });
+         // 3. Spend Comparison Card
+     const monthlyComparison = stats.monthlySpendComparison;
+     const getComparisonTitle = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return `Yearly Spend Comparison (${selectedCurrencyCode})`;
+         case 'quarterly':
+           return `Quarterly Spend Comparison (${selectedCurrencyCode})`;
+         default:
+           return `Monthly Spend Comparison (${selectedCurrencyCode})`;
+       }
+     };
+
+     const getComparisonDescription = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return monthlyComparison.isIncrease ? 'increase vs last year' : 'decrease vs last year';
+         case 'quarterly':
+           return monthlyComparison.isIncrease ? 'increase vs last quarter' : 'decrease vs last quarter';
+         default:
+           return monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month';
+       }
+     };
+
+     cards.push({
+       id: 'monthly-spend-comparison',
+       title: getComparisonTitle(),
+       value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
+       decimalPlaces: 1,
+       footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
+       trend: {
+         value: Math.abs(monthlyComparison.percentChange).toFixed(1),
+         positive: monthlyComparison.isIncrease,
+         description: getComparisonDescription()
+       },
+       icon: 'calendar',
+       iconColor: monthlyComparison.isIncrease ? '#ff4d4f' : '#52c41a'
+     });
 
     // 4. Transfer Required Card
+    const getTransferRequiredFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return `Pending transfers this year in ${selectedCurrencyCode}`;
+        case 'quarterly':
+          return `Pending transfers this quarter in ${selectedCurrencyCode}`;
+        default:
+          return `Pending transfers this month in ${selectedCurrencyCode}`;
+      }
+    };
+    
     cards.push({
       id: 'transfer-required',
-      title: 'Transfer Required',
-      value: formatCurrency(stats.transferRequired),
-      footer: 'Pending transfers',
+      title: `Transfer Required (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
+      footer: getTransferRequiredFooter(),
       icon: 'exclamation',
       iconColor: '#ff4d4f'
     });
 
     // 5. Pending Requests Card
+    const getPendingRequestsFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Requests awaiting approval this year';
+        case 'quarterly':
+          return 'Requests awaiting approval this quarter';
+        default:
+          return 'Requests awaiting approval this month';
+      }
+    };
+
+    const getAdvancePaymentFooter = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'Approved - waiting to pay this year';
+        case 'quarterly':
+          return 'Approved - waiting to pay this quarter';
+        default:
+          return 'Approved - waiting to pay this month';
+      }
+    };
+    
     cards.push({
       id: 'pending-requests',
       title: 'Pending Requests',
       value: stats.pendingRequestsCount.toString(),
-      footer: 'Requests awaiting approval',
+      footer: getPendingRequestsFooter(),
       icon: 'clock',
       iconColor: '#faad14'
     });
 
-    // 6. Average Spend Per Trip Card
+    // 6. Advance Payment Card
+    cards.push({
+      id: 'advance-payment',
+      title: 'Advance Payment',
+      value: stats.advancePaymentsApproved.count.toString(),
+      footer: getAdvancePaymentFooter(),
+      icon: 'credit-card',
+      iconColor: '#52c41a'
+    });
+
+    // 7. Average Spend Per Trip Card
+    const getPeriodText = () => {
+      switch (currentFilters.period) {
+        case 'yearly':
+          return 'year';
+        case 'quarterly':
+          return 'quarter';
+        default:
+          return 'month';
+      }
+    };
+    
     cards.push({
       id: 'avg-spend-per-trip',
-      title: 'Average Spend Per Trip',
-      value: formatCurrency(stats.avgSpendPerTrip),
-      footer: 'Based on completed trips',
+      title: `Average Spend Per Trip (${selectedCurrencyCode})`,
+      value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
+      footer: `Based on completed trips this ${getPeriodText()}`,
       icon: 'car',
       iconColor: '#722ed1'
     });
 
     return cards;
-  }, [stats]); // Recalculate only when stats change
+  }, [stats, currentFilters]); // Recalculate when stats or filters change
 
-  // ⚡ PERFORMANCE: Remove unused filter functionality (filters not implemented in dashboard stats)
+  // Handle filter changes and update dashboard stats with debouncing
   const handleFiltersChange = (newFilters: FilterOptions) => {
-    // Currently filters are not supported by the dashboard stats hook
-    // This is a placeholder for future filter implementation
-    console.log('Dashboard filters not yet implemented:', newFilters);
+    
+    if (newFilters.currency !== currentFilters.currency) {
+      setIsCurrencyLoading(true);
+      
+      if (currencyDebounceTimer) {
+        clearTimeout(currencyDebounceTimer);
+      }
+      
+      const newTimer = setTimeout(() => {
+        setCurrentFilters(newFilters);
+        setIsCurrencyLoading(false);
+        setCurrencyDebounceTimer(null);
+      }, 500); // Increased delay to 500ms
+      
+      setCurrencyDebounceTimer(newTimer);
+    } else {
+      // For non-currency changes, update immediately
+      setCurrentFilters(newFilters);
+    }
   };
 
-  if (loading) {
+  if (loading && !isCurrencyLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-64" data-testid="expense-dashboard-loading">
         <Spinner size="lg" />
@@ -212,6 +385,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       <ExpenseFilterBar
         accessToken={accessToken}
         onFiltersChange={handleFiltersChange}
+        currentFilters={currentFilters}
         data-testid="expense-dashboard-filter-bar"
       />
 

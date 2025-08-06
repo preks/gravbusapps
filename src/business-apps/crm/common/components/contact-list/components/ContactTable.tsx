@@ -23,6 +23,9 @@ import {
   PiBuilding,
   PiArrowUp,
   PiArrowDown,
+  PiBriefcase,
+  PiOfficeChair,
+  PiGlobe,
 } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
@@ -49,6 +52,7 @@ interface ContactTableProps extends BusinessAppContextProps {
   selectedContactId?: string;
   onEdit?: (contact: Contact) => void;
   sourceApp?: string;
+  visibleColumns: string[];
 }
 
 const DATA_TEST_ID_PREFIX = "ContactTable";
@@ -73,7 +77,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
   onEdit,
   accessToken,
   sourceApp,
+  visibleColumns,
 }) => {
+  // Helper function to check if a column is visible
+  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+
   // Get contact display name
   const getContactName = (contact: Contact) => {
     const title = contact.academicTitle?.value;
@@ -98,6 +106,12 @@ const ContactTable: React.FC<ContactTableProps> = ({
 
   const handleRowClick = useCallback(
     (record: Contact) => {
+      console.log("🔍 Contact clicked:", {
+        id: record.id,
+        name: `${record.firstName} ${record.lastName}`,
+        sourceApp,
+      });
+
       // Determine source based on sourceApp
       const source =
         sourceApp === "investment-relations" || sourceApp === "IRM"
@@ -109,6 +123,8 @@ const ContactTable: React.FC<ContactTableProps> = ({
         contactId: record.id,
         source: source,
       });
+      
+      console.log("🔗 Navigating to URL:", url);
       navigateTo(url);
 
       // Also call the selection callback if provided
@@ -162,42 +178,174 @@ const ContactTable: React.FC<ContactTableProps> = ({
                 >
                   ACTIONS
                 </TableHead>
-                <TableHead
-                  className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("firstName")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    Contact
-                    {renderSortIcon("firstName")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}
-                >
-                  Contact Info
-                </TableHead>
-                <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("accountId")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    Account
-                    {renderSortIcon("accountId")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("ownerEmployeeId")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    Owner
-                    {renderSortIcon("ownerEmployeeId")}
-                  </div>
-                </TableHead>
+                {isColumnVisible('name') && (
+                  <TableHead
+                    className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("firstName")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Contact
+                      {renderSortIcon("firstName")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('contact') && (
+                  <TableHead
+                    className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("email")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Contact Info
+                      {renderSortIcon("email")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('company') && (
+                  <TableHead
+                    className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("accountId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Company
+                      {renderSortIcon("accountId")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('role') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("contactRole")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-role-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Role
+                      {renderSortIcon("contactRole")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('type') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("contactType")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Type
+                      {renderSortIcon("contactType")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('created') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("createdAt")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Creation Date
+                      {renderSortIcon("createdAt")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('owner') && (
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("ownerEmployeeId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Owner
+                      {renderSortIcon("ownerEmployeeId")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('academicTitle') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("academicTitle")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-academic-title-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Academic Title
+                      {renderSortIcon("academicTitle")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('birthDate') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("birthDate")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-birth-date-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Birth Date
+                      {renderSortIcon("birthDate")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('account') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("accountId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-account-detail-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Account
+                      {renderSortIcon("accountId")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('linkedin') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("linkedinUrl")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-linkedin-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      LinkedIn Profile
+                      {renderSortIcon("linkedinUrl")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('xing') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("xingUrl")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-xing-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Xing Profile
+                      {renderSortIcon("xingUrl")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('jobTitle') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("jobTitle")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-job-title-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Job Title
+                      {renderSortIcon("jobTitle")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('department') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("department")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-department-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Department
+                      {renderSortIcon("department")}
+                    </div>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -229,10 +377,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       />
                     </div>
                   </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}
-                  >
+                  {isColumnVisible('name') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-contact-cell-${record.id}`}
+                    >
                     <div
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                       onClick={(e) => {
@@ -270,10 +419,12 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}
-                  >
+                  )}
+                  {isColumnVisible('contact') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}
+                    >
                     <div className="gba:space-y-1">
                       {record.email && (
                         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
@@ -305,10 +456,12 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}
-                  >
+                  )}
+                  {isColumnVisible('company') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}
+                    >
                     {record.account ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiBuilding className="gba:text-gray-400" />
@@ -347,11 +500,48 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </span>
                     )}
                   </TableCell>
-
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
-                  >
+                  )}
+                  {isColumnVisible('role') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-role-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiBriefcase size={14} className="gba:text-purple-600" />
+                        <span className="gba:text-sm gba:truncate" title={record.contactRole}>
+                          {record.contactRole || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('type') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiUser size={14} className="gba:text-green-600" />
+                        <span className="gba:text-sm gba:truncate" title={record.contactType}>
+                          {record.contactType || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('created') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
+                    >
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {record.createdAt ? new Date(record.createdAt).toLocaleDateString() : "-"}
+                      </span>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('owner') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
+                    >
                     {record.ownerEmployee ? (
                       <div className="gba:flex gba:items-center gba:gap-3">
                         <Avatar size="sm">
@@ -383,6 +573,119 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </span>
                     )}
                   </TableCell>
+                  )}
+                  {isColumnVisible('academicTitle') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-academic-title-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiUser size={14} className="gba:text-indigo-600" />
+                        <span className="gba:text-sm gba:truncate" title={record.academicTitle?.value}>
+                          {record.academicTitle?.value || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('birthDate') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-birth-date-cell-${record.id}`}
+                    >
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {record.birthDate ? new Date(record.birthDate).toLocaleDateString() : "-"}
+                      </span>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('account') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-account-detail-cell-${record.id}`}
+                    >
+                      {record.account ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiBuilding size={14} className="gba:text-gray-600" />
+                          <span className="gba:text-sm gba:truncate" title={record.account.name}>
+                            {record.account.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400 gba:text-sm">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('linkedin') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-linkedin-cell-${record.id}`}
+                    >
+                      {record.linkedinUrl ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiLinkedinLogo size={14} className="gba:text-blue-600" />
+                          <a
+                            href={record.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gba:text-blue-600 gba:hover:underline gba:text-sm gba:truncate"
+                            title={record.linkedinUrl}
+                          >
+                            LinkedIn
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400 gba:text-sm">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('xing') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-xing-cell-${record.id}`}
+                    >
+                      {record.xingUrl ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiGlobe size={14} className="gba:text-green-600" />
+                          <a
+                            href={record.xingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gba:text-green-600 gba:hover:underline gba:text-sm gba:truncate"
+                            title={record.xingUrl}
+                          >
+                            Xing
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400 gba:text-sm">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('jobTitle') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-job-title-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiBriefcase size={14} className="gba:text-purple-600" />
+                        <span className="gba:text-sm gba:truncate" title={record.jobTitle}>
+                          {record.jobTitle || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('department') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-department-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiOfficeChair size={14} className="gba:text-orange-600" />
+                        <span className="gba:text-sm gba:truncate" title={record.department}>
+                          {record.department || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

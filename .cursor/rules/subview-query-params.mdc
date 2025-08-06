@@ -1,6 +1,5 @@
 ---
 description: When components with nested Tabs that should be bookmarkable; or when Tab components where specific tabs need to be accessible via URL; or when multi-level navigation where both main view and sub-tabs should be reflected in URL; or when user requests subView query parameter functionality.
-globs: 
 alwaysApply: false
 ---
 

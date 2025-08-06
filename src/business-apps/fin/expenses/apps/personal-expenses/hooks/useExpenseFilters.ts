@@ -45,11 +45,29 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     return status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
   };
 
+  // Helper function to format date range for display
+  const formatDateRangeLabel = (dateRange: [Date | null, Date | null] | null): string => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return '';
+    
+    const startDate = dateRange[0];
+    const endDate = dateRange[1];
+    
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (startDate) {
+      return `From ${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    } else if (endDate) {
+      return `To ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+    }
+    
+    return '';
+  };
+
   // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'expenseDateRange',
-      title: 'Filter by Expense Date',
+      title: 'Expense Date',
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(ExpenseDateRangeFilter, {
         expenseDateRange: expenseDateRange,
@@ -78,48 +96,72 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     {
       id: 'status',
       title: 'Status',
-      multiSelect: true,
-      filters: Object.values(ExpenseStatus).map(status => {
-        const id = status.toLowerCase();
-        const displayLabel = getExpenseItemStatusDisplay(status).label;
-        const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
-        const label = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
-        return {
-          id,
-          label,
-          selected: selectedFilters.includes(id)
-        };
-      })
+      filters: [
+        { id: 'created', label: formatStatusName('CREATED'), selected: selectedFilters.includes('created') },
+        { id: 'approved', label: formatStatusName('APPROVED'), selected: selectedFilters.includes('approved') },
+        { id: 'rejected', label: formatStatusName('REJECTED'), selected: selectedFilters.includes('rejected') },
+        { id: 'pending', label: formatStatusName('PENDING'), selected: selectedFilters.includes('pending') }
+      ]
     },
     {
-      id: 'other',
-      title: 'Other',
+      id: 'amount',
+      title: 'Amount Range',
       filters: [
-        { id: 'noreceiptfilter', label: 'No receipt', selected: selectedFilters.includes('noreceiptfilter') },
+        { id: 'under100', label: 'Under €100', selected: selectedFilters.includes('under100') },
+        { id: '100to500', label: '€100 - €500', selected: selectedFilters.includes('100to500') },
+        { id: '500to1000', label: '€500 - €1000', selected: selectedFilters.includes('500to1000') },
+        { id: 'over1000', label: 'Over €1000', selected: selectedFilters.includes('over1000') }
       ]
     }
   ], [selectedFilters, expenseDateRange]);
 
-  // Build the filter label map dynamically
-  const filterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {
-      'last30days': 'Last 30 days',
-      'last90days': 'Last 90 days',
-      'last180days': 'Last 180 days',
-      'expense': 'Expense',
-      'trip': 'Trip',
-      'noreceiptfilter': 'No receipt',
-    };
+  // Create filter label map including date range
+  const filterLabelMap = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    
+    // Add standard filter labels
+    filterGroups.forEach(group => {
+      if (group.filters) {
+        group.filters.forEach(filter => {
+          map[filter.id] = filter.label;
+        });
+      }
+    });
+    
+    // Add date range label if active
+    const dateRangeLabel = formatDateRangeLabel(expenseDateRange);
+    if (dateRangeLabel) {
+      map['expenseDateRange'] = `Expense Date: ${dateRangeLabel}`;
+    }
+    
+    return map;
+  }, [filterGroups, expenseDateRange]);
 
-    // Add all status options
-    Object.values(ExpenseStatus).forEach(status => {
-  const key = status.toLowerCase();
-  const displayLabel = getExpenseItemStatusDisplay(status).label;
-  const beLabel = status.charAt(0) + status.slice(1).toLowerCase();
-  labelMap[key] = displayLabel !== beLabel ? `${displayLabel} (${beLabel})` : displayLabel;
-});
+  // Get all selected filters including date range when active
+  const getAllSelectedFilters = useMemo(() => {
+    const filters = [...selectedFilters];
+    
+    // Add date range as a filter if it's active
+    if (expenseDateRange && (expenseDateRange[0] || expenseDateRange[1])) {
+      filters.push('expenseDateRange');
+    }
+    
+    return filters;
+  }, [selectedFilters, expenseDateRange]);
 
-    return labelMap;
+  // Clear all filters including date range
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setExpenseDateRange(null);
+  }, []);
+
+  // Remove filter function that handles date range
+  const removeFilter = useCallback((filterId: string) => {
+    if (filterId === 'expenseDateRange') {
+      setExpenseDateRange(null);
+    } else {
+      setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    }
   }, []);
 
   // Add filter with proper dependency handling
@@ -140,16 +182,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     });
   }, [TIME_PERIOD_OPTIONS]);
 
-  // Remove filter with proper dependency handling
-  const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(f => f !== filterId));
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setSelectedFilters([]);
-    setExpenseDateRange(null);
-  }, []);
-
   // Atomic setter for filters
   const setFilters = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
@@ -157,28 +189,28 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
   // Convert UI filters to API filter format
   const getFilters = useCallback((
-    filtersToApply: string[] = selectedFilters,
+    filtersToApply: string[] = getAllSelectedFilters,
     startDateRange?: [Date | null, Date | null] | null,
     endDateRange?: [Date | null, Date | null] | null,
-    expenseDateRange?: [Date | null, Date | null] | null
+    expenseDateRangeParam?: [Date | null, Date | null] | null
   ): ExpenseFilter => {
     console.log('Getting filters from selected filters:', filtersToApply);
 
     // Map UI filter format to the expected API filter format
     const filter: ExpenseFilter = {};
 
-    // Extract filters by types
-    const timePeriod = filtersToApply.find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
+    // Extract filters by types (exclude date range from processing as regular filter)
+    const timePeriod = filtersToApply.filter(f => f !== 'expenseDateRange').find(f => TIME_PERIOD_OPTIONS.includes(f)) || null;
 
     // Get status filters and convert back to uppercase (as they're stored in ExpenseStatus enum)
-    const statusFilters = filtersToApply.filter(f => 
+    const statusFilters = filtersToApply.filter(f => f !== 'expenseDateRange' && 
       Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
 
     // Map the lowercase status filters back to their uppercase enum values
     const statuses = statusFilters.map(f => f.toUpperCase());
 
-    const expenseTypes = filtersToApply.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f));
+    const expenseTypes = filtersToApply.filter(f => f !== 'expenseDateRange' && EXPENSE_TYPE_OPTIONS.includes(f));
+    const otherFilters = filtersToApply.filter(f => f !== 'expenseDateRange' && OTHER_OPTIONS.includes(f));
 
     // Check if no receipt filter is selected
     const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter');
@@ -191,9 +223,10 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     }
 
     // Process expense date range filters (priority over time period filters)
-    if (expenseDateRange && expenseDateRange[0] && expenseDateRange[1]) {
-      filter.expenseDateStart = expenseDateRange[0].toISOString().split('T')[0];
-      filter.expenseDateEnd = expenseDateRange[1].toISOString().split('T')[0];
+    const dateRangeToUse = expenseDateRangeParam || expenseDateRange;
+    if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
+      filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0];
+      filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0];
       console.log('Applying expense date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
     }
     // Process date range filters (priority over time period filters)
@@ -241,20 +274,20 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
 
     console.log('getFilters returning:', filter);
     return filter;
-  }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS]);
+  }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS, expenseDateRange, getAllSelectedFilters]);
   
   return {
     search,
     setSearch,
-    selectedFilters,
+    selectedFilters: getAllSelectedFilters,
     filterGroups,
     filterLabelMap,
     addFilter,
-    removeFilter,
-    clearFilters,
+    removeFilter: removeFilter,
+    clearFilters: clearAllFilters,
     getFilters,
     setFilters,
-    setExpenseDateRange,
     expenseDateRange,
+    setExpenseDateRange
   };
 };

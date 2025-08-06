@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { PiPencilSimple } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { SelectOption } from '../types';
-import EmployeeSelectionModal from './EmployeeSelectionModal';
+import React, { useState } from "react";
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Button,
+} from "@newwork/nw-design-system";
+import { PiPencilSimple } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { SelectOption } from "../types";
+import EmployeeSearchableSelect from "./EmployeeSearchableSelect";
 
-const prefixDataTestId = 'ContactOwnerSelector';
+const prefixDataTestId = "ContactOwnerSelector";
 
 interface OwnerSelectorProps {
   value: string;
@@ -15,7 +20,7 @@ interface OwnerSelectorProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onSearch: (search: string) => void;
-  error: string | null;
+  error?: string | null;
   dataTestId?: string;
 }
 
@@ -28,103 +33,115 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
   onLoadMore,
   onSearch,
   error,
-  dataTestId
+  dataTestId,
 }) => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   // Find selected employee
-  const selectedEmployee = employees.find(emp => emp.value === value);
+  const selectedEmployee = employees.find((emp) => emp.value === value);
 
-  const handleOpenModal = () => {
-    setIsModalVisible(true);
+  const handleChangeClick = () => {
+    setShowDropdown(true);
   };
 
-  const handleSelectEmployee = (employee: SelectOption) => {
-    onChange(employee.value as string);
-    setIsModalVisible(false);
+  const handleEmployeeSelect = (selectedValue: string) => {
+    onChange(selectedValue);
+    setShowDropdown(false);
   };
 
-  const handleCloseModal = () => {
-    setIsModalVisible(false);
+  const handleDropdownClose = () => {
+    setShowDropdown(false);
   };
 
-  // Helper function to get employee initials
-  const getEmployeeInitials = (name?: string) => {
-    return name
-      ?.split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '??';
-  };
-
-  return (
-    <>
-      <div 
-        className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-lg gba:p-4 gba:flex gba:items-center gba:justify-between gba:min-h-[60px] gba:transition-colors gba:hover:border-gray-400"
-        data-testid={dataTestId || formatDataTestId(prefixDataTestId, 'Container')}
-      >
-        {selectedEmployee ? (
-          <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
-            {/* Employee Avatar with Image or Initials */}
-            <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:flex gba:items-center gba:justify-center gba:text-white gba:font-semibold gba:text-sm gba:flex-shrink-0 gba:shadow-md">
-              {selectedEmployee.extraInfo?.pictureThumbnail ? (
-                <img 
-                  src={`data:image/jpeg;base64,${selectedEmployee.extraInfo.pictureThumbnail}`}
-                  alt={selectedEmployee.name || 'Employee'}
-                  className="gba:w-full gba:h-full gba:rounded-full gba:object-cover"
-                />
-              ) : (
-                getEmployeeInitials(selectedEmployee.name)
-              )}
-            </div>
-            
-            <div className="gba:flex-1 gba:min-w-0">
-              <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
-                {selectedEmployee.name}
-              </div>
-              <div className="gba:text-xs gba:text-gray-600 gba:truncate">
-                {selectedEmployee.extraInfo?.jobPosition || 'No Position'}
-              </div>
-              <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                {selectedEmployee.extraInfo?.organizationalUnit || 'No Unit'}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="gba:flex-1 gba:text-gray-500 gba:text-sm">
-            No contact owner selected
-          </div>
-        )}
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleOpenModal}
-          className="gba:ml-3 gba:flex gba:items-center gba:gap-1"
-          data-testid={formatDataTestId(prefixDataTestId, 'EditButton')}
-        >
-          <PiPencilSimple size={14} />
-          {selectedEmployee ? 'Change' : 'Select'}
-        </Button>
-      </div>
-
-      {isModalVisible && (
-        <EmployeeSelectionModal
-          isVisible={isModalVisible}
-          onClose={handleCloseModal}
-          onSelect={handleSelectEmployee}
-          employees={employees}
+  if (showDropdown) {
+    return (
+      <div className="gba:space-y-2">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-900">
+            Select Owner <span className="gba:text-red-500">*</span>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDropdownClose}
+            className="gba:text-gray-500 gba:hover:text-gray-700"
+          >
+            Cancel
+          </Button>
+        </div>
+        <EmployeeSearchableSelect
+          name="owner"
+          value={value}
+          placeholder="Search and select contact owner..."
+          options={employees}
           loading={loading}
           hasMore={hasMore}
-          onLoadMore={onLoadMore}
           onSearch={onSearch}
+          onLoadMore={onLoadMore}
+          onChange={handleEmployeeSelect}
           error={error}
-          selectedValue={value}
+          data-testid={dataTestId}
         />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-lg gba:p-4 gba:flex gba:items-center gba:justify-between gba:min-h-[60px] gba:transition-colors gba:hover:border-gray-400"
+      data-testid={
+        dataTestId || formatDataTestId(prefixDataTestId, "Container")
+      }
+    >
+      {selectedEmployee ? (
+        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+          <Avatar>
+            {selectedEmployee.extraInfo?.pictureThumbnail ? (
+              <AvatarImage
+                src={`data:image/jpeg;base64,${selectedEmployee.extraInfo.pictureThumbnail}`}
+                alt={selectedEmployee.name || "Employee"}
+              />
+            ) : null}
+            <AvatarFallback>
+              {selectedEmployee.name
+                ?.split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2) || "??"}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="gba:flex-1 gba:min-w-0">
+            <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
+              {selectedEmployee.name}
+            </div>
+            <div className="gba:text-xs gba:text-gray-600 gba:truncate">
+              {selectedEmployee.extraInfo?.jobPosition || "No Position"}
+            </div>
+            <div className="gba:text-xs gba:text-gray-500 gba:truncate">
+              {selectedEmployee.extraInfo?.organizationalUnit || "No Unit"}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="gba:flex-1 gba:text-gray-500 gba:text-sm">
+          No owner selected
+        </div>
       )}
-    </>
+
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={handleChangeClick}
+        className="gba:ml-3 gba:flex gba:items-center gba:gap-1"
+        data-testid={formatDataTestId(prefixDataTestId, "ChangeButton")}
+      >
+        <PiPencilSimple size={14} />
+        {selectedEmployee ? "Change" : "Select"}
+      </Button>
+    </div>
   );
 };
 
-export default OwnerSelector; 
+export default OwnerSelector;

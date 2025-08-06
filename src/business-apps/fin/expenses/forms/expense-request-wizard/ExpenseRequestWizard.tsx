@@ -149,7 +149,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   useEffect(() => {
     if (expenseRequestData) {
       if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
       } else {
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
       }

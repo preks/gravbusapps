@@ -30,7 +30,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     getFilters,
     setStartDateRange,
     setEndDateRange,
-    setPlanDateRange
+    setPlanDateRange,
+    filterLabelMap,
+    addFilter,
+    removeFilter
   } = useExpensePlanFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
@@ -126,17 +129,24 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   // Handle clearing all filters (widget + table)
   const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
+    // If clearing all filters (empty array), use the proper clearFilters function
+    if (filters.length === 0) {
+      clearFilters(); // This properly clears all filters including date ranges
+      setActiveWidget(null);
+      setDestinationFilter(null);
+    } else {
+      // Otherwise, set specific filters
+      setFilters(filters);
+    }
+  }, [clearFilters, setFilters]);
+
+  // Wrapper for clear all filters without parameters (for ExpensePlansTable clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
     setActiveWidget(null);
     setDestinationFilter(null);
-    // Also clear search and date ranges when clearing all filters
-    if (filters.length === 0) {
-      setSearch('');
-      setStartDateRange(null);
-      setEndDateRange(null);
-      setPlanDateRange(null);
-    }
-  }, [setFilters, setSearch, setStartDateRange, setEndDateRange, setPlanDateRange]);
+  }, [setFilters]);
 
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback((baseFilters: any) => {
@@ -205,18 +215,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     fetchStatistics();
   }, [fetchStatistics]);
 
-  // Create filter label map for proper display labels
-  const filterLabelMap = useMemo(() => {
+  // Memoize the label map to prevent unnecessary re-rendering
+  const statusFilterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {};
     
-    // Map status values to their display labels
     const statusLabels = {
+      [ExpenseStatus.CREATED]: 'Draft',
       [ExpenseStatus.PREPARED]: 'Prepared',
-      [ExpenseStatus.CREATED]: 'Draft (Created)',
-      [ExpenseStatus.PENDING]: 'In Approval (Pending)',
       [ExpenseStatus.ASSIGNED]: 'Assigned',
+      [ExpenseStatus.PENDING]: 'Pending',
       [ExpenseStatus.APPROVED]: 'Approved',
-      [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
+      [ExpenseStatus.RETURNED]: 'Returned',
+      [ExpenseStatus.REJECTED]: 'Rejected',
       [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
       [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
       [ExpenseStatus.PAID]: 'Paid',
@@ -273,12 +283,14 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       onTableChange={handleTableChange}
       search={search}
       onSearchChange={setSearch}
-      selectedFilters={finalFilters}
-      setFilters={handleClearAllFilters}
+      selectedFilters={selectedFilters}
+      setFilters={setFilters}
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
-      clearFilters={clearFilters}
+      clearFilters={handleClearAllFiltersNoParams}
       filterLabelMap={filterLabelMap}
+      addFilter={addFilter}
+      removeFilter={removeFilter}
     />
   );
 };

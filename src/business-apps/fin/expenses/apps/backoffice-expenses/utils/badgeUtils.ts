@@ -1,4 +1,4 @@
-import type { BadgeProps } from '@newwork/nw-design-system';
+import type { BadgeProps } from "@newwork/nw-design-system";
 
 /**
  * Badge utilities for expense status following the same pattern as leads
@@ -10,7 +10,7 @@ import type { BadgeProps } from '@newwork/nw-design-system';
  */
 export interface ExpenseStatusConfig {
   label: string;
-  variant: BadgeProps['variant'];
+  variant: BadgeProps["variant"];
 }
 
 /**
@@ -19,88 +19,90 @@ export interface ExpenseStatusConfig {
  * @param status - The expense request status
  * @returns Object with user-friendly label and Badge variant
  */
-export function getExpenseRequestStatusConfig(status?: string): ExpenseStatusConfig {
+export function getExpenseRequestStatusConfig(
+  status?: string
+): ExpenseStatusConfig {
   if (!status) {
-    return { label: 'Unknown', variant: 'outline' };
+    return { label: "Unknown", variant: "outline" };
   }
 
   switch (status.toUpperCase()) {
-    case 'PREPARED':
+    case "PREPARED":
       return {
-        label: 'Prepared',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Prepared",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-      
-    case 'CREATED':
+
+    case "CREATED":
       return {
-        label: 'Draft',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Draft",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-      
-    case 'ASSIGNED':
+
+    case "ASSIGNED":
       return {
-        label: 'Assigned',
-        variant: 'info'        // rgba(0, 148, 209, 0.55) - Blue
+        label: "Assigned",
+        variant: "info", // rgba(0, 148, 209, 0.55) - Blue
       };
-      
-    case 'PENDING':
+
+    case "PENDING":
       return {
-        label: 'In Approval',
-        variant: 'info'        // rgba(0, 148, 209, 0.55) - Blue
+        label: "In Approval",
+        variant: "info", // rgba(0, 148, 209, 0.55) - Blue
       };
-    
-    case 'APPROVED':
+
+    case "APPROVED":
       return {
-        label: 'Verification Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Verification Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'VERIFIED':
+
+    case "VERIFIED":
       return {
-        label: 'Booking Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Booking Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'BOOKED':
+
+    case "BOOKED":
       return {
-        label: 'Transfer Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Transfer Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'TRANSFERRED':
+
+    case "TRANSFERRED":
       return {
-        label: 'Payment Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Payment Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'PAID':
+
+    case "PAID":
       return {
-        label: 'Paid',
-        variant: 'success'     // rgba(13, 188, 123, 0.55) - Green
+        label: "Paid",
+        variant: "success", // rgba(13, 188, 123, 0.55) - Green
       };
-    
-    case 'REJECTED':
+
+    case "REJECTED":
       return {
-        label: 'Revision Required',
-        variant: 'info'        // rgba(0, 148, 209, 1) - Blue (full opacity)
+        label: "Revision Required",
+        variant: "info", // rgba(0, 148, 209, 1) - Blue (full opacity)
       };
-    
-    case 'CLOSED':
+
+    case "CLOSED":
       return {
-        label: 'Closed',
-        variant: 'success'     // rgba(13, 188, 123, 0.55) - Green
+        label: "Closed",
+        variant: "success", // rgba(13, 188, 123, 0.55) - Green
       };
-    
-    case 'DISCARDED':
+
+    case "DISCARDED":
       return {
-        label: 'Discarded',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Discarded",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-    
+
     default:
       return {
         label: status,
-        variant: 'secondary'   // Default to secondary variant
+        variant: "secondary", // Default to secondary variant
       };
   }
 }
@@ -110,7 +112,9 @@ export function getExpenseRequestStatusConfig(status?: string): ExpenseStatusCon
  * @param status - The expense request status
  * @returns Badge variant that matches the original Pill color meaning
  */
-export function getExpenseRequestStatusBadgeVariant(status?: string): BadgeProps['variant'] {
+export function getExpenseRequestStatusBadgeVariant(
+  status?: string
+): BadgeProps["variant"] {
   return getExpenseRequestStatusConfig(status).variant;
 }
 
@@ -119,7 +123,7 @@ export function getExpenseRequestStatusBadgeVariant(status?: string): BadgeProps
  */
 export interface AdvancePaymentStatusConfig {
   label: string;
-  variant: BadgeProps['variant'];
+  variant: BadgeProps["variant"];
 }
 
 /**
@@ -128,88 +132,90 @@ export interface AdvancePaymentStatusConfig {
  * @param status - The advance payment status
  * @returns Object with user-friendly label and Badge variant
  */
-export function getAdvancePaymentStatusConfig(status?: string): AdvancePaymentStatusConfig {
+export function getAdvancePaymentStatusConfig(
+  status?: string
+): AdvancePaymentStatusConfig {
   if (!status) {
-    return { label: 'Unknown', variant: 'outline' };
+    return { label: "Unknown", variant: "outline" };
   }
 
   switch (status.toUpperCase()) {
-    case 'PREPARED':
+    case "PREPARED":
       return {
-        label: 'Prepared',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Prepared",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-      
-    case 'CREATED':
+
+    case "CREATED":
       return {
-        label: 'Draft',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Draft",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-      
-    case 'ASSIGNED':
+
+    case "ASSIGNED":
       return {
-        label: 'Assigned',
-        variant: 'info'        // rgba(0, 148, 209, 0.55) - Blue
+        label: "Assigned",
+        variant: "info", // rgba(0, 148, 209, 0.55) - Blue
       };
-      
-    case 'PENDING':
+
+    case "PENDING":
       return {
-        label: 'In Approval',
-        variant: 'info'        // rgba(0, 148, 209, 0.55) - Blue
+        label: "In Approval",
+        variant: "info", // rgba(0, 148, 209, 0.55) - Blue
       };
-    
-    case 'APPROVED':
+
+    case "APPROVED":
       return {
-        label: 'Verification Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Verification Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'VERIFIED':
+
+    case "VERIFIED":
       return {
-        label: 'Booking Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Booking Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'BOOKED':
+
+    case "BOOKED":
       return {
-        label: 'Transfer Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Transfer Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'TRANSFERRED':
+
+    case "TRANSFERRED":
       return {
-        label: 'Payment Required',
-        variant: 'warning'     // rgba(255, 158, 2, 0.55) - Orange
+        label: "Payment Required",
+        variant: "warning", // rgba(255, 158, 2, 0.55) - Orange
       };
-    
-    case 'PAID':
+
+    case "PAID":
       return {
-        label: 'Paid',
-        variant: 'success'     // rgba(13, 188, 123, 0.55) - Green
+        label: "Paid",
+        variant: "success", // rgba(13, 188, 123, 0.55) - Green
       };
-    
-    case 'REJECTED':
+
+    case "REJECTED":
       return {
-        label: 'Revision Required',
-        variant: 'info'        // rgba(0, 148, 209, 1) - Blue (full opacity)
+        label: "Revision Required",
+        variant: "info", // rgba(0, 148, 209, 1) - Blue (full opacity)
       };
-    
-    case 'CLOSED':
+
+    case "CLOSED":
       return {
-        label: 'Closed',
-        variant: 'success'     // rgba(13, 188, 123, 0.55) - Green
+        label: "Closed",
+        variant: "success", // rgba(13, 188, 123, 0.55) - Green
       };
-    
-    case 'DISCARDED':
+
+    case "DISCARDED":
       return {
-        label: 'Discarded',
-        variant: 'secondary'   // rgba(55, 99, 153, 0.55) - Blue-gray
+        label: "Discarded",
+        variant: "secondary", // rgba(55, 99, 153, 0.55) - Blue-gray
       };
-    
+
     default:
       return {
         label: status,
-        variant: 'secondary'   // Default to secondary variant
+        variant: "secondary", // Default to secondary variant
       };
   }
 }
@@ -219,7 +225,9 @@ export function getAdvancePaymentStatusConfig(status?: string): AdvancePaymentSt
  * @param status - The advance payment status
  * @returns Badge variant that matches the original Pill color meaning
  */
-export function getAdvancePaymentStatusBadgeVariant(status?: string): BadgeProps['variant'] {
+export function getAdvancePaymentStatusBadgeVariant(
+  status?: string
+): BadgeProps["variant"] {
   return getAdvancePaymentStatusConfig(status).variant;
 }
 
@@ -227,22 +235,24 @@ export function getAdvancePaymentStatusBadgeVariant(status?: string): BadgeProps
  * Legacy mapping for backward compatibility with existing Pill types
  * Maps Pill types to Badge variants
  */
-export function getPillTypeBadgeVariant(pillType?: string): BadgeProps['variant'] {
+export function getPillTypeBadgeVariant(
+  pillType?: string
+): BadgeProps["variant"] {
   if (!pillType) {
-    return 'outline';
+    return "outline";
   }
 
   switch (pillType) {
-    case 'completed':
-      return 'success';     // Green (#0DBC7B)
-    case 'task':
-      return 'warning';     // Orange (#FF9E02)
-    case 'error':
-      return 'destructive'; // Red (#DE1D49)
-    case 'waiting':
-      return 'info';        // Blue (#0094D1)
-    case 'draft':
+    case "completed":
+      return "success"; // Green (#0DBC7B)
+    case "task":
+      return "warning"; // Orange (#FF9E02)
+    case "error":
+      return "destructive"; // Red (#DE1D49)
+    case "waiting":
+      return "info"; // Blue (#0094D1)
+    case "draft":
     default:
-      return 'secondary';   // Gray (#797d82)
+      return "secondary"; // Gray (#797d82)
   }
-} 
+}

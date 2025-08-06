@@ -38,18 +38,15 @@ export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
   }, [onDateRangeChange]);
 
   return (
-    <div className={`gba:flex gba:items-center gba:gap-2 gba:bg-white gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:shadow-sm ${className}`}>
-      <RangePicker
-        value={dateRange}
-        onChange={handleDateRangeChange}
-        placeholder={placeholder}
-        format="MMM DD, YYYY"
-        allowClear
-        allowEmpty={[true, true]}
-        size="small"
-        style={{ width: 240 }}
-        data-testid="expense-item-date-range-filter"
-      />
-    </div>
+    <RangePicker
+      value={dateRange}
+      onChange={handleDateRangeChange}
+      placeholder={placeholder}
+      format="MMM DD, YYYY"
+      allowClear
+      allowEmpty={[true, true]}
+      style={{ width: '100%' }}
+      data-testid="expense-item-date-range-filter"
+    />
   );
 }; 

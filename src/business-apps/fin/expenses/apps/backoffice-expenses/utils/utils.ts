@@ -1,6 +1,6 @@
 /**
  * Utility functions for Expense Management Overview
- * 
+ *
  * @version 1.0
  * @date 2025-06-05
  */
@@ -43,37 +43,38 @@ export const getExpenseRequestStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
+    case ExpenseStatus.CREATED:
+      return {
+        label: "Draft",
+        type: "draft",
+      };
+
+    case ExpenseStatus.PREPARED:
+      return { label: "Prepared", type: "preparing" };
+
+    case ExpenseStatus.ASSIGNED:
+      return { label: "Assigned", type: "task" };
+
     case ExpenseStatus.PENDING:
-      return {
-        label: "Pending Approval",
-        type: "task",
-      };
+      return { label: "In Approval", type: "waiting" };
+
     case ExpenseStatus.APPROVED:
+      return { label: "Verification Required", type: "task" };
+
     case ExpenseStatus.VERIFIED:
-      return {
-        label: "Approved",
-        type: "completed",
-      };
+      return { label: "Booking Required", type: "task" };
+
     case ExpenseStatus.BOOKED:
-      return {
-        label: "Booked",
-        type: "completed",
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: "Rejected",
-        type: "error",
-      };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: "Returned",
-        type: "waiting",
-      };
+      return { label: "Transfer Required", type: "task" };
+
+    case ExpenseStatus.CLOSED:
+      return { label: "Closed", type: "completed" };
+
     case ExpenseStatus.PAID:
-      return {
-        label: "Paid",
-        type: "completed",
-      };
+      return { label: "Paid", type: "completed" };
+    case ExpenseStatus.REJECTED:
+      return { label: "Reject", type: "error" };
+
     default:
       return {
         label: status,
@@ -93,18 +94,38 @@ export const getAdvancePaymentStatusDisplay = (
   switch (status) {
     case ExpenseStatus.PENDING:
       return {
-        label: "Pending",
-        type: "task",
+        label: "In Approval",
+        type: "waiting",
       };
     case ExpenseStatus.APPROVED:
       return {
         label: "Approved",
         type: "completed",
       };
+    case ExpenseStatus.BOOKED:
+      return {
+        label: "Transfer Required",
+        type: "task",
+      };
+    case ExpenseStatus.PREPARED:
+      return {
+        label: "Prepared",
+        type: "preparing",
+      };
     case ExpenseStatus.REJECTED:
       return {
         label: "Rejected",
         type: "error",
+      };
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: "Payment Required",
+        type: "task",
+      };
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: "Booking Required",
+        type: "task",
       };
     case ExpenseStatus.PAID:
       return {
@@ -122,50 +143,50 @@ export const getAdvancePaymentStatusDisplay = (
 /**
  * Determines the fiscal year date range based on current date
  * Assumes fiscal year is calendar year (Jan 1 - Dec 31)
- * 
+ *
  * @returns Object with start and end dates of the current fiscal year
  */
 export const getCurrentFiscalYearRange = () => {
   const today = new Date();
   const currentYear = today.getFullYear();
-  
+
   const fiscalYearStart = new Date(`${currentYear}-01-01T00:00:00.000Z`);
   const fiscalYearEnd = new Date(`${currentYear}-12-31T23:59:59.999Z`);
-  
+
   return {
     start: fiscalYearStart,
     end: fiscalYearEnd,
     startISOString: fiscalYearStart.toISOString(),
     endISOString: fiscalYearEnd.toISOString(),
-    year: currentYear
+    year: currentYear,
   };
 };
 
 /**
  * Formats a date string to YYYY-MM-DD format
- * 
+ *
  * @param dateString - ISO date string
  * @returns Formatted date string
  */
 export const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A';
-  return dateString.split('T')[0];
+  if (!dateString) return "N/A";
+  return dateString.split("T")[0];
 };
 
 /**
  * Determines if an expense request is part of the YTD calculation
- * 
+ *
  * @param expense - Expense data object
  * @returns Boolean indicating if expense is part of YTD
  */
 export const isExpenseInYTD = (expense: any) => {
   const fiscalYear = getCurrentFiscalYearRange();
   const expenseDate = new Date(expense.date);
-  
+
   return (
-    expenseDate >= fiscalYear.start && 
-    expenseDate <= fiscalYear.end && 
-    expense.status.toLowerCase() === 'paid' && 
-    expense.currency === 'EUR'
+    expenseDate >= fiscalYear.start &&
+    expenseDate <= fiscalYear.end &&
+    expense.status.toLowerCase() === "paid" &&
+    expense.currency === "EUR"
   );
 };

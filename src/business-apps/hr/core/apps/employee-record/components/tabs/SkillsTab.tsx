@@ -78,17 +78,6 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
     fetchSkillsData();
   }, [employee?.id, accessToken]);
 
-  // Helper function to get level label
-  const getLevelLabel = (level: number): string => {
-    switch (level) {
-      case 1: return 'Beginner';
-      case 2: return 'Intermediate';
-      case 3: return 'Advanced';
-      case 4: return 'Expert';
-      case 5: return 'Master';
-      default: return 'Unknown';
-    }
-  };
 
   // Helper function to get level color
   const getLevelColor = (level: number): string => {
@@ -169,7 +158,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                 <div className="gba:flex gba:justify-between gba:items-start">
                   <h4 className="gba:font-medium gba:text-lg">{skillItem.skill.name}</h4>
                   <span className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getLevelColor(skillItem.level)}`}>
-                    {getLevelLabel(skillItem.level)}
+                    {skillItem.level}
                   </span>
                 </div>
               </div>

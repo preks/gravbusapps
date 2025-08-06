@@ -13,6 +13,7 @@ trigger: always_on
 - Always use components from the `@newwork/nw-design-system` package and do not create separate components which are not in the design system
 - Always use the PageLayout from `@/components/layout` if a layout is required with header, widgets, content and in all other cases use the layouts from `@newwork/nw-design-system`
 - If custom NEWWORK components are required, take them also from the design system package in `@newwork/nw-design-system`
+- Always analyze new code or updated code to verify if the used design system components match the actual source code and implementation in the design system project
 
 ## HTML Attributes
 - Every HTML element must include a unique `data-testid` attribute for test automation
