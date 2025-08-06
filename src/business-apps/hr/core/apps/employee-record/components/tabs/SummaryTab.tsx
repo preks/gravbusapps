@@ -16,13 +16,16 @@ import {
   PiCalendarCheck,
   PiLightning,
   PiCalendarX,
-  PiCheckCircle
+  PiCheckCircle,
+  PiSignIn,
+  PiSignOut
 } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from 'antd';
+import { Tooltip } from 'antd';
 import JobDetailsDrawer from './JobDetailsDrawer';
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent';
 import JobFunctionDrawerContent, { getJobFunctionIcon, getJobFunctionTitle } from './drawer-content/JobFunctionDrawerContent';
@@ -180,13 +183,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                   <div className="gba:flex gba:flex-col gba:items-center">
                     <a 
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('employeeId', employee.employeePosition?.supervisor?.id || '');
-                        window.history.pushState({}, '', url.toString());
-                      }}
+                      href={
+                        employee.employeePosition?.supervisor?.id &&
+                        employee.employeePosition.supervisor.id !== employee.id
+                          ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ""}`
+                          : undefined
+                      }
                       data-testid="supervisor-link"
                     >
                       <Avatar
@@ -450,46 +452,61 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                 
                 {/* Quick Actions - Only visible when user is viewing their own profile */}
                 {currentUserEmployeeId && currentUserEmployeeId === employee.id && (
-                  <div className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4">
+                  <div className="">
                     <div className="gba:flex gba:items-center gba:mb-3">
                       <PiLightning className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                       <div className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid="quick-actions-heading">Quick Actions</div>
                     </div>
-                    <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:w-full">
-                      <Button 
+                    <div className="gba:flex gba:gap-2 gba:w-full">
+                      <Tooltip title="Clock In">
+                        <Button 
                           type="default" 
-                        className="gba:hover:bg-gray-100 gba:w-full"
-                        data-testid="clock-in-button"
-                        onClick={() => {
-                          // Clock in action logic would go here
-                          console.log('Clock in clicked');
+                          size="small"
+                          className="gba:hover:bg-gray-100 gba:flex-1"
+                          data-testid="clock-in-button"
+                          onClick={() => {
+                            // Clock in action logic would go here
+                            console.log('Clock in clicked');
+                          }}
+                        >
+                          <span data-testid="clock-in-button-text">
+                            <PiSignIn className="gba:h-3 gba:w-3" />
+                          </span>
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Clock Out">
+                        <Button  
+                          type="default" 
+                          size="small"
+                          className="gba:hover:bg-gray-100 gba:flex-1"
+                          data-testid="clock-out-button"
+                          onClick={() => {
+                            // Clock out action logic would go here
+                            console.log('Clock out clicked');
+                          }}
+                        >
+                          <span data-testid="clock-out-button-text">
+                            <PiSignOut className="gba:h-3 gba:w-3" />
+                          </span>
+                        </Button>
+                      </Tooltip>
+                      <AppActionButton
+                        data-testid="request-vacation-button"
+                        variant="primary"
+                        size="small"
+                        className="gba:flex-[2]"
+                        contextsArray={[FlowContextName.employeeAbsenceRecord]}
+                        externalContextData={{
+                          employeeId: employee.id,
+                          flowType: 'vacation'
                         }}
+                        prefixDataTestId="request-vacation"
+                        accessToken={accessToken}
                       >
-                        <span data-testid="clock-in-button-text">Clock In</span>
-                      </Button>
-                      <Button  
-                        type="default" 
-                        className="gba:hover:bg-gray-100 gba:w-full"
-                        data-testid="clock-out-button"
-                        onClick={() => {
-                          // Clock out action logic would go here
-                          console.log('Clock out clicked');
-                        }}
-                      >
-                        <span data-testid="clock-out-button-text">Clock Out</span>
-                      </Button>
-                    </div>
-                    <div className="gba:mt-2">
-                      <Button 
-                        type="default" 
-                        className="gba:hover:bg-gray-100 gba:w-full"
-                        data-testid="request-absence-button"
-                        onClick={() => {
-                          navigateTo('/platform/employee-record?tab=absences');
-                        }}
-                      >
-                        <span data-testid="request-absence-button-text">Request Absence</span>
-                      </Button>
+                        <span className="gba:text-xs gba:md:text-sm gba:truncate gba:block gba:text-center">
+                          Request Absence
+                        </span>
+                      </AppActionButton>
                     </div>
                   </div>
                 )}
