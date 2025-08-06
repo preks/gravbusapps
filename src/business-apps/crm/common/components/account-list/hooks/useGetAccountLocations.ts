@@ -24,10 +24,10 @@ const GET_ACCOUNT_LOCATIONS_QUERY = `
         account: { isDeleted: { _eq: false } }
         country: { 
           value: { _ilike: $search }
-          _and: [{ value: { _is_null: false } }, { value: { _neq: "" } }]
+          _and: [{ value: { _isNull: false } }, { value: { _neq: "" } }]
         }
       }
-      distinct_on: [countryRef]
+              distinctOn: [countryRef]
       limit: 100
     ) {
       country {
@@ -43,10 +43,10 @@ const GET_ACCOUNT_LOCATIONS_QUERY = `
         account: { isDeleted: { _eq: false } }
         region: { 
           value: { _ilike: $search }
-          _and: [{ value: { _is_null: false } }, { value: { _neq: "" } }]
+          _and: [{ value: { _isNull: false } }, { value: { _neq: "" } }]
         }
       }
-      distinct_on: [regionRef]
+              distinctOn: [regionRef]
       limit: 100
     ) {
       region {
@@ -61,9 +61,9 @@ const GET_ACCOUNT_LOCATIONS_QUERY = `
       where: {
         account: { isDeleted: { _eq: false } }
         city: { _ilike: $search }
-        _and: [{ city: { _is_null: false } }, { city: { _neq: "" } }]
+        _and: [{ city: { _isNull: false } }, { city: { _neq: "" } }]
       }
-      distinct_on: [city]
+              distinctOn: [city]
       limit: 100
     ) {
       city

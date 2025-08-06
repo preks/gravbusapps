@@ -40,6 +40,7 @@ const SalesTaskFormComponent: React.FC = () => {
     businessAppContext,
     taskTypes,
     priorities,
+    statuses,
     employees,
     entities,
     selectedEntity,
@@ -76,6 +77,7 @@ const SalesTaskFormComponent: React.FC = () => {
       title: formValues.title || '',
       taskTypeRef: formValues.taskTypeRef || '',
       priorityRef: formValues.priorityRef || '',
+      statusRef: formValues.statusRef || 'SalesTaskStatus:v1:PENDING',
       timingType: formValues.timingType || 'DEADLINE',
       assignedEmployeeId: formValues.assignedEmployeeId || '',
       deadline: formValues.deadline || '',
@@ -91,10 +93,18 @@ const SalesTaskFormComponent: React.FC = () => {
 
   // Update form when context values change
   useEffect(() => {
+    console.log('📝 FORM RESET - Form Values:', {
+      assignedEmployeeId: formValues.assignedEmployeeId,
+      deadline: formValues.deadline,
+      title: formValues.title,
+      isUpdateMode
+    });
+    
     form.reset({
       title: formValues.title || '',
       taskTypeRef: formValues.taskTypeRef || '',
       priorityRef: formValues.priorityRef || '',
+      statusRef: formValues.statusRef || 'SalesTaskStatus:v1:PENDING',
       timingType: formValues.timingType || 'DEADLINE',
       assignedEmployeeId: formValues.assignedEmployeeId || '',
       deadline: formValues.deadline || '',
@@ -105,7 +115,7 @@ const SalesTaskFormComponent: React.FC = () => {
       id: formValues.id,
       version: formValues.version || 0,
     });
-  }, [formValues, form, isApprovalRequest]);
+  }, [formValues, form, isApprovalRequest, isUpdateMode]);
 
   // Update entity search term when selected entity changes
   useEffect(() => {
@@ -117,8 +127,13 @@ const SalesTaskFormComponent: React.FC = () => {
 
   // Update employee search term when assigned employee changes
   useEffect(() => {
+    console.log('👤 EMPLOYEE EFFECT - Assigned Employee ID:', formValues.assignedEmployeeId);
+    console.log('👤 AVAILABLE EMPLOYEES:', employees.length, employees.map(e => ({ id: e.id, label: e.label })));
+    
     if (formValues.assignedEmployeeId) {
       const employee = employees.find(emp => emp.id === formValues.assignedEmployeeId);
+      console.log('👤 FOUND EMPLOYEE:', employee);
+      
       if (employee) {
         setEmployeeSearchTerm(employee.label);
         setSelectedEmployee(employee);
@@ -126,11 +141,11 @@ const SalesTaskFormComponent: React.FC = () => {
     } else {
       // Only clear if user hasn't manually entered a search term
       if (!showEmployeeDropdown) {
-      setEmployeeSearchTerm('');
-      setSelectedEmployee(null);
+        setEmployeeSearchTerm('');
+        setSelectedEmployee(null);
+      }
     }
-    }
-  }, [formValues.assignedEmployeeId]); // Removed employees dependency to prevent clearing during search
+  }, [formValues.assignedEmployeeId, employees]); // Re-added employees dependency
 
   // Update employee display when employees data loads and there's an assigned employee
   useEffect(() => {
@@ -308,6 +323,7 @@ const SalesTaskFormComponent: React.FC = () => {
           typeRef: values.taskTypeRef || '',
           name: values.title,
           priorityRef: values.priorityRef,
+          statusRef: values.statusRef,
           timingType: values.timingType,
           deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
           description: values.description,
@@ -450,6 +466,38 @@ const SalesTaskFormComponent: React.FC = () => {
                         {priorities.map((priority) => (
                           <SelectItem key={priority.id} value={priority.id.toString()}>
                             {priority.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Status */}
+            <FormField
+              control={form.control}
+              name="statusRef"
+              rules={{ 
+                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.status.required', 'Status is required') 
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}</FormLabel>
+                  <FormControl>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger 
+                        data-testid={formatDataTestId(prefixDataTestId, 'StatusSelect')}
+                        className="gba:w-full"
+                      >
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('crm:salesTask.status.placeholder', 'Select status')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statuses.map((status) => (
+                          <SelectItem key={status.id} value={status.id.toString()}>
+                            {status.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
 import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -430,6 +431,19 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     return '';
   };
 
+  const handleUpdateTask = (task: SalesTaskData) => {
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveSalesTask',
+      payload: {
+        leadId: leadId,
+        typeRef: task.typeRef || 'SalesTaskType:v1:APPROVAL',
+        taskData: task // Pass existing task data for update mode
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
+  };
+
   const handleDeleteTask = (task: SalesTaskData) => {
     Modal.confirm({
       title: 'Confirm Deletion',
@@ -463,6 +477,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     if (!employee) return 'Unknown User';
     if (typeof employee === 'string') return employee; // Changed from getEmployeeDisplayName
     return employee.displayName || employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.id || 'Unknown User';
+  };
+
+  // Helper function to get timing type icon
+  const getTimingTypeIcon = (timingType?: string) => {
+    if (!timingType) {
+      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+    }
+
+    switch (timingType.toUpperCase()) {
+      case 'DEADLINE':
+        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />;
+      case 'SCHEDULED':
+        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />;
+      default:
+        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+    }
   };
 
   const handleRequestApproval = () => {
@@ -771,7 +801,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                   >
                     <div style={{ paddingRight: '40px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <Text strong style={{ fontSize: '16px' }}>{task.name}</Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {getTimingTypeIcon(task.timingType)}
+                          <Text strong style={{ fontSize: '16px' }}>{task.name}</Text>
+                        </div>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <span
                             style={{
@@ -796,6 +829,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                             }}
                           >
                             {task.priority?.value || 'Normal'}
+                          </span>
+                          <span
+                            style={{
+                              background: task.statusRef?.includes('COMPLETED') ? '#f6ffed' : 
+                                         task.statusRef?.includes('IN_PROGRESS') ? '#fff7e6' : 
+                                         task.statusRef?.includes('OVERDUE') ? '#fff2f0' : '#f0f0f0',
+                              color: task.statusRef?.includes('COMPLETED') ? '#52c41a' : 
+                                    task.statusRef?.includes('IN_PROGRESS') ? '#fa8c16' : 
+                                    task.statusRef?.includes('OVERDUE') ? '#ff4d4f' : '#8c8c8c',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            {task.statusRef?.split(':').pop()?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Open'}
                           </span>
                         </div>
                       </div>
@@ -828,14 +877,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         </div>
                       )}
                     </div>
-                    <Button
-                      type="text"
-                      icon={<CloseOutlined />}
-                      size="small"
-                      style={{ position: 'absolute', right: 0, top: 0, padding: '4px', lineHeight: 1 }}
-                      onClick={() => handleDeleteTask(task)}
-                      data-testid={`delete-approval-task-${task.id}`}
-                    />
+                    <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
+                      <Button
+                        type="text"
+                        icon={<EditOutlined />}
+                        size="small"
+                        style={{ padding: '4px', lineHeight: 1 }}
+                        onClick={() => handleUpdateTask(task)}
+                        data-testid={`update-task-${task.id}`}
+                        title="Update Task"
+                      />
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
+                        size="small"
+                        style={{ padding: '4px', lineHeight: 1 }}
+                        onClick={() => handleDeleteTask(task)}
+                        data-testid={`delete-approval-task-${task.id}`}
+                        title="Delete Task"
+                      />
+                    </div>
                   </Timeline.Item>
                 ))}
               </Timeline>

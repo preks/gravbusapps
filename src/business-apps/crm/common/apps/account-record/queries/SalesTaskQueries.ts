@@ -13,6 +13,10 @@ export interface SalesTaskData {
   dueDate?: string | null;
   createdAt: string;
   typeRef?: string; // Added this field
+  statusRef?: string; // Added status field
+  timingType?: string; // Added timing type field
+  priorityRef?: string; // Added priority reference field
+  assignedEmployeeId?: string; // Added assigned employee ID field
   type: {
     value: string;
   };
@@ -51,6 +55,10 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
         dueDate
         createdAt
         typeRef
+        statusRef
+        timingType
+        priorityRef
+        assignedEmployeeId
         type {
           value
         }

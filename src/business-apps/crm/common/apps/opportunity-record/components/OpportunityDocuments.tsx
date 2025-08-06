@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Card, 
   CardHeader, 
@@ -22,7 +22,11 @@ import {
   DownloadOutlined,
   EyeOutlined,
   CloudUploadOutlined,
-  CaretRightOutlined
+  CaretRightOutlined,
+  AppstoreOutlined,
+  BarsOutlined,
+  CalendarOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -48,7 +52,6 @@ interface DocumentFolder {
   name: string;
   count: number;
   documents: Document[];
-  color: string;
 }
 
 interface OpportunityDocumentsProps {
@@ -65,6 +68,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'icon' | 'list'>('icon');
 
   const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
@@ -95,16 +99,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       try {
         const GET_OPPORTUNITY_DOCUMENTS = `
           query GetOpportunityDocuments($opportunityId: uuid!) {
-            CrmDocument(
-              where: { 
-                opportunityId: { _eq: $opportunityId }
-                isDeleted: { _eq: false }
-              }
-              orderBy: { createdAt: DESC }
-              limit: 100
-            ) {
-              version
+            CrmDocument(where: {opportunityId: {_eq: $opportunityId}, isDeleted: {_eq: false}}) {
               id
+              version
               name
               createdAt
               documentType {
@@ -143,27 +140,31 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   }, [opportunityId, context.accessToken, graphQLClient]);
 
   const getFileIcon = (mimeType?: string | null) => {
-    if (!mimeType) return <FileOutlined className="gba:text-gray-500" />;
-    if (mimeType.includes('pdf')) return <FilePdfOutlined className="gba:text-red-500" />;
-    if (mimeType.includes('word') || mimeType.includes('msword')) return <FileWordOutlined className="gba:text-blue-500" />;
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return <FileExcelOutlined className="gba:text-green-500" />;
-    if (mimeType.includes('image')) return <FileImageOutlined className="gba:text-purple-500" />;
-    return <FileOutlined className="gba:text-gray-500" />;
+    if (!mimeType) return <FileOutlined />;
+    
+    if (mimeType.includes('pdf')) return <FilePdfOutlined />;
+    if (mimeType.includes('word') || mimeType.includes('document')) return <FileWordOutlined />;
+    if (mimeType.includes('excel') || mimeType.includes('sheet')) return <FileExcelOutlined />;
+    if (mimeType.includes('image')) return <FileImageOutlined />;
+    return <FileTextOutlined />;
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '0 B';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
@@ -174,11 +175,20 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     (doc.createdBy && getEmployeeDisplayName(doc.createdBy)?.toLowerCase()?.includes(searchQuery.toLowerCase()))
   ) : [];
 
-  const documentFolders: DocumentFolder[] = React.useMemo(() => {
+  const toggleFolder = (folderName: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(folderName)) {
+      newExpanded.delete(folderName);
+    } else {
+      newExpanded.add(folderName);
+    }
+    setExpandedFolders(newExpanded);
+  };
+
+  const documentFolders: DocumentFolder[] = useMemo(() => {
     if (!Array.isArray(filteredDocuments)) {
       return [];
     }
-
     const grouped = filteredDocuments.reduce((acc, doc) => {
       const group = doc.documentType?.value || 'Other';
       if (!acc[group]) {
@@ -188,55 +198,33 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       return acc;
     }, {} as Record<string, Document[]>);
 
-    const folderColors: Record<string, string> = {
-      'Contract': 'gba:text-blue-600',
-      'Invoice': 'gba:text-green-600',
-      'Proposal': 'gba:text-purple-600',
-      'Report': 'gba:text-orange-600',
-      'Presentation': 'gba:text-pink-600',
-      'Communication': 'gba:text-indigo-600',
-      'Legal': 'gba:text-red-600',
-      'Financial': 'gba:text-yellow-600',
-      'Technical': 'gba:text-cyan-600',
-      'Marketing': 'gba:text-rose-600',
-      'Other': 'gba:text-gray-600',
-      'Unknown': 'gba:text-gray-500'
-    };
-
-    return Object.entries(grouped).map(([name, docs]) => ({
+    return Object.entries(grouped).map(([name, documents]) => ({
       name,
-      count: docs.length,
-      documents: docs,
-      color: folderColors[name] || 'gba:text-gray-600'
-    })).sort((a, b) => b.count - a.count);
+      count: documents.length,
+      documents
+    }));
   }, [filteredDocuments]);
 
   const getFileExtension = (document: Document) => {
-    // Check if document.file already has an extension
-    if (document.file && document.file.includes('.')) {
-      // File already has extension, use as is
-      return '';
-    } else {
-      // File doesn't have extension, determine from name or mimeType
-      if (document.name && document.name.includes('.')) {
-        return document.name.split('.').pop();
-      }
-      
-      // Fallback to mimeType mapping
-      const mimeTypeExtensions: Record<string, string> = {
-        'application/pdf': 'pdf',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-        'application/msword': 'doc',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-        'application/vnd.ms-excel': 'xls',
-        'image/png': 'png',
-        'image/jpeg': 'jpg',
-        'image/jpg': 'jpg',
-        'text/plain': 'txt'
-      };
-      
-      return (document.mimeType && mimeTypeExtensions[document.mimeType]) || 'pdf';
+    // Try to get extension from file name first
+    if (document.name && document.name.includes('.')) {
+      return document.name.split('.').pop();
     }
+    
+    // Fallback to mimeType mapping
+    const mimeTypeExtensions: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/msword': 'doc',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.ms-excel': 'xls',
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'text/plain': 'txt'
+    };
+    
+    return (document.mimeType && mimeTypeExtensions[document.mimeType]) || 'pdf';
   };
 
   const constructDocumentUrl = (document: Document) => {
@@ -279,82 +267,200 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const totalDocuments = documents.length;
   const totalSize = documents.reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
-  const toggleFolder = (folderName: string) => {
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(folderName)) {
-      newExpanded.delete(folderName);
-    } else {
-      newExpanded.add(folderName);
-    }
-    setExpandedFolders(newExpanded);
-  };
+  // Get all documents sorted chronologically for list view
+  const sortedDocuments = useMemo(() => {
+    return [...filteredDocuments].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [filteredDocuments]);
+
+  // Render individual document in icon view (compact file explorer style)
+  const renderDocumentIcon = (document: Document) => (
+    <div 
+      key={document.id}
+      className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:hover:bg-blue-50 gba:rounded gba:cursor-pointer gba:w-20 gba:group gba:relative"
+      data-testid={`document-icon-${document.id}`}
+      onClick={() => handleViewDocument(document)}
+      onDoubleClick={() => handleViewDocument(document)}
+    >
+      <div className="gba:text-2xl gba:mb-1 gba:text-blue-600">
+        {getFileIcon(document.mimeType)}
+      </div>
+      <div className="gba:text-center gba:w-full">
+        <div 
+          className="gba:text-xs gba:text-gray-900 gba:leading-tight gba:break-words gba:line-clamp-2 gba:px-1"
+          title={document.name || 'Unnamed Document'}
+          style={{ fontSize: '11px', lineHeight: '13px' }}
+        >
+          {document.name || 'Unnamed Document'}
+        </div>
+      </div>
+      
+      {/* Context menu on right-click or hover actions */}
+      <div className="gba:absolute gba:top-1 gba:right-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:flex gba:gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewDocument(document);
+          }}
+          data-testid={`view-icon-document-${document.id}`}
+          className="gba:p-1 gba:h-5 gba:w-5 gba:bg-white gba:shadow-sm gba:border"
+          title="View"
+        >
+          <EyeOutlined style={{ fontSize: '10px' }} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownloadDocument(document);
+          }}
+          data-testid={`download-icon-document-${document.id}`}
+          className="gba:p-1 gba:h-5 gba:w-5 gba:bg-white gba:shadow-sm gba:border"
+          title="Download"
+        >
+          <DownloadOutlined style={{ fontSize: '10px' }} />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Render individual document in list view (detailed format)
+  const renderDocumentListItem = (document: Document, showFolder: boolean = true) => (
+    <div 
+      key={document.id}
+      className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
+      data-testid={`document-list-${document.id}`}
+    >
+      <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+        <div className="gba:text-lg gba:flex-shrink-0">
+          {getFileIcon(document.mimeType)}
+        </div>
+        <div className="gba:flex-1 gba:min-w-0">
+          <div className="gba:font-medium gba:text-gray-900 gba:text-sm gba:truncate" title={document.name || 'Unnamed Document'}>
+            {document.name || 'Unnamed Document'}
+          </div>
+        </div>
+        {showFolder && (
+          <div className="gba:w-32 gba:flex-shrink-0">
+            <span className="gba:text-sm gba:text-gray-600">
+              {document.documentType?.value || 'Other'}
+            </span>
+          </div>
+        )}
+        <div className="gba:w-24 gba:flex-shrink-0">
+          <span className="gba:text-sm gba:text-gray-600">
+            {formatFileSize(document.fileSize || 0)}
+          </span>
+        </div>
+        <div className="gba:w-32 gba:flex-shrink-0">
+          <span className="gba:text-sm gba:text-gray-600">
+            {formatDate(document.createdAt)}
+          </span>
+        </div>
+        <div className="gba:w-32 gba:flex-shrink-0">
+          <span className="gba:text-sm gba:text-gray-600">
+            {getEmployeeDisplayName(document.createdBy || '') || 'Unknown'}
+          </span>
+        </div>
+        <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">
+          <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleViewDocument(document)}
+              data-testid={`view-list-document-${document.id}`}
+              className="gba:p-1 gba:h-7 gba:w-7"
+              title="View"
+            >
+              <EyeOutlined className="gba:text-xs" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDownloadDocument(document)}
+              data-testid={`download-list-document-${document.id}`}
+              className="gba:p-1 gba:h-7 gba:w-7"
+              title="Download"
+            >
+              <DownloadOutlined className="gba:text-xs" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <Card className="gba:w-full" data-testid="opportunity-documents-card">
+    <Card className="gba:h-full">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:text-xl gba:font-semibold gba:flex gba:items-center gba:gap-2">
-            <FolderOpenOutlined className="gba:text-blue-600" />
-            Documents ({totalDocuments})
-          </CardTitle>
+          <CardTitle>Documents</CardTitle>
           <Button
+            variant="outline"
             onClick={handleAddDocument}
-            className="gba:flex gba:items-center gba:gap-2"
-            data-testid="upload-document-button"
+            className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-blue-600 gba:text-blue-600 gba:hover:bg-blue-50 gba:hover:border-blue-700 gba:transition-colors"
           >
-            <CloudUploadOutlined />
+            <FileOutlined className="gba:mr-2" />
             Upload Document
           </Button>
         </div>
-
-        {/* Summary Statistics */}
-        <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mt-4">
-          <div className="gba:bg-blue-50 gba:p-3 gba:rounded-lg">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:font-medium gba:text-blue-600">Total Files</div>
-              <div>{totalDocuments}</div>
-            </div>
-          </div>
-          <div className="gba:bg-green-50 gba:p-3 gba:rounded-lg">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:font-medium gba:text-green-600">Total Size</div>
-              <div>{formatFileSize(totalSize)}</div>
-            </div>
-          </div>
-          <div className="gba:bg-purple-50 gba:p-3 gba:rounded-lg">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:font-medium gba:text-purple-600">Folders</div>
-              <div>{documentFolders.length}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="gba:mt-4">
-          <div className="gba:relative">
-            <SearchOutlined className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:z-10" />
-            <DebouncedInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search documents..."
-              className="gba:pl-12 gba:pr-4 gba:py-2 gba:w-full gba:border gba:border-gray-300 gba:rounded-md gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-blue-500"
-              data-testid="documents-search-input"
-            />
-          </div>
-        </div>
-
-        {searchQuery && (
-          <div className="gba:text-sm gba:text-gray-500">
-            Found {filteredDocuments.length} documents matching "{searchQuery}"
-          </div>
-        )}
       </CardHeader>
-
       <CardContent>
+        {/* Search Input and View Toggle */}
+        <div className="gba:mb-4 gba:space-y-3">
+          <DebouncedInput
+            placeholder="Search documents..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="gba:w-full"
+            data-testid="documents-search-input"
+          />
+          
+          {/* View Mode Toggle */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">View:</span>
+              <div className="gba:flex gba:bg-gray-100 gba:rounded-lg gba:p-1">
+                <Button
+                  variant={viewMode === 'icon' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('icon')}
+                  className="gba:px-3 gba:py-1.5"
+                  data-testid="icon-view-toggle"
+                >
+                  <AppstoreOutlined className="gba:mr-1.5" />
+                  Icons
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="gba:px-3 gba:py-1.5"
+                  data-testid="list-view-toggle"
+                >
+                  <BarsOutlined className="gba:mr-1.5" />
+                  List
+                </Button>
+              </div>
+            </div>
+            
+            {/* Document Statistics */}
+            <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-600">
+              <Badge variant="secondary" className="gba:bg-blue-50 gba:text-blue-700">
+                {totalDocuments} document{totalDocuments !== 1 ? 's' : ''}
+              </Badge>
+              <span>{formatFileSize(totalSize)} total</span>
+            </div>
+          </div>
+        </div>
+
         {loading ? (
-          <div className="gba:text-center gba:py-10">
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
-            <p className="gba:mt-2 gba:text-gray-500">Loading documents...</p>
           </div>
         ) : error ? (
           <Alert variant="destructive" className="gba:mb-4">
@@ -369,7 +475,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             <p className="gba:text-gray-500 gba:text-lg">No documents found</p>
             <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
           </div>
-        ) : (
+        ) : viewMode === 'icon' ? (
+          // ICON VIEW - Folder-based layout with small document icons
           <div className="gba:w-full gba:space-y-4">
             {Array.isArray(documentFolders) && documentFolders.length > 0 ? documentFolders.map((folder) => {
               const isExpanded = expandedFolders.has(folder.name);
@@ -392,60 +499,52 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                   </div>
                   {isExpanded && (
                     <div className="gba:px-6 gba:py-4">
-                  <div className="gba:space-y-3">
-                    {Array.isArray(folder.documents) ? folder.documents.map((document) => (
-                      <div 
-                        key={document.id}
-                        className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:hover:shadow-sm gba:transition-shadow"
-                        data-testid={`document-item-${document.id}`}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
-                          <div className="gba:text-xl">
-                            {getFileIcon(document.mimeType)}
-                          </div>
-                          <div className="gba:flex-1">
-                            <div className="gba:font-medium gba:text-gray-900 gba:text-base">{document.name || 'Unnamed Document'}</div>
-                            <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                              {formatDate(document.createdAt)}{document.createdBy && ` - ${getEmployeeDisplayName(document.createdBy) || 'Unknown User'}`}
-                            </div>
-                            <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                              Type: {document.mimeType || 'Unknown'}
-                              {document.fileSize && (
-                                <span className="gba:ml-4">Size: {formatFileSize(document.fileSize)}</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDocument(document)}
-                            data-testid={`view-document-${document.id}`}
-                            className="gba:px-2 gba:py-1"
-                          >
-                            <EyeOutlined className="gba:mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(document)}
-                            data-testid={`download-document-${document.id}`}
-                            className="gba:px-2 gba:py-1"
-                          >
-                            <DownloadOutlined className="gba:mr-1" />
-                            Download
-                          </Button>
-                        </div>
+                      <div className="gba:grid gba:grid-cols-4 sm:gba:grid-cols-6 md:gba:grid-cols-8 lg:gba:grid-cols-10 xl:gba:grid-cols-12 gba:gap-2 gba:relative">
+                        {Array.isArray(folder.documents) ? folder.documents.map(renderDocumentIcon) : null}
                       </div>
-                    )) : null}
-                  </div>
                     </div>
                   )}
                 </div>
               );
             }) : null}
+          </div>
+        ) : (
+          // LIST VIEW - Table format with all columns, sorted chronologically
+          <div className="gba:w-full">
+            <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+              {/* Table Header */}
+              <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
+                <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                  <div className="gba:w-8 gba:flex-shrink-0"></div>
+                  <div className="gba:flex-1 gba:min-w-0">Name</div>
+                  <div className="gba:w-32 gba:flex-shrink-0">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <FolderOpenOutlined />
+                      <span>Folder</span>
+                    </div>
+                  </div>
+                  <div className="gba:w-24 gba:flex-shrink-0">Size</div>
+                  <div className="gba:w-32 gba:flex-shrink-0">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <CalendarOutlined />
+                      <span>Date</span>
+                    </div>
+                  </div>
+                  <div className="gba:w-32 gba:flex-shrink-0">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <UserOutlined />
+                      <span>Created By</span>
+                    </div>
+                  </div>
+                  <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Actions</div>
+                </div>
+              </div>
+              
+              {/* Table Body */}
+              <div className="gba:divide-y gba:divide-gray-200">
+                {sortedDocuments.map((document) => renderDocumentListItem(document, true))}
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
