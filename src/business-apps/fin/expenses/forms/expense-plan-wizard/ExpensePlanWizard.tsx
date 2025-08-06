@@ -153,8 +153,8 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   // useEffect for screen navigation based on data
   useEffect(() => {
-    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment)
-  }, [expensePlanData, isTrip]);
+    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, loading, currentScreen)
+  }, [expensePlanData, isTrip, loading, additionalData]);
 
   const navigateToNextScreen = () => {
     switch (currentScreen) {
@@ -198,7 +198,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         break;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         if(!isTrip)
-          setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+          setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
           else
         setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
         break;
@@ -396,7 +396,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
           </div>
         </div>
       </div>
-      <ProgressIndicator currentScreen={currentScreen} isTrip={isTrip} />
+      <ProgressIndicator isPlan={true} currentScreen={currentScreen} isTrip={isTrip} />
       
       {/* Main content container with responsive height */}
       <div 

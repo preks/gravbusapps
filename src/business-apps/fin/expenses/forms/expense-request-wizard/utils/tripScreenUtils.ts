@@ -558,56 +558,69 @@ export const setLocalitiesDefault = (expenseRequestData: any,
   export const setInitialScreen =(additionalData:any,
     expenseRequestData: any,
     isTrip:boolean,
-    setCurrentScreen: React.Dispatch<React.SetStateAction<string>>)=>{
+    setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
+    isLoading: boolean = false,
+    currentScreen?: string)=>{
+    // Only set initial screen if we're in loading state or if there's no current screen set
+    if (!isLoading && expenseRequestData) {
+      return;
+    }
+    
     const stepKey = additionalData?.psi_taskPayload?.stepKey
     if(stepKey){
+      let targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
+      
       if(stepKey.includes(EVENTS.SAVE)){
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE:
-            setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE:
-            setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.SAVE:
-            setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.ALLOWANCE_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE:
-            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:
-            setCurrentScreen(SCREEN_NAMES_ENUM.LOAD_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
             break;
         }
       }
       else if(stepKey.includes(EVENTS.NEXT)){
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT:
-            setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
-            setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.ALLOWANCE_TAB;
             break;
           case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.NEXT:
-            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT:
-            setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:
-            setCurrentScreen(SCREEN_NAMES_ENUM.LOAD_TAB);
+            targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
             break;
         }
+      }
+      
+      // Only change screen if we're not already on the target screen
+      if (currentScreen !== targetScreen) {
+        setCurrentScreen(targetScreen);
       }
     }
     else
     {
       if (expenseRequestData) {
-      if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
-      } else {
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
+        const defaultScreen = isTrip ? SCREEN_NAMES_ENUM.TRIPS_TAB : SCREEN_NAMES_ENUM.ITEMS_TAB;
+        if (currentScreen !== defaultScreen) {
+          setCurrentScreen(defaultScreen);
+        }
       }
-    }
     }
   }

@@ -148,8 +148,8 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   useEffect(() => {
-    setInitialScreen(additionalData,expenseRequestData,isTrip,setCurrentScreen)
-  }, [expenseRequestData, isTrip]);
+    setInitialScreen(additionalData,expenseRequestData,isTrip,setCurrentScreen, loading, currentScreen)
+  }, [expenseRequestData, isTrip, loading]);
   
   const navigateToNextScreen = () => {
     switch (currentScreen) {

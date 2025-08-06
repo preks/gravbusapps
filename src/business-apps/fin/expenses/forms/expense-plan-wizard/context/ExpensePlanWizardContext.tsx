@@ -98,7 +98,10 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     try {
       if (!accessToken || !employeeRuleId || !userInfo) return;
 
-      setLoading(true);
+      // Only set loading to true if we're not already loading
+      if (!loading) {
+        setLoading(true);
+      }
       
       if (!additionalData) {
         setLoading(false);
