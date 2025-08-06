@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAdvancePayments, useAdvancePaymentFilters } from '../hooks/useAdvancePayments';
 import { AdvancePaymentData } from '../hooks/useAdvancePayments';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface AdvancePaymentsExampleProps extends BusinessAppContextProps {
   employeeId: string;
@@ -76,11 +77,11 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
   return (
     <div data-testid="advance-payments-example">
       <div data-testid="advance-payments-filters">
-        <h3>Filters</h3>
+        <h3>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.filters','Filters')}</h3>
         
         {/* Status Filter */}
         <div data-testid="status-filter">
-          <label>Status:</label>
+          <label>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.status_filter','Status:')}</label>
           <select 
             multiple 
             value={filters.statusFilter || []}
@@ -90,19 +91,19 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
             }}
             data-testid="status-filter-select"
           >
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="PAID">Paid</option>
-            <option value="REJECTED">Rejected</option>
+            <option value="PENDING">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending','Pending')}</option>
+            <option value="APPROVED">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.approved','Approved')}</option>
+            <option value="PAID">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.paid','Paid')}</option>
+            <option value="REJECTED">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rejected','Rejected')}</option>
           </select>
         </div>
 
         {/* Amount Range Filter */}
         <div data-testid="amount-range-filter">
-          <label>Amount Range:</label>
+          <label>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_filter','Amount Range:')}</label>
           <input 
             type="number" 
-            placeholder="Min amount"
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount','Min amount')}
             onChange={(e) => handleAmountRangeChange(
               e.target.value ? Number(e.target.value) : undefined, 
               filters.amountRange?.max
@@ -111,7 +112,7 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
           />
           <input 
             type="number" 
-            placeholder="Max amount"
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount','Max amount')}
             onChange={(e) => handleAmountRangeChange(
               filters.amountRange?.min, 
               e.target.value ? Number(e.target.value) : undefined
@@ -122,10 +123,10 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
 
         {/* Advance Range Filter */}
         <div data-testid="advance-range-filter">
-          <label>Advance Range:</label>
+          <label>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter','Advance Range:')}</label>
           <input 
             type="number" 
-            placeholder="Min advance"
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_advance','Min advance')}
             onChange={(e) => handleAdvanceRangeChange(
               e.target.value ? Number(e.target.value) : undefined, 
               filters.advanceRange?.max
@@ -134,7 +135,7 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
           />
           <input 
             type="number" 
-            placeholder="Max advance"
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_advance','Max advance')}
             onChange={(e) => handleAdvanceRangeChange(
               filters.advanceRange?.min, 
               e.target.value ? Number(e.target.value) : undefined
@@ -145,12 +146,12 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
 
         {/* Search */}
         <div data-testid="search-filter">
-          <label>Search:</label>
+          <label>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.search_filter','Search:')}</label>
           <input 
             type="text" 
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search advance payments..."
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.search_advance_payments','Search advance payments...')}
             data-testid="search-input"
           />
         </div>
@@ -161,7 +162,7 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
             onClick={clearFilters}
             data-testid="clear-filters-button"
           >
-            Clear Filters
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear_filters','Clear Filters')}
           </button>
         )}
       </div>
@@ -169,9 +170,9 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
       {/* Results */}
       <div data-testid="advance-payments-results">
         {isLoading ? (
-          <div data-testid="loading-spinner">Loading...</div>
+          <div data-testid="loading-spinner">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.loading','Loading...')}</div>
         ) : error ? (
-          <div data-testid="error-message">Error: {error}</div>
+                      <div data-testid="error-message">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error','Error:')} {error}</div>
         ) : (
           <>
             <div data-testid="results-summary">
@@ -196,15 +197,15 @@ const AdvancePaymentsExample: React.FC<AdvancePaymentsExampleProps> = ({
                 onClick={() => handlePageChange(currentPage - 1)}
                 data-testid="prev-page-button"
               >
-                Previous
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous','Previous')}
               </button>
-              <span data-testid="current-page">Page {currentPage}</span>
+              <span data-testid="current-page">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page','Page')} {currentPage}</span>
               <button 
                 disabled={advancePayments.length < 20}
                 onClick={() => handlePageChange(currentPage + 1)}
                 data-testid="next-page-button"
               >
-                Next
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next','Next')}
               </button>
             </div>
           </>

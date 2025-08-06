@@ -82,7 +82,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.request.duration', 'Duration')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.duration', 'Duration')}: {' '}
                 {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
                 {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
               </span>
@@ -93,7 +93,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.request.requestDate', 'Request Date')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.requestDate', 'Request Date')}: {' '}
                 {dayjs(selectedItem.requestDate).format(getDateFormat('date.short'))}
               </span>
             </div>
@@ -103,7 +103,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.request.decisionDate', 'Decision Date')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.decisionDate', 'Decision Date')}: {' '}
                 {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
               </span>
             </div>
@@ -115,7 +115,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       {selectedItem.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">Description</CardTitle>
+            <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.description','Description')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="gba:text-sm gba:text-gray-700" data-testid="expense-request-description">
@@ -128,14 +128,14 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       {/* Details Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="gba:text-base">Request Details</CardTitle>
+                      <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Request Details')}</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             {selectedItem.employee && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.request.requester', 'Requester')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.requester', 'Requester')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.fullName}</span>
               </div>
@@ -144,7 +144,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             {selectedItem.employee?.employeePosition?.supervisor && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.request.manager', 'Manager')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.manager', 'Manager')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.employeePosition.supervisor.fullName}</span>
               </div>
@@ -153,7 +153,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             {selectedItem.costCenter && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.request.costCenter', 'Cost Center')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.costCenter', 'Cost Center')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.costCenter.name}</span>
               </div>
@@ -162,7 +162,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             {selectedItem.project && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.request.project', 'Project')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.project', 'Project')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.project.name}</span>
               </div>
@@ -170,14 +170,14 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.request.tripType', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.tripType', 'Trip Type')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.request.amount', 'Total Amount')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.amount', 'Total Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {typeof selectedItem.totalAmount === 'number' ? formatCurrency(selectedItem.totalAmount) : '-'}
@@ -191,7 +191,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               return advanceAmount ? (
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                    {getTranslationFromI18nKeyAndLabel('expense.request.advancePayment', 'Advance Payment')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.advancePayment', 'Advance Payment')}
                   </span>
                   <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                     {formatCurrency(advanceAmount)}
@@ -217,7 +217,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           data-testid="view-expense-request-details-button"
         >
           <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('expense.request.details.view', 'View Full Details')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense.request.details.view', 'View Full Details')}
         </Button>
       </div>
     </div>

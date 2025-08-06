@@ -126,7 +126,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-plans',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_plans_for_month','Total Plans for {month}').replace('{month}', currentMonthName),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_plans_for_month','Total Plans for') + ' ' + currentMonthName,
       value: totalPlans,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
@@ -138,12 +138,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     },
     {
       key: 'total-estimated',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for {month}').replace('{month}', currentMonthName),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for') + ' ' + currentMonthName,
       value: `${formatNumberFunction(String(totalEstimated ?? '0'))} €`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.estimated_expenses','Estimated expenses'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.request_amount_title_text','Estimated expenses'),
       trend: estimatedAmountTrend,
       valueIsString: true,
       active: activeWidgetKey === 'total-estimated',
@@ -151,12 +151,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     },
     {
       key: 'pending-approval',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval','Pending Approval'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.pending_approval','Pending Approval'),
       value: pendingApproval,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action','Requires action'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.requires_action','Requires action'),
       active: activeWidgetKey === 'pending-approval',
       onClick: () => handleWidgetClick('pending-approval')
     },

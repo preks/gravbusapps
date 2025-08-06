@@ -309,7 +309,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-code-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.planNumber', 'Plan Number')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.plan_number_input', 'Plan Number')}
                            {renderSortIcon('code')}
                          </div>
                     </TableHead>
@@ -319,7 +319,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.title', 'Title')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')}
                            {renderSortIcon('title')}
                          </div>
                     </TableHead>
@@ -329,7 +329,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-plan-date-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.planDate', 'Plan Date')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense.plans.table.planDate', 'Plan Date')}
                            {renderSortIcon('planDate')}
                          </div>
                     </TableHead>
@@ -339,7 +339,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.startDate', 'Start Date')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')}
                            {renderSortIcon('startDate')}
                          </div>
                     </TableHead>
@@ -349,7 +349,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.endDate', 'End Date')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')}
                            {renderSortIcon('endDate')}
                          </div>
                     </TableHead>
@@ -359,9 +359,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.status', 'Status')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
                            {renderSortIcon('status')}
-                         </div>
+                         </div> 
                     </TableHead>
                     <TableHead
                       className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
@@ -369,7 +369,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-reimbursable-amount-header`}
                     >
                                                <div className="gba:flex gba:items-center gba:justify-end">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.reimbursableAmount', 'Reimbursable Amount')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}
                            {renderSortIcon('reimbursableAmount')}
                          </div>
                     </TableHead>
@@ -379,7 +379,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-paid-advance-header`}
                     >
                                                <div className="gba:flex gba:items-center gba:justify-end">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.paidAdvance', 'Paid Advance')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.paid_advance', 'Paid Advance')}
                            {renderSortIcon('advancePaymentPaidAmount')}
                          </div>
                     </TableHead>
@@ -390,7 +390,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                                                  <div className="gba:text-gray-500">
-                           {getTranslationFromI18nKeyAndLabel('expense.plans.table.noData', 'No expense plans found. Create your first expense plan to get started.')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no__plan_data', 'No expense plans found. Create your first expense plan to get started.')}
                          </div>
                       </TableCell>
                     </TableRow>
@@ -415,7 +415,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                      {
                                      category: 'Actions',
                                      key: 'update-plan',
-                                     label: getTranslationFromI18nKeyAndLabel('expense.plans.actions.updatePlan', 'Update Plan'),
+                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.update_plan', 'Update Plan'),
                                     onClick: () => {
                                       startProcess({
                                         domain: 'employee-expense',
@@ -432,7 +432,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                      {
                                      category: 'Actions',
                                      key: 'print',
-                                     label: getTranslationFromI18nKeyAndLabel('expense.plans.actions.print', 'Print'),
+                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print', 'Print'),
                                     onClick: () => {
                                       handlePrintPlan(record);
                                     }
@@ -442,7 +442,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                      {
                                      category: 'Actions',
                                      key: 'request-advance',
-                                     label: getTranslationFromI18nKeyAndLabel('expense.plans.actions.requestAdvance', 'Request Advance Payment'),
+                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment'),
                                     onClick: () => {
                                       startProcess({
                                         domain: 'employee-expense',
@@ -459,7 +459,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                      {
                                      category: 'Actions',
                                      key: 'create-expense-request',
-                                     label: getTranslationFromI18nKeyAndLabel('expense.plans.actions.createExpenseRequest', 'Create Expense Request'),
+                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request', 'Create Expense Request'),
                                     onClick: () => {
                                       startProcess({
                                         domain: 'employee-expense',
@@ -475,7 +475,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                  {
                                    category: 'Navigations',
                                    key: 'view-plan-details',
-                                   label: getTranslationFromI18nKeyAndLabel('expense.plans.navigation.viewPlanDetails', 'View Plan Details'),
+                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details_btn', 'View Plan Details'),
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handleViewExpensePlanDetails(record);
@@ -485,7 +485,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                                                      {
                                      category: 'Navigations',
                                      key: 'view-request-details',
-                                     label: getTranslationFromI18nKeyAndLabel('expense.plans.navigation.viewRequestDetails', 'View Request Details'),
+                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                                     onClick: (e?: React.MouseEvent) => {
                                       e?.stopPropagation();
                                       handleViewExpenseRequestDetails(record);
@@ -595,11 +595,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             {totalCount > pageSize ? (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                                     {getTranslationFromI18nKeyAndLabel('expense.plans.pagination.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('expense.plans.pagination.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('expense.plans.pagination.expensePlans', 'expense plans')}
+                                     {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expensesd.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('expense.plans.pagination.rowsPerPage', 'Rows per page')}</p>
+                    <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
                     <select
                       value={pageSize}
                       onChange={(e) => handlePaginationChange(1, Number(e.target.value))}

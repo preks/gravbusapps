@@ -158,13 +158,13 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-expenses',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for {month}').replace('{month}', currentMonthName),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for') + ' ' + currentMonthName,
       value: formatNumberFunction(String(totalExpenses ?? 0)) + '€',
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses_description','Current month expenses'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expnses','Current month expenses'),
       trend: totalExpensesTrend,
       active: activeWidgetKey === 'total-expenses',
       onClick: () => handleWidgetClick('total-expenses')

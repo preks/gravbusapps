@@ -3,6 +3,7 @@ import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataF
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils';
 import CompactRangeFilter from '../components/tabs/advance-payments-tab/CompactRangeFilter';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface UseAdvancePaymentFiltersReturn {
   searchTerm: string;
@@ -40,17 +41,17 @@ const AVAILABLE_FILTER_STATUSES: ExpenseStatus[] = [
 
 // Map of status to display label - using exact same labels as the table
 const STATUS_DISPLAY_MAP: Partial<Record<ExpenseStatus, string>> = {
-  [ExpenseStatus.PREPARED]: 'Prepared',
-  [ExpenseStatus.CREATED]: 'Draft (Created)',
-  [ExpenseStatus.ASSIGNED]: 'Assigned',
-  [ExpenseStatus.PENDING]: 'In Approval (Pending)',
-  [ExpenseStatus.APPROVED]: 'In Transit (Approved)',
-  [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
-  [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
-  [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
-  [ExpenseStatus.PAID]: 'Paid',
-  [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
-  [ExpenseStatus.CLOSED]: 'Closed',
+  [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+  [ExpenseStatus.CREATED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
+  [ExpenseStatus.ASSIGNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+  [ExpenseStatus.PENDING]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
+  [ExpenseStatus.APPROVED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')})`,
+  [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
+  [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
+  [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
+  [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+  [ExpenseStatus.REJECTED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`,
+  [ExpenseStatus.CLOSED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
 };
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {

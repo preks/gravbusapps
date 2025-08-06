@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface Props {
   children: ReactNode;
@@ -32,13 +33,13 @@ export class ErrorBoundary extends Component<Props, State> {
           borderRadius: '4px',
           backgroundColor: '#fee' 
         }}>
-          <h3>Something went wrong</h3>
+          <h3>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.something_went_wrong','Something went wrong')}</h3>
           <details>
-            <summary>Error details</summary>
+            <summary>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_details','Error details')}</summary>
             <pre>{this.state.error?.stack}</pre>
           </details>
           <button onClick={() => this.setState({ hasError: false })}>
-            Try again
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again','Try again')}
           </button>
         </div>
       );

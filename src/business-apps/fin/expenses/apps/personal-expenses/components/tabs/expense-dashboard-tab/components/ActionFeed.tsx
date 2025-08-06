@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner, Badge
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
 import { formatNumber } from '../utils/formatters';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined;
@@ -46,7 +47,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
     return (
       <Card className="gba:action-feed-card" data-testid="action-feed-error">
         <Alert variant="destructive">
-          <h4 className="gba:font-semibold">Error loading action feed</h4>
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_action_feed','Error loading action feed')}</h4>
           <p>{error.message}</p>
         </Alert>
       </Card>
@@ -60,7 +61,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
     <Card className="gba:action-feed-card" data-testid="action-feed-card">
       <CardHeader className="gba:py-3">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:text-sm">Action Feed</CardTitle>
+          <CardTitle className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.action_feed','Action Feed')}</CardTitle>
           {recentActivity.length > 10 && (
             <Button
               variant="ghost"
@@ -72,12 +73,12 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
               {showAll ? (
                 <>
                   <EyeInvisibleOutlined className="gba:mr-1" />
-                  View Less
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_less','View Less')}
                 </>
               ) : (
                 <>
                   <EyeOutlined className="gba:mr-1" />
-                  View All
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all','View All')}
                 </>
               )}
             </Button>
@@ -93,16 +94,16 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
             {/* Header Row */}
             <div className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1 gba:border-b gba:border-gray-200 gba:mb-2">
               <div className="gba:col-span-5 gba:text-xs gba:font-semibold gba:text-gray-600">
-                Description
+                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_description_label','Description')}
               </div>
               <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
-                Status
+                {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status','Status')}
               </div>
               <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
-                Type
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.type_select','Type')}
               </div>
               <div className="gba:col-span-3 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-right">
-                Amount
+                {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount','Amount')}
               </div>
             </div>
             <div className="gba:space-y-1">
@@ -142,7 +143,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
           </div>
         ) : (
           <div className="gba:text-center gba:py-4 gba:text-gray-500" data-testid="empty-activity">
-            <p className="gba:text-sm">No recent activity</p>
+            <p className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_recent_activity','No recent activity')}</p>
           </div>
         )}
       </CardContent>

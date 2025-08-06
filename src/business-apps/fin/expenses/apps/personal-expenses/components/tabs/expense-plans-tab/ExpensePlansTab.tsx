@@ -277,18 +277,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     const labelMap: Record<string, string> = {};
     
     const statusLabels = {
-      [ExpenseStatus.CREATED]: 'Draft',
-      [ExpenseStatus.PREPARED]: 'Prepared',
-      [ExpenseStatus.ASSIGNED]: 'Assigned',
-      [ExpenseStatus.PENDING]: 'Pending',
-      [ExpenseStatus.APPROVED]: 'Approved',
-      [ExpenseStatus.RETURNED]: 'Returned',
-      [ExpenseStatus.REJECTED]: 'Rejected',
-      [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
-      [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
-      [ExpenseStatus.PAID]: 'Paid',
-      [ExpenseStatus.CLOSED]: 'Closed',
-      [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
+      [ExpenseStatus.CREATED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+      [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+      [ExpenseStatus.ASSIGNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+      [ExpenseStatus.PENDING]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
+      [ExpenseStatus.APPROVED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+      [ExpenseStatus.RETURNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+      [ExpenseStatus.REJECTED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+      [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
+      [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
+      [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+      [ExpenseStatus.CLOSED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+      [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
     };
     
     // Add all status mappings

@@ -124,7 +124,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-payments',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_payments_for_month','Total Payments for {month}').replace('{month}', currentMonthName),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_payments_for_month','Total Payments for') + ' ' + currentMonthName,
       value: statistics.currentMonthPayments || 0,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
@@ -136,7 +136,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     },
     {
       key: 'total-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for {month}').replace('{month}', currentMonthName),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for') + ' ' + currentMonthName,
       value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))} €`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
@@ -154,9 +154,11 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval','Awaiting approval'),
+      "expense_plans_tab": {
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.awaiting_approval','Awaiting approval'),
       active: activeWidgetKey === 'pending-payments',
       onClick: () => handleWidgetClick('pending-payments')
+      }
     },
     {
       key: 'approved-payments',

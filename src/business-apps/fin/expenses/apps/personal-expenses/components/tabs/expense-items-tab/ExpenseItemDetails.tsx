@@ -195,7 +195,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
           <Spinner />
           <div className="gba:mt-2">
             <p className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('expense.item.loadingReceipt', 'Loading receipt...')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
             </p>
           </div>
         </Card>
@@ -351,7 +351,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
               {displayItem.invoiceDate && (
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <span className="gba:text-sm gba:text-gray-700">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.invoice_date', 'Invoice Date')}: {' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date')}: {' '}
                     {dayjs(displayItem.invoiceDate).format(getDateFormat('date-long'))}
                   </span>
                 </div>
@@ -369,7 +369,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
         <Card>
           <CardHeader>
             <CardTitle className="gba:text-base gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.description', 'Description')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_description_label', 'Description')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -390,7 +390,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             {displayItem.employee && displayItem.employee.fullName && (
               <div className="gba:flex gba:justify-between">
                 <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requester', 'Requester')}:
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}:
                 </span>
                 <span className="gba:text-gray-900">{String(displayItem.employee.fullName)}</span>
               </div>
@@ -398,7 +398,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             {displayItem.expenseClass && displayItem.expenseClass.value && (
               <div className="gba:flex gba:justify-between">
                 <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class')}:
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_e_class_label', 'Expense Class')}:
                 </span>
                 <span className="gba:text-gray-900">{String(displayItem.expenseClass.value)}</span>
               </div>
@@ -406,14 +406,14 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             {displayItem.costCenter && displayItem.costCenter.name && (
               <div className="gba:flex gba:justify-between">
                 <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('expense.item.costCenter', 'Cost Center')}:
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_cost_center_label', 'Cost Center')}:
                 </span>
                 <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
               </div>
             )}
             <div className="gba:flex gba:justify-between">
               <span className="gba:font-medium gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('expense.item.amount', 'Amount')}:
+                {getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount')}:
               </span>
               <span className="gba:text-gray-900 gba:font-semibold">
                 €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
@@ -435,7 +435,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
         <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('expense.item.pdfPreview', 'PDF Preview')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
             </DialogTitle>
           </DialogHeader>
           <div className="gba:mt-4">

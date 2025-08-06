@@ -8,6 +8,7 @@ import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilter
 import { message } from 'antd';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -209,6 +210,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       />
     );
   }, [contextProps, handleWidgetClick, activeWidget]);
+
+  // Memoize the label map to prevent unnecessary re-rendering
   
   // Update the content header only when it changes
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -280,7 +283,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       clearFilters={clearFilters}
-      filterLabelMap={filterLabelMap}
+      filterLabelMap={{ ...filterLabelMap }}
       onAddExpenseRequest={handleAddExpenseRequest}
       tableRefreshTrigger={tableRefreshTrigger}
     />

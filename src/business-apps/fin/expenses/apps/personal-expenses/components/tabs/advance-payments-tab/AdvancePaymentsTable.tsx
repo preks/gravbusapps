@@ -26,12 +26,10 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { PiFileText, PiCurrencyDollar, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable';
 
@@ -177,7 +175,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       return;
     }
     
-    console.log('Starting add advance payment process for employeeId:', employeeId);
     startProcess({
       domain: 'employee-expense',
       processName: 'changeAdvancePayment',
@@ -259,7 +256,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           className="gba:p-6 gba:text-center" 
           data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
         >
-          <p>No advance payments found. Create your first advance payment to get started.</p>
+          <p>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}</p>
         </div>
       );
     }
@@ -317,7 +314,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 <TableRow>
                   <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                     <div className="gba:text-gray-500">
-                      No advance payments found. Create your first advance payment to get started.
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -345,7 +342,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                             {
                               category: 'Navigations',
                               key: 'view-advance-payment',
-                              label: 'View Advance Payment Details',
+                              label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
                               onClick: (e?: React.MouseEvent) => {
                                 e?.stopPropagation();
                                 handleSelectItem(record);
@@ -354,7 +351,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                             ...(record.expensePlanId ? [{
                               category: 'Navigations',
                               key: 'view-plan-details',
-                              label: 'View Plan Details',
+                              label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
                               onClick: (e?: React.MouseEvent) => {
                                 e?.stopPropagation();
                                 handleViewExpensePlanDetails(record);
@@ -363,7 +360,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                             ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
                               category: 'Navigations',
                               key: 'view-request-details',
-                              label: 'View Request Details',
+                              label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                               onClick: (e?: React.MouseEvent) => {
                                 e?.stopPropagation();
                                 handleViewExpenseRequestDetails(record);
@@ -379,7 +376,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-cell-${record.id}`}>
                       <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-expense-plan-cell">
-                        {record.expensePlan?.title ?? 'No expense plan'}
+                        {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
                       </div>
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-cell-${record.id}`}>
@@ -405,7 +402,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}>
                       <div className="gba:text-sm" data-testid="advance-payment-method-cell">
-                        {record.paymentMethod ? record.paymentMethod.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Not specified'}
+                        {record.paymentMethod ? record.paymentMethod.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'N/A'}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -419,11 +416,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         {totalCount > pageSize ? (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
             <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`}
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payments', getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'))}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
                 <select
                   value={pageSize}
                   onChange={(e) => {
@@ -489,10 +486,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         ) : (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
             <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} advance payments`}
+              {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -527,10 +524,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     },
     addButton: {
       onClick: handleAddAdvancePayment,
-      label: 'Add',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add', 'Add'),
       'data-testid': 'add-advance-payment-button'
     },
-    listTitle: "My Advance Payments",
+    listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:advance_lists.my_advance_payments.title', 'My Advance Payments'),
     listAmount: totalCount ? `${totalCount}` : undefined,
     filterLabelMap: filterLabelMap,
   }), [searchText, props.selectedFilters, currentStatusFilter, handleSearchChange, props.onFilterChange, handleAddAdvancePayment, totalCount, filterLabelMap]);
@@ -559,7 +556,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.expensePlan?.title || 'Advance Payment Details'}
+              {selectedItem?.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payment_details', 'Advance Payment Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
@@ -579,7 +576,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpensePlan?.title || 'Expense Plan Details'}
+              {selectedExpensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details', 'Expense Plan Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
@@ -600,7 +597,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title || 'Expense Request Details'}
+              {selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'Expense Request Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">

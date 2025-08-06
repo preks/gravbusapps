@@ -376,10 +376,10 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
       )}
              <Drawer
          title={
-           selectedItemForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details','Expense Item Details') :
-           selectedPlanForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_plan_details','Expense Plan Details') :
-           selectedRequestForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_request_details','Expense Request Details') :
-           getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.details','Details')
+           selectedItemForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_item_details','Expense Item Details') :
+           selectedPlanForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details','Expense Plan Details') :
+           selectedRequestForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details') :
+           getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.details','Details')
          }
         placement="right"
         width={500}

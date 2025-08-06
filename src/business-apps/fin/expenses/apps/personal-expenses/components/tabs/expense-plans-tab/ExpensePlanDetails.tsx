@@ -82,7 +82,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.duration', 'Duration')}: {' '}
                 {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
                 {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
               </span>
@@ -93,7 +93,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.plan.planDate', 'Plan Date')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.plan_date', 'Plan Date')}: {' '}
                 {dayjs(selectedItem.planDate).format(getDateFormat('date.short'))}
               </span>
             </div>
@@ -103,7 +103,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.plan.decisionDate', 'Decision Date')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}: {' '}
                 {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
               </span>
             </div>
@@ -135,7 +135,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.employee && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.fullName}</span>
               </div>
@@ -144,7 +144,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.employee?.employeePosition?.supervisor && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.plan.manager', 'Manager')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.manager_title', 'Manager')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.employeePosition.supervisor.fullName}</span>
               </div>
@@ -153,7 +153,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.costCenter && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.plan.costCenter', 'Cost Center')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employement_layout.employment_profile_container.cost_center_input', 'Cost Center')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.costCenter.name}</span>
               </div>
@@ -162,7 +162,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.project && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.plan.project', 'Project')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.project.name}</span>
               </div>
@@ -170,14 +170,14 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.plan.tripType', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Trip Type')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Total Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {typeof selectedItem.totalAmount === 'number' ? formatCurrency(selectedItem.totalAmount) : '-'}
@@ -187,7 +187,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.advancePaymentPaidAmount > 0 && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('expense.plan.advancePayment', 'Advance Payment')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
                 </span>
                 <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                   {formatCurrency(selectedItem.advancePaymentPaidAmount)}
@@ -212,7 +212,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           data-testid="view-expense-plan-details-button"
         >
           <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('expense.plan.details.view', 'View Full Details')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
         </Button>
       </div>
     </div>
