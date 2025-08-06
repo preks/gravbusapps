@@ -314,7 +314,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                               }}
                               data-testid={`view-request-${record.id}`}
                             >
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_details', 'View Request Details')}
+                               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

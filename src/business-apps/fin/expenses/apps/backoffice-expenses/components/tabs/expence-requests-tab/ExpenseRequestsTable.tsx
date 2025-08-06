@@ -23,6 +23,10 @@ import {
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { getTranslationFromI18nKeyAndLabel, formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
+import { Descriptions, Divider } from 'antd';
+
+import Pill from '@/components/pill/Pill';
+import { PiArrowRight } from 'react-icons/pi';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
@@ -310,7 +314,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     return [
       {
         id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.status', 'Status'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         type: 'checkbox',
         filters: availableStatuses.map(status => ({
           id: status,
@@ -320,7 +324,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       },
       {
         id: 'employee',
-        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.employee', 'Employee'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
         type: 'custom',
         customComponent: (
           <EmployeeSearchFilter
@@ -340,7 +344,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       },
       {
         id: 'amount',
-        title: getTranslationFromI18nKeyAndLabel('expense.request.filter.amount', 'Amount'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
         type: 'custom',
         customComponent: (
           <AmountFilter
@@ -409,11 +413,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     <>
       <DataContainer
         dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel('expense.request.list.title', 'Expense Requests'),
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests'),
           listAmount: totalItems ? `${totalItems}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: getTranslationFromI18nKeyAndLabel('expense.request.search.placeholder', 'Search in Expense Requests'),
+          placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.search_module', 'Search in Expense Requests'),
           filter: Object.keys(getFilters()),
           setFilter: setFilters,
           filterLabelMap: {
@@ -428,7 +432,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               variant="outline"
               size="sm"
             >
-              Transfer Payment ({selectedRecords.filter(r => r.status === 'BOOKED').length} selected)
+              {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} ({selectedRecords.filter(r => r.status === 'BOOKED').length} {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
             </Button>
           ) : undefined,
         }}
@@ -474,7 +478,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             </Alert>
           ) : !expenses || expenses.length === 0 ? (
             <div className="gba:p-8 gba:text-center gba:text-gray-500">
-              No expense requests found matching the current filters.
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.no_expense_requests_found', 'No expense requests found matching the current filters.')}
             </div>
           ) : (
             <div className="gba:pr-6 gba:overflow-hidden">
@@ -499,18 +503,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                               />
                             )}
                           </TableHead>
-                          <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">Actions</TableHead>
-                          <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee</TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Employee Code</TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">SAP Number</TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Request Number</TableHead>
-                          <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Start Date</TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">End Date</TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Creation Date</TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Remaining Amount</TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Total Amount</TableHead>
+                          <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.flows_button.actions', 'Actions')}</TableHead>
+                          <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')}</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.sap_number', 'SAP Number')}</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Number')}</TableHead>
+                          <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')}</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')}</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')}</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}</TableHead>
+                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">{getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}</TableHead>
+                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -518,7 +522,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           <TableRow>
                             <TableCell colSpan={12} className="gba:py-8 gba:text-center">
                               <div className="gba:text-gray-500">
-                                No expense requests found matching the current filters.
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.no_expense_requests_found', 'No expense requests found matching the current filters.')}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -558,63 +562,87 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           selectedExpense ? {
             title: selectedExpense.title || getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
             content: (
-              <div className="gba:p-4">
-                <div className="gba:mb-4">
-                  <h3 className="gba:text-lg gba:font-semibold">{selectedExpense.title}</h3>
-                  <p className="gba:text-sm gba:text-gray-600">{selectedExpense.code}</p>
+              <div className="gba:p-4 gba:relative gba:mb-6">
+                {/* Header: Title, Code, Status Pill */}
+                <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+                  <div>
+                    <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
+                      {selectedExpense.title || 'N/A'}
+                    </h3>
+                    <p className="gba:text-sm gba:text-gray-600">
+                      {selectedExpense.code || 'N/A'}
+                    </p>
+                  </div>
+                  <Pill
+                    type={getExpenseRequestStatusDisplay(selectedExpense.status).type}
+                    label={getExpenseRequestStatusDisplay(selectedExpense.status).label}
+                    className="gba:text-base"
+                    data-testid="expense-request-status-pill"
+                  />
                 </div>
-                <div className="gba:space-y-2">
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Employee:</span>
-                    <span>{selectedExpense.employee}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Employee Code:</span>
-                    <span>{selectedExpense.employeeCode}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">SAP Number:</span>
-                    <span>{selectedExpense.sapNumber}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Request Number:</span>
-                    <span>{selectedExpense.code}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Title:</span>
-                    <span>{selectedExpense.title}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Start Date:</span>
-                    <span>{selectedExpense.startDate && selectedExpense.startDate !== 'N/A' ? formatDate(selectedExpense.startDate, 'date.long') : 'N/A'}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">End Date:</span>
-                    <span>{selectedExpense.endDate && selectedExpense.endDate !== 'N/A' ? formatDate(selectedExpense.endDate, 'date.long') : 'N/A'}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Creation Date:</span>
-                    <span>{selectedExpense.creationDate && selectedExpense.creationDate !== 'N/A' ? formatDate(selectedExpense.creationDate, 'date.long') : 'N/A'}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Status:</span>
-                    <span>{selectedExpense.status}</span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Remaining Amount:</span>
-                    <span>
-                      {(() => {
-                        const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0;
-                        const currencyCode = selectedExpense.currency || '';
-                        return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
-                      })()}
-                    </span>
-                  </div>
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:font-medium">Total Amount:</span>
-                    <span>{formatNumberFunction(String(selectedExpense.totalAmount))}</span>
-                  </div>
-                </div>
+
+                                 {/* Details Section */}
+                 <Descriptions size="small" column={1}>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}>
+                     {selectedExpense.employee || 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')}>
+                     {selectedExpense.employeeCode || 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.sap_number', 'SAP Number')}>
+                     {selectedExpense.sapNumber || 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Number')}>
+                     {selectedExpense.code || 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title')}>
+                     {selectedExpense.title || 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')}>
+                     {selectedExpense.startDate && selectedExpense.startDate !== 'N/A' ? formatDate(selectedExpense.startDate, 'date.long') : 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')}>
+                     {selectedExpense.endDate && selectedExpense.endDate !== 'N/A' ? formatDate(selectedExpense.endDate, 'date.long') : 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}>
+                     {selectedExpense.creationDate && selectedExpense.creationDate !== 'N/A' ? formatDate(selectedExpense.creationDate, 'date.long') : 'N/A'}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}>
+                     {getExpenseRequestStatusDisplay(selectedExpense.status).label}
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.remaining', 'Remaining Amount')}>
+                     <span style={{ fontWeight: 'bold' }}>
+                       {(() => {
+                         const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0;
+                         const currencyCode = selectedExpense.currency || 'EUR';
+                         return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
+                       })()}
+                     </span>
+                   </Descriptions.Item>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}>
+                     <span style={{ fontWeight: 'bold' }}>
+                       {formatNumberFunction(String(selectedExpense.totalAmount || 0))}
+                     </span>
+                   </Descriptions.Item>
+                                  </Descriptions>
+
+                 <Divider />
+                
+                                 <div className="gba:flex gba:justify-end gba:mt-4">
+                   <Button
+                     variant="default"
+                     onClick={() => {
+                       // Navigate to the expense request record page
+                       const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
+                         expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : '' 
+                       });
+                       navigateTo(url);
+                     }}
+                     data-testid="view-expense-request-details-button"
+                   >
+                     {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
+                   </Button>
+                 </div>
               </div>
             ),
             onClose: handleCloseDetails,
