@@ -48,7 +48,7 @@ export function useJobPositionFilters(accessToken: string) {
   const [filtersInitialized, setFiltersInitialized] = useState(true); // OPTIMIZED: Initialize immediately
   
   // Lazy loading state for filters
-  const [filtersEnabled, setFiltersEnabled] = useState(false);
+  const [filtersEnabled, setFiltersEnabled] = useState(true); // Enable immediately to load filter options
   
   // Department filters - LAZY LOADED
   const [departmentSearch, setDepartmentSearch] = useState("");
