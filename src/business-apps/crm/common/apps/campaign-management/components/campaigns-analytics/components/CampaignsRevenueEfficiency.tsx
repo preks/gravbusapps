@@ -66,16 +66,8 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     }))
     .sort((a, b) => b.efficiencyScore - a.efficiencyScore);
 
-  // Treemap data - represent revenue contribution by campaign size
-  const treemapData = efficiencyData.map((campaign, index) => ({
-    name: campaign.name,
-    fullName: campaign.fullName,
-    size: campaign.revenue,
-    value: campaign.revenue,
-    fill: `hsl(${120 + (index * 30)}, 70%, 50%)`, // Dynamic colors
-    revenuePerLead: campaign.revenuePerLead,
-    efficiencyScore: campaign.efficiencyScore,
-  }));
+  // Colors for different campaigns
+  const TREEMAP_COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316'];
 
   // Custom tooltips
   const ScatterTooltip = ({ active, payload }: any) => {
@@ -110,24 +102,30 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
   const TreemapTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const totalRevenue = treemapData.reduce((sum, item) => sum + item.size, 0);
-      const percentage = ((data.size / totalRevenue) * 100).toFixed(1);
-      return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
-          <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
-          <div className="gba:space-y-1">
-            <p className="gba:text-sm">
-              <span className="gba:text-green-600">Revenue:</span> {formatCurrency(data.size)} ({percentage}%)
-            </p>
-            <p className="gba:text-sm">
-              <span className="gba:text-blue-600">Revenue/Lead:</span> {formatCurrency(data.revenuePerLead)}
-            </p>
-            <p className="gba:text-sm">
-              <span className="gba:text-purple-600">Efficiency Score:</span> {data.efficiencyScore.toFixed(1)}%
-            </p>
+      if (data && data.size) {
+        const totalRevenue = efficiencyData.reduce((sum, item) => sum + item.revenue, 0);
+        const percentage = totalRevenue > 0 ? ((data.size / totalRevenue) * 100).toFixed(1) : '0.0';
+        return (
+          <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+            <p className="gba:font-semibold gba:mb-2">{data.fullName || data.name}</p>
+            <div className="gba:space-y-1">
+              <p className="gba:text-sm">
+                <span className="gba:text-green-600">Revenue:</span> {formatCurrency(data.size || 0)} ({percentage}%)
+              </p>
+              {data.revenuePerLead && (
+                <p className="gba:text-sm">
+                  <span className="gba:text-blue-600">Revenue/Lead:</span> {formatCurrency(data.revenuePerLead)}
+                </p>
+              )}
+              {data.efficiencyScore && (
+                <p className="gba:text-sm">
+                  <span className="gba:text-purple-600">Efficiency Score:</span> {data.efficiencyScore.toFixed(1)}%
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      );
+        );
+      }
     }
     return null;
   };
@@ -237,59 +235,31 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
         return (
           <div className="gba:h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <Treemap
-                data={treemapData}
-                dataKey="size"
-                aspectRatio={4/3}
-                stroke="#fff"
-                strokeWidth={2}
-                content={({ root, depth, x, y, width, height, index, payload }) => {
-                  if (depth === 1 && payload) {
-                    return (
-                      <g>
-                        <rect
-                          x={x}
-                          y={y}
-                          width={width}
-                          height={height}
-                          style={{
-                            fill: payload.fill || '#8B5CF6',
-                            stroke: '#fff',
-                            strokeWidth: 2,
-                            fillOpacity: 0.8
-                          }}
-                        />
-                        {width > 50 && height > 30 && payload.name && (
-                          <text
-                            x={x + width / 2}
-                            y={y + height / 2 - 10}
-                            textAnchor="middle"
-                            fill="#fff"
-                            fontSize="12"
-                            fontWeight="bold"
-                          >
-                            {payload.name}
-                          </text>
-                        )}
-                        {width > 80 && height > 50 && payload.size && (
-                          <text
-                            x={x + width / 2}
-                            y={y + height / 2 + 5}
-                            textAnchor="middle"
-                            fill="#fff"
-                            fontSize="10"
-                          >
-                            {formatCurrency(payload.size)}
-                          </text>
-                        )}
-                      </g>
-                    );
-                  }
-                  return null;
-                }}
-              >
-                <Tooltip content={<TreemapTooltip />} />
-              </Treemap>
+              {efficiencyData.length > 0 ? (
+                <Treemap
+                  data={efficiencyData.map((campaign, index) => ({
+                    name: campaign.name,
+                    fullName: campaign.fullName,
+                    size: campaign.revenue,
+                    fill: TREEMAP_COLORS[index % TREEMAP_COLORS.length],
+                    revenuePerLead: campaign.revenuePerLead,
+                    efficiencyScore: campaign.efficiencyScore,
+                  }))}
+                  dataKey="size"
+                  aspectRatio={4/3}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  fill="#8B5CF6"
+                >
+                  <Tooltip content={<TreemapTooltip />} />
+                </Treemap>
+              ) : (
+                <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    No data available for treemap visualization
+                  </span>
+                </div>
+              )}
             </ResponsiveContainer>
           </div>
         );
@@ -379,38 +349,34 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
           <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
             {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueEfficiency.noData', 'No efficiency data available - need campaigns with both leads and revenue')}
           </div>
-        ) : treemapData.length === 0 && chartType === 'treemap' ? (
-          <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
-            {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueEfficiency.noTreemapData', 'No treemap data available for visualization')}
-          </div>
         ) : (
           <>
-            {/* Efficiency Insights */}
-            <div className="gba:mb-4 gba:p-4 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
-              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-4 gba:gap-4 gba:text-sm">
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
+            {/* Efficiency Insights - Horizontal Layout */}
+            <div className="gba:mb-3 gba:p-3 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+              <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:gap-3">
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
                     {efficiencyData.length > 0 ? formatCurrency(Math.max(...efficiencyData.map(c => c.revenuePerLead))) : '$0'}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Best Revenue/Lead</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Best Rev/Lead</span>
                 </div>
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
                     {efficiencyData.length > 0 ? Math.max(...efficiencyData.map(c => c.efficiencyScore)).toFixed(1) : '0.0'}%
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Top Efficiency Score</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Top Score</span>
                 </div>
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
                     {efficiencyData.length > 0 ? formatCurrency(efficiencyData.reduce((sum, c) => sum + c.revenuePerLead, 0) / efficiencyData.length) : '$0'}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Avg Revenue/Lead</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Avg Rev/Lead</span>
                 </div>
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-purple-600)' }}>
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-purple-600)' }}>
                     {efficiencyData[0]?.name || 'N/A'}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Most Efficient</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Most Efficient</span>
                 </div>
               </div>
             </div>

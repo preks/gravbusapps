@@ -360,26 +360,26 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
           </div>
         ) : (
           <>
-            {/* Revenue Insights */}
-            <div className="gba:mb-4 gba:p-4 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
-              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4 gba:text-sm">
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
+            {/* Revenue Insights - Horizontal Layout */}
+            <div className="gba:mb-3 gba:p-3 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+              <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:gap-4">
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
                     {formatCurrency(revenueData.reduce((sum, item) => sum + item.revenue, 0))}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Total Won Revenue</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Total Won</span>
                 </div>
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
                     {formatCurrency(revenueData.length > 0 ? revenueData.reduce((sum, item) => sum + item.revenue, 0) / revenueData.length : 0)}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Avg Revenue/Campaign</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Avg/Campaign</span>
                 </div>
-                <div className="gba:text-center">
-                  <div className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
+                <div className="gba:text-center gba:flex-1">
+                  <span className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
                     {revenueData[0]?.name || 'N/A'}
-                  </div>
-                  <div style={{ color: 'var(--color-text-secondary)' }}>Top Revenue Campaign</div>
+                  </span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Top Campaign</span>
                 </div>
               </div>
             </div>
