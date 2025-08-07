@@ -3,7 +3,7 @@ export interface SalesCampaignQueryVariables {
   offset?: number;
   limit?: number;
   search?: string;
-  orderBy?: string;
+  orderBy?: Array<{ [key: string]: 'ASC' | 'DESC' }>;
   campaignTypes?: string[];
   startDateAfter?: string;
   startDateBefore?: string;

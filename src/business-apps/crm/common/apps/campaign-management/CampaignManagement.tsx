@@ -4,15 +4,20 @@ import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useSalesCampaignData } from './hooks/useSalesCampaignData';
 import { useCampaignFilters } from './hooks/useCampaignFilters';
-import { CampaignStatistics, CampaignsTable } from './components';
+import { CampaignStatistics, CampaignsTable, AddCampaignModal } from './components';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BarChartOutlined } from '@ant-design/icons';
+import type { NewCampaignData } from './components/AddCampaignModal';
 
 interface CampaignManagementContentProps extends BusinessAppContextProps {
   onBack?: () => void;
 }
 
 const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (props) => {
+  // Modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Use the centralized campaign filters hook
   const {
     search,
@@ -69,7 +74,9 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     setSortOrder(newSortOrder);
 
     const offset = (newPage - 1) * newPageSize;
-    const orderBy = newSortField ? [{ [newSortField]: newSortOrder }] : [{ createdAt: 'DESC' }];
+    const orderBy = newSortField 
+      ? [{ [newSortField]: newSortOrder } as { [key: string]: 'ASC' | 'DESC' }] 
+      : [{ createdAt: 'DESC' } as { [key: string]: 'ASC' | 'DESC' }];
 
     fetchCampaigns({
       offset,
@@ -132,76 +139,112 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     processFiltersAndFetch
   ]);
 
-  return (
-    <PageLayout
-      headerIcon={<BarChartOutlined />}
-      headerLabel={getTranslationFromI18nKeyAndLabel('campaigns.page.title', 'Campaign Management')}
-      contentContainer={
-        <>
-          {/* Statistics Section */}
-          <div className="gba:mb-6" data-testid="campaign-statistics-section">
-            <CampaignStatistics
-              statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
-              isLoading={statisticsLoading}
-              error={statisticsError}
-              onRetry={refetchStatistics}
-            />
-          </div>
+  // Modal handlers
+  const handleAddCampaign = useCallback(() => {
+    setIsAddModalOpen(true);
+  }, []);
 
-          {/* Campaigns Table Section */}
-          <DataContainer
-                         dataControllerProps={{
-               search,
-               setSearch,
-               debounceDelay: 500,
-               filter: selectedFilters,
-               setFilter: handleSetFilter,
-               filterLabelMap,
-               dateRange: {
-                 createdAfter: filterCreatedAfter,
-                 createdBefore: filterCreatedBefore,
-                 onClear: () => filterHandleCreatedDateRangeChange(undefined, undefined),
-               },
-               listTitle: (
-                 <div className="gba:flex gba:items-center gba:gap-4">
-                   <div className="gba:flex gba:items-center gba:gap-2">
-                     <span>Campaigns</span>
-                     <span className="gba:text-gray-500">({totalCount})</span>
-                   </div>
-                 </div>
-               ),
-               addButton: {
-                 onClick: () => {
-                   // TODO: Implement add campaign functionality
-                   console.log('Add campaign clicked');
-                 },
-                 label: "Add",
-                 "data-testid": "add-campaign-button",
-               },
-             }}
-            dataFilterProps={{
-              filterGroups: filterGroups,
-              onFilterChange: handleFilterChange,
-            }}
-            dataBody={
-              <div data-testid="campaigns-table-container">
-                <CampaignsTable
-                  campaigns={campaigns}
-                  isLoading={isLoading}
-                  error={error}
-                  totalCount={totalCount}
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  onTableChange={handleTableChange}
-                  accessToken={props.accessToken}
-                />
-              </div>
-            }
-          />
-        </>
-      }
-      data-testid="campaign-management-page"
-    />
+  const handleCloseModal = useCallback(() => {
+    setIsAddModalOpen(false);
+  }, []);
+
+  const handleSubmitCampaign = useCallback(async (campaignData: NewCampaignData) => {
+    setIsSubmitting(true);
+    try {
+      // TODO: Implement campaign creation API call
+      console.log('Creating campaign:', campaignData);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Close modal and refresh data
+      setIsAddModalOpen(false);
+      refetch();
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [refetch]);
+
+  return (
+    <>
+      <PageLayout
+        headerIcon={<BarChartOutlined />}
+        headerLabel={getTranslationFromI18nKeyAndLabel('campaigns.page.title', 'Campaign Management')}
+        contentContainer={
+          <>
+            {/* Statistics Section */}
+            <div className="gba:mb-6" data-testid="campaign-statistics-section">
+              <CampaignStatistics
+                statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
+                isLoading={statisticsLoading}
+                error={statisticsError}
+                onRetry={refetchStatistics}
+              />
+            </div>
+
+            {/* Campaigns Table Section */}
+            <DataContainer
+              dataControllerProps={{
+                search,
+                setSearch,
+                debounceDelay: 500,
+                filter: selectedFilters,
+                setFilter: handleSetFilter,
+                filterLabelMap,
+                dateRange: {
+                  createdAfter: filterCreatedAfter,
+                  createdBefore: filterCreatedBefore,
+                  onClear: () => filterHandleCreatedDateRangeChange(undefined, undefined),
+                },
+                listTitle: (
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span>Campaigns</span>
+                      <span className="gba:text-gray-500">({totalCount})</span>
+                    </div>
+                  </div>
+                ),
+                addButton: {
+                  onClick: handleAddCampaign,
+                  label: "Add",
+                  "data-testid": "add-campaign-button",
+                },
+              }}
+              dataFilterProps={{
+                filterGroups: filterGroups,
+                onFilterChange: handleFilterChange,
+              }}
+              dataBody={
+                <div data-testid="campaigns-table-container">
+                  <CampaignsTable
+                    campaigns={campaigns}
+                    isLoading={isLoading}
+                    error={error}
+                    totalCount={totalCount}
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    onTableChange={handleTableChange}
+                    accessToken={props.accessToken}
+                  />
+                </div>
+              }
+            />
+          </>
+        }
+        data-testid="campaign-management-page"
+      />
+      
+      {/* Add Campaign Modal */}
+      <AddCampaignModal
+        isOpen={isAddModalOpen}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmitCampaign}
+        isLoading={isSubmitting}
+        {...props}
+      />
+    </>
   );
 };
 

@@ -13,6 +13,16 @@ export interface UseSalesCampaignDataReturn {
   statisticsError: string | null;
   refetch: () => void;
   fetchCampaigns: (variables?: SalesCampaignQueryVariables) => Promise<void>;
+  processFiltersAndFetch: (
+    search: string,
+    selectedFilters: string[],
+    startDateAfter?: string,
+    startDateBefore?: string,
+    endDateAfter?: string,
+    endDateBefore?: string,
+    createdAfter?: string,
+    createdBefore?: string
+  ) => Promise<void>;
   refetchStatistics: () => void;
 }
 
