@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { Card, Tooltip, Modal, Button } from 'antd';
+import React from 'react';
+import { Card, Tooltip } from 'antd';
 import { Badge } from '@newwork/nw-design-system';
-import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, UserOutlined, CalendarOutlined, FileTextOutlined, PlusOutlined, EditOutlined, BellOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface StageCondition {
   id: string;
+  stageConditionStatusId: string;
   title: string;
   description: string;
   isCompleted: boolean;
@@ -15,11 +18,12 @@ interface StageCondition {
   deadlineEnabled?: boolean;
   deadlineDuration?: number;
   deadlineUnit?: string;
+  completedBy?: string | null; // Real completed by employee name
+  deadlineAt?: string | null; // Real deadline date
+  completedAt?: string | null; // When it was completed
   details: {
-    requirements: string[];
     approvedBy: string;
     dueDate: string;
-    notes: string;
     relatedDocuments: string[];
   };
   externalTasks?: {
@@ -33,118 +37,89 @@ interface StageCondition {
 
 interface OpportunityDetailsProps {
   opportunityData: any;
-  opportunityId: string;
+  stageConditionStatuses: any[];
   context: BusinessAppContextProps;
 }
 
 export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({ 
   opportunityData,
-  opportunityId,
+  stageConditionStatuses,
   context 
 }) => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedCondition, setSelectedCondition] = useState<StageCondition | null>(null);
 
-  // Base mock data template for all conditions
-  const baseConditionData = {
-    isCompleted: false,
-    generateTask: true,
-    checkedType: 'User' as const,
-    deadlineEnabled: true,
-    deadlineDuration: 5,
-    deadlineUnit: 'Days',
+
+  // Transform real stage condition status data to UI format
+  const transformStageConditionStatusToUI = (statusData: any): StageCondition => {
+    const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
+    
+    // Extract deadline information
+    const deadlineEnabled = config.deadline_enabled || false;
+    const deadlineDuration = config.deadline_duration || 1;
+    const deadlineUnit = config.deadline_duration_measurement_unit_ref === 'MeasurementUnit:v1:DAY' ? 'Days' : 'Weeks';
+    
+    // Calculate due date based on deadline
+    const dueDate = statusData.deadlineAt ? 
+      new Date(statusData.deadlineAt).toISOString().split('T')[0] : 
+      new Date(Date.now() + (deadlineDuration * (deadlineUnit === 'Days' ? 1 : 7) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    
+    // Get approver information
+    const approvedBy = statusData.completedByEmployee ? 
+      `${statusData.completedByEmployee.firstName} ${statusData.completedByEmployee.lastName}` : 
+      'System';
+    
+    // Determine check type
+    const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
+    
+    return {
+      id: statusData.salesPipelineStageCondition?.code || statusData.id,
+      stageConditionStatusId: statusData.id, // Add the stage condition status ID for the action button
+      title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+      description: config.description || 'No description available',
+      isCompleted: statusData.completed || false,
+      generateTask: config.generate_task || config.generateTask || false,
+      checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+      deadlineEnabled,
+      deadlineDuration,
+      deadlineUnit,
+      completedBy: statusData.completedByEmployee ? `${statusData.completedByEmployee.firstName} ${statusData.completedByEmployee.lastName}` : null,
+      deadlineAt: statusData.deadlineAt,
+      completedAt: statusData.completedAt,
     details: {
-      requirements: [
-        'Complete all necessary documentation',
-        'Obtain required approvals from stakeholders',
-        'Verify all criteria have been met'
-      ],
-      approvedBy: 'Sarah Johnson',
-      dueDate: '2024-02-01',
-      notes: 'Standard condition with typical requirements and timeline.',
+        approvedBy,
+        dueDate,
       relatedDocuments: ['Condition_Template.docx', 'Requirements_Checklist.pdf']
     },
-    externalTasks: [
-      {
-        id: 'task-001',
-        title: 'Complete condition requirements',
-        status: 'In Progress' as const,
-        assignee: 'Sarah Johnson',
-        dueDate: '2024-02-01'
-      }
-    ]
+      externalTasks: statusData.generateTask ? [
+        {
+          id: `task-${statusData.id}`,
+          title: `Complete ${statusData.salesPipelineStageCondition?.value || 'condition'} requirements`,
+          status: statusData.completed ? 'Completed' as const : 'In Progress' as const,
+          assignee: approvedBy,
+          dueDate
+        }
+      ] : []
+    };
   };
 
-  // Mock data for stage conditions using base template
-  const stageConditions: StageCondition[] = [
-    {
-      id: 'budget-confirmation',
-      title: 'Budget confirmation received',
-      description: 'Customer has confirmed allocated budget and decision authority',
-      ...baseConditionData,
-      isCompleted: true
-    },
-    {
-      id: 'decision-maker',
-      title: 'Decision maker identified',
-      description: 'Direct contact established with final purchasing authority',
-      ...baseConditionData
-    },
-    {
-      id: 'technical-requirements',
-      title: 'Technical requirements documented',
-      description: 'All technical specifications and integration requirements defined',
-      ...baseConditionData
-    },
-    {
-      id: 'proposal-submitted',
-      title: 'Proposal submitted and acknowledged',
-      description: 'Formal proposal delivered and receipt confirmed by customer',
-      ...baseConditionData
-    },
-    {
-      id: 'legal-review',
-      title: 'Legal review completed',
-      description: 'Legal teams have reviewed and approved all contract terms',
-      ...baseConditionData
-    }
-  ];
-
-  const handleConditionClick = (condition: StageCondition) => {
-    setSelectedCondition(condition);
-    setIsModalVisible(true);
+  // Filter stage conditions to only show those belonging to the current stage
+  const getCurrentStageConditions = (stageConditionStatuses: any[], currentStage: string): any[] => {
+    const expectedStageId = `SalesPipelineStage:v1:${currentStage}`;
+    return stageConditionStatuses.filter(statusData => {
+      const parentEntryId = statusData.salesPipelineStageCondition?.parentEntryId;
+      return parentEntryId === expectedStageId;
+    });
   };
 
-  const handleModalClose = () => {
-    setIsModalVisible(false);
-    setSelectedCondition(null);
-  };
+  // Use real data if available, filter for current stage, otherwise fall back to empty array
+  const currentStageConditionStatuses = stageConditionStatuses.length > 0 
+    ? getCurrentStageConditions(stageConditionStatuses, opportunityData?.salesPipelineStage?.code || '')
+    : [];
+    
+  const stageConditions: StageCondition[] = currentStageConditionStatuses.map(transformStageConditionStatusToUI);
 
 
 
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed': return '#52c41a';
-      case 'In Progress': return '#1890ff';
-      case 'Open': return '#faad14';
-      default: return '#8c8c8c';
-    }
-  };
 
-  const handleCreateTask = (condition: StageCondition) => {
-    console.log('Creating task for condition:', condition.title);
-    // TODO: Implement task creation
-  };
-
-  const handleCreateReminder = (condition: StageCondition) => {
-    console.log('Creating reminder for condition:', condition.title);
-    // TODO: Implement reminder creation
-  };
-
-  const handleEditCondition = (condition: StageCondition) => {
-    console.log('Editing condition:', condition.title);
-    // TODO: Implement condition editing
-  };
   const cardTitle = (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
       <span>Stage required conditions</span>
@@ -184,250 +159,117 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
         </div>
 
         {/* Stage Conditions List */}
-        <div className="gba:space-y-2">
-          {stageConditions.map((condition) => (
+        <div className="gba:space-y-3">
+          {stageConditions.length > 0 ? (
+            stageConditions.map((condition) => (
             <div 
               key={condition.id}
-              className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
+                className="gba:relative gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
               data-testid={`stage-condition-${condition.id}`}
             >
-              {condition.isCompleted ? (
-                <CheckCircleFilled 
-                  className="gba:text-lg gba:flex-shrink-0" 
-                  style={{ color: '#16a34a' }}
-                />
-              ) : (
-                <CloseCircleFilled 
-                  className="gba:text-lg gba:flex-shrink-0" 
-                  style={{ color: '#9ca3af' }}
-                />
+              {/* Due Date in Top Right Corner */}
+              {condition.deadlineAt && (
+                <div className="gba:absolute gba:top-3 gba:right-3 gba:text-xs gba:text-gray-500 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded-md gba:border">
+                  <CalendarOutlined className="gba:text-gray-400 gba:mr-1" />
+                  {new Date(condition.deadlineAt).toLocaleDateString()}
+                </div>
               )}
-              <div className="gba:flex-1">
-                <p 
-                  className="gba:text-sm gba:font-medium gba:text-gray-800 hover:gba:text-blue-600 gba:cursor-pointer gba:transition-colors"
-                  onClick={() => handleConditionClick(condition)}
-                  data-testid={`stage-condition-title-${condition.id}`}
+                {/* Header with Status Icon and Title */}
+                <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
+              <div className="gba:flex-shrink-0">
+                <AppActionButton
+                  data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
+                  variant="ghost"
+                  showIcon={false}
+                  size="small"
+                  contextsArray={[FlowContextName.saveOpportunityStageConditionStatus]}
+                  externalContextData={{
+                    stageConditionStatusId: condition.stageConditionStatusId 
+                  }}
+                  prefixDataTestId="stage-condition-status-icon"
+                  accessToken={context.accessToken}
+                  emptyStateBehavior="disable"
+                  deferMainContextRequestsUntilClick
+                  onClick={(e) => e.stopPropagation()}
+                  className="gba:p-1 gba:hover:bg-gray-100 gba:rounded-full gba:transition-colors gba:border-0 gba:relative gba:group"
+                  style={{ minWidth: 'auto', minHeight: 'auto', background: 'transparent' }}
                 >
-                  {condition.title}
-                </p>
-                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">{condition.description}</p>
+                  {/* Default State Icon */}
+                  <div className="gba:block group-hover:gba:hidden gba:transition-opacity">
+                    {condition.isCompleted ? (
+                      <CheckCircleFilled 
+                        className="gba:text-lg" 
+                        style={{ color: '#16a34a' }}
+                      />
+                    ) : (
+                      <CloseCircleFilled 
+                        className="gba:text-lg" 
+                        style={{ color: '#9ca3af' }}
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Hover State Icon (opposite of current state) */}
+                  <div className="gba:hidden group-hover:gba:block gba:transition-opacity">
+                    {condition.isCompleted ? (
+                      <CloseCircleFilled 
+                        className="gba:text-lg" 
+                        style={{ color: '#f59e0b' }}
+                      />
+                    ) : (
+                      <CheckCircleFilled 
+                        className="gba:text-lg" 
+                        style={{ color: '#16a34a' }}
+                      />
+                    )}
+                  </div>
+                </AppActionButton>
               </div>
-            </div>
-          ))}
-        </div>
+              <div className="gba:flex-1">
+                    <h4 className="gba:text-sm gba:font-semibold gba:text-gray-800 gba:mb-1">
+                  {condition.title}
+                    </h4>
+                    <p className="gba:text-xs gba:text-gray-500">{condition.description}</p>
+              </div>
       </div>
 
-      {/* Condition Details Modal */}
-      <Modal
-        title={
-          <div className="gba:flex gba:items-center gba:gap-3">
-            {selectedCondition?.isCompleted ? (
-              <CheckCircleFilled style={{ color: '#16a34a' }} />
-            ) : (
-              <CloseCircleFilled style={{ color: '#9ca3af' }} />
-            )}
-            <span>{selectedCondition?.title}</span>
-          </div>
-        }
-        open={isModalVisible}
-        onCancel={handleModalClose}
-        footer={null}
-        width={700}
-        data-testid="stage-condition-details-modal"
-      >
-        {selectedCondition && (
-          <div className="gba:space-y-6">
-            {/* Description */}
-            <div>
-              <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2">Description</h4>
-              <p className="gba:text-sm gba:text-gray-600">{selectedCondition.description}</p>
-            </div>
-
-            {/* Status and Configuration */}
-            <div className="gba:flex gba:gap-6">
-              <div>
-                <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2">Status</h4>
+                {/* Additional Information */}
+                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4 gba:text-xs">
+                  {/* Completed By Employee (only show if completed and has employee) */}
+                  {condition.isCompleted && condition.completedBy && (
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  {selectedCondition.isCompleted ? (
-                    <>
-                      <CheckCircleFilled style={{ color: '#16a34a' }} />
-                      <span className="gba:text-sm gba:text-green-600 gba:font-medium">Completed</span>
-                    </>
-                  ) : (
-                    <>
-                      <CloseCircleFilled style={{ color: '#9ca3af' }} />
-                      <span className="gba:text-sm gba:text-gray-500 gba:font-medium">Pending</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2">Checked By</h4>
-                <span className="gba:text-sm gba:text-gray-600">{selectedCondition.checkedType || 'User'}</span>
-              </div>
-              {selectedCondition.deadlineEnabled && (
-                <div>
-                  <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2">Deadline</h4>
-                  <span className="gba:text-sm gba:text-gray-600">
-                    {selectedCondition.deadlineDuration} {selectedCondition.deadlineUnit}
+                      <UserOutlined className="gba:text-gray-400" />
+                      <span className="gba:text-gray-600">
+                        <span className="gba:font-medium">Completed by:</span> {condition.completedBy}
                   </span>
                 </div>
               )}
-            </div>
 
-            {/* Approved By and Due Date */}
-            <div className="gba:flex gba:gap-6">
-              <div className="gba:flex-1">
-                <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2 gba:flex gba:items-center gba:gap-2">
-                  <UserOutlined className="gba:text-gray-500" />
-                  Approved By
-                </h4>
-                <p className="gba:text-sm gba:text-gray-600">{selectedCondition.details.approvedBy}</p>
-              </div>
-              <div className="gba:flex-1">
-                <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2 gba:flex gba:items-center gba:gap-2">
-                  <CalendarOutlined className="gba:text-gray-500" />
-                  Due Date
-                </h4>
-                <p className="gba:text-sm gba:text-gray-600">{new Date(selectedCondition.details.dueDate).toLocaleDateString()}</p>
-              </div>
-            </div>
 
-            {/* Requirements */}
-            <div>
-              <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-3">Requirements</h4>
-              <ul className="gba:space-y-2">
-                {selectedCondition.details.requirements.map((requirement, index) => (
-                  <li key={index} className="gba:flex gba:items-start gba:gap-2">
-                    <span className="gba:w-1.5 gba:h-1.5 gba:bg-gray-400 gba:rounded-full gba:mt-2 gba:flex-shrink-0"></span>
-                    <span className="gba:text-sm gba:text-gray-600">{requirement}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
-            {/* Notes */}
-            <div>
-              <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-2">Notes</h4>
-              <div className="gba:bg-gray-50 gba:p-3 gba:rounded-lg gba:border">
-                <p className="gba:text-sm gba:text-gray-600">{selectedCondition.details.notes}</p>
-              </div>
-            </div>
-
-            {/* Related Documents */}
-            <div>
-              <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-3 gba:flex gba:items-center gba:gap-2">
-                <FileTextOutlined className="gba:text-gray-500" />
-                Related Documents
-              </h4>
-              <div className="gba:space-y-2">
-                {selectedCondition.details.relatedDocuments.map((document, index) => (
-                  <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded gba:border">
-                    <FileTextOutlined className="gba:text-blue-500" />
-                    <span className="gba:text-sm gba:text-blue-600 gba:cursor-pointer hover:gba:text-blue-800">{document}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Creation Capabilities */}
-            <div>
-              <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-3 gba:flex gba:items-center gba:gap-2">
-                <PlusOutlined className="gba:text-gray-500" />
-                Actions Available
-              </h4>
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3">
-                <Button
-                  type="default"
-                  icon={<PlusOutlined />}
-                  onClick={() => handleCreateTask(selectedCondition)}
-                  className="gba:w-full gba:flex gba:items-center gba:justify-center"
-                  data-testid="create-task-button"
-                >
-                  Create Task
-                </Button>
-                <Button
-                  type="default"
-                  icon={<BellOutlined />}
-                  onClick={() => handleCreateReminder(selectedCondition)}
-                  className="gba:w-full gba:flex gba:items-center gba:justify-center"
-                  data-testid="create-reminder-button"
-                >
-                  Set Reminder
-                </Button>
-                <Button
-                  type="default"
-                  icon={<EditOutlined />}
-                  onClick={() => handleEditCondition(selectedCondition)}
-                  className="gba:w-full gba:flex gba:items-center gba:justify-center"
-                  data-testid="edit-condition-button"
-                >
-                  Edit Condition
-                </Button>
-              </div>
-            </div>
-
-            {/* External Tasks (only show if generateTask is enabled) */}
-            {selectedCondition.generateTask && selectedCondition.externalTasks && selectedCondition.externalTasks.length > 0 && (
-              <div>
-                <h4 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-3 gba:flex gba:items-center gba:gap-2">
-                  <CheckCircleFilled className="gba:text-blue-500" />
-                  Related Tasks
-                  <span className="gba:text-xs gba:bg-blue-100 gba:text-blue-600 gba:px-2 gba:py-1 gba:rounded">
-                    Auto-Generated
-                  </span>
-                </h4>
-                <div className="gba:space-y-3">
-                  {selectedCondition.externalTasks.map((task) => (
-                    <div key={task.id} className="gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border">
-                      <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
-                        <h5 className="gba:text-sm gba:font-medium gba:text-gray-800">{task.title}</h5>
-                        <span 
-                          className="gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium gba:text-white"
-                          style={{ backgroundColor: getTaskStatusColor(task.status) }}
-                        >
-                          {task.status}
-                        </span>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-600">
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <UserOutlined />
-                          <span>{task.assignee}</span>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <CalendarOutlined />
-                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                        </div>
-                      </div>
+                  {/* Completed Date (only show if completed) */}
+                  {condition.isCompleted && condition.completedAt && (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <CheckCircleFilled className="gba:text-green-500" />
+                      <span className="gba:text-gray-600">
+                        <span className="gba:font-medium">Completed:</span> {new Date(condition.completedAt).toLocaleDateString()}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Task Generation Info */}
-            {selectedCondition.generateTask && (
-              <div className="gba:bg-blue-50 gba:p-3 gba:rounded-lg gba:border gba:border-blue-200">
-                <div className="gba:flex gba:items-start gba:gap-2">
-                  <InfoCircleOutlined className="gba:text-blue-500 gba:mt-0.5" />
-                  <div>
-                    <p className="gba:text-sm gba:font-medium gba:text-blue-800 gba:mb-1">
-                      Automatic Task Generation Enabled
-                    </p>
-                    <p className="gba:text-xs gba:text-blue-600">
-                      Tasks are automatically created when this condition becomes active. 
-                      Completion verification is handled by: <strong>{selectedCondition.checkedType}</strong>
-                      {selectedCondition.deadlineEnabled && (
-                        <span> with deadline: <strong>{selectedCondition.deadlineDuration} {selectedCondition.deadlineUnit}</strong></span>
-                      )}
-                    </p>
+                  )}
                   </div>
                 </div>
+            ))
+          ) : (
+            <div className="gba:text-center gba:py-8 gba:text-gray-500">
+              <InfoCircleOutlined className="gba:text-2xl gba:mb-2" />
+              <p className="gba:text-sm">No stage conditions configured for this opportunity</p>
+              <p className="gba:text-xs gba:mt-1">Stage conditions will appear here when configured for the current pipeline stage</p>
               </div>
             )}
           </div>
-        )}
-      </Modal>
+      </div>
+
+
     </Card>
   );
 }; 

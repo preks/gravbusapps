@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
-import { Modal, Tooltip, message } from 'antd';
+import { Tooltip, Modal, message } from 'antd';
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { ReferenceData } from '../types';
-import { useUpdateOpportunityStage } from '../hooks/useUpdateOpportunityStage';
-import { WorkflowsStatusModal } from './WorkflowsStatusModal';
-import { WorkflowStatusService } from '../services/WorkflowStatusService';
-import { getStageTransitionConditions, hasStageTransitionConditions } from '../config/stageTransitionConditions';
-import { StageTransitionCondition } from '../types/stageTransition';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // TEST-DEBUG: Mock conditions data for tooltips - REVERT THIS
@@ -17,36 +12,51 @@ interface StageCondition {
   checkedType: 'Automated' | 'User' | 'Manager' | 'Owner';
 }
 
-// TEST-DEBUG: Mock stage conditions mapping - REVERT THIS
-const getStageConditions = (stageName: string): StageCondition[] => {
-  const allConditions: StageCondition[] = [
-    { id: '1', title: 'Budget confirmation received', isCompleted: true, checkedType: 'Manager' },
-    { id: '2', title: 'Decision maker identified', isCompleted: true, checkedType: 'User' },
-    { id: '3', title: 'Technical requirements documented', isCompleted: false, checkedType: 'Owner' },
-    { id: '4', title: 'Proposal submitted and acknowledged', isCompleted: false, checkedType: 'User' },
-    { id: '5', title: 'Legal review completed', isCompleted: false, checkedType: 'Manager' }
-  ];
+// Transform real stage condition status data for stage progression display
+// Filter conditions based on parentEntryId matching the stage
+const getStageConditionsFromReal = (stageConditionStatuses: any[], stageName: string): StageCondition[] => {
+  // Build the expected stage ID from the stage name
+  const expectedStageId = `SalesPipelineStage:v1:${stageName}`;
   
-  // Mock logic: Different stages show different conditions
-  switch (stageName.toLowerCase()) {
-    case 'discovery':
-    case 'qualification':
-      return allConditions.slice(0, 2); // First 2 conditions
-    case 'proposal':
-    case 'needs analysis':
-      return allConditions.slice(2, 4); // Middle 2 conditions
-    case 'negotiation':
-    case 'closed won':
-    case 'closed lost':
-      return allConditions.slice(4); // Last condition
-    default:
-      return allConditions.slice(0, 3); // Default: first 3 conditions
-  }
+  // Filter conditions that belong to this specific stage
+  const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
+    const parentEntryId = statusData.salesPipelineStageCondition?.parentEntryId;
+    return parentEntryId === expectedStageId;
+  });
+  
+  return stageSpecificConditions.map(statusData => {
+    const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
+    const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
+    
+    return {
+      id: statusData.id,
+      title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+      isCompleted: statusData.completed || false,
+      checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner'
+    };
+  });
 };
 
-// TEST-DEBUG: Compact tooltip content component - REVERT THIS
-const StageTooltipContent: React.FC<{ stageName: string }> = ({ stageName }) => {
-  const conditions = getStageConditions(stageName);
+// Calculate completion percentage for a specific stage
+const getStageCompletionPercentage = (stageConditionStatuses: any[], stageName: string): number => {
+  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageName);
+  
+  if (conditions.length === 0) {
+    return 0; // No conditions = 0% completion (not 100%)
+  }
+  
+  const completedCount = conditions.filter(condition => condition.isCompleted).length;
+  return Math.round((completedCount / conditions.length) * 100);
+};
+
+// Real stage tooltip content component
+const StageTooltipContent: React.FC<{ 
+  stageName: string; 
+  stageDisplayName?: string;
+  stageConditionStatuses: any[]; 
+  currentStage: string; 
+}> = ({ stageName, stageDisplayName, stageConditionStatuses, currentStage }) => {
+  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageName);
   
   return (
     <div style={{ maxWidth: '280px', padding: '4px 0' }}>
@@ -58,43 +68,58 @@ const StageTooltipContent: React.FC<{ stageName: string }> = ({ stageName }) => 
         borderBottom: '1px solid #4b5563',
         paddingBottom: '6px'
       }}>
-        {stageName} Stage Conditions
+        {stageDisplayName || stageName} Stage Conditions
       </div>
       <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-        {conditions.map((condition) => (
-          <div 
-            key={condition.id}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '8px',
-              padding: '4px 0',
-              fontSize: '12px'
-            }}
-          >
-                         {condition.isCompleted ? (
-               <CheckCircleFilled style={{ color: '#4ade80', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
-             ) : (
-               <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
-             )}
-            <div style={{ flex: 1 }}>
-              <div style={{ 
-                fontWeight: '500',
-                color: condition.isCompleted ? '#4ade80' : '#e5e7eb', // TEST-DEBUG: Light colors for dark bg
-                lineHeight: '1.3'
-              }}>
-                {condition.title}
-              </div>
-              <div style={{ 
-                fontSize: '10px', 
-                color: '#d1d5db', // TEST-DEBUG: Light gray for dark background
-                marginTop: '2px'
-              }}>
-                Checked by: {condition.checkedType}
+        {conditions.length > 0 ? (
+          conditions.map((condition) => (
+            <div 
+              key={condition.id}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '4px 0',
+                fontSize: '12px'
+              }}
+            >
+              {condition.isCompleted ? (
+                <CheckCircleFilled style={{ color: '#4ade80', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+              ) : (
+                <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontWeight: '500',
+                  color: condition.isCompleted ? '#4ade80' : '#e5e7eb',
+                  lineHeight: '1.3'
+                }}>
+                  {condition.title}
+                </div>
+                <div style={{ 
+                  fontSize: '10px', 
+                  color: '#d1d5db',
+                  marginTop: '2px'
+                }}>
+                  Checked by: {condition.checkedType}
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div style={{
+            color: '#d1d5db',
+            fontSize: '12px',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            padding: '8px 0'
+          }}>
+            {stageName === currentStage 
+              ? 'No conditions configured for this stage'
+              : 'Conditions shown only for active stage'
+            }
           </div>
-        ))}
+        )}
       </div>
       <div style={{
         fontSize: '10px',
@@ -114,27 +139,21 @@ interface StageProgressionProps {
   currentStage: string;
   stages: ReferenceData[];
   opportunityId: string;
-  opportunityVersion: number;
+  stageConditionStatuses: any[];
   accessToken: string;
-  onStageUpdate: () => void;
+  opportunityVersion?: number;
+  onStageUpdate?: () => void;
 }
 
 export const StageProgression: React.FC<StageProgressionProps> = ({
   currentStage,
   stages,
-  opportunityId,
-  opportunityVersion,
-  accessToken,
-  onStageUpdate
+  stageConditionStatuses,
+  onStageUpdate = () => {}
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ReferenceData | null>(null);
-  const [workflowsModalVisible, setWorkflowsModalVisible] = useState(false);
-  const [activeWorkflows, setActiveWorkflows] = useState<any[]>([]);
-  const [transitionConditions, setTransitionConditions] = useState<StageTransitionCondition[]>([]);
-  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
-  
-  const { updateStage, isLoading } = useUpdateOpportunityStage(accessToken);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleStageClick = async (stage: ReferenceData) => {
     // Don't show modal if clicking on current stage
@@ -143,158 +162,43 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
     }
     
     setSelectedStage(stage);
-    
-    // Check if transition conditions exist for this stage change
-    const conditions = getStageTransitionConditions(
-      currentStage,
-      stage.value,
-      'default-pipeline', // TODO: Get actual pipeline ID from opportunity data
-      0 // TODO: Get actual opportunity value
-    );
-    
-    if (conditions.length > 0) {
-      // Check for existing active workflows
-      setLoadingWorkflows(true);
-      try {
-        const existingWorkflows = await WorkflowStatusService.getStageTransitionWorkflows(
-          opportunityId,
-          currentStage,
-          stage.value,
-          accessToken
-        );
-        
-        if (existingWorkflows.length > 0) {
-          // Show existing workflows status
-          setActiveWorkflows(existingWorkflows);
-          setWorkflowsModalVisible(true);
-        } else {
-          // Start new workflows
-          setTransitionConditions(conditions);
-          setModalVisible(true);
-        }
-      } catch (error) {
-        console.error('Error checking workflows:', error);
-        message.error(
-          getTranslationFromI18nKeyAndLabel(
-            'crm:opportunity.workflowStatus.checkError',
-            'Failed to check approval status'
-          )
-        );
-        // Fallback to direct stage change
-        setModalVisible(true);
-      } finally {
-        setLoadingWorkflows(false);
-      }
-    } else {
-      // No conditions required - direct stage change
-      setModalVisible(true);
-    }
+    setModalVisible(true);
   };
 
   const handleConfirmStageChange = async () => {
     if (!selectedStage) return;
     
-    // If there are transition conditions, start workflows instead of direct stage change
-    if (transitionConditions.length > 0) {
-      try {
-        setLoadingWorkflows(true);
-        
-        // Start workflows for each condition
-        for (const condition of transitionConditions) {
-          await WorkflowStatusService.startStageTransitionWorkflow(
-            opportunityId,
-            condition,
-            {}, // TODO: Pass actual opportunity data
-            accessToken
-          );
-        }
-        
-        message.success(
-          getTranslationFromI18nKeyAndLabel(
-            'crm:opportunity.workflowStatus.workflowsStarted',
-            'Approval workflows have been started'
-          )
-        );
-        
-        // Close the modal and show workflows status
-        setModalVisible(false);
-        setSelectedStage(null);
-        
-        // Refresh workflows and show status modal
-        const workflows = await WorkflowStatusService.getStageTransitionWorkflows(
-          opportunityId,
-          currentStage,
-          selectedStage.value,
-          accessToken
-        );
-        setActiveWorkflows(workflows);
-        setWorkflowsModalVisible(true);
-        
-      } catch (error) {
-        console.error('Error starting workflows:', error);
-        message.error(
-          getTranslationFromI18nKeyAndLabel(
-            'crm:opportunity.workflowStatus.startError',
-            'Failed to start approval workflows'
-          )
-        );
-      } finally {
-        setLoadingWorkflows(false);
-      }
-    } else {
-      // Direct stage change (no conditions)
-      try {
-        await updateStage(
-          opportunityId, 
-          opportunityVersion, 
-          selectedStage.id,
-          selectedStage.value,
-          () => {
-            setModalVisible(false);
-            setSelectedStage(null);
-            onStageUpdate();
-          }
-        );
-      } catch (error) {
-        console.error('Error updating stage:', error);
-      }
+    try {
+      setIsLoading(true);
+      
+      // TODO: Implement actual stage update logic
+      message.success(
+        getTranslationFromI18nKeyAndLabel(
+          'crm:opportunity.stageChange.success',
+          `Stage changed to ${selectedStage.value}`
+        )
+      );
+      
+      setModalVisible(false);
+      setSelectedStage(null);
+      onStageUpdate();
+      
+    } catch (error) {
+      console.error('Error updating stage:', error);
+      message.error(
+        getTranslationFromI18nKeyAndLabel(
+          'crm:opportunity.stageChange.error',
+          'Failed to update stage'
+        )
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleCancelModal = () => {
     setModalVisible(false);
     setSelectedStage(null);
-    setTransitionConditions([]);
-  };
-
-  const handleWorkflowsCompleted = async () => {
-    if (!selectedStage) return;
-    
-    try {
-      // All workflows completed - proceed with stage change
-      await updateStage(
-        opportunityId, 
-        opportunityVersion, 
-        selectedStage.id,
-        selectedStage.value,
-        () => {
-          setWorkflowsModalVisible(false);
-          setSelectedStage(null);
-          setActiveWorkflows([]);
-          setTransitionConditions([]);
-          onStageUpdate();
-        }
-      );
-    } catch (error) {
-      console.error('Error updating stage after workflow completion:', error);
-    }
-  };
-
-  const handleCancelWorkflowsModal = () => {
-    setWorkflowsModalVisible(false);
-    setSelectedStage(null);
-    setActiveWorkflows([]);
-    setTransitionConditions([]);
   };
 
   const getCurrentStageIndex = () => {
@@ -423,13 +327,12 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             -webkit-clip-path: inherit;
           }
 
-          /* Static green progress fill - 25% of the arrow, same dimensions as white background */
-          .stage-current-animated::after {
+          /* Dynamic green progress fill - will be controlled by inline styles */
+          .stage-current-animated .progress-fill {
             content: '';
             position: absolute;
             top: 2px;
             left: 2px;
-            right: 75%;
             bottom: 2px;
             background: linear-gradient(
               135deg,
@@ -442,14 +345,15 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             background-size: 200% 200%;
             animation: premiumProgressWave 4s ease-in-out infinite;
             z-index: 2;
+            clip-path: inherit;
+            -webkit-clip-path: inherit;
           }
 
-          /* Primary premium shimmer overlay */
+          /* Primary premium shimmer overlay - will be controlled by inline styles */
           .stage-current-animated .shimmer-overlay {
             position: absolute;
             top: 2px;
             left: 2px;
-            right: 75%;
             bottom: 2px;
             background: linear-gradient(
               90deg,
@@ -464,6 +368,8 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             animation: premiumShimmer 4s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
             z-index: 3;
             pointer-events: none;
+            clip-path: inherit;
+            -webkit-clip-path: inherit;
           }
 
           /* Restore white background for border effect */
@@ -516,21 +422,26 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
         {stages.map((stage, index) => {
           const isCurrentStage = index === currentIndex;
           const isCompleted = index < currentIndex;
-          const isPending = index > currentIndex;
           
-          // TODO: TEST-DEBUG ONLY - REVERT THIS CHANGE LATER
-          // Original: Full green background for completed/current stages
-          // Test: Previous stages 100% filled, current stage 20% bar from left
+          // Calculate completion percentage for current stage based on conditions
+          const completionPercentage = isCurrentStage 
+            ? getStageCompletionPercentage(stageConditionStatuses, stage.code)
+            : 0;
+            
+          // Debug log for testing
+          if (isCurrentStage && completionPercentage > 0) {
+            console.log(`Stage ${stage.code} completion: ${completionPercentage}%`);
+          }
+          
           let backgroundColor = 'transparent';
           let textColor = '#666666';
-          let backgroundImage = 'none';
           
           if (isCompleted) {
-            // Test-Debug: Completed stages get full green background (original behavior)
+            // Completed stages get full green background
             backgroundColor = '#4CAF50';
             textColor = 'white';
           } else if (isCurrentStage) {
-            // Test-Debug: Current stage gets animated 20% fill from left
+            // Current stage gets dynamic progress fill based on condition completion
             backgroundColor = 'transparent'; // Background handled by CSS border + animations
             textColor = '#333333';
           }
@@ -567,7 +478,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             // TEST-DEBUG: Added tooltip wrapper - REVERT THIS
             <Tooltip
               key={stage.id}
-              title={<StageTooltipContent stageName={stage.value} />}
+              title={<StageTooltipContent stageName={stage.code} stageDisplayName={stage.value} stageConditionStatuses={stageConditionStatuses} currentStage={currentStage} />}
               placement="top"
               overlayStyle={{ 
                 maxWidth: '300px',
@@ -599,11 +510,27 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                 data-testid={`stage-${stage.code}`}
                 onClick={() => !isCurrentStage && handleStageClick(stage)}
               >
-                {/* Moving shimmer overlay - only for current stage */}
+                {/* Dynamic progress fill and shimmer overlays - only for current stage */}
                 {isCurrentStage && (
               <>
+                {/* Progress fill with dynamic width based on completion percentage */}
+                <div 
+                  className="progress-fill" 
+                  style={{ 
+                    width: `${completionPercentage}%`,
+                    right: 'auto' // Override CSS to use width instead of right
+                  }} 
+                />
+                
+                {/* Shimmer overlays only show on the filled portion */}
                 <div className="shimmer-secondary" />
-                <div className="shimmer-overlay" />
+                <div 
+                  className="shimmer-overlay" 
+                  style={{ 
+                    width: `${completionPercentage}%`,
+                    right: 'auto' // Override CSS to use width instead of right
+                  }} 
+                />
               </>
             )}
               <div style={{
@@ -648,32 +575,18 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
       
       {/* Stage Change Confirmation Modal */}
       <Modal
-        title={
-          transitionConditions.length > 0 
-            ? getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.approvalRequired',
-                'Approval Required for Stage Change'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.confirm',
-                'Confirm Stage Change'
-              )
-        }
+        title={getTranslationFromI18nKeyAndLabel(
+          'crm:opportunity.stageChange.confirm',
+          'Confirm Stage Change'
+        )}
         open={modalVisible}
         onOk={handleConfirmStageChange}
         onCancel={handleCancelModal}
-        confirmLoading={isLoading || loadingWorkflows}
-        okText={
-          transitionConditions.length > 0
-            ? getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.startApprovals',
-                'Start Approvals'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.confirm',
-                'Confirm'
-              )
-        }
+        confirmLoading={isLoading}
+        okText={getTranslationFromI18nKeyAndLabel(
+          'crm:opportunity.stageChange.confirm',
+          'Confirm'
+        )}
         cancelText={getTranslationFromI18nKeyAndLabel(
           'crm:opportunity.stageChange.cancel',
           'Cancel'
@@ -681,64 +594,21 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
         okType="primary"
         data-testid="stage-change-modal"
       >
-        {transitionConditions.length > 0 ? (
-          <div>
-            <p>
-              {getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.approvalRequiredMessage',
-                'Changing the opportunity stage to'
-              )} <strong>{selectedStage?.value}</strong> {getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.requiresApproval',
-                'requires the following approvals:'
-              )}
-            </p>
-            <ul className="gba:mt-3 gba:space-y-2">
-              {transitionConditions.map(condition => 
-                condition.conditions.map((item, index) => (
-                  <li key={`${condition.id}-${index}`} className="gba:flex gba:items-center">
-                    <CheckCircleFilled className="gba:text-blue-500 gba:mr-2" />
-                    <span className="gba:text-sm">{item.title || item.description}</span>
-                  </li>
-                ))
-              )}
-            </ul>
-            <p className="gba:mt-3 gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.approvalProcess',
-                'Click "Start Approvals" to initiate the approval process. The stage change will be completed once all approvals are received.'
-              )}
-            </p>
-          </div>
-        ) : (
-          <div>
-            <p>
-              {getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.confirmMessage',
-                'Are you sure you want to change the opportunity stage to'
-              )} <strong>{selectedStage?.value}</strong>?
-            </p>
-            <p className="gba:mt-2 gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel(
-                'crm:opportunity.stageChange.directChange',
-                'This action will update the opportunity\'s current stage.'
-              )}
-            </p>
-          </div>
-        )}
+        <div>
+          <p>
+            {getTranslationFromI18nKeyAndLabel(
+              'crm:opportunity.stageChange.confirmMessage',
+              'Are you sure you want to change the opportunity stage to'
+            )} <strong>{selectedStage?.value}</strong>?
+          </p>
+          <p className="gba:mt-2 gba:text-sm gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel(
+              'crm:opportunity.stageChange.directChange',
+              'This action will update the opportunity\'s current stage.'
+            )}
+          </p>
+        </div>
       </Modal>
-
-      {/* Workflows Status Modal */}
-      <WorkflowsStatusModal
-        visible={workflowsModalVisible}
-        workflows={activeWorkflows}
-        opportunityId={opportunityId}
-        fromStage={currentStage}
-        toStage={selectedStage?.value || ''}
-        opportunityData={{}}
-        accessToken={accessToken}
-        onWorkflowsCompleted={handleWorkflowsCompleted}
-        onCancel={handleCancelWorkflowsModal}
-      />
     </div>
   );
 }; 

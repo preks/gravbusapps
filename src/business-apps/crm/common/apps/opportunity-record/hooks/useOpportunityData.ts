@@ -12,6 +12,7 @@ import { Opportunity, ReferenceData } from '../types';
 export const useOpportunityData = (opportunityId: string, accessToken: string) => {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [opportunityData, setOpportunityData] = useState<any>(null);
+  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([]);
@@ -61,6 +62,11 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
       if (result && result.Opportunity && result.Opportunity.length > 0) {
         const rawOpportunityData = result.Opportunity[0];
         setOpportunityData(rawOpportunityData);
+        
+        // Set stage condition statuses if available
+        if (rawOpportunityData.stageConditionStatuses) {
+          setStageConditionStatuses(rawOpportunityData.stageConditionStatuses);
+        }
 
         // Transform the data for the UI
         const transformedOpportunity: Opportunity = {
@@ -70,7 +76,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           version: rawOpportunityData.version ?? '1',
           status: rawOpportunityData.opportunityStatus?.value || 'Open',
           statusRef: rawOpportunityData.opportunityStatus?.id || '',
-          stage: 'Discovery', // Default since not in API
+          stage: rawOpportunityData.salesPipelineStage?.code || 'Discovery', // Use actual stage from API
           stageRef: '',
           value: rawOpportunityData.estimatedAmount || 0, // Use estimatedAmount from GraphQL
           currency: {
@@ -269,6 +275,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   return {
     opportunity,
     opportunityData,
+    stageConditionStatuses,
     loading,
     error,
     opportunityStages,

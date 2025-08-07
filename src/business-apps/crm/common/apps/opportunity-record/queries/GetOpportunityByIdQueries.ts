@@ -5,6 +5,30 @@ export interface GetOpportunityByIdResponse {
   Opportunity: OpportunityResponse[];
 }
 
+export interface StageConditionStatusResponse {
+  id: string;
+  completed: boolean;
+  completedAt?: string | null;
+  completedByEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  deadlineAt?: string | null;
+  processInstanceId?: string | null;
+  salesPipelineStageCondition?: {
+    id: string;
+    value: string;
+    code: string;
+    type?: string | null;
+    objectValue?: any;
+    parentEntryId?: string | null;
+  };
+  configSnapshot?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OpportunityResponse {
   id: string;
   version: string;
@@ -86,6 +110,7 @@ export interface OpportunityResponse {
       objectValue?: any;
     };
   };
+  stageConditionStatuses?: StageConditionStatusResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -172,6 +197,29 @@ export const GET_OPPORTUNITY_BY_ID = `
           code
           objectValue
         }
+      }
+      stageConditionStatuses {
+        id
+        completed
+        completedAt
+        completedByEmployee {
+          id
+          firstName
+          lastName
+        }
+        deadlineAt
+        processInstanceId
+        salesPipelineStageCondition {
+          id
+          value
+          code
+          type
+          objectValue
+          parentEntryId
+        }
+        configSnapshot
+        createdAt
+        updatedAt
       }
       createdAt
       updatedAt

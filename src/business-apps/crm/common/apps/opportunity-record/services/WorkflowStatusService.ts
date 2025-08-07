@@ -5,6 +5,7 @@
  * This service manages workflow execution, status checking, and completion verification.
  */
 
+import { env } from '@/common/env/EnvUtils';
 import { 
   WorkflowStatus, 
   WorkflowExecutionResult, 
@@ -15,7 +16,7 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export class WorkflowStatusService {
-  private static readonly FLOW_ENGINE_BASE_URL = process.env.NEXT_PUBLIC_FLOW_ENGINE_URL || 'http://localhost:3000';
+  private static readonly FLOW_ENGINE_BASE_URL = env('NEXT_PUBLIC_FLOW_ENGINE_URL') || 'http://localhost:3000';
   
   // Persistent storage for workflow tracking using localStorage
   private static readonly STORAGE_KEY = 'opportunity_workflows';
