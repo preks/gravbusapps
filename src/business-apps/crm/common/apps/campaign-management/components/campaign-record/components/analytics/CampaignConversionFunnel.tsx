@@ -64,7 +64,7 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
   }
 
   // Colors for funnel stages
-  const stageColors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96'];
+  const stageColors = ['#8884d8', '#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96'];
 
   // Format tooltip
   const formatTooltip = (value: any, name: any, props: any) => {
@@ -132,7 +132,7 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
       </div>
 
       {/* Funnel Statistics - KPI Style */}
-      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-4" data-testid="funnel-kpi-cards">
+      <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4" data-testid="funnel-kpi-cards">
         {funnelData.stages.map((stage, index) => (
           <div 
             key={stage.stage}

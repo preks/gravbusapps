@@ -102,6 +102,18 @@ export const GET_CAMPAIGN_ANALYTICS_METRICS = (): string => {
 export const GET_CAMPAIGN_CONVERSION_FUNNEL = (): string => {
   return `
     query GetCampaignConversionFunnel($campaignId: uuid!) {
+      # Total Leads
+      totalLeads: LeadAggregate(
+        where: { 
+          salesCampaignId: { _eq: $campaignId }
+          isDeleted: { _eq: false }
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
       # Converted Leads (leads that have related accounts)
       convertedLeads: LeadAggregate(
         where: { 
@@ -222,53 +234,63 @@ export const GET_CAMPAIGN_TIMELINE_ANALYSIS = (): string => {
 export const GET_CAMPAIGN_TOP_PERFORMERS = (): string => {
   return `
     query GetCampaignTopPerformers($campaignId: uuid!) {
-      # Top performing employees by entity count
-      leadOwners: Lead(
+      # Get all leads with details
+      leads: Lead(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
           ownerEmployee: {}
         }
       ) {
+        id
+        account {
+          id
+        }
         ownerEmployee {
           id
           displayName
         }
       }
       
-      accountOwners: Account(
+      # Get all accounts
+      accounts: Account(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
           ownerEmployee: {}
         }
       ) {
+        id
         ownerEmployee {
           id
           displayName
         }
       }
       
-      contactOwners: Contact(
+      # Get all contacts
+      contacts: Contact(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
           ownerEmployee: {}
         }
       ) {
+        id
         ownerEmployee {
           id
           displayName
         }
       }
       
-      opportunityOwners: Opportunity(
+      # Get all opportunities with status and revenue
+      opportunities: Opportunity(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
           ownerEmployee: {}
         }
       ) {
+        id
         estimatedAmount
         opportunityStatus {
           value

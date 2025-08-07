@@ -70,6 +70,7 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
     try {
       const result = await graphqlClient.request<any>(query, { campaignId });
       
+      const totalLeads = result.totalLeads.aggregate.count || 0;
       const convertedLeads = result.convertedLeads.aggregate.count || 0;
       const createdAccounts = result.createdAccounts.aggregate.count || 0;
       const createdContacts = result.createdContacts.aggregate.count || 0;
@@ -79,9 +80,14 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
       // Create stages array with proper calculations
       const stages = [
         {
+          stage: 'Total Leads',
+          count: totalLeads,
+          percentage: totalLeads > 0 ? 100 : 0
+        },
+        {
           stage: 'Converted Leads',
           count: convertedLeads,
-          percentage: convertedLeads > 0 ? 100 : 0
+          percentage: totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0
         },
         {
           stage: 'Created Accounts',
@@ -138,6 +144,11 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
         const accountsOnDate = result.accounts.filter((a: any) => a.createdAt?.startsWith(date)).length;
         const contactsOnDate = result.contacts.filter((c: any) => c.createdAt?.startsWith(date)).length;
         const opportunitiesOnDate = result.opportunities.filter((o: any) => o.createdAt?.startsWith(date)).length;
+        
+        // Calculate daily revenue from opportunities created on this date
+        const dailyRevenue = result.opportunities
+          .filter((o: any) => o.createdAt?.startsWith(date))
+          .reduce((sum: number, o: any) => sum + (parseFloat(o.estimatedAmount) || 0), 0);
 
         return {
           date,
@@ -145,10 +156,12 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
           accounts: accountsOnDate,
           contacts: contactsOnDate,
           opportunities: opportunitiesOnDate,
+          dailyRevenue,
           cumulativeLeads: 0, // Will be calculated below
           cumulativeAccounts: 0,
           cumulativeContacts: 0,
-          cumulativeOpportunities: 0
+          cumulativeOpportunities: 0,
+          cumulativeRevenue: 0
         };
       });
 
@@ -157,17 +170,20 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
       let cumulativeAccounts = 0;
       let cumulativeContacts = 0;
       let cumulativeOpportunities = 0;
+      let cumulativeRevenue = 0;
 
       timeline.forEach(item => {
         cumulativeLeads += item.leads;
         cumulativeAccounts += item.accounts;
         cumulativeContacts += item.contacts;
         cumulativeOpportunities += item.opportunities;
+        cumulativeRevenue += item.dailyRevenue;
         
         item.cumulativeLeads = cumulativeLeads;
         item.cumulativeAccounts = cumulativeAccounts;
         item.cumulativeContacts = cumulativeContacts;
         item.cumulativeOpportunities = cumulativeOpportunities;
+        item.cumulativeRevenue = cumulativeRevenue;
       });
 
       return { entityCreationTimeline: timeline };
@@ -182,57 +198,106 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
     try {
       const result = await graphqlClient.request<any>(query, { campaignId });
       
-      // Aggregate performance data by employee
+      // Aggregate performance data by employee with detailed breakdowns
       const performanceMap = new Map<string, {
         employeeId: string;
         employeeName: string;
-        entitiesCount: number;
+        leads: { total: number; converted: number };
+        opportunities: { total: number; won: number };
+        contacts: { total: number };
+        accounts: { total: number };
         revenue: number;
       }>();
 
-      // Count entities per employee
-      [...result.leadOwners, ...result.accountOwners, ...result.contactOwners].forEach((entity: any) => {
-        if (entity.ownerEmployee) {
-          const key = entity.ownerEmployee.id;
+      // Process leads
+      result.leads.forEach((lead: any) => {
+        if (lead.ownerEmployee) {
+          const key = lead.ownerEmployee.id;
           const existing = performanceMap.get(key) || {
             employeeId: key,
-            employeeName: entity.ownerEmployee.displayName,
-            entitiesCount: 0,
+            employeeName: lead.ownerEmployee.displayName,
+            leads: { total: 0, converted: 0 },
+            opportunities: { total: 0, won: 0 },
+            contacts: { total: 0 },
+            accounts: { total: 0 },
             revenue: 0
           };
-          existing.entitiesCount += 1;
-          performanceMap.set(key, existing);
-        }
-      });
-
-      // Add revenue from opportunities
-      result.opportunityOwners.forEach((opp: any) => {
-        if (opp.ownerEmployee && opp.estimatedAmount) {
-          const key = opp.ownerEmployee.id;
-          const existing = performanceMap.get(key) || {
-            employeeId: key,
-            employeeName: opp.ownerEmployee.displayName,
-            entitiesCount: 0,
-            revenue: 0
-          };
-          existing.entitiesCount += 1;
+          existing.leads.total += 1;
           
-          // Only count won opportunities towards revenue
-          if (opp.opportunityStatus?.value?.toLowerCase().includes('won')) {
-            existing.revenue += opp.estimatedAmount;
+          // Lead is converted if it has an associated account
+          if (lead.account && lead.account.id) {
+            existing.leads.converted += 1;
           }
           
           performanceMap.set(key, existing);
         }
       });
 
-      // Convert to array and sort by total score (entities + revenue weight)
+      // Process accounts
+      result.accounts.forEach((account: any) => {
+        if (account.ownerEmployee) {
+          const key = account.ownerEmployee.id;
+          const existing = performanceMap.get(key) || {
+            employeeId: key,
+            employeeName: account.ownerEmployee.displayName,
+            leads: { total: 0, converted: 0 },
+            opportunities: { total: 0, won: 0 },
+            contacts: { total: 0 },
+            accounts: { total: 0 },
+            revenue: 0
+          };
+          existing.accounts.total += 1;
+          performanceMap.set(key, existing);
+        }
+      });
+
+      // Process contacts
+      result.contacts.forEach((contact: any) => {
+        if (contact.ownerEmployee) {
+          const key = contact.ownerEmployee.id;
+          const existing = performanceMap.get(key) || {
+            employeeId: key,
+            employeeName: contact.ownerEmployee.displayName,
+            leads: { total: 0, converted: 0 },
+            opportunities: { total: 0, won: 0 },
+            contacts: { total: 0 },
+            accounts: { total: 0 },
+            revenue: 0
+          };
+          existing.contacts.total += 1;
+          performanceMap.set(key, existing);
+        }
+      });
+
+      // Process opportunities
+      result.opportunities.forEach((opp: any) => {
+        if (opp.ownerEmployee) {
+          const key = opp.ownerEmployee.id;
+          const existing = performanceMap.get(key) || {
+            employeeId: key,
+            employeeName: opp.ownerEmployee.displayName,
+            leads: { total: 0, converted: 0 },
+            opportunities: { total: 0, won: 0 },
+            contacts: { total: 0 },
+            accounts: { total: 0 },
+            revenue: 0
+          };
+          existing.opportunities.total += 1;
+          
+          // Check if opportunity is won
+          const isWon = opp.opportunityStatus?.value?.toLowerCase().includes('won');
+          if (isWon) {
+            existing.opportunities.won += 1;
+            existing.revenue += parseFloat(opp.estimatedAmount) || 0;
+          }
+          
+          performanceMap.set(key, existing);
+        }
+      });
+
+      // Convert to array and sort by won revenue (primary criterion)
       const topPerformers = Array.from(performanceMap.values())
-        .sort((a, b) => {
-          const scoreA = a.entitiesCount + (a.revenue / 10000); // Weight revenue
-          const scoreB = b.entitiesCount + (b.revenue / 10000);
-          return scoreB - scoreA;
-        })
+        .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5); // Top 5 performers
 
       return topPerformers;

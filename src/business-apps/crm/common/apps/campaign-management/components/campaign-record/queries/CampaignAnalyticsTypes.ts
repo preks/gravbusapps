@@ -62,5 +62,7 @@ export interface CampaignTimelineAnalysis {
     cumulativeAccounts: number;
     cumulativeContacts: number;
     cumulativeOpportunities: number;
+    dailyRevenue: number;
+    cumulativeRevenue: number;
   }>;
 }

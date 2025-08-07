@@ -10,7 +10,10 @@ import {
 interface TopPerformer {
   employeeId: string;
   employeeName: string;
-  entitiesCount: number;
+  leads: { total: number; converted: number };
+  opportunities: { total: number; won: number };
+  contacts: { total: number };
+  accounts: { total: number };
   revenue: number;
 }
 
