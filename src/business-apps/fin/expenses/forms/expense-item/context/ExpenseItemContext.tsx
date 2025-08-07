@@ -17,7 +17,7 @@ import {
   CustomField,
 } from "../types";
 
-import { getCurrentActiveUserLocale, getCatalogValue } from "../../../../../../common/utils/windowUtils";
+import { getCurrentActiveUserLocale, getCatalogValue, getTranslationFromI18nKeyAndLabel } from "../../../../../../common/utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -772,9 +772,18 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const handleCancelWrapper = () => {
     try {
-        dispatchProcessContinueEvent(EVENTS.CANCEL, {"event":EVENTS.ABORT,pso_exitStrategy:"abort",
-          pso_completeNotification:{type: 'error',
-          messageKey: t('lowcoder:absence_module.toast_notification_cancel_create_absence','The action has been canceled.') } });
+      dispatchProcessContinueEvent(
+        EVENTS.ABORT, {
+          "event": EVENTS.ABORT,
+          pso_exitStrategy: "abort",
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        })
     } catch (error) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),

@@ -64,7 +64,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '');
       setTitleValue(expenseRequestData.ExpenseRequestByPk.title || '');
     }
-  }, [expenseRequestData, setCurrentTitle]);
+  }, [expenseRequestData, setCurrentTitle, additionalData]);
 
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
   
@@ -81,7 +81,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     } else {
       setCurrentCurrency(null);
     }
-  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency]);
+  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency, additionalData]);
   
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
@@ -100,7 +100,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     return () => {
       document.removeEventListener('expense-wizard-update-footer', handleFooterUpdate);
     };
-  }, []);
+  }, [additionalData]);
   
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
@@ -140,7 +140,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       setCurrentTitle(initialTitle);
       setTitleValue(initialTitle);
     }
-  }, [expenseRequestData, setCurrentTitle]);
+  }, [expenseRequestData, setCurrentTitle, additionalData]);
 
   const saveTitle = () => {
     setCurrentTitle(titleValue);
@@ -148,9 +148,11 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   useEffect(() => {
-    setInitialScreen(additionalData,expenseRequestData,isTrip,setCurrentScreen, loading, currentScreen)
-  }, [expenseRequestData, isTrip, loading]);
+    setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen);
+  }, [expenseRequestData, isTrip, loading, currentScreen, additionalData]);
   
+
+
   const navigateToNextScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
@@ -530,7 +532,17 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
   
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.SUBMIT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEvent(
+        EVENTS.DISCARD, {
+          "event": EVENTS.DISCARD,
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        })
     } catch (processError) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),

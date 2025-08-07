@@ -96,7 +96,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   // Made public so it can be called after expense item creation
   const fetchExpenseData = async () => {
     try {
-      if (!accessToken || !employeeRuleId || !userInfo) return;
+      if (!accessToken || !employeeRuleId || !userInfo || !additionalData) return;
 
       setLoading(true);
       
@@ -171,7 +171,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   useEffect(() => {
     const initializeData = async () => {
       try {
-        if (!accessToken || !userInfo) return;
+        if (!accessToken || !userInfo || !additionalData) return;
 
         const employeeId = userInfo?.employeeDetails?.employeeId;
         if (!employeeId) {
@@ -215,14 +215,14 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     };
 
     initializeData();
-  }, [accessToken, userInfo, t]);
+  }, [accessToken, userInfo, additionalData, t]);
 
   // Fetch expense data when employeeRuleId is available
   useEffect(() => {
     if (employeeRuleId) {
       fetchExpenseData();
     }
-  }, [employeeRuleId]);
+  }, [employeeRuleId, additionalData]);
 
   /**
    * Save trip data function

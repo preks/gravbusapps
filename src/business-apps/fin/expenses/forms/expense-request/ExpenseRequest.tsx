@@ -106,7 +106,18 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.ABORT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEvent(
+        EVENTS.ABORT, {
+          "event": EVENTS.ABORT,
+          pso_exitStrategy: "abort",
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: t(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        });
     } catch (processError) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),

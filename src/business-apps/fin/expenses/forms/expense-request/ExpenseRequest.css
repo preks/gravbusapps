@@ -139,7 +139,7 @@ textarea {
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 10px);
   background-color: #F7F7F7;
   border-radius: 4px;
 }
@@ -333,7 +333,7 @@ textarea {
 .gba\:mainContainer {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 220px); /* Account for header, navigation, and padding */
+  min-height: calc(100vh - 10px); /* Account for header, navigation, and padding */
 }
 
 .gba\:actionContainer {

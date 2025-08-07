@@ -73,7 +73,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
       setCurrentTitle(expensePlanData.ExpensePlanByPk.title || '');
       setTitleValue(expensePlanData.ExpensePlanByPk.title || '');
     }
-  }, [expensePlanData, setCurrentTitle]);
+  }, [expensePlanData, setCurrentTitle, additionalData]);
 
   // Update currency when expensePlanData changes
   useEffect(() => {
@@ -89,7 +89,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     } else {
       setCurrentCurrency(null);
     }
-  }, [expensePlanData?.ExpensePlanByPk?.currencyRef, expensePlanData?.ExpensePlanItem, setCurrentCurrency]);
+  }, [expensePlanData?.ExpensePlanByPk?.currencyRef, expensePlanData?.ExpensePlanItem, setCurrentCurrency,additionalData]);
 
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
@@ -108,7 +108,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     return () => {
       document.removeEventListener('expense-plan-wizard-update-footer', handleFooterUpdate);
     };
-  }, []);
+  }, [additionalData]);
 
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
@@ -144,7 +144,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
       setCurrentTitle(initialTitle);
       setTitleValue(initialTitle);
     }
-  }, [expensePlanData, setCurrentTitle]);
+  }, [expensePlanData, setCurrentTitle, additionalData]);
 
   const saveTitle = () => {
     setCurrentTitle(titleValue);
@@ -153,8 +153,8 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   // useEffect for screen navigation based on data
   useEffect(() => {
-    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, loading, currentScreen)
-  }, [expensePlanData, isTrip, loading, additionalData]);
+    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, currentScreen)
+  }, [expensePlanData, isTrip, loading, additionalData,currentScreen]);
 
   const navigateToNextScreen = () => {
     switch (currentScreen) {
@@ -554,7 +554,17 @@ const ExpensePlanWizard: React.FC<BusinessAppContextProps> = (props) => {
   
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.SUBMIT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEvent(
+        EVENTS.DISCARD, {
+          "event": EVENTS.DISCARD,
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        })
     } catch (processError) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),

@@ -559,13 +559,8 @@ export const setLocalitiesDefault = (expenseRequestData: any,
     expenseRequestData: any,
     isTrip:boolean,
     setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
-    isLoading: boolean = false,
     currentScreen?: string)=>{
-    // Only set initial screen if we're in loading state or if there's no current screen set
-    if (!isLoading && expenseRequestData) {
-      return;
-    }
-    
+
     const stepKey = additionalData?.psi_taskPayload?.stepKey
     if(stepKey){
       let targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
@@ -595,7 +590,7 @@ export const setLocalitiesDefault = (expenseRequestData: any,
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
-            targetScreen = SCREEN_NAMES_ENUM.ALLOWANCE_TAB;
+            targetScreen = isTrip ? SCREEN_NAMES_ENUM.ALLOWANCE_TAB : SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.NEXT:
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;

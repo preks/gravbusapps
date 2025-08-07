@@ -96,7 +96,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
 
   const fetchExpenseData = async () => {
     try {
-      if (!accessToken || !employeeRuleId || !userInfo) return;
+      if (!accessToken || !employeeRuleId || !userInfo  || !additionalData) return;
 
       // Only set loading to true if we're not already loading
       if (!loading) {
@@ -170,7 +170,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   useEffect(() => {
     const initializeData = async () => {
       try {
-        if (!accessToken || !userInfo) return;
+        if (!accessToken || !userInfo || !additionalData) return;
 
         const employeeId = userInfo?.employeeDetails?.employeeId;
         if (!employeeId) {
@@ -214,14 +214,14 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     };
 
     initializeData();
-  }, [accessToken, userInfo]);
+  }, [accessToken, userInfo, additionalData]);
 
   // Fetch expense data when employeeRuleId is available
   useEffect(() => {
     if (employeeRuleId) {
       fetchExpenseData();
     }
-  }, [employeeRuleId]);
+  }, [employeeRuleId, additionalData]);
 
   /**
    * Save trip data function

@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { completeTaskFlow, getOpenedTaskFlow, initiateFlow } from "../../expense-item/context/services/flowHandlers";
 import { DEFAULT_EXPENSE_STATUS, FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { EVENTS } from "../../../utils/constants";
 
 /**
  * Handles the submission of an expense plan item
@@ -154,7 +155,7 @@ export const handleSubmit = async (
 
     if (accessToken && userInfo?.employeeDetails?.employeeId && !hasExpensePlan) {
       try {
-        await dispatchProcessContinueEvent(FLOW_PROCESS_NAME, submitData);
+        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
         operationSuccessful = true;
       } catch (processError) {
         showToast(

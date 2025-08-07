@@ -283,7 +283,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.NEXT
         );
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+        dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
       }
     };
     

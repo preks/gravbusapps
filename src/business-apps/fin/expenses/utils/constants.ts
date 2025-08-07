@@ -20,5 +20,6 @@ export const EVENTS = {
     NEXT:"pse_next",
     CANCEL:"pse_cancel",
     ABORT: "pse_abort",
-    SKIP: "pse_skip"
+    SKIP: "pse_skip",
+    DISCARD: "pse_discard"
   } as const;

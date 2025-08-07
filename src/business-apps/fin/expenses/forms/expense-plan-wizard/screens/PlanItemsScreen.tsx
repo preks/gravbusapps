@@ -46,7 +46,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 4;
+  const itemListLimit = 3;
   
   const graphQLClient = useGraphqlClient(accessToken);
 

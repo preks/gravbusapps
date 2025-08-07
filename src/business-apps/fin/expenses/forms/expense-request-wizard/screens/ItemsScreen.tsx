@@ -58,7 +58,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 4;
+  const itemListLimit = 3;
   
   const graphQLClient = useGraphqlClient(accessToken);
 
@@ -399,8 +399,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
-      console.log("logObject", logObject);
-      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -470,7 +469,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   if (showSelectItems) {
     return (
-      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen">
+      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
         <div className="gba:screenHeader gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
           <SearchBarWithLabel 
             onSearch={handleSearch} 
@@ -535,7 +534,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-request-wizard-items-screen">
+    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" style={{flexGrow:1}} data-testid="expense-request-wizard-items-screen">
       {!isTrip && latestRejectComment && (
        <div className="gba:mb-4">
         <RejectionComment isRequest={true} comment={latestRejectComment} />

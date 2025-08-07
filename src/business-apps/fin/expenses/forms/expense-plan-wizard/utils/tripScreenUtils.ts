@@ -434,12 +434,7 @@ export const setLocalitiesDefault = (expensePlanData: any,
     isTrip:boolean,
     setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
     setSkipAdvancePayment: (skip: boolean) => void,
-    isLoading: boolean = false,
     currentScreen?: string)=>{
-    // Only set initial screen if we're in loading state or if there's no current screen set
-    if (!isLoading && expensePlanData && currentScreen && currentScreen !== SCREEN_NAMES_ENUM.LOAD_TAB) {
-      return;
-    }
     
     const stepKey = additionalData?.psi_taskPayload?.stepKey
     if(stepKey){
@@ -490,7 +485,7 @@ export const setLocalitiesDefault = (expensePlanData: any,
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
-            targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB;
+            targetScreen = targetScreen = isTrip ? SCREEN_NAMES_ENUM.PAYMENT_TAB : SCREEN_NAMES_ENUM.SUMMARY_TAB; 
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
             setSkipAdvancePayment(true);

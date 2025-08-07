@@ -65,7 +65,18 @@ const ExpenseRequestInvalidContent: React.FC<ExpenseRequestInvalidContentProps> 
 const ExpenseRequestInvalid: React.FC<BusinessAppContextProps> = () => {
   const handleCancel = () => {
         try {
-          dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.ABORT,pso_exitStrategy:"abort"});
+          dispatchProcessContinueEvent(
+            EVENTS.ABORT, {
+              "event": EVENTS.ABORT,
+              pso_exitStrategy: "abort",
+              pso_completeNotification: {
+                type: 'error',
+                messageKey: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_module.toast_notification_cancel_create_absence',
+                  'The action has been canceled.'
+                  )
+              }
+            })
         } catch (processError) {
           showToast(
             getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),
