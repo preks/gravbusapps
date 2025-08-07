@@ -6,6 +6,7 @@
  */
 
 import { PillType } from "@/components/pill/Pill";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 /**
  * Enum representing the technical statuses for expenses
@@ -45,39 +46,99 @@ export const getExpenseRequestStatusDisplay = (
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: "Draft",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
         type: "draft",
       };
 
     case ExpenseStatus.PREPARED:
-      return { label: "Prepared", type: "preparing" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.prepared",
+          "Prepared"
+        ),
+        type: "preparing",
+      };
 
     case ExpenseStatus.ASSIGNED:
-      return { label: "Assigned", type: "task" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.assigned",
+          "Assigned"
+        ),
+        type: "task",
+      };
 
     case ExpenseStatus.PENDING:
-      return { label: "In Approval", type: "waiting" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.in_approval",
+          "In Approval"
+        ),
+        type: "waiting",
+      };
 
     case ExpenseStatus.APPROVED:
-      return { label: "Verification Required", type: "task" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.verification_required",
+          "Verification Required"
+        ),
+        type: "task",
+      };
 
     case ExpenseStatus.VERIFIED:
-      return { label: "Booking Required", type: "task" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.booking_required",
+          "Booking Required"
+        ),
+        type: "task",
+      };
 
     case ExpenseStatus.BOOKED:
-      return { label: "Transfer Required", type: "task" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.transfer_required",
+          "Transfer Required"
+        ),
+        type: "task",
+      };
 
     case ExpenseStatus.CLOSED:
-      return { label: "Closed", type: "completed" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.closed",
+          "Closed"
+        ),
+        type: "completed",
+      };
 
     case ExpenseStatus.PAID:
-      return { label: "Paid", type: "completed" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.paid",
+          "Paid"
+        ),
+        type: "completed",
+      };
     case ExpenseStatus.REJECTED:
-      return { label: "Reject", type: "error" };
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.rejected",
+          "Rejected"
+        ),
+        type: "error",
+      };
 
     default:
       return {
-        label: status,
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
         type: "draft",
       };
   }
@@ -94,47 +155,74 @@ export const getAdvancePaymentStatusDisplay = (
   switch (status) {
     case ExpenseStatus.PENDING:
       return {
-        label: "In Approval",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.in_approval",
+          "In Approval"
+        ),
         type: "waiting",
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: "Approved",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.approved",
+          "Approved"
+        ),
         type: "completed",
       };
     case ExpenseStatus.BOOKED:
       return {
-        label: "Transfer Required",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.transfer_required",
+          "Transfer Required"
+        ),
         type: "task",
       };
     case ExpenseStatus.PREPARED:
       return {
-        label: "Prepared",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.prepared",
+          "Prepared"
+        ),
         type: "preparing",
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: "Rejected",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.rejected",
+          "Rejected"
+        ),
         type: "error",
       };
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: "Payment Required",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.payment_required",
+          "Payment Required"
+        ),
         type: "task",
       };
     case ExpenseStatus.VERIFIED:
       return {
-        label: "Booking Required",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.booking_required",
+          "Booking Required"
+        ),
         type: "task",
       };
     case ExpenseStatus.PAID:
       return {
-        label: "Paid",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.paid",
+          "Paid"
+        ),
         type: "completed",
       };
     default:
       return {
-        label: status,
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
         type: "draft",
       };
   }
