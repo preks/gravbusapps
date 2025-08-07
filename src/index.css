@@ -80,24 +80,32 @@ html {
     cursor: pointer;
   }
   :root {
-    --font-primary: 'Roboto Flex', sans-serif;
-    --font-secondary: 'Roboto Flex', sans-serif;
+    --font-primary: "Roboto Flex", sans-serif;
+    --font-secondary: "Roboto Flex", sans-serif;
   }
 }
 
 @layer utilities {
   .font-primary {
-    font-family: var(--font-primary, 'Roboto', sans-serif) !important;
+    font-family: var(--font-primary, "Roboto", sans-serif) !important;
   }
   .font-secondary {
-    font-family: var(--font-secondary, 'Dela Gothic One', sans-serif) !important;
+    font-family: var(
+      --font-secondary,
+      "Dela Gothic One",
+      sans-serif
+    ) !important;
   }
 }
 
 /* Spinner animation for status progression loading */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Calendar activity scrollbar styling */

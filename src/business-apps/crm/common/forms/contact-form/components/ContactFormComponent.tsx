@@ -1,26 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useContactFormContext } from "../context/ContactFormContext";
-import {
-  Button,
-  Spinner,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Alert,
-  AlertDescription,
-  Input,
-  Label,
-} from "@newwork/nw-design-system";
-import { DownOutlined, UpOutlined } from "@ant-design/icons";
+import React, { useState, useRef } from "react";
+import { Button, Input, Label, Spinner } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-
+import { useContactFormContext } from "../context/ContactFormContext";
 import OwnerInformationSection from "./OwnerInformationSection";
 import PersonalInformationSection from "./PersonalInformationSection";
 import ProfessionalInformationSection from "./ProfessionalInformationSection";
 import AdditionalInformationSection from "./AdditionalInformationSection";
+import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
 
 const prefixDataTestId = "ContactForm";
 
@@ -40,13 +27,6 @@ const ContactFormComponent: React.FC = () => {
     accountsLoading,
   } = useContactFormContext();
 
-  // Company search dropdown state
-  const [companyInputValue, setCompanyInputValue] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [visibleAccountsCount, setVisibleAccountsCount] = useState(5);
-  const companyContainerRef = useRef<HTMLDivElement>(null);
-  const suggestionsScrollRef = useRef<HTMLDivElement>(null);
-
   // Safety check - if context is not properly initialized, show error
   if (!formValues) {
     return (
@@ -57,68 +37,6 @@ const ContactFormComponent: React.FC = () => {
       </div>
     );
   }
-
-  // Company input change handler
-  const handleCompanyInputChange = (value: string) => {
-    setCompanyInputValue(value);
-    if (value.trim().length >= 3) {
-      searchAccounts(value);
-      setIsDropdownOpen(true);
-    } else if (value.trim().length === 0) {
-      searchAccounts("");
-      setIsDropdownOpen(true);
-    }
-    // Clear accountId when user types manually
-    if (formValues.accountId) {
-      setFormValues({ accountId: "" });
-    }
-  };
-
-  // Arrow click handler
-  const handleArrowClick = () => {
-    if (!isDropdownOpen) {
-      // Load initial data when dropdown is opened
-      searchAccounts("");
-      setIsDropdownOpen(true);
-      setVisibleAccountsCount(5);
-    } else {
-      setIsDropdownOpen(false);
-    }
-  };
-
-  // Handle suggestion selection
-  const handleSuggestionSelect = (suggestion: any) => {
-    setCompanyInputValue(suggestion.name);
-    setFormValues({
-      accountId: String(suggestion.id),
-    });
-    setIsDropdownOpen(false);
-    setVisibleAccountsCount(5);
-  };
-
-  // Handle scroll to load more
-  const handleSuggestionsScroll = async (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-
-    // Load more when user scrolls to 80% of the list
-    if (
-      scrollPercentage > 0.8 &&
-      accountsHasMore &&
-      !accountsLoading &&
-      accountSuggestions.length > 0
-    ) {
-      try {
-        await loadMoreAccounts();
-        // Show more items after loading
-        setVisibleAccountsCount((prev) =>
-          Math.min(prev + 10, accountSuggestions.length)
-        );
-      } catch (error) {
-        console.error("Error loading more accounts:", error);
-      }
-    }
-  };
 
   // Check if all mandatory fields are filled
   const isFormValid =
@@ -163,8 +81,8 @@ const ContactFormComponent: React.FC = () => {
         fax: toStringOrUndefined(formValues.fax),
         linkedinUrl: toStringOrUndefined(formValues.linkedinUrl),
         xingUrl: toStringOrUndefined(formValues.xingUrl),
-        companyName: companyInputValue
-          ? toStringOrUndefined(companyInputValue)
+        companyName: formValues.companyName
+          ? toStringOrUndefined(formValues.companyName)
           : undefined,
         accountId: toStringOrUndefined(formValues.accountId),
         ownerEmployee:
@@ -199,7 +117,7 @@ const ContactFormComponent: React.FC = () => {
       // Debug logs for accountId
       console.log("🔍 Contact Form Debug:");
       console.log("  formValues.accountId:", formValues.accountId);
-      console.log("  companyInputValue:", companyInputValue);
+      console.log("  companyInputValue:", formValues.companyName);
       console.log("  contactPayload.accountId:", contactPayload.accountId);
       console.log("  contactPayload.companyName:", contactPayload.companyName);
 
@@ -241,81 +159,31 @@ const ContactFormComponent: React.FC = () => {
 
           {/* Company Name Section - Second field */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Company Name <span className="gba:text-red-500">*</span>
-            </Label>
-            <div ref={companyContainerRef} className="gba:relative gba:w-full">
-              <Input
-                name="companyName"
-                value={companyInputValue}
-                onChange={(e) => handleCompanyInputChange(e.target.value)}
-                onFocus={() => setIsDropdownOpen(true)}
-                placeholder="Please Enter or Select..."
-                required
-                className="gba:border-gray-300 gba:bg-white gba:pr-14"
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "CompanyNameInput"
-                )}
-              />
-              <div className="gba:absolute gba:inset-y-0 gba:right-0 gba:flex gba:items-center gba:pr-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gba:h-auto gba:w-auto gba:p-0 gba:bg-transparent gba:border-0 gba:shadow-none hover:gba:bg-transparent focus:gba:bg-transparent gba:cursor-pointer"
-                  onClick={handleArrowClick}
-                  data-testid={formatDataTestId(
-                    prefixDataTestId,
-                    "CompanyNameArrowButton"
-                  )}
-                >
-                  {isDropdownOpen ? (
-                    <UpOutlined className="gba:text-xs gba:text-gray-600" />
-                  ) : (
-                    <DownOutlined className="gba:text-xs gba:text-gray-600" />
-                  )}
-                </Button>
-              </div>
-
-              {isDropdownOpen && (
-                <div
-                  ref={suggestionsScrollRef}
-                  className="gba:absolute gba:z-10 gba:w-full gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
-                  onScroll={handleSuggestionsScroll}
-                >
-                  {accountsLoading && accountSuggestions.length === 0 && (
-                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
-                      Loading...
-                    </div>
-                  )}
-                  {accountSuggestions.length === 0 && !accountsLoading && (
-                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
-                      No companies found
-                    </div>
-                  )}
-                  {accountSuggestions
-                    .slice(0, visibleAccountsCount)
-                    .map((suggestion) => (
-                      <div
-                        key={suggestion.id}
-                        className="gba:px-3 gba:py-2 gba:cursor-pointer gba:hover:bg-gray-100"
-                        onClick={() => handleSuggestionSelect(suggestion)}
-                      >
-                        {suggestion.name}
-                      </div>
-                    ))}
-                  {!accountsLoading &&
-                    accountSuggestions.length > visibleAccountsCount &&
-                    accountsHasMore && (
-                      <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-400 gba:text-center">
-                        Scroll down to load more companies
-                      </div>
-                    )}
-                </div>
-              )}
-            </div>
+            <SearchableSelect
+              label="Company Name *"
+              name="companyName"
+              value={formValues.companyName}
+              placeholder="Please Select..."
+              options={accountSuggestions as any}
+              loading={accountsLoading}
+              hasMore={accountsHasMore}
+              onSearch={searchAccounts}
+              onLoadMore={loadMoreAccounts}
+              onChange={(value) => {
+                // Find the selected account to get both ID and name
+                const selectedAccount = accountSuggestions.find(
+                  (account) => account.value === value || account.id === value
+                );
+                if (selectedAccount) {
+                  setFormValues({
+                    companyName: selectedAccount.name, // Store name for display
+                    accountId: selectedAccount.value, // Store ID for backend
+                  });
+                }
+              }}
+              error={null}
+              data-testid={formatDataTestId(prefixDataTestId, "CompanySelect")}
+            />
           </div>
 
           {/* Personal Information Section */}
@@ -329,12 +197,12 @@ const ContactFormComponent: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <Alert
-              variant="destructive"
+            <div
+              className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4 gba:mb-4"
               data-testid={formatDataTestId(prefixDataTestId, "ErrorAlert")}
             >
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+              <p className="gba:text-red-800 gba:font-medium">{error}</p>
+            </div>
           )}
         </div>
 
