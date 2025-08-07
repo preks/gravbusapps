@@ -158,6 +158,53 @@ export class ExpenseSettingsClient extends RestClient {
     return this.delete(`/${BASE_PATH}/saveExpenseRuleOtherCalc/${id}`);
   }
 
+  // Calculation Rule Operations (uses saveExpenseRule endpoint)
+  async saveCalculationRule(data: any): Promise<any> {
+    // Always use INSERT changeMode, pass id and version for updates
+    console.log('ExpenseSettingsClient.saveCalculationRule - Input data:', {
+      id: data.id,
+      version: data.version,
+      versionType: typeof data.version,
+      hasVersion: data.version !== undefined
+    });
+
+    const payload = {
+      expenseRule: {
+        ...(data.id && { id: data.id }),
+        code: data.code,
+        name: data.name,
+        standard: data.standard,
+        activeFrom: data.activeFrom,
+        activeTo: data.activeTo,
+        deductionLimit: data.deductionLimit,
+        useLastCountry: data.useLastCountry,
+        useSingleCurrency: data.useSingleCurrency,
+        taxesCode: data.taxesCode,
+        nonpayableCode: data.nonpayableCode,
+        advancePaymentCode: data.advancePaymentCode,
+        calculationTypeRef: data.calculationTypeRef,
+        countryRef: data.countryRef,
+        currencyRef: data.currencyRef,
+        ...(data.version !== undefined && { version: data.version })
+      },
+      changeMode: 'INSERT'
+    };
+
+    console.log('ExpenseSettingsClient.saveCalculationRule - Final payload:', payload);
+    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload);
+  }
+
+  async deleteCalculationRule(id: string, version?: number): Promise<any> {
+    const payload = {
+      expenseRule: {
+        id,
+        ...(version !== undefined && { version })
+      },
+      changeMode: 'DELETE'
+    };
+    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload);
+  }
+
   async saveExpenseRuleMileage(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id;

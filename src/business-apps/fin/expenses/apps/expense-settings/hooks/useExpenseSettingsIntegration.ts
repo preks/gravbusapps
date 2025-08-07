@@ -91,7 +91,7 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
     return rawAssignments.map((assignment) => {
       const enhanced: EnhancedExpenseRuleAssignment = {
         ...assignment,
-        displayName: `${assignment.expenseRule?.code || 'N/A'} - ${assignment.expenseRule?.name || 'Unknown Rule'}`,
+        displayName: `${assignment.expenseRule?.code || 'N/A'}${assignment.expenseRule?.name ? ` - ${assignment.expenseRule.name}` : ''}`,
         ruleCode: assignment.expenseRule?.code || '',
         ruleName: assignment.expenseRule?.name || '',
         companyName: assignment.company?.name || '',
@@ -117,8 +117,8 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
       new Date(a.activeFrom) <= now && new Date(a.activeTo) >= now
     );
     
-    const standardRules = rulesData.filter(r => r.standard);
-    const customRules = rulesData.filter(r => !r.standard);
+    const standardRules = rulesData.filter(r => r.standard === true);
+    const customRules = rulesData.filter(r => r.standard === false || r.standard === null || r.standard === undefined);
     
     // TODO: Add mileage and region rules counts when we have that data
     const recentChanges = assignmentsData.filter(a => {

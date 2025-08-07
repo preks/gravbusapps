@@ -7,6 +7,10 @@ export interface ExpenseRule {
   deductionLimit: boolean;
   advancePaymentCode?: string;
   standard?: boolean;
+  useLastCountry?: boolean;
+  useSingleCurrency?: boolean;
+  taxesCode?: string;
+  nonpayableCode?: string;
   version?: number;
   isDeleted: boolean;
   

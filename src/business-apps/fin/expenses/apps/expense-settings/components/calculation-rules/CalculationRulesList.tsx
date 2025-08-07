@@ -19,6 +19,7 @@ import {
   message,
   Modal
 } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
 import { 
   PiPlus, 
@@ -174,7 +175,9 @@ const InlineCreationForm: React.FC<InlineCreationFormProps> = ({ rules, onSave, 
           >
             <Select placeholder="Select rule">
               {rules.map(rule => (
-                <Option key={rule.id} value={rule.id}>{rule.code}</Option>
+                <Option key={rule.id} value={rule.id}>
+                  {rule.code}{rule.name ? ` - ${rule.name}` : ''}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -267,6 +270,48 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
   const handleEditRule = (rule: ExpenseRule) => {
     setEditingRule(rule);
     setIsEditRuleModalVisible(true);
+  };
+
+  const handleDeleteRule = (rule: ExpenseRule) => {
+    Modal.confirm({
+      title: 'Delete Calculation Rule',
+      content: `Are you sure you want to delete the calculation rule "${rule.code}"${rule.name ? ` - ${rule.name}` : ''}?`,
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await expenseSettingsClient.deleteCalculationRule(rule.id, rule.version);
+          message.success('Calculation rule deleted successfully');
+          await onRefresh();
+        } catch (error) {
+          console.error('Error deleting calculation rule:', error);
+          message.error('Failed to delete calculation rule');
+        }
+      },
+    });
+  };
+
+  // Transform ExpenseRule to CalculationRuleFormData
+  const transformRuleToFormData = (rule: ExpenseRule): CalculationRuleFormData => {
+    return {
+      id: rule.id,
+      code: rule.code,
+      name: rule.name,
+      standard: rule.standard,
+      activeFrom: rule.activeFrom,
+      activeTo: rule.activeTo,
+      deductionLimit: rule.deductionLimit,
+      useLastCountry: rule.useLastCountry,
+      useSingleCurrency: rule.useSingleCurrency,
+      taxesCode: rule.taxesCode,
+      nonpayableCode: rule.nonpayableCode,
+      advancePaymentCode: rule.advancePaymentCode,
+      calculationTypeRef: rule.calculationType?.id,
+      countryRef: rule.country?.id,
+      currencyRef: rule.currency?.id,
+      version: rule.version,
+    };
   };
 
   const handleCreateRuleSubmit = async (formData: CalculationRuleFormData) => {
@@ -557,7 +602,11 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
         contractType: data.expenseRuleAssignment.contractTypeRef ? { id: data.expenseRuleAssignment.contractTypeRef, value: '' } : undefined,
         ruleName: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.name || '',
         ruleCode: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.code || '',
-        displayName: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.name || '',
+        displayName: (() => {
+          const rule = rules.find(r => r.id === data.expenseRuleAssignment.expenseRule);
+          return `${rule?.code || 'N/A'}${rule?.name ? ` - ${rule.name}` : ''}`;
+        })(),
+        expenseRule: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule),
         companyName: '',
         orgUnitName: '',
         locationName: '',
@@ -769,7 +818,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
       },
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule_code', 'Rule Code'),
+      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule', 'Rule'),
       dataIndex: 'ruleCode',
       key: 'ruleCode',
       sorter: !isEditMode,
@@ -778,9 +827,31 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
         return (
           <div>
             <strong>{text}</strong>
-            <br />
-            <span className="gba:text-sm gba:text-gray-500">{record.ruleName}</span>
+            {record.ruleName && (
+              <>
+                <br />
+                <span className="gba:text-sm gba:text-gray-500">{record.ruleName}</span>
+              </>
+            )}
           </div>
+        );
+      },
+    },
+    {
+      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.standard', 'Standard'),
+      key: 'standard',
+      width: 100,
+      render: (_: any, record: any) => {
+        if (record.isHoverZone) return null;
+        // For assignments, we need to check the related rule's standard flag
+        const isStandard = record.expenseRule?.standard === true;
+        return (
+          <Tag color={isStandard ? 'green' : 'default'}>
+            {isStandard 
+              ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
+              : getTranslationFromI18nKeyAndLabel('common.no', 'No')
+            }
+          </Tag>
         );
       },
     },
@@ -841,7 +912,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     {
       title: '',
       key: 'actions',
-      width: 60,
+      width: 100,
       render: (_: any, record: ExpenseRule) => (
         <div className="gba:flex gba:justify-start gba:gap-2">
           <Button
@@ -855,15 +926,52 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
             }}
             title="Edit Rule"
           />
+          <Button
+            type="text"
+            size="small"
+            icon={<DeleteOutlined />}
+            data-testid={`calculation-rules-delete-rule-button-${record.id}`}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              handleDeleteRule(record);
+            }}
+            title="Delete Rule"
+            danger
+          />
         </div>
       ),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule_code', 'Rule Code'),
+      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule', 'Rule'),
       dataIndex: 'code',
       key: 'code',
       sorter: true,
-      render: (text: string) => <strong>{text}</strong>,
+      render: (text: string, record: ExpenseRule) => (
+        <div>
+          <strong>{text}</strong>
+          {record.name && (
+            <>
+              <br />
+              <span className="gba:text-sm gba:text-gray-500">{record.name}</span>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.standard', 'Standard'),
+      dataIndex: 'standard',
+      key: 'standard',
+      width: 100,
+      sorter: true,
+      render: (standard: boolean) => (
+        <Tag color={standard ? 'green' : 'default'}>
+          {standard 
+            ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
+            : getTranslationFromI18nKeyAndLabel('common.no', 'No')
+          }
+        </Tag>
+      ),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense_settings.table.calculation_type', 'Calculation Type'),
@@ -1243,7 +1351,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
             onSave={handleEditRuleSubmit}
             onCancel={handleModalCancel}
             isEditing={true}
-            initialData={editingRule}
+            initialData={transformRuleToFormData(editingRule)}
           />
         )}
       </Modal>

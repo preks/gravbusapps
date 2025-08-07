@@ -391,7 +391,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         </div>
 
         {/* Quick Stats */}
-        <Row gutter={[16, 16]}>
+        <Row gutter={[16, 16]} className="gba:mb-4">
           <Col xs={24} sm={6}>
             <div className="gba:text-center">
               <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Calculation</div>
@@ -416,6 +416,42 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
             <div className="gba:text-center">
               <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Company Currency</div>
               <div className="gba:font-medium">{ruleDetails.currency?.code || 'Not set'}</div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* Additional Rule Details */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={6}>
+            <div className="gba:text-center">
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Use Last Country</div>
+              <div className="gba:font-medium">
+                <Tag color={ruleDetails.useLastCountry ? 'green' : 'default'}>
+                  {ruleDetails.useLastCountry ? 'Yes' : 'No'}
+                </Tag>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} sm={6}>
+            <div className="gba:text-center">
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Single Currency</div>
+              <div className="gba:font-medium">
+                <Tag color={ruleDetails.useSingleCurrency ? 'green' : 'default'}>
+                  {ruleDetails.useSingleCurrency ? 'Yes' : 'No'}
+                </Tag>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} sm={6}>
+            <div className="gba:text-center">
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Taxes Code</div>
+              <div className="gba:font-medium">{ruleDetails.taxesCode || 'Not set'}</div>
+            </div>
+          </Col>
+          <Col xs={24} sm={6}>
+            <div className="gba:text-center">
+              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Non-payable Code</div>
+              <div className="gba:font-medium">{ruleDetails.nonpayableCode || 'Not set'}</div>
             </div>
           </Col>
         </Row>

@@ -51,6 +51,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
   if (search) {
     conditions.push(`_or: [
       {expenseRule: {_and: [{code: {_ilike: "%${search}%"}}, {isDeleted: {_eq: false}}]}},
+      {expenseRule: {_and: [{name: {_ilike: "%${search}%"}}, {isDeleted: {_eq: false}}]}},
       {employee: {_and: [{firstName: {_ilike: "%${search}%"}}, {isDeleted: {_eq: false}}]}},
       {employee: {_and: [{lastName: {_ilike: "%${search}%"}}, {isDeleted: {_eq: false}}]}},
       {company: {name: {_ilike: "%${search}%"}}},
@@ -86,9 +87,15 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         expenseRule {
           id
           code
+          name
+          standard
           activeFrom
           activeTo
           deductionLimit
+          useLastCountry
+          useSingleCurrency
+          taxesCode
+          nonpayableCode
           version
           calculationType {
             id
@@ -171,7 +178,10 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
   }
   
   if (search) {
-    conditions.push(`code: {_ilike: "%${search}%"}`);
+    conditions.push(`_or: [
+      {code: {_ilike: "%${search}%"}},
+      {name: {_ilike: "%${search}%"}}
+    ]`);
   }
   
   if (conditions.length > 0) {
@@ -188,10 +198,16 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
       ) {
         id
         code
+        name
+        standard
         activeFrom
         activeTo
         deductionLimit
         advancePaymentCode
+        useLastCountry
+        useSingleCurrency
+        taxesCode
+        nonpayableCode
         version
         calculationType {
           id
@@ -339,61 +355,64 @@ export const GET_ALLOWANCE_REGION_RULES = (): string => {
 export const GET_EMPLOYEES_FOR_ASSIGNMENT = (): string => {
   return `
     query GetEmployeesForAssignment(
-      $where: EmployeeBoolExp
+      $where: EmployeePositionBoolExp
       $activeUserLocale: String!
       $limit: Int
       $offset: Int
     ) {
-      Employee(
-        where: {_and: [{isDeleted: {_eq: false}}, $where]}
+      EmployeePosition(
+        where: $where
         limit: $limit
         offset: $offset
         orderBy: {firstName: ASC}
       ) {
         id
+        employeeId
         firstName
         lastName
-        email
         
-        workingCondition {
-          contractType {
-            id
-            value
-            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-              localeCode
+        employee {
+          id
+          displayName
+          
+          workingCondition {
+            contractType {
+              id
               value
+              translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+                localeCode
+                value
+              }
+              catalog {
+                defaultLocale
+              }
             }
-            catalog {
-              defaultLocale
-            }
-          }
-          employmentType {
-            id
-            value
-            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-              localeCode
+            employmentType {
+              id
               value
-            }
-            catalog {
-              defaultLocale
+              translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+                localeCode
+                value
+              }
+              catalog {
+                defaultLocale
+              }
             }
           }
         }
         
-        employeePosition {
-          siteLocation {
-            id
-            name
-            countryRef
-          }
-          company {
-            id
-            name
-          }
-          organizationalUnit {
-            id
-            name
-          }
+        company {
+          id
+          name
+        }
+        organizationalUnit {
+          id
+          name
+        }
+        siteLocation {
+          id
+          name
+          countryRef
         }
       }
     }
@@ -455,15 +474,22 @@ export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) =
     } = params;
     
     const whereConditions: any = {
-      isDeleted: { _eq: false },
-      employeePosition: {
-        structureId: { _eq: getCurrentActiveStructureId() }
-      }
+      _and: [
+        // Active employees: no exit date OR exit date in future
+        {
+          _or: [
+            { exitDate: { _isNull: true } },
+            { exitDate: { _gt: "now()" } }
+          ]
+        },
+        // Structure filtering
+        { structureId: { _eq: getCurrentActiveStructureId() } }
+      ]
     };
     
     const andConditions = [];
     
-    if (search && search.length >= 2) {
+    if (search && search.trim().length >= 2) {
       andConditions.push({
         _or: [
           { firstName: { _ilike: `%${search}%` } },
@@ -471,39 +497,49 @@ export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) =
         ]
       });
     }
+    // If no search or search is less than 2 characters, load all active employees
     
     if (companyId) {
       andConditions.push({
-        employeePosition: { company: { id: { _eq: companyId } } }
+        company: { id: { _eq: companyId } }
       });
     }
     
     if (organizationalUnitId) {
       andConditions.push({
-        employeePosition: { organizationalUnitId: { _eq: organizationalUnitId } }
+        organizationalUnitId: { _eq: organizationalUnitId }
       });
     }
     
     if (siteLocationId) {
       andConditions.push({
-        employeePosition: { siteLocationId: { _eq: siteLocationId } }
+        siteLocationId: { _eq: siteLocationId }
       });
     }
     
     if (andConditions.length > 0) {
-      whereConditions._and = andConditions;
+      whereConditions._and.push(...andConditions);
     }
     
     const query = GET_EMPLOYEES_FOR_ASSIGNMENT();
     
     try {
-      const result = await graphqlClient.request<{ data: any }>(query, {
+      const result = await graphqlClient.request<{ EmployeePosition: any[] }>(query, {
         where: whereConditions,
         activeUserLocale: getCurrentActiveUserLocale(),
         limit,
         offset
       });
-      return result.data;
+      console.log('useGetEmployeesForAssignment query variables:', {
+        where: whereConditions,
+        activeUserLocale: getCurrentActiveUserLocale(),
+        limit,
+        offset
+      });
+      console.log('useGetEmployeesForAssignment result:', result);
+      console.log('useGetEmployeesForAssignment EmployeePosition count:', result?.EmployeePosition?.length);
+      console.log('useGetEmployeesForAssignment first few IDs:', result?.EmployeePosition?.slice(0, 3)?.map((emp: any) => ({ id: emp.employeeId, name: `${emp.firstName} ${emp.lastName}` })));
+      return result;
     } catch (error) {
       console.error('Error fetching employees for assignment:', error);
       throw error;

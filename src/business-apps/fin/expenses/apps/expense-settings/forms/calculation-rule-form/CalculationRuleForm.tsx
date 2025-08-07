@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import { 
   Form, 
   Input, 
@@ -28,13 +29,19 @@ export interface CalculationRuleFormData {
   code: string;
   name?: string;
   description?: string;
+  standard?: boolean;
   activeFrom: string;
   activeTo?: string;
   deductionLimit: boolean;
+  useLastCountry?: boolean;
+  useSingleCurrency?: boolean;
+  taxesCode?: string;
+  nonpayableCode?: string;
   advancePaymentCode?: string;
   calculationTypeRef?: string;
   countryRef?: string;
   currencyRef?: string;
+  version?: number;
 }
 
 interface CalculationRuleFormProps extends BusinessAppContextProps {
@@ -71,6 +78,13 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   const catalogClient = useCatalogManagerClient(accessToken);
+
+  // Set access token on the expense settings client
+  useEffect(() => {
+    if (accessToken) {
+      expenseSettingsClient.setAccessToken(accessToken);
+    }
+  }, [accessToken]);
 
   // Load catalog data
   const loadCatalogData = useCallback(async () => {
@@ -144,15 +158,50 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
     setError(null);
 
     try {
+      // Prepare data for the expense settings service
+      console.log('CalculationRuleForm.handleSubmit - Initial data:', {
+        id: initialData?.id,
+        version: initialData?.version,
+        versionType: typeof initialData?.version,
+        hasVersion: initialData?.version !== undefined
+      });
+
+      const expenseRuleData = {
+        code: values.code,
+        name: values.name,
+        standard: values.standard || false,
+        activeFrom: values.activeFrom?.toISOString(),
+        activeTo: values.activeTo?.toISOString(),
+        deductionLimit: values.deductionLimit || false,
+        useLastCountry: values.useLastCountry || false,
+        useSingleCurrency: values.useSingleCurrency || false,
+        taxesCode: values.taxesCode,
+        nonpayableCode: values.nonpayableCode,
+        advancePaymentCode: values.advancePaymentCode,
+        calculationTypeRef: values.calculationTypeRef,
+        countryRef: values.countryRef,
+        currencyRef: values.currencyRef,
+        ...(initialData?.id && { id: initialData.id }),
+        ...(initialData?.version !== undefined && { version: initialData.version })
+      };
+
+      console.log('CalculationRuleForm.handleSubmit - Expense rule data:', expenseRuleData);
+
+      // Save using the existing expense settings client
+      const result = await expenseSettingsClient.saveCalculationRule(expenseRuleData);
+
+      // Prepare form data for the onSave callback (for compatibility)
       const formData: CalculationRuleFormData = {
         ...values,
         activeFrom: values.activeFrom?.toISOString(),
         activeTo: values.activeTo?.toISOString(),
-        id: initialData?.id
+        id: result.expenseRule?.id || initialData?.id,
+        version: result.expenseRule?.version || (initialData?.version ? initialData.version + 1 : 1)
       };
 
       await onSave(formData);
     } catch (err) {
+      console.error('Error saving calculation rule:', err);
       setError(err instanceof Error ? err.message : 'Failed to save calculation rule');
     } finally {
       setIsSubmitting(false);
@@ -368,6 +417,81 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                   checkedChildren="Enabled"
                   unCheckedChildren="Disabled"
                   data-testid="calculation-rule-form-deduction-limit-switch"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="standard"
+                label="Standard Rule"
+                valuePropName="checked"
+                tooltip="Mark this rule as a standard rule"
+              >
+                <Switch 
+                  checkedChildren="Yes"
+                  unCheckedChildren="No"
+                  data-testid="calculation-rule-form-standard-switch"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="useLastCountry"
+                label="Use Last Country"
+                valuePropName="checked"
+                tooltip="Use the last country from previous expense"
+              >
+                <Switch 
+                  checkedChildren="Yes"
+                  unCheckedChildren="No"
+                  data-testid="calculation-rule-form-use-last-country-switch"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="useSingleCurrency"
+                label="Use Single Currency"
+                valuePropName="checked"
+                tooltip="Force single currency usage"
+              >
+                <Switch 
+                  checkedChildren="Yes"
+                  unCheckedChildren="No"
+                  data-testid="calculation-rule-form-use-single-currency-switch"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="taxesCode"
+                label="Taxes Code"
+                data-testid="calculation-rule-form-taxes-code"
+              >
+                <Input 
+                  placeholder="Enter taxes code"
+                  data-testid="calculation-rule-form-taxes-code-input"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="nonpayableCode"
+                label="Non-payable Code"
+                data-testid="calculation-rule-form-nonpayable-code"
+              >
+                <Input 
+                  placeholder="Enter non-payable code"
+                  data-testid="calculation-rule-form-nonpayable-code-input"
                 />
               </Form.Item>
             </Col>
