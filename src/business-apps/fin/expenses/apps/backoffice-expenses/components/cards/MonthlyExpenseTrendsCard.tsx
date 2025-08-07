@@ -14,15 +14,16 @@ export interface MonthlyExpenseTrendsCardProps {
   loading: boolean;
   error: Error | null;
   monthlyTrends: MonthlyExpenseTrend[];
+  selectedCurrencyCode: string;
 }
 
-const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loading, error, monthlyTrends }) => {
+const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loading, error, monthlyTrends, selectedCurrencyCode }) => {
   const currentYear = new Date().getFullYear();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: 'EUR',
+      currency: selectedCurrencyCode,
       minimumFractionDigits: 2,
     }).format(value);
   };

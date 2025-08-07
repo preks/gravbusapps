@@ -126,9 +126,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     return currencyRef.split(':').pop() || 'RON';
   };
 
-  const kpiCards = useMemo(() => {
+  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
 
-    const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
+  const kpiCards = useMemo(() => {
     
     const cards: KpiCardData[] = [];
 
@@ -438,6 +438,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           loading={loading}
           error={error}
           monthlyTrends={stats.monthlyTrends}
+          selectedCurrencyCode={selectedCurrencyCode}
         />
       </div>
     </div>
