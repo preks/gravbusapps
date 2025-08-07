@@ -12,6 +12,7 @@ export interface ContactTaskData {
   description: string;
   dueDate?: string | null;
   createdAt: string;
+  typeRef?: string; // Added this field
   type: {
     value: string;
   };
@@ -19,6 +20,20 @@ export interface ContactTaskData {
     value: string;
   };
   createdBy: string;
+  creatorEmployee?: { // Added creator employee details
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
+    fullName?: string;
+  };
+  assignedEmployee?: { // Added assigned employee details
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
+    fullName?: string;
+  };
 }
 
 export interface ContactTaskResponse {
@@ -35,6 +50,7 @@ export const GET_CONTACT_TASKS = (variables: ContactTaskQueryVariables): string 
         description
         dueDate
         createdAt
+        typeRef
         type {
           value
         }
@@ -42,6 +58,20 @@ export const GET_CONTACT_TASKS = (variables: ContactTaskQueryVariables): string 
           value
         }
         createdBy
+        creatorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          fullName
+        }
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          fullName
+        }
       }
     }
   `;

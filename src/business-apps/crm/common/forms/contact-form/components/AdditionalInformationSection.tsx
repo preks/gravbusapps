@@ -1,118 +1,179 @@
-import React, { useState } from 'react';
-import { useContactFormContext } from '../context/ContactFormContext';
-import { Input, Label, Textarea } from '@newwork/nw-design-system';
-import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React, { useState } from "react";
+import { useContactFormContext } from "../context/ContactFormContext";
+import {
+  Input,
+  Label,
+  Textarea,
+  Card,
+  CardContent,
+  Button,
+  Alert,
+  AlertDescription,
+} from "@newwork/nw-design-system";
+import { PiCaretDown, PiCaretUp } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
-const prefixDataTestId = 'ContactForm';
+const prefixDataTestId = "ContactForm";
 
 const AdditionalInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  
-  const {
-    formValues,
-    setFormValues,
-    error,
-  } = useContactFormContext();
+
+  const { formValues, setFormValues, error } = useContactFormContext();
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
-      <button
-        type="button"
+    <Card
+      className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
+      style={{
+        border: "0",
+        borderWidth: "0",
+        borderStyle: "none",
+        borderColor: "transparent",
+        boxShadow: "none",
+        padding: "0",
+        background: "transparent",
+      }}
+    >
+      <Button
+        variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-gray-200 gba:to-slate-200 gba:hover:from-gray-300 gba:hover:to-slate-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
-
-        data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        style={{
+          background: "linear-gradient(to right, #bfdbfe, #93c5fd)",
+          transition: "all 0.3s ease",
+          border: "0",
+          borderWidth: "0",
+          borderStyle: "none",
+          borderColor: "transparent",
+          outline: "none",
+          outlineWidth: "0",
+          outlineStyle: "none",
+          boxShadow: "none",
+          borderRadius: "12px",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #93c5fd, #60a5fa)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #bfdbfe, #93c5fd)";
+        }}
+        data-testid={formatDataTestId(prefixDataTestId, "AdditionalInfoToggle")}
       >
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-          <div className="gba:w-2 gba:h-2 gba:bg-gray-500 gba:rounded-full"></div>
-          Additional Information
-        </h3>
-        {isExpanded ? (
-          <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        ) : (
-          <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        )}
-      </button>
-      
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+          <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+          <span className="gba:font-medium gba:text-gray-900">
+            Additional Information
+          </span>
+        </div>
+        <div className="gba:flex gba:items-center">
+          {isExpanded ? (
+            <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          ) : (
+            <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          )}
+        </div>
+      </Button>
+
       {isExpanded && (
-        <div className="gba:p-6 gba:space-y-6">
+        <CardContent
+          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          style={{
+            border: "0",
+            borderWidth: "0",
+            borderStyle: "none",
+            borderColor: "transparent",
+            padding: "16px",
+            marginTop: "0",
+          }}
+        >
           {error && (
-            <div className="gba:text-red-700 gba:text-sm gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg">
-              {error}
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           {/* Notes Summary */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
               Notes Summary
-            </label>
+            </Label>
             <Textarea
-              id="notesSummary"
               name="notesSummary"
               value={formValues.notesSummary}
               onChange={(e) => setFormValues({ notesSummary: e.target.value })}
               placeholder="Please Enter..."
               rows={4}
-              data-testid={formatDataTestId(prefixDataTestId, 'NotesSummaryTextarea')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "NotesSummaryTextarea"
+              )}
             />
           </div>
 
           {/* Record State */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
               Record State
-            </label>
+            </Label>
             <Input
-              id="recordState"
               name="recordState"
               value={formValues.recordState}
               onChange={(e) => setFormValues({ recordState: e.target.value })}
               placeholder="Please Enter..."
-              data-testid={formatDataTestId(prefixDataTestId, 'RecordStateInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "RecordStateInput"
+              )}
             />
           </div>
 
           {/* Version (for updates) */}
           {formValues.version !== undefined && (
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Version
-              </label>
+              </Label>
               <Input
-                id="version"
                 name="version"
                 type="number"
-                value={formValues.version || ''}
-                onChange={(e) => setFormValues({ version: parseInt(e.target.value) || 0 })}
+                value={formValues.version || ""}
+                onChange={(e) =>
+                  setFormValues({ version: parseInt(e.target.value) || 0 })
+                }
                 placeholder="Please Enter..."
                 disabled
-                data-testid={formatDataTestId(prefixDataTestId, 'VersionInput')}
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "VersionInput")}
               />
             </div>
           )}
 
           {/* ID (for updates) */}
           {formValues.id && (
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Contact ID
-              </label>
+              </Label>
               <Input
-                id="contactId"
                 name="contactId"
                 value={formValues.id}
                 placeholder="System generated"
                 disabled
-                data-testid={formatDataTestId(prefixDataTestId, 'ContactIdInput')}
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "ContactIdInput"
+                )}
               />
             </div>
           )}
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
-export default AdditionalInformationSection; 
+export default AdditionalInformationSection;

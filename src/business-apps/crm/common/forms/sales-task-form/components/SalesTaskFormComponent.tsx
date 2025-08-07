@@ -51,6 +51,16 @@ const SalesTaskFormComponent: React.FC = () => {
 
   const { accessToken, additionalData } = businessAppContext;
 
+  // Check if this is an approval request (when Task Type should be hidden)
+  // This can be set explicitly OR detected from pre-filled approval type
+  const isApprovalRequest = additionalData?.isApprovalRequest || 
+    formValues.taskTypeRef === 'SalesTaskType:v1:APPROVAL' ||
+    formValues.taskTypeRef?.includes('APPROVAL') ||
+    false;
+  
+  // Debug log to verify approval request mode
+  // console.log('SalesTaskForm - isApprovalRequest:', isApprovalRequest, 'formValues.taskTypeRef:', formValues.taskTypeRef, 'additionalData:', additionalData);
+
   // Entity search state
   const [entitySearchTerm, setEntitySearchTerm] = useState('');
   const [showEntityDropdown, setShowEntityDropdown] = useState(false);
@@ -95,7 +105,7 @@ const SalesTaskFormComponent: React.FC = () => {
       id: formValues.id,
       version: formValues.version || 0,
     });
-  }, [formValues, form]);
+  }, [formValues, form, isApprovalRequest]);
 
   // Update entity search term when selected entity changes
   useEffect(() => {
@@ -114,10 +124,24 @@ const SalesTaskFormComponent: React.FC = () => {
         setSelectedEmployee(employee);
       }
     } else {
+      // Only clear if user hasn't manually entered a search term
+      if (!showEmployeeDropdown) {
       setEmployeeSearchTerm('');
       setSelectedEmployee(null);
     }
-  }, [formValues.assignedEmployeeId, employees]);
+    }
+  }, [formValues.assignedEmployeeId]); // Removed employees dependency to prevent clearing during search
+
+  // Update employee display when employees data loads and there's an assigned employee
+  useEffect(() => {
+    if (formValues.assignedEmployeeId && employees.length > 0 && !selectedEmployee) {
+      const employee = employees.find(emp => emp.id === formValues.assignedEmployeeId);
+      if (employee) {
+        setEmployeeSearchTerm(employee.label);
+        setSelectedEmployee(employee);
+      }
+    }
+  }, [employees, formValues.assignedEmployeeId, selectedEmployee]);
 
   // Initialize entity search term from form values
   useEffect(() => {
@@ -281,7 +305,7 @@ const SalesTaskFormComponent: React.FC = () => {
         salesTask: {
           ...(isUpdateMode && { id: values.id }),
           version: isUpdateMode ? values.version || 0 : 0,
-          typeRef: values.taskTypeRef,
+          typeRef: values.taskTypeRef || '',
           name: values.title,
           priorityRef: values.priorityRef,
           timingType: values.timingType,
@@ -370,12 +394,13 @@ const SalesTaskFormComponent: React.FC = () => {
               )}
             />
 
-            {/* Task Type */}
+            {/* Task Type - Hidden for approval requests */}
+            {!isApprovalRequest && (
             <FormField
               control={form.control}
               name="taskTypeRef"
               rules={{ 
-                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.type.required', 'Task type is required') 
+                  required: !isApprovalRequest ? getTranslationFromI18nKeyAndLabel('crm:salesTask.type.required', 'Task type is required') : false 
               }}
               render={({ field }) => (
                 <FormItem>
@@ -401,6 +426,7 @@ const SalesTaskFormComponent: React.FC = () => {
                 </FormItem>
               )}
             />
+            )}
 
             {/* Priority */}
             <FormField

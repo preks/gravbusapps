@@ -68,10 +68,13 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   const [prioritySearch, setPrioritySearch] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
   
+  // Check if typeRef is pre-filled from process payload (for approval requests)
+  const processTypeRef = additionalData?.typeRef || initialValues?.taskTypeRef || '';
+  
   // Form state
   const [formValues, setFormValuesState] = useState<SalesTaskFormValues>({
     title: '',
-    taskTypeRef: '',
+    taskTypeRef: processTypeRef,
     priorityRef: '',
     deadline: null,
     description: '',

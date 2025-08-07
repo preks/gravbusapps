@@ -36,7 +36,7 @@ const MemoizedAppActionButton = React.memo<{
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${jobPositionId}`)}
     variant="primary"
     size="sm"
-    contextsArray={[FlowContextName.jobPositionEntity, FlowContextName.employeeEntity, FlowContextName.flow]}
+    contextsArray={[FlowContextName.jobPositionEntity]}
     externalContextData={{
       jobPositionId: jobPositionId,
       employeeId: employeeId,

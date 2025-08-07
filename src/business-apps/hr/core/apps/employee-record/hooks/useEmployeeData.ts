@@ -91,11 +91,15 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
         level
+        isDeleted
+        synchronizedAt
         skill {
-          id
+          updatedAt
+          createdAt
           name
         }
       }
+        
       salutation {
         value
         id
@@ -375,7 +379,15 @@ interface Skill {
 
 interface EmployeeSkill {
   level: string | null;
-  skill: Skill;
+  isDeleted: boolean;
+  synchronizedAt: string | null;
+  skill: {
+    id: string;
+    name: string;
+    updatedAt: string | null;
+    createdAt: string | null;
+    additionalProperties?: any;
+  };
 }
 
 export interface Employee {

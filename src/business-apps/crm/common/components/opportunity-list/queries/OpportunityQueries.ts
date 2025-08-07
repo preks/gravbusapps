@@ -46,6 +46,12 @@ export interface OpportunityData {
     code: string;
     objectValue?: any;
   } | null;
+  opportunityStatus: {
+    id: string;
+    value: string;
+    code: string;
+    objectValue?: any;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +109,12 @@ export const GET_OPPORTUNITIES_DATA = `
         pictureThumbnail
       }
       currency {
+        id
+        value
+        code
+        objectValue
+      }
+      opportunityStatus {
         id
         value
         code

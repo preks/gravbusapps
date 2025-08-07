@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -9,7 +9,7 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { AccountOpportunities, AccountDocuments } from "./components";
+import { AccountOpportunities } from "./components";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -128,10 +128,11 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
               <BarChartOutlined className="gba:mr-2" />
               Opportunities
             </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
-              Documents
+            <TabsTrigger value="approvals" data-testid="approvals-tab">
+              <CheckCircleOutlined className="gba:mr-2" />
+              Approvals
             </TabsTrigger>
+
           </TabsList>
 
           <TabsContent value="overview" data-testid="overview-content">
@@ -178,12 +179,14 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
             />
           </TabsContent>
 
-          <TabsContent value="documents" data-testid="documents-content">
-            <AccountDocuments 
+          <TabsContent value="approvals" data-testid="approvals-content">
+            <ActivityTimeline 
               accountId={accountId} 
               context={props} 
+              defaultTab="approvals"
             />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

@@ -1,63 +1,110 @@
-import React, { useState } from 'react';
-import { TextAreaField } from '@newwork/gravity-ui-catalog';
-import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useLeadFormContext } from '../context/LeadFormContext';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  Textarea,
+  Label,
+  Button,
+} from "@newwork/nw-design-system";
+import { PiCaretDown, PiCaretUp } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { useLeadFormContext } from "../context/LeadFormContext";
 
-const prefixDataTestId = 'LeadForm';
+const prefixDataTestId = "LeadForm";
 
 const DescriptionSection: React.FC = () => {
-  const {
-    formValues,
-    setFormValues,
-  } = useLeadFormContext();
+  const { formValues, setFormValues } = useLeadFormContext();
 
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
-      <button
-        type="button"
+    <Card
+      className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
+      style={{
+        border: "0",
+        borderWidth: "0",
+        borderStyle: "none",
+        borderColor: "transparent",
+        boxShadow: "none",
+        padding: "0",
+        background: "transparent",
+      }}
+    >
+      <Button
+        variant="ghost"
         onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-blue-200 gba:to-sky-200 gba:hover:from-blue-300 gba:hover:to-sky-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
         style={{
-          background: 'linear-gradient(to right, #bfdbfe, #bae6fd)',
-          transition: 'background 0.2s ease'
+          background: "linear-gradient(to right, #bfdbfe, #93c5fd)",
+          transition: "all 0.3s ease",
+          border: "0",
+          borderWidth: "0",
+          borderStyle: "none",
+          borderColor: "transparent",
+          outline: "none",
+          outlineWidth: "0",
+          outlineStyle: "none",
+          boxShadow: "none",
+          borderRadius: "12px",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #7dd3fc)';
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #93c5fd, #60a5fa)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #bae6fd)';
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #bfdbfe, #93c5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, 'DescriptionToggle')}
+        data-testid={formatDataTestId(prefixDataTestId, "DescriptionToggle")}
       >
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
-          Description
-        </h3>
-        {isDescriptionExpanded ? (
-          <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        ) : (
-          <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        )}
-      </button>
-      
-      {isDescriptionExpanded && (
-        <div className="gba:p-6">
-          <TextAreaField
-            label="Description"
-            name="notes"
-            value={typeof formValues.notes === 'string' ? formValues.notes : ''}
-            onChange={(e: any) => setFormValues({ notes: String(e.value || '') })}
-            placeholder="Please Enter..."
-            rows={4}
-            data-testid={formatDataTestId(prefixDataTestId, 'DescriptionTextarea')}
-          />
+          <span className="gba:font-medium gba:text-gray-900">Description</span>
         </div>
+        <div className="gba:flex gba:items-center">
+          {isDescriptionExpanded ? (
+            <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          ) : (
+            <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          )}
+        </div>
+      </Button>
+
+      {isDescriptionExpanded && (
+        <CardContent
+          className="gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          style={{
+            border: "0",
+            borderWidth: "0",
+            borderStyle: "none",
+            borderColor: "transparent",
+            padding: "16px",
+            marginTop: "0",
+          }}
+        >
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Description
+            </Label>
+            <Textarea
+              name="notes"
+              value={
+                typeof formValues.notes === "string" ? formValues.notes : ""
+              }
+              onChange={(e) => setFormValues({ notes: e.target.value })}
+              placeholder="Please Enter..."
+              rows={4}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "DescriptionTextarea"
+              )}
+            />
+          </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
-export default DescriptionSection; 
+export default DescriptionSection;

@@ -14,6 +14,8 @@ export interface AccountData {
   name: string;
   version: number;
   website: string;
+  phone: string;
+  email: string;
   legalForm: {
     value: string;
     code: string;
@@ -22,6 +24,12 @@ export interface AccountData {
   };
   numberOfEmployees: {
     value: string;
+  };
+  annualRevenue: {
+    value: string;
+    code: string;
+    id: string;
+    objectValue?: any;
   };
   accountContacts: {
     contact: {
@@ -58,6 +66,7 @@ export interface AccountData {
     firstName: string;
     pictureThumbnail?: string;
   };
+  countryRef: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +97,8 @@ export const GET_ACCOUNTS_DATA = `
       version
       name
       website
+      phone
+      email
       legalForm {
         value
         code
@@ -96,6 +107,12 @@ export const GET_ACCOUNTS_DATA = `
       }
       numberOfEmployees {
         value
+      }
+      annualRevenue {
+        value
+        code
+        id
+        objectValue
       }
       accountContacts(where:{contactType:{_eq:"PRIMARY_CONTACT"}}) {
         contact{
@@ -132,6 +149,7 @@ export const GET_ACCOUNTS_DATA = `
         firstName
         pictureThumbnail
       }
+      countryRef
       createdAt
       updatedAt
     }
