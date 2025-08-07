@@ -59,7 +59,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
         }}
         onFocus={() => setShowEmployeeDropdown(true)}
         className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-        placeholder={getTranslationFromI18nKeyAndLabel("lowcoder:employee_list.search_employee_list.search_employee", "Search employee...")}
+        placeholder={getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_table.employee_search_filter", "Search employee...")}
         data-testid="employee-search-input"
       />
       

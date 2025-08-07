@@ -55,38 +55,72 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     }).format(value);
   };
 
-     const getCurrentPeriodName = (): string => {
-     const date = new Date();
-     switch (currentFilters.period) {
-       case 'yearly':
-         return date.getFullYear().toString();
-       case 'quarterly':
-         const quarter = Math.floor(date.getMonth() / 3) + 1;
-         return `Q${quarter} ${date.getFullYear()}`;
-       default:
-         return date.toLocaleString('default', { month: 'long' });
-     }
-   };
+     const getTranslatedQuarter = (quarterNumber: number): string => {
+       return getTranslationFromI18nKeyAndLabel(
+         `lowcoder:cards.quarter_${quarterNumber}`,
+         `Q${quarterNumber}`
+       );
+     };
 
-   const getPreviousPeriodName = (): string => {
-     const date = new Date();
-     switch (currentFilters.period) {
-       case 'yearly':
-         return (date.getFullYear() - 1).toString();
-       case 'quarterly':
-         const currentQuarter = Math.floor(date.getMonth() / 3);
-         let previousQuarter = currentQuarter - 1;
-         let previousYear = date.getFullYear();
-         if (previousQuarter < 0) {
-           previousQuarter = 3;
-           previousYear = previousYear - 1;
-         }
-         return `Q${previousQuarter + 1} ${previousYear}`;
-       default:
-         const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-         return previousMonth.toLocaleString('default', { month: 'long' });
-     }
-   };
+     const getTranslatedMonth = (monthIndex: number): string => {
+       const monthNames = [
+         'lowcoder:absence_report.employee_table.january',
+         'lowcoder:absence_report.employee_table.february', 
+         'lowcoder:absence_report.employee_table.march',
+         'lowcoder:absence_report.employee_table.april',
+         'lowcoder:absence_report.employee_table.may',
+         'lowcoder:absence_report.employee_table.june',
+         'lowcoder:absence_report.employee_table.july',
+         'lowcoder:absence_report.employee_table.august',
+         'lowcoder:absence_report.employee_table.september',
+         'lowcoder:absence_report.employee_table.october',
+         'lowcoder:absence_report.employee_table.november',
+         'lowcoder:absence_report.employee_table.december'
+       ];
+       
+       const fallbackNames = [
+         'January', 'February', 'March', 'April', 'May', 'June',
+         'July', 'August', 'September', 'October', 'November', 'December'
+       ];
+       
+       return getTranslationFromI18nKeyAndLabel(
+         monthNames[monthIndex],
+         fallbackNames[monthIndex]
+       );
+     };
+
+     const getCurrentPeriodName = (): string => {
+       const date = new Date();
+       switch (currentFilters.period) {
+         case 'yearly':
+           return date.getFullYear().toString();
+         case 'quarterly':
+           const quarter = Math.floor(date.getMonth() / 3) + 1;
+           return `${getTranslatedQuarter(quarter)} ${date.getFullYear()}`;
+         default:
+           return getTranslatedMonth(date.getMonth());
+       }
+     };
+
+     const getPreviousPeriodName = (): string => {
+       const date = new Date();
+       switch (currentFilters.period) {
+         case 'yearly':
+           return (date.getFullYear() - 1).toString();
+         case 'quarterly':
+           const currentQuarter = Math.floor(date.getMonth() / 3);
+           let previousQuarter = currentQuarter - 1;
+           let previousYear = date.getFullYear();
+           if (previousQuarter < 0) {
+             previousQuarter = 3;
+             previousYear = previousYear - 1;
+           }
+           return `${getTranslatedQuarter(previousQuarter + 1)} ${previousYear}`;
+         default:
+           const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+           return getTranslatedMonth(previousMonth.getMonth());
+       }
+     };
 
   const extractCurrencyCode = (currencyRef: string): string => {
     return currencyRef.split(':').pop() || 'RON';
@@ -115,7 +149,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getTotalCompanySpendFooter = () => {
       const currentPeriodName = getCurrentPeriodName();
       const previousPeriodName = getPreviousPeriodName();
-      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} expenses) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} expenses)`;
+      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`;
       return footer;
     };
 
@@ -155,18 +189,18 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ? ((actualAmount / plannedAmount) * 100) 
       : 0;
     
-    const getActualVsPlannedTitle = () => {
-      switch (currentFilters.period) {
-        case 'yearly':
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-        case 'quarterly':
-          const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} Q${currentQuarter} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-        default:
-          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-      }
-    };
+         const getActualVsPlannedTitle = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+         case 'quarterly':
+           const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${getTranslatedQuarter(currentQuarter)} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+         default:
+           const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+       }
+     };
     
     cards.push({
       id: 'actual-vs-planned',
@@ -174,7 +208,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       value: actualVsPlannedPercentage.toFixed(1),
       suffix: '%',
       decimalPlaces: 1,
-      footer: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.planned', 'Planned')}: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} plans) | ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.actual', 'Actual')}: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
+             footer: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.planned', 'Planned')}: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plans', 'plans')}) | ${getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.achieved', 'Actual')}: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
       trend: {
         value: actualVsPlannedPercentage.toFixed(1),
         positive: actualVsPlannedPercentage <= 100,
@@ -213,7 +247,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
        title: getComparisonTitle(),
        value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
        decimalPlaces: 1,
-       footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
+               footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
        trend: {
          value: Math.abs(monthlyComparison.percentChange).toFixed(1),
          positive: monthlyComparison.isIncrease,
@@ -290,11 +324,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getPeriodText = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.year', "Year");
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_year', "Based on completed trips this year");
         case 'quarterly':
-          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.quarter', "Quarter");
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_quarter', "Based on completed trips this quarter");
         default:
-          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.month', "Month");
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_month', "Based on completed trips this month");
       }
     };
     
@@ -302,7 +336,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       id: 'avg-spend-per-trip',
       title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip', "Average Spend Per Trip (Based on Completed Trips)")} (${selectedCurrencyCode})`,
       value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
-      footer: `Based on completed trips this ${getPeriodText()}`,
+      footer: getPeriodText(),
       icon: 'car',
       iconColor: '#722ed1'
     });
