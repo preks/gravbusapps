@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PiMagnifyingGlass, PiCaretUp, PiCaretDown } from "react-icons/pi";
+import { PiCaretUp, PiCaretDown } from "react-icons/pi";
 import { Tooltip } from "antd";
 import { cn } from "../../common/utils/cn";
 import { DebouncedInput } from "./DebouncedInput";
@@ -139,10 +139,6 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
     return (group.filters ?? []).filter((f) => f.selected).length;
   };
 
-  // Handle search button click
-  const handleSearchClick = () => {
-    setShowSearchInput(true);
-  };
 
   return (
     <aside
@@ -316,13 +312,13 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                           {/* Per-group search input with debounce - only show if not disabled */}
                           {!group.hideSearch && (
                             <div className="gba:w-full gba:mb-2 gba:mt-1" data-testid={`data-filter-group-search-container-${group.id}`}>
-                                                             <DebouncedInput
+                              <DebouncedInput
                                  className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
                                  placeholder={`${getTranslationFromI18nKeyAndLabel(
-                                   "data_filter.search_in",
+                                   "lowcoder:data_filter.search_in",
                                    "Search in"
                                  )} ${getTranslationFromI18nKeyAndLabel(
-                                   `data_filter.group_title_${group.id}`,
+                                   `lowcoder:data_filter.group_title_${group.id}`,
                                    group.title
                                  )}...`}
                                  value={groupSearch}
@@ -330,10 +326,10 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                                    handleGroupSearchChange(group.id, value)
                                  }
                                  ariaLabel={`${getTranslationFromI18nKeyAndLabel(
-                                   "data_filter.search_filters_in",
+                                   "lowcoder:data_filter.search_filters_in",
                                    "Search filters in"
                                  )} ${getTranslationFromI18nKeyAndLabel(
-                                   `data_filter.group_title_${group.id}`,
+                                   `lowcoder:data_filter.group_title_${group.id}`,
                                    group.title
                                  )}`}
                                  debounceDelay={300}

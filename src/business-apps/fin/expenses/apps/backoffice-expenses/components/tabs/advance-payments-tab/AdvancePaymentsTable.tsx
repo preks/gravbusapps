@@ -527,7 +527,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.min', 'Min')}</span>
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
             <input
               type="number"
               value={amountMinFilter}
@@ -536,12 +536,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 setCurrentPage(1);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.min', 'Min')}
+              placeholder="Min"
               data-testid="amount-min-filter-input"
             />
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.max', 'Max')}</span>
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
             <input
               type="number"
               value={amountMaxFilter}
@@ -550,7 +550,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 setCurrentPage(1);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.max', 'Max')}
+              placeholder="Max"
               data-testid="amount-max-filter-input"
             />
           </div>
@@ -564,7 +564,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.min', 'Min')}</span>
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
             <input
               type="number"
               value={advanceMinFilter}
@@ -573,12 +573,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 setCurrentPage(1);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.min', 'Min')}
+              placeholder="Min"
               data-testid="advance-min-filter-input"
             />
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.max', 'Max')}</span>
+            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
             <input
               type="number"
               value={advanceMaxFilter}
@@ -587,7 +587,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 setCurrentPage(1);
               }}
               className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.max', 'Max')}
+              placeholder="Max"
               data-testid="advance-max-filter-input"
             />
           </div>

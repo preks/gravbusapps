@@ -26,7 +26,6 @@ import { getTranslationFromI18nKeyAndLabel, formatDate, formatNumberFunction } f
 import { Descriptions, Divider } from 'antd';
 
 import Pill from '@/components/pill/Pill';
-import { PiArrowRight } from 'react-icons/pi';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
