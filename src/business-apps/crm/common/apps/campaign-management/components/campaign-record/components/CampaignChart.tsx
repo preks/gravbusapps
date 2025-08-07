@@ -240,6 +240,9 @@ const CampaignChart: React.FC<CampaignChartProps> = ({
                 <YAxis 
                   tick={{ fontSize: 12 }}
                   stroke="#666"
+                  tickFormatter={(value) => Math.floor(value).toString()}
+                  domain={[0, 'dataMax']}
+                  allowDecimals={false}
                 />
                 <Tooltip
                   formatter={formatTooltip}
