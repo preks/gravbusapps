@@ -2,18 +2,23 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useSalesCampaignData } from './hooks/useSalesCampaignData';
-import { useCampaignFilters } from './hooks/useCampaignFilters';
-import { CampaignStatistics, CampaignsTable, AddCampaignModal } from './components';
+import { useSalesCampaignData } from './components/campaign-list/hooks/useSalesCampaignData';
+import { useCampaignFilters } from './components/campaign-list/hooks/useCampaignFilters';
+import { CampaignStatistics, CampaignsTable, AddCampaignModal, CampaignRecord } from './components';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BarChartOutlined } from '@ant-design/icons';
-import type { NewCampaignData } from './components/AddCampaignModal';
+import type { NewCampaignData } from './components/campaign-list/AddCampaignModal';
+import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes';
 
 interface CampaignManagementContentProps extends BusinessAppContextProps {
   onBack?: () => void;
 }
 
 const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (props) => {
+  // Navigation state
+  const [currentView, setCurrentView] = useState<'list' | 'record'>('list');
+  const [selectedCampaign, setSelectedCampaign] = useState<SalesCampaign | null>(null);
+  
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -167,6 +172,28 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     }
   }, [refetch]);
 
+  // Navigation handlers
+  const handleCampaignRowClick = useCallback((campaign: SalesCampaign) => {
+    setSelectedCampaign(campaign);
+    setCurrentView('record');
+  }, []);
+
+  const handleBackToList = useCallback(() => {
+    setCurrentView('list');
+    setSelectedCampaign(null);
+  }, []);
+
+  // Render campaign record view
+  if (currentView === 'record' && selectedCampaign) {
+    return (
+      <CampaignRecord
+        campaignId={selectedCampaign.id}
+        onBack={handleBackToList}
+        {...props}
+      />
+    );
+  }
+
   return (
     <>
       <PageLayout
@@ -226,6 +253,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onTableChange={handleTableChange}
+                    onRowClick={handleCampaignRowClick}
                     accessToken={props.accessToken}
                   />
                 </div>

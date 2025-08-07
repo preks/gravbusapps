@@ -6,7 +6,7 @@ import {
   CheckCircleOutlined, 
   ClockCircleOutlined 
 } from '@ant-design/icons';
-import { SalesCampaignStatistics } from '../types/SalesCampaignTypes';
+import { SalesCampaignStatistics } from './types/SalesCampaignTypes';
 
 interface CampaignStatisticsProps {
   statistics: SalesCampaignStatistics;
@@ -84,9 +84,8 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
     {
       key: 'average-duration',
       title: 'Average Duration',
-      value: statistics.averageDuration,
+      value: formatDuration(statistics.averageDuration),
       valueIsString: true,
-      valueString: formatDuration(statistics.averageDuration),
       prefix: <ClockCircleOutlined />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
