@@ -27,18 +27,18 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({
 
   // Helper function to get campaign status
   const getCampaignStatus = (startDate?: string, endDate?: string): { status: string; color: string } => {
-    if (!startDate || !endDate) return { status: 'Unknown', color: 'var(--color-text-secondary)' };
+    if (!startDate || !endDate) return { status: 'Unknown', color: '#6B7280' };
     
     const now = dayjs();
     const start = dayjs(startDate);
     const end = dayjs(endDate);
 
     if (now.isBefore(start)) {
-      return { status: 'Upcoming', color: 'var(--color-warning-500)' };
+      return { status: 'Upcoming', color: '#F59E0B' };
     } else if (now.isAfter(end)) {
-      return { status: 'Completed', color: 'var(--color-success-500)' };
+      return { status: 'Completed', color: '#10B981' };
     } else {
-      return { status: 'Active', color: 'var(--color-primary-500)' };
+      return { status: 'Active', color: '#3B82F6' };
     }
   };
 
@@ -98,10 +98,13 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({
                   <span>{calculateDuration(campaign.startDate, campaign.endDate)}</span>
                 </div>
                 <div 
-                  className="gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium"
+                  className="gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:shadow-sm"
                   style={{ 
                     backgroundColor: color, 
-                    color: 'white' 
+                    color: 'white',
+                    border: `1px solid ${color}`,
+                    minWidth: '60px',
+                    textAlign: 'center'
                   }}
                   data-testid="campaign-header-status"
                 >
