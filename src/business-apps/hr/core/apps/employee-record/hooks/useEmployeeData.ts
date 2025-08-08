@@ -275,6 +275,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
     status
     title
     progressPercent
+    version
   }
 }
  
