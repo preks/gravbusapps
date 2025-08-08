@@ -8,6 +8,7 @@ import { useExpensePlanWidgetFilters, getActiveWidgetFromFilters } from '../../.
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import dayjs from 'dayjs';
 import { ExpenseStatus } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -18,6 +19,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const [pageSize, setPageSize] = useState(20);
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
 
   const {
     filterGroups,
@@ -215,23 +217,78 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     fetchStatistics();
   }, [fetchStatistics]);
 
+  // Process completion event listener for refreshing data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Refresh plans data
+          if (props.accessToken && props.userInfo?.employeeDetails?.employeeId) {
+            fetchItems(memoizedFilters, currentPage, pageSize);
+          }
+          // Refresh statistics
+          fetchStatistics();
+          // Trigger table refresh
+          setTableRefreshTrigger(prev => prev + 1);
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    // Override the dispatchEvent to capture process completion events
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event) {
+      if (event.type === 'com.newwork.process.completion' || 
+          event.type === 'com.newwork.process.flow.completion' ||
+          event.type === 'com.newwork.process.flow.task.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.reassignment.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.delegation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.escalation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.timeout.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.cancellation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.suspension.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.resumption.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.termination.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.reassignment.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.delegation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.escalation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.timeout.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.cancellation.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.suspension.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.resumption.completion' ||
+          event.type === 'com.newwork.process.flow.task.assignment.termination.completion') {
+        handleProcessCompletion(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    // Cleanup function to restore original dispatchEvent
+    return () => {
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
+
   // Memoize the label map to prevent unnecessary re-rendering
   const statusFilterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {};
     
     const statusLabels = {
-      [ExpenseStatus.CREATED]: 'Draft',
-      [ExpenseStatus.PREPARED]: 'Prepared',
-      [ExpenseStatus.ASSIGNED]: 'Assigned',
-      [ExpenseStatus.PENDING]: 'Pending',
-      [ExpenseStatus.APPROVED]: 'Approved',
-      [ExpenseStatus.RETURNED]: 'Returned',
-      [ExpenseStatus.REJECTED]: 'Rejected',
-      [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
-      [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
-      [ExpenseStatus.PAID]: 'Paid',
-      [ExpenseStatus.CLOSED]: 'Closed',
-      [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
+      [ExpenseStatus.CREATED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+      [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+      [ExpenseStatus.ASSIGNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+      [ExpenseStatus.PENDING]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
+      [ExpenseStatus.APPROVED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+      [ExpenseStatus.RETURNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+      [ExpenseStatus.REJECTED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+      [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
+      [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
+      [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+      [ExpenseStatus.CLOSED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+      [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
     };
     
     // Add all status mappings
@@ -291,6 +348,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       filterLabelMap={filterLabelMap}
       addFilter={addFilter}
       removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

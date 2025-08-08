@@ -210,7 +210,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
              </SelectTrigger>
              <SelectContent>
                <SelectItem value="monthly">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', "Monthly")}</SelectItem>
-               <SelectItem value="quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.quarterly', "Quarterly")}</SelectItem>
+               <SelectItem value="quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', "Quarterly")}</SelectItem>
                <SelectItem value="yearly">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly', "Yearly")}</SelectItem>
              </SelectContent>
            </Select>

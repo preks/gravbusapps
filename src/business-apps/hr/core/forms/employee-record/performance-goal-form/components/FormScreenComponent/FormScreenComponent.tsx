@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Form, Row, Col } from 'antd';
 import { FormInstance } from 'antd/lib/form';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -19,6 +18,7 @@ interface FormScreenComponentProps {
   handleFormSubmit: (e: React.FormEvent) => Promise<void>;
   statusOptions: { value: string; label: string }[];
   prefixDataTestId?: string;
+  isEditMode?: boolean;
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -26,7 +26,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isSubmitting,
   handleFormSubmit,
   statusOptions,
-  prefixDataTestId = 'performance-goal-form'
+  prefixDataTestId = 'performance-goal-form',
+  isEditMode = false
 }) => {
   const { t } = useTranslation();
   const [formIsValid, setFormIsValid] = useState(false);
@@ -99,10 +100,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 const dueDate = value instanceof Date ? value : new Date(value);
                 const start = startDate instanceof Date ? startDate : new Date(startDate);
                 
-                if (dueDate > start) {
+                // Compare only the date part (year, month, day) ignoring time
+                const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                
+                if (dueDateOnly >= startDateOnly) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error(t('performance_goal.due_date_after_start', 'Due date must be after start date')));
+                return Promise.reject(new Error(t('performance_goal.due_date_after_start', 'Due date must be on or after start date')));
               },
             }),
           ]}
@@ -187,7 +192,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               className="gba:w-40"
               size="large"
             >
-               {t("performance_goal.submit", "Submit")}
+               {isEditMode 
+                 ? t("performance_goal.update", "Update") 
+                 : t("performance_goal.submit", "Submit")
+               }
             </Button>
           </div>
         </Form.Item>

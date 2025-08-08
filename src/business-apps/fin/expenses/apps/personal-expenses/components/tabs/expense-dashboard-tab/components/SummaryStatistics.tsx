@@ -2,8 +2,9 @@ import React from 'react';
 import { Card, Alert, Spinner } from '@newwork/nw-design-system';
 import { ArrowUpOutlined, ArrowDownOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PiCurrencyCircleDollar } from 'react-icons/pi';
-import { formatNumber, calculatePercentChange } from '../utils/formatters';
+import { calculatePercentChange } from '../utils/formatters';
 import { DashboardStats } from '../types';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface SummaryStatisticsProps {
   stats: DashboardStats | undefined;
@@ -26,7 +27,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
     return (
       <div className="gba:summary-stats" data-testid="summary-statistics-error">
         <Alert variant="destructive">
-          <h4 className="gba:font-semibold">Error loading statistics</h4>
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_statistics','Error loading statistics')}</h4>
           <p>{error.message}</p>
         </Alert>
       </div>
@@ -45,7 +46,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
       <Card className="gba:h-full" data-testid="current-month-expenses-card">
         <div className="gba:space-y-2">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">Current Month Expenses</h3>
+            <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses_title','Current Month Expenses')}</h3>
             <div className="gba:flex gba:items-center gba:space-x-1" title={`${Math.abs(percentChange).toFixed(1)}% ${isPositiveChange ? 'increase' : 'decrease'} from last month`}>
               {isPositiveChange ? 
                 <ArrowUpOutlined className="gba:text-red-500" /> : 
@@ -56,36 +57,36 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           <div className="gba:flex gba:items-center gba:space-x-2">
             <PiCurrencyCircleDollar size={24} className={isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'} />
             <span className={`gba:text-2xl gba:font-bold ${isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'}`} data-testid="current-month-value">
-              {formatNumber(currentTotal)}
+              {formatNumberFunction(String(currentTotal), '0,0.00[,]00')}
             </span>
           </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{stats?.currentMonthExpenses?.count || 0} expense requests</p>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{stats?.currentMonthExpenses?.count || 0} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_requests','expense requests')}</p>
         </div>
       </Card>
 
       <Card className="gba:h-full" data-testid="pending-payouts-card">
         <div className="gba:space-y-2">
-          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">Pending Payouts</h3>
+          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts_title','Pending Payouts')}</h3>
           <div className="gba:flex gba:items-center gba:space-x-2">
             <PiCurrencyCircleDollar size={24} className="gba:text-blue-500" />
             <span className="gba:text-2xl gba:font-bold gba:text-blue-500" data-testid="pending-payouts-value">
-              {formatNumber(stats?.pendingPayouts || 0)}
+              {formatNumberFunction(String(stats?.pendingPayouts || 0), '0,0.00[,]00')}
             </span>
           </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">Awaiting payment</p>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment_description','Awaiting payment')}</p>
         </div>
       </Card>
 
       <Card className="gba:h-full" data-testid="upcoming-trips-card">
         <div className="gba:space-y-2">
-          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">Upcoming Trips</h3>
+          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips_title','Upcoming Trips')}</h3>
           <div className="gba:flex gba:items-center gba:space-x-2">
             <GlobalOutlined className="gba:text-2xl gba:text-purple-600" />
             <span className="gba:text-2xl gba:font-bold gba:text-purple-600" data-testid="upcoming-trips-value">
               {stats?.upcomingTrips || 0}
             </span>
           </div>
-          <p className="gba:text-sm gba:text-gray-500 gba:m-0">Planned business trips</p>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.planned_business_trips_description','Planned business trips')}</p>
         </div>
       </Card>
     </div>

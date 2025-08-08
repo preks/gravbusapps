@@ -1,5 +1,6 @@
 import React from 'react';
 import { PillType } from '@/components/pill/Pill';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 /**
  * Enum representing the technical statuses for expenses
@@ -41,8 +42,8 @@ const STATUS_COLORS = {
   IN_TRANSIT: 'rgba(0, 148, 209, 0.55)',
   ASSIGNED: 'rgba(0, 148, 209, 0.55)',
   
-  // Completed/Paid/Approved statuses - Green
-  COMPLETED: 'rgba(13, 188, 123, 0.55)',
+  // Closed/Paid/Approved statuses - Green
+  CLOSED: 'rgba(13, 188, 123, 0.55)',
   PAID: 'rgba(13, 188, 123, 0.55)',
   APPROVED: 'rgba(13, 188, 123, 0.55)',
   
@@ -70,19 +71,19 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft','Draft'),
         type: "draft",
         color: STATUS_COLORS.DRAFT
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: 'Assigned',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned','Assigned'),
         type: "waiting",
         color: STATUS_COLORS.ASSIGNED
       };
     case ExpenseStatus.PENDING:
       return {
-        label: 'In Approval',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval','In Approval'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
@@ -91,27 +92,27 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: 'In Transit',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit','In Transit'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
     case ExpenseStatus.PAID:
       return {
-        label: 'Paid',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid','Paid'),
         type: "completed",
         color: STATUS_COLORS.PAID
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Revision Required',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required','Revision Required'),
         type: "task",
         color: STATUS_COLORS.TASK
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: 'Closed',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed','Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -132,39 +133,39 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft','Draft'),
         type: "draft",
         color: STATUS_COLORS.DRAFT
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: 'Assigned',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned','Assigned'),
         type: "waiting",
         color: STATUS_COLORS.ASSIGNED
       };
     case ExpenseStatus.PENDING:
       return {
-        label: 'In Approval',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval','In Approval'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: 'Approved',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved','Approved'),
         type: "completed",
         color: STATUS_COLORS.APPROVED
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Revision Required',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required','Revision Required'),
         type: "task",
         color: STATUS_COLORS.TASK
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: 'Closed',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed','Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -185,13 +186,13 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
         type: "draft",
         color: STATUS_COLORS.DRAFT
       };
     case ExpenseStatus.PENDING:
       return {
-        label: 'In Approval',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
@@ -200,39 +201,39 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: 'In Transit',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
     case ExpenseStatus.PREPARED:
       return {
-        label: 'Prepared',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
         type: "draft",
         color: STATUS_COLORS.PREPARED
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: 'Assigned',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
         type: "waiting",
         color: STATUS_COLORS.ASSIGNED
       };
     case ExpenseStatus.PAID:
       return {
-        label: 'Paid',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
         type: "completed",
         color: STATUS_COLORS.PAID
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Revision Required',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
         type: "task",
         color: STATUS_COLORS.TASK
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: 'Closed',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -253,25 +254,25 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
         type: "draft",
         color: STATUS_COLORS.DRAFT
       };
     case ExpenseStatus.PREPARED:
       return {
-        label: 'Prepared',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
         type: "draft",
         color: STATUS_COLORS.PREPARED
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: 'Assigned',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
         type: "waiting",
         color: STATUS_COLORS.ASSIGNED
       };
     case ExpenseStatus.PENDING:
       return {
-        label: 'In Approval',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
@@ -280,27 +281,27 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
       return {
-        label: 'In Transit',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'),
         type: "waiting",
         color: STATUS_COLORS.IN_TRANSIT
       };
     case ExpenseStatus.PAID:
       return {
-        label: 'Paid',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
         type: "completed",
         color: STATUS_COLORS.PAID
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Revision Required',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
         type: "task",
         color: STATUS_COLORS.TASK
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: 'Closed',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {

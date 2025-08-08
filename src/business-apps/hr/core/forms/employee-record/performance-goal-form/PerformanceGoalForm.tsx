@@ -76,8 +76,16 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       
       form.setFieldsValue(initialValues);
     } else {
-      // For create mode, just set due date to 5 days from today
-      form.setFieldsValue({ dueDate: dayjs().add(5, 'day').toDate() });
+      // For create mode, set start date to today and due date to 5 days from today
+      const today = dayjs().startOf('day'); // Start of day to avoid time issues
+      const dueDate = today.add(5, 'day');
+      
+      console.log('Creating new goal - Start date:', today.toDate(), 'Due date:', dueDate.toDate());
+      
+      form.setFieldsValue({ 
+        startDate: today.toDate(),
+        dueDate: dueDate.toDate() 
+      });
     }
   }, [ additionalData, form]);
 
@@ -96,7 +104,8 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           dueDate: values.dueDate instanceof Date ? values.dueDate.toISOString() : values.dueDate,
           status: values.status || 'ON_TRACK',
           progressPercent: values.progressPercent || 0,
-          employee: additionalData?.employeeId
+          employee: additionalData?.employeeId,
+          version: isEditMode && additionalData?.version ? additionalData.version : 0
         },
         changeMode: isEditMode ? "UPDATE" : "INSERT"
       };
@@ -156,6 +165,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           handleFormSubmit={handleFormSubmit}
           statusOptions={statusOptions}
           prefixDataTestId={prefixDataTestId}
+          isEditMode={isEditMode}
         />
       </div>
     </div>

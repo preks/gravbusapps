@@ -25,6 +25,7 @@ interface PerformanceTabProps {
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   id: string;
   description?: string;
+  version?: number;
 }
 
 /**
@@ -246,7 +247,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                           dueDate: goal.dueDate,
                           completionDate: goal.completionDate,
                           progressPercent: goal.progressPercent,
-                          status: goal.status
+                          status: goal.status,
+                          version: goal.version
                         }}
                         prefixDataTestId="edit-goal"
                         accessToken={accessToken}

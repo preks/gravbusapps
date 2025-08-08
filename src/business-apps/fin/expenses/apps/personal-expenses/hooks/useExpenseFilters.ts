@@ -3,6 +3,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
 import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // Define these as constants for stable references outside the hook
 const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
@@ -67,7 +68,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'expenseDateRange',
-      title: 'Expense Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label','Expense Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(ExpenseDateRangeFilter, {
         expenseDateRange: expenseDateRange,
@@ -78,7 +79,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     },
     {
       id: 'timePeriod',
-      title: 'Time Period',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.time_period_label','Time Period'),
       filters: [
         { id: 'last30days', label: 'Last 30 days', selected: selectedFilters.includes('last30days') },
         { id: 'last90days', label: 'Last 90 days', selected: selectedFilters.includes('last90days') },
@@ -87,7 +88,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     },
     {
       id: 'expenseType',
-      title: 'Expense Type',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label','Expense Type'),
       filters: [
         { id: 'expense', label: 'Expense', selected: selectedFilters.includes('expense') },
         { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
@@ -95,7 +96,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     },
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status','Status'),
       filters: [
         { id: 'created', label: formatStatusName('CREATED'), selected: selectedFilters.includes('created') },
         { id: 'approved', label: formatStatusName('APPROVED'), selected: selectedFilters.includes('approved') },
@@ -105,7 +106,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     },
     {
       id: 'amount',
-      title: 'Amount Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
       filters: [
         { id: 'under100', label: 'Under €100', selected: selectedFilters.includes('under100') },
         { id: '100to500', label: '€100 - €500', selected: selectedFilters.includes('100to500') },
