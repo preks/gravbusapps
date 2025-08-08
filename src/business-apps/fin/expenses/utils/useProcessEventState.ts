@@ -44,7 +44,6 @@ export const useProcessEventState = (additionalData?: any) => {
    */
   const dispatchProcessContinueEventIfEnabled = (event: string, payload: any): boolean => {
     if (isProcessEventDispatchedRef.current) {
-      console.log('Process event dispatch blocked - form is currently disabled');
       return false;
     }
     
