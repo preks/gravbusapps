@@ -56,8 +56,40 @@ export const JobPositionProvider: React.FC<{
   // Hook for fetching job position by ID
   const { fetchJobPosition } = useGetJobPositionById(accessToken);
 
-  // Extract jobPositionId from additionalData (complete job position object format)
-  const jobPositionId = additionalData?.id;
+  // Extract jobPositionId from flow context structure or direct prop
+  const extractJobPositionIdFromContext = (data: any): string | null => {
+    // Method 1: Direct ID in additionalData
+    if (data?.id) {
+      return data.id;
+    }
+    
+    // Method 2: Extract from Kogito task payload structure
+    if (data?.psi_taskPayload?.psi_initialParameters?.jobPositionId) {
+      return data.psi_taskPayload.psi_initialParameters.jobPositionId;
+    }
+    
+    // Method 3: Check if additionalData has the context data ID as a key (legacy flow context)
+    if (data?.flowItems) {
+      const saveFlow = data.flowItems.find((item: any) => 
+        item.processName === 'saveJobPosition' && 
+        item.context?.contextName === 'jobPositionEntity'
+      );
+      
+      if (saveFlow?.context?.contextData) {
+        const jobPositionContext = saveFlow.context.contextData.find((ctx: any) => 
+          ctx.contextDataName === 'jobPositionId' && ctx.mainContext === true
+        );
+        
+        if (jobPositionContext?.id && data[jobPositionContext.id]) {
+          return data[jobPositionContext.id];
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  const jobPositionId = extractJobPositionIdFromContext(additionalData);
   const isEdit = !!jobPositionId;
 
 
