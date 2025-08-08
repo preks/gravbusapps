@@ -309,7 +309,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         listAmount: totalCount ? `${totalCount}` : undefined,
         search: search,
         setSearch: handleSearchChange,
-        placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.search_by_description_amount_status','Search by description, amount, or status...'),
+        placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
         filter: allSelectedFilters,
         setFilter: setFilters,
         filterLabelMap: filterLabelMap,
@@ -503,7 +503,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 {
                                   category: 'Navigations',
                                   key: 'view-expense-item-details',
-                                  label: 'View Expense Item Details',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder: expense_item_request_card.view_item_details','View Item Details'),
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handleSelectItem(record);

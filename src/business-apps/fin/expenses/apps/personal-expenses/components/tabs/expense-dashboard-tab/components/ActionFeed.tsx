@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner, Badge } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner } from '@newwork/nw-design-system';
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
-import { formatNumber } from '../utils/formatters';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getExpenseItemStatusDisplay } from '../../../../utils';
+import Pill from '@/components/pill';
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined;
@@ -11,24 +13,7 @@ interface ActionFeedProps {
   error: Error | null;
 }
 
-// Status badge variant function (same pattern as manager absences)
-const getStatusBadgeVariant = (status: string) => {
-  switch (status.toUpperCase()) {
-    case 'APPROVED':
-      return 'success' as const;
-    case 'PENDING':
-      return 'warning' as const;
-    case 'REJECTED':
-      return 'destructive' as const;
-    case 'PAID':
-      return 'success' as const;
-    case 'DRAFT':
-    case 'CREATED':
-      return 'secondary' as const;
-    default:
-      return 'default' as const;
-  }
-};
+
 
 export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error }) => {
   const [showAll, setShowAll] = useState(false);
@@ -117,25 +102,32 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                     {item.title}
                   </div>
                   <div className="gba:col-span-2 gba:flex gba:justify-center">
-                    <Badge 
-                      variant={getStatusBadgeVariant(item.status)} 
-                      className="gba:text-xs gba:px-1 gba:py-0"
-                    >
-                      {item.status}
-                    </Badge>
+                    {(() => {
+                      const statusConfig = getExpenseItemStatusDisplay(item.status);
+                      return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-status-cell" />;
+                    })()}
                   </div>
                   <div className="gba:col-span-2 gba:flex gba:justify-center">
                     {item.expenseType ? (
-                      <Badge variant="outline" className="gba:text-xs gba:px-1 gba:py-0">
-                        {item.expenseType}
-                      </Badge>
+                      <span className="gba:text-xs gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:border">
+                        {item.expenseType === 'Expense' 
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense')
+                          : item.expenseType === 'Trip'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip')
+                          : item.expenseType === 'Allowance'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance','Allowance')
+                          : item.expenseType === 'General'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.general_expense','General Expense')
+                          : item.expenseType
+                        }
+                      </span>
                     ) : (
                       <div className="gba:text-xs gba:text-gray-400">-</div>
                     )}
                   </div>
                   <div className="gba:col-span-3 gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-end">
                     <DollarCircleOutlined className="gba:mr-1" />
-                    {formatNumber(Number(item.totalAmount))}
+                    {formatNumberFunction(String(item.totalAmount), '0,0.00[,]00')}
                   </div>
                 </div>
               ))}

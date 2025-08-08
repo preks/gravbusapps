@@ -406,7 +406,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             {displayItem.costCenter && displayItem.costCenter.name && (
               <div className="gba:flex gba:justify-between">
                 <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_cost_center_label', 'Cost Center')}:
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}:
                 </span>
                 <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
               </div>

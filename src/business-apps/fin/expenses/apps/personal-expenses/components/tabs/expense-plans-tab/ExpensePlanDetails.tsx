@@ -82,7 +82,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.duration', 'Duration')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
                 {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
                 {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
               </span>
@@ -115,7 +115,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       {selectedItem.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">Description</CardTitle>
+            <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.description','Description')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">
@@ -128,7 +128,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       {/* Details Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="gba:text-base">Plan Details</CardTitle>
+          <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_details','Plan Details')}</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
@@ -153,7 +153,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.costCenter && (
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employement_layout.employment_profile_container.cost_center_input', 'Cost Center')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">{selectedItem.costCenter.name}</span>
               </div>
@@ -170,14 +170,14 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Total Amount')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {typeof selectedItem.totalAmount === 'number' ? formatCurrency(selectedItem.totalAmount) : '-'}
@@ -212,7 +212,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           data-testid="view-expense-plan-details-button"
         >
           <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.view_full_details', 'View Full Details')}
         </Button>
       </div>
     </div>

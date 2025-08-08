@@ -42,8 +42,8 @@ const STATUS_COLORS = {
   IN_TRANSIT: 'rgba(0, 148, 209, 0.55)',
   ASSIGNED: 'rgba(0, 148, 209, 0.55)',
   
-  // Completed/Paid/Approved statuses - Green
-  COMPLETED: 'rgba(13, 188, 123, 0.55)',
+  // Closed/Paid/Approved statuses - Green
+  CLOSED: 'rgba(13, 188, 123, 0.55)',
   PAID: 'rgba(13, 188, 123, 0.55)',
   APPROVED: 'rgba(13, 188, 123, 0.55)',
   
@@ -112,7 +112,7 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed','Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -165,7 +165,7 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed','Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -233,7 +233,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {
@@ -301,7 +301,7 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
         type: "completed",
-        color: STATUS_COLORS.COMPLETED
+        color: STATUS_COLORS.CLOSED
       };
     default:
       return {

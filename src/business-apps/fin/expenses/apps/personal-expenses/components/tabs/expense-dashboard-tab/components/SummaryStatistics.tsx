@@ -2,9 +2,9 @@ import React from 'react';
 import { Card, Alert, Spinner } from '@newwork/nw-design-system';
 import { ArrowUpOutlined, ArrowDownOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PiCurrencyCircleDollar } from 'react-icons/pi';
-import { formatNumber, calculatePercentChange } from '../utils/formatters';
+import { calculatePercentChange } from '../utils/formatters';
 import { DashboardStats } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface SummaryStatisticsProps {
   stats: DashboardStats | undefined;
@@ -57,7 +57,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           <div className="gba:flex gba:items-center gba:space-x-2">
             <PiCurrencyCircleDollar size={24} className={isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'} />
             <span className={`gba:text-2xl gba:font-bold ${isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'}`} data-testid="current-month-value">
-              {formatNumber(currentTotal)}
+              {formatNumberFunction(String(currentTotal), '0,0.00[,]00')}
             </span>
           </div>
           <p className="gba:text-sm gba:text-gray-500 gba:m-0">{stats?.currentMonthExpenses?.count || 0} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_requests','expense requests')}</p>
@@ -70,7 +70,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
           <div className="gba:flex gba:items-center gba:space-x-2">
             <PiCurrencyCircleDollar size={24} className="gba:text-blue-500" />
             <span className="gba:text-2xl gba:font-bold gba:text-blue-500" data-testid="pending-payouts-value">
-              {formatNumber(stats?.pendingPayouts || 0)}
+              {formatNumberFunction(String(stats?.pendingPayouts || 0), '0,0.00[,]00')}
             </span>
           </div>
           <p className="gba:text-sm gba:text-gray-500 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment_description','Awaiting payment')}</p>

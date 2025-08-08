@@ -128,7 +128,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   const widgets: WidgetItem[] = [
     {
       key: 'total-requests',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_requests_for_month',`Total Requests for ${currentMonthName}`),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_requests_for_month',`Total Requests for`) + " " + currentMonthName,
       value: statistics.currentMonthTotal,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
@@ -139,7 +139,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     },
     {
       key: 'total-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for ${currentMonthName}`),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for`) + " " + currentMonthName,
       value: statistics.currentMonthAmount,
       prefix: <DollarOutlined />,
       suffix: '€',
@@ -152,17 +152,17 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     },
     {
       key: 'pending-approval',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval','Pending Approval'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_approval','Pending Approval'),
       value: statistics.pendingApproval,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action','Requires action'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.requires_action','Requires action'),
       active: activeWidgetKey === 'pending-approval'
     },
     {
       key: 'reimbursable',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.reimbursable','Reimbursable'),
+      title: getTranslationFromI18nKeyAndLabel(' lowcoder:expense_item_list.expense_table.reimbursable','Reimbursable'),
       value: statistics.reimbursableAmount,
       prefix: <DollarOutlined />,
       suffix: '€',

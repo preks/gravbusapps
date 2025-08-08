@@ -10,16 +10,13 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge, 
-  Alert,
-  Checkbox,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
-import Pill, { PillType } from '@/components/pill';
-import { Modal, message } from 'antd';
+import Pill from '@/components/pill';
+import { message } from 'antd';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -30,38 +27,43 @@ import AdvancePaymentDetails from './AdvancePaymentDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable';
 
-// Advance payment specific status badge variant function (proper colors for advance payments)
-const getAdvancePaymentStatusBadgeVariant = (status: string) => {
-  switch (status.toUpperCase()) {
-    case 'PREPARED':
-      return 'secondary' as const;
-    case 'CREATED':
-      return 'secondary' as const;
-    case 'ASSIGNED':
-      return 'info' as const;
-    case 'PENDING':
-      return 'info' as const;
-    case 'APPROVED':
-      return 'warning' as const;
-    case 'VERIFIED':
-      return 'warning' as const;
-    case 'BOOKED':
-      return 'warning' as const;
-    case 'TRANSFERRED':
-      return 'warning' as const;
-    case 'PAID':
-      return 'success' as const;
-    case 'REJECTED':
-      return 'info' as const;
-    case 'CLOSED':
-      return 'success' as const;
-    default:
-      return 'outline' as const;
+// Sorting utilities following SOLID principles
+interface SortableField<T> {
+  key: keyof T;
+  type: 'string' | 'number' | 'date';
+  nullable?: boolean;
+}
+
+class SortingService {
+  static createSorter<T>(field: SortableField<T>) {
+    return (a: T, b: T) => {
+      const aValue = a[field.key];
+      const bValue = b[field.key];
+      
+      // Handle nullable values
+      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
+      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
+      
+      switch (field.type) {
+        case 'string':
+          return String(aSafe).localeCompare(String(bSafe));
+        case 'number':
+          return Number(aSafe) - Number(bSafe);
+        case 'date':
+          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
+          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
+          return aDate - bDate;
+        default:
+          return 0;
+      }
+    };
   }
-};
+}
+
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -95,6 +97,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  // Internal sorting state - managed locally like expense plans table
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  const [sortConfig, setSortConfig] = useState<{ field: string | null; direction: 'asc' | 'desc' | null }>({ field: null, direction: null });
 
   // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
@@ -221,295 +228,332 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     }
   }, []);
 
-  
+  const handleSort = useCallback((field: string) => {
+    setSortConfig(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
+  const renderSortIcon = useCallback((field: string) => {
+    if (sortConfig.field !== field) {
+      return null;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" /> : 
+      <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />;
+  }, [sortConfig]);
+
+  const sortedItems = useMemo(() => {
+    if (!items || !sortConfig.field || !sortConfig.direction) {
+      return items;
+    }
+
+    return [...items].sort((a, b) => {
+      const aValue = a[sortConfig.field as keyof AdvancePayment];
+      const bValue = b[sortConfig.field as keyof AdvancePayment];
+      
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+      
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        comparison = aValue.getTime() - bValue.getTime();
+      } else {
+        comparison = String(aValue).localeCompare(String(bValue));
+      }
+      
+      return sortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [items, sortConfig]);
 
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
-    if (isLoading) {
-      return (
-        <div 
-          className="gba:p-6 gba:text-center" 
-          data-testid={`${DATA_TEST_ID_PREFIX}-loading-state`}
-        >
-          <Spinner size="lg" />
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div 
-          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-          data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
-        >
-          <Alert variant="destructive" className="gba:mb-4">
-            <div className="gba:font-medium">Error Loading Data</div>
-            <div className="gba:text-sm gba:mt-1">{error}</div>
-          </Alert>
-        </div>
-      );
-    }
-
-    if (!items || items.length === 0) {
-      return (
-        <div 
-          className="gba:p-6 gba:text-center" 
-          data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
-        >
-          <p>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}</p>
-        </div>
-      );
-    }
-
     return (
-      <div className="gba:w-full">
-        <div className="gba:overflow-x-auto">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-            <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead
-                  className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                />
-                <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-header`}
-                >
-                  Expense Plan
-                </TableHead>
-                <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-header`}
-                >
-                  Plan Number
-                </TableHead>
-                <TableHead
-                  className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
-                >
-                  Status
-                </TableHead>
-                <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
-                >
-                  Amount
-                </TableHead>
-                <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-advance-header`}
-                >
-                  Advance
-                </TableHead>
-                <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-header`}
-                >
-                  Payment Method
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!isLoading && (!items || items.length === 0) ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="gba:py-8 gba:text-center">
-                    <div className="gba:text-gray-500">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items?.map((record) => (
-                  <TableRow
-                    key={record.id}
-                    className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
-                    onClick={(event: React.MouseEvent) => {
-                      if ((event.target as HTMLElement).tagName !== 'INPUT') {
-                        handleSelectItem(record);
-                      }
-                    }}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
-                  >
-                    <TableCell
-                      className="gba:py-4 gba:px-3"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+      <div className="gba:pr-6">
+        <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+          <CardContent className="gba:p-0">
+            {isLoading && (
+              <div className="gba:flex gba:justify-center gba:p-4">
+                <Spinner />
+              </div>
+            )}
+            
+            <div className="gba:overflow-x-auto">
+              <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead
+                      className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                    />
+                    <TableHead
+                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('expensePlanTitle')}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-header`}
                     >
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
-                          variant="secondary"
-                          staticFlowData={[
-                            {
-                              category: 'Navigations',
-                              key: 'view-advance-payment',
-                              label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
-                              onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation();
-                                handleSelectItem(record);
-                              }
-                            },
-                            ...(record.expensePlanId ? [{
-                              category: 'Navigations',
-                              key: 'view-plan-details',
-                              label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
-                              onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation();
-                                handleViewExpensePlanDetails(record);
-                              }
-                            }] : []),
-                            ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
-                              category: 'Navigations',
-                              key: 'view-request-details',
-                              label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
-                              onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation();
-                                handleViewExpenseRequestDetails(record);
-                              }
-                            }] : [])
-                          ]}
-                          accessToken={contextProps.accessToken}
-                          emptyStateBehavior="disable"
-                          deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                      <div className="gba:flex gba:items-center">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan')}
+                        {renderSortIcon('expensePlanTitle')}
                       </div>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-cell-${record.id}`}>
-                      <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-expense-plan-cell">
-                        {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('planCode')}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-header`}
+                    >
+                      <div className="gba:flex gba:items-center">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.plan_number_input', 'Plan Number')}
+                        {renderSortIcon('planCode')}
                       </div>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-cell-${record.id}`}>
-                      <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-plan-number-cell">
-                        {record.expensePlan?.code ?? 'N/A'}
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('status')}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                    >
+                      <div className="gba:flex gba:items-center">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status')}
+                        {renderSortIcon('status')}
                       </div>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                      {(() => {
-                        const statusConfig = getAdvancePaymentStatusDisplay(record.status);
-                        return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-cell" />;
-                      })()}
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
-                      <span data-testid="advance-payment-amount-cell">
-                        {record.expensePlan?.totalAmount ? formatNumberFunction(record.expensePlan.totalAmount.toString(), "0.00[,]00") : '0.00'} {record.expensePlan?.currency?.code ?? 'EUR'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-advance-cell-${record.id}`}>
-                      <span data-testid="advance-payment-advance-cell">
-                        {formatNumberFunction(record.amount?.toString() ?? '0', "0.00[,]00")} {record.currency?.code ?? 'EUR'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}>
-                      <div className="gba:text-sm" data-testid="advance-payment-method-cell">
-                        {record.paymentMethod ? record.paymentMethod.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'N/A'}
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
+                      onClick={() => handleSort('amount')}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')}
+                        {renderSortIcon('amount')}
                       </div>
-                    </TableCell>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-advance-header`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-end">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                      onClick={() => handleSort('paymentMethod')}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-header`}
+                    >
+                      <div className="gba:flex gba:items-center">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}
+                        {renderSortIcon('paymentMethod')}
+                      </div>
+                    </TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {/* Pagination - Only show if there are multiple pages */}
-        {totalCount > pageSize ? (
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
-            <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payments', getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'))}`}
+                </TableHeader>
+                <TableBody>
+                  {!isLoading && (!sortedItems || sortedItems.length === 0) ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="gba:py-8 gba:text-center">
+                        <div className="gba:text-gray-500">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedItems?.map((record) => (
+                      <TableRow
+                        key={record.id}
+                        className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
+                        onClick={() => handleSelectItem(record)}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                      >
+                        <TableCell
+                          className="gba:py-4 gba:px-3"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                        >
+                          <div className="gba:flex gba:justify-start gba:gap-2">
+                            <AppActionButton
+                              data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
+                              variant="secondary"
+                              staticFlowData={[
+                                {
+                                  category: 'Navigations',
+                                  key: 'view-advance-payment',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleSelectItem(record);
+                                  }
+                                },
+                                ...(record.expensePlanId ? [{
+                                  category: 'Navigations',
+                                  key: 'view-plan-details',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleViewExpensePlanDetails(record);
+                                  }
+                                }] : []),
+                                ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
+                                  category: 'Navigations',
+                                  key: 'view-request-details',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation();
+                                    handleViewExpenseRequestDetails(record);
+                                  }
+                                }] : [])
+                              ]}
+                              accessToken={contextProps.accessToken}
+                              emptyStateBehavior="disable"
+                              deferMainContextRequestsUntilClick
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-cell-${record.id}`}>
+                          <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-expense-plan-cell">
+                            {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-cell-${record.id}`}>
+                          <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-plan-number-cell">
+                            {record.expensePlan?.code ?? 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                          {(() => {
+                            console.log('record.status',record.status)
+                            const statusConfig = getAdvancePaymentStatusDisplay(record.status);
+                            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-cell" />;
+                          })()}
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
+                          <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-amount-cell">
+                            {record.expensePlan?.totalAmount ? 
+                              `${formatNumberFunction(record.expensePlan.totalAmount.toString(), "0.00[,]00")} ${record.expensePlan?.currency?.code ?? 'EUR'}` : 
+                              '0.00 EUR'
+                            }
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-advance-cell-${record.id}`}>
+                          <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-advance-cell">
+                            {formatNumberFunction(record.amount?.toString() ?? '0', "0.00[,]00")} {record.currency?.code ?? 'EUR'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}>
+                          <div className="gba:text-sm" data-testid="advance-payment-method-cell">
+                            {record.paymentMethod ? record.paymentMethod.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'N/A'}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    const newPageSize = Number(e.target.value);
-                    handlePageSizeChange(newPageSize);
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
+
+            {/* Pagination */}
+            {totalCount > pageSize ? (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payments', getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'))}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        const newPageSize = Number(e.target.value);
+                        handlePageSizeChange(newPageSize);
+                      }}
+                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to first page</span>
+                      ⟪
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to previous page</span>
+                      ⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to next page</span>
+                      ⟩
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
+                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to last page</span>
+                      ⟩⟩
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+            ) : (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      const newPageSize = Number(e.target.value);
+                      handlePageSizeChange(newPageSize);
+                    }}
+                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
               </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                >
-                  <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                >
-                  <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                >
-                  <span className="gba:sr-only">Go to next page</span>
-                  ⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                >
-                  <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  const newPageSize = Number(e.target.value);
-                  handlePageSizeChange(newPageSize);
-                }}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
-  }, [items, isLoading, error, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken, totalCount]);
+  }, [sortedItems, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePageChange, handlePageSizeChange, sortConfig, handleSort, renderSortIcon]);
 
   // Memoize DataContainer props to prevent unnecessary re-renders
   const dataControllerProps = useMemo(() => ({

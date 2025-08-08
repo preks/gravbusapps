@@ -75,9 +75,9 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     if (startDate && endDate) {
       return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
     } else if (startDate) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','From {date}').replace('{date}', startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }));
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','From') + " " + startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     } else if (endDate) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date','To {date}').replace('{date}', endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }));
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date','To') + " " + endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     }
     
     return '';
@@ -113,14 +113,14 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
       customComponent: React.createElement(ExpenseDateRangeFilter, {
         expenseDateRange: expenseDateRange,
         onDateRangeChange: setExpenseDateRange,
-        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date','End date')]
       }),
       hideSearch: true,
     },
 
     {
       id: 'expenseType',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_type','Expense Type'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label','Expense Type'),
       filters: [
         { id: 'expense', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense'), selected: selectedFilters.includes('expense') },
         { id: 'trip', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip'), selected: selectedFilters.includes('trip') }
@@ -172,12 +172,12 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     // Add date range label if active
     const dateRangeLabel = formatDateRangeLabel(expenseDateRange);
     if (dateRangeLabel) {
-      map['expenseDateRange'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label','Expense Date: {range}').replace('{range}', dateRangeLabel);
+      map['expenseDateRange'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label','Expense Date:') + " " + dateRangeLabel;
     }
     
     // Add amount range label if active
     if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
-      let amountLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label','Amount Range: {range}');
+      
       let rangeText = '';
       if (amountRange.min !== undefined && amountRange.max !== undefined) {
         rangeText = `${amountRange.min} - ${amountRange.max}`;
@@ -186,7 +186,7 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
       } else if (amountRange.max !== undefined) {
         rangeText = `≤${amountRange.max}`;
       }
-      map['amountRange'] = amountLabel.replace('{range}', rangeText);
+      map['amountRange'] =getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label','Amount Range: ') + rangeText;
     }
     
     return map;

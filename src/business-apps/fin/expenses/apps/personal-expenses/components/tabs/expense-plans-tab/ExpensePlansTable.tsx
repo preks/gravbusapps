@@ -329,7 +329,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                       data-testid={`${DATA_TEST_ID_PREFIX}-plan-date-header`}
                     >
                                                <div className="gba:flex gba:items-center">
-                           {getTranslationFromI18nKeyAndLabel('lowcoder:expense.plans.table.planDate', 'Plan Date')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}
                            {renderSortIcon('planDate')}
                          </div>
                     </TableHead>
@@ -695,9 +695,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           filter: props.selectedFilters,
           setFilter: props.setFilters,
           filterLabelMap: props.filterLabelMap,
+          placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
           addButton: {
             onClick: handleAddExpensePlan,
-            label: 'Add',
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add', 'Add'),
             'data-testid': 'add-expense-plan-button',
           },
           listTitle: 'My Expense Plans',
@@ -717,7 +718,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title || 'Expense Plan Details'}
+              {selectedItem?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details','Expense Plan Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
@@ -738,7 +739,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title || 'Expense Request Details'}
+              {selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">

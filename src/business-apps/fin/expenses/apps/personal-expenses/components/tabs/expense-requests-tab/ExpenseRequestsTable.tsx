@@ -304,7 +304,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-code-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.request_number','Request Number')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.request_number_input','Request Number')}
                         {renderSortIcon('code')}
                       </div>
                     </TableHead>
@@ -314,7 +314,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-title-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title','Title')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title','Title')}
                         {renderSortIcon('title')}
                       </div>
                     </TableHead>
@@ -324,7 +324,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-request-date-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.request_date','Request Date')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_date_label','Request Date')}
                         {renderSortIcon('requestDate')}
                       </div>
                     </TableHead>
@@ -334,7 +334,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-start-date-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.start_date','Start Date')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date','Start Date')}
                         {renderSortIcon('startDate')}
                       </div>
                     </TableHead>
@@ -344,7 +344,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-end-date-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.end_date','End Date')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date','End Date')}
                         {renderSortIcon('endDate')}
                       </div>
                     </TableHead>
@@ -354,7 +354,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-status-header"
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status','Status')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.status','Status')}
                         {renderSortIcon('status')}
                       </div>
                     </TableHead>
@@ -364,7 +364,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-reimbursable-amount-header"
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.reimbursable_amount','Reimbursable Amount')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable','Reimbursable Amount')}
                         {renderSortIcon('reimbursableAmount')}
                       </div>
                     </TableHead>
@@ -373,7 +373,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       data-testid="expense-requests-advance-header"
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.advance','Advance')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance','Advance')}
                       </div>
                     </TableHead>
                   </TableRow>
@@ -416,7 +416,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                 {
                                   category: 'Actions',
                                   key: 'print',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.download_text','Print'),
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print','Print'),
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handlePrintRequest(record);
@@ -475,12 +475,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right">
                           {(() => {
                             const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
-                            const advanceAmount = advanceAmountValue && advanceAmountValue !== 0 ? advanceAmountValue : '-';
-                            
                             // Use expense plan currency if available, otherwise fall back to main currency
                             const currencyCode = advanceAmountValue && advanceAmountValue !== 0  ?  record.currency?.code  : '';
-                            const formattedAmount = `${formatNumberFunction(String(advanceAmount))} ${currencyCode}`;
-                          
+                            const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? `${formatNumberFunction(String(advanceAmountValue))} ${currencyCode}` : "-";
                             return (
                               <div data-testid={`total-amount-${record.id}`}>
                                 {formattedAmount}
@@ -499,7 +496,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
             {totalCount > pageSize && (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t" data-testid="expense-requests-pagination">
                 <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title_list','expense requests')}`}
+                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests','Expense Requests')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">
@@ -574,17 +571,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     <>
       <DataContainer
         dataControllerProps={{
-          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title','Expense Requests'),
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests','Expense Requests'),
           listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchInput,
           setSearch: handleSearchChange,
-          placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.search_module','Search by request number, title, or status...'),
+          placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
           filter: selectedFilters,
           setFilter: setFilters || (() => {}),
           filterLabelMap: filterLabelMap,
           addButton: {
             onClick: onAddExpenseRequest || (() => {}),
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add','Add'),
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add','Add'),
             'data-testid': 'add-expense-plan-button',
           },
         }}
@@ -618,7 +615,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
       {/* Print Modal */}
       <Modal
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.download_text','Print Expense Request')}
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_request','Print Expense Request')}
         open={printModalOpen}
         onCancel={() => setPrintModalOpen(false)}
         footer={null}
