@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { navigateTo } from '@/common/utils/navigationUtils';
 import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsence';
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
