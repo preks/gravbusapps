@@ -3,6 +3,7 @@ import { Card, Button, CardContent } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { startProcess } from '@/common/utils/start-process';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   const { userInfo } = props;
@@ -16,7 +17,6 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
       return;
     }
     
-    console.log('Starting Record Expense process for employeeId:', employeeId);
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseItem',
@@ -36,7 +36,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
       return;
     }
     
-    console.log('Starting Submit Request process for employeeId:', employeeId);
+
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
@@ -49,43 +49,43 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   const actionCards = [
     {
       id: 'record-expense',
-      title: 'Record Expense',
-      description: 'Quickly add a new expense to your records. Keep track of your spending efficiently.',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense','Record Expense'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense_description','Quickly add a new expense to your records. Keep track of your spending efficiently.'),
       icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
       features: [
-        'Single or multiple items',
-        'Attach receipts easily',
-        'Categorize for clarity'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.single_or_multiple_items','Single or multiple items'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.attach_receipts_easily','Attach receipts easily'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity','Categorize for clarity')
       ],
-      buttonText: 'New Expense',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense','New Expense'),
       buttonIcon: <PlusCircleOutlined />,
       buttonAction: handleRecordExpense
     },
     {
       id: 'submit-request',
-      title: 'Submit Request',
-      description: 'Submit your expense reports for reimbursement and manage your trip requests efficiently.',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_request','Submit Request'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_request_description','Submit your expense reports for reimbursement and manage your trip requests efficiently.'),
       icon: <SendOutlined className="gba:text-2xl gba:text-green-500" />,
       features: [
-        'Create expense report',
-        'Request trip approval',
-        'Track submission status'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.create_expense_report','Create expense report'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_trip_approval','Request trip approval'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.track_submission_status','Track submission status')
       ],
-      buttonText: 'New Request',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_request','New Request'),
       buttonIcon: <SendOutlined />,
       buttonAction: handleSubmitRequest
     },
     {
       id: 'view-reports',
-      title: 'View Reports',
-      description: 'Access and review your expense reports and analytics to track your spending patterns.',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports_description','Access and review your expense reports and analytics to track your spending patterns.'),
       icon: <ExperimentOutlined className="gba:text-2xl gba:text-purple-500" />,
       features: [
-        'View trends over time',
-        'Export custom reports',
-        'Analyze spending data'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_trends_over_time','View trends over time'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.export_custom_reports','Export custom reports'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.analyze_spending_data','Analyze spending data')
       ],
-      buttonText: 'View Reports',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
       buttonIcon: <ExperimentOutlined />,
       buttonAction: () => console.log('View reports clicked')
     }

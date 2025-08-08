@@ -47,6 +47,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   setFilters: (filters: string[]) => void;
   availableStatuses: string[];
   amountRange?: { min?: number; max?: number } | null;
+  tableRefreshTrigger?: number;
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -82,6 +83,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const apiFilters = getFilters(allSelectedFilters);
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
   }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
+
+  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
+  useEffect(() => {
+    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
+      const apiFilters = getFilters(allSelectedFilters);
+      fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+    }
+  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, allSelectedFilters, getFilters, sortField, sortOrder]);
 
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -272,7 +281,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       >
         <Alert variant="destructive" className="gba:mb-4">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
-            Error Loading Expense Items
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_expense_items','Error Loading Expense Items')}
           </div>
           <div className="gba:text-gray-600">
             {error}
@@ -286,7 +295,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           }}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
-          Retry
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry','Retry')}
         </Button>
       </div>
     );
@@ -296,17 +305,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     <>
       <DataContainer
       dataControllerProps={{
-        listTitle: 'Expense Items',
+        listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items'),
         listAmount: totalCount ? `${totalCount}` : undefined,
         search: search,
         setSearch: handleSearchChange,
-        placeholder: 'Search by description, amount, or status...',
+        placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
         filter: allSelectedFilters,
         setFilter: setFilters,
         filterLabelMap: filterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
-          label: 'Add',
+          label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add','Add'),
           'data-testid': 'add-expense-item-button',
         },
         actions: [
@@ -319,7 +328,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                   onClick={handleCreateExpenseRequest}
                   className="gba:inline-flex gba:items-center gba:gap-2"
                 >
-                  Create Expense Request ({selectedRowKeys.length})
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request','Create Expense Request')} ({selectedRowKeys.length})
                 </Button>,
                 <Button
                   key="delete-selection"
@@ -328,7 +337,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                   onClick={() => handleDeleteSelection()}
                   className="gba:inline-flex gba:items-center gba:gap-2"
                 >
-                  Delete Selection ({selectedRowKeys.length})
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.delete_selection','Delete Selection')} ({selectedRowKeys.length})
                 </Button>
               ]
             : []),
@@ -367,7 +376,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                         data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                       >
-                        Actions
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.actions','Actions')}
                       </TableHead>
                       <TableHead
                         className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -375,7 +384,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                       >
                         <div className="gba:flex gba:items-center">
-                          Title
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_label','Title')}
                           {renderSortIcon('title')}
                         </div>
                       </TableHead>
@@ -385,7 +394,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
                       >
                         <div className="gba:flex gba:items-center">
-                          {getTranslationFromI18nKeyAndLabel('gba.expenseItems.expenseDate', 'Expense Date')}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date','Expense Date')}
                           {renderSortIcon('expenseDate')}
                         </div>
                       </TableHead>
@@ -395,7 +404,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                       >
                         <div className="gba:flex gba:items-center">
-                          Status
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status','Status')}
                           {renderSortIcon('status')}
                         </div>
                       </TableHead>
@@ -403,7 +412,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                         data-testid={`${DATA_TEST_ID_PREFIX}-attachment-header`}
                       >
-                        Attachment
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment','Attachment')}
                       </TableHead>
                       <TableHead
                         className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -411,7 +420,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                       >
                         <div className="gba:flex gba:items-center">
-                          Reimbursable Amount
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable','Reimbursable Amount')}
                           {renderSortIcon('reimbursableAmount')}
                         </div>
                       </TableHead>
@@ -422,7 +431,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                       <TableRow>
                         <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                           <div className="gba:text-gray-500">
-                            No expense items found. Create your first expense item to get started.
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -458,7 +467,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 {
                                   category: 'Actions',
                                   key: 'update-expense-item',
-                                  label: 'Update Expense Item',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.update_title_module','Update Expense Item'),
                                   onClick: () => {
                                     startProcess({
                                       domain: 'employee-expense',
@@ -479,7 +488,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 {
                                   category: 'Actions',
                                   key: 'delete-expense-item',
-                                  label: 'Delete Expense Item',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:discard_expense_items.discard_expense_items','Delete Expense Item'),
                                   onClick: () => {
                                     startProcess({
                                       domain: 'employee-expense',
@@ -494,7 +503,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 {
                                   category: 'Navigations',
                                   key: 'view-expense-item-details',
-                                  label: 'View Expense Item Details',
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.view_item_details','View Item Details'),
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handleSelectItem(record);
@@ -562,11 +571,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               {totalCount > pageSize ? (
                 <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
                   <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense items`}
+                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items_count','expense items')}`}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                     <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                      <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page','Rows per page')}</p>
                       <select
                         value={pageSize}
                         onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
@@ -580,7 +589,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                       </select>
                     </div>
                     <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                      Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page','Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} {Math.ceil(totalCount / pageSize)}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-2">
                       <Button

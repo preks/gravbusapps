@@ -4,6 +4,7 @@ import { ExpenseFilter } from './useGetExpenseItems';
 import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
 import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // Define these as constants for stable references outside the hook
 const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
@@ -44,21 +45,21 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
   const [expenseDateRange, setExpenseDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
 
-  // Helper function to format status display names based on srn_expenseItemList mapping
+  // Helper function to format status display names using platform translations
   const formatStatusName = (status: string): string => {
-    // Map status to proper display name with backend status in parentheses
+    // Map status to proper display name using platform translations
     const statusMapping: Record<string, string> = {
-      'PREPARED': 'Prepared (Prepared)',
-      'CREATED': 'Draft (Created)',
-      'ASSIGNED': 'Assigned (Assigned)',
-      'PENDING': 'In Approval (Pending)',
-      'APPROVED': 'In Transit (Approved)',
-      'VERIFIED': 'In Transit (Verified)',
-      'BOOKED': 'In Transit (Booked)',
-      'TRANSFERRED': 'In Transit (Transferred)',
-      'PAID': 'Paid (Paid)',
-      'REJECTED': 'Revision Required (Rejected)',
-      'CLOSED': 'Closed (Closed)',
+      'PREPARED': getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+      'CREATED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
+      'ASSIGNED': getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+      'PENDING': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
+      'APPROVED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')})`,
+      'VERIFIED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
+      'BOOKED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
+      'TRANSFERRED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
+      'PAID': getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+      'REJECTED': `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`,
+      'CLOSED': getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
     };
     
     return statusMapping[status] || `${status.charAt(0) + status.slice(1).toLowerCase()} (${status})`;
@@ -74,9 +75,9 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     if (startDate && endDate) {
       return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
     } else if (startDate) {
-      return `From ${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','From') + " " + startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     } else if (endDate) {
-      return `To ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`;
+      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date','To') + " " + endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
     }
     
     return '';
@@ -107,27 +108,27 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'expenseDateRange',
-      title: 'Expense Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range','Expense Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(ExpenseDateRangeFilter, {
         expenseDateRange: expenseDateRange,
         onDateRangeChange: setExpenseDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date','End date')]
       }),
       hideSearch: true,
     },
 
     {
       id: 'expenseType',
-      title: 'Expense Type',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label','Expense Type'),
       filters: [
-        { id: 'expense', label: 'Expense', selected: selectedFilters.includes('expense') },
-        { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
+        { id: 'expense', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense'), selected: selectedFilters.includes('expense') },
+        { id: 'trip', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip'), selected: selectedFilters.includes('trip') }
       ]
     },
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status','Status'),
       filters: allStatuses.map(status => ({
         id: status.toLowerCase(),
         label: formatStatusName(status),
@@ -136,12 +137,12 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     },
     {
       id: 'amountRange',
-      title: 'Amount Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
       type: DataFilterType.NUMBER_RANGE,
       customComponent: React.createElement(ExpenseAmountRangeFilter, {
         amountRange: amountRange,
         onAmountRangeChange: setAmountRange,
-        label: 'Amount Range',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
         dataTestIdPrefix: 'expense-amount-range'
       }),
       hideSearch: true,
@@ -171,20 +172,21 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     // Add date range label if active
     const dateRangeLabel = formatDateRangeLabel(expenseDateRange);
     if (dateRangeLabel) {
-      map['expenseDateRange'] = `Expense Date: ${dateRangeLabel}`;
+      map['expenseDateRange'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label','Expense Date:') + " " + dateRangeLabel;
     }
     
     // Add amount range label if active
     if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
-      let amountLabel = 'Amount Range: ';
+      
+      let rangeText = '';
       if (amountRange.min !== undefined && amountRange.max !== undefined) {
-        amountLabel += `${amountRange.min} - ${amountRange.max}`;
+        rangeText = `${amountRange.min} - ${amountRange.max}`;
       } else if (amountRange.min !== undefined) {
-        amountLabel += `≥${amountRange.min}`;
+        rangeText = `≥${amountRange.min}`;
       } else if (amountRange.max !== undefined) {
-        amountLabel += `≤${amountRange.max}`;
+        rangeText = `≤${amountRange.max}`;
       }
-      map['amountRange'] = amountLabel;
+      map['amountRange'] =getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label','Amount Range: ') + rangeText;
     }
     
     return map;

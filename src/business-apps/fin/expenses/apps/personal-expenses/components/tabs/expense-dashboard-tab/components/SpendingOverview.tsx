@@ -3,34 +3,35 @@ import { Card, CardHeader, CardContent, CardTitle, Alert, Spinner, Tabs, TabsLis
 import { DashboardStats } from '../types';
 import ComparisonCard from './ComparisonCard';
 import ExpenseDistribution from './ExpenseDistribution';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // Helper function to get comparison data based on chart view
 const getComparisonProps = (stats: DashboardStats, chartView: string | number) => {
   switch (chartView) {
     case 'Quarterly':
       return {
-        title: 'Quarterly Comparison',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly_comparison','Quarterly Comparison'),
         currentValue: stats.currentQuarterExpenses?.total || 0,
         previousValue: stats.previousQuarterExpenses?.total || 0,
-        currentLabel: 'This Quarter',
-        previousLabel: 'Last Quarter',
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_quarter','This Quarter'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_quarter','Last Quarter'),
       };
     case 'Yearly':
       return {
-        title: 'Yearly Comparison',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly_comparison','Yearly Comparison'),
         currentValue: stats.currentYearExpenses?.total || 0,
         previousValue: stats.previousYearExpenses?.total || 0,
-        currentLabel: 'This Year',
-        previousLabel: 'Last Year',
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_year','This Year'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_year','Last Year'),
       };
     case 'Monthly':
     default:
       return {
-        title: 'Monthly Comparison',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly_comparison','Monthly Comparison'),
         currentValue: stats.currentMonthExpenses?.total || 0,
         previousValue: stats.previousMonthExpenses?.total || 0,
-        currentLabel: 'This Month',
-        previousLabel: 'Last Month',
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_month','This Month'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_month','Last Month'),
       };
   }
 };
@@ -64,7 +65,7 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
     return (
       <Card className="gba:spending-overview-card" data-testid="spending-overview-error">
         <Alert variant="destructive">
-          <h4 className="gba:font-semibold">Error loading spending overview</h4>
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_spending_overview','Error loading spending overview')}</h4>
           <p>{error.message}</p>
         </Alert>
       </Card>
@@ -79,12 +80,12 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
     <Card className="gba:spending-overview-card" data-testid="spending-overview-card">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle>Spending Overview</CardTitle>
+          <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.spending_overview','Spending Overview')}</CardTitle>
           <Tabs value={String(chartView)} onValueChange={setChartView} data-testid="view-selector">
             <TabsList>
-              <TabsTrigger value="Monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="Quarterly">Quarterly</TabsTrigger>
-              <TabsTrigger value="Yearly">Yearly</TabsTrigger>
+              <TabsTrigger value="Monthly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly','Monthly')}</TabsTrigger>
+              <TabsTrigger value="Quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly','Quarterly')}</TabsTrigger>
+              <TabsTrigger value="Yearly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly','Yearly')}</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
