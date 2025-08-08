@@ -503,7 +503,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 {
                                   category: 'Navigations',
                                   key: 'view-expense-item-details',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder: expense_item_request_card.view_item_details','View Item Details'),
+                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.view_item_details','View Item Details'),
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation();
                                     handleSelectItem(record);

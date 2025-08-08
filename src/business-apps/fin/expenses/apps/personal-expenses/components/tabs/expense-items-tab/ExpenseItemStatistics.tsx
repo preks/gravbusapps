@@ -164,7 +164,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       prefix: <EuroOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expnses','Current month expenses'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses','Current month expenses'),
       trend: totalExpensesTrend,
       active: activeWidgetKey === 'total-expenses',
       onClick: () => handleWidgetClick('total-expenses')

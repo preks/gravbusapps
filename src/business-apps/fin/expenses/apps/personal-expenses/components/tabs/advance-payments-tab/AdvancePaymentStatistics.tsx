@@ -154,11 +154,9 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      "expense_plans_tab": {
       description: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.awaiting_approval','Awaiting approval'),
       active: activeWidgetKey === 'pending-payments',
       onClick: () => handleWidgetClick('pending-payments')
-      }
     },
     {
       key: 'approved-payments',

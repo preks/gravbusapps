@@ -162,7 +162,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     },
     {
       key: 'reimbursable',
-      title: getTranslationFromI18nKeyAndLabel(' lowcoder:expense_item_list.expense_table.reimbursable','Reimbursable'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable','Reimbursable'),
       value: statistics.reimbursableAmount,
       prefix: <DollarOutlined />,
       suffix: '€',

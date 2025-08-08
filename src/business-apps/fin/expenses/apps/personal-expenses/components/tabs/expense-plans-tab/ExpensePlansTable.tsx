@@ -390,7 +390,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                                                  <div className="gba:text-gray-500">
-                           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no__plan_data', 'No expense plans found. Create your first expense plan to get started.')}
+                           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_plan_data', 'No expense plans found. Create your first expense plan to get started.')}
                          </div>
                       </TableCell>
                     </TableRow>
@@ -595,7 +595,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             {totalCount > pageSize ? (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                                     {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expensesd.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}
+                                     {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">

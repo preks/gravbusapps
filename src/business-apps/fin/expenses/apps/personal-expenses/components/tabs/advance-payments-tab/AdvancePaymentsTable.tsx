@@ -424,7 +424,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
                           {(() => {
-                            console.log('record.status',record.status)
                             const statusConfig = getAdvancePaymentStatusDisplay(record.status);
                             return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-cell" />;
                           })()}
