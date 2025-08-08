@@ -157,94 +157,85 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
       data-testid="opportunity-details-card"
     >
       <div className="gba:space-y-3">
-        {/* Pipeline and Stage Information */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border gba:border-gray-200">
-          <div>
-            <span className="gba:text-xs gba:font-medium gba:text-gray-600">Pipeline:</span>
-            <span className="gba:text-sm gba:font-semibold gba:text-gray-800 gba:ml-1">
-              {opportunityData?.salesPipeline?.value || 
-               opportunityData?.pipeline?.value ||
-               'No Pipeline'}
-            </span>
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-xs gba:font-medium gba:text-gray-600">Stage:</span>
-            <Badge variant={getSalesPipelineStageBadgeVariant(opportunityData?.salesPipelineStage)}>
-              {opportunityData?.salesPipelineStage?.value || 'No Stage'}
-            </Badge>
-          </div>
+        {/* Stage Information */}
+        <div className="gba:flex gba:justify-center gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border gba:border-gray-200">
+          <Badge variant={getSalesPipelineStageBadgeVariant(opportunityData?.salesPipelineStage)}>
+            {opportunityData?.salesPipelineStage?.value || 'No Stage'}
+          </Badge>
         </div>
 
         {/* Stage Conditions List */}
-        <div className="gba:space-y-3">
+        <div className="gba:space-y-3 gba:max-h-96 gba:overflow-y-auto gba:pr-1">
           {sortedStageConditions.length > 0 ? (
             sortedStageConditions.map((condition) => (
             <div 
               key={condition.id}
-                className="gba:relative gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
+                className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
               data-testid={`stage-condition-${condition.id}`}
             >
-              {/* Due Date in Top Right Corner */}
-              {condition.deadlineAt && (
-                <div className="gba:absolute gba:top-3 gba:right-3 gba:text-xs gba:text-gray-500 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded-md gba:border">
-                  <CalendarOutlined className="gba:text-gray-400 gba:mr-1" />
-                  {new Date(condition.deadlineAt).toLocaleDateString()}
-                </div>
-              )}
                 {/* Header with Status Icon and Title */}
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <div className="gba:flex-shrink-0">
-                <AppActionButton
-                  data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
-                  variant="ghost"
-                  showIcon={false}
-                  size="large"
-                  contextsArray={[FlowContextName.saveOpportunityStageConditionStatus]}
-                  externalContextData={{
-                    stageConditionStatusId: condition.stageConditionStatusId 
-                  }}
-                  prefixDataTestId="stage-condition-status-icon"
-                  accessToken={context.accessToken}
-                  emptyStateBehavior="disable"
-                  deferMainContextRequestsUntilClick={false}
-                  autoExecuteSingleAction={true}
-                  onClick={(e) => e.stopPropagation()}
-                  className="gba:p-0 gba:hover:bg-gray-100 gba:rounded-full gba:transition-colors gba:border-0 gba:relative gba:group"
-                  style={{ minWidth: 'auto', minHeight: 'auto', background: 'transparent' }}
-                >
-                  {/* Default State Icon */}
-                  <div className="gba:block group-hover:gba:hidden gba:transition-opacity">
-                    {condition.isCompleted ? (
-                      <CheckCircleFilled 
-                        className="gba:text-2xl" 
-                        style={{ color: '#16a34a' }}
-                      />
-                    ) : (
-                      <CloseCircleFilled 
-                        className="gba:text-2xl" 
-                        style={{ color: '#9ca3af' }}
-                      />
-                    )}
-                  </div>
+                <div className="gba:mb-2">
+                  {/* Due Date - top-left on very small screens */}
+                  {condition.deadlineAt && (
+                    <div className="gba:sm:hidden gba:mb-2 gba:text-xs gba:text-gray-500">
+                      <CalendarOutlined className="gba:text-gray-400 gba:mr-1" />
+                      <span>{new Date(condition.deadlineAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  )}
                   
-                  {/* Hover State Icon (opposite of current state) */}
-                  <div className="gba:hidden group-hover:gba:block gba:transition-opacity">
-                    {condition.isCompleted ? (
-                      <CloseCircleFilled 
-                        className="gba:text-2xl" 
-                        style={{ color: '#f59e0b' }}
-                      />
-                    ) : (
-                      <CheckCircleFilled 
-                        className="gba:text-2xl" 
-                        style={{ color: '#16a34a' }}
-                      />
-                    )}
-                  </div>
-                </AppActionButton>
-              </div>
-              <div className="gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:flex-shrink-0">
+                      <AppActionButton
+                        data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
+                        variant="ghost"
+                        showIcon={false}
+                        size="large"
+                        contextsArray={[FlowContextName.saveOpportunityStageConditionStatus]}
+                        externalContextData={{
+                          stageConditionStatusId: condition.stageConditionStatusId 
+                        }}
+                        prefixDataTestId="stage-condition-status-icon"
+                        accessToken={context.accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick={false}
+                        autoExecuteSingleAction={true}
+                        onClick={(e) => e.stopPropagation()}
+                        className="gba:p-0 gba:hover:bg-gray-100 gba:rounded-full gba:transition-colors gba:border-0 gba:relative gba:group"
+                        style={{ minWidth: 'auto', minHeight: 'auto', background: 'transparent' }}
+                      >
+                        {/* Default State Icon */}
+                        <div className="gba:block group-hover:gba:hidden gba:transition-opacity">
+                          {condition.isCompleted ? (
+                            <CheckCircleFilled 
+                              className="gba:text-2xl" 
+                              style={{ color: '#16a34a' }}
+                            />
+                          ) : (
+                            <CloseCircleFilled 
+                              className="gba:text-2xl" 
+                              style={{ color: '#9ca3af' }}
+                            />
+                          )}
+                        </div>
+                        
+                        {/* Hover State Icon (opposite of current state) */}
+                        <div className="gba:hidden group-hover:gba:block gba:transition-opacity">
+                          {condition.isCompleted ? (
+                            <CloseCircleFilled 
+                              className="gba:text-2xl" 
+                              style={{ color: '#f59e0b' }}
+                            />
+                          ) : (
+                            <CheckCircleFilled 
+                              className="gba:text-2xl" 
+                              style={{ color: '#16a34a' }}
+                            />
+                          )}
+                        </div>
+                      </AppActionButton>
+                    </div>
+                    
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
                       <h4 className="gba:text-sm gba:font-bold gba:text-gray-800">
                         {condition.title}
                       </h4>
@@ -254,41 +245,60 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
                           placement="top"
                           overlayStyle={{ maxWidth: '300px' }}
                         >
-                          <InfoCircleOutlined className="gba:text-gray-400 hover:gba:text-gray-600 gba:cursor-help gba:text-xs" />
+                          <InfoCircleOutlined className="gba:text-gray-400 hover:gba:text-gray-600 gba:cursor-help gba:text-xs gba:flex-shrink-0" />
                         </Tooltip>
                       )}
                     </div>
-              </div>
-      </div>
+
+                    {/* Due Date - inline on larger screens */}
+                    {condition.deadlineAt && (
+                      <div className="gba:hidden gba:lg:flex gba:flex-shrink-0 gba:text-xs gba:text-gray-500 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded-md gba:border">
+                        <CalendarOutlined className="gba:text-gray-400 gba:mr-1" />
+                        <span>{new Date(condition.deadlineAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Due Date - below title on medium screens */}
+                  {condition.deadlineAt && (
+                    <div className="gba:hidden gba:sm:block gba:lg:hidden gba:mt-1 gba:ml-12 gba:text-xs gba:text-gray-500">
+                      <CalendarOutlined className="gba:text-gray-400 gba:mr-1" />
+                      <span>{new Date(condition.deadlineAt).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Completion Information */}
                 {condition.isCompleted && (condition.completedBy || condition.completedAt) && (
-                  <div className="gba:mt-2 gba:inline-flex gba:items-center gba:px-3 gba:py-1 gba:bg-green-100 gba:border gba:border-green-300 gba:rounded-full gba:text-xs gba:text-green-800">
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:font-medium">
+                  <div className="gba:mt-2 gba:inline-block gba:px-3 gba:py-1 gba:bg-green-100 gba:border gba:border-green-300 gba:rounded-full gba:text-xs gba:text-green-800">
+                    <div className="gba:font-medium">
+                      {/* Date and Time - always together */}
                       {condition.completedAt && (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <CalendarOutlined style={{ fontSize: '10px' }} />
-                          <span>
-                            {new Date(condition.completedAt).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric'
-                            })}
-                          </span>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <CalendarOutlined style={{ fontSize: '10px' }} />
+                            <span>
+                              {new Date(condition.completedAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <ClockCircleOutlined style={{ fontSize: '10px' }} />
+                            <span>
+                              {new Date(condition.completedAt).toLocaleTimeString('en-US', { 
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
                         </div>
                       )}
-                      {condition.completedAt && (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <ClockCircleOutlined style={{ fontSize: '10px' }} />
-                          <span>
-                            {new Date(condition.completedAt).toLocaleTimeString('en-US', { 
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </div>
-                      )}
+                      
+                      {/* Employee - separate line on small screens */}
                       {condition.completedBy && (
-                        <div className="gba:flex gba:items-center gba:gap-1">
+                        <div className={`gba:flex gba:items-center gba:gap-1 ${condition.completedAt ? 'gba:mt-1 gba:sm:mt-0 gba:sm:ml-3 gba:sm:inline-flex' : ''}`}>
                           <UserOutlined style={{ fontSize: '10px' }} />
                           {condition.completedByEmployeeId ? (
                             <button
