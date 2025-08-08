@@ -33,6 +33,7 @@ import {
 import { showToast } from "../../../utils/notificationUtils";
 import { handleSubmit, handleCancel, handleExpenseGroupChange, handleExpenseTypeChange, handleCurrencyChange } from "../services/eventHandlers";
 import { DEFAULT_EMPLOYEE_ID } from "../../expense-item/constants/constants";
+import { useProcessEventState } from "@/business-apps/fin/expenses/utils/useProcessEventState";
 
 interface ExpensePlanItemContextProps {
   form: any;
@@ -52,6 +53,7 @@ interface ExpensePlanItemContextProps {
   employeeRuleId: string | null | object;
   expenseRuleError: string | null;
   itemValues: { id: string; version: string | number } | null;
+  additionalData?: any;
 
   handleSubmit: () => Promise<void>;
   handleCancel: () => void;
@@ -81,6 +83,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   additionalData,
 }): React.ReactNode => {
   const { t } = useTranslation();
+  const { getIsProcessEventDispatched } = useProcessEventState(additionalData);
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
@@ -477,7 +480,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       userInfo,
       additionalData,
       setIsEditMode,
-      itemValues || undefined
+      itemValues || undefined,
+      getIsProcessEventDispatched
     );
   };
 
@@ -532,6 +536,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     employeeRuleId,
     expenseRuleError,
     itemValues,
+    additionalData,
     handleSubmit: handleSubmitWrapper,
     handleCancel: handleCancelWrapper,
     handleExpenseGroupChange: handleExpenseGroupChangeWrapper,

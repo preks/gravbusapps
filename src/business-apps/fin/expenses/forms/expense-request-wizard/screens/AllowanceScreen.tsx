@@ -10,7 +10,7 @@ import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects } from '..
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../../utils/notificationUtils';
 
 const { Title } = Typography;
@@ -41,6 +41,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     currentTitle,
     updateTripFormValidation
   } = useExpenseRequestWizardContext();
+  
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData);
   
   const [, setTravelRegionsData] = useState<any>(null);
   const [, setCostCentersData] = useState<any>(null);
@@ -268,7 +270,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.SAVE
         );
-        dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+        dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
       }
     };
     
@@ -283,7 +285,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.NEXT
         );
-        dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
+        dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
       }
     };
     

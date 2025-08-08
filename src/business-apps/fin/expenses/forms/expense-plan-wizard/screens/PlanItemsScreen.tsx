@@ -9,7 +9,7 @@ import { ICONS } from '../../../utils/icons';
 import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { fetchEmployeeExpenseItemsFromPayload } from '../queries/ExpensePlanWizardQueries';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../../utils/notificationUtils';
 import ExpenseItemCard from '../../expense-request-wizard/components/ExpenseItemCard';
 import RejectionComment from '../../expense-request-wizard/components/RejectionComment';
@@ -44,6 +44,8 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([]);
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1);
   const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
+  
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
   const itemListLimit = 3;
@@ -219,9 +221,9 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         EVENTS.NEXT,
         skipStep
       );
-      dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
-  }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
+  }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems, additionalData, dispatchProcessContinueEventIfEnabled]);
   
   const handleSaveItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -239,9 +241,9 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         EVENTS.SAVE,
         skipStep
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
-  }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
+  }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems, additionalData, dispatchProcessContinueEventIfEnabled]);
   
   const { showCreateItem } = useExpensePlanWizardContext();
   

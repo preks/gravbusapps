@@ -9,7 +9,7 @@ import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/it
 import { getDayName } from '../../expense-request-wizard/utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 /**
  * PlanSummaryScreen component props
@@ -31,6 +31,7 @@ interface PlanSummaryScreenProps extends BusinessAppContextProps {
 const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   const { additionalData } = props;
   const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext();
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   const planData = expensePlanData?.ExpensePlanByPk;
   const planItemData = expensePlanData?.ExpensePlanItem;
   const expenseItems = noAllowanceItemsFunction(planItemData);
@@ -49,7 +50,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
         EVENTS.SAVE,
         skipStep
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   }, [expensePlanData, employeeRuleId, currentTitle]);
   
@@ -67,7 +68,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
         EVENTS.SUBMIT,  
         skipStep
       );
-      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject);
     }
   }, [expensePlanData, employeeRuleId, currentTitle]);
   

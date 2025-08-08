@@ -11,7 +11,7 @@ import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunctio
 import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries';
 import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../../utils/notificationUtils';
 import RejectionComment from '../components/RejectionComment';
 import { getLatestRejectComment } from '../utils/tripScreenUtils';
@@ -56,6 +56,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
+  
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
   const itemListLimit = 3;
@@ -399,7 +401,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
-      dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -414,7 +416,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   

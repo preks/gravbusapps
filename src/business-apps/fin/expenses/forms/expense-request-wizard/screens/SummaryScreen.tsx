@@ -11,7 +11,7 @@ import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/it
 import { getDayName } from '../utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 /**
  * SummaryScreen component props
@@ -30,9 +30,10 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  * @param props - Component props
  * @returns SummaryScreen component
  */
-const SummaryScreen: React.FC<SummaryScreenProps> = () => {
+const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
   const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext();
   const { hasFutureDates } = useExpenseRequestDateValidation();
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData);
   const requestData = expenseRequestData?.ExpenseRequestByPk;
   const requestItemData = expenseRequestData?.ExpenseItem;
   const expenseItems = noAllowanceItemsFunction(requestItemData);
@@ -46,7 +47,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -59,7 +60,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SUBMIT
       );
-      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   

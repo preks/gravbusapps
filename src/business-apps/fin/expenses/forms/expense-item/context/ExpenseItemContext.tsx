@@ -41,7 +41,7 @@ import {
   setByEdit,
 } from "./services";
 import { showToast } from "../../../utils/notificationUtils";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { EVENTS } from "../../../utils/constants";
 
 interface ExpenseItemContextProps {
@@ -72,6 +72,7 @@ interface ExpenseItemContextProps {
 
   employeeRuleId: string | null | object;
   expenseRuleError: string | null;
+  additionalData?: any;
 
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
@@ -149,12 +150,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
-
+  
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
     [accessToken]
   );
-
+  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData);
   useEffect(() => {
 
     fetchInitialData();
@@ -766,13 +767,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       userInfo?.employeeDetails?.employeeId,
       additionalData,
       userInfo,
-      itemValues || undefined
+      itemValues || undefined,
+      getIsProcessEventDispatched
     );
   };
 
   const handleCancelWrapper = () => {
     try {
-      dispatchProcessContinueEvent(
+      dispatchProcessContinueEventIfEnabled(
         EVENTS.ABORT, {
           "event": EVENTS.ABORT,
           pso_exitStrategy: "abort",
@@ -957,6 +959,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     expenseRequests,
     employeeRuleId,
     expenseRuleError,
+    additionalData,
     calculateTotal: calculateTotalWrapper,
     handleFileUpload: handleFileUploadWrapper,
     handleSubmit: handleSubmitWrapper,

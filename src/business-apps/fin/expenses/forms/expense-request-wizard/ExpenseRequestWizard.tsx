@@ -3,7 +3,7 @@ import { Typography, Input } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
@@ -529,10 +529,11 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(
+      dispatchProcessContinueEventIfEnabled(
         EVENTS.DISCARD, {
           "event": EVENTS.DISCARD,
           pso_completeNotification: {
@@ -542,7 +543,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
               'The action has been canceled.'
               )
           }
-        })
+        });
     } catch (processError) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),

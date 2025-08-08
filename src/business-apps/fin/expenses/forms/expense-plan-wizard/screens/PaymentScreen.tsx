@@ -8,7 +8,7 @@ import { BusinessAppContextProps } from '@/business-apps/types';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { getCurrencyForUser } from '../queries/ExpensePlanWizardQueries';
 import { showToast } from '../../../utils/notificationUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { EVENTS } from '../../../utils/constants';
 import { createAdvanceObject, createPaymentScreenLogObject } from '../utils/paymentScreenUtils';
 
@@ -29,6 +29,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
   const { expensePlanData, employeeRuleId, currentTitle, updateTripFormValidation } = useExpensePlanWizardContext();
   const graphQLClient = useGraphqlClient(accessToken);
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const [amount, setAmount] = useState<string>('0.00');
   const [currency, setCurrency] = useState<string>('');
@@ -312,7 +313,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         EVENTS.SAVE,
         skipStep
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   };
 
@@ -340,7 +341,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         skipStep
       );
       
-      dispatchProcessContinueEvent(EVENTS.NEXT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
   };
 

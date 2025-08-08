@@ -32,7 +32,8 @@ export const handleSubmit = async (
   userInfo?: any,
   additionalData?: any,
   setIsEditMode?: (isEdit: boolean) => void,
-  itemValues?: { id: string; version: string | number }
+  itemValues?: { id: string; version: string | number },
+  getIsProcessEventDispatched?: () => boolean
 ) => {
   try {
     setLoading(true);
@@ -72,6 +73,10 @@ export const handleSubmit = async (
     
     if (accessToken && userInfo?.employeeDetails?.employeeId && hasExpensePlan) {
       try {
+        // Check if process event is already dispatched
+        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+          return;
+        }
 
         const flowResult = await initiateFlow(accessToken, userInfo.employeeDetails.employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME);
         if (flowResult && flowResult.id) {

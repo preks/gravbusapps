@@ -9,17 +9,19 @@ import FormFooter from './components/FormFooter';
 import ExpenseFormContent from './components/ExpenseFormContent';
 import PlanFormContent from './components/PlanFormContent';
 import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/planUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { formatDateToISO } from '@/common/utils/windowUtils';
 import { showToast } from '../../utils/notificationUtils';
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS} from './constants/constants';
 import { EVENTS } from '../../utils/constants';
+import './ExpenseRequest.css';
 
 const { Title } = Typography;
 
 interface ExpenseRequestContentProps {
   accessToken?: string;
   userInfo?: any;
+  additionalData?: any;
 }
 
 interface ExpenseFormValues {
@@ -44,7 +46,7 @@ interface PlanData {
   planCurrency: string;
 }
 
-const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo }) => {
+const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo, additionalData }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const { 
@@ -63,6 +65,8 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
   
   const [selectedPlan, setSelectedPlan] = React.useState<PlanData | null>(null);
   const [formIsValid, setFormIsValid] = React.useState<boolean>(false);
+  
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   
   const planData = React.useMemo(() => {
@@ -106,7 +110,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(
+      dispatchProcessContinueEventIfEnabled(
         EVENTS.ABORT, {
           "event": EVENTS.ABORT,
           pso_exitStrategy: "abort",
@@ -189,7 +193,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       let operationSuccessful = false;
       
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
         operationSuccessful = true;
       } catch (processError) {
         showToast(
@@ -304,6 +308,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               onCancel={handleCancel} 
               onSubmit={handleSubmit} 
               testIdPrefix="expense"
+              additionalData={additionalData}
             />
           )}
         </>
@@ -415,6 +420,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           step={step} 
           onCancel={handleCancel} 
           testIdPrefix="expense"
+          additionalData={additionalData}
         />
       </>
       )}
@@ -428,12 +434,12 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
  * @returns Expense Request component
  */
 const ExpenseRequest: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo } = props;
+  const { accessToken, userInfo, additionalData } = props;
   
   return (
     <div className="gba:expenseRequestWrapper" data-testid="expense-request-wrapper">
       <ExpenseRequestProvider {...props}>
-        <ExpenseRequestContent accessToken={accessToken} userInfo={userInfo} />
+        <ExpenseRequestContent accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
       </ExpenseRequestProvider>
     </div>
   );

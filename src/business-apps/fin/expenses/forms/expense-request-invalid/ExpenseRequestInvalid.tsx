@@ -4,9 +4,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import './ExpenseRequestInvalid.css';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 const { Title } = Typography;
 
@@ -20,6 +20,7 @@ interface ExpenseRequestInvalidContentProps {
  * @returns Expense Request Invalid Content component
  */
 const ExpenseRequestInvalidContent: React.FC<ExpenseRequestInvalidContentProps> = ({ onCancel }) => {
+
   return (
     <div className="gba:mainContainer" data-testid="expense-request-invalid-content">
       <div className="gba:headerContainer" data-testid="expense-request-invalid-header">
@@ -63,9 +64,11 @@ const ExpenseRequestInvalidContent: React.FC<ExpenseRequestInvalidContentProps> 
  * @returns Expense Request Invalid component
  */
 const ExpenseRequestInvalid: React.FC<BusinessAppContextProps> = () => {
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState();
+  
   const handleCancel = () => {
         try {
-          dispatchProcessContinueEvent(
+          dispatchProcessContinueEventIfEnabled(
             EVENTS.ABORT, {
               "event": EVENTS.ABORT,
               pso_exitStrategy: "abort",
@@ -76,7 +79,7 @@ const ExpenseRequestInvalid: React.FC<BusinessAppContextProps> = () => {
                   'The action has been canceled.'
                   )
               }
-            })
+            });
         } catch (processError) {
           showToast(
             getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),

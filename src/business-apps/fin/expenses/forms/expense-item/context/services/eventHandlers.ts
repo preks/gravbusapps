@@ -275,7 +275,8 @@ export const handleSubmit = async (
   employeeId?: string,
   additionalData?: any,
   userInfo?: any,
-  itemValues?: { id: string; version: string | number }
+  itemValues?: { id: string; version: string | number },
+  getIsProcessEventDispatched?: () => boolean
 ) => {
   try {
     setLoading(true);
@@ -298,15 +299,22 @@ export const handleSubmit = async (
     
     if (accessToken && employeeId && hasExpenseRequest) {
       try {
-        const flowResult = await initiateFlow(accessToken, employeeId,FLOW_DOMAIN,FLOW_PROCESS_NAME);
-        if (flowResult && flowResult && flowResult.id) {
+        // Check if process event is already dispatched
+        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+          return;
+        }
+
+        const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME);
+        if (flowResult && flowResult.id) {
           flowProcessId = flowResult.id;
           const userId = userInfo?.id || "";
 
           const tasksResult = await getOpenedTaskFlow(
             accessToken,
             userId,
-            flowProcessId as string,FLOW_DOMAIN,FLOW_PROCESS_NAME
+            flowProcessId as string,
+            FLOW_DOMAIN,
+            FLOW_PROCESS_NAME
           );
           
           if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
