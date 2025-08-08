@@ -415,7 +415,6 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
           },
           params: {
             screenKey: screenKey,
-            builderType: "NATIVE_SCREEN",
             sort: "updatedAt",
             order: "DESC",
             limit: 10,
@@ -425,7 +424,7 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
       );
 
       if (response.data && response.data.data && response.data.data.length > 0) {
-        const screen = response.data.data.find(s => s.screenKey === screenKey);
+        const screen = response.data.data.find(s => s.screenKey === screenKey && s.screenComponents?.builderType === "NATIVE_SCREEN");
         if (screen) {
           console.log(`🔍 Found existing screen with key: ${screenKey}, ID: ${screen.id}`);
           return screen;
