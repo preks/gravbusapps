@@ -23,7 +23,7 @@ export const useExpensePlanFilters = () => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'planDateRange',
-      title: 'Plan Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date','Plan Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(PlanDateRangeFilter, {
         planDateRange: planDateRange,
@@ -34,7 +34,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'startDateRange',
-      title: 'Start Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(DateRangeFilter, {
         startDateRange: startDateRange,
@@ -45,7 +45,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'endDateRange',
-      title: 'End Date Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -56,7 +56,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'status',
-      title: 'Filter by Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status','Status'),
       type: DataFilterType.CHECKBOX_GROUP,
       filters: [
         { id: ExpenseStatus.PREPARED, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'), selected: selectedFilters.includes(ExpenseStatus.PREPARED) },

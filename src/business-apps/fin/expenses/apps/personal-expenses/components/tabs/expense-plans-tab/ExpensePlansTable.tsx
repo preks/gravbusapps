@@ -701,7 +701,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add', 'Add'),
             'data-testid': 'add-expense-plan-button',
           },
-          listTitle: 'My Expense Plans',
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title','My Expense Plans'),
           listAmount: totalCount ? `${totalCount}` : undefined,
         }}
         dataFilterProps={{

@@ -68,21 +68,21 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')  
       };
     }
     if (paymentsPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = paymentsPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${paymentsPercentageChange.toFixed(0)}%`,
       positive: paymentsPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [paymentsPercentageChange, statistics.currentMonthPayments, statistics.previousMonthPayments]);
 
@@ -91,21 +91,21 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (amountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = amountPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${amountPercentageChange.toFixed(0)}%`,
       positive: amountPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')  
     };
   }, [amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount]);
 
@@ -154,8 +154,9 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.awaiting_approval','Awaiting approval'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval','Awaiting approval'),
       active: activeWidgetKey === 'pending-payments',
+      hideBadge: true,
       onClick: () => handleWidgetClick('pending-payments')
     },
     {

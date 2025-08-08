@@ -90,7 +90,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return {
       value: `${sign}${totalExpensesPercentageChange.toFixed(0)}%`,
       positive: totalExpensesPercentageChange >= 0,
-      description: `from ${previousMonthName}`
+      description: `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','from ')} ${previousMonthName}`
     };
   }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses]);
 
@@ -99,7 +99,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return {
       value: `${pendingItemCount} items`,
       positive: true,
-      description: 'pending reimbursement'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending reimbursement')
     };
   }, [pendingItemCount]);
 

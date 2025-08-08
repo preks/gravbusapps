@@ -66,14 +66,14 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = percentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${percentageChange.toFixed(0)}%`,
       positive: percentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [percentageChange, currentMonthClosedPlans, previousMonthClosedPlans]);
 
@@ -90,21 +90,21 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (estimatedAmountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = estimatedAmountPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${estimatedAmountPercentageChange.toFixed(0)}%`,
       positive: estimatedAmountPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [estimatedAmountPercentageChange, currentMonthTotal, previousMonthTotal]);
 
@@ -151,12 +151,12 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     },
     {
       key: 'pending-approval',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.pending_approval','Pending Approval'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval','Pending Approval'),
       value: pendingApproval,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plans_tab.requires_action','Requires action'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action','Requires action'),
       active: activeWidgetKey === 'pending-approval',
       onClick: () => handleWidgetClick('pending-approval')
     },

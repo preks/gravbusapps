@@ -217,19 +217,19 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     return [
       {
         id: 'statusGroup',
-        title: 'Status',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status','Status'),
         filters: statusItems,
         selectionMode: 'multiple',
       },
       {
         id: 'amountGroup',
-        title: 'Amount Range',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
         customComponent: amountRangeComponent,
         hideSearch: true, // Hide search since we have custom component
       },
       {
         id: 'advanceGroup',
-        title: 'Advance Range',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter','Advance Range'),
         customComponent: advanceRangeComponent,
         hideSearch: true, // Hide search since we have custom component
       },

@@ -112,7 +112,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'requestDateRange',
-      title: 'Request Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_date_label','Request Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(RequestDateRangeFilter, {
         requestDateRange: requestDateRange,
@@ -123,7 +123,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'startDateRange',
-      title: 'Start Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(StartDateRangeFilter, {
         startDateRange: startDateRange,
@@ -134,7 +134,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'endDateRange',
-      title: 'End Date Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -157,8 +157,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
        type: 'radio' as any,
        filters: [
-         { id: 'ExpenseRequestType:v1:EXPENSES', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.general_expense', 'General Expense'), selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES') },
-         { id: 'ExpenseRequestType:v1:TRIP', label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.tab_container.trip_header', 'Trip'), selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP') }
+         { id: 'ExpenseRequestType:v1:EXPENSES', label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.general_expense', 'General Expense'), selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES') },
+         { id: 'ExpenseRequestType:v1:TRIP', label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'), selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP') }
        ]
      },
     {
