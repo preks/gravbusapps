@@ -13,6 +13,7 @@ export interface StageConditionStatusResponse {
     id: string;
     firstName: string;
     lastName: string;
+    displayName: string;
   } | null;
   deadlineAt?: string | null;
   processInstanceId?: string | null;
@@ -206,6 +207,7 @@ export const GET_OPPORTUNITY_BY_ID = `
           id
           firstName
           lastName
+          displayName
         }
         deadlineAt
         processInstanceId

@@ -9,9 +9,12 @@ export interface StageConditionFormValues {
   currentStatus?: string;
 }
 
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+
 export interface StageConditionContextState {
   formValues: StageConditionFormValues;
   isLoading: boolean;
   error: string | null;
   setFormValues: (values: StageConditionFormValues) => void;
+  businessAppContext: BusinessAppContextProps;
 }

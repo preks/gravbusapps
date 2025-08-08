@@ -72,12 +72,13 @@ export const StageConditionFormProvider: React.FC<StageConditionFormProviderProp
 
   // Simplified: no default handlers needed, context just manages data
 
-  // Context value - simplified to just data management
+  // Context value - include business app context for access to user info
   const contextValue: StageConditionContextState = {
     formValues,
     isLoading: isLoading || stageConditionDataLoading,
     error: error || stageConditionDataError,
     setFormValues,
+    businessAppContext,
   };
 
   return (

@@ -10,6 +10,7 @@ interface StageCondition {
   title: string;
   isCompleted: boolean;
   checkedType: 'Automated' | 'User' | 'Manager' | 'Owner';
+  completedBy?: string | null; // Employee name who completed the condition
 }
 
 // Transform real stage condition status data for stage progression display
@@ -28,11 +29,18 @@ const getStageConditionsFromReal = (stageConditionStatuses: any[], stageName: st
     const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
     const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
     
+    // Get employee name - prefer displayName, fallback to firstName + lastName
+    const getEmployeeName = (employee: any) => {
+      if (!employee) return null;
+      return employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee';
+    };
+    
     return {
       id: statusData.id,
       title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
       isCompleted: statusData.completed || false,
-      checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner'
+      checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+      completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
     };
   });
 };
@@ -58,6 +66,12 @@ const StageTooltipContent: React.FC<{
 }> = ({ stageName, stageDisplayName, stageConditionStatuses, currentStage }) => {
   const conditions = getStageConditionsFromReal(stageConditionStatuses, stageName);
   
+  // Sort conditions: incomplete (false) first, then completed (true)
+  const sortedConditions = [...conditions].sort((a, b) => {
+    if (a.isCompleted === b.isCompleted) return 0;
+    return a.isCompleted ? 1 : -1; // false comes before true
+  });
+  
   return (
     <div style={{ maxWidth: '280px', padding: '4px 0' }}>
       <div style={{ 
@@ -71,8 +85,8 @@ const StageTooltipContent: React.FC<{
         {stageDisplayName || stageName} Stage Conditions
       </div>
       <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-        {conditions.length > 0 ? (
-          conditions.map((condition) => (
+        {sortedConditions.length > 0 ? (
+          sortedConditions.map((condition) => (
             <div 
               key={condition.id}
               style={{
@@ -96,13 +110,15 @@ const StageTooltipContent: React.FC<{
                 }}>
                   {condition.title}
                 </div>
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#d1d5db',
-                  marginTop: '2px'
-                }}>
-                  Checked by: {condition.checkedType}
-                </div>
+                {condition.isCompleted && condition.completedBy && (
+                  <div style={{ 
+                    fontSize: '10px', 
+                    color: '#d1d5db',
+                    marginTop: '2px'
+                  }}>
+                    Completed by: {condition.completedBy}
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -479,7 +495,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             <Tooltip
               key={stage.id}
               title={<StageTooltipContent stageName={stage.code} stageDisplayName={stage.value} stageConditionStatuses={stageConditionStatuses} currentStage={currentStage} />}
-              placement="top"
+              placement="bottom"
               overlayStyle={{ 
                 maxWidth: '300px',
                 zIndex: 1050

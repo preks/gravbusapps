@@ -17,7 +17,7 @@ import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 const prefixDataTestId = "StageConditionForm";
 
 const StageConditionFormComponent: React.FC = () => {
-  const { formValues, isLoading, error } = useStageConditionFormContext();
+  const { formValues, isLoading, error, businessAppContext } = useStageConditionFormContext();
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,12 +55,17 @@ const StageConditionFormComponent: React.FC = () => {
         completed: !formValues.completed,
       };
 
+      // Get the current user's employee ID
+      const currentEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+      
       // Prepare stage condition status payload following the correct API structure
       const payload: any = {
         opportunityStageConditionStatus: {
           id: formValues.id,
           version: formValues.version,
           completed: updatedValues.completed,
+          // Include the employee ID of who is completing the condition
+          ...(currentEmployeeId && updatedValues.completed && { completedByEmployee: currentEmployeeId }),
         },
         changeMode: "UPDATE",
       };
