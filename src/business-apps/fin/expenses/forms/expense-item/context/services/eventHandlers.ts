@@ -276,7 +276,8 @@ export const handleSubmit = async (
   additionalData?: any,
   userInfo?: any,
   itemValues?: { id: string; version: string | number },
-  getIsProcessEventDispatched?: () => boolean
+  getIsProcessEventDispatched?: () => boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
     setLoading(true);
@@ -424,7 +425,11 @@ export const handleSubmit = async (
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
         
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        if(dispatchProcessContinueEventIfEnabled){
+          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
+        }else{
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        }
         // operationSuccessful = true;
       } catch (processError) {
         showToast(

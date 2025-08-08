@@ -8,6 +8,7 @@ import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseReques
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { LocationData } from '../utils/types';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 /**
  * ExpenseRequestWizardContext props interface
@@ -90,6 +91,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
   const graphqlClient = useGraphqlClient(accessToken);
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
 
 
   // Fetch expense data when employeeRuleId is available
@@ -259,7 +261,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       employeeRuleId || '',
       currentTitle,
       determinedCurrency,
-      event
+      event,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 

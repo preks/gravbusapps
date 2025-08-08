@@ -8,6 +8,7 @@ import { fetchEmployeeRule, fetchExpensePlanAndItems } from '../queries/ExpenseP
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
 import { LocationData } from '../../expense-request-wizard/utils/types';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 
 /**
@@ -91,8 +92,10 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   const [payloadItemsLoaded, setPayloadItemsLoaded] = useState<boolean>(false);
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
+  // State for skip advance payment
   const [skipAdvancePayment, setSkipAdvancePayment] = useState<boolean>(false);
   const graphqlClient = useGraphqlClient(accessToken);
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
 
   const fetchExpenseData = async () => {
     try {
@@ -260,7 +263,8 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       currentTitle,
       determinedCurrency,
       event,
-      skipStep
+      skipStep,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 

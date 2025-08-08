@@ -33,7 +33,8 @@ export const handleSubmit = async (
   additionalData?: any,
   setIsEditMode?: (isEdit: boolean) => void,
   itemValues?: { id: string; version: string | number },
-  getIsProcessEventDispatched?: () => boolean
+  getIsProcessEventDispatched?: () => boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
     setLoading(true);
@@ -160,8 +161,15 @@ export const handleSubmit = async (
 
     if (accessToken && userInfo?.employeeDetails?.employeeId && !hasExpensePlan) {
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
-        operationSuccessful = true;
+        if (dispatchProcessContinueEventIfEnabled) {
+          const success = dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
+          if (success) {
+            operationSuccessful = true;
+          }
+        } else {
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+          operationSuccessful = true;
+        }
       } catch (processError) {
         showToast(
           getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows", "Error in expense approval process"),

@@ -83,7 +83,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   additionalData,
 }): React.ReactNode => {
   const { t } = useTranslation();
-  const { getIsProcessEventDispatched } = useProcessEventState(additionalData);
+  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData);
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
@@ -481,7 +481,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       additionalData,
       setIsEditMode,
       itemValues || undefined,
-      getIsProcessEventDispatched
+      getIsProcessEventDispatched,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 

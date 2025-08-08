@@ -768,7 +768,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       additionalData,
       userInfo,
       itemValues || undefined,
-      getIsProcessEventDispatched
+      getIsProcessEventDispatched,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 

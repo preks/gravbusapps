@@ -129,7 +129,8 @@ export const handleTripSubmitAction = (
   currentTitle: string,
   currentCurrency: string | null,
   event:string,
-  skipStep?:boolean
+  skipStep?:boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   const initialPlan = expensePlanData?.ExpensePlanByPk;
   if (!initialPlan) {
@@ -196,8 +197,12 @@ export const handleTripSubmitAction = (
     expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialPlan.expenseRequestTrip || [])
   };
 
-  dispatchProcessContinueEvent(event, logObject);
-  return true;
+  if (dispatchProcessContinueEventIfEnabled) {
+    return dispatchProcessContinueEventIfEnabled(event, logObject);
+  } else {
+    dispatchProcessContinueEvent(event, logObject);
+    return true;
+  }
 };
 
 
