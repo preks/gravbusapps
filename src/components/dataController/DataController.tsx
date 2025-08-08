@@ -209,9 +209,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   )}
                 </div>
               </button>
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700" data-testid="data-controller-filter-label">
-                Filter
-              </span>
+
             </>
           )}
           {!showSearchInput ? (

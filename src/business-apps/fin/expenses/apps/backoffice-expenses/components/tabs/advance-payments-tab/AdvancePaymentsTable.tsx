@@ -118,7 +118,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         const results = await searchReporters(debouncedReporterSearchText);
         setReporterSearchResults(results);
       } catch (error) {
-        console.error('Error searching reporters:', error);
+        console.error(getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.error_searching_reporters', 'Error searching reporters:'), error);
         setReporterSearchResults([]);
       } finally {
         setReporterSearchLoading(false);
@@ -226,7 +226,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!payments || payments.length === 0) {
       return (
         <div className="gba:p-8 gba:text-center gba:text-gray-500">
-          <div>No advance payments found matching the current filters. Clear all filters to see all payments.</div>
+          <div>{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.no_advance_payments_found', 'No advance payments found matching the current filters. Clear all filters to see all payments.')}</div>
         </div>
       );
     }
@@ -245,16 +245,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
-                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">Actions</TableHead>
-                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Title</TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Reporter</TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Org Unit</TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Cost Center</TableHead>
-                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Plan Id</TableHead>
-                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Status</TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Amount</TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">Advance</TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Payment Method</TableHead>
+                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.flows_button.actions', 'Actions')}</TableHead>
+                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')}</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.reporter', 'Reporter')}</TableHead>
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label', 'Org Unit')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.request_cost_center', 'Cost Center')}</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}</TableHead>
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">{getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}</TableHead>
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">{getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}</TableHead>
                   </TableRow>
                 </TableHeader>
           <TableBody>
@@ -264,34 +264,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 record.expensePlan.expenseRequest.length > 0 && 
                 record.expensePlan.expenseRequest[0]?.id;
               
-              const flowData = [
-                {
-                  category: 'Actions',
-                  key: 'view-advance-payment',
-                  label: 'View Advance Payment Details',
-                  onClick: () => {
-                    setSelectedItem(record);
-                    setSelectedActionType('advance-payment');
-                  }
-                },
-                {
-                  category: 'Actions',
-                  key: 'view-plan',
-                  label: 'View Plan Details',
-                  onClick: () => {
-                    handleNavigateToPlanDetails(record);
-                  }
-                },
-                ...(hasExpenseRequest ? [{
-                  category: 'Actions',
-                  key: 'view-request',
-                  label: 'View Request Details',
-                  onClick: () => {
-                    handleNavigateToRequestDetails(record);
-                  }
-                }] : [])
-              ];
-
               return (
                 <TableRow 
                   key={record.id}
@@ -325,7 +297,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                             }}
                             data-testid={`view-advance-payment-${record.id}`}
                           >
-                            View Advance Payment Details
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.view_advance_payment_details', 'View Advance Payment Details')}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -333,7 +305,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                             }}
                             data-testid={`view-plan-${record.id}`}
                           >
-                            View Plan Details
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details')}
                           </DropdownMenuItem>
                           {hasExpenseRequest && (
                             <DropdownMenuItem
@@ -342,7 +314,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                               }}
                               data-testid={`view-request-${record.id}`}
                             >
-                              View Request Details
+                               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -419,7 +391,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       {totalCount > 0 && (
         <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
           <div className="gba:text-sm gba:text-gray-600">
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} items`}
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
           </div>
           <Pagination>
             <PaginationContent>
@@ -482,7 +454,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const filterGroups: DataFilterGroup[] = [
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       type: 'checkbox',
       filters: availableStatuses.map(status => ({
         id: status,
@@ -492,7 +464,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     },
     {
       id: 'reporter',
-      title: 'Reporter',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.reporter', 'Reporter'),
       type: 'custom',
       customComponent: (
         <div className="reporter-search-container gba:relative gba:p-2">
@@ -505,7 +477,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             }}
             onFocus={() => setShowReporterDropdown(true)}
             className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-            placeholder="Search reporter..."
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.search_reporter_placeholder', 'Search reporter...')}
             data-testid="reporter-search-input"
           />
           
@@ -514,11 +486,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {reporterSearchLoading ? (
                 <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                  Loading reporters...
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.loading_reporters', 'Loading reporters...')}
                 </div>
               ) : reporterSearchResults.length === 0 ? (
                 <div className="gba:p-2 gba:text-sm gba:text-gray-500">
-                  No reporters found
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.no_reporters_found', 'No reporters found')}
                 </div>
               ) : (
                 reporterSearchResults.map((reporter) => (
@@ -550,7 +522,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     },
     {
       id: 'amount',
-      title: 'Amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       type: 'custom',
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
@@ -587,7 +559,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     },
     {
       id: 'advance',
-      title: 'Advance',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance'),
       type: 'custom',
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
@@ -632,10 +604,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   ];
 
   const filterLabelMap: Record<string, string> = {
-    status: statusFilter.length > 0 ? `Status: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}` : 'Status: All',
-    reporter: `Reporter: ${selectedReporters.join(', ')}`,
-    amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-    advance: `Advance: ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
+    status: statusFilter.length > 0 ? `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}` : getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.status_all', 'Status: All'),
+    reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.reporter_label', 'Reporter:')} ${selectedReporters.join(', ')}`,
+    amount: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount:')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
+    advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
   };
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -663,11 +635,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     <>
       <DataContainer
         dataControllerProps={{
-          listTitle: 'Advance Payments',
+          listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'),
           listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
-          placeholder: 'Search in Advance Payments',
+          placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.search_placeholder', 'Search in Advance Payments'),
           filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: filterLabelMap,
@@ -680,10 +652,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         dataBody={renderDataBody()}
         dataDetails={selectedItem ? {
           title: selectedActionType === 'advance-payment' 
-            ? (selectedItem.title || selectedItem.description || 'Advance Payment Details')
+            ? (selectedItem.title || selectedItem.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details'))
             : selectedActionType === 'plan'
-            ? (selectedItem.expensePlan?.title || 'Plan Details')
-            : (selectedItem.expensePlan?.expenseRequest?.title || 'Request Details'),
+            ? (selectedItem.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.plan_details', 'Plan Details'))
+            : (selectedItem.expensePlan?.expenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_details', 'Request Details')),
           icon: <FileText className="gba:w-4 gba:h-4" />,
           content: renderAdvancePaymentDetails,
           onClose: handleCloseDetails

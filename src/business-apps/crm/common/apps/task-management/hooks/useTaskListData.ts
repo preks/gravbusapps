@@ -152,7 +152,7 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
     reference,
     dueDate: salesTask.dueDate || salesTask.createdAt,
     scheduleDate: salesTask.createdAt,
-    timingType: salesTask.timingType as 'Deadline' | 'Scheduled' | undefined,
+    timingType: salesTask.timingType as 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE' | undefined,
     createdAt: salesTask.createdAt,
     updatedAt: salesTask.updatedAt || salesTask.createdAt,
     version: salesTask.version,
@@ -265,8 +265,16 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
       // Fetch both data and count in a single API call (like LeadList)
       const result = await fetchSalesTasksWithCount(variables);
 
-      // Transform sales tasks to task format and filter out null values
-      const transformedTasks = result.SalesTask
+      // Filter out approval tasks first, then transform and filter out null values
+      const nonApprovalTasks = result.SalesTask.filter(salesTask => {
+        // Exclude tasks with approval typeRef
+        const isApprovalTask = salesTask.typeRef === 'SalesTaskType:v1:APPROVAL' || 
+                              salesTask.typeRef?.toLowerCase() === 'approval' ||
+                              salesTask.typeRef?.split(':').pop()?.toLowerCase() === 'approval';
+        return !isApprovalTask;
+      });
+
+      const transformedTasks = nonApprovalTasks
         .map(transformSalesTaskToTask)
         .filter((task): task is Task => task !== null);
       

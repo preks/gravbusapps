@@ -102,8 +102,8 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   } = useJobPositionListData({
     search,
     departments: currentFilters.departments,
-    jobProfiles: selectedFilters,
-    jobFunctions: selectedFilters,
+    jobProfiles: currentFilters.jobProfiles,
+    jobFunctions: currentFilters.jobFunctions,
     ...filterParams, // vacant or missingJobProfile
     accessToken
   });

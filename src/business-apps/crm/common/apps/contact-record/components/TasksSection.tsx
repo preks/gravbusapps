@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
-import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
+import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
@@ -32,8 +33,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
     
     try {
       const result = await fetchContactTasks({ contactId });
+      
+      // Filter out approval tasks - they should only appear in the Approvals tab
+      const nonApprovalTasks = (result.SalesTask || []).filter(task => {
+        const isApprovalTask = task.type?.value?.toLowerCase() === 'approval';
+        return !isApprovalTask;
+      });
+      
       // Sort tasks by createdAt in descending order (newest first)
-      const sortedTasks = (result.SalesTask || []).sort((a, b) => 
+      const sortedTasks = nonApprovalTasks.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       

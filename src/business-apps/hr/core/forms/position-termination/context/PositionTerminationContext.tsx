@@ -34,9 +34,14 @@ export const PositionTerminationProvider: React.FC<{
   jobPositionId: string;
   accessToken: string;
   userInfo?: BusinessAppContextProps['userInfo'];
-  additionalData?: BusinessAppContextProps['additionalData'];
   children: React.ReactNode;
-}> = ({ jobPositionId, accessToken, userInfo, additionalData, children }) => {
+}> = ({ jobPositionId, accessToken, userInfo, children }) => {
+  // Use GraphQL hook to fetch position data
+  const { data: position, loading: positionLoading, error: positionError } = usePositionTerminationData({
+    jobPositionId,
+    accessToken,
+  });
+
   // Form state
   const [formValuesState, setFormValuesState] = useState<PositionTerminationFormValues>({
     jobPositionId,
@@ -47,24 +52,7 @@ export const PositionTerminationProvider: React.FC<{
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Log the jobPositionId detection and check if we have complete position data
-  useEffect(() => {
-    if (jobPositionId) {
-      console.log('🔍 Job Position ID found:', jobPositionId);
-      console.log('📝 Loading position for termination:', jobPositionId);
-      if (additionalData && additionalData.id === jobPositionId) {
-        console.log('✅ Complete job position object available in additionalData');
-      }
-    } else {
-      console.log('❌ No job position ID provided for termination');
-    }
-  }, [jobPositionId, additionalData]);
 
-  // Load position data
-  const { position, loading: positionLoading, error: positionError } = usePositionTerminationData({
-    jobPositionId,
-    accessToken,
-  });
 
   // Update form values
   const setFormValues = useCallback((values: Partial<PositionTerminationFormValues>) => {
@@ -85,7 +73,6 @@ export const PositionTerminationProvider: React.FC<{
     
     dispatchProcessContinueEvent("pse_submit", payload);
     
-    console.log("Position termination payload:", payload);
     setLoading(false);
   }, [formValuesState]);
 

@@ -1,119 +1,183 @@
-import React, { useState } from 'react';
-import { Input, Label, Switch } from '@newwork/nw-design-system';
-import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useOpportunityFormContext } from '../context/OpportunityFormContext';
+import React, { useState } from "react";
+import {
+  Input,
+  Label,
+  Switch,
+  Card,
+  CardContent,
+  Button,
+} from "@newwork/nw-design-system";
+import { PiCaretDown, PiCaretUp } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { useOpportunityFormContext } from "../context/OpportunityFormContext";
 
-const prefixDataTestId = 'OpportunityForm';
+const prefixDataTestId = "OpportunityForm";
 
 const BusinessInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  
-  const {
-    formValues,
-    setFormValues,
-  } = useOpportunityFormContext();
+
+  const { formValues, setFormValues } = useOpportunityFormContext();
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
-      <button
-        type="button"
+    <Card
+      className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
+      style={{
+        border: "0",
+        borderWidth: "0",
+        borderStyle: "none",
+        borderColor: "transparent",
+        boxShadow: "none",
+        padding: "0",
+        background: "transparent",
+      }}
+    >
+      <Button
+        variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-yellow-200 gba:to-amber-200 gba:hover:from-yellow-300 gba:hover:to-amber-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
         style={{
-          background: 'linear-gradient(to right, #fef3c7, #fde68a)',
-          transition: 'background 0.2s ease'
+          background: "linear-gradient(to right, #fed7aa, #fdba74)",
+          transition: "all 0.3s ease",
+          border: "0",
+          borderWidth: "0",
+          borderStyle: "none",
+          borderColor: "transparent",
+          outline: "none",
+          outlineWidth: "0",
+          outlineStyle: "none",
+          boxShadow: "none",
+          borderRadius: "12px",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fcd34d, #f59e0b)';
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #fdba74, #fb923c)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fef3c7, #fde68a)';
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #fed7aa, #fdba74)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, 'BusinessInfoToggle')}
+        data-testid={formatDataTestId(prefixDataTestId, "BusinessInfoToggle")}
       >
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-          <div className="gba:w-2 gba:h-2 gba:bg-yellow-500 gba:rounded-full"></div>
-          Business Information
-        </h3>
-        {isExpanded ? (
-          <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        ) : (
-          <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        )}
-      </button>
-      
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+          <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
+          <span className="gba:font-medium gba:text-gray-900">
+            Business Information
+          </span>
+        </div>
+        <div className="gba:flex gba:items-center">
+          {isExpanded ? (
+            <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          ) : (
+            <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          )}
+        </div>
+      </Button>
+
       {isExpanded && (
-        <div className="gba:p-6 gba:space-y-6">
-          
+        <CardContent
+          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          style={{
+            border: "0",
+            borderWidth: "0",
+            borderStyle: "none",
+            borderColor: "transparent",
+            padding: "16px",
+            marginTop: "0",
+          }}
+        >
           {/* Business Key and Code - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div className="gba:w-full">
-              <Label htmlFor="businessKey" className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Business Key
               </Label>
               <Input
-                id="businessKey"
                 name="businessKey"
-                value={formValues.businessKey}
+                value={formValues.businessKey || ""}
                 onChange={(e) => setFormValues({ businessKey: e.target.value })}
                 placeholder="Please Enter..."
-                data-testid={formatDataTestId(prefixDataTestId, 'BusinessKeyInput')}
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "BusinessKeyInput"
+                )}
               />
             </div>
 
-            <div className="gba:w-full">
-              <Label htmlFor="code" className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Code
               </Label>
               <Input
-                id="code"
                 name="code"
-                value={formValues.code}
+                value={formValues.code || ""}
                 onChange={(e) => setFormValues({ code: e.target.value })}
                 placeholder="Please Enter..."
-                data-testid={formatDataTestId(prefixDataTestId, 'CodeInput')}
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "CodeInput")}
               />
             </div>
           </div>
 
-          {/* Source App and Personal - Side by side */}
+          {/* Winning Chance and Close Date - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div className="gba:w-full">
-              <Label htmlFor="sourceApp" className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-                Source App
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Winning Chance (%)
               </Label>
               <Input
-                id="sourceApp"
-                name="sourceApp"
-                value={formValues.sourceApp}
-                onChange={(e) => setFormValues({ sourceApp: e.target.value })}
-                placeholder="CRM"
-                data-testid={formatDataTestId(prefixDataTestId, 'SourceAppInput')}
+                name="winningChance"
+                type="number"
+                min="0"
+                max="100"
+                value={formValues.winningChance || ""}
+                onChange={(e) =>
+                  setFormValues({ winningChance: e.target.value })
+                }
+                placeholder="0"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "WinningChanceInput"
+                )}
               />
             </div>
 
-            <div className="gba:w-full">
-              <div className="gba:flex gba:items-center gba:space-x-3">
-                <Switch
-                  id="personal"
-                  checked={formValues.personal}
-                  onCheckedChange={(checked) => setFormValues({ personal: checked })}
-                  data-testid={formatDataTestId(prefixDataTestId, 'PersonalSwitch')}
-                />
-                <Label htmlFor="personal" className="gba:text-sm gba:font-medium gba:text-gray-900">
-                  Personal Opportunity
-                </Label>
-              </div>
-              <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                Mark this opportunity as personal
-              </div>
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Expected Close Date
+              </Label>
+              <Input
+                name="closeDate"
+                type="date"
+                value={formValues.closeDate || ""}
+                onChange={(e) => setFormValues({ closeDate: e.target.value })}
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "CloseDateInput"
+                )}
+              />
             </div>
           </div>
-        </div>
+
+          {/* Personal Opportunity Switch */}
+          <div className="gba:flex gba:items-center gba:space-x-3">
+            <Switch
+              checked={formValues.personal || false}
+              onCheckedChange={(checked) =>
+                setFormValues({ personal: checked })
+              }
+              data-testid={formatDataTestId(prefixDataTestId, "PersonalSwitch")}
+            />
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Personal Opportunity
+            </Label>
+          </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
-export default BusinessInformationSection; 
+export default BusinessInformationSection;

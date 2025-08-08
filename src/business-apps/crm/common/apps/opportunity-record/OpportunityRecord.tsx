@@ -10,7 +10,7 @@ import {
 import {
   ArrowLeftOutlined,
   UserOutlined,
-  FolderOpenOutlined,
+  FileOutlined,
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -23,6 +23,7 @@ import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { StageProgression } from "./components/StageProgression";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
+
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
@@ -153,7 +154,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               Overview
             </TabsTrigger>
             <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
+              <FileOutlined className="gba:mr-2" />
               Documents
             </TabsTrigger>
           </TabsList>
@@ -199,11 +200,9 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           </TabsContent>
 
           <TabsContent value="documents" data-testid="documents-content">
-            <OpportunityDocuments
-              opportunityId={opportunityId}
-              context={props}
-            />
+            <OpportunityDocuments opportunityId={opportunityId} context={props} />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

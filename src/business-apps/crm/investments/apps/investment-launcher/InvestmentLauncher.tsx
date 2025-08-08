@@ -387,7 +387,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
     } else if (action.action === 'create-account') {
       startProcess({
         domain: 'customer-relations',
-        processName: 'createAccount',
+        processName: 'saveAccount',
         builderType: 'NATIVE_SCREEN',
         payload: {}
       });

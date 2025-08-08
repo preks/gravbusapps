@@ -186,16 +186,21 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
         { limit: 100, offset: 0, returnTotalRecords: true }
       );
 
-      if (response && response.data) {
+      if (response && response.data && Array.isArray(response.data)) {
         const statusData = response.data.map((entry: any) => ({
           id: entry.id,
           code: entry.code,
           value: entry.value,
         }));
         setOpportunityStatuses(statusData);
+      } else {
+        // Set empty array if no data
+        setOpportunityStatuses([]);
       }
     } catch (err) {
       console.error('Error fetching opportunity statuses:', err);
+      // Set empty array on error to prevent undefined .map() calls
+      setOpportunityStatuses([]);
     } finally {
       setLoadingStatuses(false);
     }

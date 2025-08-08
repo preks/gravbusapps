@@ -1,5 +1,5 @@
 ---
-description: Whenever the Agent has to use Badge components from '@newwork/nw-design-system'. Whenever Badge components are used, apply this rule.
+description: Badge components and the usage from '@newwork/nw-design-system'
 alwaysApply: false
 ---
 # Badge Variant Guidelines
