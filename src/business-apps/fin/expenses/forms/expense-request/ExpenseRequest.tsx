@@ -91,7 +91,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const handleTripClick = () => {
     setShowTransportation(true);
-    setStep(FORM_STEPS.EXPENSE);
+    setStep(FORM_STEPS.TRIP);
   };
 
   const handlePlanClick = () => {
@@ -151,10 +151,19 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       }
       
       const isTrip = step === FORM_STEPS.EXPENSE && values.transportationMeans;
-     
-      const expenseTypeRef = (isTrip 
+      let expenseTypeRef =""
+      if(selectedPlan && selectedPlan?.planType){
+        if(selectedPlan?.planType === 'TRIP'){
+          expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
+        }else{
+          expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id
+        }}
+        
+      else{
+        expenseTypeRef = (isTrip 
         ? (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
         : (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id) || ""
+      }
     
       
       let selectedPlanCurrency = "";
@@ -221,7 +230,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   return (
     <div className="gba:mainContainer" data-testid="expense-request-main-container">
-{step === 'expense' || step === 'plan' ? (
+{step === 'expense' || step === 'plan' || step === 'trip' ? (
         <>
           {/* Expense form header */}
           <div className="gba:headerContainer" data-testid="expense-form-header-container">
