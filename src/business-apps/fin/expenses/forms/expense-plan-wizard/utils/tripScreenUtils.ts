@@ -490,7 +490,7 @@ export const setLocalitiesDefault = (expensePlanData: any,
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
-            targetScreen = targetScreen = isTrip ? SCREEN_NAMES_ENUM.PAYMENT_TAB : SCREEN_NAMES_ENUM.SUMMARY_TAB; 
+            targetScreen = targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB; 
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
             setSkipAdvancePayment(true);

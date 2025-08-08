@@ -181,7 +181,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
             </Col>
           </Row>}
         </div>
-        
+        <div style={{flexGrow:1}}>
         <div className="gba:mt-6" data-testid="expense-plan-allowances-section">
           <span 
             className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
@@ -264,6 +264,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.no_estimated_items', 'No Estimated Expense Items Added') }
             </div>
           )}
+        </div>
         </div>
         <ExpenseSummary planData={planData} />
       </div>

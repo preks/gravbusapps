@@ -199,7 +199,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder', 'Allowances') + " ("+allowanceItems?.length + ")"}
           </span>
-          
+          <div style={{flexGrow:1}}>
           {allowanceItems && allowanceItems.length > 0 ? (
             <>
               <div className="gba:allowances-list" data-testid="expense-request-allowances-list">
@@ -274,7 +274,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_expense_items', 'No expense items created')}
             </div>
           )}
-        </div>
+        </div></div>
         <ExpenseSummary requestData={requestData} />
         {hasFutureDates && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">

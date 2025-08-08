@@ -18,7 +18,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
    */
   const whatToDisplay = () => {
     const displayObject = {
-      displayExpenses: false,
+      displayExpenses: true,
       displayAdvance: false,
       displayNonReimbursable: false,
       displayRemaining: false

@@ -63,7 +63,7 @@ export const createSummaryScreenLogObject = (
       currencyRef: initialPlan?.currency?.id || ""
     },
     expensePlanItems: {
-      expenseItems: expenseItemsArray
+      planItems: expenseItemsArray
     },
     expensePlanTrips: {
       expenseTrips: (expensePlanData?.ExpensePlanByPk?.expenseRequestTrip || [])

@@ -68,7 +68,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   const handleTripClick = () => {
     setShowTransportation(true);
-    setStep(FORM_STEPS.EXPENSE);
+    setStep(FORM_STEPS.TRIP);
   };
 
   const backButtonClick = () => {
@@ -118,7 +118,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         return;
       }
       
-      const isTrip = step === FORM_STEPS.EXPENSE && values.transportationMeans;
+      const isTrip = step === FORM_STEPS.TRIP
      
       const expenseTypeRef = (isTrip 
         ? (getCatalogTypeTransformer(PLAN_TYPES.TRIP, expenseCatalogueData))?.id
@@ -140,7 +140,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
               transportationMeans: values.transportationMeans
             }
           }),
-          project: values.project
+          project: values.project || ""
         },
         event: EVENTS.SUBMIT
       };
@@ -158,8 +158,10 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       }
       
       if (operationSuccessful) {
-        form.resetFields();
+        setTimeout(()=>{
+          form.resetFields();
         setStep(FORM_STEPS.START);
+        }, 3000)
       }
     } catch (error) {
       showToast(
@@ -173,7 +175,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   return (
     <div className="gba:mainContainer" data-testid="expense-plan-main-container">
-      {step === 'expense' ? (
+      {step === 'expense' || step === 'trip' ? (
         <>
           {/* Expense form header */}
           <div className="gba:headerContainer" data-testid="expense-plan-form-header-container">

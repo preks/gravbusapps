@@ -119,8 +119,8 @@ export const createItemsScreenLogObject = (
       expensePlan: initialAdvancePayment.expensePlanId,
       costCenter: initialAdvancePayment.costCenterId,
     } : null,
-    expenseRequestItems: {
-      expenseItems: expenseItemsArray
+    expensePlanItems: {
+      planItems: expenseItemsArray
     },
     expensePlanTrips: {
       expenseTrips: (expensePlanData?.ExpensePlanByPk?.expenseRequestTrip || [])

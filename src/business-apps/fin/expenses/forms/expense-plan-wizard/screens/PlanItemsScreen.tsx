@@ -257,7 +257,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   };
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-plan-wizard-items-screen">
+    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-plan-wizard-items-screen" style={{flexGrow:1}}>
       {!isTrip && latestRejectComment && (
        <div className="gba:mb-4">
         <RejectionComment isRequest={false} comment={latestRejectComment} />
