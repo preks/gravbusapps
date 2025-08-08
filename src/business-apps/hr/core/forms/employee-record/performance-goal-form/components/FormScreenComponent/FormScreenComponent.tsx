@@ -76,11 +76,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             label={t("performance_goal.start_date_label", "Start Date")}
             name="startDate"
             placeholder={t("performance_goal.start_date_placeholder", "Select start date")}
-            onChange={(field) => {
-              if (field.value) {
-                form.setFieldsValue({ startDate: field.value as Date });
-              }
-            }}
+                         onChange={(field) => {
+               if (field.value) {
+                 form.setFieldsValue({ startDate: field.value as Date });
+               }
+             }}
             required={true}
             format={getDateFormat('date')}
           />
@@ -117,12 +117,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             label={t("performance_goal.due_date_label", "Due Date")}
             name="dueDate"
             placeholder={t("performance_goal.due_date_placeholder", "Select due date")}
-            onChange={(field) => {
-              if (field.value) {
-                form.setFieldsValue({ dueDate: field.value as Date });
-              }
-            }}
-            required={true}
+                         onChange={(field) => {
+               if (field.value) {
+                 form.setFieldsValue({ dueDate: field.value as Date });
+               }
+             }}
+             required={true}
             format={getDateFormat('date')}
           />
         </Form.Item>
