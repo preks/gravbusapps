@@ -88,6 +88,7 @@ export const GET_EMPLOYEE_LEADS_QUERY = `
         lastName
         email
         pictureUrl
+        pictureThumbnailUrl
         phone
       }
     }

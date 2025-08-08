@@ -32,8 +32,17 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     
     try {
       const result = await fetchSalesTasks({ opportunityId });
+      
+      // Filter out approval tasks - they should only appear in the Approvals tab
+      const nonApprovalTasks = (result.SalesTask || []).filter(task => {
+        const isApprovalTask = task.typeRef === 'SalesTaskType:v1:APPROVAL' || 
+                              task.typeRef?.toLowerCase() === 'approval' ||
+                              task.typeRef?.split(':').pop()?.toLowerCase() === 'approval';
+        return !isApprovalTask;
+      });
+      
       // Sort tasks by createdAt in descending order (newest first)
-      const sortedTasks = (result.SalesTask || []).sort((a, b) => 
+      const sortedTasks = nonApprovalTasks.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       

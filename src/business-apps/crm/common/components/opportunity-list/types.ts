@@ -60,6 +60,12 @@ export interface UseOpportunityListDataReturn {
   error: Error | null;
   hasMore: boolean;
   loadMore: () => void;
-  loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
+  loadPage: (
+    page: number,
+    pageSize?: number,
+    additionalFilters?: any,
+    overrideSortField?: string,
+    overrideSortOrder?: "ASC" | "DESC" | ""
+  ) => Promise<void>;
   retry: () => void;
-} 
+}

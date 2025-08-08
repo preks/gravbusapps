@@ -16,15 +16,15 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
   pipelineId
 }) => {
   const getProgressColor = (winRate: number) => {
-    if (winRate >= 70) return '#52c41a'; // Green
-    if (winRate >= 50) return '#faad14'; // Orange
-    return '#ff4d4f'; // Red
+    if (winRate >= 70) return 'var(--success)'; // Green
+    if (winRate >= 50) return 'var(--warning)'; // Orange
+    return 'var(--destructive)'; // Red
   };
 
   const getTrendIcon = (winRate: number) => {
-    if (winRate >= 60) return <RiseOutlined style={{ color: '#52c41a' }} />;
+    if (winRate >= 60) return <RiseOutlined style={{ color: 'var(--success)' }} />;
     if (winRate >= 40) return null;
-    return <FallOutlined style={{ color: '#ff4d4f' }} />;
+    return <FallOutlined style={{ color: 'var(--destructive)' }} />;
   };
 
   return (
@@ -43,8 +43,8 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
           <Card 
             size="small" 
             style={{ 
-              background: 'linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)',
-              border: '1px solid #91d5ff'
+              background: 'var(--info-secondary)',
+              border: '1px solid var(--info)'
             }}
           >
             <div data-testid={`win-rate-month-${pipelineId}`}>
@@ -63,17 +63,17 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
               <Progress
                 percent={winRateMetrics.monthToDate.winRate}
                 strokeColor={getProgressColor(winRateMetrics.monthToDate.winRate)}
-                trailColor="#e6f7ff"
+                                  trailColor="var(--info-secondary)"
                 size="small"
                 showInfo={false}
                 style={{ marginBottom: '8px' }}
               />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                <span style={{ color: '#52c41a' }}>
+                <span style={{ color: 'var(--success)' }}>
                   Won: {winRateMetrics.monthToDate.won}
                 </span>
-                <span style={{ color: '#ff4d4f' }}>
+                <span style={{ color: 'var(--destructive)' }}>
                   Lost: {winRateMetrics.monthToDate.lost}
                 </span>
               </div>
@@ -86,8 +86,8 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
           <Card 
             size="small" 
             style={{ 
-              background: 'linear-gradient(135deg, #f6ffed 0%, #f9fff6 100%)',
-              border: '1px solid #b7eb8f'
+              background: 'var(--success-secondary)',
+              border: '1px solid var(--success)'
             }}
           >
             <div data-testid={`win-rate-quarter-${pipelineId}`}>
@@ -106,17 +106,17 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
               <Progress
                 percent={winRateMetrics.quarterToDate.winRate}
                 strokeColor={getProgressColor(winRateMetrics.quarterToDate.winRate)}
-                trailColor="#f6ffed"
+                                  trailColor="var(--success-secondary)"
                 size="small"
                 showInfo={false}
                 style={{ marginBottom: '8px' }}
               />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                <span style={{ color: '#52c41a' }}>
+                <span style={{ color: 'var(--success)' }}>
                   Won: {winRateMetrics.quarterToDate.won}
                 </span>
-                <span style={{ color: '#ff4d4f' }}>
+                <span style={{ color: 'var(--destructive)' }}>
                   Lost: {winRateMetrics.quarterToDate.lost}
                 </span>
               </div>
@@ -129,24 +129,24 @@ export const WinRateKpis: React.FC<WinRateKpisProps> = ({
       <div style={{ 
         marginTop: '16px', 
         padding: '12px', 
-        backgroundColor: '#fafafa',
+        backgroundColor: 'var(--muted)',
         borderRadius: '6px'
       }}>
         <Row gutter={16}>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--info)' }}>
               {winRateMetrics.monthToDate.won + winRateMetrics.quarterToDate.won}
             </div>
             <Text type="secondary" style={{ fontSize: '11px' }}>Total Won</Text>
           </Col>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff4d4f' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--destructive)' }}>
               {winRateMetrics.monthToDate.lost + winRateMetrics.quarterToDate.lost}
             </div>
             <Text type="secondary" style={{ fontSize: '11px' }}>Total Lost</Text>
           </Col>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#52c41a' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--success)' }}>
               {((winRateMetrics.monthToDate.winRate + winRateMetrics.quarterToDate.winRate) / 2).toFixed(1)}%
             </div>
             <Text type="secondary" style={{ fontSize: '11px' }}>Avg Rate</Text>

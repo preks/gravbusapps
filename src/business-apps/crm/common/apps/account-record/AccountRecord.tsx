@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FileOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -9,7 +9,8 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { AccountOpportunities, AccountDocuments } from "./components";
+import { AccountOpportunities } from "./components";
+import { AccountDocuments } from "./components/AccountDocuments";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -129,7 +130,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
               Opportunities
             </TabsTrigger>
             <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
+              <FileOutlined className="gba:mr-2" />
               Documents
             </TabsTrigger>
           </TabsList>
@@ -179,11 +180,9 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           </TabsContent>
 
           <TabsContent value="documents" data-testid="documents-content">
-            <AccountDocuments 
-              accountId={accountId} 
-              context={props} 
-            />
+            <AccountDocuments accountId={accountId} context={props} />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

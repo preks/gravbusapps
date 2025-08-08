@@ -79,8 +79,8 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
     : { minHeight: "0", minWidth: "0" };
 
   const containerClasses = backgroundImage
-    ? `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:overflow-visible ${className}`.trim()
-    : `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-visible ${className}`.trim();
+    ? `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:overflow-hidden ${className}`.trim()
+    : `gba:page-layout gba:w-full gba:h-full gba:px-6 gba:flex gba:flex-col gba:bg-white gba:rounded-xl gba:shadow-md gba:overflow-hidden ${className}`.trim();
 
   return (
     <div
@@ -122,7 +122,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           </div>
         )}
       </header>
-      <div className="flex flex-col flex-1 min-h-0" data-testid="page-layout-content">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="page-layout-content">
         {contentHeader && (
           <div className="gba:py-2 gba:border-b gba:border-gray-200" data-testid="page-layout-content-header">
             {contentHeader}

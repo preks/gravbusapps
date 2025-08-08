@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Alert } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 
 interface ExpenseRequestTabProps extends BusinessAppContextProps {
@@ -25,8 +26,8 @@ const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = (props) => {
         <div className="gba:mb-4" data-testid="expense-request-stats-header">
           <Alert variant="default" data-testid="expense-request-stats-alert">
             <div>
-              <h4 className="gba:font-semibold">Expense Requests Overview</h4>
-              <p className="gba:text-sm gba:mt-1">View and manage all expense requests across the organization</p>
+              <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.overview_title', 'Expense Requests Overview')}</h4>
+              <p className="gba:text-sm gba:mt-1">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.overview_description', 'View and manage all expense requests across the organization')}</p>
             </div>
           </Alert>
         </div>

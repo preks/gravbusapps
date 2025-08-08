@@ -88,7 +88,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
               {pieChartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={groupColors[entry.name] || '#ccc'} 
+                  fill={groupColors[entry.name] || undefined} 
                 />
               ))}
             </Pie>
@@ -98,7 +98,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                   const data = payload[0];
                   const name = data.name;
                   const value = data.value;
-                  const color = groupColors[name as string] || '#ccc';
+                  const color = groupColors[name as string] || undefined;
                   // Calculate percentage using current year total
                   const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0);
                   const percentage = currentYearTotal > 0 ? ((value as number / currentYearTotal) * 100).toFixed(1) : '0.0';
@@ -138,7 +138,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
             <div key={index} className="gba:flex gba:items-center gba:gap-2">
               <div 
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
-                style={{ backgroundColor: groupColors[entry.name] || '#ccc' }}
+                style={{ backgroundColor: groupColors[entry.name] || undefined }}
               />
               <span className="gba:text-xs gba:text-gray-600">{entry.name}</span>
             </div>

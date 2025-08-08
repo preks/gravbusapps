@@ -165,8 +165,6 @@ export const useEmployeeAccountsQueries = (
         orderBy: variables.orderBy || [{ createdAt: "DESC" }],
         where,
       };
-      console.log("variables for account!!!!!", variables);
-      console.log("requestVariables", requestVariables);
       try {
         const result = await graphqlClient.request<EmployeeAccountsResponse>(
           GET_EMPLOYEE_ACCOUNTS_QUERY,

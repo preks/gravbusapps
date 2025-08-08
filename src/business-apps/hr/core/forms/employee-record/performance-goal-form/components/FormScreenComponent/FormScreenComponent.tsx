@@ -30,16 +30,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
 }) => {
   const { t } = useTranslation();
   const [formIsValid, setFormIsValid] = useState(false);
+
   return (
     <Form
       form={form}
       layout="vertical"
-      initialValues={{
-        startDate: new Date(),
-        dueDate: dayjs().add(5, 'day').toDate(),
-        progressPercent: 0,
-        status: 'ON_TRACK'
-      }}
       data-testid={`${prefixDataTestId}-form`}
       className="gba:w-full gba:max-w-2xl gba:mx-auto"
       onFieldsChange={() => {
@@ -188,11 +183,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               onClick={handleFormSubmit} 
               loading={isSubmitting}
               disabled={!formIsValid}
-              data-testid={`${prefixDataTestId}-create-button`}
+              data-testid={`${prefixDataTestId}-submit-button`}
               className="gba:w-40"
               size="large"
             >
-              {t("performance_goal.create", "Create")}
+               {t("performance_goal.submit", "Submit")}
             </Button>
           </div>
         </Form.Item>

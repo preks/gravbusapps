@@ -19,6 +19,7 @@ import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { SalesTeamMembersList } from "./components/sales-members-list";
 import { SalesMemberPerformance } from "./components/sales-member-performance";
 import { useSalesTeamDataIntegration } from "./components/sales-members-list/hooks/useSalesTeamDataIntegration";
+import { useSalesTeamTrendData } from "./components/sales-members-list/hooks/useSalesTeamTrendData";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { formatCurrency } from "../../utils/currencyUtils";
 import {
@@ -102,6 +103,9 @@ export const SalesTeamPerformanceOverview: React.FC<
     loadPage,
     refetch,
   } = useSalesTeamDataIntegration({ accessToken });
+
+  // Fetch trend data for KPIs
+  const { trends, refetch: refetchTrends } = useSalesTeamTrendData(accessToken);
 
   // Add filter/search state for DataContainer
   const {
@@ -243,60 +247,95 @@ export const SalesTeamPerformanceOverview: React.FC<
     }
   }, [actualMembers, selectedMember]);
 
-  // Create KPI widgets from performance data
+  // Create KPI widgets from trend data
   const createKpiWidgets = (): WidgetItem[] => {
-    if (!performanceData) return [];
+    const getTrendIcon = (trend: "up" | "down" | "stable") => {
+      switch (trend) {
+        case "up":
+          return <PiTrendUp />;
+        case "down":
+          return <PiTrendDown />;
+        default:
+          return <PiChartLine />;
+      }
+    };
+
+    const getTrendColor = (trend: "up" | "down" | "stable") => {
+      switch (trend) {
+        case "up":
+          return "#10b981";
+        case "down":
+          return "#ef4444";
+        default:
+          return "#6b7280";
+      }
+    };
+
+    const getTrendDescription = (
+      trend: "up" | "down" | "stable",
+      percentage: number,
+      period: string = "vs last month"
+    ) => {
+      if (trend === "stable") return `Stable ${period}`;
+      const direction = trend === "up" ? "increase" : "decrease";
+      return `${percentage.toFixed(1)}% ${direction} ${period}`;
+    };
 
     return [
       {
-        key: "highest-revenue",
-        title: "Highest Revenue",
-        value: formatCurrency(performanceData.highestRevenue.value),
-        prefix: <PiTrendUp />,
-        color: "#10b981",
-        description: `${
-          performanceData.highestRevenue.member?.name || "Unknown"
-        } - Leading performer`,
+        key: "total-revenue",
+        title: "Total Revenue",
+        value: formatCurrency(trends.totalRevenue.currentValue),
+        prefix: getTrendIcon(trends.totalRevenue.trend),
+        color: getTrendColor(trends.totalRevenue.trend),
+        description: getTrendDescription(
+          trends.totalRevenue.trend,
+          trends.totalRevenue.trendPercentage
+        ),
         valueIsString: true,
       },
       {
-        key: "lowest-revenue",
-        title: "Lowest Revenue",
-        value: formatCurrency(performanceData.lowestRevenue.value),
-        prefix: <PiTrendDown />,
-        color: "#ef4444",
-        description: `${
-          performanceData.lowestRevenue.member?.name || "Unknown"
-        } - Needs attention`,
+        key: "win-rate",
+        title: "Win Rate",
+        value: trends.averageWinRate.currentValue,
+        prefix: getTrendIcon(trends.averageWinRate.trend),
+        color: getTrendColor(trends.averageWinRate.trend),
+        description: getTrendDescription(
+          trends.averageWinRate.trend,
+          trends.averageWinRate.trendPercentage
+        ),
+        precision: 1,
+        suffix: "%",
+      },
+      {
+        key: "total-activities",
+        title: "Sales Activities",
+        value: trends.totalActivities.currentValue,
+        prefix: getTrendIcon(trends.totalActivities.trend),
+        color: getTrendColor(trends.totalActivities.trend),
+        description: getTrendDescription(
+          trends.totalActivities.trend,
+          trends.totalActivities.trendPercentage
+        ),
+        precision: 0,
+      },
+      {
+        key: "pipeline-value",
+        title: "Pipeline Value",
+        value: formatCurrency(trends.pipelineValue.currentValue),
+        prefix: getTrendIcon(trends.pipelineValue.trend),
+        color: getTrendColor(trends.pipelineValue.trend),
+        description: getTrendDescription(
+          trends.pipelineValue.trend,
+          trends.pipelineValue.trendPercentage
+        ),
         valueIsString: true,
-      },
-      {
-        key: "highest-activity",
-        title: "Highest Activity Score",
-        value: performanceData.highestActivity.value,
-        prefix: <PiTarget />,
-        color: "#3b82f6",
-        description: `${
-          performanceData.highestActivity.member?.name || "Unknown"
-        } - Most active`,
-        precision: 1,
-      },
-      {
-        key: "lowest-activity",
-        title: "Lowest Activity Score",
-        value: performanceData.lowestActivity.value,
-        prefix: <PiChartLine />,
-        color: "#f59e0b",
-        description: `${
-          performanceData.lowestActivity.member?.name || "Unknown"
-        } - Boost engagement`,
-        precision: 1,
       },
     ];
   };
 
   // Show loading state
-  if (actualLoading && !performanceData) {
+  if ((actualLoading && !performanceData) || trends.isLoading) {
     return (
       <div
         className="gba:bg-white gba:min-h-screen gba:p-6"
@@ -313,7 +352,7 @@ export const SalesTeamPerformanceOverview: React.FC<
   }
 
   // Show error state
-  if (actualError && !performanceData) {
+  if ((actualError && !performanceData) || trends.error) {
     return (
       <div
         className="gba:bg-white gba:min-h-screen gba:p-6"
@@ -324,7 +363,11 @@ export const SalesTeamPerformanceOverview: React.FC<
           <Button
             variant="outline"
             size="sm"
-            onClick={onRetry || refetch}
+            onClick={() => {
+              if (onRetry) onRetry();
+              refetch();
+              refetchTrends();
+            }}
             className="gba:ml-2"
           >
             Retry
@@ -384,9 +427,13 @@ export const SalesTeamPerformanceOverview: React.FC<
       >
         <WidgetGroup
           widgets={createKpiWidgets()}
-          isLoading={actualLoading}
-          error={actualError}
-          onRetry={onRetry || refetch}
+          isLoading={actualLoading || trends.isLoading}
+          error={actualError || (trends.error ? new Error(trends.error) : null)}
+          onRetry={() => {
+            if (onRetry) onRetry();
+            refetch();
+            refetchTrends();
+          }}
           skeletonCount={4}
           emptyText="No performance statistics available."
           data-testid={`${DATA_TEST_ID_PREFIX}-kpi-widgets`}

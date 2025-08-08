@@ -5,11 +5,15 @@ export interface Contact {
   email?: string;
   phone?: string;
   jobTitle?: string;
+  department?: string;
+  contactType?: string;
+  contactRole?: string;
   bio?: string;
   linkedinUrl?: string;
   xingUrl?: string;
   birthDate?: string;
   pictureUrl?: string;
+  pictureThumbnailUrl?: string;
   academicTitle?: {
     id: string;
     value: string;
@@ -42,7 +46,9 @@ export interface UseContactListDataReturn {
   loadPage: (
     page: number,
     pageSize?: number,
-    additionalFilters?: any
+    additionalFilters?: any,
+    overrideSortField?: string,
+    overrideSortOrder?: "ASC" | "DESC" | ""
   ) => Promise<void>;
   retry: () => void;
 }

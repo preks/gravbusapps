@@ -1,6 +1,5 @@
 ---
 description: When user wants to start process/flow, or when user wants to continue a process/flow, or when user wants data to automatically refresh after a flow/process is complete.
-globs: 
 alwaysApply: false
 ---
 

@@ -108,7 +108,7 @@ export const useGetLeadOwners = (
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, search, offset, graphqlClient]);
+  }, [context.accessToken, search, offset]); // Removed graphqlClient from dependencies
 
   useEffect(() => {
     fetchLeadOwners();

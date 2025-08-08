@@ -223,7 +223,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("lead.created", "Created")}
+                    {t("lead.created", "Creation Date")}
                     {renderSortIcon("createdAt")}
                   </div>
                 </TableHead>
@@ -291,9 +291,9 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
                     >
                       <Avatar size="sm">
-                        {record.contact?.pictureUrl && (
+                        {record.contact?.pictureThumbnailUrl && (
                           <AvatarImage
-                            src={record.contact.pictureUrl}
+                            src={record.contact.pictureThumbnailUrl}
                             alt={getContactName(record)}
                           />
                         )}

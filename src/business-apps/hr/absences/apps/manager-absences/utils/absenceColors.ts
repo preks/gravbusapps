@@ -54,12 +54,15 @@ export class AbsenceColorsManager {
    * Fetch and process absence colors from catalogs
    */
   async getAbsenceColors(): Promise<AbsenceColorsData> {
+
     try {
       // Fetch both absence groups and types in parallel
       const [groupsResponse, typesResponse] = await Promise.all([
         this.fetchAbsenceGroups(),
         this.fetchAbsenceTypes()
       ]);
+      
+
 
       const groups = groupsResponse || [];
       const types = typesResponse || [];
@@ -86,7 +89,7 @@ export class AbsenceColorsManager {
         return aIndex - bIndex;
       });
 
-      console.log('Groups processing order:', sortedGroups.map(g => `${g.value} (${g.code})`));
+
 
       // Create maps for easy lookup
       const groupsMap = new Map(groups.map(g => [g.id, g]));
@@ -110,75 +113,30 @@ export class AbsenceColorsManager {
       for (const group of sortedGroups) {
         const groupName = group.value.toLowerCase();
         
-        // Special handling for Work Leave group - show individual types with combined names
-        if (groupName.includes('work leave') || groupName.includes('work-leave') || group.code === 'WORK') {
-          const workLeaveTypes = typesByGroupMap.get(group.id) || [];
-          console.log(`Processing Work Leave types:`, workLeaveTypes.map(t => t.value));
+        // Handle all groups uniformly - use group color only
+        const groupColor = this.extractColorFromCatalog(group);
+        
+        if (groupColor) {
+  
           
-          for (const workType of workLeaveTypes) {
-            const typeColor = this.extractColorFromCatalog(workType) || FALLBACK_COLORS[colorIndex % FALLBACK_COLORS.length];
-            const combinedName = `${group.value} - ${workType.value}`; // e.g., "Work Leave - Remote"
-            
-            console.log(`Adding Work Leave type: ${combinedName} with color ${typeColor}`);
-            
-            // Use combined name for both the type name and group name in color map
-            colorMap[workType.value] = typeColor; // For direct type lookup
-            colorMap[combinedName] = typeColor; // For combined name lookup
-            colorMap[group.value] = typeColor; // Fallback for group lookup
-            
-            displayItems.push({
-              id: workType.id,
-              name: combinedName, // Use combined name for display
-              color: typeColor,
-              type: 'type',
-              parentGroupId: group.id
-            });
-            colorIndex++;
-          }
-        } else {
-          // Regular group handling for other groups
-          const groupColor = this.extractColorFromCatalog(group) || FALLBACK_COLORS[colorIndex % FALLBACK_COLORS.length];
-          
-          console.log(`Adding regular group: ${group.value} with color ${groupColor}`);
-          
+          // Map group value to color
           colorMap[group.value] = groupColor;
+          
           displayItems.push({
             id: group.id,
             name: group.value,
             color: groupColor,
             type: 'group'
           });
-          colorIndex++;
+        } else {
+          console.warn(`No color found for group: ${group.value}, skipping fallback`);
         }
-      }
-
-      // Special handling for Remote and Business Trip types that might not be in Work Leave group
-      const specialTypes = types.filter(type => {
-        const typeName = type.value.toLowerCase();
-        return (typeName.includes('remote') || 
-               typeName.includes('business trip') || 
-               typeName.includes('business-trip')) &&
-               !typesByGroupMap.get('AbsenceGroup:v1:WORK')?.some(wt => wt.id === type.id);
-      });
-
-      for (const specialType of specialTypes) {
-        const typeColor = this.extractColorFromCatalog(specialType) || FALLBACK_COLORS[colorIndex % FALLBACK_COLORS.length];
-        
-        console.log(`Adding special type: ${specialType.value} with color ${typeColor}`);
-        
-        colorMap[specialType.value] = typeColor;
-        displayItems.push({
-          id: specialType.id,
-          name: specialType.value,
-          color: typeColor,
-          type: 'type',
-          parentGroupId: specialType.parentEntryId
-        });
         colorIndex++;
       }
 
-      console.log('Final color map:', colorMap);
-      console.log('Final display items:', displayItems);
+      // No special type processing - only use group colors
+
+
 
       return {
         colorMap,
@@ -245,6 +203,8 @@ export class AbsenceColorsManager {
    * Look for color in various possible fields
    */
   private extractColorFromCatalog(entry: CatalogEntry): string | null {
+
+    
     // Check objectValue.color field specifically (primary location for absence types)
     if (entry.objectValue && typeof entry.objectValue === 'object') {
       const obj = entry.objectValue as any;
@@ -256,7 +216,7 @@ export class AbsenceColorsManager {
         if (!color.startsWith('#')) {
           color = '#' + color;
         }
-        console.log(`Found color in objectValue.color: ${color} for entry ${entry.value}`);
+
         return color;
       }
       
@@ -324,7 +284,7 @@ export class AbsenceColorsManager {
       }
     }
 
-    console.log(`No color found for entry: ${entry.value} (${entry.id})`);
+
     return null;
   }
 
@@ -362,7 +322,13 @@ export class AbsenceColorsManager {
    * Get color for a specific absence name (group or type)
    */
   static getColorForAbsence(absenceName: string, colorMap: { [key: string]: string }): string {
-    return colorMap[absenceName] || FALLBACK_COLORS[0];
+    const catalogColor = colorMap[absenceName];
+    if (catalogColor) {
+      return catalogColor;
+    }
+    
+    console.warn(`No catalog color found for absence: ${absenceName}, using default`);
+    return '#6b7280'; // Single fallback color instead of cycling through array
   }
 
   /**
@@ -389,10 +355,10 @@ export class AbsenceColorsManager {
     );
 
     if (absenceType) {
-      console.log(`Looking for color in absence type: ${absenceType.name} (${typeCodeOrId})`);
+
       const color = this.extractColorFromCatalog(absenceType.catalogEntry);
       if (color) {
-        console.log(`Found color for type ${typeCodeOrId}: ${color}`);
+
         this.colorCache.set(typeCodeOrId, color);
         return color;
       }
@@ -401,7 +367,7 @@ export class AbsenceColorsManager {
     // Apply special rules for specific types
     const defaultColor = this.getDefaultColorForType(typeCodeOrId);
     this.colorCache.set(typeCodeOrId, defaultColor);
-    console.log(`Using default color for type ${typeCodeOrId}: ${defaultColor}`);
+
     return defaultColor;
   }
 
@@ -422,10 +388,10 @@ export class AbsenceColorsManager {
     );
 
     if (absenceGroup) {
-      console.log(`Looking for color in absence group: ${absenceGroup.name} (${groupCodeOrId})`);
+
       const color = this.extractColorFromCatalog(absenceGroup.catalogEntry);
       if (color) {
-        console.log(`Found color for group ${groupCodeOrId}: ${color}`);
+
         this.colorCache.set(groupCodeOrId, color);
         return color;
       }
@@ -434,7 +400,7 @@ export class AbsenceColorsManager {
     // Apply special rules for specific groups
     const defaultColor = this.getDefaultColorForType(groupCodeOrId);
     this.colorCache.set(groupCodeOrId, defaultColor);
-    console.log(`Using default color for group ${groupCodeOrId}: ${defaultColor}`);
+
     return defaultColor;
   }
 }
@@ -489,7 +455,7 @@ export const useAbsenceColors = (context: BusinessAppContextProps) => {
     if (context.accessToken && catalogClient && !catalogsLoading) {
       loadColors();
     }
-  }, [context.accessToken, catalogClient, catalogsLoading, loadColors]);
+  }, [context.accessToken, catalogClient, catalogsLoading, loadColors, absenceTypes.length, absenceGroups.length]);
 
   // Add individual color lookup methods
   const getAbsenceTypeColor = useCallback((typeCodeOrId: string): string => {

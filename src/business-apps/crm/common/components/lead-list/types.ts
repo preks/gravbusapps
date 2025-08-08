@@ -19,6 +19,15 @@ export interface Lead {
     code: string;
     value: string;
   };
+  regionRef?: string;
+  region?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+  city?: string;
+  addressLine?: string;
+  postalCode?: string;
   leadSource?: {
     id: string;
     code: string;
@@ -31,6 +40,12 @@ export interface Lead {
     objectValue?: any;
   };
   leadRating?: {
+    id: string;
+    code: string;
+    value: string;
+    objectValue?: any;
+  };
+  industry?: {
     id: string;
     code: string;
     value: string;
@@ -54,6 +69,7 @@ export interface Lead {
     firstName: string;
     lastName: string;
     pictureUrl: string;
+    pictureThumbnailUrl: string;
   };
 }
 

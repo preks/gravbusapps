@@ -63,8 +63,7 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
   const kpiCardData: KpiCardData = {
     id: 'monthly-spend-comparison',
     title: 'Monthly Spend Comparison',
-    value: Math.abs(percentChange).toFixed(1),
-    suffix: '%',
+    value: Math.abs(percentChange).toFixed(1) + ' %',
     decimalPlaces: 1,
     footer: `${getCurrentMonthName()}: ${formatCurrency(currentMonthTotal)} (${currentMonthCount} expenses) | ${getPreviousMonthName()}: ${formatCurrency(previousMonthTotal)} (${previousMonthCount} expenses)`,
     trend: {

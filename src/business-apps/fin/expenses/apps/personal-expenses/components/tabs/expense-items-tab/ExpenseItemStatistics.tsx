@@ -159,7 +159,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'total-expenses',
       title: `Total Expenses for ${currentMonthName}`,
-      value: formatNumberFunction(String(totalExpenses ?? 0)),
+      value: formatNumberFunction(String(totalExpenses ?? 0)) + '€',
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
@@ -172,7 +172,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'pending-reimbursement',
       title: 'Pending Reimbursement',
-      value: formatNumberFunction(String(pendingReimbursement)),
+      value: formatNumberFunction(String(pendingReimbursement)) + '€',
       valueIsString: true,
       prefix: <WalletOutlined />,
       color: '#1677ff',

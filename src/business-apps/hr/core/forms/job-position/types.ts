@@ -2,21 +2,21 @@ export interface JobPositionFormValues {
   id?: string; // present if editing
   version?: number; // present if editing, required for updates
   name: string;
-  jobProfileId: string;
+  jobProfileId?: string; // Now optional
   jobFamilyId: string;
   jobFunctionId: string;
-  jobLevelGroupId: string;
-  jobLevelId: string;
+  jobLevelGroupId?: string; // Made optional - auto-selected from job function
+  jobLevelId?: string; // Made optional - not shown in form
   organizationalUnitId: string;
-  employmentTypeId: string;
-  contractTypeId: string;
+  employmentTypeId?: string; // Made optional - not shown in form
+  contractTypeId?: string; // Made optional - not shown in form
 }
 
 export interface SelectOption {
   id: string;
   name: string;
-  label?: string; // for compatibility
-  value?: string; // for compatibility
+  label: string;
+  value: string;
   disabled?: boolean;
 }
 
@@ -48,6 +48,7 @@ export interface JobPositionContextState {
   hasMoreJobProfiles: boolean;
   jobProfilesError: string | null;
   jobProfilesLoading: boolean;
+  enableJobProfilesLoading: () => void;
   // Organizational unit specific methods
   searchOrganizationalUnits: (searchTerm?: string) => void;
   loadMoreOrganizationalUnits: () => void;

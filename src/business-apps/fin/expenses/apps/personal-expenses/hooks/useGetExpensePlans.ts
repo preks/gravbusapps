@@ -127,7 +127,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
   const fetchItems = useCallback(async (
     filters: ExpensePlanFilter = {}, 
     page: number = 1, 
-    pageSize: number = 10
+    pageSize: number = 20
   ) => {
     if (!employeeId) {
       setError(new Error('Employee ID not found. Cannot fetch expense plans.'));

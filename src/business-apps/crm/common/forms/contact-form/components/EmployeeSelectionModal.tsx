@@ -1,10 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Input, Label, Spinner } from '@newwork/nw-design-system';
-import { PiMagnifyingGlass, PiX, PiSpinner } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { SelectOption } from '../types';
+import React, { useState, useEffect } from "react";
+import {
+  Button,
+  Input,
+  Label,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Alert,
+  AlertDescription,
+} from "@newwork/nw-design-system";
+import { PiMagnifyingGlass, PiX, PiSpinner } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { SelectOption } from "../types";
 
-const prefixDataTestId = 'ContactEmployeeSelectionModal';
+const prefixDataTestId = "ContactEmployeeSelectionModal";
 
 interface EmployeeSelectionModalProps {
   isVisible: boolean;
@@ -29,9 +38,9 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
   onLoadMore,
   onSearch,
   error,
-  selectedValue
+  selectedValue,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Handle search with debouncing
   useEffect(() => {
@@ -52,27 +61,18 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
   };
 
   const handleClose = () => {
-    setSearchTerm('');
+    setSearchTerm("");
     onClose();
   };
 
-  // Helper function to get employee initials
-  const getEmployeeInitials = (name?: string) => {
-    return name
-      ?.split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '??';
-  };
-
+  // Restore original visibility check
   if (!isVisible) return null;
 
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:flex gba:items-center gba:justify-center gba:z-50">
-      <div 
+      <div
         className="gba:bg-white gba:rounded-xl gba:shadow-2xl gba:w-full gba:max-w-2xl gba:max-h-[80vh] gba:m-4 gba:flex gba:flex-col"
-        data-testid={formatDataTestId(prefixDataTestId, 'Container')}
+        data-testid={formatDataTestId(prefixDataTestId, "Container")}
       >
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-6 gba:border-b gba:border-gray-200">
@@ -80,129 +80,154 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
             Select Contact Owner
           </h2>
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
             onClick={handleClose}
             className="gba:p-2"
-            data-testid={formatDataTestId(prefixDataTestId, 'CloseButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CloseButton")}
           >
             <PiX size={16} />
           </Button>
         </div>
 
-        {/* Search */}
+        {/* Search Section */}
         <div className="gba:p-6 gba:border-b gba:border-gray-200">
+          <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+            Search Employees
+          </Label>
           <div className="gba:relative">
-            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:w-4 gba:h-4" />
+            <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
+              <PiMagnifyingGlass className="gba:h-5 gba:w-5 gba:text-gray-400" />
+            </div>
             <Input
-              type="text"
-              placeholder="Search employees..."
+              name="search"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="gba:pl-10"
-              data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
+              placeholder="Type to search employees..."
+              className="gba:border-gray-300 gba:bg-white"
+              style={{ paddingLeft: "32px" }}
+              data-testid={formatDataTestId(prefixDataTestId, "SearchInput")}
             />
           </div>
         </div>
 
-        {/* Employee List */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:p-4">
+        {/* Error Display */}
+        <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
           {error && (
-            <div className="gba:text-center gba:text-red-600 gba:py-4">
-              Error loading employees: {error}
+            <Alert variant="destructive" className="gba:mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Loading State */}
+          {loading && employees.length === 0 && (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-500">
+                <PiSpinner className="gba:animate-spin" size={20} />
+                <span>Loading employees...</span>
+              </div>
             </div>
           )}
 
-          {!error && employees.length === 0 && !loading && (
-            <div className="gba:text-center gba:text-gray-500 gba:py-8">
-              {searchTerm ? 'No employees found matching your search.' : 'No employees available.'}
+          {/* No Results */}
+          {!loading && employees.length === 0 && searchTerm && (
+            <div className="gba:text-center gba:py-12 gba:text-gray-500">
+              <p>No employees found matching "{searchTerm}"</p>
+              <p className="gba:text-sm gba:mt-2">
+                Try adjusting your search terms
+              </p>
             </div>
           )}
 
-          <div className="gba:space-y-2">
-            {employees.map((employee) => (
-              <button
-                key={employee.id}
-                onClick={() => handleEmployeeSelect(employee)}
-                className={`gba:w-full gba:text-left gba:p-4 gba:rounded-lg gba:border gba:transition-colors gba:flex gba:items-center gba:gap-3 ${
-                  selectedValue === employee.value
-                    ? 'gba:border-blue-500 gba:bg-blue-50'
-                    : 'gba:border-gray-200 gba:hover:border-gray-300 gba:hover:bg-gray-50'
-                }`}
-                data-testid={formatDataTestId(prefixDataTestId, `Employee-${employee.id}`)}
-              >
-                {/* Employee Avatar */}
-                <div className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:flex gba:items-center gba:justify-center gba:text-white gba:font-semibold gba:text-sm gba:flex-shrink-0 gba:shadow-md">
-                  {employee.extraInfo?.pictureThumbnail ? (
-                    <img 
-                      src={`data:image/jpeg;base64,${employee.extraInfo.pictureThumbnail}`}
-                      alt={employee.name || 'Employee'}
-                      className="gba:w-full gba:h-full gba:rounded-full gba:object-cover"
-                    />
-                  ) : (
-                    getEmployeeInitials(employee.name)
+          {/* Employee List */}
+          {employees.length > 0 && (
+            <div className="gba:space-y-3">
+              {employees.map((employee) => (
+                <div
+                  key={employee.value}
+                  onClick={() => handleEmployeeSelect(employee)}
+                  className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:cursor-pointer gba:transition-colors gba:hover:bg-gray-50 gba:hover:border-gray-300"
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    `EmployeeOption-${employee.value}`
                   )}
-                </div>
+                >
+                  {/* Professional Avatar */}
+                  <Avatar size="lg">
+                    {employee.extraInfo?.pictureThumbnail ? (
+                      <AvatarImage
+                        src={`data:image/jpeg;base64,${employee.extraInfo.pictureThumbnail}`}
+                        alt={employee.name || "Employee"}
+                      />
+                    ) : null}
+                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold">
+                      {employee.name
+                        ?.split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2) || "??"}
+                    </AvatarFallback>
+                  </Avatar>
 
-                {/* Employee Info */}
-                <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
-                    {employee.name}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-600 gba:truncate">
-                    {employee.extraInfo?.jobPosition || 'No Position'}
-                  </div>
-                  <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                    {employee.extraInfo?.organizationalUnit || 'No Unit'}
-                  </div>
-                  {employee.extraInfo?.email && (
+                  {/* Employee Information */}
+                  <div className="gba:flex-1 gba:min-w-0">
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:truncate">
+                      {employee.name}
+                    </div>
+                    <div className="gba:text-xs gba:text-gray-600 gba:truncate gba:mt-1">
+                      {employee.extraInfo?.jobPosition || "No Position"}
+                    </div>
                     <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                      {employee.extraInfo.email}
+                      {employee.extraInfo?.organizationalUnit || "No Unit"}
+                    </div>
+                  </div>
+
+                  {/* Selection Indicator */}
+                  {selectedValue === employee.value && (
+                    <div className="gba:w-5 gba:h-5 gba:bg-blue-500 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                      <div className="gba:w-2 gba:h-2 gba:bg-white gba:rounded-full"></div>
                     </div>
                   )}
                 </div>
+              ))}
 
-                {/* Selection Indicator */}
-                {selectedValue === employee.value && (
-                  <div className="gba:w-5 gba:h-5 gba:bg-blue-500 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                    <div className="gba:w-2 gba:h-2 gba:bg-white gba:rounded-full"></div>
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Load More */}
-          {hasMore && (
-            <div className="gba:text-center gba:mt-4">
-              <Button
-                variant="secondary"
-                onClick={onLoadMore}
-                disabled={loading}
-                className="gba:flex gba:items-center gba:gap-2"
-                data-testid={formatDataTestId(prefixDataTestId, 'LoadMoreButton')}
-              >
-                {loading && <PiSpinner className="gba:animate-spin gba:w-4 gba:h-4" />}
-                Load More
-              </Button>
-            </div>
-          )}
-
-          {/* Loading Indicator */}
-          {loading && employees.length === 0 && (
-            <div className="gba:text-center gba:py-8">
-              <Spinner size="lg" />
-              <div className="gba:text-gray-500 gba:mt-2">Loading employees...</div>
+              {/* Restore original Load More Button behavior */}
+              {hasMore && (
+                <div className="gba:flex gba:justify-center gba:pt-4">
+                  <Button
+                    variant="secondary"
+                    onClick={onLoadMore}
+                    disabled={loading}
+                    data-testid={formatDataTestId(
+                      prefixDataTestId,
+                      "LoadMoreButton"
+                    )}
+                  >
+                    {loading ? (
+                      <>
+                        <PiSpinner
+                          className="gba:animate-spin gba:mr-2"
+                          size={16}
+                        />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load More"
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="gba:p-6 gba:border-t gba:border-gray-200 gba:flex gba:justify-end">
+        {/* Footer Actions */}
+        <div className="gba:flex gba:justify-end gba:gap-3 gba:p-6 gba:border-t gba:border-gray-200 gba:bg-gray-50">
           <Button
             variant="secondary"
             onClick={handleClose}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
           >
             Cancel
           </Button>
@@ -212,4 +237,4 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
   );
 };
 
-export default EmployeeSelectionModal; 
+export default EmployeeSelectionModal;
