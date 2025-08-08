@@ -22,13 +22,26 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
     const expenseRequestId = urlParams.get('expenseRequestId');
     const itemCurrency = urlParams.get('itemCurrency');
     
-    // Merge URL parameters with additionalData
+    // Merge URL parameters with additionalData, but prioritize additionalData
     return {
       ...additionalData,
-      expenseRequestId: expenseRequestId || additionalData?.expenseRequestId,
-      itemCurrency: itemCurrency || additionalData?.itemCurrency
+      expenseRequestId: additionalData?.expenseRequestId || expenseRequestId,
+      itemCurrency: additionalData?.itemCurrency || itemCurrency
     };
   });
+
+  // Update localAdditionalData when additionalData changes
+  React.useEffect(() => {
+    if (additionalData) {
+      setLocalAdditionalData((prevData: any) => ({
+        ...prevData,
+        ...additionalData,
+        // Prioritize additionalData over URL parameters
+        expenseRequestId: additionalData.expenseRequestId || prevData.expenseRequestId,
+        itemCurrency: additionalData.itemCurrency || prevData.itemCurrency
+      }));
+    }
+  }, [additionalData]);
   
   // For backward compatibility, still listen for the custom event
   React.useEffect(() => {

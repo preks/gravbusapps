@@ -121,6 +121,11 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     const processedData = allowanceData.map((element) => {
       let updatedElement = { ...element };
       
+      // Set default cost center for all allowances if it exists
+      if (!updatedElement.costCenterId && defaultCostCenter) {
+        updatedElement.costCenterId = defaultCostCenter;
+      }
+      
       // Set default project for all allowances if it exists
       if (!updatedElement.projectId && requestProject.project) {
         updatedElement.projectId = requestProject.project.id || "";
@@ -153,7 +158,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
       updateStructureIdArrayFromListData(processedData);
     }
     
-  }, [expenseRequestData]);
+  }, [expenseRequestData, defaultCostCenter]);
   
   const handleToggleCollapse = (index: number) => {
     setCollapsedStates(prev => ({
@@ -194,12 +199,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     }
   }, [costCenters, listDataArray]);
   
-  const handleCostCenterChange = (index: number, value: string) => {
+  const handleCostCenterChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
       const newArray = [...prev];
       newArray[index] = {
         ...newArray[index],
-        costCenterId: value,
+        costCenterId: value || undefined,
         projectId: undefined // Clear project when cost center changes
       };
       const updatedArray = [...newArray];
@@ -211,12 +216,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     });
   };
   
-  const handleProjectChange = (index: number, value: string) => {
+  const handleProjectChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
       const newArray = [...prev];
       newArray[index] = {
         ...newArray[index],
-        projectId: value
+        projectId: value || undefined
       };
       return newArray;
     });

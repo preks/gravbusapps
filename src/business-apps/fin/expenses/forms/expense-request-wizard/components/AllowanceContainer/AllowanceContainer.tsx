@@ -16,10 +16,10 @@ interface AllowanceContainerProps {
   onToggleCollapse: () => void;
   costCenters: CostCenter[];
   defaultCostCenter?: string;
-  onCostCenterChange: (index: number, value: string) => void;
+  onCostCenterChange: (index: number, value: string | undefined) => void;
   projects: any[];
   defaultProject?: string;
-  onProjectChange: (index: number, value: string) => void;
+  onProjectChange: (index: number, value: string | undefined) => void;
 }
 
 /**
@@ -83,16 +83,23 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               name: cc.name
             }))}
             onChange={(value: any) => {
-              onCostCenterChange(index, value?.value);
+              // Handle clearing - if value is null/undefined, pass undefined
+              const selectedValue = value && value.value ? value.value : undefined;
+              onCostCenterChange(index, selectedValue);
             }}
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder', 'Select Cost Center')}
-            value={item.costCenterId ? {
-              value: item.costCenterId,
-              label: costCenters.find(cc => cc.id === item.costCenterId)?.name || item.costCenterId
-            } : defaultCostCenter ? {
-              value: defaultCostCenter,
-              label: costCenters.find(cc => cc.id === defaultCostCenter)?.name || defaultCostCenter
-            } : undefined}
+            value={(() => {
+              // Only show existing value, not defaults after clearing
+              if (item.costCenterId) {
+                const costCenter = costCenters.find(cc => cc.id === item.costCenterId);
+                // Only return value if we have the cost center data loaded
+                return costCenter ? {
+                  value: item.costCenterId,
+                  label: costCenter.name
+                } : undefined;
+              }
+              return undefined;
+            })()}
             required={true}
           />
           
@@ -114,31 +121,20 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
                 name: project.name
               }))}
             onChange={(value: any) => {
-              onProjectChange(index, value?.value);
+              // Handle clearing - if value is null/undefined, pass undefined
+              const selectedValue = value && value.value ? value.value : undefined;
+              onProjectChange(index, selectedValue);
             }}
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project_placeholder', 'Select Project')}
             value={(() => {
-              // Get filtered projects to check if default project exists in available options
-              const filteredProjects = projects.filter((element) => {
-                const costCenter = costCenters.find(cc => cc.id === item.costCenterId);
-                return costCenter && element.structureId === costCenter.structureId && 
-                       (!element.validTo || new Date(element.validTo) > new Date(item.expenseDate || new Date()));
-              });
-              
+              // Only show existing value, not defaults after clearing
               if (item.projectId) {
-                return {
+                const project = projects.find(p => p.id === item.projectId);
+                // Only return value if we have the project data loaded
+                return project ? {
                   value: item.projectId,
-                  label: projects.find(p => p.id === item.projectId)?.name || item.projectId
-                };
-              } else if (defaultProject) {
-                // Only set default project if it exists in the filtered options
-                const defaultProjectExists = filteredProjects.some(p => p.id === defaultProject);
-                if (defaultProjectExists) {
-                  return {
-                    value: defaultProject,
-                    label: projects.find(p => p.id === defaultProject)?.name || defaultProject
-                  };
-                }
+                  label: project.name
+                } : undefined;
               }
               return undefined;
             })()}

@@ -494,7 +494,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                   return (
                     <div
                       key={item.id}
-                      className={`gba:cursor-pointer gba:hover:bg-gray-50 ${selectedItemIdsForSelection.includes(item.id) ? 'gba:border-4 gba:border-black' : ''}`}
+                      className="gba:cursor-pointer gba:hover:bg-gray-50"
+                      style={{
+                        border: selectedItemIdsForSelection.includes(item.id) ? '4px solid black' : 'none'
+                      }}
                       onClick={() => toggleItemSelection(item.id)}
                       data-testid={`select-item-${item.id}`}
                     >

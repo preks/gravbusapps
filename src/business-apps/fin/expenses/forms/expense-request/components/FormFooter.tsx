@@ -31,7 +31,7 @@ const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsVa
         >
           {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
-        {step === 'expense' && (
+        {(step === 'expense' || step === 'trip') && (
           <Button 
             variant="primary" 
             className="gba:submitButton" 

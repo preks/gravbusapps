@@ -98,6 +98,45 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     setStep(FORM_STEPS.PLAN);
   };
 
+  const handlePlanSelect = (plan: PlanData) => {
+    setSelectedPlan(plan);
+    const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id);
+    if (fullPlanData) {
+      const formValues: Partial<ExpenseFormValues> = {};
+      if (fullPlanData.title) {
+        formValues.title = fullPlanData.title;
+      }
+      if (fullPlanData.costCenter?.id) {
+        formValues.costCenter = fullPlanData.costCenter.id;
+        setSelectedCostCenter(fullPlanData.costCenter.id);
+      }
+      if (fullPlanData.projectId) {
+        formValues.project = fullPlanData.projectId;
+      }
+      if (fullPlanData.description) {
+        formValues.comment = fullPlanData.description;
+      }
+      if (plan.planType === 'TRIP') {
+        setShowTransportation(true);
+        let additionalProps = fullPlanData.additionalProperties;
+        if (typeof additionalProps === 'string') {
+          try {
+            additionalProps = JSON.parse(additionalProps);
+          } catch (error) {
+            additionalProps = {};
+          }
+        }
+        
+        if (additionalProps?.transportationMeans) {
+          formValues.transportationMeans = additionalProps.transportationMeans;
+        }
+      }
+      form.setFieldsValue(formValues);
+      const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0);
+      setFormIsValid && setFormIsValid(isFormValidValue);
+    }
+  };
+
   const backButtonClick = () => {
     if (selectedPlan && step === FORM_STEPS.PLAN) {
       setSelectedPlan(null);
@@ -150,7 +189,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         return;
       }
       
-      const isTrip = step === FORM_STEPS.EXPENSE && values.transportationMeans;
+      const isTrip = (step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType=== 'TRIP'));
       let expenseTypeRef =""
       if(selectedPlan && selectedPlan?.planType){
         if(selectedPlan?.planType === 'TRIP'){
@@ -180,7 +219,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         title: values.title,
         status: REQUEST_STATUS.CREATED,
         costCenter: values.costCenter,
-        project: values.project,
+        project: values.project || "",
         employee: employeeId,
         description: values.comment || "",
         expensePlan: selectedPlan?.id || "",
@@ -230,7 +269,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   return (
     <div className="gba:mainContainer" data-testid="expense-request-main-container">
-{step === 'expense' || step === 'plan' || step === 'trip' ? (
+     {step === 'expense' || step === 'plan' || step === 'trip' ? (
         <>
           {/* Expense form header */}
           <div className="gba:headerContainer" data-testid="expense-form-header-container">
@@ -290,7 +329,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 <PlanFormContent 
                   form={form} 
                   planData={planData} 
-                  onPlanSelect={setSelectedPlan} 
+                  onPlanSelect={handlePlanSelect} 
                 />
               )}
             </>
