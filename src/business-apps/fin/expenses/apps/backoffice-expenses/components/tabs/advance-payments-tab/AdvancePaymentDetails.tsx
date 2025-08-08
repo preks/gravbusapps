@@ -45,23 +45,23 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
 
       {/* Details Section */}
       <Descriptions size="small" column={1}>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.reporter', 'Reporter')}>
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.reporter', 'Reporter')}>
           {selectedItem.employeeFullName || 'N/A'}
         </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.status', 'Status')}>
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}>
           {getAdvancePaymentStatusDisplay(selectedItem.status).label}
         </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.amount', 'Amount')}>
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')}>
           <span style={{ fontWeight: 'bold' }}>
             {formatNumberFunction(String(selectedItem.expensePlan?.totalAmount || '0'))} {selectedItem.currency?.code || selectedItem.expensePlan?.currency?.code || ''}
           </span>
         </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.advance', 'Advance')}>
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}>
           <span style={{ fontWeight: 'bold' }}>
             {formatNumberFunction(String(selectedItem.amount || '0'))} {selectedItem.currency?.code || ''}
           </span>
         </Descriptions.Item>
-        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('advance.payment.paymentMethod', 'Payment Method')}>
+        <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}>
           {selectedItem.paymentMethod === 'DIRECT_DEPOSIT' 
             ? getTranslationFromI18nKeyAndLabel(
                 'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
@@ -85,7 +85,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
     const formatCurrency = (amount: number) => {
       let currencySymbol = '€'; // Default to Euro symbol
       if (plan.currency?.value) {
-        currencySymbol = plan.currency.value === 'European euro' ? '€' : plan.currency.value.charAt(0);
+        currencySymbol = plan.currency.value === getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.european_euro', 'European euro') ? '€' : plan.currency.value.charAt(0);
       }
       return `${currencySymbol}${amount.toFixed(2)}`;
     };
@@ -97,7 +97,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
       }
       const additionalProps = plan.additionalProperties as Record<string, unknown> | null;
       const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-      return tripType ?? 'Business Travel';
+      return tripType ?? getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.business_travel', 'Business Travel');
     };
 
     return (
@@ -119,7 +119,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
           <div className="gba:flex gba:items-center gba:mb-2">
             <PiCalendarDuotone className="gba:mr-2" />
             <Typography.Text className="gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.duration', 'Duration')}: {' '}
               {dayjs(plan.startDate).format('DD.MM.YYYY')} {' → '} 
               {dayjs(plan.endDate).format('DD.MM.YYYY')}
             </Typography.Text>
@@ -130,7 +130,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
           <div className="gba:flex gba:items-center gba:mb-2">
             <PiClock className="gba:mr-2" />
             <Typography.Text className="gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel('expense.plan.planDate', 'Plan Date')}: {' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.plan_date', 'Plan Date')}: {' '}
               {dayjs(plan.planDate).format('DD.MM.YYYY')}
             </Typography.Text>
           </div>
@@ -140,7 +140,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
           <div className="gba:flex gba:items-center gba:mb-4">
             <PiPath className="gba:mr-2" />
             <Typography.Text className="gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel('expense.plan.decisionDate', 'Decision Date')}: {' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.decision_date', 'Decision Date')}: {' '}
               {dayjs(plan.decisionDate).format('DD.MM.YYYY')}
             </Typography.Text>
           </div>
@@ -152,39 +152,39 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
         
         <Descriptions size="small" column={1}>
           {plan.employee && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}>
               {plan.employee.fullName}
             </Descriptions.Item>
           )}
           
           {plan.employee?.employeePosition?.supervisor && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.manager', 'Manager')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.manager_title', 'Manager')}>
               {plan.employee.employeePosition.supervisor.fullName}
             </Descriptions.Item>
           )}
           
           {plan.costCenter && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.costCenter', 'Cost Center')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.request_cost_center', 'Cost Center')}>
               {plan.costCenter.name}
             </Descriptions.Item>
           )}
           
           {plan.project && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.project', 'Project')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.select_project', 'Project')}>
               {plan.project.name}
             </Descriptions.Item>
           )}
           
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.tripType', 'Trip Type')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Trip Type')}>
             {getTripType()}
           </Descriptions.Item>
           
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}>
             {typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount) : '-'}
           </Descriptions.Item>
           
           {plan.advancePaymentPaidAmount > 0 && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.advancePayment', 'Advance Payment')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.advance_payment', 'Advance Payment')}>
               {formatCurrency(plan.advancePaymentPaidAmount)}
             </Descriptions.Item>
           )}
@@ -203,7 +203,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             }}
             data-testid="view-expense-plan-details-button"
           >
-            {getTranslationFromI18nKeyAndLabel('expense.plan.details.view', 'View Full Details')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
           </Button>
         </div>
       </div>
@@ -221,7 +221,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <div>
             <Typography.Title level={4} className="gba:mb-1">
-              {request.title || 'Expense Request'}
+              {request.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Request')}
             </Typography.Title>
             <Typography.Text type="secondary">
               {request.code || 'N/A'}
@@ -244,37 +244,37 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
 
         {/* Details Section */}
         <Descriptions size="small" column={1}>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.requester', 'Requester')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}>
             {selectedItem.employeeFullName || 'N/A'}
           </Descriptions.Item>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.status', 'Status')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}>
             {getAdvancePaymentStatusDisplay(request.status).label}
           </Descriptions.Item>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.amount', 'Request Amount')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.request_amount', 'Request Amount')}>
             <span style={{ fontWeight: 'bold' }}>
               {formatNumberFunction(String(request.totalAmount || '0'))} {request.currency?.code || selectedItem.currency?.code || ''}
             </span>
           </Descriptions.Item>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.type', 'Request Type')}>
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_label', 'Request Type')}>
             {request.requestType?.value || request.requestType || 'N/A'}
           </Descriptions.Item>
           {request.costCenter && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.costCenter', 'Cost Center')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.request_cost_center', 'Cost Center')}>
               {request.costCenter.name || request.costCenter}
             </Descriptions.Item>
           )}
           {request.project && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.project', 'Project')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.select_project', 'Project')}>
               {request.project.name || request.project}
             </Descriptions.Item>
           )}
           {request.startDate && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.startDate', 'Start Date')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.departure_date', 'Start Date')}>
               {dayjs(request.startDate).format('DD.MM.YYYY')}
             </Descriptions.Item>
           )}
           {request.endDate && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.request.endDate', 'End Date')}>
+            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.end_date', 'End Date')}>
               {dayjs(request.endDate).format('DD.MM.YYYY')}
             </Descriptions.Item>
           )}
@@ -293,7 +293,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             }}
             data-testid="view-expense-request-details-button"
           >
-            {getTranslationFromI18nKeyAndLabel('expense.request.details.view', 'View Full Details')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
           </Button>
         </div>
       </div>

@@ -67,6 +67,7 @@ interface ProfileInfoItemProps {
   linkTo?: string;
   onClick?: () => void;
   openInNewTab?: boolean;
+  className?: string;
 }
 
 interface TagItemProps {
@@ -103,10 +104,11 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   value,
   linkTo,
   onClick,
+  className,
   openInNewTab = false,
 }) => {
   return (
-    <div className="gba:flex gba:items-center gba:gap-2">
+    <div className={`gba:flex gba:items-center gba:gap-2 ${className}`}>
       <div className="gba:shrink-0 gba:text-gray-500">{icon}</div>
       <div className="gba:grow">
         <div className="gba:text-xs gba:text-gray-500">{label}</div>
@@ -117,21 +119,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
             target={openInNewTab ? "_blank" : undefined}
             rel={openInNewTab ? "noopener noreferrer" : undefined}
           >
-            <span className="gba:whitespace-normal">{value}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
+            <span className="gba:whitespace-normal font-medium">{value}</span>
           </a>
         ) : onClick ? (
           <a
@@ -144,20 +132,6 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
             data-testid={`profile-info-${label.toLowerCase()}-link`}
           >
             <span className="gba:whitespace-normal">{value}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
           </a>
         ) : (
           <div className="gba:text-sm gba:text-gray-700">{value}</div>
@@ -497,6 +471,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Organization */}
                 <ProfileInfoItem
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Organization"}
                   value={
                     employee.employeePosition?.organizationalUnit?.name ??
@@ -507,13 +482,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
                       : undefined
                   }
-                  openInNewTab={true}
                 />
  
                 {/* Location */}
                 <ProfileInfoItem
                   data-testid="employee-location-info"
                   icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Location"}
                   value={
                     employee.employeePosition?.siteLocation?.name ||
@@ -524,11 +499,11 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
                       : undefined
                   }
-                  openInNewTab={true}
                 />
                 {/* Email */}
                   <ProfileInfoItem
                     icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
+                    className="gba:text-blue-600"
                     label={"Work Email"}
                     value={employeeWithComms?.email ? employeeWithComms.email : "N/A"}
                     linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
@@ -538,6 +513,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
 
                   <ProfileInfoItem
                     icon={<PiPhone className="gba:h-4 gba:w-4" />}
+                    className="gba:text-blue-600"
                     label={"Work Phone"}
                     value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : "N/A"}
                     linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
@@ -547,6 +523,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Manager */}
                 <ProfileInfoItem
                   icon={<PiUser className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Manager"}
                   value={
                     employee.employeePosition?.supervisor?.id &&
@@ -580,6 +557,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Cost Center */}
                 <ProfileInfoItem
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Cost Center"}
                   value={
                     employee.employeePosition?.costCenter?.name ??
@@ -590,7 +568,6 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
                       : undefined
                   }
-                  openInNewTab={true}
                 />
                 {/* Hire Date */}
                 <ProfileInfoItem
@@ -609,7 +586,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               {/* Dynamic scrollable container for Teams, Capabilities and Skills */}
               <div 
                 ref={skillsContainerRef}
-                className="gba:mt-2 gba:w-full" 
+                className="gba:w-full" 
                 data-testid="skills-capabilities-container"
               >
                 <div 
@@ -623,7 +600,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   {/* Teams Section - if available */}
                   {employee.employeePosition?.matrixUnitEmployees &&
                     employee.employeePosition.matrixUnitEmployees.length > 0 && (
-                      <div className="gba:mt-6 gba:mb-6">
+                      <div className="gba:mt-4">
                         <div className="gba:flex gba:items-start gba:p-1">
                           <div className="gba:flex-1">
                             <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
@@ -649,7 +626,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                     )}
 
                   {/* Capabilities Section - always displayed */}
-                  <div className="gba:mb-6" data-testid="capabilities-section">
+                  <div className="gba:mt-4" data-testid="capabilities-section">
                     <div className="gba:flex gba:items-start">
                       <div className="gba:flex-1">
                         <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Capabilities</div>
@@ -681,7 +658,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   </div>
 
                   {/* Skills Section - always displayed */}
-                  <div className="gba:mb-6" data-testid="skills-section">
+                  <div className="gba:mt-4" data-testid="skills-section">
                     <div className="gba:flex gba:items-start">
                       <div className="gba:flex-1">
                         <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>

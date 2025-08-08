@@ -3,6 +3,7 @@ import { SalesTaskFormValues, SelectOption, EntityOption, SalesTaskContextState 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useSalesTaskTypes } from '../hooks/useSalesTaskTypes';
 import { useSalesTaskPriorities } from '../hooks/useSalesTaskPriorities';
+import { useSalesTaskStatuses } from '../hooks/useSalesTaskStatuses';
 import { useSalesTaskEmployees } from '../hooks/useSalesTaskEmployees';
 import { useSalesTaskEntities } from '../hooks/useSalesTaskEntities';
 import { useFileClient } from '@/common/network/files/useFileClient';
@@ -19,12 +20,14 @@ interface SalesTaskFormContextValue extends SalesTaskContextState {
   // Data fetching
   taskTypesLoading: boolean;
   prioritiesLoading: boolean;
+  statusesLoading: boolean;
   employeesLoading: boolean;
   entitiesLoading: boolean;
   
   // Search functions
   searchTaskTypes: (search: string) => void;
   searchPriorities: (search: string) => void;
+  searchStatuses: (search: string) => void;
   searchEmployees: (search: string) => void;
   searchEntities: (search: string) => void;
   
@@ -59,23 +62,32 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
 }) => {
   const { accessToken, additionalData } = businessAppContext;
   
-  // Get task data from additionalData if not provided as prop
-  const actualTaskData = taskData || additionalData?.taskData;
+  // Get task data from multiple possible payload locations (edit mode)
+  const actualTaskData = taskData 
+    || additionalData?.taskData 
+    || additionalData?.psi_taskPayload?.psi_initialParameters?.taskData;
   const isUpdateMode = !!actualTaskData;
   
   // Search states
   const [typeSearch, setTypeSearch] = useState('');
   const [prioritySearch, setPrioritySearch] = useState('');
+  const [statusSearch, setStatusSearch] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
   
   // Check if typeRef is pre-filled from process payload (for approval requests)
-  const processTypeRef = additionalData?.typeRef || initialValues?.taskTypeRef || '';
+  const processTypeRef = additionalData?.psi_taskPayload?.psi_initialParameters?.typeRef || 
+                        additionalData?.typeRef || 
+                        initialValues?.taskTypeRef || '';
+  
+  // Debug log for approval detection (cleaned up)
+  // console.log('🎯 SalesTaskFormContext - processTypeRef:', processTypeRef);
   
   // Form state
   const [formValues, setFormValuesState] = useState<SalesTaskFormValues>({
     title: '',
     taskTypeRef: processTypeRef,
     priorityRef: '',
+    statusRef: 'SalesTaskStatus:v1:PENDING', // Default to "pending" status
     deadline: null,
     description: '',
     assignedEmployeeId: '',
@@ -93,6 +105,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Data hooks
   const { data: taskTypes, loading: taskTypesLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorities, loading: prioritiesLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
+  const { statuses, isLoading: statusesLoading } = useSalesTaskStatuses({ accessToken });
   const { data: employees, loading: employeesLoading } = useSalesTaskEmployees(accessToken, { search: employeeSearch, limit: employeeSearch ? 50 : 100 });
   const { entities, loading: entitiesLoading, searchEntities } = useSalesTaskEntities(accessToken);
   
@@ -158,6 +171,14 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Populate form with existing task data in UPDATE mode
   useEffect(() => {
     if (isUpdateMode && actualTaskData) {
+      console.log('🔍 UPDATE MODE - Task Data:', {
+        assignedEmployeeId: actualTaskData.assignedEmployeeId,
+        assignedEmployee: actualTaskData.assignedEmployee,
+        dueDate: actualTaskData.dueDate,
+        priorityRef: actualTaskData.priorityRef,
+        statusRef: actualTaskData.statusRef
+      });
+      
       // Find catalog entry ID by matching the full reference
       const findCatalogEntryIdByRef = (ref: string, options: any[]) => {
         if (!ref) return '';
@@ -165,14 +186,28 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         return entry ? entry.value : '';
       };
 
+      const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || '';
+      // Robust deadline mapping: support multiple possible fields and validate date
+      const rawDeadline = actualTaskData.dueDate || (actualTaskData as any).deadline || (actualTaskData as any).dueDateTime || (actualTaskData as any).scheduledAt || null;
+      const formattedDeadline = rawDeadline && dayjs(rawDeadline).isValid()
+        ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm')
+        : null;
+      
+      console.log('🔍 MAPPING VALUES:', {
+        assignedId,
+        formattedDeadline,
+        availableEmployees: mappedEmployees.length
+      });
+
       const updateValues: Partial<SalesTaskFormValues> = {
         title: actualTaskData.name || '',
-        taskTypeRef: findCatalogEntryIdByRef(actualTaskData.typeRef, mappedTaskTypes),
-        priorityRef: findCatalogEntryIdByRef(actualTaskData.priorityRef, mappedPriorities),
+        taskTypeRef: actualTaskData.typeRef || '',
+        priorityRef: actualTaskData.priorityRef || '',
+        statusRef: actualTaskData.statusRef || 'SalesTaskStatus:v1:PENDING',
         timingType: (actualTaskData.timingType as 'DEADLINE' | 'SCHEDULED') || 'DEADLINE',
-        deadline: actualTaskData.dueDate ? dayjs(actualTaskData.dueDate).format('YYYY-MM-DDTHH:mm') : null,
+        deadline: formattedDeadline,
         description: actualTaskData.description || '',
-        assignedEmployeeId: actualTaskData.assignedEmployeeId || '',
+        assignedEmployeeId: assignedId,
         id: actualTaskData.id,
         version: actualTaskData.version || 0,
       };
@@ -214,7 +249,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
       
       setFormValuesState(prev => ({ ...prev, ...updateValues }));
     }
-  }, [isUpdateMode, actualTaskData, mappedTaskTypes, mappedPriorities]);
+  }, [isUpdateMode, actualTaskData, mappedTaskTypes, mappedPriorities, mappedEmployees]);
   
   // Helper to update form values
   const setFormValues = useCallback((updates: Partial<SalesTaskFormValues>) => {
@@ -234,6 +269,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     // Data
     taskTypes: mappedTaskTypes,
     priorities: mappedPriorities,
+    statuses,
     employees: mappedEmployees,
     entities,
     selectedEntity,
@@ -243,12 +279,14 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     // Loading states
     taskTypesLoading,
     prioritiesLoading,
+    statusesLoading,
     employeesLoading,
     entitiesLoading,
     
     // Search functions
     searchTaskTypes: setTypeSearch,
     searchPriorities: setPrioritySearch,
+    searchStatuses: setStatusSearch,
     searchEmployees: setEmployeeSearch,
     searchEntities,
     

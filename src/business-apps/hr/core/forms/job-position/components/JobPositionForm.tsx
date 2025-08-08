@@ -68,7 +68,9 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
       {/* Form Title */}
       <div className="gba:mb-6">
-        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Create Job Position</h1>
+        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+          {modalTitle || (isEdit ? 'Update Job Position' : 'Create Job Position')}
+        </h1>
       </div>
       
       <form 

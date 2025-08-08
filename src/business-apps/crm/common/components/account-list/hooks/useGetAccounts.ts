@@ -14,6 +14,7 @@ const GET_ACCOUNTS_QUERY = `
       limit: $limit
       offset: $offset
       orderBy: [{ name: ASC }]
+      distinctOn: [name]
     ) {
       id
       name
