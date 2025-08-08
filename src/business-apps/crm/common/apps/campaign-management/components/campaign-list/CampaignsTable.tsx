@@ -11,6 +11,7 @@ import {
   AlertDescription,
   Button
 } from '@newwork/nw-design-system';
+import { StatusBadge } from '@newwork/nw-design-system';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { SalesCampaign } from './types/SalesCampaignTypes';
@@ -44,6 +45,67 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
   const formatDate = (dateString?: string): string => {
     if (!dateString) return '-';
     return dayjs(dateString).format('DD/MM/YYYY');
+  };
+
+  // Helper to compute campaign status from dates
+  const getCampaignStatus = (startDate?: string, endDate?: string): string => {
+    if (!startDate || !endDate) return '-';
+    const now = dayjs();
+    const start = dayjs(startDate);
+    const end = dayjs(endDate);
+
+    if (now.isBefore(start, 'day')) return 'Planned';
+    if (now.isAfter(end, 'day')) return 'Completed';
+    return 'Active';
+  };
+
+  const mapStatusToVariant = (
+    status: string
+  ): 'default' | 'success' | 'error' | 'pending' => {
+    switch (status) {
+      case 'Active':
+        return 'success';
+      case 'Planned':
+        return 'pending';
+      case 'Completed':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  // Styling using design tokens to render filled pills
+  const getStatusStyles = (status: string): React.CSSProperties => {
+    switch (status) {
+      case 'Active':
+        return {
+          backgroundColor: 'var(--color-primary-500)',
+          color: 'var(--color-on-primary)',
+          borderColor: 'var(--color-primary-600)',
+          borderWidth: 0
+        };
+      case 'Planned':
+        return {
+          backgroundColor: 'var(--color-warning-500)',
+          color: 'var(--color-on-primary)',
+          borderColor: 'var(--color-warning-600)',
+          borderWidth: 0
+        };
+      case 'Completed':
+        return {
+          backgroundColor: 'var(--color-success-500)',
+          color: 'var(--color-on-primary)',
+          borderColor: 'var(--color-success-600)',
+          borderWidth: 0
+        };
+      default:
+        return {
+          backgroundColor: 'var(--color-surface-secondary)',
+          color: 'var(--color-text-primary)',
+          borderColor: 'var(--color-border-default)',
+          borderWidth: 0
+        };
+    }
   };
 
   // Handle row click
@@ -98,6 +160,9 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
               </TableHead>
               <TableHead className="gba:font-semibold gba:py-4 gba:px-6" style={{ color: 'var(--color-text-primary)' }}>
                 {getTranslationFromI18nKeyAndLabel('campaigns.table.endDate', 'End Date')}
+              </TableHead>
+              <TableHead className="gba:font-semibold gba:py-4 gba:px-6" style={{ color: 'var(--color-text-primary)' }} data-testid="campaigns-table-status-header">
+                {getTranslationFromI18nKeyAndLabel('campaigns.table.status', 'Status')}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -156,6 +221,20 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                 </TableCell>
                 <TableCell className="gba:py-4 gba:px-6">
                   {formatDate(campaign.endDate)}
+                </TableCell>
+                <TableCell className="gba:py-4 gba:px-6" data-testid={`campaign-status-cell-${campaign.id}`}>
+                  {(() => {
+                    const statusText = getCampaignStatus(campaign.startDate, campaign.endDate);
+                    return (
+                      <StatusBadge
+                        status={mapStatusToVariant(statusText)}
+                        leftLabel={statusText}
+                        size="sm"
+                        style={getStatusStyles(statusText)}
+                        data-testid={`campaign-status-pill-${campaign.id}`}
+                      />
+                    );
+                  })()}
                 </TableCell>
               </TableRow>
             ))}
