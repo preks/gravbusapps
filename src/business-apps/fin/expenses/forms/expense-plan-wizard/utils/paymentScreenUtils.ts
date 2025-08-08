@@ -46,7 +46,7 @@ export interface PaymentScreenLogObject {
   expenseRequestTrips: {
     expenseTrips: any[];
   };
-  advancePayment: AdvanceObject;
+  advancePayment: AdvanceObject | null;
 }
 
 export const createAdvanceObject = (
@@ -54,7 +54,8 @@ export const createAdvanceObject = (
   amount: string,
   paymentMethod: string | null,
   expensePlanData: any
-): AdvanceObject => {
+): AdvanceObject | null => {
+  if(paymentMethod)
   return {
     currencyRef: selectedCurrencyId,
     amount: parseFloat(amount),
@@ -63,13 +64,14 @@ export const createAdvanceObject = (
     expensePlan: expensePlanData.ExpensePlanByPk.id,
     costCenter: expensePlanData.ExpensePlanByPk.costCenter.id
   };
+  else return null
 };
 
 export const createPaymentScreenLogObject = (
   initialPlan: any,
   employeeRuleId: string,
   currentTitle: string,
-  advanceObject: AdvanceObject,
+  advanceObject: AdvanceObject | null,
   expensePlanData: any,
   event: string,
   skipStep:boolean
@@ -118,6 +120,6 @@ export const createPaymentScreenLogObject = (
     expenseRequestTrips: {
       expenseTrips: (expensePlanData?.ExpensePlanByPk?.expenseRequestTrip || [])
     },
-    advancePayment: advanceObject
+    advancePayment: advanceObject || null
   };
 }; 

@@ -83,7 +83,7 @@ export const createTripLogObject = (
       status: initialRequest.status,
       requestDate: initialRequest.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest.requestTypeRef,
-      additionalProperties: initialRequest.additionalProperties,
+      additionalProperties: initialRequest.additionalProperties || {},
       currencyRef: currentCurrency || initialRequest.currency?.id
     }
   };

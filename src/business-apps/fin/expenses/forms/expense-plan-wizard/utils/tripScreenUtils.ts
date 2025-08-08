@@ -82,7 +82,7 @@ export const createTripLogObject = (
       version: initialPlan.version || 0,
       description:initialPlan.description ||"",
       costCenter: initialPlan.costCenterId || "",
-      additionalProperties: initialPlan.additionalProperties ||{},
+      additionalProperties: initialPlan.additionalProperties || {},
       employee: initialPlan.employeeId || "",
       title: currentTitle || initialPlan.title || "",
       status: initialPlan.status,
