@@ -1,6 +1,6 @@
 import React from 'react';
 import { TableCell, TableRow, Checkbox } from '@newwork/nw-design-system';
-import { formatNumberFunction, formatDate } from '@/common/utils/windowUtils';
+import { formatNumberFunction, formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils';
 import Pill from '@/components/pill/Pill';
 import { ExpenseData } from '../../../../types';
@@ -81,17 +81,17 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell>
         <div data-testid={`expense-request-start-date-${record.id}`}>
-          {record.startDate && record.startDate !== 'N/A' ? formatDate(record.startDate, 'date.short') : '-'}
+          {record.startDate && record.startDate !== getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A') ? formatDate(record.startDate, 'date.short') : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.not_applicable', '-')}
         </div>
       </TableCell>
       <TableCell>
         <div data-testid={`expense-request-end-date-${record.id}`}>
-          {record.endDate && record.endDate !== 'N/A' ? formatDate(record.endDate, 'date.short') : '-'}
+          {record.endDate && record.endDate !== getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A') ? formatDate(record.endDate, 'date.short') : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.not_applicable', '-')}
         </div>
       </TableCell>
       <TableCell>
         <div data-testid={`expense-request-creation-date-${record.id}`}>
-          {record.creationDate && record.creationDate !== 'N/A' ? formatDate(record.creationDate, 'date.short') : '-'}
+          {record.creationDate && record.creationDate !== getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A') ? formatDate(record.creationDate, 'date.short') : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.not_applicable', '-')}
         </div>
       </TableCell>
       <TableCell>
@@ -107,7 +107,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
           {(() => {
             const remainingAmount = Number(record.totalRemainingAmount) || 0;
             const currencyCode = record.currency?.code || '';
-            return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
+            return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.not_applicable', '-');
           })()}
         </span>
       </TableCell>

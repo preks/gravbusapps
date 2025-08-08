@@ -14,6 +14,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useDashboardStats } from '../../../hooks/useDashboardStats';
 import MonthlyExpenseTrendsCard from '../../cards/MonthlyExpenseTrendsCard';
 import { ExpenseFilterBar, FilterOptions } from '../../filter-bar';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -23,7 +24,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
     department: '',
-    currency: 'Currency:v1:RON', // Initialize with default currency
+    currency: 'Currency:v1:RON',
     period: 'monthly'
   });
   
@@ -54,46 +55,80 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     }).format(value);
   };
 
-     const getCurrentPeriodName = (): string => {
-     const date = new Date();
-     switch (currentFilters.period) {
-       case 'yearly':
-         return date.getFullYear().toString();
-       case 'quarterly':
-         const quarter = Math.floor(date.getMonth() / 3) + 1;
-         return `Q${quarter} ${date.getFullYear()}`;
-       default:
-         return date.toLocaleString('default', { month: 'long' });
-     }
-   };
+     const getTranslatedQuarter = (quarterNumber: number): string => {
+       return getTranslationFromI18nKeyAndLabel(
+         `lowcoder:cards.quarter_${quarterNumber}`,
+         `Q${quarterNumber}`
+       );
+     };
 
-   const getPreviousPeriodName = (): string => {
-     const date = new Date();
-     switch (currentFilters.period) {
-       case 'yearly':
-         return (date.getFullYear() - 1).toString();
-       case 'quarterly':
-         const currentQuarter = Math.floor(date.getMonth() / 3);
-         let previousQuarter = currentQuarter - 1;
-         let previousYear = date.getFullYear();
-         if (previousQuarter < 0) {
-           previousQuarter = 3;
-           previousYear = previousYear - 1;
-         }
-         return `Q${previousQuarter + 1} ${previousYear}`;
-       default:
-         const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-         return previousMonth.toLocaleString('default', { month: 'long' });
-     }
-   };
+     const getTranslatedMonth = (monthIndex: number): string => {
+       const monthNames = [
+         'lowcoder:absence_report.employee_table.january',
+         'lowcoder:absence_report.employee_table.february', 
+         'lowcoder:absence_report.employee_table.march',
+         'lowcoder:absence_report.employee_table.april',
+         'lowcoder:absence_report.employee_table.may',
+         'lowcoder:absence_report.employee_table.june',
+         'lowcoder:absence_report.employee_table.july',
+         'lowcoder:absence_report.employee_table.august',
+         'lowcoder:absence_report.employee_table.september',
+         'lowcoder:absence_report.employee_table.october',
+         'lowcoder:absence_report.employee_table.november',
+         'lowcoder:absence_report.employee_table.december'
+       ];
+       
+       const fallbackNames = [
+         'January', 'February', 'March', 'April', 'May', 'June',
+         'July', 'August', 'September', 'October', 'November', 'December'
+       ];
+       
+       return getTranslationFromI18nKeyAndLabel(
+         monthNames[monthIndex],
+         fallbackNames[monthIndex]
+       );
+     };
+
+     const getCurrentPeriodName = (): string => {
+       const date = new Date();
+       switch (currentFilters.period) {
+         case 'yearly':
+           return date.getFullYear().toString();
+         case 'quarterly':
+           const quarter = Math.floor(date.getMonth() / 3) + 1;
+           return `${getTranslatedQuarter(quarter)} ${date.getFullYear()}`;
+         default:
+           return getTranslatedMonth(date.getMonth());
+       }
+     };
+
+     const getPreviousPeriodName = (): string => {
+       const date = new Date();
+       switch (currentFilters.period) {
+         case 'yearly':
+           return (date.getFullYear() - 1).toString();
+         case 'quarterly':
+           const currentQuarter = Math.floor(date.getMonth() / 3);
+           let previousQuarter = currentQuarter - 1;
+           let previousYear = date.getFullYear();
+           if (previousQuarter < 0) {
+             previousQuarter = 3;
+             previousYear = previousYear - 1;
+           }
+           return `${getTranslatedQuarter(previousQuarter + 1)} ${previousYear}`;
+         default:
+           const previousMonth = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+           return getTranslatedMonth(previousMonth.getMonth());
+       }
+     };
 
   const extractCurrencyCode = (currencyRef: string): string => {
     return currencyRef.split(':').pop() || 'RON';
   };
 
-  const kpiCards = useMemo(() => {
+  const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
 
-    const selectedCurrencyCode = extractCurrencyCode(currentFilters.currency || 'Currency:v1:RON');
+  const kpiCards = useMemo(() => {
     
     const cards: KpiCardData[] = [];
 
@@ -101,11 +136,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       const title = (() => {
         switch (currentFilters.period) {
           case 'yearly':
-            return `Total Company Spend YTD (${selectedCurrencyCode})`;
+            return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.total_company_spend_ytd', "Total Company Spend YTD")} (${selectedCurrencyCode})`;
           case 'quarterly':
-            return `Total Company Spend QTD (${selectedCurrencyCode})`;
+            return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.total_company_spend_qtd', "Total Company Spend QTD")} (${selectedCurrencyCode})`;
           default:
-            return `Total Company Spend MTD (${selectedCurrencyCode})`;
+            return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.total_company_spend_mtd', "Total Company Spend MTD")} (${selectedCurrencyCode})`;
         }
       })();
       return title;
@@ -114,18 +149,18 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getTotalCompanySpendFooter = () => {
       const currentPeriodName = getCurrentPeriodName();
       const previousPeriodName = getPreviousPeriodName();
-      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} expenses) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} expenses)`;
+      const footer = `${currentPeriodName}: ${formatCurrency(stats.totalCompanySpend.currentPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.currentPeriodCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${previousPeriodName}: ${formatCurrency(stats.totalCompanySpend.previousPeriodTotal, selectedCurrencyCode)} (${stats.totalCompanySpend.previousPeriodCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`;
       return footer;
     };
 
     const getTotalCompanySpendDescription = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return stats.totalCompanySpend.isIncrease ? 'increase vs last YTD' : 'decrease vs last YTD';
+          return stats.totalCompanySpend.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_ytd', "Increase vs Last YTD") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_ytd', "Decrease vs Last YTD");
         case 'quarterly':
-          return stats.totalCompanySpend.isIncrease ? 'increase vs last QTD' : 'decrease vs last QTD';
+          return stats.totalCompanySpend.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_qtd', "Increase vs Last QTD") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_qtd', "Decrease vs Last QTD");
         default:
-          return stats.totalCompanySpend.isIncrease ? 'increase vs last MTD' : 'decrease vs last MTD';
+          return stats.totalCompanySpend.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_mtd', "Increase vs Last MTD") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_mtd', "Decrease vs Last MTD");
       }
     };
 
@@ -154,18 +189,18 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ? ((actualAmount / plannedAmount) * 100) 
       : 0;
     
-    const getActualVsPlannedTitle = () => {
-      switch (currentFilters.period) {
-        case 'yearly':
-          return `Actual vs Planned ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-        case 'quarterly':
-          const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-          return `Actual vs Planned Q${currentQuarter} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-        default:
-          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-          return `Actual vs Planned ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
-      }
-    };
+         const getActualVsPlannedTitle = () => {
+       switch (currentFilters.period) {
+         case 'yearly':
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+         case 'quarterly':
+           const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${getTranslatedQuarter(currentQuarter)} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+         default:
+           const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_vs_planned', "Actual vs Planned")} ${currentMonth} ${new Date().getFullYear()} (${selectedCurrencyCode})`;
+       }
+     };
     
     cards.push({
       id: 'actual-vs-planned',
@@ -173,11 +208,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       value: actualVsPlannedPercentage.toFixed(1),
       suffix: '%',
       decimalPlaces: 1,
-      footer: `Planned: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} plans) | Actual: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} expenses)`,
+             footer: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.planned', 'Planned')}: ${formatCurrency(plannedAmount, selectedCurrencyCode)} (${plannedCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.plans', 'plans')}) | ${getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.achieved', 'Actual')}: ${formatCurrency(actualAmount, selectedCurrencyCode)} (${actualCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
       trend: {
         value: actualVsPlannedPercentage.toFixed(1),
         positive: actualVsPlannedPercentage <= 100,
-        description: actualVsPlannedPercentage <= 100 ? 'within budget' : 'over budget'
+        description: actualVsPlannedPercentage <= 100 ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.within_budget', "Within Budget") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.over_budget', "Over Budget")
       },
       icon: 'target',
       iconColor: actualVsPlannedPercentage <= 100 ? '#52c41a' : '#ff4d4f'
@@ -188,22 +223,22 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
      const getComparisonTitle = () => {
        switch (currentFilters.period) {
          case 'yearly':
-           return `Yearly Spend Comparison (${selectedCurrencyCode})`;
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.yearly_spend_comparison', "Yearly Spend Comparison")} (${selectedCurrencyCode})`;
          case 'quarterly':
-           return `Quarterly Spend Comparison (${selectedCurrencyCode})`;
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.quarterly_spend_comparison', "Quarterly Spend Comparison")} (${selectedCurrencyCode})`;
          default:
-           return `Monthly Spend Comparison (${selectedCurrencyCode})`;
+           return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_spend_comparison', "Monthly Spend Comparison")} (${selectedCurrencyCode})`;
        }
      };
 
      const getComparisonDescription = () => {
        switch (currentFilters.period) {
          case 'yearly':
-           return monthlyComparison.isIncrease ? 'increase vs last year' : 'decrease vs last year';
+           return monthlyComparison.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_year', "Increase vs Last Year") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_year', "Decrease vs Last Year");
          case 'quarterly':
-           return monthlyComparison.isIncrease ? 'increase vs last quarter' : 'decrease vs last quarter';
+           return monthlyComparison.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_quarter', "Increase vs Last Quarter") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_quarter', "Decrease vs Last Quarter");
          default:
-           return monthlyComparison.isIncrease ? 'increase vs last month' : 'decrease vs last month';
+           return monthlyComparison.isIncrease ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.increase_vs_last_month', "Increase vs Last Month") : getTranslationFromI18nKeyAndLabel('lowcoder:cards.decrease_vs_last_month', "Decrease vs Last Month");
        }
      };
 
@@ -212,7 +247,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
        title: getComparisonTitle(),
        value: Math.abs(monthlyComparison.percentChange).toFixed(1) + ' %',
        decimalPlaces: 1,
-       footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} expenses) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} expenses)`,
+               footer: `${getCurrentPeriodName()}: ${formatCurrency(monthlyComparison.currentMonthTotal, selectedCurrencyCode)} (${monthlyComparison.currentMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')}) | ${getPreviousPeriodName()}: ${formatCurrency(monthlyComparison.previousMonthTotal, selectedCurrencyCode)} (${monthlyComparison.previousMonthCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:cards.expenses', 'expenses')})`,
        trend: {
          value: Math.abs(monthlyComparison.percentChange).toFixed(1),
          positive: monthlyComparison.isIncrease,
@@ -226,17 +261,17 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getTransferRequiredFooter = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return `Pending transfers this year in ${selectedCurrencyCode}`;
+          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.pending_transfers_ytd_in', "Pending Transfers This Year In")} ${selectedCurrencyCode}`;
         case 'quarterly':
-          return `Pending transfers this quarter in ${selectedCurrencyCode}`;
+          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.pending_transfers_qtd_in', "Pending Transfers This Quarter In")} ${selectedCurrencyCode}`;
         default:
-          return `Pending transfers this month in ${selectedCurrencyCode}`;
+          return `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.pending_transfers_mtd_in', "Pending Transfers This Month In")} ${selectedCurrencyCode}`;
       }
     };
     
     cards.push({
       id: 'transfer-required',
-      title: `Transfer Required (${selectedCurrencyCode})`,
+      title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.transfer_required', "Transfer Required")} (${selectedCurrencyCode})`,
       value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
       footer: getTransferRequiredFooter(),
       icon: 'exclamation',
@@ -247,28 +282,28 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getPendingRequestsFooter = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return 'Requests awaiting approval this year';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.requests_awaiting_approval_ytd', "Requests Awaiting Approval This Year");
         case 'quarterly':
-          return 'Requests awaiting approval this quarter';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.requests_awaiting_approval_qtd', "Requests Awaiting Approval This Quarter");
         default:
-          return 'Requests awaiting approval this month';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.requests_awaiting_approval_mtd', "Requests Awaiting Approval This Month");
       }
     };
 
     const getAdvancePaymentFooter = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return 'Approved - waiting to pay this year';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.approved_waiting_to_pay_ytd', "Approved - Waiting to Pay This Year");
         case 'quarterly':
-          return 'Approved - waiting to pay this quarter';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.approved_waiting_to_pay_qtd', "Approved - Waiting to Pay This Quarter");
         default:
-          return 'Approved - waiting to pay this month';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.approved_waiting_to_pay_mtd', "Approved - Waiting to Pay This Month");
       }
     };
     
     cards.push({
       id: 'pending-requests',
-      title: 'Pending Requests',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.pending_requests', "Pending Requests"),
       value: stats.pendingRequestsCount.toString(),
       footer: getPendingRequestsFooter(),
       icon: 'clock',
@@ -278,7 +313,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     // 6. Advance Payment Card
     cards.push({
       id: 'advance-payment',
-      title: 'Advance Payment',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', "Advance Payment"),
       value: stats.advancePaymentsApproved.count.toString(),
       footer: getAdvancePaymentFooter(),
       icon: 'credit-card',
@@ -289,19 +324,19 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     const getPeriodText = () => {
       switch (currentFilters.period) {
         case 'yearly':
-          return 'year';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_year', "Based on completed trips this year");
         case 'quarterly':
-          return 'quarter';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_quarter', "Based on completed trips this quarter");
         default:
-          return 'month';
+          return getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip_footer_month', "Based on completed trips this month");
       }
     };
     
     cards.push({
       id: 'avg-spend-per-trip',
-      title: `Average Spend Per Trip (${selectedCurrencyCode})`,
+      title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip', "Average Spend Per Trip (Based on Completed Trips)")} (${selectedCurrencyCode})`,
       value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
-      footer: `Based on completed trips this ${getPeriodText()}`,
+      footer: getPeriodText(),
       icon: 'car',
       iconColor: '#722ed1'
     });
@@ -403,6 +438,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           loading={loading}
           error={error}
           monthlyTrends={stats.monthlyTrends}
+          selectedCurrencyCode={selectedCurrencyCode}
         />
       </div>
     </div>
