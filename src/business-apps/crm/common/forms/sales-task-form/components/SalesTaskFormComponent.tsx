@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { message } from 'antd';
+import { message, Upload } from 'antd';
 import { 
   Button, 
   Spinner, 
@@ -18,7 +18,7 @@ import {
   Textarea
 } from '@newwork/nw-design-system';
 import { useForm } from 'react-hook-form';
-import { Calendar, User, FileText, Clock, Search } from 'lucide-react';
+import { Calendar, User, FileText, Clock, Search, Upload as UploadIcon } from 'lucide-react';
 import { useSalesTaskFormContext } from '../context/SalesTaskFormContext';
 import { SalesTaskFormValues } from '../types';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -54,13 +54,20 @@ const SalesTaskFormComponent: React.FC = () => {
 
   // Check if this is an approval request (when Task Type should be hidden)
   // This can be set explicitly OR detected from pre-filled approval type
+  const processTypeRef = additionalData?.psi_taskPayload?.psi_initialParameters?.typeRef || 
+                        additionalData?.typeRef;
+  
   const isApprovalRequest = additionalData?.isApprovalRequest || 
+    processTypeRef === 'SalesTaskType:v1:APPROVAL' ||
+    processTypeRef?.includes('APPROVAL') ||
+    additionalData?.typeRef === 'SalesTaskType:v1:APPROVAL' ||
+    additionalData?.typeRef?.includes('APPROVAL') ||
     formValues.taskTypeRef === 'SalesTaskType:v1:APPROVAL' ||
     formValues.taskTypeRef?.includes('APPROVAL') ||
     false;
   
-  // Debug log to verify approval request mode
-  // console.log('SalesTaskForm - isApprovalRequest:', isApprovalRequest, 'formValues.taskTypeRef:', formValues.taskTypeRef, 'additionalData:', additionalData);
+  // Debug log to verify approval request mode (cleaned up)
+  // console.log('🔍 SalesTaskForm - isApprovalRequest:', isApprovalRequest, 'processTypeRef:', processTypeRef);
 
   // Entity search state
   const [entitySearchTerm, setEntitySearchTerm] = useState('');
@@ -70,6 +77,9 @@ const SalesTaskFormComponent: React.FC = () => {
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+
+  // Document upload state
+  const [documentFileList, setDocumentFileList] = useState<any[]>([]);
 
   // Initialize react-hook-form
   const form = useForm<SalesTaskFormValues>({
@@ -93,13 +103,6 @@ const SalesTaskFormComponent: React.FC = () => {
 
   // Update form when context values change
   useEffect(() => {
-    console.log('📝 FORM RESET - Form Values:', {
-      assignedEmployeeId: formValues.assignedEmployeeId,
-      deadline: formValues.deadline,
-      title: formValues.title,
-      isUpdateMode
-    });
-    
     form.reset({
       title: formValues.title || '',
       taskTypeRef: formValues.taskTypeRef || '',
@@ -116,6 +119,31 @@ const SalesTaskFormComponent: React.FC = () => {
       version: formValues.version || 0,
     });
   }, [formValues, form, isApprovalRequest, isUpdateMode]);
+
+  // Fallback prefill for update approvals when employee list or deadline not yet resolved
+  useEffect(() => {
+    if (!isUpdateMode) return;
+    const originalTask = (additionalData?.taskData as any) || (additionalData?.psi_taskPayload as any)?.psi_initialParameters?.taskData;
+    if (!originalTask) return;
+
+    // Prefill deadline if missing
+    if (!form.getValues('deadline')) {
+      const rawDeadline = originalTask.dueDate || originalTask.deadline || originalTask.dueDateTime || originalTask.scheduledAt;
+      if (rawDeadline) {
+        const value = dayjs(rawDeadline).isValid() ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm') : '';
+        if (value) form.setValue('deadline', value);
+      }
+    }
+
+    // Prefill assigned employee if missing
+    const assignedId = formValues.assignedEmployeeId || originalTask.assignedEmployeeId || originalTask.assignedEmployee?.id;
+    if (assignedId && !selectedEmployee) {
+      const label = originalTask.assignedEmployee?.displayName || originalTask.assignedEmployee?.fullName || '';
+      if (label) setEmployeeSearchTerm(label);
+      form.setValue('assignedEmployeeId', assignedId);
+      setSelectedEmployee({ id: assignedId, label: label || assignedId, value: assignedId });
+    }
+  }, [isUpdateMode, additionalData, formValues.assignedEmployeeId, selectedEmployee, form]);
 
   // Update entity search term when selected entity changes
   useEffect(() => {
@@ -246,9 +274,8 @@ const SalesTaskFormComponent: React.FC = () => {
         const salesTask = response?.salesTask;
         if (!salesTask) return;
         
-        // Handle file upload if there's a file
-        const uploadFile = fileList && fileList[0];
-        if (uploadFile && uploadFile.originFileObj) {
+        // Handle document uploads if there are files
+        if (documentFileList && documentFileList.length > 0) {
           const { useFileClient } = await import('@/common/network/files/useFileClient');
           const { useRestClient } = await import('@/common/network/rest/useRestClient');
           const { env } = await import('@/common/env/EnvUtils');
@@ -256,37 +283,54 @@ const SalesTaskFormComponent: React.FC = () => {
           const fileClient = useFileClient({ accessToken } as any);
           const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
           
-          const file = uploadFile.originFileObj;
-          const pathParams = { accessScope: 'public' };
-          const queryParams = {
-            appName: 'crm',
-            folderPath: `/sales-tasks/${salesTask.id}/documents`,
-          };
-          
-          const uploadResponse = await fileClient.uploadFile(
-            file,
-            pathParams,
-            queryParams
-          );
-          
-          const crmDocumentPayload = {
-            crmDocument: {
-              name: file.name,
-              description: `File for ${salesTask.name}`,
-              file: uploadResponse.fileInfo.fileId,
-              fileSize: file.size,
-              mimeType: file.type,
-              verified: true,
-              verificationDate: Date.now(),
-              salesTask: salesTask.id,
-              version: 0,
-            },
-            changeMode: 'INSERT',
-          };
-          
-          await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
+          // Upload each document
+          for (const uploadFile of documentFileList) {
+            if (uploadFile && uploadFile.originFileObj) {
+              try {
+                const file = uploadFile.originFileObj;
+                const pathParams = { accessScope: 'public' };
+                const queryParams = {
+                  appName: 'crm',
+                  folderPath: `/sales-tasks/${salesTask.id}/documents`,
+                };
+                
+                const uploadResponse = await fileClient.uploadFile(
+                  file,
+                  pathParams,
+                  queryParams
+                );
+                
+                const crmDocumentPayload = {
+                  employeeId: additionalData?.employeeId,
+                  managerId: additionalData?.managerId,
+                  structureId: additionalData?.structureId,
+                  locationId: additionalData?.locationId,
+                  organizationalUnitId: additionalData?.organizationalUnitId,
+                  crmDocument: {
+                    name: file.name,
+                    description: `Document for sales task: ${salesTask.name}`,
+                    file: uploadResponse.fileInfo.fileId,
+                    fileSize: file.size,
+                    mimeType: file.type,
+                    verified: true,
+                    verificationDate: new Date().toISOString(),
+                    salesTask: salesTask.id,
+                    version: 0,
+                  },
+                  changeMode: 'INSERT',
+                };
+                
+                await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                
+                console.log(`Document uploaded successfully: ${file.name}`);
+              } catch (docError) {
+                console.error(`Failed to upload document ${uploadFile.name}:`, docError);
+                message.error(`Failed to upload document: ${uploadFile.name}`);
+              }
+            }
+          }
         }
         
         message.success(isUpdateMode ? 'Task updated successfully' : 'Task created successfully');
@@ -301,7 +345,7 @@ const SalesTaskFormComponent: React.FC = () => {
     return () => {
       window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
     };
-  }, [accessToken, fileList, isUpdateMode]);
+  }, [accessToken, documentFileList, isUpdateMode, additionalData]);
 
   // Handle form submission
   const handleSubmit = async (values: SalesTaskFormValues) => {
@@ -325,7 +369,7 @@ const SalesTaskFormComponent: React.FC = () => {
           priorityRef: values.priorityRef,
           statusRef: values.statusRef,
           timingType: values.timingType,
-          deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
+                     dueDate: values.deadline ? dayjs(values.deadline).toISOString() : null,
           description: values.description,
           ...(values.assignedEmployeeId && { assignedEmployee: values.assignedEmployeeId }),
           // Entity from additionalData (when opened from record pages)
@@ -378,7 +422,10 @@ const SalesTaskFormComponent: React.FC = () => {
           <h1 className="gba:text-2xl gba:font-semibold gba:flex gba:items-center gba:gap-2">
             <FileText className="gba:h-6 gba:w-6" />
             {isUpdateMode 
-              ? getTranslationFromI18nKeyAndLabel('crm:salesTask.update', 'Update Sales Task')
+              ? (isApprovalRequest
+                  ? getTranslationFromI18nKeyAndLabel('crm:salesTask.updateApproval', 'Update Approval')
+                  : getTranslationFromI18nKeyAndLabel('crm:salesTask.update', 'Update Task')
+                )
               : getTranslationFromI18nKeyAndLabel('crm:salesTask.create', 'Create Sales Task')
             }
           </h1>
@@ -410,9 +457,9 @@ const SalesTaskFormComponent: React.FC = () => {
               )}
             />
 
-            {/* Task Type - Hidden for approval requests */}
-            {!isApprovalRequest && (
-            <FormField
+                         {/* Task Type - Hidden for approval requests (create or update) */}
+             {!isApprovalRequest && (
+             <FormField
               control={form.control}
               name="taskTypeRef"
               rules={{ 
@@ -728,6 +775,36 @@ const SalesTaskFormComponent: React.FC = () => {
                 </FormItem>
               )}
             />
+
+            {/* Document Upload */}
+            <FormItem>
+              <FormLabel className="gba:flex gba:items-center gba:gap-2">
+                <UploadIcon className="gba:h-4 gba:w-4" />
+                {getTranslationFromI18nKeyAndLabel('crm:salesTask.documents', 'Attach Documents')}
+              </FormLabel>
+              <FormControl>
+                <Upload.Dragger
+                  fileList={documentFileList}
+                  onChange={({ fileList }) => setDocumentFileList(fileList)}
+                  beforeUpload={() => false} // Prevent automatic upload
+                  multiple={true}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.txt"
+                  data-testid={formatDataTestId(prefixDataTestId, 'DocumentUpload')}
+                  className="gba:w-full"
+                  style={{ backgroundColor: '#fafafa' }}
+                >
+                  <div className="gba:p-4 gba:text-center">
+                    <UploadIcon className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-gray-400" />
+                    <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+                      {getTranslationFromI18nKeyAndLabel('crm:salesTask.documents.dragDrop', 'Click or drag files to this area to upload')}
+                    </p>
+                    <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                      {getTranslationFromI18nKeyAndLabel('crm:salesTask.documents.supportedFormats', 'Support for PDF, Office documents, images, and text files')}
+                    </p>
+                  </div>
+                </Upload.Dragger>
+              </FormControl>
+            </FormItem>
 
             {/* Error Display */}
             {error && (

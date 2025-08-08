@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Card, 
   CardHeader, 
@@ -8,7 +8,8 @@ import {
   Alert, 
   Badge,
   Button,
-  Input
+  Input,
+  Select
 } from '@newwork/nw-design-system';
 import { 
   FileTextOutlined, 
@@ -25,21 +26,33 @@ import {
   AppstoreOutlined,
   BarsOutlined,
   CalendarOutlined,
-  UserOutlined
+  UserOutlined,
+  SettingOutlined,
+  FilterOutlined
 } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { startProcess } from '@/common/utils/start-process';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 
 interface Document {
   id: string;
   version: number;
   name?: string | null;
   createdAt: string;
+  expirationDate?: string | null;
   documentType?: {
+    id: string;
     value: string;
+    code?: string;
+  } | null;
+  documentGroup?: {
+    id: string;
+    value: string;
+    code?: string;
   } | null;
   file?: string | null;
   mimeType?: string | null;
@@ -51,6 +64,28 @@ interface DocumentFolder {
   name: string;
   count: number;
   documents: Document[];
+}
+
+interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  disabled?: boolean;
+}
+
+interface FilterOption {
+  id: string;
+  label: string;
+  selected: boolean;
+  value: any;
+}
+
+interface FilterGroup {
+  id: string;
+  title: string;
+  filters: FilterOption[];
+  searchTerm?: string;
+  backendSearch?: (search: string) => { filters: FilterOption[]; loading: boolean; error: any; };
 }
 
 interface AccountDocumentsProps {
@@ -68,62 +103,306 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'icon' | 'list'>('icon');
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  
+  // Column configuration with default visibility
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
+    { id: "name", label: "Name", visible: true, disabled: true }, // Always visible
+    { id: "group", label: "Group", visible: true },
+    { id: "type", label: "Type", visible: true },
+    { id: "size", label: "Size", visible: true },
+    { id: "uploadDate", label: "Upload Date", visible: true },
+    { id: "expirationDate", label: "Expiration Date", visible: false },
+    { id: "uploadedBy", label: "Uploaded By", visible: true },
+    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
+  ]);
 
   const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      if (!accountId || !context.accessToken) {
-        setLoading(false);
-        return;
+  // Compute visible columns
+  const visibleColumns = useMemo(() => {
+    return columnConfig.filter(column => column.visible).map(column => column.id);
+  }, [columnConfig]);
+
+  // Column visibility helper
+  const isColumnVisible = useCallback((columnId: string) => {
+    return visibleColumns.includes(columnId);
+  }, [visibleColumns]);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig(prev => 
+      prev.map(col => 
+        col.id === columnId ? { ...col, visible } : col
+      )
+    );
+  }, []);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    setSelectedFilters(prev => {
+      if (selected) {
+        return [...prev, filterId];
+      } else {
+        return prev.filter(id => id !== filterId);
       }
+    });
+  }, []);
 
-      setLoading(true);
-      setError(null);
+  // Create filter groups from documents
+  const filterGroups = useMemo((): FilterGroup[] => {
+    if (!documents.length) return [];
 
-      try {
-        const GET_ACCOUNT_DOCUMENTS = `
-          query GetAccountDocuments($accountId: uuid!) {
-            CrmDocument(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
+    // Get unique document types
+    const documentTypes = Array.from(
+      new Set(
+        documents
+          .filter(doc => doc.documentType?.value)
+          .map(doc => doc.documentType?.value)
+      )
+    ).map(type => ({
+      id: `doctype-${type!}`,
+      label: type!,
+      selected: selectedFilters.includes(`doctype-${type!}`),
+      value: type!
+    }));
+
+    // Get unique document groups
+    const documentGroups = Array.from(
+      new Set(
+        documents
+          .filter(doc => doc.documentGroup?.value)
+          .map(doc => doc.documentGroup?.value)
+      )
+    ).map(group => ({
+      id: `docgroup-${group!}`,
+      label: group!,
+      selected: selectedFilters.includes(`docgroup-${group!}`),
+      value: group!
+    }));
+
+    // Get unique file types (mime types)
+    const fileTypes = Array.from(
+      new Set(
+        documents
+          .filter(doc => doc.mimeType)
+          .map(doc => {
+            const mainType = doc.mimeType?.split('/')[0];
+            return mainType?.toUpperCase();
+          })
+          .filter(Boolean)
+      )
+    ).map(type => ({
+      id: `filetype-${type!}`,
+      label: type!,
+      selected: selectedFilters.includes(`filetype-${type!}`),
+      value: type!
+    }));
+
+    // Get unique uploaders
+    const uploaders = Array.from(
+      new Set(
+        documents
+          .filter(doc => doc.createdBy)
+          .map(doc => doc.createdBy)
+      )
+    ).map(uploaderId => {
+      const displayName = getEmployeeDisplayName(uploaderId!) || 'Unknown';
+      return {
+        id: `uploader-${uploaderId!}`,
+        label: displayName,
+        selected: selectedFilters.includes(`uploader-${uploaderId!}`),
+        value: uploaderId!
+      };
+    });
+
+    return [
+      {
+        id: 'documentType',
+        title: 'Document Type',
+        filters: documentTypes
+      },
+      {
+        id: 'documentGroup',
+        title: 'Document Group',
+        filters: documentGroups
+      },
+      {
+        id: 'fileType',
+        title: 'File Type',
+        filters: fileTypes
+      },
+      {
+        id: 'uploadedBy',
+        title: 'Uploaded By',
+        filters: uploaders
+      }
+    ];
+  }, [documents, selectedFilters, getEmployeeDisplayName]);
+
+  // Apply filters to documents for enhanced List View
+  const documentsWithFilters = useMemo(() => {
+    let filtered = documents;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const search = searchQuery.toLowerCase();
+      filtered = filtered.filter(doc => 
+        doc.name?.toLowerCase().includes(search) ||
+        doc.documentType?.value?.toLowerCase().includes(search) ||
+        doc.documentGroup?.value?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply selected filters
+    if (selectedFilters.length > 0) {
+      filtered = filtered.filter(doc => {
+        // Check if document matches any of the selected filters
+        const matchesDocType = selectedFilters.some(filterId => 
+          filterId.startsWith('doctype-') && 
+          filterId === `doctype-${doc.documentType?.value}`
+        );
+        const matchesDocGroup = selectedFilters.some(filterId => 
+          filterId.startsWith('docgroup-') && 
+          filterId === `docgroup-${doc.documentGroup?.value}`
+        );
+        const matchesFileType = selectedFilters.some(filterId => {
+          const mainType = doc.mimeType?.split('/')[0]?.toUpperCase();
+          return filterId.startsWith('filetype-') && 
+                 filterId === `filetype-${mainType}`;
+        });
+        const matchesUploader = selectedFilters.some(filterId => 
+          filterId.startsWith('uploader-') && 
+          filterId === `uploader-${doc.createdBy}`
+        );
+
+        // Document matches if it matches any selected filter from each active filter group
+        const hasDocTypeFilters = selectedFilters.some(f => f.startsWith('doctype-'));
+        const hasDocGroupFilters = selectedFilters.some(f => f.startsWith('docgroup-'));
+        const hasFileTypeFilters = selectedFilters.some(f => f.startsWith('filetype-'));
+        const hasUploaderFilters = selectedFilters.some(f => f.startsWith('uploader-'));
+
+        return (!hasDocTypeFilters || matchesDocType) &&
+               (!hasDocGroupFilters || matchesDocGroup) &&
+               (!hasFileTypeFilters || matchesFileType) &&
+               (!hasUploaderFilters || matchesUploader);
+      });
+    }
+
+    return filtered;
+  }, [documents, searchQuery, selectedFilters]);
+
+  const fetchDocuments = async () => {
+    if (!accountId || !context.accessToken) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const GET_ACCOUNT_DOCUMENTS = `
+        query GetAccountDocuments($accountId: uuid!) {
+          CrmDocument(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
+            id
+            version
+            name
+            createdAt
+            expirationDate
+            documentType {
               id
-              version
-              name
-              createdAt
-              documentType {
-                value
-              }
-              file
-              mimeType
-              fileSize
-              createdBy
+              value
+              code
             }
+            documentGroup {
+              id
+              value
+              code
+            }
+            file
+            mimeType
+            fileSize
+            createdBy
           }
-        `;
-
-        const result = await graphQLClient.request<{
-          CrmDocument: Document[];
-        }>(GET_ACCOUNT_DOCUMENTS, { accountId });
-
-        // Ensure we always set an array, even if the response is malformed
-        const documents = result?.CrmDocument || [];
-        setDocuments(Array.isArray(documents) ? documents : []);
-        
-        // Auto-expand the first folder when documents are loaded
-        if (documents.length > 0) {
-          const firstFolderName = documents[0]?.documentType?.value || 'Other';
-          setExpandedFolders(new Set([firstFolderName]));
         }
-      } catch (err) {
-        console.error('Error fetching account documents:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load documents');
-      } finally {
-        setLoading(false);
-      }
-    };
+      `;
 
+      const result = await graphQLClient.request<{
+        CrmDocument: Document[];
+      }>(GET_ACCOUNT_DOCUMENTS, { accountId });
+
+      // Ensure we always set an array, even if the response is malformed
+      const documents = result?.CrmDocument || [];
+      setDocuments(Array.isArray(documents) ? documents : []);
+      
+      // Auto-expand the first folder when documents are loaded
+      if (documents.length > 0) {
+        const firstFolderName = documents[0]?.documentType?.value || 'Other';
+        setExpandedFolders(new Set([firstFolderName]));
+      }
+    } catch (err) {
+      console.error('Error fetching account documents:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDocuments();
-  }, [accountId, context.accessToken, graphQLClient]);
+  }, [accountId, context.accessToken]);
+
+  // Listen for process completion to refetch documents after upload
+  useProcessCompletion({
+    onSuccess: () => {
+      console.log('Process completed, refreshing account documents');
+      fetchDocuments();
+    },
+    onFailure: () => {
+      console.log('Document upload process failed');
+    }
+  });
+
+  // Column Visibility Dropdown Component
+  const ColumnVisibilityDropdown: React.FC = () => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+      <div className="gba:relative">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsOpen(!isOpen)}
+          className="gba:flex gba:items-center gba:gap-2"
+          data-testid="column-visibility-dropdown"
+        >
+          <SettingOutlined />
+          <span className="gba:text-sm">Columns</span>
+        </Button>
+        {isOpen && (
+          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
+            {columnConfig.map((column) => (
+              <label
+                key={column.id}
+                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={column.visible}
+                  disabled={column.disabled}
+                  onChange={(e) => handleColumnVisibilityChange(column.id, e.target.checked)}
+                  className="gba:rounded"
+                />
+                <span className="gba:text-sm">{column.label}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const getFileIcon = (mimeType?: string | null) => {
     if (!mimeType) return <FileOutlined className="gba:text-gray-500" />;
@@ -144,14 +423,17 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    const dateStr = date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric', 
-      year: 'numeric',
+      year: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
+    return `${dateStr}, ${timeStr}`;
   };
 
   const filteredDocuments = Array.isArray(documents) ? documents.filter(doc => 
@@ -417,16 +699,16 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <div className="gba:flex gba:items-center gba:gap-4">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">View:</span>
-              <div className="gba:flex gba:bg-gray-100 gba:rounded-lg gba:p-1">
+              <div className="gba:flex gba:bg-gray-100 gba:rounded-lg gba:p-1 gba:gap-1">
                 <Button
                   variant={viewMode === 'icon' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('icon')}
                   className="gba:px-3 gba:py-1.5"
-                  data-testid="icon-view-toggle"
+                  data-testid="tree-view-toggle"
                 >
                   <AppstoreOutlined className="gba:mr-1.5" />
-                  Icons
+                  Tree
                 </Button>
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
@@ -469,76 +751,290 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
             <p className="gba:text-gray-400 gba:text-sm">Documents will appear here once uploaded</p>
           </div>
         ) : viewMode === 'icon' ? (
-          // ICON VIEW - Folder-based layout with small document icons
-          <div className="gba:w-full gba:space-y-4">
-            {Array.isArray(documentFolders) && documentFolders.length > 0 ? documentFolders.map((folder) => {
-              const isExpanded = expandedFolders.has(folder.name);
-              return (
-                <div key={folder.name} className="gba:border gba:border-gray-200 gba:rounded-lg">
-                  <div 
-                    className="gba:py-4 gba:px-6 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:cursor-pointer gba:hover:bg-gray-100 gba:transition-colors"
-                    onClick={() => toggleFolder(folder.name)}
-                  >
-                    <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <CaretRightOutlined 
-                          className={`gba:text-lg gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`} 
-                        />
-                        <FolderOpenOutlined className="gba:text-lg" />
-                        <span className="gba:font-medium">{folder.name}</span>
-                      </div>
-                      <Badge variant="secondary">{folder.count} files</Badge>
-                    </div>
-                  </div>
-                  {isExpanded && (
-                    <div className="gba:px-6 gba:py-4">
-                      <div className="gba:grid gba:grid-cols-4 sm:gba:grid-cols-6 md:gba:grid-cols-8 lg:gba:grid-cols-10 xl:gba:grid-cols-12 gba:gap-2 gba:relative">
-                        {Array.isArray(folder.documents) ? folder.documents.map(renderDocumentIcon) : null}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            }) : null}
-          </div>
-        ) : (
-          // LIST VIEW - Table format with all columns, sorted chronologically
+          // TREE VIEW - Hierarchical tree view like Windows Explorer  
           <div className="gba:w-full">
             <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
               {/* Table Header */}
-              <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
-                <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
-                  <div className="gba:w-8 gba:flex-shrink-0"></div>
+              <div className="gba:flex gba:items-center gba:py-3 gba:px-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
+                <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                  <div className="gba:w-6"></div>
                   <div className="gba:flex-1 gba:min-w-0">Name</div>
-                  <div className="gba:w-32 gba:flex-shrink-0">
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <FolderOpenOutlined />
-                      <span>Folder</span>
-                    </div>
-                  </div>
-                  <div className="gba:w-24 gba:flex-shrink-0">Size</div>
-                  <div className="gba:w-32 gba:flex-shrink-0">
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <CalendarOutlined />
-                      <span>Date</span>
-                    </div>
-                  </div>
-                  <div className="gba:w-32 gba:flex-shrink-0">
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <UserOutlined />
-                      <span>Created By</span>
-                    </div>
-                  </div>
-                  <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Actions</div>
                 </div>
+                <div className="gba:w-44 gba:text-right gba:mr-4">Modified</div>
+                <div className="gba:w-20 gba:text-right gba:mr-4">Size</div>
+                <div className="gba:w-16 gba:text-right gba:mr-4">Type</div>
+                <div className="gba:w-16"></div>
               </div>
               
-              {/* Table Body */}
-              <div className="gba:divide-y gba:divide-gray-200">
-                {sortedDocuments.map((document) => renderDocumentListItem(document, true))}
+              {/* Tree Body */}
+              <div>
+                {documentFolders.map((folder) => {
+                  const isExpanded = expandedFolders.has(folder.name);
+                  return (
+                    <React.Fragment key={folder.name}>
+                      {/* Folder Row */}
+                      <div 
+                        className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-gray-50 gba:cursor-pointer gba:border-b gba:border-gray-100"
+                        onClick={() => toggleFolder(folder.name)}
+                        data-testid={`folder-tree-${folder.name}`}
+                      >
+                        <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                          <div className="gba:w-6 gba:flex gba:items-center gba:justify-center">
+                            <CaretRightOutlined 
+                              className={`gba:text-xs gba:text-gray-400 gba:transition-transform ${isExpanded ? 'gba:rotate-90' : ''}`} 
+                            />
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                            <FolderOpenOutlined className="gba:text-blue-600 gba:text-sm" />
+                            <span className="gba:text-sm gba:text-gray-900 gba:truncate">{folder.name}</span>
+                          </div>
+                        </div>
+                        <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                          {folder.documents && folder.documents.length > 0 
+                            ? formatDate(new Date(Math.max(...folder.documents.map(doc => new Date(doc.createdAt).getTime()))).toISOString()) 
+                            : '-'}
+                        </div>
+                        <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">-</div>
+                        <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">Folder</div>
+                        <div className="gba:w-16"></div>
+                      </div>
+                      
+                      {/* Files in Folder */}
+                      {isExpanded && Array.isArray(folder.documents) && folder.documents.map((document) => (
+                        <div 
+                          key={document.id}
+                          className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
+                          style={{ paddingLeft: '32px' }}
+                          data-testid={`document-tree-${document.id}`}
+                          onClick={() => handleViewDocument(document)}
+                        >
+                          <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
+                            <div className="gba:w-6"></div>
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                              <div className="gba:text-blue-600 gba:text-sm">
+                                {getFileIcon(document.mimeType)}
+                              </div>
+                              <span 
+                                className="gba:text-sm gba:text-gray-900 gba:truncate"
+                                title={document.name || 'Unnamed Document'}
+                              >
+                                {document.name || 'Unnamed Document'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                            {formatDate(document.createdAt)}
+                          </div>
+                          <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                            {formatFileSize(document.fileSize || 0)}
+                          </div>
+                          <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">
+                            {document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
+                          </div>
+                          <div className="gba:w-16 gba:flex gba:items-center gba:justify-end gba:gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDocument(document);
+                              }}
+                              data-testid={`view-tree-document-${document.id}`}
+                              className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100"
+                              title="View"
+                            >
+                              <EyeOutlined style={{ fontSize: '10px' }} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           </div>
+        ) : (
+          // LIST VIEW - Enhanced flat list with filters and column management
+          <DataContainer
+            dataControllerProps={{
+              search: searchQuery,
+              setSearch: setSearchQuery,
+              debounceDelay: 500,
+              filter: selectedFilters,
+              setFilter: setSelectedFilters,
+              filterLabelMap: {},
+              listTitle: (
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span>Documents</span>
+                    <span className="gba:text-gray-500">({documentsWithFilters.length})</span>
+                  </div>
+                </div>
+              ),
+              addButton: {
+                onClick: () => startProcess({
+                  domain: 'customer-relations',
+                  processName: 'saveCrmDocument',
+                  payload: {
+                    accountId,
+                  },
+                  builderType: 'NATIVE_SCREEN',
+                }),
+                label: "Add Document",
+                "data-testid": "add-document-button",
+              },
+              actions: [
+                <ColumnVisibilityDropdown key="column-visibility" />
+              ],
+            }}
+            dataFilterProps={{
+              filterGroups,
+              onFilterChange: handleFilterChange,
+            }}
+            dataBody={
+              <div className="gba:w-full">
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+                  {/* Enhanced Table Header */}
+                  <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                      <div className="gba:w-8 gba:flex-shrink-0"></div>
+                      {isColumnVisible('name') && <div className="gba:flex-1 gba:min-w-0">Name</div>}
+                      {isColumnVisible('group') && (
+                        <div className="gba:w-32 gba:flex-shrink-0">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <FolderOpenOutlined />
+                            <span>Group</span>
+                          </div>
+                        </div>
+                      )}
+                      {isColumnVisible('type') && (
+                        <div className="gba:w-32 gba:flex-shrink-0">Type</div>
+                      )}
+                      {isColumnVisible('size') && <div className="gba:w-24 gba:flex-shrink-0">Size</div>}
+                      {isColumnVisible('uploadDate') && (
+                        <div className="gba:w-44 gba:flex-shrink-0">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <CalendarOutlined />
+                            <span>Upload Date</span>
+                          </div>
+                        </div>
+                      )}
+                      {isColumnVisible('expirationDate') && (
+                        <div className="gba:w-44 gba:flex-shrink-0">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <CalendarOutlined />
+                            <span>Expiration Date</span>
+                          </div>
+                        </div>
+                      )}
+                      {isColumnVisible('uploadedBy') && (
+                        <div className="gba:w-32 gba:flex-shrink-0">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <UserOutlined />
+                            <span>Uploaded By</span>
+                          </div>
+                        </div>
+                      )}
+                      {isColumnVisible('actions') && <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">Actions</div>}
+                    </div>
+                  </div>
+                  
+                  {/* Enhanced Table Body */}
+                  <div className="gba:divide-y gba:divide-gray-200">
+                    {documentsWithFilters.map((document) => (
+                      <div 
+                        key={document.id}
+                        className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
+                        data-testid={`document-list-${document.id}`}
+                      >
+                        <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                          <div className="gba:text-lg gba:flex-shrink-0">
+                            {getFileIcon(document.mimeType)}
+                          </div>
+                          {isColumnVisible('name') && (
+                            <div className="gba:flex-1 gba:min-w-0">
+                              <div className="gba:font-medium gba:text-gray-900 gba:text-sm gba:truncate" title={document.name || 'Unnamed Document'}>
+                                {document.name || 'Unnamed Document'}
+                              </div>
+                            </div>
+                          )}
+                          {isColumnVisible('group') && (
+                            <div className="gba:w-32 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {document.documentGroup?.value || '-'}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('type') && (
+                            <div className="gba:w-32 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {document.documentType?.value || '-'}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('size') && (
+                            <div className="gba:w-24 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {formatFileSize(document.fileSize || 0)}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('uploadDate') && (
+                            <div className="gba:w-44 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {formatDate(document.createdAt)}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('expirationDate') && (
+                            <div className="gba:w-44 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {document.expirationDate ? formatDate(document.expirationDate) : '-'}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('uploadedBy') && (
+                            <div className="gba:w-32 gba:flex-shrink-0">
+                              <span className="gba:text-sm gba:text-gray-600">
+                                {getEmployeeDisplayName(document.createdBy || '') || 'Unknown'}
+                              </span>
+                            </div>
+                          )}
+                          {isColumnVisible('actions') && (
+                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">
+                              <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewDocument(document)}
+                                  data-testid={`view-list-document-${document.id}`}
+                                  className="gba:p-1 gba:h-7 gba:w-7"
+                                  title="View"
+                                >
+                                  <EyeOutlined className="gba:text-xs" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDownloadDocument(document)}
+                                  data-testid={`download-list-document-${document.id}`}
+                                  className="gba:p-1 gba:h-7 gba:w-7"
+                                  title="Download"
+                                >
+                                  <DownloadOutlined className="gba:text-xs" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            }
+          />
         )}
       </CardContent>
     </Card>

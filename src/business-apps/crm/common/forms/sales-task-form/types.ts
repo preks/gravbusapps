@@ -90,7 +90,7 @@ export interface SalesTaskSubmissionPayload {
     name: string;
     priorityRef: string;
     statusRef: string;
-    deadline: string | null;
+    dueDate: string | null;
     description: string;
     assignedEmployee?: string;
     lead?: string;

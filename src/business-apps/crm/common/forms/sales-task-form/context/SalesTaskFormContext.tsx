@@ -62,8 +62,10 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
 }) => {
   const { accessToken, additionalData } = businessAppContext;
   
-  // Get task data from additionalData if not provided as prop
-  const actualTaskData = taskData || additionalData?.taskData;
+  // Get task data from multiple possible payload locations (edit mode)
+  const actualTaskData = taskData 
+    || additionalData?.taskData 
+    || additionalData?.psi_taskPayload?.psi_initialParameters?.taskData;
   const isUpdateMode = !!actualTaskData;
   
   // Search states
@@ -73,7 +75,12 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   const [employeeSearch, setEmployeeSearch] = useState('');
   
   // Check if typeRef is pre-filled from process payload (for approval requests)
-  const processTypeRef = additionalData?.typeRef || initialValues?.taskTypeRef || '';
+  const processTypeRef = additionalData?.psi_taskPayload?.psi_initialParameters?.typeRef || 
+                        additionalData?.typeRef || 
+                        initialValues?.taskTypeRef || '';
+  
+  // Debug log for approval detection (cleaned up)
+  // console.log('🎯 SalesTaskFormContext - processTypeRef:', processTypeRef);
   
   // Form state
   const [formValues, setFormValuesState] = useState<SalesTaskFormValues>({
@@ -180,7 +187,11 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
       };
 
       const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || '';
-      const formattedDeadline = actualTaskData.dueDate ? dayjs(actualTaskData.dueDate).format('YYYY-MM-DDTHH:mm') : null;
+      // Robust deadline mapping: support multiple possible fields and validate date
+      const rawDeadline = actualTaskData.dueDate || (actualTaskData as any).deadline || (actualTaskData as any).dueDateTime || (actualTaskData as any).scheduledAt || null;
+      const formattedDeadline = rawDeadline && dayjs(rawDeadline).isValid()
+        ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm')
+        : null;
       
       console.log('🔍 MAPPING VALUES:', {
         assignedId,
