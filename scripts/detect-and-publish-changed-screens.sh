@@ -25,6 +25,7 @@ cat "$SCREENS_FILE"
 echo "---"
 
 # Loop through each app/form directory and publish it
+declare -a FAILED_SCREENS=()
 while IFS= read -r app_dir; do
   echo "Processing $app_dir …"
   
@@ -35,5 +36,22 @@ while IFS= read -r app_dir; do
   echo "Publishing: $publish_path"
 
   # Publish the screen (with no-interaction flag for pipeline usage)
-  yarn publish:screen -- "$publish_path" --no-interaction
+  if ! yarn publish:screen -- "$publish_path" --no-interaction; then
+    echo "Publish failed for: $publish_path"
+    FAILED_SCREENS+=("$publish_path")
+    # Continue with next iteration without exiting the script
+    continue
+  fi
 done < "$SCREENS_FILE"
+
+# Summarize results and set exit code accordingly
+if [[ ${#FAILED_SCREENS[@]} -gt 0 ]]; then
+  echo "---"
+  echo "The following screens failed to publish:"
+  for screen in "${FAILED_SCREENS[@]}"; do
+    echo " - $screen"
+  done
+  exit 1
+else
+  echo "All screens published successfully."
+fi
