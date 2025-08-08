@@ -391,7 +391,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid="payment-screen-container">
       {/* Form Section - Takes available space */}
-      <div className="gba:flex-1 gba:p-6" data-testid="payment-form-section">
+      <div className="gba:p-6 gba:flex gba:flex-col gba:h-full" data-testid="payment-form-section" style={{flexGrow:1}}>
         <Form layout="vertical" form={form}>
           {/* Amount and Currency Inputs */}
           <div className={`gba:amountCurrencyRow ${!advancePaymentError ?"gba:marginBottom16" :""}`} data-testid="amount-currency-container">

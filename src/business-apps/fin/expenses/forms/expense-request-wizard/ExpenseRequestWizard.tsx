@@ -149,7 +149,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
 
   useEffect(() => {
     setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen);
-  }, [expenseRequestData, isTrip, loading, currentScreen, additionalData]);
+  }, [expenseRequestData, isTrip, loading, additionalData]);
   
 
 

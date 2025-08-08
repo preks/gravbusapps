@@ -151,7 +151,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   // useEffect for screen navigation based on data
   useEffect(() => {
     setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, currentScreen)
-  }, [expensePlanData, isTrip, loading, additionalData,currentScreen]);
+  }, [expensePlanData, isTrip, loading, additionalData]);
 
   const navigateToNextScreen = () => {
     switch (currentScreen) {
