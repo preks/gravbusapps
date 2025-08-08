@@ -18,12 +18,12 @@ const GET_DEPARTMENTS_QUERY = `
     Contact(
       where: {
         _and: [
-          { department: { _is_null: false } }
+          { department: { _isNull: false } }
           { department: { _neq: "" } }
           { department: { _ilike: $search } }
         ]
       }
-      distinct_on: [department]
+              distinctOn: [department]
       orderBy: [{ department: ASC_NULLS_LAST }]
       limit: 100
     ) {

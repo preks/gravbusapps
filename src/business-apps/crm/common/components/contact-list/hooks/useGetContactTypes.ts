@@ -18,12 +18,12 @@ const GET_CONTACT_TYPES_QUERY = `
     Contact(
       where: {
         _and: [
-          { contactType: { _is_null: false } }
+          { contactType: { _isNull: false } }
           { contactType: { _neq: "" } }
           { contactType: { _ilike: $search } }
         ]
       }
-      distinct_on: [contactType]
+              distinctOn: [contactType]
       orderBy: [{ contactType: ASC_NULLS_LAST }]
       limit: 100
     ) {
