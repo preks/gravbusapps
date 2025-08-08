@@ -1,6 +1,5 @@
 ---
 description: When user mentions filtered lists, or when user wants pre-filtered lists, or when pre-filtered lists are mentioned from query parameters that should filter the lists initially.
-globs: 
 alwaysApply: false
 ---
 

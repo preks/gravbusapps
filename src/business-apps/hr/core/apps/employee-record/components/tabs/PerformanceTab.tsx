@@ -240,7 +240,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                         contextsArray={[FlowContextName.employeePerformanceGoal]}
                         externalContextData={{
                           employeeId: employee?.id,
-                          goalId: goal.id
+                          goalId: goal.id,
+                          title: goal.title,
+                          startDate: goal.startDate,
+                          dueDate: goal.dueDate,
+                          completionDate: goal.completionDate,
+                          progressPercent: goal.progressPercent,
+                          status: goal.status
                         }}
                         prefixDataTestId="edit-goal"
                         accessToken={accessToken}

@@ -1,4 +1,5 @@
 ---
+description: Integration of dataset and timeseries queries
 alwaysApply: false
 ---
 # Dataset & Timeseries Query Integration

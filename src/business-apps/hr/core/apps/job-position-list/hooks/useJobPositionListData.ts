@@ -138,19 +138,16 @@ export interface JobPosition {
 }
 
 /**
- * Filters for the job position list query.
+ * Interface for job position list filters
  */
-export type JobPositionListFilters = {
+export interface JobPositionListFilters {
   search?: string;
-  organizationalUnits?: string[];
+  departments?: string[];
   jobProfiles?: string[];
   jobFunctions?: string[];
-  jobLevels?: string[];
-  jobFamilies?: string[];
-  contractTypes?: string[];
-  employmentTypes?: string[];
-  vacant?: boolean; // true = vacant only, false = non-vacant only, undefined = both
-};
+  vacant?: boolean;
+  missingJobProfile?: boolean;
+}
 
 /**
  * Vacancy filter type for the hook.
@@ -172,7 +169,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const { search, organizationalUnits, jobProfiles, jobFunctions, jobLevels, jobFamilies, contractTypes, employmentTypes, vacant } = filters;
+  const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile } = filters;
   
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId();
@@ -183,7 +180,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     setOffset(0);
     setHasMore(true);
     setTotal(0);
-  }, [search, JSON.stringify(organizationalUnits), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), JSON.stringify(jobLevels), JSON.stringify(jobFamilies), JSON.stringify(contractTypes), JSON.stringify(employmentTypes), vacant]);
+  }, [search, JSON.stringify(departments), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), vacant, missingJobProfile]);
 
   /**
    * Loads a specific page of job positions. Used for true pagination.
@@ -202,6 +199,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     
     const pageOffset = (page - 1) * pageSize;
     setLoading(true);
+    setError(null);
 
     // Use provided filters or current filters
     const currentFilters = overrideFilters || filters;
@@ -209,11 +207,13 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     // Build filter object for all filter types
     const filterConditions: any[] = [];
     
-    if (currentFilters.organizationalUnits && currentFilters.organizationalUnits.length > 0) {
+    // Handle both departments and organizationalUnits (for backward compatibility)
+    const orgUnits = currentFilters.departments;
+    if (orgUnits && orgUnits.length > 0) {
       filterConditions.push({
         organizationalUnitEmployees: {
           organizationalUnit: {
-            id: { _in: currentFilters.organizationalUnits }
+            id: { _in: orgUnits }
           }
         }
       });
@@ -227,6 +227,13 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
       });
     }
     
+    // Handle missing job profile filter
+    if (currentFilters.missingJobProfile === true) {
+      filterConditions.push({
+        jobProfileId: { _isNull: true }
+      });
+    }
+    
     if (currentFilters.jobFunctions && currentFilters.jobFunctions.length > 0) {
       filterConditions.push({
         jobFunction: {
@@ -234,54 +241,20 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         }
       });
     }
-    
-    if (currentFilters.jobLevels && currentFilters.jobLevels.length > 0) {
-      filterConditions.push({
-        jobLevel: {
-          id: { _in: currentFilters.jobLevels }
-        }
-      });
-    }
-    
-    if (currentFilters.jobFamilies && currentFilters.jobFamilies.length > 0) {
-      filterConditions.push({
-        jobFunction: {
-          jobFamily: {
-            id: { _in: currentFilters.jobFamilies }
-          }
-        }
-      });
-    }
-    
-    if (currentFilters.contractTypes && currentFilters.contractTypes.length > 0) {
-      filterConditions.push({
-        contractType: {
-          id: { _in: currentFilters.contractTypes }
-        }
-      });
-    }
-    
-    if (currentFilters.employmentTypes && currentFilters.employmentTypes.length > 0) {
-      filterConditions.push({
-        employmentType: {
-          id: { _in: currentFilters.employmentTypes }
-        }
-      });
-    }
 
+    // PERFORMANCE: Use simplified search for initial load if no search term
+    const hasActiveSearch = currentFilters.search && currentFilters.search.trim().length > 0;
+    
     // Prepare query variables
     const variables: any = {
       structureId,
       limit: pageSize,
       offset: pageOffset,
       filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
-      search: currentFilters.search ? `%${currentFilters.search}%` : '%'
+      search: hasActiveSearch ? `%${currentFilters.search.trim()}%` : '%%', // Match all if no search
+      // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
+      vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant
     };
-
-    // Add vacant filter if specified
-    if (currentFilters.vacant !== undefined) {
-      variables.vacant = currentFilters.vacant;
-    }
 
     client.request?.(JOB_POSITION_QUERY, variables)
       .then((res: any) => {
@@ -299,17 +272,18 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         setOffset(pageOffset);
         
         // Check if there are more positions to load
-        const hasMoreData = positions.length === pageSize;
+        const hasMoreData = positions.length === pageSize && pageOffset + pageSize < res.JobPositionAggregate.aggregate.count;
         setHasMore(hasMoreData);
         
         setLoading(false);
       })
       .catch((err: any) => {
+        console.error('Error loading job positions:', err);
         setError(err);
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, client, structureId]); // Removed filters from dependencies
+  }, [client, structureId]); // Removed filters from dependencies to avoid loops
 
   /**
    * Loads more job positions from the API (for backward compatibility).

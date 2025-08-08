@@ -185,7 +185,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4" data-testid="data-controller-container">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2" data-testid="data-controller-main-bar">
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0" data-testid="data-controller-left-section">
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0" data-testid="data-controller-left-section">
           {!hideFilter && (
             <>
               <button
@@ -209,9 +209,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   )}
                 </div>
               </button>
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700" data-testid="data-controller-filter-label">
-                Filter
-              </span>
+
             </>
           )}
           {!showSearchInput ? (

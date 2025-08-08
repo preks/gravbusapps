@@ -1,13 +1,20 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGetJobTitles } from "./useGetJobTitles";
+
+import { useGetContactAccounts } from "./useGetContactAccounts";
+import { useGetContactOwners } from "./useGetContactOwners";
+import { useGetContacts } from "./useGetContacts";
+import { useGetContactInfoFilters } from "./useGetContactInfoFilters";
+import { useGetContactTypes } from "./useGetContactTypes";
+import { useGetContactRoles } from "./useGetContactRoles";
+import { useGetContactDepartments } from "./useGetContactDepartments";
 
 export interface FilterGroup {
   id: string;
   title: string; // Changed from label to title to match DataFilterGroup
   filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
   backendSearch?: (search: string) => {
-    filters: Array<{ id: string; label: string; selected: boolean }>;
+    filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
     loading: boolean;
     error: any;
   };
@@ -26,8 +33,12 @@ export interface ContactFilters {
   createdAfter?: string;
   createdBefore?: string;
   handleDateRangeChange: (after?: string, before?: string) => void;
-  jobTitleSearch: string;
-  setJobTitleSearch: (search: string) => void;
+  contactSearch: string;
+  setContactSearch: (search: string) => void;
+  accountSearch: string;
+  setAccountSearch: (search: string) => void;
+  ownerSearch: string;
+  setOwnerSearch: (search: string) => void;
   filtersInitialized: boolean;
 }
 
@@ -38,114 +49,271 @@ export const useContactFilters = (
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
-  // Separate state for job title search
-  const [jobTitleSearch, setJobTitleSearch] = useState("");
+  // Search state for new filter types
+  const [contactSearch, setContactSearch] = useState("");
+  const [accountSearch, setAccountSearch] = useState("");
+  const [ownerSearch, setOwnerSearch] = useState("");
+  const [contactTypeSearch, setContactTypeSearch] = useState("");
+  const [contactRoleSearch, setContactRoleSearch] = useState("");
+  const [departmentSearch, setDepartmentSearch] = useState("");
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
+
+
+  // New filter hooks
   const {
-    jobTitleOptions,
-    isLoading: isJobTitlesLoading,
-    error: jobTitlesError,
-  } = useGetJobTitles(context, jobTitleSearch);
+    contacts,
+    isLoading: isContactsLoading,
+    error: contactsError,
+  } = useGetContacts(context, contactSearch);
 
-  // Initialize filters from URL parameters when job title options are loaded
+  const {
+    contactAccounts,
+    isLoading: isAccountsLoading,
+    error: accountsError,
+  } = useGetContactAccounts(context, accountSearch);
+
+  const {
+    contactOwners,
+    isLoading: isOwnersLoading,
+    error: ownersError,
+  } = useGetContactOwners(context, ownerSearch);
+
+  const {
+    contactInfoFilters,
+    isLoading: isContactInfoLoading,
+    error: contactInfoError,
+  } = useGetContactInfoFilters();
+
+  const {
+    contactTypeOptions,
+    isLoading: isContactTypesLoading,
+    error: contactTypesError,
+  } = useGetContactTypes(context, contactTypeSearch);
+
+  const {
+    contactRoleOptions,
+    isLoading: isContactRolesLoading,
+    error: contactRolesError,
+  } = useGetContactRoles(context, contactRoleSearch);
+
+  const {
+    departmentOptions,
+    isLoading: isDepartmentsLoading,
+    error: departmentsError,
+  } = useGetContactDepartments(context, departmentSearch);
+
+  // Note: contactInfoError is available for future use if needed
+
+  // Initialize filters from URL parameters when all data is loaded
   useEffect(() => {
-    if (!filtersInitialized && !isJobTitlesLoading) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const preselectedFilters: string[] = [];
-
-      // Only process URL filters if we have job title data loaded
-      if (jobTitleOptions.length > 0) {
-        // Handle jobTitle parameter: jobTitle=JobTitle:v1:MANAGER
-        const jobTitleParams = urlParams.getAll('jobTitle');
-        jobTitleParams.forEach(titleValue => {
-          const matchingTitle = jobTitleOptions.find(option => option.id === titleValue);
-          if (matchingTitle) {
-            preselectedFilters.push(`title-${matchingTitle.id}`);
-          }
-        });
-      }
-
-      // Handle contactType parameter: contactType=FOUNDER_CONTACT
-      const contactTypeParams = urlParams.getAll('contactType');
-      contactTypeParams.forEach(contactTypeValue => {
-        if (['FOUNDER_CONTACT', 'PRIMARY_CONTACT', 'SECONDARY_CONTACT', 'UNKNOWN_CONTACT'].includes(contactTypeValue)) {
-          preselectedFilters.push(contactTypeValue);
-        }
-      });
-
-      if (preselectedFilters.length > 0) {
-        setSelectedFilters(preselectedFilters);
-      }
-      
-      // Always set initialized to true once loading is complete, regardless of whether data exists
+    if (!filtersInitialized && !isContactsLoading && !isAccountsLoading && !isOwnersLoading && !isContactTypesLoading && !isContactRolesLoading && !isDepartmentsLoading) {
+      // Always set initialized to true once loading is complete
       setFiltersInitialized(true);
     }
-  }, [jobTitleOptions, isJobTitlesLoading, filtersInitialized]);
+  }, [isContactsLoading, isAccountsLoading, isOwnersLoading, isContactTypesLoading, isContactRolesLoading, isDepartmentsLoading, filtersInitialized]);
 
-  // Backend search function for job titles
-  const getJobTitleFilters = useCallback(
+
+
+  // Backend search functions for new filter types
+  const getContactFilters = useCallback(
     (search: string) => {
-      setJobTitleSearch(search);
+      // Don't set state during render - use setTimeout to defer it
+      setTimeout(() => {
+        setContactSearch(search);
+      }, 0);
 
       return {
-        filters: jobTitleOptions.map((option) => ({
-          id: `title-${option.id}`,
-          label: option.name,
-          selected: selectedFilters.includes(`title-${option.id}`),
+        filters: contacts.map((contact) => ({
+          id: `contact-${contact.id}`,
+          label: contact.name,
+          value: contact.name,
+          selected: selectedFilters.includes(`contact-${contact.id}`),
         })),
-        loading: isJobTitlesLoading,
-        error: jobTitlesError,
+        loading: isContactsLoading,
+        error: contactsError,
       };
     },
-    [jobTitleOptions, selectedFilters, isJobTitlesLoading, jobTitlesError]
+    [contacts, selectedFilters, isContactsLoading, contactsError]
+  );
+
+  const getAccountFilters = useCallback(
+    (search: string) => {
+      // Don't set state during render - use setTimeout to defer it
+      setTimeout(() => {
+        setAccountSearch(search);
+      }, 0);
+
+      return {
+        filters: contactAccounts.map((account) => ({
+          id: `account-${account.id}`,
+          label: account.name,
+          value: account.id,
+          selected: selectedFilters.includes(`account-${account.id}`),
+        })),
+        loading: isAccountsLoading,
+        error: accountsError,
+      };
+    },
+    [contactAccounts, selectedFilters, isAccountsLoading, accountsError]
+  );
+
+  const getOwnerFilters = useCallback(
+    (search: string) => {
+      // Don't set state during render - use setTimeout to defer it
+      setTimeout(() => {
+        setOwnerSearch(search);
+      }, 0);
+
+      return {
+        filters: contactOwners.map((owner) => ({
+          id: `owner-${owner.id}`,
+          label: owner.name,
+          value: owner.id,
+          selected: selectedFilters.includes(`owner-${owner.id}`),
+        })),
+        loading: isOwnersLoading,
+        error: ownersError,
+      };
+    },
+    [contactOwners, selectedFilters, isOwnersLoading, ownersError]
+  );
+
+  const getContactTypeFilters = useCallback(
+    (search: string) => {
+      setTimeout(() => { setContactTypeSearch(search); }, 0);
+      return {
+        filters: (contactTypeOptions || []).map((option) => ({
+          id: `contact-type-${option.name}`,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(`contact-type-${option.name}`),
+        })),
+        loading: isContactTypesLoading,
+        error: contactTypesError,
+      };
+    },
+    [contactTypeOptions, selectedFilters, isContactTypesLoading, contactTypesError]
+  );
+
+  const getContactRoleFilters = useCallback(
+    (search: string) => {
+      setTimeout(() => { setContactRoleSearch(search); }, 0);
+      return {
+        filters: (contactRoleOptions || []).map((option) => ({
+          id: `contact-role-${option.name}`,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(`contact-role-${option.name}`),
+        })),
+        loading: isContactRolesLoading,
+        error: contactRolesError,
+      };
+    },
+    [contactRoleOptions, selectedFilters, isContactRolesLoading, contactRolesError]
+  );
+
+  const getDepartmentFilters = useCallback(
+    (search: string) => {
+      setTimeout(() => { setDepartmentSearch(search); }, 0);
+      return {
+        filters: (departmentOptions || []).map((option) => ({
+          id: `department-${option.name}`,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(`department-${option.name}`),
+        })),
+        loading: isDepartmentsLoading,
+        error: departmentsError,
+      };
+    },
+    [departmentOptions, selectedFilters, isDepartmentsLoading, departmentsError]
   );
 
   const filterGroups: FilterGroup[] = useMemo(
     () => [
       {
-        id: "contactType",
-        title: "Contact Type",
-        filters: [
-          {
-            id: "FOUNDER_CONTACT",
-            label: "Founder",
-            value: "FOUNDER_CONTACT",
-            selected: selectedFilters.includes("FOUNDER_CONTACT"),
+        id: "contacts",
+        title: "Contact",
+        filters: contacts.map((contact) => ({
+          id: `contact-${contact.id}`,
+          label: contact.name,
+          value: {
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            name: contact.name
           },
-          {
-            id: "PRIMARY_CONTACT",
-            label: "Primary Contact",
-            value: "PRIMARY_CONTACT",
-            selected: selectedFilters.includes("PRIMARY_CONTACT"),
-          },
-          {
-            id: "SECONDARY_CONTACT",
-            label: "Secondary Contact",
-            value: "SECONDARY_CONTACT",
-            selected: selectedFilters.includes("SECONDARY_CONTACT"),
-          },
-          {
-            id: "UNKNOWN_CONTACT",
-            label: "Unknown",
-            value: "UNKNOWN_CONTACT",
-            selected: selectedFilters.includes("UNKNOWN_CONTACT"),
-          },
-        ],
+          selected: selectedFilters.includes(`contact-${contact.id}`),
+        })),
+        backendSearch: getContactFilters,
       },
       {
-        id: "jobTitle",
-        title: "Job Title",
-        filters: jobTitleOptions.map((option) => ({
-          id: `title-${option.id}`,
+        id: "contactInfo",
+        title: "Contact Info",
+        filters: contactInfoFilters.map((filter) => ({
+          id: filter.id,
+          label: filter.label,
+          value: filter.value,
+          selected: selectedFilters.includes(filter.id),
+        })),
+      },
+      {
+        id: "accounts",
+        title: "Account",
+        filters: contactAccounts.map((account) => ({
+          id: `account-${account.id}`,
+          label: account.name,
+          value: account.id,
+          selected: selectedFilters.includes(`account-${account.id}`),
+        })),
+        backendSearch: getAccountFilters,
+      },
+      {
+        id: "owners",
+        title: "Owner",
+        filters: contactOwners.map((owner) => ({
+          id: `owner-${owner.id}`,
+          label: owner.name,
+          value: owner.id,
+          selected: selectedFilters.includes(`owner-${owner.id}`),
+        })),
+        backendSearch: getOwnerFilters,
+      },
+      {
+        id: "contactType",
+        title: "Contact Type",
+        filters: (contactTypeOptions || []).map((option) => ({
+          id: `contact-type-${option.name}`,
           label: option.name,
           value: option.name,
-          selected: selectedFilters.includes(`title-${option.id}`),
+          selected: selectedFilters.includes(`contact-type-${option.name}`),
         })),
-        backendSearch: getJobTitleFilters,
+        backendSearch: getContactTypeFilters,
+      },
+      {
+        id: "contactRole",
+        title: "Contact Role",
+        filters: (contactRoleOptions || []).map((option) => ({
+          id: `contact-role-${option.name}`,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(`contact-role-${option.name}`),
+        })),
+        backendSearch: getContactRoleFilters,
+      },
+      {
+        id: "departments",
+        title: "Department",
+        filters: (departmentOptions || []).map((option) => ({
+          id: `department-${option.name}`,
+          label: option.name,
+          value: option.name,
+          selected: selectedFilters.includes(`department-${option.name}`),
+        })),
+        backendSearch: getDepartmentFilters,
       },
     ],
-    [selectedFilters, jobTitleOptions, getJobTitleFilters]
+    [selectedFilters, contacts, contactAccounts, contactOwners, contactInfoFilters, contactTypeOptions, contactRoleOptions, departmentOptions, getContactFilters, getAccountFilters, getOwnerFilters, getContactTypeFilters, getContactRoleFilters, getDepartmentFilters]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -203,12 +371,27 @@ export const useContactFilters = (
       for (const group of filterGroups) {
         const filter = group.filters.find((f) => f.id === filterId);
         if (filter) {
-          if (group.id === "contactType") {
+          if (group.id === "contacts") {
+            if (!filters.contacts) filters.contacts = [];
+            filters.contacts.push(filter.value);
+          } else if (group.id === "contactInfo") {
+            if (!filters.contactInfo) filters.contactInfo = [];
+            filters.contactInfo.push(filter.value);
+          } else if (group.id === "accounts") {
+            if (!filters.accounts) filters.accounts = [];
+            filters.accounts.push(filter.value);
+          } else if (group.id === "owners") {
+            if (!filters.owners) filters.owners = [];
+            filters.owners.push(filter.value);
+          } else if (group.id === "contactType") {
             if (!filters.contactTypes) filters.contactTypes = [];
             filters.contactTypes.push(filter.value);
-          } else if (group.id === "jobTitle") {
-            if (!filters.jobTitles) filters.jobTitles = [];
-            filters.jobTitles.push(filter.value);
+          } else if (group.id === "contactRole") {
+            if (!filters.contactRoles) filters.contactRoles = [];
+            filters.contactRoles.push(filter.value);
+          } else if (group.id === "departments") {
+            if (!filters.departments) filters.departments = [];
+            filters.departments.push(filter.value);
           }
           break;
         }
@@ -231,8 +414,12 @@ export const useContactFilters = (
     createdAfter,
     createdBefore,
     handleDateRangeChange,
-    jobTitleSearch,
-    setJobTitleSearch,
+    contactSearch,
+    setContactSearch,
+    accountSearch,
+    setAccountSearch,
+    ownerSearch,
+    setOwnerSearch,
     filtersInitialized,
   };
 };

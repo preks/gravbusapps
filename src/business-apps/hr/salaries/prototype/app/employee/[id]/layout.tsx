@@ -20,7 +20,7 @@ export default function EmployeeLayout({
             <TabsTrigger value="salary">Salary</TabsTrigger>
           </Link>
           <Link href={`/employee/${params.id}/documents`}>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
+
           </Link>
         </TabsList>
       </Tabs>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetLeadStatuses } from "./useGetLeadStatuses";
 import { useGetLeadRatings } from "./useGetLeadRatings";
@@ -8,12 +8,18 @@ import { useGetLeadSources } from "./useGetLeadSources";
 import { useGetIndustries } from "./useGetIndustries";
 import { useGetCompanySizes } from "./useGetCompanySizes";
 import { useGetLeadOwners } from "./useGetLeadOwners";
+import { useGetLeadContacts } from "./useGetLeadContacts";
+import { useGetLeadCompanies } from "./useGetLeadCompanies";
+import { useGetCountries } from "./useGetCountries";
+import { useGetRegions } from "./useGetRegions";
+import { useGetCities } from "./useGetCities";
 import { DateRangeFilter } from "../components/DateRangeFilter";
 
 // DataFilter interfaces to match DataContainer expectations
 export interface DataFilter {
   id: string;
   label: string;
+  value: string;
   selected: boolean;
   count?: number;
 }
@@ -35,7 +41,11 @@ export interface LeadFilters {
   leadStatuses: string[];
   leadRatings: string[];
   leadSources: string[];
+  industries: string[];
   companySizes: string[];
+  owners: string[];
+  leadContacts: string[];
+  leadCompanies: string[];
   createdAfter?: string;
   createdBefore?: string;
 }
@@ -57,6 +67,11 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const [industrySearch, setIndustrySearch] = useState("");
   const [companySizeSearch, setCompanySizeSearch] = useState("");
   const [ownerSearch, setOwnerSearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [countrySearch, setCountrySearch] = useState("");
+  const [regionSearch, setRegionSearch] = useState("");
+  const [citySearch, setCitySearch] = useState("");
 
   // Offset state for pagination (if needed later)
   const [leadStatusOffset] = useState(0);
@@ -65,6 +80,9 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const [industryOffset] = useState(0);
   const [companySizeOffset] = useState(0);
   const [ownerOffset] = useState(0);
+  const [countryOffset] = useState(0);
+  const [regionOffset] = useState(0);
+  const [cityOffset] = useState(0);
 
   // Get catalog data with search parameters
   const {
@@ -97,11 +115,67 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     isLoading: ownerLoading,
     error: ownerError,
   } = useGetLeadOwners(context, ownerSearch, ownerOffset);
+  const {
+    leadContacts,
+    isLoading: contactLoading,
+    error: contactError,
+  } = useGetLeadContacts(context, contactSearch, 0);
+  const {
+    leadCompanies,
+    isLoading: companyLoading,
+    error: companyError,
+  } = useGetLeadCompanies(context, companySearch, 0);
+  const {
+    countries,
+    isLoading: countryLoading,
+    error: countryError,
+  } = useGetCountries(context, countrySearch, countryOffset);
+  const {
+    regions,
+    isLoading: regionLoading,
+    error: regionError,
+  } = useGetRegions(context, regionSearch, regionOffset);
+  const {
+    cities,
+    isLoading: cityLoading,
+    error: cityError,
+  } = useGetCities(context, citySearch, cityOffset);
+
+  // Memoize stable options to prevent infinite loops
+  const stableOptions = useMemo(() => ({
+    leadStatusOptions: [...leadStatusOptions],
+    leadRatingOptions: [...leadRatingOptions], 
+    leadSourceOptions: [...leadSourceOptions],
+    industryOptions: [...industryOptions],
+    companySizeOptions: [...companySizeOptions],
+    leadOwners: [...leadOwners],
+    leadContacts: [...leadContacts],
+    leadCompanies: [...leadCompanies],
+    countries: [...countries],
+    regions: [...regions],
+    cities: [...cities],
+  }), [
+    leadStatusOptions.length,
+    leadRatingOptions.length,
+    leadSourceOptions.length,
+    industryOptions.length,
+    companySizeOptions.length,
+    leadOwners.length,
+    leadContacts.length,
+    leadCompanies.length,
+    countries.length,
+    regions.length,
+    cities.length,
+  ]);
+
+  // Memoize selectedFilters string for stable dependencies
+  const selectedFiltersKey = useMemo(() => selectedFilters.join(','), [selectedFilters]);
 
   // Initialize filters from URL parameters when all data is loaded
   useEffect(() => {
     if (!filtersInitialized && !leadStatusLoading && !leadRatingLoading && 
-        !leadSourceLoading && !industryLoading && !companySizeLoading && !ownerLoading) {
+        !leadSourceLoading && !industryLoading && !companySizeLoading && !ownerLoading &&
+        !contactLoading && !companyLoading && !countryLoading && !regionLoading && !cityLoading) {
       const urlParams = new URLSearchParams(window.location.search);
       const preselectedFilters: string[] = [];
 
@@ -122,44 +196,44 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       });
 
       // Only process URL filters if we have data loaded
-      if (leadSourceOptions.length > 0) {
+      if (stableOptions.leadSourceOptions.length > 0) {
         // Handle leadSource parameter: leadSource=LeadSource:v1:WEBSITE
         const leadSourceParams = urlParams.getAll('leadSource');
         leadSourceParams.forEach(sourceValue => {
-          const matchingSource = leadSourceOptions.find(option => option.id === sourceValue);
+          const matchingSource = stableOptions.leadSourceOptions.find(option => option.id === sourceValue);
           if (matchingSource) {
             preselectedFilters.push(`source-${matchingSource.id}`);
           }
         });
       }
 
-      if (industryOptions.length > 0) {
+      if (stableOptions.industryOptions.length > 0) {
         // Handle industry parameter: industry=Industry:v1:TECHNOLOGY
         const industryParams = urlParams.getAll('industry');
         industryParams.forEach(industryValue => {
-          const matchingIndustry = industryOptions.find(option => option.id === industryValue);
+          const matchingIndustry = stableOptions.industryOptions.find(option => option.id === industryValue);
           if (matchingIndustry) {
             preselectedFilters.push(`industry-${matchingIndustry.id}`);
           }
         });
       }
 
-      if (companySizeOptions.length > 0) {
+      if (stableOptions.companySizeOptions.length > 0) {
         // Handle companySize parameter: companySize=CompanySize:v1:SMALL
         const companySizeParams = urlParams.getAll('companySize');
         companySizeParams.forEach(sizeValue => {
-          const matchingSize = companySizeOptions.find(option => option.id === sizeValue);
+          const matchingSize = stableOptions.companySizeOptions.find(option => option.id === sizeValue);
           if (matchingSize) {
             preselectedFilters.push(`size-${matchingSize.id}`);
           }
         });
       }
 
-      if (leadOwners.length > 0) {
+      if (stableOptions.leadOwners.length > 0) {
         // Handle leadOwner parameter: leadOwner=employee-123
         const leadOwnerParams = urlParams.getAll('leadOwner');
         leadOwnerParams.forEach(ownerValue => {
-          const matchingOwner = leadOwners.find(owner => owner.id === ownerValue);
+          const matchingOwner = stableOptions.leadOwners.find(owner => owner.id === ownerValue);
           if (matchingOwner) {
             preselectedFilters.push(`owner-${matchingOwner.id}`);
           }
@@ -173,9 +247,22 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       // Always set initialized to true once loading is complete, regardless of whether data exists
       setFiltersInitialized(true);
     }
-  }, [leadStatusOptions, leadRatingOptions, leadSourceOptions, industryOptions, 
-      companySizeOptions, leadOwners, leadStatusLoading, leadRatingLoading,
-      leadSourceLoading, industryLoading, companySizeLoading, ownerLoading, filtersInitialized]);
+  }, [
+    stableOptions.leadStatusOptions, 
+    stableOptions.leadRatingOptions, 
+    stableOptions.leadSourceOptions, 
+    stableOptions.industryOptions,
+    stableOptions.companySizeOptions, 
+    stableOptions.leadOwners, 
+    leadStatusLoading, 
+    leadRatingLoading,
+    leadSourceLoading, 
+    industryLoading, 
+    companySizeLoading, 
+    ownerLoading, 
+    filtersInitialized,
+    selectedFiltersKey
+  ]);
 
   // Combined loading and error states
   const isLoading =
@@ -184,14 +271,20 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     leadSourceLoading ||
     industryLoading ||
     companySizeLoading ||
-    ownerLoading;
+    ownerLoading ||
+    countryLoading ||
+    regionLoading ||
+    cityLoading;
   const error =
     leadStatusError ||
     leadRatingError ||
     leadSourceError ||
     industryError ||
     companySizeError ||
-    ownerError;
+    ownerError ||
+    countryError ||
+    regionError ||
+    cityError;
 
   // Filter management functions
   const addFilter = useCallback((filterId: string) => {
@@ -217,9 +310,9 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       // Handle leadStatus parameter
       const leadStatusParam = urlParams.get("leadStatus");
 
-      if (leadStatusParam && leadStatusOptions.length > 0) {
+      if (leadStatusParam && stableOptions.leadStatusOptions.length > 0) {
         // More flexible matching for common lead status values
-        const matchingStatus = leadStatusOptions.find((option) => {
+        const matchingStatus = stableOptions.leadStatusOptions.find((option) => {
           const optionName = option.name.toLowerCase();
           const paramValue = leadStatusParam.toLowerCase();
 
@@ -257,7 +350,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
         setSelectedFilters((prev) => [...prev, ...newFilters]);
       }
     },
-    [leadStatusOptions, setSelectedFilters]
+    [stableOptions.leadStatusOptions, setSelectedFilters]
   );
 
   // Handle date range changes
@@ -269,189 +362,401 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     []
   );
 
-  // Backend search functions (following employee pattern)
+  // Backend search functions (stable versions to prevent infinite loops)
   const getLeadStatusFilters = useCallback(
     (search: string) => {
-      setLeadStatusSearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== leadStatusSearch) {
+        setLeadStatusSearch(search);
+      }
 
       const searchValue = search.trim().toLowerCase();
 
       const filtered = searchValue
-        ? leadStatusOptions.filter((option) => {
+        ? stableOptions.leadStatusOptions.filter((option) => {
             const name = option.name ? option.name.toLowerCase() : "";
             return name.includes(searchValue);
           })
-        : leadStatusOptions;
+        : stableOptions.leadStatusOptions;
 
       return {
         filters: filtered.map((option) => ({
           id: option.id,
           label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
         loading: leadStatusLoading,
         error: leadStatusError,
       };
     },
-    [leadStatusOptions, selectedFilters, leadStatusLoading, leadStatusError]
+    [stableOptions.leadStatusOptions, leadStatusLoading, leadStatusError, leadStatusSearch, selectedFilters]
   );
 
   const getLeadRatingFilters = useCallback(
     (search: string) => {
-      setLeadRatingSearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== leadRatingSearch) {
+        setLeadRatingSearch(search);
+      }
 
       const filtered = search
-        ? leadRatingOptions.filter((option) =>
+        ? stableOptions.leadRatingOptions.filter((option) =>
             option.name.toLowerCase().includes(search.toLowerCase())
           )
-        : leadRatingOptions;
+        : stableOptions.leadRatingOptions;
 
       return {
         filters: filtered.map((option) => ({
           id: option.id,
           label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
         loading: leadRatingLoading,
         error: leadRatingError,
       };
     },
-    [leadRatingOptions, selectedFilters, leadRatingLoading, leadRatingError]
+    [stableOptions.leadRatingOptions, leadRatingLoading, leadRatingError, leadRatingSearch, selectedFilters]
   );
 
   const getLeadSourceFilters = useCallback(
     (search: string) => {
-      setLeadSourceSearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== leadSourceSearch) {
+        setLeadSourceSearch(search);
+      }
 
       return {
-        filters: leadSourceOptions.map((option) => ({
+        filters: stableOptions.leadSourceOptions.map((option) => ({
           id: option.id,
           label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
         loading: leadSourceLoading,
         error: leadSourceError,
       };
     },
-    [leadSourceOptions, selectedFilters, leadSourceLoading, leadSourceError]
+    [stableOptions.leadSourceOptions, leadSourceLoading, leadSourceError, leadSourceSearch, selectedFilters]
   );
 
   const getIndustryFilters = useCallback(
     (search: string) => {
-      setIndustrySearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== industrySearch) {
+        setIndustrySearch(search);
+      }
 
       return {
-        filters: industryOptions.map((option) => ({
+        filters: stableOptions.industryOptions.map((option) => ({
           id: option.id,
           label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
         loading: industryLoading,
         error: industryError,
       };
     },
-    [industryOptions, selectedFilters, industryLoading, industryError]
+    [stableOptions.industryOptions, industryLoading, industryError, industrySearch, selectedFilters]
   );
 
   // Company size doesn't need backend search as it's predefined
   const getCompanySizeFilters = useCallback(
     (search: string) => {
-      setCompanySizeSearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== companySizeSearch) {
+        setCompanySizeSearch(search);
+      }
 
       const searchValue = search.trim().toLowerCase();
 
       const filtered = searchValue
-        ? companySizeOptions.filter((option) => {
+        ? stableOptions.companySizeOptions.filter((option) => {
             const name = option.name ? option.name.toLowerCase() : "";
             return name.includes(searchValue);
           })
-        : companySizeOptions;
+        : stableOptions.companySizeOptions;
 
       return {
         filters: filtered.map((option) => ({
           id: option.id,
           label: option.name,
+          value: option.name,
           selected: selectedFilters.includes(option.id),
         })),
         loading: companySizeLoading,
         error: companySizeError,
       };
     },
-    [companySizeOptions, selectedFilters, companySizeLoading, companySizeError]
+    [stableOptions.companySizeOptions, companySizeLoading, companySizeError, companySizeSearch, selectedFilters]
   );
 
   const getOwnerFilters = useCallback(
     (search: string) => {
-      setOwnerSearch(search);
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== ownerSearch) {
+        setOwnerSearch(search);
+      }
 
       return {
-        filters: leadOwners.map((owner) => ({
+        filters: stableOptions.leadOwners.map((owner) => ({
           id: owner.id,
           label: owner.name,
+          value: owner.name,
           selected: selectedFilters.includes(owner.id),
         })),
         loading: ownerLoading,
         error: ownerError,
       };
     },
-    [leadOwners, selectedFilters, ownerLoading, ownerError]
+    [stableOptions.leadOwners, ownerLoading, ownerError, ownerSearch, selectedFilters]
+  );
+
+  const getContactFilters = useCallback(
+    (search: string) => {
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== contactSearch) {
+        setContactSearch(search);
+      }
+
+      return {
+        filters: stableOptions.leadContacts.map((contact) => ({
+          id: contact.id,
+          label: contact.name,
+          value: contact.name,
+          selected: selectedFilters.includes(contact.id),
+        })),
+        loading: contactLoading,
+        error: contactError,
+      };
+    },
+    [stableOptions.leadContacts, contactLoading, contactError, contactSearch, selectedFilters]
+  );
+
+  const getCompanyFilters = useCallback(
+    (search: string) => {
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== companySearch) {
+        setCompanySearch(search);
+      }
+
+      return {
+        filters: stableOptions.leadCompanies.map((company) => ({
+          id: company.id,
+          label: company.name,
+          value: company.name,
+          selected: selectedFilters.includes(company.id),
+        })),
+        loading: companyLoading,
+        error: companyError,
+      };
+    },
+    [stableOptions.leadCompanies, companyLoading, companyError, companySearch, selectedFilters]
+  );
+
+  const getCountryFilters = useCallback(
+    (search: string) => {
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== countrySearch) {
+        setCountrySearch(search);
+      }
+
+      return {
+        filters: stableOptions.countries.map((country) => ({
+          id: country.id,
+          label: country.name,
+          value: country.name,
+          selected: selectedFilters.includes(country.id),
+        })),
+        loading: countryLoading,
+        error: countryError,
+      };
+    },
+    [stableOptions.countries, countryLoading, countryError, countrySearch, selectedFilters]
+  );
+
+  const getRegionFilters = useCallback(
+    (search: string) => {
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== regionSearch) {
+        setRegionSearch(search);
+      }
+
+      return {
+        filters: stableOptions.regions.map((region) => ({
+          id: region.id,
+          label: region.name,
+          value: region.name,
+          selected: selectedFilters.includes(region.id),
+        })),
+        loading: regionLoading,
+        error: regionError,
+      };
+    },
+    [stableOptions.regions, regionLoading, regionError, regionSearch, selectedFilters]
+  );
+
+  const getCityFilters = useCallback(
+    (search: string) => {
+      // Only update search state if it has actually changed to prevent infinite loops
+      if (search !== citySearch) {
+        setCitySearch(search);
+      }
+
+      return {
+        filters: stableOptions.cities.map((city) => ({
+          id: city.id,
+          label: city.name,
+          value: city.name,
+          selected: selectedFilters.includes(city.id),
+        })),
+        loading: cityLoading,
+        error: cityError,
+      };
+    },
+    [stableOptions.cities, cityLoading, cityError, citySearch, selectedFilters]
   );
 
   // Convert catalog options to filter options for static display
-  const leadStatusFilterOptions: DataFilter[] = leadStatusOptions.map(
-    (option: any) => ({
+  const leadStatusFilterOptions: DataFilter[] = useMemo(() => 
+    stableOptions.leadStatusOptions.map((option: any) => ({
       id: option.id,
       label: option.name,
+      value: option.name,
       selected: selectedFilters.includes(option.id),
-    })
+    })), [stableOptions.leadStatusOptions, selectedFilters]
   );
 
-  const leadRatingFilterOptions: DataFilter[] = leadRatingOptions.map(
-    (option: any) => ({
+  const leadRatingFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.leadRatingOptions.map((option: any) => ({
       id: option.id,
       label: option.name,
+      value: option.name,
       selected: selectedFilters.includes(option.id),
-    })
+    })), [stableOptions.leadRatingOptions, selectedFilters]
   );
 
-  const leadSourceFilterOptions: DataFilter[] = leadSourceOptions.map(
-    (option: any) => ({
+  const leadSourceFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.leadSourceOptions.map((option: any) => ({
       id: option.id,
       label: option.name,
+      value: option.name,
       selected: selectedFilters.includes(option.id),
-    })
+    })), [stableOptions.leadSourceOptions, selectedFilters]
   );
 
-  const industryFilterOptions: DataFilter[] = industryOptions.map(
-    (option: any) => ({
+  const industryFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.industryOptions.map((option: any) => ({
       id: option.id,
       label: option.name,
+      value: option.name,
       selected: selectedFilters.includes(option.id),
-    })
+    })), [stableOptions.industryOptions, selectedFilters]
   );
 
-  const companySizeFilterOptions: DataFilter[] = companySizeOptions.map(
-    (option: any) => ({
+  const companySizeFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.companySizeOptions.map((option: any) => ({
       id: option.id,
       label: option.name,
+      value: option.name,
       selected: selectedFilters.includes(option.id),
-    })
+    })), [stableOptions.companySizeOptions, selectedFilters]
   );
 
-  const ownerFilterOptions: DataFilter[] = leadOwners.map((owner: any) => ({
-    id: owner.id,
-    label: owner.name,
-    selected: selectedFilters.includes(owner.id),
-  }));
+  const ownerFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.leadOwners.map((owner: any) => ({
+      id: owner.id,
+      label: owner.name,
+      value: owner.name,
+      selected: selectedFilters.includes(owner.id),
+    })), [stableOptions.leadOwners, selectedFilters]
+  );
+
+  const contactFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.leadContacts.map((contact: any) => ({
+      id: contact.id,
+      label: contact.name,
+      value: contact.name,
+      selected: selectedFilters.includes(contact.id),
+    })), [stableOptions.leadContacts, selectedFilters]
+  );
+
+  const companyFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.leadCompanies.map((company: any) => ({
+      id: company.id,
+      label: company.name,
+      value: company.name,
+      selected: selectedFilters.includes(company.id),
+    })), [stableOptions.leadCompanies, selectedFilters]
+  );
+
+  const countryFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.countries.map((country: any) => ({
+      id: country.id,
+      label: country.name,
+      value: country.name,
+      selected: selectedFilters.includes(country.id),
+    })), [stableOptions.countries, selectedFilters]
+  );
+
+  const regionFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.regions.map((region: any) => ({
+      id: region.id,
+      label: region.name,
+      value: region.name,
+      selected: selectedFilters.includes(region.id),
+    })), [stableOptions.regions, selectedFilters]
+  );
+
+  const cityFilterOptions: DataFilter[] = useMemo(() =>
+    stableOptions.cities.map((city: any) => ({
+      id: city.id,
+      label: city.name,
+      value: city.name,
+      selected: selectedFilters.includes(city.id),
+    })), [stableOptions.cities, selectedFilters]
+  );
 
   // Debug logging
   // Debug lead status values
 
-  // Create filter groups with backend search functions
+  // Create filter groups with backend search functions in the requested order
   const filterGroups: DataFilterGroup[] = [
     {
+      id: "leadContacts",
+      title: "Lead Contact",
+      filters: contactFilterOptions,
+      backendSearch: getContactFilters,
+    },
+    {
+      id: "leadCompanies", 
+      title: "Lead Company",
+      filters: companyFilterOptions,
+      backendSearch: getCompanyFilters,
+    },
+    {
+      id: "countries",
+      title: "Country",
+      filters: countryFilterOptions,
+      backendSearch: getCountryFilters,
+    },
+    {
+      id: "regions",
+      title: "Region/State",
+      filters: regionFilterOptions,
+      backendSearch: getRegionFilters,
+    },
+    {
+      id: "cities",
+      title: "City",
+      filters: cityFilterOptions,
+      backendSearch: getCityFilters,
+    },
+    {
       id: "dateRange",
-      title: "Created Date",
+      title: "Creation Date",
       customComponent: React.createElement(DateRangeFilter, {
         createdAfter: createdAfter,
         createdBefore: createdBefore,
@@ -461,20 +766,26 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       hideSearch: true,
     } as any, // Temporary type assertion to bypass interface issue
     {
+      id: "owners",
+      title: "Owner",
+      filters: ownerFilterOptions,
+      backendSearch: getOwnerFilters,
+    },
+    {
       id: "leadStatuses",
-      title: "Lead Status",
+      title: "Status",
       filters: leadStatusFilterOptions,
       backendSearch: getLeadStatusFilters,
     },
     {
       id: "leadRatings",
-      title: "Lead Rating",
+      title: "Rating",
       filters: leadRatingFilterOptions,
       backendSearch: getLeadRatingFilters,
     },
     {
       id: "leadSources",
-      title: "Lead Source",
+      title: "Source",
       filters: leadSourceFilterOptions,
       backendSearch: getLeadSourceFilters,
     },
@@ -484,63 +795,35 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       filters: industryFilterOptions,
       backendSearch: getIndustryFilters,
     },
-    {
-      id: "companySizes",
-      title: "Company Size",
-      filters: companySizeFilterOptions,
-      backendSearch: getCompanySizeFilters,
-    },
-    {
-      id: "owners",
-      title: "Owner",
-      filters: ownerFilterOptions,
-      backendSearch: getOwnerFilters,
-    },
   ];
 
-  // Create filter label map
-  const filterLabelMap = {
-    ...Object.fromEntries(leadStatusOptions.map((o) => [o.id, o.name])),
-    ...Object.fromEntries(leadRatingOptions.map((o) => [o.id, o.name])),
-    ...Object.fromEntries(leadSourceOptions.map((o) => [o.id, o.name])),
-    ...Object.fromEntries(industryOptions.map((o) => [o.id, o.name])),
-    ...Object.fromEntries(companySizeOptions.map((o) => [o.id, o.name])),
-    ...Object.fromEntries(leadOwners.map((o) => [o.id, o.name])),
-  };
-
-  // Get current filters for API calls
-  const getFilters = useCallback((): LeadFilters => {
-    const leadStatuses = selectedFilters.filter((f) =>
-      leadStatusOptions.map((o) => o.id).includes(f)
-    );
-    const leadRatings = selectedFilters.filter((f) =>
-      leadRatingOptions.map((o) => o.id).includes(f)
-    );
-    const leadSources = selectedFilters.filter((f) =>
-      leadSourceOptions.map((o) => o.id).includes(f)
-    );
-    const companySizes = selectedFilters.filter((f) =>
-      companySizeOptions.map((o) => o.id).includes(f)
-    );
-
+  // Create a label mapping for filters to support filter management functions
+  const filterLabelMap = useMemo(() => {
     return {
-      search,
-      leadStatuses,
-      leadRatings,
-      leadSources,
-      companySizes,
-      createdAfter,
-      createdBefore,
+      ...Object.fromEntries(stableOptions.leadStatusOptions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.leadRatingOptions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.leadSourceOptions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.industryOptions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.companySizeOptions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.leadOwners.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.leadContacts.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.leadCompanies.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.countries.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.regions.map((o) => [o.id, o.name])),
+      ...Object.fromEntries(stableOptions.cities.map((o) => [o.id, o.name])),
     };
   }, [
-    search,
-    selectedFilters,
-    leadStatusOptions,
-    leadRatingOptions,
-    leadSourceOptions,
-    companySizeOptions,
-    createdAfter,
-    createdBefore,
+    stableOptions.leadStatusOptions,
+    stableOptions.leadRatingOptions,
+    stableOptions.leadSourceOptions,
+    stableOptions.industryOptions,
+    stableOptions.companySizeOptions,
+    stableOptions.leadOwners,
+    stableOptions.leadContacts,
+    stableOptions.leadCompanies,
+    stableOptions.countries,
+    stableOptions.regions,
+    stableOptions.cities,
   ]);
 
   return {
@@ -563,7 +846,6 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     removeFilter,
     resetFilters,
     initializeFromUrl,
-    getFilters,
     handleDateRangeChange,
 
     // Loading states

@@ -802,7 +802,7 @@ async function publishScreen(screenPath, options = {}) {
     }
   } catch (error) {
     console.error("❌ Build failed:", error.message);
-    process.exit(1);
+    throw error;
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION);
