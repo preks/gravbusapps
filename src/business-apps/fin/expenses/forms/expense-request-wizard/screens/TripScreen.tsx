@@ -511,7 +511,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   };
 
   useEffect(() => {
-    if (accessToken && userInfo?.employeeId && expenseRequestData) {
+    if (accessToken && userInfo?.employeeDetails && expenseRequestData) {
       if (startLocation.departureDate || startLocation.departureTime) {
         checkAbsencesAndRequests(
           startLocation.departureDate,
