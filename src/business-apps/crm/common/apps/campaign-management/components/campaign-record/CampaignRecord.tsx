@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { Tabs } from 'antd';
 import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks';
@@ -6,7 +6,7 @@ import {
   CampaignHeader, 
   CampaignKPIs, 
   CampaignChart, 
-  CampaignEntitiesTable
+  CampaignEntitiesSection
 } from './components';
 import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics';
 import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel';
@@ -16,12 +16,29 @@ import { CampaignRecordProps } from './types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BarChartOutlined, EyeOutlined, LineChartOutlined } from '@ant-design/icons';
 
-const CampaignRecord: React.FC<CampaignRecordProps> = ({
+interface CampaignRecordComponentProps extends CampaignRecordProps {}
+
+const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   campaignId,
   onBack,
+  activeTab: initialActiveTab = 'overview',
+  onTabChange,
   ...props
 }) => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialActiveTab);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setActiveTab(initialActiveTab);
+  }, [initialActiveTab]);
+
+  // Handle tab change
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  }, [onTabChange]);
 
   // Fetch campaign record data
   const {
@@ -92,17 +109,9 @@ const CampaignRecord: React.FC<CampaignRecordProps> = ({
         />
       </div>
 
-      {/* Campaign Entities Table */}
+      {/* Campaign Entities Section */}
       <div data-testid="campaign-entities-section">
-        <div className="gba:mb-4">
-          <h2 className="gba:text-xl gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {getTranslationFromI18nKeyAndLabel('campaign.record.entities.title', 'Campaign Entities')}
-          </h2>
-          <p className="gba:text-sm gba:mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-            {getTranslationFromI18nKeyAndLabel('campaign.record.entities.description', 'Leads, accounts, contacts, and opportunities associated with this campaign')}
-          </p>
-        </div>
-        <CampaignEntitiesTable
+        <CampaignEntitiesSection
           campaignId={campaignId}
           {...props}
         />
@@ -170,7 +179,7 @@ const CampaignRecord: React.FC<CampaignRecordProps> = ({
         <div data-testid="campaign-record-container">
           <Tabs
             activeKey={activeTab}
-            onChange={setActiveTab}
+            onChange={handleTabChange}
             className="gba:mb-6"
             data-testid="campaign-record-tabs"
             items={[

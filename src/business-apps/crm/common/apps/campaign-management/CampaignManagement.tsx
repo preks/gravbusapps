@@ -25,12 +25,74 @@ interface CampaignManagementContentProps extends BusinessAppContextProps {
 }
 
 const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (props) => {
+  // URL parameter management
+  const getURLParams = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      view: urlParams.get('view') as 'list' | 'record' || 'list',
+      campaignId: urlParams.get('campaignId') || null,
+      mainTab: urlParams.get('mainTab') || 'overview', // Main campaign list tab
+      recordTab: urlParams.get('recordTab') || 'overview' // Campaign record tab
+    };
+  }, []);
+
+  const updateURL = useCallback((params: { 
+    view?: 'list' | 'record'; 
+    campaignId?: string | null; 
+    mainTab?: string;
+    recordTab?: string;
+  }) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Update URL parameters
+    if (params.view !== undefined) {
+      if (params.view === 'list') {
+        urlParams.delete('view');
+        urlParams.delete('campaignId');
+        urlParams.delete('recordTab'); // Clear record tab when going to list
+      } else {
+        urlParams.set('view', params.view);
+      }
+    }
+    
+    if (params.campaignId !== undefined) {
+      if (params.campaignId) {
+        urlParams.set('campaignId', params.campaignId);
+      } else {
+        urlParams.delete('campaignId');
+      }
+    }
+    
+    if (params.mainTab !== undefined) {
+      if (params.mainTab === 'overview') {
+        urlParams.delete('mainTab');
+      } else {
+        urlParams.set('mainTab', params.mainTab);
+      }
+    }
+    
+    if (params.recordTab !== undefined) {
+      if (params.recordTab === 'overview') {
+        urlParams.delete('recordTab');
+      } else {
+        urlParams.set('recordTab', params.recordTab);
+      }
+    }
+    
+    const newURL = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.pushState({}, '', newURL);
+  }, []);
+
+  // Initialize state from URL
+  const urlParams = getURLParams();
+  
   // Navigation state
-  const [currentView, setCurrentView] = useState<'list' | 'record'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'record'>(urlParams.view);
   const [selectedCampaign, setSelectedCampaign] = useState<SalesCampaign | null>(null);
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState('overview');
+  // Tab state - separate for main view and record view
+  const [mainActiveTab, setMainActiveTab] = useState(urlParams.mainTab);
+  const [recordActiveTab, setRecordActiveTab] = useState(urlParams.recordTab);
   
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -52,6 +114,8 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     endDateBefore: filterEndDateBefore,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
+    handleStartDateRangeChange,
+    handleEndDateRangeChange,
     handleCreatedDateRangeChange: filterHandleCreatedDateRangeChange,
     filtersInitialized,
   } = useCampaignFilters(props);
@@ -81,29 +145,85 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
   // Table state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [sortField, setSortField] = useState('');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
 
-  // Handle table changes (pagination, sorting, filtering)
+  // Handle pagination changes
+  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
+    const actualPageSize = newPageSize || pageSize;
+    setCurrentPage(page);
+    if (newPageSize) {
+      setPageSize(newPageSize);
+    }
+
+    processFiltersAndFetch(
+      search,
+      selectedFilters,
+      filterStartDateAfter,
+      filterStartDateBefore,
+      filterEndDateAfter,
+      filterEndDateBefore,
+      filterCreatedAfter,
+      filterCreatedBefore,
+      sortField,
+      sortOrder,
+      (page - 1) * actualPageSize,
+      actualPageSize
+    );
+  }, [
+    pageSize,
+    search,
+    selectedFilters,
+    filterStartDateAfter,
+    filterStartDateBefore,
+    filterEndDateAfter,
+    filterEndDateBefore,
+    filterCreatedAfter,
+    filterCreatedBefore,
+    sortField,
+    sortOrder,
+    processFiltersAndFetch
+  ]);
+
+  // Handle sorting changes
+  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
+    setSortField(field);
+    setSortOrder(order);
+
+    processFiltersAndFetch(
+      search,
+      selectedFilters,
+      filterStartDateAfter,
+      filterStartDateBefore,
+      filterEndDateAfter,
+      filterEndDateBefore,
+      filterCreatedAfter,
+      filterCreatedBefore,
+      field,
+      order,
+      (currentPage - 1) * pageSize,
+      pageSize
+    );
+  }, [
+    search,
+    selectedFilters,
+    filterStartDateAfter,
+    filterStartDateBefore,
+    filterEndDateAfter,
+    filterEndDateBefore,
+    filterCreatedAfter,
+    filterCreatedBefore,
+    currentPage,
+    pageSize,
+    processFiltersAndFetch
+  ]);
+
+  // Handle table changes (legacy - for backward compatibility)
   const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     const newPage = pagination.current || 1;
     const newPageSize = pagination.pageSize || 20;
-    const newSortField = sorter.field || '';
-    const newSortOrder = sorter.order === 'ascend' ? 'ASC' : 'DESC';
-
-    setCurrentPage(newPage);
-    setPageSize(newPageSize);
-
-    const offset = (newPage - 1) * newPageSize;
-    const orderBy = newSortField 
-      ? [{ [newSortField]: newSortOrder } as { [key: string]: 'ASC' | 'DESC' }] 
-      : [{ createdAt: 'DESC' } as { [key: string]: 'ASC' | 'DESC' }];
-
-    fetchCampaigns({
-      offset,
-      limit: newPageSize,
-      search,
-      orderBy
-    });
-  }, [fetchCampaigns, search]);
+    handlePaginationChange(newPage, newPageSize);
+  }, [handlePaginationChange]);
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
@@ -142,7 +262,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
         filterEndDateAfter,
         filterEndDateBefore,
         filterCreatedAfter, 
-        filterCreatedBefore
+        filterCreatedBefore,
+        sortField,
+        sortOrder,
+        (currentPage - 1) * pageSize,
+        pageSize
       );
     }
   }, [
@@ -154,6 +278,10 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     filterEndDateBefore,
     filterCreatedAfter, 
     filterCreatedBefore, 
+    sortField,
+    sortOrder,
+    currentPage,
+    pageSize,
     filtersInitialized, 
     processFiltersAndFetch
   ]);
@@ -186,16 +314,54 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     }
   }, [refetch]);
 
+  // Effect to load campaign from URL
+  useEffect(() => {
+    const urlParams = getURLParams();
+    if (urlParams.view === 'record' && urlParams.campaignId && !selectedCampaign) {
+      // Find the campaign from the campaigns list or fetch it
+      const campaign = campaigns.find(c => c.id === urlParams.campaignId);
+      if (campaign) {
+        setSelectedCampaign(campaign);
+      }
+      // If campaign not found in list, we could fetch it specifically
+      // For now, we'll rely on the campaigns list being loaded
+    }
+  }, [campaigns, selectedCampaign, getURLParams]);
+
+  // Handle browser navigation (back/forward)
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = getURLParams();
+      setCurrentView(urlParams.view);
+      setMainActiveTab(urlParams.mainTab);
+      setRecordActiveTab(urlParams.recordTab);
+      
+      if (urlParams.view === 'record' && urlParams.campaignId) {
+        const campaign = campaigns.find(c => c.id === urlParams.campaignId);
+        if (campaign) {
+          setSelectedCampaign(campaign);
+        }
+      } else {
+        setSelectedCampaign(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [campaigns, getURLParams]);
+
   // Navigation handlers
   const handleCampaignRowClick = useCallback((campaign: SalesCampaign) => {
     setSelectedCampaign(campaign);
     setCurrentView('record');
-  }, []);
+    updateURL({ view: 'record', campaignId: campaign.id });
+  }, [updateURL]);
 
   const handleBackToList = useCallback(() => {
     setCurrentView('list');
     setSelectedCampaign(null);
-  }, []);
+    updateURL({ view: 'list', campaignId: null });
+  }, [updateURL]);
 
   // Render campaign record view
   if (currentView === 'record' && selectedCampaign) {
@@ -203,6 +369,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
       <CampaignRecord
         campaignId={selectedCampaign.id}
         onBack={handleBackToList}
+        activeTab={recordActiveTab}
+        onTabChange={(tab: string) => {
+          setRecordActiveTab(tab);
+          updateURL({ recordTab: tab });
+        }}
         {...props}
       />
     );
@@ -233,7 +404,12 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
           dateRange: {
             createdAfter: filterCreatedAfter,
             createdBefore: filterCreatedBefore,
-            onClear: () => filterHandleCreatedDateRangeChange(undefined, undefined),
+            onClear: () => {
+              filterHandleCreatedDateRangeChange(undefined, undefined);
+              // Also clear start and end date ranges when clearing all
+              handleStartDateRangeChange(undefined, undefined);
+              handleEndDateRangeChange(undefined, undefined);
+            },
           },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
@@ -262,7 +438,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
               totalCount={totalCount}
               currentPage={currentPage}
               pageSize={pageSize}
+              sortField={sortField}
+              sortOrder={sortOrder}
               onTableChange={handleTableChange}
+              onPaginationChange={handlePaginationChange}
+              onSortingChange={handleSortingChange}
               onRowClick={handleCampaignRowClick}
               accessToken={props.accessToken}
             />
@@ -333,8 +513,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
         headerLabel={getTranslationFromI18nKeyAndLabel('campaigns.page.title', 'Campaign Management')}
         contentContainer={
           <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
+            activeKey={mainActiveTab}
+            onChange={(tab: string) => {
+              setMainActiveTab(tab);
+              updateURL({ mainTab: tab });
+            }}
             data-testid="campaign-management-tabs"
             items={[
               {

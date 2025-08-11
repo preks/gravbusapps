@@ -4,6 +4,8 @@ export interface SalesCampaignQueryVariables {
   limit?: number;
   search?: string;
   orderBy?: Array<{ [key: string]: 'ASC' | 'DESC' }>;
+  sortField?: string;
+  sortOrder?: 'ASC' | 'DESC' | '';
   campaignTypes?: string[];
   startDateAfter?: string;
   startDateBefore?: string;

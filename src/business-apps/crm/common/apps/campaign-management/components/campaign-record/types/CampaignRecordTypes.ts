@@ -139,6 +139,8 @@ export interface UseCampaignEntitiesReturn {
 export interface CampaignRecordProps extends BusinessAppContextProps {
   campaignId: string;
   onBack?: () => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export interface CampaignHeaderProps {

@@ -253,6 +253,11 @@ export const GET_TOP_PERFORMING_CAMPAIGNS = (): string => {
         id
         name
         typeRef
+        type {
+          id
+          value
+          code
+        }
         startDate
         endDate
         createdAt

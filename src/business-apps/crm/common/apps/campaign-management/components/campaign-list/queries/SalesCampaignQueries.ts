@@ -5,13 +5,28 @@ export const GET_SALES_CAMPAIGNS = (variables: SalesCampaignQueryVariables): { q
   
   let whereCondition: any = { isDeleted: { _eq: false } };
   if (search?.trim()) {
+    const searchPattern = { _ilike: `%${search.trim()}%` };
     whereCondition = {
       _and: [
         { isDeleted: { _eq: false } },
         {
           _or: [
-            { name: { _ilike: `%${search.trim()}%` } },
-            { description: { _ilike: `%${search.trim()}%` } }
+            // Basic campaign fields
+            { name: searchPattern },
+            { description: searchPattern },
+            { businessKey: searchPattern },
+            
+            // Campaign type catalog entry
+            { type: { value: searchPattern } },
+            { type: { code: searchPattern } },
+            
+            // Date-based searches (for partial date matching)
+            { startDate: { _ilike: `%${search.trim()}%` } },
+            { endDate: { _ilike: `%${search.trim()}%` } },
+            { createdAt: { _ilike: `%${search.trim()}%` } },
+            
+            // Type reference for direct ID matching
+            { typeRef: searchPattern }
           ]
         }
       ]
@@ -67,12 +82,27 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (variables: SalesCampaignQueryVari
   // Build where conditions
   const conditions: any[] = [{ isDeleted: { _eq: false } }];
   
-  // Search condition
+  // Search condition - comprehensive search across all displayed fields
   if (search?.trim()) {
+    const searchPattern = { _ilike: `%${search.trim()}%` };
     conditions.push({
       _or: [
-        { name: { _ilike: `%${search.trim()}%` } },
-        { description: { _ilike: `%${search.trim()}%` } }
+        // Basic campaign fields
+        { name: searchPattern },
+        { description: searchPattern },
+        { businessKey: searchPattern },
+        
+        // Campaign type catalog entry
+        { type: { value: searchPattern } },
+        { type: { code: searchPattern } },
+        
+        // Date-based searches (for partial date matching)
+        { startDate: { _ilike: `%${search.trim()}%` } },
+        { endDate: { _ilike: `%${search.trim()}%` } },
+        { createdAt: { _ilike: `%${search.trim()}%` } },
+        
+        // Type reference for direct ID matching
+        { typeRef: searchPattern }
       ]
     });
   }

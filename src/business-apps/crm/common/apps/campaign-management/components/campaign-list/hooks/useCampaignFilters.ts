@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGetCampaignTypes } from "./useGetCampaignTypes";
+import { CampaignDateRangeFilter } from "../components/CampaignDateRangeFilter";
 
 // DataFilter interfaces to match DataContainer expectations
 export interface DataFilter {
@@ -16,6 +18,8 @@ export interface DataFilterGroup {
   id: string;
   title: string;
   filters: DataFilter[];
+  customComponent?: React.ReactElement;
+  hideSearch?: boolean;
   backendSearch?: (search: string) => {
     filters: DataFilter[];
     loading: boolean;
@@ -49,9 +53,31 @@ export const useCampaignFilters = (context: BusinessAppContextProps) => {
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
 
-  // Dynamic campaign types from real data
-  const [campaignTypeOptions, setCampaignTypeOptions] = useState<Array<{ id: string; label: string; value: string }>>([]);
-  const [campaignTypesLoading, setCampaignTypesLoading] = useState(false);
+  // Search state for campaign types
+  const [campaignTypeSearch, setCampaignTypeSearch] = useState("");
+
+  // Get campaign types from catalog
+  const {
+    campaignTypeOptions,
+    isLoading: campaignTypesLoading,
+    error: campaignTypesError,
+  } = useGetCampaignTypes(context, campaignTypeSearch);
+
+  // Handle date range changes - defined before useMemo to avoid hoisting issues
+  const handleStartDateRangeChange = useCallback((after?: string, before?: string) => {
+    setStartDateAfter(after);
+    setStartDateBefore(before);
+  }, []);
+
+  const handleEndDateRangeChange = useCallback((after?: string, before?: string) => {
+    setEndDateAfter(after);
+    setEndDateBefore(before);
+  }, []);
+
+  const handleCreatedDateRangeChange = useCallback((after?: string, before?: string) => {
+    setCreatedAfter(after);
+    setCreatedBefore(before);
+  }, []);
 
   // Filter groups for DataFilter component
   const filterGroups = useMemo(() => [
@@ -65,6 +91,7 @@ export const useCampaignFilters = (context: BusinessAppContextProps) => {
         selected: selectedFilters.includes(`TYPE_${option.id}`),
       })),
       backendSearch: (search: string) => {
+        setCampaignTypeSearch(search);
         const filtered = campaignTypeOptions.filter(option =>
           option.label.toLowerCase().includes(search.toLowerCase())
         );
@@ -76,11 +103,67 @@ export const useCampaignFilters = (context: BusinessAppContextProps) => {
             selected: selectedFilters.includes(`TYPE_${option.id}`),
           })),
           loading: campaignTypesLoading,
-          error: null,
+          error: campaignTypesError,
         };
       },
     },
-  ], [campaignTypeOptions, selectedFilters, campaignTypesLoading]);
+    {
+      id: "startDateRange",
+      title: "Campaign Start Date",
+      customComponent: React.createElement(CampaignDateRangeFilter, {
+        afterDate: startDateAfter,
+        beforeDate: startDateBefore,
+        onDateRangeChange: handleStartDateRangeChange,
+        placeholder: ['Start before', 'Start after'],
+        className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
+        dataTestId: "campaign-start-date-range-filter"
+      }),
+      hideSearch: true,
+      filters: [], // Required by interface but not used for custom components
+    },
+    {
+      id: "endDateRange", 
+      title: "Campaign End Date",
+      customComponent: React.createElement(CampaignDateRangeFilter, {
+        afterDate: endDateAfter,
+        beforeDate: endDateBefore,
+        onDateRangeChange: handleEndDateRangeChange,
+        placeholder: ['End before', 'End after'],
+        className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
+        dataTestId: "campaign-end-date-range-filter"
+      }),
+      hideSearch: true,
+      filters: [], // Required by interface but not used for custom components
+    },
+    {
+      id: "createdDateRange",
+      title: "Creation Date",
+      customComponent: React.createElement(CampaignDateRangeFilter, {
+        afterDate: createdAfter,
+        beforeDate: createdBefore,
+        onDateRangeChange: handleCreatedDateRangeChange,
+        placeholder: ['Created before', 'Created after'],
+        className: "gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent",
+        dataTestId: "campaign-created-date-range-filter"
+      }),
+      hideSearch: true,
+      filters: [], // Required by interface but not used for custom components
+    },
+  ], [
+    campaignTypeOptions, 
+    selectedFilters, 
+    campaignTypesLoading, 
+    campaignTypesError,
+    startDateAfter,
+    startDateBefore,
+    endDateAfter, 
+    endDateBefore,
+    createdAfter,
+    createdBefore,
+    handleStartDateRangeChange,
+    handleEndDateRangeChange,
+    handleCreatedDateRangeChange
+  ]);
 
   // Filter label mapping for DataController
   const filterLabelMap = useMemo(() => {
@@ -115,21 +198,7 @@ export const useCampaignFilters = (context: BusinessAppContextProps) => {
     setCreatedBefore(undefined);
   }, []);
 
-  // Handle date range changes
-  const handleStartDateRangeChange = useCallback((after?: string, before?: string) => {
-    setStartDateAfter(after);
-    setStartDateBefore(before);
-  }, []);
 
-  const handleEndDateRangeChange = useCallback((after?: string, before?: string) => {
-    setEndDateAfter(after);
-    setEndDateBefore(before);
-  }, []);
-
-  const handleCreatedDateRangeChange = useCallback((after?: string, before?: string) => {
-    setCreatedAfter(after);
-    setCreatedBefore(before);
-  }, []);
 
   // Initialize filters from URL parameters
   const initializeFromUrl = useCallback(() => {

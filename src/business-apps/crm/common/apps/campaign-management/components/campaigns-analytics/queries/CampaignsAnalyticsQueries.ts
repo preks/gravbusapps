@@ -115,6 +115,11 @@ interface TopPerformingCampaignsResponse {
     id: string;
     name: string;
     typeRef: string;
+    type: {
+      id: string;
+      value: string;
+      code: string;
+    };
     startDate: string;
     endDate: string;
     createdAt: string;

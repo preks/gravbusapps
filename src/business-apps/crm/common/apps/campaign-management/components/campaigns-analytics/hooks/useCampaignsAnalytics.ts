@@ -17,16 +17,7 @@ import {
 dayjs.extend(weekday);
 dayjs.extend(advancedFormat);
 
-// Helper function to parse catalog reference
-const parseCatalogReference = (catalogRef?: string): string => {
-  if (!catalogRef) return 'Unknown';
-  try {
-    const parsed = JSON.parse(catalogRef);
-    return parsed.label || parsed.value || 'Unknown';
-  } catch {
-    return catalogRef;
-  }
-};
+// Note: Campaign type is now fetched directly from the type.value field in GraphQL
 
 // Helper function to get campaign status
 const getCampaignStatus = (startDate?: string, endDate?: string): string => {
@@ -320,7 +311,7 @@ export const useCampaignsAnalytics = (context: BusinessAppContextProps) => {
           return {
             campaignId: campaign.id,
             campaignName: campaign.name,
-            campaignType: parseCatalogReference(campaign.typeRef),
+            campaignType: campaign.type?.value || 'Unknown',
             status: getCampaignStatus(campaign.startDate, campaign.endDate),
             leadsCount,
             accountsCount,

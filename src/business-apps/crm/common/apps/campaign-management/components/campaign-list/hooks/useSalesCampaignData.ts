@@ -50,7 +50,34 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
     setError(null);
 
     try {
-      const result = await fetchSalesCampaignsWithCount(variables);
+      // Build orderBy clause for sorting
+      let orderBy: any[] = [{ createdAt: 'DESC' }]; // Default sort
+      
+      if (variables.sortField && variables.sortOrder) {
+        const sortDirection = variables.sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+        
+        if (variables.sortField === 'name') {
+          orderBy = [{ name: sortDirection }];
+        } else if (variables.sortField === 'typeRef') {
+          orderBy = [{ type: { value: sortDirection } }];
+        } else if (variables.sortField === 'startDate') {
+          orderBy = [{ startDate: sortDirection }];
+        } else if (variables.sortField === 'endDate') {
+          orderBy = [{ endDate: sortDirection }];
+        } else if (variables.sortField === 'createdAt') {
+          orderBy = [{ createdAt: sortDirection }];
+        } else {
+          // Fallback: try to sort by the field directly
+          orderBy = [{ [variables.sortField]: sortDirection }];
+        }
+      }
+
+      const queryVariables = {
+        ...variables,
+        orderBy
+      };
+
+      const result = await fetchSalesCampaignsWithCount(queryVariables);
       setCampaigns(result.SalesCampaign || []);
       setTotalCount(result.SalesCampaignAggregate?.aggregate?.count || 0);
     } catch (err) {
@@ -71,7 +98,11 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
     endDateAfter?: string,
     endDateBefore?: string,
     createdAfter?: string,
-    createdBefore?: string
+    createdBefore?: string,
+    sortField?: string,
+    sortOrder?: 'ASC' | 'DESC' | '',
+    offset?: number,
+    limit?: number
   ) => {
     // Extract campaign types from selected filters
     const campaignTypes = selectedFilters.filter(filter => 
@@ -87,6 +118,10 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
       endDateBefore,
       createdAfter,
       createdBefore,
+      sortField,
+      sortOrder,
+      offset: offset || 0,
+      limit: limit || 20,
     });
   }, [fetchCampaigns]);
 
