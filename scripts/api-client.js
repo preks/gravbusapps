@@ -430,7 +430,7 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
             console.log(`🔍 Found existing native screen with key: ${screenKey}, ID: ${screen.id}`);
             return screen;
           } else {
-            console.log(`🔍 Found existing not native screen with key: ${screenKey}, ID: ${screen.id}, returning to process an update`);
+            console.log(`🔍 Found existing non-native screen with key: ${screenKey}, ID: ${screen.id}, returning to process an update`);
             return screen;
           }
         }
