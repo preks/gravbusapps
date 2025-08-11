@@ -424,10 +424,15 @@ async function getScreenByKey(screenKey, apiEndpoint = null, oauthConfig = {}) {
       );
 
       if (response.data && response.data.data && response.data.data.length > 0) {
-        const screen = response.data.data.find(s => s.screenKey === screenKey && s.screenComponents?.builderType === "NATIVE_SCREEN");
+        const screen = response.data.data.find(s => s.screenKey === screenKey);
         if (screen) {
-          console.log(`🔍 Found existing screen with key: ${screenKey}, ID: ${screen.id}`);
-          return screen;
+          if (screen.screenComponents?.builderType === "NATIVE_SCREEN") {
+            console.log(`🔍 Found existing native screen with key: ${screenKey}, ID: ${screen.id}`);
+            return screen;
+          } else {
+            console.log(`🔍 Found existing non-native screen with key: ${screenKey}, ID: ${screen.id}, returning to process an update`);
+            return screen;
+          }
         }
       }
       
@@ -875,6 +880,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         ...devScreen,
         screenComponents: {
           ...devScreen.screenComponents,
+          builderType: "NATIVE_SCREEN",
           formDefinition: {
             ...devScreen.screenComponents.formDefinition,
             version: buildVersion,
@@ -905,6 +911,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         ...devScreen,
         screenComponents: {
           ...devScreen.screenComponents,
+          builderType: "NATIVE_SCREEN",
           formDefinition: {
             ...devScreen.screenComponents.formDefinition,
             version: buildVersion,
