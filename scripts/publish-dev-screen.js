@@ -347,48 +347,14 @@ async function main() {
     fs.mkdirSync(tempDir, { recursive: true });
   }
 
-  console.log("📝 Creating screen-specific Tailwind config...");
-  const originalTailwindConfigPath = path.join(
-    projectRootDir,
-    "tailwind.config.js"
-  );
-  const tempTailwindConfigPath = path.join(tempDir, "tailwind.config.js");
   const originalIndexCssPath = path.join(projectRootDir, "src", "index.css");
   const tempIndexCssPath = path.join(tempDir, "index.css");
 
-  const tailwindConfigContent = fs.readFileSync(
-    originalTailwindConfigPath,
-    "utf8"
-  );
-
-  // Generate a modified tailwind config with scoped content paths using relative paths
-  const modifiedTailwindConfig = tailwindConfigContent.replace(
-    /content:\s*\[(.*?)\]/s,
-    `content: [
-    // Only include the target screen files
-    "../src/business-apps/${screenPathArg}/**/*.{js,ts,jsx,tsx}",
-    // Include shared components that might be used by the screen
-    "../src/common/**/*.{js,ts,jsx,tsx}",
-    "../src/components/**/*.{js,ts,jsx,tsx}",
-    // Include business-apps common components
-    "../src/business-apps/${product}/**/*.{js,ts,jsx,tsx}"
-  ]`
-  );
-
-  fs.writeFileSync(tempTailwindConfigPath, modifiedTailwindConfig, "utf8");
-  console.log(`   Created: ${tempTailwindConfigPath}`);
-
-  // Create a modified index.css that references the temporary tailwind config
+  // Create a modified index.css
   console.log("📝 Creating screen-specific index.css...");
 
   const indexCssContent = fs.readFileSync(originalIndexCssPath, "utf8");
   const modifiedIndexCss = indexCssContent
-    // Update Tailwind config reference
-    .replace(
-      /@config\s+"\.\.\/tailwind\.config\.js";/g,
-      `@config "./tailwind.config.js";
-/* Temp config for screen-specific build */`
-    )
     // Process each line
     .split("\n")
     .filter((line) => {

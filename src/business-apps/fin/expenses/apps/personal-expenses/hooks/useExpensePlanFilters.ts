@@ -5,6 +5,7 @@ import { DateRangeFilter } from '../components/tabs/expense-plans-tab/DateRangeF
 import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDateRangeFilter';
 import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRangeFilter';
 import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -22,7 +23,7 @@ export const useExpensePlanFilters = () => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'planDateRange',
-      title: 'Plan Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date','Plan Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(PlanDateRangeFilter, {
         planDateRange: planDateRange,
@@ -33,7 +34,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'startDateRange',
-      title: 'Start Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(DateRangeFilter, {
         startDateRange: startDateRange,
@@ -44,7 +45,7 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'endDateRange',
-      title: 'End Date Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date'),
       type: DataFilterType.DATE_RANGE,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -55,20 +56,20 @@ export const useExpensePlanFilters = () => {
     },
     {
       id: 'status',
-      title: 'Filter by Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status','Status'),
       type: DataFilterType.CHECKBOX_GROUP,
       filters: [
-        { id: ExpenseStatus.PREPARED, label: 'Prepared', selected: selectedFilters.includes(ExpenseStatus.PREPARED) },
-        { id: ExpenseStatus.CREATED, label: 'Draft (Created)', selected: selectedFilters.includes(ExpenseStatus.CREATED) },
-        { id: ExpenseStatus.PENDING, label: 'In Approval (Pending)', selected: selectedFilters.includes(ExpenseStatus.PENDING) },
-        { id: ExpenseStatus.ASSIGNED, label: 'Assigned', selected: selectedFilters.includes(ExpenseStatus.ASSIGNED) },
-        { id: ExpenseStatus.APPROVED, label: 'Approved', selected: selectedFilters.includes(ExpenseStatus.APPROVED) },
-        { id: ExpenseStatus.REJECTED, label: 'Revision Required (Rejected)', selected: selectedFilters.includes(ExpenseStatus.REJECTED) },
-        { id: ExpenseStatus.VERIFIED, label: 'In Transit (Verified)', selected: selectedFilters.includes(ExpenseStatus.VERIFIED) },
-        { id: ExpenseStatus.BOOKED, label: 'In Transit (Booked)', selected: selectedFilters.includes(ExpenseStatus.BOOKED) },
-        { id: ExpenseStatus.PAID, label: 'Paid', selected: selectedFilters.includes(ExpenseStatus.PAID) },
-        { id: ExpenseStatus.CLOSED, label: 'Closed', selected: selectedFilters.includes(ExpenseStatus.CLOSED) },
-        { id: ExpenseStatus.TRANSFERRED, label: 'In Transit (Transferred)', selected: selectedFilters.includes(ExpenseStatus.TRANSFERRED) },
+        { id: ExpenseStatus.PREPARED, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'), selected: selectedFilters.includes(ExpenseStatus.PREPARED) },
+        { id: ExpenseStatus.CREATED, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`, selected: selectedFilters.includes(ExpenseStatus.CREATED) },
+        { id: ExpenseStatus.PENDING, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`, selected: selectedFilters.includes(ExpenseStatus.PENDING) },
+        { id: ExpenseStatus.ASSIGNED, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'), selected: selectedFilters.includes(ExpenseStatus.ASSIGNED) },
+        { id: ExpenseStatus.APPROVED, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'), selected: selectedFilters.includes(ExpenseStatus.APPROVED) },
+        { id: ExpenseStatus.REJECTED, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`, selected: selectedFilters.includes(ExpenseStatus.REJECTED) },
+        { id: ExpenseStatus.VERIFIED, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`, selected: selectedFilters.includes(ExpenseStatus.VERIFIED) },
+        { id: ExpenseStatus.BOOKED, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`, selected: selectedFilters.includes(ExpenseStatus.BOOKED) },
+        { id: ExpenseStatus.PAID, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'), selected: selectedFilters.includes(ExpenseStatus.PAID) },
+        { id: ExpenseStatus.CLOSED, label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'), selected: selectedFilters.includes(ExpenseStatus.CLOSED) },
+        { id: ExpenseStatus.TRANSFERRED, label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`, selected: selectedFilters.includes(ExpenseStatus.TRANSFERRED) },
       ],
     },
   

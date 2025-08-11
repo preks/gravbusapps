@@ -3,6 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-sys
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { formatCurrency } from '../utils/formatters';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ComparisonCardProps {
   title: string;
@@ -89,12 +90,12 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
               />
               <ChartTooltip 
                 content={<ChartTooltipContent 
-                  formatter={(value: any) => [formatCurrency(Number(value)), 'Amount']}
+                  formatter={(value: any) => [formatCurrency(Number(value)), getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount','Amount')]}
                 />}
               />
               <Bar 
                 dataKey="value" 
-                fill="var(--color-value)"
+                fill="var(--nw-color-value)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>

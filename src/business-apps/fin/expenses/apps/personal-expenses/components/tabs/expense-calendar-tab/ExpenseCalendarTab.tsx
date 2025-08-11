@@ -10,6 +10,7 @@ import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpe
 import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface CalendarExpenseItem {
   id: string;
@@ -133,7 +134,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   }, [fetchExpensesErrorHook]);
 
   useEffect(() => {
-    fetchPlansHookItems().catch(err => {
+    fetchPlansHookItems({}, 1, 20).catch(err => {
       console.error('Failed to fetch expense plans:', err);
       setPlansError(err.message || 'Failed to fetch expense plans');
     });
@@ -198,7 +199,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   }, [rawExpensePlans]);
 
   useEffect(() => {
-    fetchRequestsHookItems().catch(err => {
+    fetchRequestsHookItems({}, 1, 20).catch(err => {
       console.error('Failed to fetch expense requests:', err);
       setRequestsError(err.message || 'Failed to fetch expense requests');
     });
@@ -309,7 +310,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   return (
     <div className="gba-expense-calendar-tab">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '8px', padding: '0 8px' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Expense Calendar</Typography.Title>
+        <Typography.Title level={3} style={{ margin: 0 }}>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_calendar','Expense Calendar')}</Typography.Title>
         <Space direction="horizontal" wrap>
           <Space
             align="center"
@@ -322,7 +323,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
             }}
           >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Items</Typography.Text>
+            <Typography.Text>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items','Items')}</Typography.Text>
           </Space>
           <Space
             align="center"
@@ -335,7 +336,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
             }}
           >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#e6f7ff', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Plans</Typography.Text>
+            <Typography.Text>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plans','Plans')}</Typography.Text>
           </Space>
           <Space
             align="center"
@@ -348,11 +349,11 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
             }}
           >
             <div style={{ width: '14px', height: '14px', backgroundColor: '#e6fffb', border: '1px solid #d9d9d9', borderRadius: '2px' }} />
-            <Typography.Text>Requests</Typography.Text>
+            <Typography.Text>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requests','Requests')}</Typography.Text>
           </Space>
         </Space>
       </div>
-      {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && <div style={{ textAlign: 'center', padding: '20px' }}><Spin tip="Loading data..." size="large" /></div>}
+      {(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && <div style={{ textAlign: 'center', padding: '20px' }}><Spin tip={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.loading_data','Loading data...')} size="large" /></div>}
       {(expensesError || plansError || requestsError) && <div style={{ textAlign: 'center', padding: '20px' }}><Alert message={`Error: ${(expensesError || '') + (plansError || '') + (requestsError || '')}`} type="error" /></div>}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && !(expensesError || plansError || requestsError) && (
         <Calendar
@@ -373,18 +374,18 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
           }}
         />
       )}
-      <Drawer
-        title={
-          selectedItemForDetails ? "Expense Item Details" :
-          selectedPlanForDetails ? "Expense Plan Details" :
-          selectedRequestForDetails ? "Expense Request Details" :
-          "Details"
-        }
+             <Drawer
+         title={
+           selectedItemForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_item_details','Expense Item Details') :
+           selectedPlanForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details','Expense Plan Details') :
+           selectedRequestForDetails ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details') :
+           getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.details','Details')
+         }
         placement="right"
         width={500}
         onClose={handleCloseDrawer}
         open={isDetailsDrawerVisible}
-        destroyOnClose
+        destroyOnHidden
       >
         {selectedItemForDetails && (
           <ExpenseItemDetails 
@@ -402,7 +403,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
         )}
         {selectedRequestForDetails && (
           <ExpenseRequestDetails 
-            request={selectedRequestForDetails} 
+            selectedItem={selectedRequestForDetails} 
             onClose={handleCloseDrawer} 
             {...props} // Pass other context props if needed by ExpenseRequestDetails
           />

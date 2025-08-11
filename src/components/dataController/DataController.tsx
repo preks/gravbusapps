@@ -7,6 +7,7 @@ import {
   PiXCircle,
   PiX,
 } from "react-icons/pi";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
@@ -367,7 +368,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             type="button"
             data-testid="data-controller-clear-all-filters-button"
           >
-            <span>Clear all filters</span>
+            <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear_all_filters','Clear all filters')}</span>
             <span className="gba:flex gba:items-center gba:justify-center">
               <PiXCircle size={16} />
             </span>

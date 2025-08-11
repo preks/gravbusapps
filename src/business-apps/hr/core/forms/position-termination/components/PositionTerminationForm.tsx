@@ -76,13 +76,13 @@ export const PositionTerminationForm: React.FC<PositionTerminationFormProps> = (
       {/* Header Section - matching Employee Termination */}
       <div 
         className="gba:flex gba:items-center gba:justify-between gba:pt-8 gba:pb-6 gba:px-6 gba:border-b"
-        style={{ borderBottomColor: 'var(--color-border)' }}
+        style={{ borderBottomColor: 'var(--nw-color-border)' }}
       >
         <div className="gba:flex gba:items-center gba:gap-3">
           <BriefcaseIcon 
             className="gba:h-6 gba:w-6" 
             style={{
-              color: 'var(--color-foreground)'
+              color: 'var(--nw-color-foreground)'
             }} 
           />
           <span className="gba:flex gba:items-center gba:h-6 gba:font-medium">
@@ -131,21 +131,21 @@ export const PositionTerminationForm: React.FC<PositionTerminationFormProps> = (
               <>
                 <div 
                   className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-lg gba:mr-4"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'var(--nw-color-accent)' }}
                 >
                   <BriefcaseIcon 
                     className="gba:h-8 gba:w-8"
-                    style={{ color: 'var(--color-accent-foreground)' }}
+                    style={{ color: 'var(--nw-color-accent-foreground)' }}
                   />
                 </div>
                 <div className="gba:ml-2">
                   <div className="gba:font-medium gba:text-lg">
                     {position.name}
                   </div>
-                  <div style={{ color: 'var(--color-muted-foreground)' }}>
+                  <div style={{ color: 'var(--nw-color-muted-foreground)' }}>
                     {getOrganizationalUnitDisplay()}
                   </div>
-                  <div style={{ color: 'var(--color-muted-foreground)' }}>
+                  <div style={{ color: 'var(--nw-color-muted-foreground)' }}>
                     {position.jobFunction?.name || '-'}
                   </div>
                 </div>
@@ -159,7 +159,7 @@ export const PositionTerminationForm: React.FC<PositionTerminationFormProps> = (
           <div className="gba:mb-6">
             <label 
               className="gba:block gba:text-sm gba:font-medium gba:mb-2"
-              style={{ color: 'var(--color-foreground)' }}
+              style={{ color: 'var(--nw-color-foreground)' }}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:position_termination.termination_date",
@@ -185,7 +185,7 @@ export const PositionTerminationForm: React.FC<PositionTerminationFormProps> = (
         {/* Action Buttons - matching Employee Termination layout */}
         <div 
           className="gba:border-t gba:flex gba:gap-4 gba:justify-start gba:pt-4"
-          style={{ borderTopColor: 'var(--color-border)' }}
+          style={{ borderTopColor: 'var(--nw-color-border)' }}
         >
           <Button
             type="submit"
