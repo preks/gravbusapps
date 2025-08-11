@@ -212,7 +212,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                       config={{
                         value: {
                           label: "Leads",
-                          color: "hsl(var(--chart-2))"
+                          color: "hsl(var(--nw-chart-2))"
                         }
                       }} 
                       className="gba:w-[300px] gba:h-[300px]"

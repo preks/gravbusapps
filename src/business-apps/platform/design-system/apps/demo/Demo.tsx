@@ -77,18 +77,18 @@ function Demo(props: DemoProps) {
         data-testid="design-system-demo"
       >
         <div className="gba:container gba:mx-auto" style={{ 
-          padding: 'var(--spacing-8)',
+          padding: 'var(--nw-spacing-8)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--spacing-8)'
+          gap: 'var(--nw-spacing-8)'
         }}>
           {/* Header */}
           <div className="gba:text-center" style={{ 
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--spacing-4)'
+            gap: 'var(--nw-spacing-4)'
           }}>
-            <div className="gba:flex gba:items-center gba:justify-center" style={{ gap: 'var(--spacing-2)' }}>
+            <div className="gba:flex gba:items-center gba:justify-center" style={{ gap: 'var(--nw-spacing-2)' }}>
               <House size={32} weight="bold" className="gba:text-primary" />
               <h1 className="gba:text-3xl gba:font-bold">
                 Design System Showcase

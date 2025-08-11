@@ -74,11 +74,11 @@ export const PositionTermination: React.FC<PositionTerminationProps> = ({
     return (
       <div className="flex items-center justify-center min-h-screen"
            style={{ 
-             backgroundColor: 'var(--color-muted)',
-             padding: 'var(--spacing-4)'
+             backgroundColor: 'var(--nw-color-muted)',
+             padding: 'var(--nw-spacing-4)'
            }}>
         <div className="text-center"
-             style={{ color: 'var(--color-muted-foreground)' }}>
+             style={{ color: 'var(--nw-color-muted-foreground)' }}>
           <h2 className="text-lg font-semibold mb-2">Position Not Found</h2>
           <p>No job position data was provided via flow context.</p>
           <p className="text-sm mt-2">Complete job position object should be passed via additionalData from jobPositionEntity flow context.</p>

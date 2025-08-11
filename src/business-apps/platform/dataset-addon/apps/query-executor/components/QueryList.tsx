@@ -48,8 +48,8 @@ export const QueryList: React.FC<QueryListProps> = ({
         minHeight: 0
       }}>
         <h4 className="gba:text-xl gba:font-semibold" style={{
-          color: 'var(--color-foreground)',
-          margin: '0 0 var(--spacing-4) 0',
+          color: 'var(--nw-color-foreground)',
+          margin: '0 0 var(--nw-spacing-4) 0',
           flexShrink: 0
         }}>
           Available Queries ({queries.length})
@@ -58,27 +58,27 @@ export const QueryList: React.FC<QueryListProps> = ({
         <div style={{
           flex: 1,
           overflowY: 'auto',
-          paddingRight: 'var(--spacing-2)', // Account for scrollbar
+          paddingRight: 'var(--nw-spacing-2)', // Account for scrollbar
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--spacing-4)'
+          gap: 'var(--nw-spacing-4)'
         }}>
           {queries.map((query) => (
           <Card
             key={query.id || query.name}
             data-testid={`query-card-${query.name}`}
-            style={{ marginBottom: 'var(--spacing-4)' }}
+            style={{ marginBottom: 'var(--nw-spacing-4)' }}
           >
             <CardHeader style={{ 
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingBottom: 'var(--spacing-4)',
-              gap: 'var(--spacing-4)'
+              paddingBottom: 'var(--nw-spacing-4)',
+              gap: 'var(--nw-spacing-4)'
             }}>
               <CardTitle className="gba:flex gba:items-center gba:flex-1" style={{ 
-                gap: 'var(--spacing-2)',
+                gap: 'var(--nw-spacing-2)',
                 minWidth: 0 /* Allow title to shrink */
               }}>
                 <span className="gba:font-bold gba:truncate">{query.name}</span>
@@ -88,8 +88,8 @@ export const QueryList: React.FC<QueryListProps> = ({
                 <Badge
                   variant="default"
                   style={{
-                    backgroundColor: 'var(--color-success)',
-                    color: 'var(--color-on-success)'
+                    backgroundColor: 'var(--nw-color-success)',
+                    color: 'var(--nw-color-on-success)'
                   }}
                 >
                   {query.status}
@@ -102,7 +102,7 @@ export const QueryList: React.FC<QueryListProps> = ({
                   disabled={isExecuting}
                   data-testid={`execute-button-${query.name}`}
                   className="gba:flex gba:items-center"
-                  style={{ gap: 'var(--spacing-2)' }}
+                  style={{ gap: 'var(--nw-spacing-2)' }}
                 >
                   <PlayCircleIcon size={16} />
                   Execute
@@ -113,22 +113,22 @@ export const QueryList: React.FC<QueryListProps> = ({
             <CardContent style={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--spacing-3)'
+              gap: 'var(--nw-spacing-3)'
             }}>
               <p style={{
-                color: 'var(--color-muted-foreground)',
-                margin: '0 0 var(--spacing-2) 0'
+                color: 'var(--nw-color-muted-foreground)',
+                margin: '0 0 var(--nw-spacing-2) 0'
               }}>
                 {query.description}
               </p>
 
               {query.parameters.length > 0 && (
                 <div>
-                  <p className="gba:flex gba:items-center gba:font-bold" style={{ marginBottom: 'var(--spacing-2)' }}>
-                    <InfoIcon style={{ marginRight: 'var(--spacing-1)' }} />
+                  <p className="gba:flex gba:items-center gba:font-bold" style={{ marginBottom: 'var(--nw-spacing-2)' }}>
+                    <InfoIcon style={{ marginRight: 'var(--nw-spacing-1)' }} />
                     Parameters ({query.parameters.length}):
                   </p>
-                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--spacing-2)' }}>
+                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-2)' }}>
                     {query.parameters.map((param) => (
                       <Tooltip key={param.name}>
                         <TooltipTrigger>
@@ -151,10 +151,10 @@ export const QueryList: React.FC<QueryListProps> = ({
 
               {query.additionalColumns.length > 0 && (
                 <div>
-                  <p className="gba:font-bold gba:block" style={{ margin: '0 0 var(--spacing-2) 0' }}>
+                  <p className="gba:font-bold gba:block" style={{ margin: '0 0 var(--nw-spacing-2) 0' }}>
                     Additional Columns:
                   </p>
-                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--spacing-2)' }}>
+                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-2)' }}>
                     {query.additionalColumns.map((col) => (
                       <Badge key={col.name} variant="outline">
                         {col.name}: {col.type}

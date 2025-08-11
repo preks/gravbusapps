@@ -1,80 +1,60 @@
-/* Declare custom properties BEFORE any imports to ensure they take precedence */
-@property --tw-gradient-to {
-  syntax: "*";
-  inherits: false;
-  initial-value: #0000;
-}
+@layer legacy-unlayered-override, 
+  gravity-ui-catalog-properties,
+  properties,
+  gravity-business-apps-properties,
+  nw-design-system-properties,
+  gravity-ui-catalog-theme,
+  theme,
+  gravity-business-apps-theme,
+  nw-design-system-theme,
+  gravity-ui-catalog-base,
+  base,
+  gravity-business-apps-base,
+  nw-design-system-base,
+  antd,
+  gravity-ui-catalog-components,
+  components,
+  gravity-business-apps-components,
+  nw-design-system-components,
+  utilities,
+  all-newwork-tw-utilities;
 
-@property --tw-gradient-from {
-  syntax: "*";
-  inherits: false;
-  initial-value: #0000;
-}
+@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
 
-/* Global smooth scrolling for better tab transitions */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Now import Tailwind and other styles */
-@import "tailwindcss" prefix(gba);
-@config "../tailwind.config.js";
-@import "tw-animate-css";
-@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css";
-@import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css";
-@import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css";
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css";
-@import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css";
-@import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css";
-
-/* Expense Request Wizard CSS imports */
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css";
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css";
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css";
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css";
-@import "@newwork/gravity-ui-catalog/dist/assets/style.no-base.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css";
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css";
 @import "@newwork/nw-design-system/index.css";
 
-/* Custom properties can be declared after imports */
-@property --tw-gradient-to {
-  syntax: "*";
-  inherits: false;
-  initial-value: #0000;
-}
+@import "tailwindcss" prefix(gba);
+@import "tw-animate-css";
 
-@property --tw-gradient-from {
-  syntax: "*";
-  inherits: false;
-  initial-value: #0000;
-}
+@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css" layer(legacy-unlayered-override);
 
-@custom-variant dark (&:is(.dark *));
+/* Expense Request Wizard CSS imports */
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css" layer(legacy-unlayered-override);
+@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css" layer(legacy-unlayered-override);
+@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css" layer(legacy-unlayered-override);
 
-/* ========================================================================
- * DESIGN SYSTEM INTEGRATION
- * All design tokens now come from @newwork/nw-design-system
- * No local overrides - maintains consistency and single source of truth
- * ======================================================================== */
-
-/* 
- * ✅ REMOVED: All duplicate design tokens
- * ✅ REASON: @newwork/nw-design-system provides comprehensive token system
- * ✅ BENEFIT: Single source of truth, consistent theming, proper dark mode
- * 
- * All tokens (colors, spacing, shadows, etc.) are now inherited from:
- * - nw-design-system/src/styles/semantic/colors.css
- * - nw-design-system/src/styles/semantic/spacing.css  
- * - nw-design-system/src/styles/semantic/effects.css
- * - nw-design-system/src/styles/foundation/core.css
- */
+@source "../index.html";
+@source "./*.{ts,tsx,js,jsx}";
+@source "./**/*.{ts,tsx,js,jsx}";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  /* Global smooth scrolling for better tab transitions */
+  html {
+    scroll-behavior: smooth;
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -85,43 +65,46 @@ html {
   }
 }
 
+@utility font-primary {
+  font-family: var(--nw-font-primary, "Roboto", sans-serif) !important;
+}
+
+@utility font-secondary {
+  font-family: var(
+    --nw-font-secondary,
+    "Dela Gothic One",
+    sans-serif
+  ) !important;
+}
+
+@layer properties {
+  /* Spinner animation for status progression loading */
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}
+
 @layer utilities {
-  .font-primary {
-    font-family: var(--font-primary, "Roboto", sans-serif) !important;
+  /* Calendar activity scrollbar styling */
+  .gba\:overflow-y-auto::-webkit-scrollbar {
+    width: 4px;
   }
-  .font-secondary {
-    font-family: var(
-      --font-secondary,
-      "Dela Gothic One",
-      sans-serif
-    ) !important;
+
+  .gba\:overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
   }
-}
 
-/* Spinner animation for status progression loading */
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
+  .gba\:overflow-y-auto::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 2px;
   }
-  100% {
-    transform: rotate(360deg);
+
+  .gba\:overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.8);
   }
-}
-
-/* Calendar activity scrollbar styling */
-.gba\:overflow-y-auto::-webkit-scrollbar {
-  width: 4px;
-}
-
-.gba\:overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.gba\:overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.5);
-  border-radius: 2px;
-}
-
-.gba\:overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.8);
 }

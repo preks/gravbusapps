@@ -93,12 +93,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
             <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--color-purple-500)' }}>
+                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-purple-500)' }}>
                     {skillStats.total}
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Total Skills</div>
                 </div>
-                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--color-purple-500)' }} />
+                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
             
@@ -112,7 +112,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Highest Skills</div>
                 </div>
-                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--color-purple-500)' }} />
+                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
           </div>
@@ -133,8 +133,8 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                     className="gba:h-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
                     data-testid={`skill-card-${skillItem.skill.id}`}
                     style={{
-                      background: 'var(--color-white)',
-                      borderRadius: 'var(--spacing-3)'
+                      background: 'var(--nw-color-white)',
+                      borderRadius: 'var(--nw-spacing-3)'
                     }}
                   >
                     <div className="gba:relative">
@@ -169,7 +169,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                             percent={(Number(skillItem.level) / 5) * 100} 
                             showInfo={false}
                             strokeColor={levelInfo.color}
-                            trailColor="var(--color-gray-200)"
+                            trailColor="var(--nw-color-gray-200)"
                             strokeWidth={8}
                           />
                         </div>
@@ -185,14 +185,14 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                         <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
                           <div className="gba:flex gba:justify-between gba:items-center">
                             <span className="gba:text-xs gba:text-gray-500">Category</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                               {category}
                             </span>
                           </div>
                           
                           <div className="gba:flex gba:justify-between gba:items-center">
                             <span className="gba:text-xs gba:text-gray-500">Added</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                               {timeSinceCreated}
                             </span>
                           </div>
@@ -200,7 +200,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                           {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
                             <div className="gba:flex gba:justify-between gba:items-center">
                               <span className="gba:text-xs gba:text-gray-500">Updated</span>
-                              <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                              <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                                 {timeSinceUpdated}
                               </span>
                             </div>

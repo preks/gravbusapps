@@ -33,7 +33,7 @@ The MCP server automatically detects and enforces design system compliance and m
 🤖 Auto-detects: @newwork/nw-design-system usage
     Auto-triggers: project-get-design-tokens
     Auto-warns: "🎨 IMPORTANT: Use design tokens for styling!"
-    Provides: style={{ backgroundColor: 'var(--color-primary-500)' }}
+    Provides: style={{ backgroundColor: 'var(--nw-color-primary-500)' }}
 
 // ❌ INCORRECT: AI agent without MCP server
 👤 "Add a Button component from nw-design-system"  
@@ -52,10 +52,10 @@ The MCP server automatically detects and enforces design system compliance and m
 
 ### Enforced Best Practices:
 **The MCP server MUST enforce these patterns:**
-- ✅ Design token colors: `var(--color-primary-500)`, `var(--color-surface-primary)`
-- ✅ Design token spacing: `var(--spacing-sm)`, `var(--spacing-md)`, `var(--spacing-lg)`
-- ✅ Design token effects: `var(--shadow-sm)`, `var(--border-radius-md)`
-- ✅ CSS-in-JS with tokens: `style={{ backgroundColor: 'var(--color-primary-500)' }}`
+- ✅ Design token colors: `var(--nw-color-primary-500)`, `var(--nw-color-surface-primary)`
+- ✅ Design token spacing: `var(--nw-spacing-sm)`, `var(--nw-spacing-md)`, `var(--nw-spacing-lg)`
+- ✅ Design token effects: `var(--nw-shadow-sm)`, `var(--nw-border-radius-md)`
+- ✅ CSS-in-JS with tokens: `style={{ backgroundColor: 'var(--nw-color-primary-500)' }}`
 
 **🔥 RULE ENFORCEMENT**: If the AI agent suggests any hardcoded values or Tailwind utility classes when working with design system components, the MCP server configuration is incorrect or inactive!
 
@@ -250,7 +250,7 @@ module.exports = {
 **⚠️ NO FALLBACK ALLOWED**: Direct file system access is NOT permitted for design system components because it bypasses design token enforcement. The MCP server MUST be used to ensure:
 - No hardcoded colors (like `#3b82f6`, `rgb(59,130,246)`)
 - No Tailwind utility classes (like `bg-blue-500`, `p-4`, `shadow-lg`)
-- Proper design token usage (like `var(--color-primary-500)`, `var(--spacing-md)`)
+- Proper design token usage (like `var(--nw-color-primary-500)`, `var(--nw-spacing-md)`)
 - Design system compliance enforcement
 
 **🚨 RULE**: If MCP server is unavailable, DO NOT proceed with design system component work until it's configured!

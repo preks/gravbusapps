@@ -185,7 +185,7 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
         style={{
           marginTop: "12px",
           padding: "8px",
-          backgroundColor: "var(--muted)",
+          backgroundColor: "var(--nw-muted)",
           borderRadius: "4px",
           display: "flex",
           justifyContent: "space-around",
@@ -193,7 +193,7 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "bold", color: "var(--info)" }}>
+          <div style={{ fontWeight: "bold", color: "var(--nw-info)" }}>
             {
               leads.filter((lead) => lead.status?.toLowerCase() === "new")
                 .length
@@ -202,7 +202,7 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
           <Text type="secondary">New</Text>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "bold", color: "var(--warning)" }}>
+          <div style={{ fontWeight: "bold", color: "var(--nw-warning)" }}>
             {
               leads.filter((lead) => lead.status?.toLowerCase() === "contacted")
                 .length
@@ -211,7 +211,7 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
           <Text type="secondary">Contacted</Text>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "bold", color: "var(--success)" }}>
+          <div style={{ fontWeight: "bold", color: "var(--nw-success)" }}>
             {
               leads.filter((lead) => lead.status?.toLowerCase() === "qualified")
                 .length
@@ -220,7 +220,7 @@ export const RecentLeads: React.FC<RecentLeadsProps> = ({
           <Text type="secondary">Qualified</Text>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "bold", color: "var(--ext-7)" }}>
+          <div style={{ fontWeight: "bold", color: "var(--nw-ext-7)" }}>
             {leads.filter((lead) => lead.source).length}
           </div>
           <Text type="secondary">With Source</Text>
