@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Typography, Button, Empty, Row, Col, Collapse, Tag } from 'antd';
-import { PlayCircleOutlined, FolderOpenOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { Play, Folder, AppWindow, ArticleNyTimes, ChatCircle } from '@phosphor-icons/react';
 import { PiSquaresFourDuotone, PiAppWindowBold, PiClockBold } from 'react-icons/pi';
 import BackgroundImage from '../../assets/images/background.png';
 import { PageLayout } from '../layout/pageLayout';
@@ -14,6 +14,7 @@ interface BusinessAppInfo {
     module: string;
     subModule?: string;
     screenKey: string;
+    type: 'app' | 'form' | 'popup';
 }
 
 interface RecentlyUsedApp {
@@ -93,6 +94,45 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
         return subModule === 'default' ? 'General' : subModule.charAt(0).toUpperCase() + subModule.slice(1);
     };
 
+    const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
+        switch (type) {
+            case 'app':
+                return <Play />;
+            case 'form':
+                return <ArticleNyTimes />;
+            case 'popup':
+                return <ChatCircle />;
+            default:
+                return <Play />;
+        }
+    };
+
+    const getTypeColor = (type: 'app' | 'form' | 'popup'): string => {
+        switch (type) {
+            case 'app':
+                return '#1890ff'; // Blue
+            case 'form':
+                return '#52c41a'; // Green
+            case 'popup':
+                return '#fa8c16'; // Orange
+            default:
+                return '#1890ff';
+        }
+    };
+
+    const getTypeLabel = (type: 'app' | 'form' | 'popup'): string => {
+        switch (type) {
+            case 'app':
+                return 'App';
+            case 'form':
+                return 'Form';
+            case 'popup':
+                return 'Popup';
+            default:
+                return 'App';
+        }
+    };
+
     const renderAppButton = (app: BusinessAppInfo) => (
         <a
             key={app.name}
@@ -117,8 +157,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                 alignItems: 'center'
             }}
         >
-            <PlayCircleOutlined style={{ marginRight: '6px', fontSize: '14px' }} />
-            <span className="gba:text-xs gba:truncate gba:text-left">{app.name}</span>
+            <span style={{ marginRight: '6px', fontSize: '14px', color: getTypeColor(app.type) }}>
+                {getTypeIcon(app.type)}
+            </span>
+            <span className="gba:text-xs gba:truncate gba:text-left gba:flex-grow">{app.name}</span>
+            <Tag size="small" color={getTypeColor(app.type)} style={{ marginLeft: '4px', fontSize: '10px' }}>
+                {getTypeLabel(app.type)}
+            </Tag>
         </a>
     );
 
@@ -147,7 +192,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                         key={subModule}
                         header={
                             <div className="gba:flex gba:items-center gba:gap-2">
-                                <FolderOpenOutlined className="gba:text-blue-500" />
+                                <Folder className="gba:text-blue-500" />
                                 <Text strong className="gba:text-sm">
                                     {formatSubModuleName(subModule)}
                                 </Text>
@@ -210,7 +255,9 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                                                     style={{ cursor: 'pointer' }}
                                                 >
                                                     <div className="gba:text-center">
-                                                        <PlayCircleOutlined className="gba:text-2xl gba:text-blue-500 gba:mb-2" />
+                                                        <div style={{ color: getTypeColor(app.type), fontSize: '24px', marginBottom: '8px' }}>
+                                                            {getTypeIcon(app.type)}
+                                                        </div>
                                                         <div className="gba:text-sm gba:font-medium gba:truncate" title={app.name}>
                                                             {app.name}
                                                         </div>
@@ -220,6 +267,9 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                                                                 <span> › {formatSubModuleName(app.subModule.split('/')[0])}</span>
                                                             )}
                                                         </div>
+                                                        <Tag size="small" color={getTypeColor(app.type)} style={{ marginTop: '4px' }}>
+                                                            {getTypeLabel(app.type)}
+                                                        </Tag>
                                                     </div>
                                                 </Card>
                                             </a>
@@ -250,10 +300,10 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                                                 <Card
                                                     title={
                                                         <div className="gba:flex gba:items-center gba:justify-between">
-                                                            <span className="gba:flex gba:items-center gba:gap-2">
-                                                                <AppstoreOutlined className="gba:text-blue-600" />
-                                                                {formatModuleName(module)}
-                                                            </span>
+                                                                                                    <span className="gba:flex gba:items-center gba:gap-2">
+                                            <AppWindow className="gba:text-blue-600" />
+                                            {formatModuleName(module)}
+                                        </span>
                                                             <Tag color="blue">{totalApps}</Tag>
                                                         </div>
                                                     }

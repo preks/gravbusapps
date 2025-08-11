@@ -19,6 +19,11 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import {
+  Play,
+  ArticleNyTimes,
+  ChatCircle,
+} from "@phosphor-icons/react";
+import {
   UserInfoProps,
 } from "./common/BusinessAppContext";
 import ProcessEventListener, {
@@ -41,6 +46,7 @@ interface BusinessAppInfo {
   module: string;
   subModule?: string;
   screenKey: string; // Key for dynamic loading
+  type: 'app' | 'form' | 'popup'; // Type of component
 }
 
 const businessApps: BusinessAppInfo[] = [];
@@ -84,10 +90,18 @@ for (const path in modulePatterns) {
       continue;
     }
 
-    // Only include paths that are actual apps (typically in "apps" or "forms" directories)
-    const hasAppsOrForms = pathParts.some(part => part === "apps" || part === "forms");
-    if (!hasAppsOrForms) {
+    // Only include paths that are actual apps (typically in "apps", "forms", or "popups" directories)
+    const hasAppsFormsOrPopups = pathParts.some(part => part === "apps" || part === "forms" || part === "popups");
+    if (!hasAppsFormsOrPopups) {
       continue;
+    }
+
+    // Determine the type based on the parent directory
+    let componentType: 'app' | 'form' | 'popup' = 'app';
+    if (pathParts.includes('forms')) {
+      componentType = 'form';
+    } else if (pathParts.includes('popups')) {
+      componentType = 'popup';
     }
     
     let subModule = "";
@@ -104,7 +118,7 @@ for (const path in modulePatterns) {
     // Convert app-name to PascalCase for display
     const displayName = appName.split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join('');
+      .join(' ');
 
     businessApps.push({
       name: displayName,
@@ -112,6 +126,7 @@ for (const path in modulePatterns) {
       module: moduleName,
       subModule: subModule || undefined,
       screenKey,
+      type: componentType,
     });
   }
 }
@@ -494,6 +509,32 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return url.toString();
   };
 
+  const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
+    switch (type) {
+      case 'app':
+        return <Play />;
+      case 'form':
+        return <ArticleNyTimes />;
+      case 'popup':
+        return <ChatCircle />;
+      default:
+        return <Play />;
+    }
+  };
+
+  const getTypeColor = (type: 'app' | 'form' | 'popup'): string => {
+    switch (type) {
+      case 'app':
+        return '#1890ff'; // Blue
+      case 'form':
+        return '#52c41a'; // Green
+      case 'popup':
+        return '#fa8c16'; // Orange
+      default:
+        return '#1890ff';
+    }
+  };
+
   const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
     // Allow middle-click and right-click to work with browser defaults
     if (event.button === 1 || event.button === 2) {
@@ -507,6 +548,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const createAppMenuItem = (app: BusinessAppInfo) => ({
     key: app.screenKey,
+    icon: <span style={{ color: getTypeColor(app.type) }}>{getTypeIcon(app.type)}</span>,
     label: (
       <a 
         href={createAppURL(app)}

@@ -117,8 +117,6 @@ export class CatalogManagerClient extends RestClient {
   }
 
   public async updateCatalogEntry(
-    catalogIdentifier: string,
-    version: string,
     entryId: string,
     entry: Partial<Omit<CatalogEntry, "id" | "type">>,
     options: Omit<RequestOptions, "body"> = {}
@@ -131,8 +129,6 @@ export class CatalogManagerClient extends RestClient {
   }
 
   public async deleteCatalogEntry(
-    catalogIdentifier: string,
-    version: string,
     entryId: string,
     options: Omit<RequestOptions, "body"> = {}
   ): Promise<void> {
@@ -141,6 +137,17 @@ export class CatalogManagerClient extends RestClient {
     });
 
     return this.delete(path, options);
+  }
+
+  public async getCatalogEntryById(
+    entryId: string,
+    options: Omit<RequestOptions, "body"> = {}
+  ): Promise<CatalogEntry> {
+    const path = this.replacePathParams("/catalog-entries/{entryId}", {
+      entryId: entryId,
+    });
+
+    return this.get<CatalogEntry>(path, options);
   }
 }
 
