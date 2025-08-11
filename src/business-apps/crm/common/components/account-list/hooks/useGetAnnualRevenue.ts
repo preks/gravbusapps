@@ -18,9 +18,8 @@ const GET_ANNUAL_REVENUE_QUERY = `
   query GetAnnualRevenue($search: String) {
     CatalogEntry(
       where: {
-        catalogIdentifier: { _eq: "AnnualRevenue" }
+        catalog: { identifier: { _eq: "RevenueSize" } }
         _and: [
-          { isDeleted: { _eq: false } }
           { 
             _or: [
               { value: { _ilike: $search } }
@@ -29,7 +28,7 @@ const GET_ANNUAL_REVENUE_QUERY = `
           }
         ]
       }
-      orderBy: [{ sortOrder: ASC_NULLS_LAST }, { value: ASC_NULLS_LAST }]
+      orderBy: [{ code: ASC_NULLS_LAST }, { value: ASC_NULLS_LAST }]
       limit: 100
     ) {
       id

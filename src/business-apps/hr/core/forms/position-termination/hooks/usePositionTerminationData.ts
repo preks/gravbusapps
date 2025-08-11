@@ -94,7 +94,7 @@ export function usePositionTerminationData({ jobPositionId, accessToken }: UsePo
   }, [fetchPositionData]);
 
   return {
-    position,
+    data: position,  // Return as 'data' to match context usage
     loading,
     error,
     refetch: fetchPositionData

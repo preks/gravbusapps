@@ -79,6 +79,7 @@ definitions:
           services:
             - docker
           script:
+            - export SKIP_RESOURCE_URL_SYNC="true"
             - node scripts/publish-prod-screens.js
           artifacts:
             - changed-tsx.txt
@@ -137,7 +138,7 @@ pipelines:
 
     hotfix/*:
       - step: *install_dependencies
-      - step: *publish-changed-screens
+      - step: *publish-changed-prod-screens
 
     main:
       - step: *install_dependencies

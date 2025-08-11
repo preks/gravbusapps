@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { Wallet } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 // Create a global API for tab navigation
 interface TabNavigationState {
   setActiveTab: (tabKey: string) => void;
@@ -122,18 +122,18 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
           size: "lg",
           label: "My Expenses"
         }}
-        headerTitle="My Expenses"
-        headerDescription="Manage your personal expenses, track expenses, and manage advance payments."
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.my_expenses',"My Expenses")}
+        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.main_description',"Manage your personal expenses, track expenses, and manage advance payments.")}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            { value: 'dashboard', label: 'Dashboard' },
-            { value: 'expense-items', label: 'Expense Items' },
-            { value: 'expense-plans', label: 'Expense Plans' },
-            { value: 'advance-payments', label: 'Advance Payments' },
-            { value: 'expense-requests', label: 'Expense Requests' },
-            { value: 'calendar', label: 'Calendar' }
+            { value: 'dashboard', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn','Dashboard') },
+            { value: 'expense-items', label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items') },
+            { value: 'expense-plans', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans','Expense Plans') },
+            { value: 'advance-payments', label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title','Advance Payments') },
+            { value: 'expense-requests', label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests','Expense Requests') },
+            { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar','Calendar') }
           ]
         }}
         className="gba:min-h-screen"

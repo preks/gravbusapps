@@ -7,11 +7,11 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { ContactFormValues, SelectOption, ContactContextState } from "../types";
+import { ContactFormValues, SelectOption } from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
-import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
-import { useAccountsData } from "@/business-apps/crm/common/forms/lead-form/hooks/useAccountsData";
+import { useEmployeePositions } from "../../lead-form/hooks/useEmployeePositions";
+import { useEmployeeById } from "../../lead-form/hooks/useEmployeeById";
+import { useAccountsGraphQL } from "../../opportunity-form/hooks/useAccountsGraphQL";
 import { useSearchableCatalog } from "../../lead-form/hooks/useSearchableCatalog";
 
 // Academic Title and Languages catalog constants
@@ -19,58 +19,51 @@ export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
 export const LANGUAGES_CATALOG = "Languages";
 export const CATALOG_VERSION = "v1";
 
-interface ContactFormContextValue extends ContactContextState {
+interface ContactFormContextValue {
   formValues: ContactFormValues;
   setFormValues: (updates: Partial<ContactFormValues>) => void;
   onSubmit: (values: ContactFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 
-  // Business app context
-  businessAppContext: BusinessAppContextProps;
-
-  // Employee positions (for owner selection)
+  // Employee positions
   employeePositions: SelectOption[];
   employeePositionsLoading: boolean;
   employeePositionsError: string | null;
   employeePositionsHasMore: boolean;
-  loadMoreEmployeePositions: () => void;
+  loadMoreEmployeePositions: () => Promise<void>;
   searchEmployeePositions: (search: string) => void;
 
-  // Static data (will be replaced with catalog data)
-  contactTypes: SelectOption[];
-  contactRoles: SelectOption[];
-  departments: SelectOption[];
+  // Account suggestions (using GraphQL hook like opportunity form)
+  accountSuggestions: SelectOption[];
+  searchAccounts: (searchTerm: string) => void;
+  loadMoreAccounts: () => void;
+  accountsHasMore: boolean;
+  accountsLoading: boolean;
 
-  // Academic Titles (using AcademicTitle catalog)
+  // Catalog data
   academicTitles: SelectOption[];
   academicTitlesLoading: boolean;
   academicTitlesError: string | null;
   academicTitlesHasMore: boolean;
-  academicTitlesNeedsMoreData: boolean;
-  academicTitlesDisplayCount: number;
-  academicTitlesTotalFetched: number;
   searchAcademicTitles: (search: string) => void;
   loadMoreAcademicTitles: () => void;
-  showMoreAcademicTitles: () => void;
 
-  // Languages (using Languages catalog)
   languages: SelectOption[];
   languagesLoading: boolean;
   languagesError: string | null;
   languagesHasMore: boolean;
-  languagesNeedsMoreData: boolean;
-  languagesDisplayCount: number;
-  languagesTotalFetched: number;
   searchLanguages: (search: string) => void;
   loadMoreLanguages: () => void;
-  showMoreLanguages: () => void;
 
-  // Account autocomplete (matching opportunity form pattern)
-  accountSuggestions: SelectOption[];
-  searchAccounts: (search: string) => void;
-  loadMoreAccounts: () => Promise<void>;
-  accountsHasMore: boolean;
-  accountsLoading: boolean;
+  // Static dropdown options
+  contactTypes: SelectOption[];
+  contactRoles: SelectOption[];
+  departments: SelectOption[];
+
+  // Business app context for child components
+  businessAppContext: BusinessAppContextProps;
 }
 
 const ContactFormContext = createContext<ContactFormContextValue | null>(null);
@@ -117,6 +110,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
 
     // Account Information
     accountId: "",
+    companyName: "", // Company name for display (same as opportunity form)
     ownerEmployeeId: "",
     ownerOrganizationId: "",
 
@@ -148,37 +142,90 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     searchEmployees,
   } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
 
-  // Account search hook (matching opportunity form pattern)
+  // Account search hook (using GraphQL hook like opportunity form)
   const {
-    searchAccounts: searchAccountsHook,
-    loadMoreAccounts,
-    accountState,
-  } = useAccountsData({ accessToken: businessAppContext.accessToken });
+    options: accountSuggestions,
+    loading: accountsLoading,
+    error: accountsError,
+    hasMore: accountsHasMore,
+    search: searchAccounts,
+    loadMore: loadMoreAccounts,
+  } = useAccountsGraphQL({ accessToken: businessAppContext.accessToken });
 
   // Create search wrapper for account autocomplete
   const searchAccountsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all companies, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchAccountsHook(searchTerm);
+        searchAccounts(searchTerm);
       }
     },
-    [searchAccountsHook]
+    [searchAccounts]
   );
 
   // Create wrapper function to match interface
-  const loadMoreAccountsWrapper = useCallback(async (): Promise<void> => {
-    await loadMoreAccounts();
+  const loadMoreAccountsWrapper = useCallback((): void => {
+    loadMoreAccounts();
   }, [loadMoreAccounts]);
 
   // Auto-selection reference
   const autoSelectionDone = useRef(false);
+  const accountInitializationDone = useRef(false);
 
   // Current user employee data
   const { employee: currentUserEmployee } = useEmployeeById({
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId || "",
     accessToken: businessAppContext.accessToken,
   });
+
+  // Initialize account data when form has accountId but no companyName
+  useEffect(() => {
+    if (
+      formValues.accountId &&
+      !formValues.companyName &&
+      accountSuggestions.length > 0 &&
+      !accountInitializationDone.current
+    ) {
+      accountInitializationDone.current = true;
+
+      const foundAccount = accountSuggestions.find(
+        (account: any) =>
+          account.value === formValues.accountId ||
+          account.id === formValues.accountId
+      );
+
+      if (foundAccount) {
+        setFormValuesState((prev) => ({
+          ...prev,
+          companyName: foundAccount.name,
+        }));
+      } else {
+        // If account not found in current list, trigger a search to load it
+        searchAccounts("");
+      }
+    }
+  }, [
+    formValues.accountId,
+    formValues.companyName,
+    accountSuggestions,
+    searchAccounts,
+  ]);
+
+  // Initial load of accounts when form opens with existing accountId
+  useEffect(() => {
+    if (
+      formValues.accountId &&
+      !formValues.companyName &&
+      accountSuggestions.length === 0
+    ) {
+      searchAccounts(""); // Load initial accounts to find the existing one
+    }
+  }, [
+    formValues.accountId,
+    formValues.companyName,
+    accountSuggestions.length,
+    searchAccounts,
+  ]);
 
   // Academic Titles catalog configuration
   const academicTitlesConfig = useMemo(
@@ -385,7 +432,10 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       !autoSelectionDone.current &&
       !formValues.ownerEmployeeId
     ) {
-      setFormValues({ ownerEmployeeId: currentUserEmployee.employeeId });
+      setFormValuesState((prev) => ({
+        ...prev,
+        ownerEmployeeId: currentUserEmployee.employeeId,
+      }));
       autoSelectionDone.current = true;
     }
   }, [currentUserEmployee, formValues.ownerEmployeeId]);
@@ -410,9 +460,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     onSubmit,
     onCancel,
 
-    // Business app context
-    businessAppContext,
-
     // Loading states
     isLoading,
     error,
@@ -425,42 +472,36 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     loadMoreEmployeePositions,
     searchEmployeePositions,
 
-    // Static data
-    contactTypes,
-    contactRoles,
-    departments,
-    accounts: [],
+    // Account suggestions (using GraphQL hook like opportunity form)
+    accountSuggestions: accountSuggestions,
+    searchAccounts: searchAccountsWrapper,
+    loadMoreAccounts: loadMoreAccountsWrapper,
+    accountsHasMore: accountsHasMore,
+    accountsLoading: accountsLoading,
 
     // Academic Titles (using AcademicTitle catalog)
     academicTitles: academicTitlesHook.options,
     academicTitlesLoading: academicTitlesHook.loading,
     academicTitlesError: academicTitlesHook.error,
     academicTitlesHasMore: academicTitlesHook.hasMore,
-    academicTitlesNeedsMoreData: academicTitlesHook.needsMoreData,
-    academicTitlesDisplayCount: academicTitlesHook.displayCount,
-    academicTitlesTotalFetched: academicTitlesHook.totalFetched,
     searchAcademicTitles: academicTitlesHook.search,
     loadMoreAcademicTitles: academicTitlesHook.loadMore,
-    showMoreAcademicTitles: academicTitlesHook.showMore,
 
     // Languages (using Languages catalog)
     languages: languagesHook.options,
     languagesLoading: languagesHook.loading,
     languagesError: languagesHook.error,
     languagesHasMore: languagesHook.hasMore,
-    languagesNeedsMoreData: languagesHook.needsMoreData,
-    languagesDisplayCount: languagesHook.displayCount,
-    languagesTotalFetched: languagesHook.totalFetched,
     searchLanguages: languagesHook.search,
     loadMoreLanguages: languagesHook.loadMore,
-    showMoreLanguages: languagesHook.showMore,
 
-    // Account autocomplete (matching opportunity form pattern)
-    accountSuggestions: accountState.accounts,
-    searchAccounts: searchAccountsWrapper,
-    loadMoreAccounts: loadMoreAccountsWrapper,
-    accountsHasMore: accountState.hasMore,
-    accountsLoading: accountState.isLoading,
+    // Static dropdown options
+    contactTypes,
+    contactRoles,
+    departments,
+
+    // Business app context for child components
+    businessAppContext,
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Form, Input, Upload, message } from 'antd';
+import { Button, Form, Input, Upload, message, Select } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
@@ -7,6 +7,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
+import { useDocumentCatalogs } from './hooks/useDocumentCatalogs';
 
 export interface DocumentUploadFormProps extends BusinessAppContextProps {}
 
@@ -15,6 +16,8 @@ const { TextArea } = Input;
 const initialValues = {
   name: '',
   description: '',
+  documentGroup: '',
+  documentType: '',
   file: null,
 };
 
@@ -23,8 +26,16 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const fileClient = useFileClient({ accessToken } as any);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  
+  // Fetch document catalogs
+  const {
+    documentGroups,
+    documentTypes,
+    filteredDocumentTypes
+  } = useDocumentCatalogs(accessToken, selectedGroupId);
 
   useEffect(() => {
     const handler = async (event: any) => {
@@ -107,6 +118,8 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
         crmDocument: {
           name: values.name || file.name,
           description: values.description || '',
+          documentGroupRef: values.documentGroup,
+          documentTypeRef: values.documentType,
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
@@ -147,6 +160,12 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
     return false;
   };
 
+  const handleGroupChange = (value: string) => {
+    setSelectedGroupId(value);
+    // Clear document type when group changes
+    form.setFieldValue('documentType', '');
+  };
+
   return (
     <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="document-upload-form-container">
       <Form
@@ -176,6 +195,48 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
               {getTranslationFromI18nKeyAndLabel('crm:documents.selectFile', 'Select File')}
             </Button>
           </Upload>
+        </Form.Item>
+
+        <Form.Item
+          label={getTranslationFromI18nKeyAndLabel('crm:documents.documentGroup', 'Document Group')}
+          name="documentGroup"
+          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:documents.documentGroupRequired', 'Document group is required') }]}
+        >
+          <Select
+            placeholder={getTranslationFromI18nKeyAndLabel('crm:documents.selectDocumentGroup', 'Select document group...')}
+            data-testid="document-group-select"
+            className="gba:w-full"
+            onChange={handleGroupChange}
+            showSearch
+            optionFilterProp="children"
+          >
+            {documentGroups.map((group) => (
+              <Select.Option key={group.id} value={group.id}>
+                {group.value}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          label={getTranslationFromI18nKeyAndLabel('crm:documents.documentType', 'Document Type')}
+          name="documentType"
+          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:documents.documentTypeRequired', 'Document type is required') }]}
+        >
+          <Select
+            placeholder={getTranslationFromI18nKeyAndLabel('crm:documents.selectDocumentType', 'Select document type...')}
+            data-testid="document-type-select"
+            className="gba:w-full"
+            disabled={!selectedGroupId || filteredDocumentTypes.length === 0}
+            showSearch
+            optionFilterProp="children"
+          >
+            {filteredDocumentTypes.map((type) => (
+              <Select.Option key={type.id} value={type.id}>
+                {type.value}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item

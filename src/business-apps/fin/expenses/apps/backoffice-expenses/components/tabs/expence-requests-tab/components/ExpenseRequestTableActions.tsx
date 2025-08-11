@@ -8,6 +8,7 @@ import {
 } from '@newwork/nw-design-system';
 import { MoreHorizontal } from 'lucide-react';
 import { ExpenseData } from '../../../../types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestTableActionsProps {
   record: ExpenseData;
@@ -57,7 +58,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
             }}
             data-testid={`view-expense-request-${record.id}`}
           >
-            View Expense Request Details
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
@@ -66,7 +67,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
             }}
             data-testid={`download-accounting-note-${record.id}`}
           >
-            Download Accounting Note
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.download_text',   'Download Accounting Note')}
           </DropdownMenuItem>
           
           <DropdownMenuItem
@@ -76,7 +77,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
             }}
             data-testid={`trigger-csv-${record.id}`}
           >
-            Trigger CSV
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.trigger_csv',   'Trigger CSV')}
           </DropdownMenuItem>
           {canTransferPayment && (
             <DropdownMenuItem
@@ -86,7 +87,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
               }}
               data-testid={`transfer-payment-${record.id}`}
             >
-              Transfer Payment
+              {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_expense_request.info_message_container.transfer_payment',   'Transfer Payment')}
             </DropdownMenuItem>
           )}
           {canPrint && (
@@ -97,7 +98,7 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
               }}
               data-testid={`print-expense-request-${record.id}`}
             >
-              Print
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print',   'Print')} 
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

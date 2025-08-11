@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
-import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
+import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
@@ -31,6 +32,22 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
   
   // Use the GraphQL query hook
   const { fetchSalesTasks } = useGetSalesTasks(context);
+
+  // Helper function to get timing type icon
+  const getTimingTypeIcon = (timingType?: string) => {
+    if (!timingType) {
+      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+    }
+
+    switch (timingType.toUpperCase()) {
+      case 'DEADLINE':
+        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />;
+      case 'SCHEDULED':
+        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />;
+      default:
+        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+    }
+  };
 
   const loadTasks = async () => {
     if (!accountId) return;
@@ -157,6 +174,19 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
     }
   };
 
+  const handleUpdateTask = (task: TaskData) => {
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveSalesTask',
+      payload: {
+        accountId: accountId,
+        typeRef: task.typeRef || 'SalesTaskType:v1:GENERAL',
+        taskData: task // Pass existing task data for update mode
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
+  };
+
   const handleDeleteTask = (task: TaskData) => {
     Modal.confirm({
       title: 'Confirm Deletion',
@@ -280,8 +310,41 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
             {tasks.map((task, index) => (
               <Timeline.Item key={task.id || index} color={getPriorityColor(getPriorityValue(task.priority))}>
                 <div style={{ position: 'relative' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong>{task.name}</Text>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {getTimingTypeIcon(task.timingType)}
+                      <Text strong>{task.name}</Text>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <span
+                        style={{
+                          background: task.priority?.value === 'High' ? '#fff2e8' : task.priority?.value === 'Medium' ? '#f6ffed' : '#f0f0f0',
+                          color: task.priority?.value === 'High' ? '#fa8c16' : task.priority?.value === 'Medium' ? '#52c41a' : '#8c8c8c',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {task.priority?.value || 'Normal'}
+                      </span>
+                      <span
+                        style={{
+                          background: task.statusRef?.includes('COMPLETED') ? '#f6ffed' : 
+                                     task.statusRef?.includes('IN_PROGRESS') ? '#fff7e6' : 
+                                     task.statusRef?.includes('OVERDUE') ? '#fff2f0' : '#f0f0f0',
+                          color: task.statusRef?.includes('COMPLETED') ? '#52c41a' : 
+                                task.statusRef?.includes('IN_PROGRESS') ? '#fa8c16' : 
+                                task.statusRef?.includes('OVERDUE') ? '#ff4d4f' : '#8c8c8c',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {task.statusRef?.split(':').pop()?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Open'}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <Text type="secondary">
@@ -324,20 +387,26 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
-                    style={{ 
-                      position: 'absolute', 
-                      right: 0, 
-                      top: 0,
-                      padding: '4px',
-                      lineHeight: 1
-                    }}
-                    onClick={() => handleDeleteTask(task)}
-                    data-testid={`delete-task-${task.id}`}
-                  />
+                  <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
+                    <Button
+                      type="text"
+                      icon={<EditOutlined />}
+                      size="small"
+                      style={{ padding: '4px', lineHeight: 1 }}
+                      onClick={() => handleUpdateTask(task)}
+                      data-testid={`update-task-${task.id}`}
+                      title="Update Task"
+                    />
+                    <Button 
+                      type="text" 
+                      icon={<CloseOutlined />} 
+                      size="small"
+                      style={{ padding: '4px', lineHeight: 1 }}
+                      onClick={() => handleDeleteTask(task)}
+                      data-testid={`delete-task-${task.id}`}
+                      title="Delete Task"
+                    />
+                  </div>
                 </div>
               </Timeline.Item>
             ))}

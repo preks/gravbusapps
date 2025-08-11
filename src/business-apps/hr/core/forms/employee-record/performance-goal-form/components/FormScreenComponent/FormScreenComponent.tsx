@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Form, Row, Col } from 'antd';
 import { FormInstance } from 'antd/lib/form';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -19,6 +18,7 @@ interface FormScreenComponentProps {
   handleFormSubmit: (e: React.FormEvent) => Promise<void>;
   statusOptions: { value: string; label: string }[];
   prefixDataTestId?: string;
+  isEditMode?: boolean;
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -26,20 +26,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isSubmitting,
   handleFormSubmit,
   statusOptions,
-  prefixDataTestId = 'performance-goal-form'
+  prefixDataTestId = 'performance-goal-form',
+  isEditMode = false
 }) => {
   const { t } = useTranslation();
   const [formIsValid, setFormIsValid] = useState(false);
+
   return (
     <Form
       form={form}
       layout="vertical"
-      initialValues={{
-        startDate: new Date(),
-        dueDate: dayjs().add(5, 'day').toDate(),
-        progressPercent: 0,
-        status: 'ON_TRACK'
-      }}
       data-testid={`${prefixDataTestId}-form`}
       className="gba:w-full gba:max-w-2xl gba:mx-auto"
       onFieldsChange={() => {
@@ -80,11 +76,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             label={t("performance_goal.start_date_label", "Start Date")}
             name="startDate"
             placeholder={t("performance_goal.start_date_placeholder", "Select start date")}
-            onChange={(field) => {
-              if (field.value) {
-                form.setFieldsValue({ startDate: field.value as Date });
-              }
-            }}
+                         onChange={(field) => {
+               if (field.value) {
+                 form.setFieldsValue({ startDate: field.value as Date });
+               }
+             }}
             required={true}
             format={getDateFormat('date')}
           />
@@ -104,10 +100,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 const dueDate = value instanceof Date ? value : new Date(value);
                 const start = startDate instanceof Date ? startDate : new Date(startDate);
                 
-                if (dueDate > start) {
+                // Compare only the date part (year, month, day) ignoring time
+                const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                
+                if (dueDateOnly >= startDateOnly) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error(t('performance_goal.due_date_after_start', 'Due date must be after start date')));
+                return Promise.reject(new Error(t('performance_goal.due_date_after_start', 'Due date must be on or after start date')));
               },
             }),
           ]}
@@ -117,12 +117,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             label={t("performance_goal.due_date_label", "Due Date")}
             name="dueDate"
             placeholder={t("performance_goal.due_date_placeholder", "Select due date")}
-            onChange={(field) => {
-              if (field.value) {
-                form.setFieldsValue({ dueDate: field.value as Date });
-              }
-            }}
-            required={true}
+                         onChange={(field) => {
+               if (field.value) {
+                 form.setFieldsValue({ dueDate: field.value as Date });
+               }
+             }}
+             required={true}
             format={getDateFormat('date')}
           />
         </Form.Item>
@@ -188,11 +188,14 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               onClick={handleFormSubmit} 
               loading={isSubmitting}
               disabled={!formIsValid}
-              data-testid={`${prefixDataTestId}-create-button`}
+              data-testid={`${prefixDataTestId}-submit-button`}
               className="gba:w-40"
               size="large"
             >
-              {t("performance_goal.create", "Create")}
+               {isEditMode 
+                 ? t("performance_goal.update", "Update") 
+                 : t("performance_goal.submit", "Submit")
+               }
             </Button>
           </div>
         </Form.Item>

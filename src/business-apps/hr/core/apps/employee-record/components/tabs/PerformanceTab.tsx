@@ -25,6 +25,7 @@ interface PerformanceTabProps {
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   id: string;
   description?: string;
+  version?: number;
 }
 
 /**
@@ -240,7 +241,14 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                         contextsArray={[FlowContextName.employeePerformanceGoal]}
                         externalContextData={{
                           employeeId: employee?.id,
-                          goalId: goal.id
+                          goalId: goal.id,
+                          title: goal.title,
+                          startDate: goal.startDate,
+                          dueDate: goal.dueDate,
+                          completionDate: goal.completionDate,
+                          progressPercent: goal.progressPercent,
+                          status: goal.status,
+                          version: goal.version
                         }}
                         prefixDataTestId="edit-goal"
                         accessToken={accessToken}

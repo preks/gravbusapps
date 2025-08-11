@@ -9,8 +9,10 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@newwork/nw-design-system';
+import { X } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useFilterData } from '../../hooks/useFilterData';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface FilterOptions {
   department?: string;
@@ -67,6 +69,38 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
     onFiltersChange(filtersForParent);
   };
 
+  const clearFilter = (filterKey: keyof FilterOptions) => {
+    const newFilters = { ...filters };
+    
+    // Set appropriate default values for each filter type
+    switch (filterKey) {
+      case 'department':
+        newFilters.department = 'all';
+        break;
+      case 'currency':
+        newFilters.currency = ''; // Let dashboard handle default
+        break;
+      case 'period':
+        newFilters.period = 'monthly';
+        break;
+      default:
+        delete newFilters[filterKey];
+    }
+    
+    // Update internal state if not controlled by parent
+    if (!currentFilters) {
+      setInternalFilters(newFilters);
+    }
+    
+    // Convert "all" values to empty strings for the parent component
+    const filtersForParent = {
+      ...newFilters,
+      department: newFilters.department === 'all' ? '' : newFilters.department,
+      currency: newFilters.currency === 'all' ? '' : newFilters.currency,
+    };
+    onFiltersChange(filtersForParent);
+  };
+
   const clearAllFilters = () => {
     const clearedFilters: FilterOptions = {
       department: 'all',
@@ -90,9 +124,6 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
     onFiltersChange(clearedFiltersForParent);
   };
 
-  const hasActiveFilters = (filters.department && filters.department !== 'all') || 
-    (filters.currency && filters.currency !== mostUsedCurrency) || 
-    filters.period !== 'monthly';
 
   return (
     <div 
@@ -101,74 +132,103 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
     >
       {/* Filters - Horizontal Layout */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
-        {/* Department Filter */}
-        <Select
-          value={filters.department || ''}
-          onValueChange={(value) => handleFilterChange('department', value)}
-          disabled={filterDataLoading}
-          data-testid="department-filter-select"
-        >
-          <SelectTrigger className="gba:w-[180px] gba:border-gray-300">
-            <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by department"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {organizationalUnits.map((orgUnit) => (
-              <SelectItem key={orgUnit.id} value={orgUnit.id}>
-                {orgUnit.displayName || orgUnit.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                 {/* Department Filter */}
+         <div className="gba:relative gba:flex gba:items-center">
+           <Select
+             value={filters.department || ''}
+             onValueChange={(value) => handleFilterChange('department', value)}
+             disabled={filterDataLoading}
+             data-testid="department-filter-select"
+           >
+             <SelectTrigger className="gba:w-[180px] gba:border-gray-300">
+               <SelectValue placeholder={filterDataLoading ? "Loading..." : getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.expense_department_title', "Filter by department")} />
+             </SelectTrigger>
+             <SelectContent>
+               <SelectItem value="all">All Departments</SelectItem>
+               {organizationalUnits.map((orgUnit) => (
+                 <SelectItem key={orgUnit.id} value={orgUnit.id}>
+                   {orgUnit.displayName || orgUnit.name}
+                 </SelectItem>
+               ))}
+             </SelectContent>
+           </Select>
+           {filters.department && filters.department !== 'all' && (
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => clearFilter('department')}
+               className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
+               data-testid="clear-department-filter"
+             >
+               <X className="gba:h-3 gba:w-3" />
+             </Button>
+           )}
+         </div>
 
-        {/* Currency Filter */}
-        <Select
-          value={filters.currency || ''}
-          onValueChange={(value) => handleFilterChange('currency', value)}
-          disabled={filterDataLoading}
-          data-testid="currency-filter-select"
-        >
-          <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
-            <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by currency"} />
-          </SelectTrigger>
-          <SelectContent>
-            {currencies.map((currency) => (
-              <SelectItem key={currency.currencyRef} value={currency.currencyRef}>
-                {currency.code}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                 {/* Currency Filter */}
+         <div className="gba:relative gba:flex gba:items-center">
+           <Select
+             value={filters.currency || ''}
+             onValueChange={(value) => handleFilterChange('currency', value)}
+             disabled={filterDataLoading}
+             data-testid="currency-filter-select"
+           >
+             <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
+               <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by currency"} />
+             </SelectTrigger>
+             <SelectContent>
+               {currencies.map((currency) => (
+                 <SelectItem key={currency.currencyRef} value={currency.currencyRef}>
+                   {currency.code}
+                 </SelectItem>
+               ))}
+             </SelectContent>
+           </Select>
+                       {filters.currency && filters.currency !== mostUsedCurrency && (
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => clearFilter('currency')}
+               className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
+               data-testid="clear-currency-filter"
+             >
+               <X className="gba:h-3 gba:w-3" />
+             </Button>
+           )}
+         </div>
 
-        {/* Period Filter */}
-        <Select
-          value={filters.period || ''}
-          onValueChange={(value) => handleFilterChange('period', value)}
-          disabled={filterDataLoading}
-          data-testid="period-filter-select"
-        >
-          <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
-            <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by period"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Monthly</SelectItem>
-            <SelectItem value="quarterly">Quarterly</SelectItem>
-            <SelectItem value="yearly">Yearly</SelectItem>
-          </SelectContent>
-        </Select>
+                 {/* Period Filter */}
+         <div className="gba:relative gba:flex gba:items-center">
+           <Select
+             value={filters.period || ''}
+             onValueChange={(value) => handleFilterChange('period', value)}
+             disabled={filterDataLoading}
+             data-testid="period-filter-select"
+           >
+             <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
+               <SelectValue placeholder={filterDataLoading ? "Loading..." : "Filter by period"} />
+             </SelectTrigger>
+             <SelectContent>
+               <SelectItem value="monthly">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', "Monthly")}</SelectItem>
+               <SelectItem value="quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', "Quarterly")}</SelectItem>
+               <SelectItem value="yearly">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly', "Yearly")}</SelectItem>
+             </SelectContent>
+           </Select>
+           {filters.period && filters.period !== 'monthly' && (
+             <Button
+               variant="ghost"
+               size="sm"
+               onClick={() => clearFilter('period')}
+               className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
+               data-testid="clear-period-filter"
+             >
+               <X className="gba:h-3 gba:w-3" />
+             </Button>
+           )}
+         </div>
       </div>
 
-      {/* Clear Filters Button */}
-      {hasActiveFilters && (
-        <Button
-          variant="ghost"
-          onClick={clearAllFilters}
-          className="gba:text-gray-500 gba:hover:text-gray-700 gba:px-3 gba:py-2"
-          data-testid="clear-filters-button"
-        >
-          Clear
-        </Button>
-      )}
+      
     </div>
   );
 };

@@ -10,6 +10,7 @@ import {
 import { PieChart, Pie, Cell } from 'recharts';
 import { formatCurrency } from '../utils/formatters';
 import { DashboardStats } from '../types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseDistributionProps {
   stats: DashboardStats | undefined;
@@ -75,11 +76,11 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
     return (
       <Card data-testid="expense-distribution-card-empty">
         <CardHeader>
-          <CardTitle>Expense Distribution</CardTitle>
+          <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_distribution','Expense Distribution')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:text-center gba:py-8 gba:text-gray-500">
-            <p>No expense data available</p>
+            <p>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_data_available','No expense data available')}</p>
           </div>
         </CardContent>
       </Card>
@@ -89,7 +90,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
   return (
     <Card data-testid="expense-distribution-card">
       <CardHeader>
-        <CardTitle>Expense Distribution</CardTitle>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_distribution','Expense Distribution')}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="gba:h-[300px]" data-testid="expense-distribution-chart-container">

@@ -53,10 +53,13 @@ export interface ExpenseRequestWhereClause {
       _gte?: string;
       _lte?: string;
     };
-    requestDate?: {
-      _gte?: string;
-      _lte?: string;
-    };
+         requestDate?: {
+       _gte?: string;
+       _lte?: string;
+     };
+     requestTypeRef?: {
+       _eq?: string;
+     };
   }>;
 }
 
@@ -98,9 +101,10 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
       return statusConfig.label;
     } else {
-      // Format backend status with only first letter uppercase
+      // Format backend status with only first letter uppercase and translate it
       const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase();
-      return `${statusConfig.label} (${formattedStatus})`;
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(`lowcoder:expense_statuses.${status.toLowerCase()}`, formattedStatus);
+      return `${statusConfig.label} (${translatedStatus})`;
     }
   };
 
@@ -108,7 +112,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
     {
       id: 'requestDateRange',
-      title: 'Request Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_date_label','Request Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(RequestDateRangeFilter, {
         requestDateRange: requestDateRange,
@@ -119,7 +123,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'startDateRange',
-      title: 'Start Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(StartDateRangeFilter, {
         startDateRange: startDateRange,
@@ -130,7 +134,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     },
     {
       id: 'endDateRange',
-      title: 'End Date Range',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date'),
       type: 'date-range' as any,
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
@@ -148,14 +152,15 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     //     { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
     //   ]
     // },
-    {
-      id: 'requestType',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
-      filters: [
-        { id: 'general', label: 'General Expense', selected: selectedFilters.includes('general') },
-        { id: 'trip', label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.tab_container.trip_header', 'Trip'), selected: selectedFilters.includes('trip') }
-      ]
-    },
+         {
+       id: 'requestType',
+       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
+       type: 'radio' as any,
+       filters: [
+         { id: 'ExpenseRequestType:v1:EXPENSES', label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.general_expense', 'General Expense'), selected: selectedFilters.includes('ExpenseRequestType:v1:EXPENSES') },
+         { id: 'ExpenseRequestType:v1:TRIP', label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'), selected: selectedFilters.includes('ExpenseRequestType:v1:TRIP') }
+       ]
+     },
     {
       id: 'status',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status', 'Status'),
@@ -190,13 +195,13 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {
-      // 'last30days': 'Last 30 days',
-      // 'last90days': 'Last 90 days',
-      // 'last180days': 'Last 180 days',
-      'general': 'General Expense',
-      'trip': 'Trip',
-    };
+         const labelMap: Record<string, string> = {
+       // 'last30days': 'Last 30 days',
+       // 'last90days': 'Last 90 days',
+       // 'last180days': 'Last 180 days',
+       'ExpenseRequestType:v1:EXPENSES': getTranslationFromI18nKeyAndLabel('lowcoder:expense_request.general_expense', 'General Expense'),
+       'ExpenseRequestType:v1:TRIP': getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.tab_container.trip_header', 'Trip'),
+     };
     
     // Add all status options using the same display names as the filter dropdown
     Object.values(ExpenseRequestStatus).forEach(status => {
@@ -299,31 +304,40 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         { title: { _ilike: `%${search.trim()}%` } }
       ] });
     }
-    if (selectedFilters.length > 0) {
-      conditions.push({ status: { _in: selectedFilters } });
+    // Separate status filters from request type filters
+    const statusFilters = selectedFilters.filter(filter => 
+      Object.values(ExpenseRequestStatus).includes(filter as ExpenseRequestStatus)
+    );
+    const requestTypeFilters = selectedFilters.filter(filter => 
+      filter.startsWith('ExpenseRequestType:')
+    );
+
+    if (statusFilters.length > 0) {
+      conditions.push({ status: { _in: statusFilters } });
+    }
+    
+             if (requestTypeFilters.length > 0) {
+      // For request type, we need to use the correct GraphQL structure
+      // The requestType field is a catalog entry, so we filter by the catalog entry ID
+      // Use requestTypeRef which is the correct field name in the GraphQL schema
+      conditions.push({ requestTypeRef: { _eq: requestTypeFilters[0] } });
     }
     if (startDateRange?.[0]) {
-      console.log('ExpenseRequestFilters: Adding startDate _gte:', startDateRange[0]);
       conditions.push({ startDate: { _gte: formatStartDate(startDateRange[0]) } });
     }
     if (startDateRange?.[1]) {
-      console.log('ExpenseRequestFilters: Adding startDate _lte:', startDateRange[1]);
       conditions.push({ startDate: { _lte: formatEndDate(startDateRange[1]) } });
     }
     if (endDateRange?.[0]) {
-      console.log('ExpenseRequestFilters: Adding endDate _gte:', endDateRange[0]);
       conditions.push({ endDate: { _gte: formatStartDate(endDateRange[0]) } });
     }
     if (endDateRange?.[1]) {
-      console.log('ExpenseRequestFilters: Adding endDate _lte:', endDateRange[1]);
       conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
     if (requestDateRange?.[0]) {
-      console.log('ExpenseRequestFilters: Adding requestDate _gte:', requestDateRange[0]);
       conditions.push({ requestDate: { _gte: formatStartDate(requestDateRange[0]) } });
     }
     if (requestDateRange?.[1]) {
-      console.log('ExpenseRequestFilters: Adding requestDate _lte:', requestDateRange[1]);
       conditions.push({ requestDate: { _lte: formatEndDate(requestDateRange[1]) } });
     }
 
@@ -331,7 +345,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
     
     const result = { _and: conditions.length > 0 ? conditions : [{}] };
-    console.log('ExpenseRequestFilters: Final where clause:', JSON.stringify(result, null, 2));
     return result;
 
   }, [search, selectedFilters, startDateRange, endDateRange, requestDateRange]);
@@ -345,9 +358,22 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   }, []);
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    setSelectedFilters(prev =>
-      selected ? [...prev, filterId] : prev.filter(id => id !== filterId)
-    );
+    setSelectedFilters(prev => {
+      // Handle radio button behavior for request type filters
+      if (filterId.startsWith('ExpenseRequestType:')) {
+        if (selected) {
+          // Remove any existing request type filters and add the new one
+          const withoutRequestTypes = prev.filter(id => !id.startsWith('ExpenseRequestType:'));
+          return [...withoutRequestTypes, filterId];
+        } else {
+          // Remove the specific request type filter
+          return prev.filter(id => id !== filterId);
+        }
+      } else {
+        // Handle regular multi-select filters
+        return selected ? [...prev, filterId] : prev.filter(id => id !== filterId);
+      }
+    });
   }, []);
   
   return {

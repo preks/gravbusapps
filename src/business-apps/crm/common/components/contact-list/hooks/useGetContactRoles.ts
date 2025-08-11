@@ -18,12 +18,12 @@ const GET_CONTACT_ROLES_QUERY = `
     Contact(
       where: {
         _and: [
-          { contactRole: { _is_null: false } }
+          { contactRole: { _isNull: false } }
           { contactRole: { _neq: "" } }
           { contactRole: { _ilike: $search } }
         ]
       }
-      distinct_on: [contactRole]
+              distinctOn: [contactRole]
       orderBy: [{ contactRole: ASC_NULLS_LAST }]
       limit: 100
     ) {
