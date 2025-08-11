@@ -24,8 +24,11 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
     currentPage,
     pageSize,
     search,
+    sortField,
+    sortOrder,
     setSearch,
     setPage,
+    setSorting,
     refetch
   } = useCampaignEntities(props, campaignId);
 
@@ -34,8 +37,6 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
-  const [sortField, setSortField] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
 
   // Create filter groups for entity types
   const entityTypeFilterGroups = [
@@ -94,9 +95,12 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
 
   // Handle sorting change
   const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
-    setSortField(field);
-    setSortOrder(order);
-  }, []);
+    if (order === '') {
+      setSorting(undefined, undefined);
+    } else {
+      setSorting(field, order);
+    }
+  }, [setSorting]);
 
   // Handle table change (for compatibility)
   const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {

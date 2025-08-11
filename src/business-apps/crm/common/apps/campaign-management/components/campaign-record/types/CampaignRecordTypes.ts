@@ -130,8 +130,11 @@ export interface UseCampaignEntitiesReturn {
   currentPage: number;
   pageSize: number;
   search: string;
+  sortField: string;
+  sortOrder: 'ASC' | 'DESC' | '';
   setSearch: (search: string) => void;
   setPage: (page: number) => void;
+  setSorting: (field?: string, order?: 'ASC' | 'DESC') => void;
   refetch: () => void;
 }
 

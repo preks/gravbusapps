@@ -14,10 +14,12 @@ export const useCampaignEntities = (
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
 
   const { fetchCampaignEntities } = useCampaignRecordQueries(context);
 
-  const transformEntitiesToUnified = useCallback((result: any): CampaignEntity[] => {
+  const transformEntitiesToUnified = useCallback((result: any, sortField?: string, sortOrder?: 'ASC' | 'DESC' | ''): CampaignEntity[] => {
     const allEntities: CampaignEntity[] = [];
 
     // Transform leads
@@ -96,10 +98,43 @@ export const useCampaignEntities = (
       });
     }
 
-    // Sort by creation date (newest first)
-    return allEntities.sort((a, b) => 
-      new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()
-    );
+    // Apply client-side sorting if specified
+    if (sortField && sortOrder) {
+      allEntities.sort((a, b) => {
+        let valueA: any, valueB: any;
+        
+        switch (sortField) {
+          case 'name':
+            valueA = a.name?.toLowerCase() || '';
+            valueB = b.name?.toLowerCase() || '';
+            break;
+          case 'createdAt':
+          case 'creationDate':
+            valueA = new Date(a.creationDate).getTime();
+            valueB = new Date(b.creationDate).getTime();
+            break;
+          case 'ownerEmployeeId':
+          case 'owner':
+            valueA = a.owner?.displayName?.toLowerCase() || '';
+            valueB = b.owner?.displayName?.toLowerCase() || '';
+            break;
+          default:
+            valueA = new Date(a.creationDate).getTime();
+            valueB = new Date(b.creationDate).getTime();
+        }
+        
+        if (valueA < valueB) return sortOrder === 'ASC' ? -1 : 1;
+        if (valueA > valueB) return sortOrder === 'ASC' ? 1 : -1;
+        return 0;
+      });
+    } else {
+      // Default sort by creation date (newest first)
+      allEntities.sort((a, b) => 
+        new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()
+      );
+    }
+    
+    return allEntities;
   }, []);
 
   const loadCampaignEntities = useCallback(async () => {
@@ -123,7 +158,7 @@ export const useCampaignEntities = (
         orderBy: [{ createdAt: 'DESC' }]
       });
 
-      const transformedEntities = transformEntitiesToUnified(result);
+      const transformedEntities = transformEntitiesToUnified(result, sortField, sortOrder);
       setEntities(transformedEntities);
       
       // Calculate total count (in real implementation, this would come from a separate count query)
@@ -140,7 +175,7 @@ export const useCampaignEntities = (
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, campaignId, currentPage, pageSize, search, fetchCampaignEntities, transformEntitiesToUnified]);
+  }, [context.accessToken, campaignId, currentPage, pageSize, search, sortField, sortOrder, fetchCampaignEntities, transformEntitiesToUnified]);
 
   const setPage = useCallback((page: number) => {
     setCurrentPage(page);
@@ -155,11 +190,18 @@ export const useCampaignEntities = (
     loadCampaignEntities();
   }, [loadCampaignEntities]);
 
+  // Add sorting handlers
+  const setSorting = useCallback((field?: string, order?: 'ASC' | 'DESC') => {
+    setSortField(field || '');
+    setSortOrder(order || '');
+    setCurrentPage(1); // Reset to first page when sorting
+  }, []);
+
   useEffect(() => {
     if (context.accessToken && campaignId) {
       loadCampaignEntities();
     }
-  }, [context.accessToken, campaignId, currentPage, pageSize, search]);
+  }, [context.accessToken, campaignId, currentPage, pageSize, search, sortField, sortOrder, loadCampaignEntities]);
 
   return {
     entities,
@@ -169,8 +211,11 @@ export const useCampaignEntities = (
     currentPage,
     pageSize,
     search,
+    sortField,
+    sortOrder,
     setSearch: handleSetSearch,
     setPage,
+    setSorting,
     refetch
   };
 };
