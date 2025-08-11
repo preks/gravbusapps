@@ -24,8 +24,6 @@ import { TasksSection } from "./components/TasksSection";
 import { StageProgression } from "./components/StageProgression";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
 
-import { OpportunityDocuments } from "./components/OpportunityDocuments";
-
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
   onBack: () => void;
