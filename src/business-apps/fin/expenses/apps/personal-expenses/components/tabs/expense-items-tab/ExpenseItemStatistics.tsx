@@ -159,7 +159,8 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'total-expenses',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for') + ' ' + currentMonthName,
-      value: formatNumberFunction(String(totalExpenses ?? 0)) + '€',
+      value: formatNumberFunction(String(totalExpenses ?? 0)),
+      suffix: '€',
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
@@ -172,9 +173,10 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'pending-reimbursement',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending Reimbursement'),
-      value: formatNumberFunction(String(pendingReimbursement)) + '€',
+      value: formatNumberFunction(String(pendingReimbursement)),
       valueIsString: true,
       prefix: <WalletOutlined />,
+      suffix: '€',
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_processing','Awaiting processing'),
