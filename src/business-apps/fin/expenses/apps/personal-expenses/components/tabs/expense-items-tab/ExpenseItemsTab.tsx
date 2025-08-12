@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS } from '../../../queries/expenseItems';
+import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS, GET_PENDING_ITEMS_WITH_DATE_RANGE } from '../../../queries/expenseItems';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { ExpenseStatus } from '../../../utils';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
@@ -69,6 +69,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [totalExpenses, setTotalExpenses] = useState<number | null>(null);
   const [previousMonthTotalExpenses, setPreviousMonthTotalExpenses] = useState<number | null>(null);
   const [pendingReimbursementTotal, setPendingReimbursementTotal] = useState<number>(0);
+  const [previousMonthPendingReimbursementTotal, setPreviousMonthPendingReimbursementTotal] = useState<number>(0);
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0);
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   const graphqlClient = useGraphQLClient(contextProps.accessToken);
@@ -225,14 +226,48 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         return result.data?.totalExpenses?.aggregate?.sum?.totalAmount ?? 0;
       };
 
-      const [currentMonthTotal, previousMonthTotal] = await Promise.all([
+      const fetchPendingStatsForPeriod = async (startDate: string, endDate: string) => {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_PENDING_ITEMS_WITH_DATE_RANGE,
+            variables: {
+              employeeId,
+              startDate,
+              endDate,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        }
+
+        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0;
+      };
+
+      const [currentMonthTotal, previousMonthTotal, currentMonthPending, previousMonthPending] = await Promise.all([
         fetchStatsForPeriod(currentMonthStart, currentMonthEnd),
         fetchStatsForPeriod(previousMonthStart, previousMonthEnd),
+        fetchPendingStatsForPeriod(currentMonthStart, currentMonthEnd),
+        fetchPendingStatsForPeriod(previousMonthStart, previousMonthEnd),
       ]);
 
       if (isMounted.current) {
         setTotalExpenses(currentMonthTotal);
         setPreviousMonthTotalExpenses(previousMonthTotal);
+        setPendingReimbursementTotal(currentMonthPending);
+        setPreviousMonthPendingReimbursementTotal(previousMonthPending);
       }
     } catch (error) {
       if (isMounted.current) {
@@ -388,6 +423,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           totalExpenses={totalExpenses}
           previousMonthTotalExpenses={previousMonthTotalExpenses}
           pendingReimbursementTotal={pendingReimbursementTotal}
+          previousMonthPendingReimbursementTotal={previousMonthPendingReimbursementTotal}
           pendingItemCountFromApi={pendingItemCountFromApi}
           onMissingReceiptsClick={handleMissingReceiptsClick} 
           isNoReceiptFilterActive={isNoReceiptFilterActive}
@@ -401,7 +437,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         />
       </div>
     );
-  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, expenseDateRange, handleStatusFilterChange]);
+  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, previousMonthPendingReimbursementTotal, expenseDateRange, handleStatusFilterChange]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;

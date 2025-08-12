@@ -9,6 +9,7 @@ interface ExpenseItemStatisticsProps {
   totalExpenses?: number | null;
   previousMonthTotalExpenses?: number | null;
   pendingReimbursementTotal?: number;
+  previousMonthPendingReimbursementTotal?: number;
   pendingItemCountFromApi?: number;
   onMissingReceiptsClick?: () => void;
   onWidgetClick?: (widgetKey: string) => void;
@@ -28,6 +29,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   totalExpenses,
   previousMonthTotalExpenses,
   pendingReimbursementTotal,
+  previousMonthPendingReimbursementTotal,
   pendingItemCountFromApi,
   onMissingReceiptsClick,
   isNoReceiptFilterActive = false,
@@ -94,14 +96,43 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     };
   }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses]);
 
-  // Generate trend data for pending reimbursement (placeholder - you may want to add previous month data)
+  // Calculate percentage change for pending reimbursement
+  const pendingReimbursementPercentageChange = useMemo(() => {
+    const current = pendingReimbursementTotal ?? 0;
+    const previous = previousMonthPendingReimbursementTotal ?? 0;
+
+    if (previous === 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  }, [pendingReimbursementTotal, previousMonthPendingReimbursementTotal]);
+
+  // Generate trend data for pending reimbursement
   const pendingReimbursementTrend = useMemo(() => {
+    const current = pendingReimbursementTotal ?? 0;
+    const previous = previousMonthPendingReimbursementTotal ?? 0;
+
+    if (previous === 0 && current > 0) {
+      return {
+        value: '+100%',
+        positive: true,
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
+      };
+    }
+    if (pendingReimbursementPercentageChange === 0) {
+      return {
+        value: '0%',
+        positive: true,
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
+      };
+    }
+    const sign = pendingReimbursementPercentageChange > 0 ? '+' : '';
     return {
-      value: `${pendingItemCount} items`,
-      positive: true,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending reimbursement')
+      value: `${sign}${pendingReimbursementPercentageChange.toFixed(0)}%`,
+      positive: pendingReimbursementPercentageChange >= 0,
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
-  }, [pendingItemCount]);
+  }, [pendingReimbursementPercentageChange, pendingReimbursementTotal, previousMonthPendingReimbursementTotal]);
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
@@ -203,7 +234,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
     //   description: 'Across all expenses'
     // }
-  ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, totalExpensesTrend, pendingReimbursementTrend, handleWidgetClick]);
+  ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, totalExpensesTrend, pendingReimbursementTrend, handleWidgetClick, previousMonthPendingReimbursementTotal]);
 
   return (
     <div data-testid="expense-item-statistics-container" className="gba:w-full">

@@ -162,6 +162,30 @@ export const GET_PENDING_ITEMS = `
   }
 `;
 
+export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
+  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamptz, $endDate: timestamptz) {
+    pendingExcludingAllowance: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        updatedAt: {
+          _gte: $startDate,
+          _lte: $endDate
+        }
+      }
+    ) {
+      aggregate {
+        sum {
+          reimbursableAmount
+        }
+        count
+      }
+    }
+  }
+`;
+
 export const GET_EXPENSE_ITEM_BY_ID = `
   query GetExpenseItemById($id: uuid!) {
     ExpenseItem(where: {id: {_eq: $id}}) {
