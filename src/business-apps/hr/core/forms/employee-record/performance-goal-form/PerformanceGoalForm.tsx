@@ -65,42 +65,58 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           return new Date();
         }
       };
-
+      const dueDate = dayjs(additionalData.dueDate).add(5, 'day');
       const initialValues = {
         title: additionalData.title || '',
         startDate: safeDateConversion(additionalData.startDate),
-        dueDate: safeDateConversion(additionalData.dueDate),
+        dueDate: safeDateConversion(additionalData.dueDate || dueDate.toISOString()),
         status: additionalData.status || 'ON_TRACK',
         progressPercent: additionalData.progressPercent || 0
       };
       
       form.setFieldsValue(initialValues);
     } else {
-      // For create mode, just set due date to 5 days from today
-      form.setFieldsValue({ dueDate: dayjs().add(5, 'day').toDate() });
+      // For create mode, set start date to today and due date to 5 days from today
+      const today = dayjs().startOf('day'); // Start of day to avoid time issues
+      const dueDate = today.add(5, 'day');
+      
+      
+      form.setFieldsValue({ 
+        startDate: today.toDate(),
+        dueDate: dueDate.toDate() 
+      });
     }
   }, [ additionalData, form]);
-
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const values = await form.validateFields();
       setIsSubmitting(true);
       
+      // Helper function to convert date to ISO string with noon time to avoid timezone issues
+      const dateToISOString = (date: Date | string): string => {
+        if (date instanceof Date) {
+          // Set time to noon to avoid timezone issues
+          const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+          return dateOnly.toISOString();
+        }
+        return date as string;
+      };
+
       // Transform dates to ISO string format as required by API
       const payload = {
         employeePerformanceGoal: {
           id: isEditMode ? additionalData.goalId : null,
           title: values.title,
-          startDate: values.startDate instanceof Date ? values.startDate.toISOString() : values.startDate,
-          dueDate: values.dueDate instanceof Date ? values.dueDate.toISOString() : values.dueDate,
+          startDate: dateToISOString(values.startDate),
+          dueDate: dateToISOString(values.dueDate),
           status: values.status || 'ON_TRACK',
           progressPercent: values.progressPercent || 0,
-          employee: additionalData?.employeeId
+          employee: additionalData?.employeeId,
+          version: isEditMode && additionalData?.version ? additionalData.version : 0
         },
         changeMode: isEditMode ? "UPDATE" : "INSERT"
       };
-      console.log("🚀 ~ Goal Payload:", payload)
       
       
       // Validate that we have the required data for edit mode
@@ -156,6 +172,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           handleFormSubmit={handleFormSubmit}
           statusOptions={statusOptions}
           prefixDataTestId={prefixDataTestId}
+          isEditMode={isEditMode}
         />
       </div>
     </div>

@@ -78,7 +78,7 @@ export function DataDisplayShowcase() {
       title: "Total Users",
       value: 1234,
       icon: "users",
-      iconColor: "var(--color-info)",
+      iconColor: "var(--nw-color-info)",
       trend: {
         value: "+12%",
         positive: true,
@@ -91,7 +91,7 @@ export function DataDisplayShowcase() {
       value: 125000,
       prefix: "$",
       decimalPlaces: 0,
-      iconColor: "var(--color-success)",
+      iconColor: "var(--nw-color-success)",
       trend: {
         value: "+8.5%",
         positive: true,
@@ -104,7 +104,7 @@ export function DataDisplayShowcase() {
       value: 4.2,
       suffix: "%",
       decimalPlaces: 1,
-      iconColor: "var(--color-ext-7)",
+      iconColor: "var(--nw-color-ext-7)",
       trend: {
         value: "-0.3%",
         positive: false,
@@ -143,16 +143,16 @@ export function DataDisplayShowcase() {
             <h4 className="gba:text-sm gba:font-medium gba:mb-2">
               Status Badges
             </h4>
-            <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--spacing-2)' }}>
-              <Badge style={{ backgroundColor: 'var(--color-success-secondary)', color: 'var(--color-success-secondary-foreground)' }}>
-                <CheckCircle className="gba:w-3 gba:h-3" style={{ marginRight: 'var(--spacing-1)' }} />
+            <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-2)' }}>
+              <Badge style={{ backgroundColor: 'var(--nw-color-success-secondary)', color: 'var(--nw-color-success-secondary-foreground)' }}>
+                <CheckCircle className="gba:w-3 gba:h-3" style={{ marginRight: 'var(--nw-spacing-1)' }} />
                 Active
               </Badge>
-              <Badge style={{ backgroundColor: 'var(--color-warning-secondary)', color: 'var(--color-warning-secondary-foreground)' }}>
-                <Clock className="gba:w-3 gba:h-3" style={{ marginRight: 'var(--spacing-1)' }} />
+              <Badge style={{ backgroundColor: 'var(--nw-color-warning-secondary)', color: 'var(--nw-color-warning-secondary-foreground)' }}>
+                <Clock className="gba:w-3 gba:h-3" style={{ marginRight: 'var(--nw-spacing-1)' }} />
                 Pending
               </Badge>
-              <Badge style={{ backgroundColor: 'var(--color-destructive-secondary)', color: 'var(--color-destructive-secondary-foreground)' }}>
+              <Badge style={{ backgroundColor: 'var(--nw-color-destructive-secondary)', color: 'var(--nw-color-destructive-secondary-foreground)' }}>
                 Inactive
               </Badge>
             </div>
@@ -379,27 +379,27 @@ export function DataDisplayShowcase() {
             <h4 className="gba:text-sm gba:font-medium gba:mb-2">
               Colored Icons
             </h4>
-            <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-4)' }}>
+            <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-4)' }}>
               <Icon
                 icon={Star}
                 size="lg"
                 variant="fill"
                 decorative
-                style={{ color: 'var(--color-warning)' }}
+                style={{ color: 'var(--nw-color-warning)' }}
               />
               <Icon
                 icon={CheckCircle}
                 size="lg"
                 variant="fill"
                 decorative
-                style={{ color: 'var(--color-success)' }}
+                style={{ color: 'var(--nw-color-success)' }}
               />
               <Icon
                 icon={TrendUp}
                 size="lg"
                 variant="fill"
                 decorative
-                style={{ color: 'var(--color-info)' }}
+                style={{ color: 'var(--nw-color-info)' }}
               />
             </div>
           </div>

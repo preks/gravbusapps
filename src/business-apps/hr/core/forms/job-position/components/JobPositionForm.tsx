@@ -92,8 +92,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
             </h3>
 
             {/* Organizational Unit - Mandatory */}
-            <div style={{ marginBottom: 'var(--spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--spacing-1)' }}>
+            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                 Department *
               </Label>
               <Combobox
@@ -109,8 +109,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
             </div>
 
             {/* Job Family - Mandatory */}
-            <div style={{ marginBottom: 'var(--spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--spacing-1)' }}>
+            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                 Job Family *
               </Label>
               <Combobox
@@ -133,8 +133,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
             </div>
 
             {/* Job Function - Mandatory */}
-            <div style={{ marginBottom: 'var(--spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--spacing-1)' }}>
+            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                 Job Function *
               </Label>
               <Combobox
@@ -167,9 +167,9 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
               />
               {!formValues.jobFamilyId && (
                 <div style={{ 
-                  marginTop: 'var(--spacing-1)', 
+                  marginTop: 'var(--nw-spacing-1)', 
                   fontSize: '0.875rem', 
-                  color: 'var(--color-muted-foreground)' 
+                  color: 'var(--nw-color-muted-foreground)' 
                 }}>
                   Please select a job family first
                 </div>
@@ -177,8 +177,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
             </div>
 
             {/* Position Name - Mandatory */}
-            <div style={{ marginBottom: 'var(--spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--spacing-1)' }}>
+            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                 Position Name *
               </Label>
               <Input
@@ -199,8 +199,8 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
             </h3>
 
             {/* Job Profile - Optional */}
-            <div style={{ marginBottom: 'var(--spacing-4)' }}>
-              <Label style={{ marginBottom: 'var(--spacing-1)' }}>
+            <div style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              <Label style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                 Job Profile (Optional)
               </Label>
               <CustomSelect
@@ -222,18 +222,18 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
                 onFocus={enableJobProfilesLoading}
               />
               <div style={{ 
-                marginTop: 'var(--spacing-1)', 
+                marginTop: 'var(--nw-spacing-1)', 
                 fontSize: '0.75rem', 
-                color: 'var(--color-muted-foreground)' 
+                color: 'var(--nw-color-muted-foreground)' 
               }}>
                 Type to search by job profile name or code
               </div>
 
               {jobProfilesError && (
                 <div style={{ 
-                  marginTop: 'var(--spacing-1)', 
+                  marginTop: 'var(--nw-spacing-1)', 
                   fontSize: '0.875rem', 
-                  color: 'var(--color-destructive)' 
+                  color: 'var(--nw-color-destructive)' 
                 }}>
                   {jobProfilesError}
                 </div>
@@ -244,13 +244,13 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
           {/* Error Display */}
           {error && (
             <div style={{ 
-              backgroundColor: 'var(--color-destructive-50)', 
-              border: '1px solid var(--color-destructive-200)', 
-              borderRadius: 'var(--border-radius-md)', 
-              padding: 'var(--spacing-4)' 
+              backgroundColor: 'var(--nw-color-destructive-50)', 
+              border: '1px solid var(--nw-color-destructive-200)', 
+              borderRadius: 'var(--nw-border-radius-md)', 
+              padding: 'var(--nw-spacing-4)' 
             }}>
               <div style={{ 
-                color: 'var(--color-destructive-800)', 
+                color: 'var(--nw-color-destructive-800)', 
                 fontSize: '0.875rem' 
               }}>
                 {error}
@@ -261,9 +261,9 @@ const JobPositionForm: React.FC<JobPositionFormProps> = ({
 
         {/* Action Buttons - Fixed at bottom */}
         <div style={{
-          marginTop: 'var(--spacing-6)',
-          paddingTop: 'var(--spacing-4)',
-          borderTop: '1px solid var(--color-border)',
+          marginTop: 'var(--nw-spacing-6)',
+          paddingTop: 'var(--nw-spacing-4)',
+          borderTop: '1px solid var(--nw-color-border)',
           display: 'flex',
           justifyContent: 'flex-end'
         }}>

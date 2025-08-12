@@ -142,13 +142,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
         {isSelfView && useMemo(() => (
           <div>
             <AppActionButton 
-              data-testid="employee-action-button"
+              data-testid="employee-actions-button"
               variant="primary"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
                 employeeId: employee?.id
               }}
-              prefixDataTestId="employee-action"
+              prefixDataTestId="employee-actions"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
               deferMainContextRequestsUntilClick={true}
@@ -319,21 +319,21 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                     <PiStack className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Family</div>
-                      <button 
-                        onClick={() => openDrawer(
-                          getJobFamilyTitle(employee),
-                          <JobFamilyDrawerContent 
-                            employee={employee} 
-                            accessToken={accessToken} 
-                          />,
-                          getJobFamilyIcon()
-                        )}                        
-                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
-                        data-testid="job-family-button"
-                      >
-                        {/* Display job family from updated data structure, fallback to organizationalUnit name */}
-                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || "Not assigned"}
-                      </button>
+                                             <button 
+                         onClick={() => openDrawer(
+                           getJobFamilyTitle(employee),
+                           <JobFamilyDrawerContent 
+                             employee={employee} 
+                             accessToken={accessToken} 
+                           />,
+                           getJobFamilyIcon()
+                         )}                        
+                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                         data-testid="job-family-button"
+                       >
+                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
+                         {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || "Not assigned"}
+                       </button>
                     </div>
                   </div>
                 )}
@@ -346,21 +346,21 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                       <div className="gba:flex gba:justify-between gba:w-full">
                         <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Function</div>
                       </div>
-                      <button 
-                        onClick={() => openDrawer(
-                          getJobFunctionTitle(employee),
-                          <JobFunctionDrawerContent 
-                            employee={employee} 
-                            accessToken={accessToken} 
-                            isVisible={true}
-                          />,
-                          getJobFunctionIcon()
-                        )}                        
-                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
-                        data-testid="job-function-button"
-                      >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned"}
-                      </button>
+                                             <button 
+                         onClick={() => openDrawer(
+                           getJobFunctionTitle(employee),
+                           <JobFunctionDrawerContent 
+                             employee={employee} 
+                             accessToken={accessToken} 
+                             isVisible={true}
+                           />,
+                           getJobFunctionIcon()
+                         )}                        
+                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                         data-testid="job-function-button"
+                       >
+                         {employee.employeePosition?.jobPosition?.jobFunction?.name || "Not assigned"}
+                       </button>
                     </div>
                   </div>
                 )}
@@ -371,20 +371,20 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:text-sm gba:font-medium gba:text-gray-900">Job Level</div>
-                      <button 
-                        onClick={() => openDrawer(
-                          getJobLevelTitle(employee),
-                          <JobLevelDrawerContent 
-                            employee={employee}
-                            accessToken={accessToken} 
-                          />,
-                          getJobLevelIcon()
-                        )}
-                        className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:text-left gba:w-full"
-                        data-testid="job-level-button"
-                      >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name || "Not assigned"}
-                      </button>
+                                             <button 
+                         onClick={() => openDrawer(
+                           getJobLevelTitle(employee),
+                           <JobLevelDrawerContent 
+                             employee={employee}
+                             accessToken={accessToken} 
+                           />,
+                           getJobLevelIcon()
+                         )}
+                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                         data-testid="job-level-button"
+                       >
+                         {employee.employeePosition?.jobPosition?.jobLevel?.name || "Not assigned"}
+                       </button>
                     </div>
                   </div>
                 )}
@@ -490,7 +490,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                         </Button>
                       </Tooltip>
                       <AppActionButton
-                        data-testid="request-vacation-button"
+                        data-testid="request-absence-button"
                         variant="primary"
                         size="small"
                         className="gba:flex-[2]"
@@ -499,7 +499,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                           employeeId: employee.id,
                           flowType: 'vacation'
                         }}
-                        prefixDataTestId="request-vacation"
+                        prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
                         <span className="gba:text-xs gba:md:text-sm gba:truncate gba:block gba:text-center">
@@ -549,14 +549,31 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
         {/* Additional Attributes Section */}
         {additionalAttributes.length > 0 && (
           <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-            <ProfileSection 
-              title="Additional Attributes"
-              data={additionalAttributes.map(attr => ({
-                label: attr.key,
-                value: attr.value
-              }))}
-              columns={1}
-            />
+            <Card 
+              variant="outlined"
+              className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-gray-200 gba:transition-all" 
+              style={{ minHeight: '420px', backgroundColor: 'white' }}
+              data-testid="summary-section-additional-attributes"
+            >
+              <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Additional Attributes</h3>
+              </div>
+              <div className="gba:p-4">
+                <div className="gba:space-y-4">
+                  {additionalAttributes.map((attr, index) => (
+                    <div key={index} className="gba:flex gba:items-center">
+                      <div className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3">
+                        <div className="gba:w-2 gba:h-2 gba:bg-gray-400 gba:rounded-full"></div>
+                      </div>
+                      <div className="gba:flex-1">
+                        <div className="gba:text-sm gba:font-medium gba:text-gray-900">{attr.key}</div>
+                        <div className="gba:text-sm gba:text-gray-600">{attr.value}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </div>

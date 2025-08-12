@@ -187,9 +187,9 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             variant="secondary" 
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'vacant-badge')}
             style={{
-              backgroundColor: 'var(--color-warning-secondary)',
-              color: 'var(--color-warning-secondary-foreground)',
-              borderColor: 'var(--color-warning)',
+              backgroundColor: 'var(--nw-color-warning-secondary)',
+              color: 'var(--nw-color-warning-secondary-foreground)',
+              borderColor: 'var(--nw-color-warning)',
             }}
           >
             {t('job_position.vacant', 'Vacant')}
@@ -225,7 +225,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   // If there's an error, show a message with retry button
   if (error) {
     return (
-      <div className="layout-content gap-md items-center justify-center" style={{ padding: 'var(--spacing-8)' }}>
+      <div className="layout-content gap-md items-center justify-center" style={{ padding: 'var(--nw-spacing-8)' }}>
         <Alert variant="destructive">
           <AlertDescription>
             {t('job_position.error', 'Error loading job positions')}
@@ -252,7 +252,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   // Show loading spinner if loading
   if (loading && jobPositions.length === 0) {
     return (
-      <div className="layout-content gap-md items-center justify-center" style={{ padding: 'var(--spacing-8)' }}>
+      <div className="layout-content gap-md items-center justify-center" style={{ padding: 'var(--nw-spacing-8)' }}>
         <Spinner size="lg" />
       </div>
     );
@@ -363,7 +363,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 <TableCell 
                   colSpan={6} 
                   className="text-center text-muted-foreground"
-                  style={{ padding: 'var(--spacing-8)' }}
+                  style={{ padding: 'var(--nw-spacing-8)' }}
                 >
                   {t('job_position.no_positions', 'No job positions found')}
                 </TableCell>
@@ -378,9 +378,9 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
         <div 
           className="flex items-center justify-between gap-4"
           style={{ 
-            padding: 'var(--spacing-4)',
-            borderTop: '1px solid var(--color-border)',
-            backgroundColor: 'var(--color-background)'
+            padding: 'var(--nw-spacing-4)',
+            borderTop: '1px solid var(--nw-color-border)',
+            backgroundColor: 'var(--nw-color-background)'
           }}
           data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'pagination')}
         >
@@ -469,9 +469,9 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
         <div 
           className="flex items-center justify-center"
           style={{ 
-            padding: 'var(--spacing-4)',
-            borderTop: '1px solid var(--color-border)',
-            backgroundColor: 'var(--color-background)'
+            padding: 'var(--nw-spacing-4)',
+            borderTop: '1px solid var(--nw-color-border)',
+            backgroundColor: 'var(--nw-color-background)'
           }}
         >
           <Spinner size="sm" />

@@ -113,10 +113,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       <div
         style={{
           minHeight: '32px',
-          padding: 'var(--spacing-1) var(--spacing-3)',
-          border: `1px solid var(--color-border)`,
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: disabled ? 'var(--color-muted)' : 'var(--color-background)',
+          padding: 'var(--nw-spacing-1) var(--nw-spacing-3)',
+          border: `1px solid var(--nw-color-border)`,
+          borderRadius: 'var(--nw-radius-md)',
+          backgroundColor: disabled ? 'var(--nw-color-muted)' : 'var(--nw-color-background)',
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -133,7 +133,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         }}
       >
         <span style={{ 
-          color: selectedItem ? 'var(--color-foreground)' : 'var(--color-muted-foreground)',
+          color: selectedItem ? 'var(--nw-color-foreground)' : 'var(--nw-color-muted-foreground)',
           flex: 1,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -142,13 +142,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           {selectedItem ? selectedItem.name : placeholder}
         </span>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-1)' }}>
           {loading && (
             <div style={{ 
               width: '14px', 
               height: '14px', 
-              border: `2px solid var(--color-muted)`,
-              borderTop: `2px solid var(--color-primary)`,
+              border: `2px solid var(--nw-color-muted)`,
+              borderTop: `2px solid var(--nw-color-primary)`,
               borderRadius: '50%',
               animation: 'spin 1s linear infinite'
             }} />
@@ -158,7 +158,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             <span 
               style={{ 
                 cursor: 'pointer', 
-                color: 'var(--color-muted-foreground)',
+                color: 'var(--nw-color-muted-foreground)',
                 fontSize: '12px',
                 width: '14px',
                 height: '14px',
@@ -173,7 +173,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           )}
           
           <span style={{ 
-            color: 'var(--color-muted-foreground)', 
+            color: 'var(--nw-color-muted-foreground)', 
             fontSize: '0.75rem' 
           }}>
             {isOpen ? '▲' : '▼'}
@@ -189,16 +189,16 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: 'var(--color-card)',
-          border: `1px solid var(--color-border)`,
-          borderRadius: 'var(--radius-md)',
-          boxShadow: 'var(--shadow-md)',
+          backgroundColor: 'var(--nw-color-card)',
+          border: `1px solid var(--nw-color-border)`,
+          borderRadius: 'var(--nw-radius-md)',
+          boxShadow: 'var(--nw-shadow-md)',
           maxHeight: '200px',
           overflow: 'auto'
         }}>
           {/* Search Input */}
           {showSearch && (
-            <div style={{ padding: 'var(--spacing-2)' }}>
+            <div style={{ padding: 'var(--nw-spacing-2)' }}>
               <input
                 ref={inputRef}
                 type="text"
@@ -208,12 +208,12 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 autoFocus
                 style={{
                   width: '100%',
-                  padding: 'var(--spacing-1) var(--spacing-2)',
-                  border: `1px solid var(--color-input)`,
-                  borderRadius: 'var(--radius-sm)',
+                  padding: 'var(--nw-spacing-1) var(--nw-spacing-2)',
+                  border: `1px solid var(--nw-color-input)`,
+                  borderRadius: 'var(--nw-radius-sm)',
                   outline: 'none',
-                  backgroundColor: 'var(--color-background)',
-                  color: 'var(--color-foreground)'
+                  backgroundColor: 'var(--nw-color-background)',
+                  color: 'var(--nw-color-foreground)'
                 }}
               />
             </div>
@@ -223,8 +223,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           <div>
             {filteredData.length === 0 ? (
               <div style={{ 
-                padding: 'var(--spacing-2) var(--spacing-3)', 
-                color: 'var(--color-muted-foreground)', 
+                padding: 'var(--nw-spacing-2) var(--nw-spacing-3)', 
+                color: 'var(--nw-color-muted-foreground)', 
                 textAlign: 'center' 
               }}>
                 {loading ? 'Loading...' : 'No data'}
@@ -234,17 +234,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 <div
                   key={item.id}
                   style={{
-                    padding: 'var(--spacing-2) var(--spacing-3)',
+                    padding: 'var(--nw-spacing-2) var(--nw-spacing-3)',
                     cursor: 'pointer',
-                    backgroundColor: value === item.value ? 'var(--color-accent)' : 'transparent',
-                    borderLeft: value === item.value ? '3px solid var(--color-primary)' : '3px solid transparent',
-                    color: 'var(--color-foreground)'
+                    backgroundColor: value === item.value ? 'var(--nw-color-accent)' : 'transparent',
+                    borderLeft: value === item.value ? '3px solid var(--nw-color-primary)' : '3px solid transparent',
+                    color: 'var(--nw-color-foreground)'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-muted)';
+                    e.currentTarget.style.backgroundColor = 'var(--nw-color-muted)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = value === item.value ? 'var(--color-accent)' : 'transparent';
+                    e.currentTarget.style.backgroundColor = value === item.value ? 'var(--nw-color-accent)' : 'transparent';
                   }}
                   onClick={() => handleSelect(item)}
                 >
@@ -256,17 +256,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
           {/* Load More */}
           {onPopupScrollEnd && hasMore && !loading && (
-            <div style={{ padding: 'var(--spacing-2)', textAlign: 'center' }}>
+            <div style={{ padding: 'var(--nw-spacing-2)', textAlign: 'center' }}>
               <button
                 onClick={onPopupScrollEnd}
                 style={{
                   background: 'none',
-                  border: `1px solid var(--color-border)`,
-                  borderRadius: 'var(--radius-sm)',
-                  padding: 'var(--spacing-1) var(--spacing-2)',
+                  border: `1px solid var(--nw-color-border)`,
+                  borderRadius: 'var(--nw-radius-sm)',
+                  padding: 'var(--nw-spacing-1) var(--nw-spacing-2)',
                   cursor: 'pointer',
-                  color: 'var(--color-primary)',
-                  backgroundColor: 'var(--color-background)'
+                  color: 'var(--nw-color-primary)',
+                  backgroundColor: 'var(--nw-color-background)'
                 }}
               >
                 Load More

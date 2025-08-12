@@ -25,6 +25,7 @@ interface PerformanceTabProps {
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   id: string;
   description?: string;
+  version?: number;
 }
 
 /**
@@ -157,13 +158,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         {isSelfView && (
           <div>
             <AppActionButton
-              data-testid="add-goal-button"
+              data-testid="employee-goal-add-button"
               variant="primary"
               contextsArray={[FlowContextName.employeePerformanceGoal]}
               externalContextData={{
                 employeeId: employee?.id
               }}
-              prefixDataTestId="add-goal"
+              prefixDataTestId="employee-goal-add"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
             >
@@ -236,7 +237,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     <div className="gba:flex gba:justify-end gba:mt-4">
                       <AppActionButton
                         variant="secondary"
-                        data-testid={`edit-goal-button-${goal.id}`}
+                        data-testid={`employee-goal-edit-button-${goal.id}`}
                         contextsArray={[FlowContextName.employeePerformanceGoal]}
                         externalContextData={{
                           employeeId: employee?.id,
@@ -246,9 +247,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                           dueDate: goal.dueDate,
                           completionDate: goal.completionDate,
                           progressPercent: goal.progressPercent,
-                          status: goal.status
+                          status: goal.status,
+                          version: goal.version
                         }}
-                        prefixDataTestId="edit-goal"
+                        prefixDataTestId={`employee-goal-edit-${goal.id}`}
                         accessToken={accessToken}
                         className="gba:text-sm gba:py-1 gba:px-3"
                         autoExecuteSingleAction={true}

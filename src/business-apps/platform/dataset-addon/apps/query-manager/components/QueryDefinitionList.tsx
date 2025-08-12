@@ -107,24 +107,24 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
 
   const getStatusColor = (status: QueryStatus) => {
     return status === QueryStatus.ACTIVE 
-      ? { backgroundColor: 'var(--color-success)', color: 'var(--color-on-success)' }
-      : { backgroundColor: 'var(--color-warning)', color: 'var(--color-on-warning)' };
+      ? { backgroundColor: 'var(--nw-color-success)', color: 'var(--nw-color-on-success)' }
+      : { backgroundColor: 'var(--nw-color-warning)', color: 'var(--nw-color-on-warning)' };
   };
 
   const getTypeColor = (type: QueryType) => {
     return type === QueryType.DATASET 
-      ? { backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }
-      : { backgroundColor: 'var(--color-secondary)', color: 'var(--color-on-secondary)' };
+      ? { backgroundColor: 'var(--nw-color-primary)', color: 'var(--nw-color-on-primary)' }
+      : { backgroundColor: 'var(--nw-color-secondary)', color: 'var(--nw-color-on-secondary)' };
   };
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center" style={{ 
-        paddingTop: 'var(--spacing-12)', 
-        paddingBottom: 'var(--spacing-12)' 
+        paddingTop: 'var(--nw-spacing-12)', 
+        paddingBottom: 'var(--nw-spacing-12)' 
       }}>
         <Spinner />
-        <span style={{ marginLeft: 'var(--spacing-3)' }}>Loading query definitions...</span>
+        <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading query definitions...</span>
       </div>
     );
   }
@@ -136,7 +136,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
         style={{ 
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--spacing-4)',
+          gap: 'var(--nw-spacing-4)',
           height: '100%',
           width: '100%'
         }}
@@ -145,7 +145,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
         {error && (
           <Alert 
             className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
-            style={{ marginBottom: 'var(--spacing-4)' }}
+            style={{ marginBottom: 'var(--nw-spacing-4)' }}
             data-testid="load-error-alert"
           >
             <div style={{ 
@@ -153,23 +153,23 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
               gridTemplateColumns: 'auto auto 1fr auto',
               alignItems: 'center',
               width: '100%',
-              gap: 'var(--spacing-3)'
+              gap: 'var(--nw-spacing-3)'
             }}>
               <WarningCircleIcon 
                 style={{ 
-                  color: 'var(--color-destructive)'
+                  color: 'var(--nw-color-destructive)'
                 }}
                 size={20}
               />
               <span style={{ 
-                color: 'var(--color-destructive)',
+                color: 'var(--nw-color-destructive)',
                 fontWeight: '600',
                 whiteSpace: 'nowrap'
               }}>
                 Unable to Load Queries:
               </span>
               <span style={{ 
-                color: 'var(--color-muted-foreground)',
+                color: 'var(--nw-color-muted-foreground)',
                 fontSize: '14px',
                 whiteSpace: 'nowrap'
               }}>
@@ -197,7 +197,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
             style={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--spacing-6)',
+              gap: 'var(--nw-spacing-6)',
               height: '100%',
               width: '100%'
             }}
@@ -205,7 +205,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
             {/* Header */}
             <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
               <h4 style={{ 
-                color: 'var(--color-foreground)', 
+                color: 'var(--nw-color-foreground)', 
                 margin: 0,
                 fontSize: '1.25rem',
                 fontWeight: '600'
@@ -218,10 +218,10 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
             <div 
               className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:w-full"
               style={{ 
-                gap: 'var(--spacing-3)'
+                gap: 'var(--nw-spacing-3)'
               }}
             >
-              <div className="gba:flex gba:flex-wrap gba:items-center" style={{ gap: 'var(--spacing-3)' }}>
+              <div className="gba:flex gba:flex-wrap gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
                 <Select 
                   value={filters.queryType || ''} 
                   onValueChange={(value) => handleFilterChange('queryType', value || undefined)}
@@ -251,7 +251,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                 <div className="gba:relative gba:w-64">
                   <MagnifyingGlassIcon 
                     className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none" 
-                    style={{ color: 'var(--color-muted-foreground)' }}
+                    style={{ color: 'var(--nw-color-muted-foreground)' }}
                     size={16}
                   />
                   <Input
@@ -260,18 +260,18 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                     onChange={(e) => handleFilterChange('search', e.target.value)}
                     data-testid="search-queries"
                     className="gba:pl-10"
-                    style={{ paddingLeft: 'var(--spacing-10)' }}
+                    style={{ paddingLeft: 'var(--nw-spacing-10)' }}
                   />
                 </div>
               </div>
 
-              <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+              <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                 <Button
                   variant="default"
                   onClick={onCreateNew}
                   data-testid="create-new-query-button"
                   className="gba:flex gba:items-center gba:whitespace-nowrap"
-                  style={{ gap: 'var(--spacing-2)' }}
+                  style={{ gap: 'var(--nw-spacing-2)' }}
                 >
                   <PlusIcon size={16} />
                   Create New Query
@@ -281,7 +281,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                   onClick={clearFilters}
                   data-testid="clear-filters-button"
                   className="gba:flex gba:items-center gba:whitespace-nowrap"
-                  style={{ gap: 'var(--spacing-2)' }}
+                  style={{ gap: 'var(--nw-spacing-2)' }}
                 >
                   Clear Filters
                 </Button>
@@ -306,11 +306,11 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                   <TableRow key={record.id}>
                     <TableCell>
                       <div>
-                        <div className="gba:font-bold" style={{ marginBottom: 'var(--spacing-1)' }}>
+                        <div className="gba:font-bold" style={{ marginBottom: 'var(--nw-spacing-1)' }}>
                           {record.name}
                         </div>
                         <div style={{ 
-                          color: 'var(--color-muted-foreground)', 
+                          color: 'var(--nw-color-muted-foreground)', 
                           fontSize: '0.75rem',
                           lineHeight: '1.2'
                         }}>
@@ -341,7 +341,7 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                       {record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell>
-                      <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                      <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                         <Tooltip>
                           <TooltipTrigger>
                             <Button
@@ -388,8 +388,8 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                                   disabled={isDeleting}
                                   data-testid={`delete-query-${record.name}`}
                                   style={{ 
-                                    borderColor: 'var(--color-destructive)',
-                                    color: 'var(--color-destructive)'
+                                    borderColor: 'var(--nw-color-destructive)',
+                                    color: 'var(--nw-color-destructive)'
                                   }}
                                 >
                                   <TrashIcon />
@@ -412,8 +412,8 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                               <AlertDialogAction 
                                 onClick={() => onDelete(record.id!)}
                                 style={{ 
-                                  backgroundColor: 'var(--color-destructive)',
-                                  color: 'var(--color-on-destructive)'
+                                  backgroundColor: 'var(--nw-color-destructive)',
+                                  color: 'var(--nw-color-on-destructive)'
                                 }}
                               >
                                 Delete
@@ -431,17 +431,17 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
             {/* Simple pagination info */}
             {totalQueries > 0 && (
               <div style={{ 
-                padding: 'var(--spacing-4)', 
+                padding: 'var(--nw-spacing-4)', 
                 textAlign: 'center',
-                color: 'var(--color-muted-foreground)',
+                color: 'var(--nw-color-muted-foreground)',
                 fontSize: '0.875rem',
-                borderTop: '1px solid var(--color-border)'
+                borderTop: '1px solid var(--nw-color-border)'
               }}>
                 Showing {Math.min(currentPage * pageSize + 1, totalQueries)}-{Math.min((currentPage + 1) * pageSize, totalQueries)} of {totalQueries} queries
                 {totalQueries > pageSize && (
                   <div className="gba:flex gba:justify-center" style={{ 
-                    gap: 'var(--spacing-2)', 
-                    marginTop: 'var(--spacing-2)' 
+                    gap: 'var(--nw-spacing-2)', 
+                    marginTop: 'var(--nw-spacing-2)' 
                   }}>
                     <Button
                       variant="outline"

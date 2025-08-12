@@ -616,13 +616,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
           {isSelfView && (
             <div>
               <AppActionButton
-                data-testid="upload-document-button"
+                data-testid="employee-document-upload-button"
                 variant="primary"
                 contextsArray={[FlowContextName.documentPersonal]}
                 externalContextData={{
                   employeeId: employee?.id
                 }}
-                prefixDataTestId="upload-document"
+                prefixDataTestId="employee-document-upload"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
               >
@@ -669,13 +669,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
         {/* Upload button */}
         <div>
           <AppActionButton
-            data-testid="upload-document-button"
+            data-testid="employee-document-upload-button"
             variant="primary"
             contextsArray={[FlowContextName.documentPersonal]}
             externalContextData={{
               employeeId: employee?.id
             }}
-            prefixDataTestId="upload-document"
+            prefixDataTestId="employee-document-upload"
             accessToken={accessToken}
             autoExecuteSingleAction={true}
           >

@@ -166,7 +166,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             percent={record.percentage} 
             size="small" 
             showInfo={false}
-            strokeColor="var(--entity-employee)"
+            strokeColor="var(--nw-entity-employee)"
           />
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {record.percentage}% of total
@@ -359,8 +359,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title="Total Employees"
               value={statistics.totalEmployees}
-              prefix={<TeamOutlined style={{ color: 'var(--entity-employee)' }} />}
-              valueStyle={{ color: 'var(--entity-employee)' }}
+              prefix={<TeamOutlined style={{ color: 'var(--nw-entity-employee)' }} />}
+              valueStyle={{ color: 'var(--nw-entity-employee)' }}
             />
           </Card>
         </Col>
@@ -369,8 +369,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title="Organizational Units"
               value={statistics.totalOrganizationalUnits}
-              prefix={<ApartmentOutlined style={{ color: 'var(--entity-department)' }} />}
-              valueStyle={{ color: 'var(--entity-department)' }}
+              prefix={<ApartmentOutlined style={{ color: 'var(--nw-entity-department)' }} />}
+              valueStyle={{ color: 'var(--nw-entity-department)' }}
             />
           </Card>
         </Col>
@@ -379,8 +379,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             <Statistic
               title="Hierarchy Levels"
               value={statistics.maxLevels}
-              prefix={<SwitcherOutlined style={{ color: 'var(--entity-strategy)' }} />}
-              valueStyle={{ color: 'var(--entity-strategy)' }}
+              prefix={<SwitcherOutlined style={{ color: 'var(--nw-entity-strategy)' }} />}
+              valueStyle={{ color: 'var(--nw-entity-strategy)' }}
             />
           </Card>
         </Col>
@@ -399,17 +399,17 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               }
               prefix={
                 viewMode === 'company' 
-                  ? <BankOutlined style={{ color: 'var(--entity-order)' }} />
+                  ? <BankOutlined style={{ color: 'var(--nw-entity-order)' }} />
                   : viewMode === 'costcenter'
-                  ? <DollarCircleOutlined style={{ color: 'var(--entity-department)' }} />
-                  : <GlobalOutlined style={{ color: 'var(--entity-location)' }} />
+                  ? <DollarCircleOutlined style={{ color: 'var(--nw-entity-department)' }} />
+                  : <GlobalOutlined style={{ color: 'var(--nw-entity-location)' }} />
               }
               valueStyle={{ 
                 color: viewMode === 'company' 
-                  ? 'var(--entity-order)' 
+                  ? 'var(--nw-entity-order)' 
                   : viewMode === 'costcenter'
-                  ? 'var(--entity-department)'
-                  : 'var(--entity-location)'
+                  ? 'var(--nw-entity-department)'
+                  : 'var(--nw-entity-location)'
               }}
             />
           </Card>
@@ -485,9 +485,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                     marginBottom: '12px',
                     padding: '8px',
                     borderRadius: '6px',
-                    backgroundColor: selectedLevel === index ? 'var(--ai-background)' : 'transparent',
+                    backgroundColor: selectedLevel === index ? 'var(--nw-ai-background)' : 'transparent',
                     cursor: 'pointer',
-                    border: selectedLevel === index ? '1px solid var(--entity-strategy)' : '1px solid transparent'
+                    border: selectedLevel === index ? '1px solid var(--nw-entity-strategy)' : '1px solid transparent'
                   }}
                   onClick={() => setSelectedLevel(selectedLevel === index ? null : index)}
                 >
@@ -498,7 +498,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   <Progress 
                     percent={Math.round((level.value / statistics.totalEmployees) * 100)} 
                     size="small"
-                    strokeColor="var(--entity-strategy)"
+                    strokeColor="var(--nw-entity-strategy)"
                   />
                 </div>
               ))}
