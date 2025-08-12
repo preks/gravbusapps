@@ -4,8 +4,6 @@ import {
   Alert,
   AlertDescription,
   Spinner,
-  Card,
-  CardContent,
   Badge,
 } from "@newwork/nw-design-system";
 import { message } from "antd";
@@ -93,72 +91,68 @@ const StageConditionPopupComponent: React.FC = () => {
       className="gba:max-w-md gba:mx-auto gba:p-6"
       data-testid={formatDataTestId(prefixDataTestId, "container")}
     >
-      <Card className="gba:shadow-lg">
-        <CardContent className="gba:p-6">
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive" className="gba:mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* Error Display */}
+      {error && (
+        <Alert variant="destructive" className="gba:mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-          {/* Loading State */}
-          {isLoading && (
-            <div className="gba:text-center gba:mb-6">
-              <Spinner size="lg" className="gba:mb-4" />
-              <p className="gba:text-gray-600">Loading condition details...</p>
-            </div>
-          )}
+      {/* Loading State */}
+      {isLoading && (
+        <div className="gba:text-center gba:mb-6">
+          <Spinner size="lg" className="gba:mb-4" />
+          <p className="gba:text-gray-600">Loading condition details...</p>
+        </div>
+      )}
 
-          {/* Simple Confirmation Message with Badges */}
-          {!isLoading && (
-            <div className="gba:text-center gba:mb-6">
-            <p 
-              className="gba:text-lg gba:text-gray-800"
-              data-testid={formatDataTestId(prefixDataTestId, "ConfirmationText")}
-            >
-              Are you sure you want to set this condition to{' '}
-              <Badge variant={newStatus ? "success" : "secondary"} className="gba:inline">
-                {newStatus ? "completed" : "uncompleted"}
-              </Badge>
-              ?
-            </p>
-            </div>
-          )}
+      {/* Simple Confirmation Message with Badges */}
+      {!isLoading && (
+        <div className="gba:text-center gba:mb-6">
+          <p
+            className="gba:text-lg gba:text-gray-800"
+            data-testid={formatDataTestId(prefixDataTestId, "ConfirmationText")}
+          >
+            Are you sure you want to set this condition to{' '}
+            <Badge variant={newStatus ? "success" : "secondary"} className="gba:inline">
+              {newStatus ? "completed" : "uncompleted"}
+            </Badge>
+            ?
+          </p>
+        </div>
+      )}
 
-          {/* Submit and Cancel Buttons */}
-          {!isLoading && (
-            <div className="gba:flex gba:gap-3">
-            <Button
-              variant="secondary"
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleCancel}
-              disabled={submitting}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "crm:common.cancel",
-                "Cancel"
-              )}
-            </Button>
-            <Button
-              variant="default"
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleSubmit}
-              disabled={submitting}
-              data-testid={formatDataTestId(prefixDataTestId, "ConfirmButton")}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "crm:common.confirm",
-                "Confirm"
-              )}
-            </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Submit and Cancel Buttons */}
+      {!isLoading && (
+        <div className="gba:flex gba:gap-3">
+          <Button
+            variant="secondary"
+            className="gba:flex-1"
+            size="lg"
+            onClick={handleCancel}
+            disabled={submitting}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "crm:common.cancel",
+              "Cancel"
+            )}
+          </Button>
+          <Button
+            variant="default"
+            className="gba:flex-1"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={submitting}
+            data-testid={formatDataTestId(prefixDataTestId, "ConfirmButton")}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              "crm:common.confirm",
+              "Confirm"
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

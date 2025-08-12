@@ -23,6 +23,8 @@ export interface StageTransitionContextState {
   error: string | null;
   setFormValues: (values: StageTransitionPopupValues) => void;
   businessAppContext: BusinessAppContextProps;
+  currentStageConditions?: { id: string; value: string }[];
+  incompleteConditionIds?: string[];
 }
 
 export interface StageTransitionPopupComponentProps {

@@ -12,6 +12,8 @@ import {
 export interface UseStageTransitionDataReturn {
   opportunityData: OpportunityQueryResult | null;
   targetStageData: SalesPipelineStageResult | null;
+  currentStageConditions: { id: string; value: string }[];
+  incompleteConditionIds: string[];
   isLoading: boolean;
   error: string | null;
   mapToFormValues: (
@@ -25,6 +27,8 @@ export const useStageTransitionData = (
 ): UseStageTransitionDataReturn => {
   const [opportunityData, setOpportunityData] = useState<OpportunityQueryResult | null>(null);
   const [targetStageData, setTargetStageData] = useState<SalesPipelineStageResult | null>(null);
+  const [currentStageConditions, setCurrentStageConditions] = useState<{ id: string; value: string }[]>([]);
+  const [incompleteConditionIds, setIncompleteConditionIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +99,11 @@ export const useStageTransitionData = (
                 value
                 code
               }
+              stageConditionStatuses {
+                id
+                completed
+                salesPipelineStageCondition { id value parentEntryId }
+              }
             }
           }
         `;
@@ -109,6 +118,16 @@ export const useStageTransitionData = (
 
         const opportunity = opportunityResult.Opportunity[0];
         setOpportunityData(opportunity);
+
+        // Compute current stage conditions & incomplete list
+        const conditions = (opportunity as any)?.stageConditionStatuses || [];
+        // Filter to current stage only (by parentEntryId === current stage ref)
+        const currentStageRef = opportunity.salesPipelineStageRef;
+        const currentStageConditionsOnly = conditions.filter((c: any) => c?.salesPipelineStageCondition?.parentEntryId === currentStageRef);
+        const mapped = currentStageConditionsOnly.map((c: any) => ({ id: c.salesPipelineStageCondition?.id, value: c.salesPipelineStageCondition?.value }));
+        const incomplete = currentStageConditionsOnly.filter((c: any) => !c.completed).map((c: any) => c.salesPipelineStageCondition?.id).filter(Boolean);
+        setCurrentStageConditions(mapped);
+        setIncompleteConditionIds(incomplete);
 
         // Load target stage data from catalog
         const targetStageResponse = await catalogClient.getCatalogEntryById(
@@ -141,6 +160,8 @@ export const useStageTransitionData = (
   return {
     opportunityData,
     targetStageData,
+    currentStageConditions,
+    incompleteConditionIds,
     isLoading,
     error,
     mapToFormValues,

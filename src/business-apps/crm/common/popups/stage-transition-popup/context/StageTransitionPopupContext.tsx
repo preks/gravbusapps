@@ -45,6 +45,8 @@ export const StageTransitionPopupProvider: React.FC<{
   const { 
     opportunityData, 
     targetStageData, 
+    currentStageConditions,
+    incompleteConditionIds,
     isLoading: dataLoading, 
     error: dataError, 
     mapToFormValues 
@@ -82,6 +84,9 @@ export const StageTransitionPopupProvider: React.FC<{
     error: error || dataError,
     setFormValues,
     businessAppContext,
+    // expose for UI validation
+    currentStageConditions,
+    incompleteConditionIds,
   };
 
   return (
