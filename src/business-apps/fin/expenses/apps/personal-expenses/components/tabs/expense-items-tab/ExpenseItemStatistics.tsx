@@ -167,9 +167,13 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     
     // Set filters when pending-reimbursement widget is clicked
     if (widgetKey === 'pending-reimbursement') {
-      // Clear any existing expense date range filters
+      const today = dayjs();
+      const currentMonthStart = today.startOf('month').toDate();
+      const currentMonthEnd = today.endOf('month').toDate();
+      
+      // Set expense date range to current month (same as total-expenses)
       if (onExpenseDateRangeFilterChange) {
-        onExpenseDateRangeFilterChange(null);
+        onExpenseDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
       }
       
       // Set status filter to only show PENDING items

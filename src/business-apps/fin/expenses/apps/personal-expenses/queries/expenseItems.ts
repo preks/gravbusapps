@@ -163,14 +163,14 @@ export const GET_PENDING_ITEMS = `
 `;
 
 export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
-  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamptz, $endDate: timestamptz) {
+  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp) {
     pendingExcludingAllowance: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        updatedAt: {
+        expenseDate: {
           _gte: $startDate,
           _lte: $endDate
         }
