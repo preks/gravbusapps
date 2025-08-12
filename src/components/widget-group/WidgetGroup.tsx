@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { Button, Spinner } from '@newwork/nw-design-system';
 import { PiWarning, PiArrowClockwise } from 'react-icons/pi';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface WidgetItem {
   key: string;
@@ -208,7 +209,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     // Create placeholder KPI cards for loading state
     const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
       id: `loading-${index}`,
-      title: 'Loading...',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text','Loading...'),
       value: 0,
     }));
 

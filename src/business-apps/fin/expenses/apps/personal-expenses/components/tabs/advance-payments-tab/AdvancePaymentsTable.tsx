@@ -388,7 +388,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                               variant="secondary"
                               staticFlowData={[
                                 {
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-advance-payment',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -397,7 +397,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 },
                                 ...(record.expensePlanId ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-plan-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -406,7 +406,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 }] : []),
                                 ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-request-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                                   onClick: (e?: React.MouseEvent) => {

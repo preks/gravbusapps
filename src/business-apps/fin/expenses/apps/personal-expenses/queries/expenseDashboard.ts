@@ -212,6 +212,10 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       totalAmount
       expenseClass {
         value
+         translations {
+          value
+          localeCode
+        }
       }
       expenseDate
     }
@@ -233,6 +237,10 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       totalAmount
       expenseGroup {
         value
+        translations {
+          value
+          localeCode
+        }
       }
     }
 
@@ -251,6 +259,10 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       totalAmount
       expenseGroup {
         value
+        translations {
+          value
+          localeCode
+        }
       }
     }
 
@@ -269,6 +281,10 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       totalAmount
       expenseGroup {
         value
+        translations {
+          value
+          localeCode
+        }
       }
     }
     

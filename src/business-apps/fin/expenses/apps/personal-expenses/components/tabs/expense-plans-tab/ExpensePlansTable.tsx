@@ -424,7 +424,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                                                      {
-                                     category: 'Actions',
+                                     category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                      key: 'update-plan',
                                      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.update_plan', 'Update Plan'),
                                     onClick: () => {
@@ -442,7 +442,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                 ] : [],
                                 ...((record.status === 'APPROVED' || record.status === 'CLOSED') && (record.employeeDocument && record.employeeDocument.file && record.employeeDocument.file.trim() !== '')) ? [
                                                                      {
-                                     category: 'Actions',
+                                     category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                      key: 'print',
                                      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print', 'Print'),
                                     onClick: () => {
@@ -452,7 +452,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                 ] : [],
                                 ...(record.status === 'APPROVED') ? [
                                                                      {
-                                     category: 'Actions',
+                                     category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                      key: 'request-advance',
                                      label: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment'),
                                     onClick: () => {
@@ -469,7 +469,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                 ] : [],
                                 ...(record.status === 'APPROVED' || record.expenseRequest.length > 0) ? [
                                                                      {
-                                     category: 'Actions',
+                                     category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                      key: 'create-expense-request',
                                      label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request', 'Create Expense Request'),
                                     onClick: () => {
@@ -486,7 +486,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                   }
                                 ] : [],
                                                                  {
-                                   category: 'Navigations',
+                                   category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                    key: 'view-plan-details',
                                    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details_btn', 'View Plan Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -496,7 +496,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                 },
                                 ...(record.expenseRequest && (record.expenseRequest as unknown as any[]).length > 0 && (record.expenseRequest as unknown as any[])[0].id !== null) ? [
                                                                      {
-                                     category: 'Navigations',
+                                     category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                      key: 'view-request-details',
                                      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                                     onClick: (e?: React.MouseEvent) => {

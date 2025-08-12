@@ -484,7 +484,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'update-expense-item',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.update_title_module','Update Expense Item'),
                                   onClick: () => {
@@ -505,7 +505,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 }]: [],
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'delete-expense-item',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:discard_expense_items.discard_expense_items','Delete Expense Item'),
                                   onClick: () => {
@@ -520,7 +520,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                   }
                                 }]: [],
                                 {
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-expense-item-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.view_item_details','View Item Details'),
                                   onClick: (e?: React.MouseEvent) => {

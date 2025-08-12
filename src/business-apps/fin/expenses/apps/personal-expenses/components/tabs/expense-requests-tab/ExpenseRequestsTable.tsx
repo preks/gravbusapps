@@ -416,7 +416,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'edit-expense-request',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn','Update Request'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -426,7 +426,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                 }]: [],
                                   ...((record.status === "APPROVED"  || record.status === "VERIFIED" || record.status === "BOOKED" || record.status === "TRANSFERRED" || record.status === "PAID") && (record.employeeDocument && record.employeeDocument?.file && record.employeeDocument.file.trim() !== '')) ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'print',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print','Print'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -435,7 +435,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                   }
                                 }]: [],
                                   {
-                                    category: 'Navigations',
+                                    category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations')  ,
                                     key: 'view-expense-request',
                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details','View Request Details'),
                                     onClick: (e?: React.MouseEvent) => {
