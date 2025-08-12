@@ -253,8 +253,9 @@ const SalesTaskFormComponent: React.FC = () => {
   const handleEmployeeFocus = () => {
     setShowEmployeeDropdown(true);
     // If no search term, trigger search to load all employees
-    // Always trigger a fetch so the dropdown is pre-populated in Update mode
-    searchEmployees(employeeSearchTerm || '');
+    if (!employeeSearchTerm) {
+      searchEmployees('');
+    }
   };
 
   // Handle employee selection
@@ -351,12 +352,6 @@ const SalesTaskFormComponent: React.FC = () => {
     try {
       await onSubmit(values);
       
-      // Resolve assigned employee to ensure we always send it when present
-      const normalizedSearch = (employeeSearchTerm || '').trim().toLowerCase();
-      const fallbackMatched = employees.find(e => (e.label || '').trim().toLowerCase() === normalizedSearch);
-      const assignedEmployeeIdToUse =
-        values.assignedEmployeeId || selectedEmployee?.id || fallbackMatched?.id || '';
-
       // Build payload for process continuation
       const payload = {
         employeeId: additionalData?.employeeId,
@@ -376,7 +371,7 @@ const SalesTaskFormComponent: React.FC = () => {
           timingType: values.timingType,
                      dueDate: values.deadline ? dayjs(values.deadline).toISOString() : null,
           description: values.description,
-          ...(assignedEmployeeIdToUse && { assignedEmployee: assignedEmployeeIdToUse }),
+          ...(values.assignedEmployeeId && { assignedEmployee: values.assignedEmployeeId }),
           // Entity from additionalData (when opened from record pages)
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
