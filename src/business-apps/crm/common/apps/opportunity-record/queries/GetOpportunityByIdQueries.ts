@@ -35,6 +35,8 @@ export interface OpportunityResponse {
   version: string;
   name: string;
   estimatedAmount?: number;
+  // Indicates which source app created/owns the opportunity (e.g. 'CRM' or 'IRM')
+  sourceApp?: string;
   salesPipelineRef?: string;
   salesPipeline?: {
     id: string;
@@ -122,6 +124,7 @@ export const GET_OPPORTUNITY_BY_ID = `
       id
       version
       name
+      sourceApp
       estimatedAmount
       salesPipelineRef
       salesPipeline {

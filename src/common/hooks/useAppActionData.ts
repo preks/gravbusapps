@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { ActionOption } from '@newwork/nw-design-system';
 import { useMainContextsData } from './useMainContextsData';
 import { useFlowItems, ExternalContextData } from './useFlowItems';
@@ -76,8 +75,6 @@ export const useAppActionData = (
   config: UseAppActionDataConfig,
   dataTestIdPrefix: string
 ): UseAppActionDataReturn => {
-  const { t } = useTranslation('client-components');
-  
   // Track whether a deferred fetch has been attempted
   const [hasDeferredFetchAttempted, setHasDeferredFetchAttempted] = useState(false);
 
@@ -112,14 +109,15 @@ export const useAppActionData = (
 
   // Calculate whether to show loading state
   const shouldShowLoading = isLoading || 
-    (config.deferMainContextRequestsUntilClick && 
+    (!!config.deferMainContextRequestsUntilClick && 
      combinedData.length === 0 && 
      !hasDeferredFetchAttempted);
 
   // Translations
   const translations = {
-    loading: config.loadingText || t("flow_button.loading"),
-    noActions: config.noActionsText || t("flow_button.no_flows_available")
+    // Project has no i18n concept active here; use literal fallbacks
+    loading: config.loadingText || 'Loading actions…',
+    noActions: config.noActionsText || 'No actions available'
   };
 
   // Test ID formatter

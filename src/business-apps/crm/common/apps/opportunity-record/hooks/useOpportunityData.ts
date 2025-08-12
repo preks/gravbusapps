@@ -184,11 +184,16 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
     }
   };
 
-  const fetchOpportunityStatuses = async () => {
+  const fetchOpportunityStatuses = async (sourceApp?: string) => {
     try {
       setLoadingStatuses(true);
+      // Choose correct catalog per source app
+      const catalogIdentifier = sourceApp === 'IRM' || sourceApp === 'investment-relations'
+        ? 'InvestmentOpportunityStatus'
+        : 'SalesOpportunityStatus';
+
       const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'OpportunityStatus', version: 'v1' },
+        { catalogIdentifier, version: 'v1' },
         { limit: 100, offset: 0, returnTotalRecords: true }
       );
 
@@ -263,13 +268,18 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
 
   useEffect(() => {
     if (opportunityId && accessToken) {
-      fetchOpportunityData();
-      fetchOpportunityStatuses();
-      fetchActivities();
-      fetchTasks();
-      fetchNotes();
-      fetchDocuments();
+      (async () => {
+        await fetchOpportunityData();
+        // After opportunityData is populated, decide which catalog to load
+        const srcApp = (opportunityData as any)?.sourceApp;
+        await fetchOpportunityStatuses(srcApp);
+        fetchActivities();
+        fetchTasks();
+        fetchNotes();
+        fetchDocuments();
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunityId, accessToken]);
 
   return {
