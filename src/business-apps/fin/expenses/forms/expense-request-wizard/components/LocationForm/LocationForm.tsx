@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { InputField, Switch, DateInputField, TimeInputField, SelectField ,Alert } from '@newwork/gravity-ui-catalog';
-import { getCatalogValue, getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getCatalogValue, getCurrentActiveUserLocale, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DateTimeLimits, LocationFormLabels } from '../../utils/types';
 import dayjs from 'dayjs';
 import { checkIfSameDay } from '../../utils/locationTimeUtils';
@@ -26,6 +26,7 @@ interface LocationFormProps {
   travelRegions?: any[];
   overlapWarning?: { message: string, isError: boolean } | null;
   showFutureWarning?: boolean;
+  showPastWarning?: boolean;
   errorMessage?: string | null;
   locationFormLabels?:LocationFormLabels
 }
@@ -44,6 +45,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
   travelRegions = [],
   overlapWarning = null,
   showFutureWarning = true,
+  showPastWarning = false,
   errorMessage = null,
   locationFormLabels = {}
 }) => {
@@ -85,6 +87,36 @@ const LocationForm: React.FC<LocationFormProps> = ({
     
     // Return true if the date is in the future
     return dayjs().isBefore(inputDateTime);
+  }, [departureDate, departureTime]);
+
+  /**
+   * Check if date and time are in the past
+   */
+  const isPastDateTime = useMemo(() => {
+    if (!departureDate) return false;
+    
+    // Parse the date with dayjs
+    let inputDateTime = dayjs(departureDate);
+
+    // Add time component if available
+    if (departureTime && dayjs(departureTime).isValid()) {
+      const timeObj = dayjs(departureTime);
+      inputDateTime = inputDateTime
+        .set('hour', timeObj.hour())
+        .set('minute', timeObj.minute())
+        .set('second', timeObj.second());
+    } else {
+      // If no time specified, set to end of day to ensure proper comparison
+      inputDateTime = inputDateTime.endOf('day');
+    }
+    
+    // Don't show warning for today's date
+    if (inputDateTime.isSame(dayjs(), 'day')) {
+      return false;
+    }
+    
+    // Return true if the date is in the past
+    return dayjs().isAfter(inputDateTime);
   }, [departureDate, departureTime]);
   
   // Use state to prevent flashing warnings
@@ -173,6 +205,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
                 name={`${idPrefix}DepartureDate`}
                 placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_date', 'Select Date')}
                 data-testid={`${idPrefix}-date-input`}
+                format={getDateFormat('date-long')}
                 value={departureDate ? new Date(departureDate) : null}
                 language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
                 onChange={(field) => onUpdate('departureDate', field.value)}
@@ -236,11 +269,26 @@ const LocationForm: React.FC<LocationFormProps> = ({
                   <Alert
                     message={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:create_expense_request.add_request_trip_details.future_date_warning",
-                      "The selected date is in the future"
+                      "The selected date is in the future!"
                     )}
                     type="warning"
                     showIcon
                     data-testid={`${idPrefix}-future-warning`}
+                  />
+                </div>
+              )}
+
+              {/* Show past date warning if enabled and no overlap warning exists */}
+              {showPastWarning && isPastDateTime && !overlapWarning && (
+                <div className="gba:warningMessageRow" data-testid={`${idPrefix}-warnings-row`}>
+                  <Alert
+                    message={getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:add_items_to_plan.add_trip_info_to_plan.past_date_warning",
+                      "The selected date is in the past!"
+                    )}
+                    type="warning"
+                    showIcon
+                    data-testid={`${idPrefix}-past-warning`}
                   />
                 </div>
               )}

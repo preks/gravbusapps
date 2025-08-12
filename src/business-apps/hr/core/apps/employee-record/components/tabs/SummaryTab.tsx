@@ -142,13 +142,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
         {isSelfView && useMemo(() => (
           <div>
             <AppActionButton 
-              data-testid="employee-action-button"
+              data-testid="employee-actions-button"
               variant="primary"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
                 employeeId: employee?.id
               }}
-              prefixDataTestId="employee-action"
+              prefixDataTestId="employee-actions"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
               deferMainContextRequestsUntilClick={true}
@@ -490,7 +490,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                         </Button>
                       </Tooltip>
                       <AppActionButton
-                        data-testid="request-vacation-button"
+                        data-testid="request-absence-button"
                         variant="primary"
                         size="small"
                         className="gba:flex-[2]"
@@ -499,7 +499,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                           employeeId: employee.id,
                           flowType: 'vacation'
                         }}
-                        prefixDataTestId="request-vacation"
+                        prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
                         <span className="gba:text-xs gba:md:text-sm gba:truncate gba:block gba:text-center">

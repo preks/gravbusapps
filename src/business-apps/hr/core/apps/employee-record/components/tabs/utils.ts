@@ -106,8 +106,7 @@ const getLevelNumber = (level: any): number => {
  * Calculate skill statistics
  */
 export const calculateSkillStats = (employeeSkills: any[]) => {
-  console.log("🚀 ~ employeeSkills:", employeeSkills)
-  const validSkills = employeeSkills.filter(skill => skill.level && !skill.isDeleted);
+  const validSkills = employeeSkills.filter(skill => !skill.isDeleted);
   
   if (validSkills.length === 0) {
     return {
@@ -116,11 +115,21 @@ export const calculateSkillStats = (employeeSkills: any[]) => {
     };
   }
   
+  // Filter skills that have levels for highest level calculation
+  const skillsWithLevels = validSkills.filter(skill => skill.level && skill.level !== null && skill.level !== '');
+  
+  if (skillsWithLevels.length === 0) {
+    return {
+      total: validSkills.length,
+      highestSkills: []
+    };
+  }
+  
   // Find the highest level using the helper function
-  const highestLevel = Math.max(...validSkills.map(skill => getLevelNumber(skill.level)));
+  const highestLevel = Math.max(...skillsWithLevels.map(skill => getLevelNumber(skill.level)));
   
   // Find all skills with the highest level
-  const highestSkills = validSkills.filter(skill => getLevelNumber(skill.level) === highestLevel);
+  const highestSkills = skillsWithLevels.filter(skill => getLevelNumber(skill.level) === highestLevel);
   
   return {
     total: validSkills.length,

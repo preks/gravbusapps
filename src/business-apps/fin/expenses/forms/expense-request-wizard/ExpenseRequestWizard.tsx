@@ -3,7 +3,7 @@ import { Typography, Input } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
@@ -22,6 +22,7 @@ import AllowanceScreen from './screens/AllowanceScreen';
 import SummaryScreen from './screens/SummaryScreen';
 
 import ProgressIndicator from './components/ProgressIndicator';
+import { setInitialScreen } from './utils/tripScreenUtils';
 
 const { Title } = Typography;
 
@@ -63,7 +64,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '');
       setTitleValue(expenseRequestData.ExpenseRequestByPk.title || '');
     }
-  }, [expenseRequestData, setCurrentTitle]);
+  }, [expenseRequestData, setCurrentTitle, additionalData]);
 
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
   
@@ -80,7 +81,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     } else {
       setCurrentCurrency(null);
     }
-  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency]);
+  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency, additionalData]);
   
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
@@ -99,7 +100,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     return () => {
       document.removeEventListener('expense-wizard-update-footer', handleFooterUpdate);
     };
-  }, []);
+  }, [additionalData]);
   
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
@@ -139,7 +140,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       setCurrentTitle(initialTitle);
       setTitleValue(initialTitle);
     }
-  }, [expenseRequestData, setCurrentTitle]);
+  }, [expenseRequestData, setCurrentTitle, additionalData]);
 
   const saveTitle = () => {
     setCurrentTitle(titleValue);
@@ -147,15 +148,11 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
 
   useEffect(() => {
-    if (expenseRequestData) {
-      if (isTrip) {
-        setCurrentScreen(SCREEN_NAMES_ENUM.TRIPS_TAB);
-      } else {
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
-      }
-    }
-  }, [expenseRequestData, isTrip]);
+    setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen);
+  }, [expenseRequestData, isTrip, loading, additionalData]);
   
+
+
   const navigateToNextScreen = () => {
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
@@ -220,7 +217,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const renderCurrentScreen = () => {    
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
+        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} isTrip={isTrip}/>;
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         return <CreateItemScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
       case SCREEN_NAMES_ENUM.TRIPS_TAB:
@@ -232,7 +229,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
         return <SummaryScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />;
       default:
-        return <ItemsScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
+        return <LoadScreen accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}/>;
     }
   };
   
@@ -532,10 +529,21 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.SUBMIT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEventIfEnabled(
+        EVENTS.DISCARD, {
+          "event": EVENTS.DISCARD,
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        });
     } catch (processError) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),
@@ -555,6 +563,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
           onCancel={handleCancel} 
           accessToken={accessToken} 
           userInfo={userInfo}
+          additionalData={additionalData}
         />
       </div>
     </ExpenseRequestWizardProvider>

@@ -9,6 +9,7 @@ export enum SCREEN_NAMES_ENUM {
   TRIPS_TAB="TripScreen",
   LOAD_TAB="LoadScreen",
   ALLOWANCE_TAB="AllowanceScreen",
+  PAYMENT_TAB="PaymentScreen",
   SUMMARY_TAB="SummaryScreen"
 }
 /**
