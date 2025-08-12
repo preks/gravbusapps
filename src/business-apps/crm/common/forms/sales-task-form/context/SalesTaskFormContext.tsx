@@ -106,11 +106,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   const { data: taskTypes, loading: taskTypesLoading } = useSalesTaskTypes(accessToken, { search: typeSearch });
   const { data: priorities, loading: prioritiesLoading } = useSalesTaskPriorities(accessToken, { search: prioritySearch });
   const { statuses, isLoading: statusesLoading } = useSalesTaskStatuses({ accessToken });
-  // Preload a generous list by default so Update forms have employees ready for selection
-  const { data: employees, loading: employeesLoading } = useSalesTaskEmployees(
-    accessToken,
-    { search: employeeSearch, limit: employeeSearch ? 50 : 150 }
-  );
+  const { data: employees, loading: employeesLoading } = useSalesTaskEmployees(accessToken, { search: employeeSearch, limit: employeeSearch ? 50 : 100 });
   const { entities, loading: entitiesLoading, searchEntities } = useSalesTaskEntities(accessToken);
   
   // Clients
