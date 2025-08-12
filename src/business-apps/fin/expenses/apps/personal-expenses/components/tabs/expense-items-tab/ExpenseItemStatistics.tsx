@@ -76,21 +76,21 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: `from ${previousMonthName}`
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (totalExpensesPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: `from ${previousMonthName}`
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = totalExpensesPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${totalExpensesPercentageChange.toFixed(0)}%`,
       positive: totalExpensesPercentageChange >= 0,
-      description: `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','from ')} ${previousMonthName}`
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses]);
 

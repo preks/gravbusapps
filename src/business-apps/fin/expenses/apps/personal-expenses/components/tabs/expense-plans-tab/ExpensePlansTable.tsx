@@ -111,8 +111,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     currentPage,
     pageSize,
     onTableChange,
+    search,
+    selectedFilters,
     ...contextProps
   } = props;
+
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return search || selectedFilters.length > 0;
+  }, [search, selectedFilters]);
 
   // Internal sorting state - managed locally like expense items table
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -189,6 +196,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
       payload: {
         employeeId: employeeId,
       },
+      builderType: 'NATIVE_SCREEN'
     });
   }, [contextProps.userInfo]);
 
@@ -390,7 +398,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                                                  <div className="gba:text-gray-500">
-                           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_plan_data', 'No expense plans found. Create your first expense plan to get started.')}
+                           {hasActiveFilters 
+                             ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                             : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_plan_data', 'No expense plans found. Create your first expense plan to get started.')
+                           }
                          </div>
                       </TableCell>
                     </TableRow>
@@ -424,6 +435,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                           employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlanId: record.id
                                         },
+                                        builderType: 'NATIVE_SCREEN'
                                       });
                                     }
                                   }
@@ -468,6 +480,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                           employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlanId: record.id
                                         },
+                                        builderType: 'NATIVE_SCREEN'
                                       });
                                     }
                                   }

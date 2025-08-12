@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
-import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
+import { ExpenseStatus } from '../utils';
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
 import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -192,11 +192,11 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     return map;
   }, [filterGroups, expenseDateRange, amountRange, allStatuses, formatStatusName]);
 
-  // Get all selected filters including date range and amount range when active
+  // Get all selected filters including amount range when active (exclude date range to prevent duplicate pills)
   const getAllSelectedFilters = useMemo(() => {
     const filters = [...selectedFilters];
     
-    // Add date range as a filter if it's active
+    // Add expense date range as a filter if it's active
     if (expenseDateRange && (expenseDateRange[0] || expenseDateRange[1])) {
       filters.push('expenseDateRange');
     }
@@ -216,12 +216,12 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     setAmountRange(null);
   }, []);
 
-  // Remove filter function that handles date range and amount range
+  // Remove filter function that handles amount range
   const removeFilter = useCallback((filterId: string) => {
-    if (filterId === 'expenseDateRange') {
-      setExpenseDateRange(null);
-    } else if (filterId === 'amountRange') {
+    if (filterId === 'amountRange') {
       setAmountRange(null);
+    } else if (filterId === 'expenseDateRange') {
+      setExpenseDateRange(null);
     } else {
       setSelectedFilters(prev => prev.filter(id => id !== filterId));
     }
@@ -239,9 +239,31 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     });
   }, []);
 
-  // Atomic setter for filters
+  // Enhanced setFilters function that properly handles clearing all filters
   const setFilters = useCallback((filters: string[]) => {
-    setSelectedFilters(filters);
+    // If the filters array is empty, clear everything including ranges
+    if (filters.length === 0) {
+      setSelectedFilters([]);
+      setExpenseDateRange(null);
+      setAmountRange(null);
+      return;
+    }
+    
+    // Separate range filters from regular filters
+    const rangeFilters = ['amountRange', 'expenseDateRange'];
+    const regularFilters = filters.filter(f => !rangeFilters.includes(f));
+    const newRangeFilters = filters.filter(f => rangeFilters.includes(f));
+    
+    // Set regular filters
+    setSelectedFilters(regularFilters);
+    
+    // Clear ranges that are not in the new filter list
+    if (!newRangeFilters.includes('amountRange')) {
+      setAmountRange(null);
+    }
+    if (!newRangeFilters.includes('expenseDateRange')) {
+      setExpenseDateRange(null);
+    }
   }, []);
 
   // Status filter change handler for card interactions
@@ -265,17 +287,17 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     // Map UI filter format to the expected API filter format
     const filter: ExpenseFilter = {};
 
-    // Extract filters by types (exclude date range from processing as regular filter)
+    // Extract filters by types
 
     // Get status filters and convert back to uppercase (as they're stored in ExpenseStatus enum)
-    const statusFilters = filtersToApply.filter(f => f !== 'expenseDateRange' && 
+    const statusFilters = filtersToApply.filter(f => 
       Object.values(ExpenseStatus).map(s => s.toLowerCase()).includes(f));
 
     // Map the lowercase status filters back to their uppercase enum values
     const statuses = statusFilters.map(f => f.toUpperCase());
 
-    const expenseTypes = filtersToApply.filter(f => f !== 'expenseDateRange' && EXPENSE_TYPE_OPTIONS.includes(f));
-    const otherFilters = filtersToApply.filter(f => f !== 'expenseDateRange' && OTHER_OPTIONS.includes(f));
+    const expenseTypes = filtersToApply.filter(f => EXPENSE_TYPE_OPTIONS.includes(f));
+    const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f));
 
     // Check if no receipt filter is selected
     const hasNoReceiptFilter = otherFilters.includes('noreceiptfilter');

@@ -67,8 +67,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [search, setSearch] = useState('');
 
-  // Get all selected filters (including date range) - use props instead of hook
+  // Get all selected filters (including date range and amount range) - use props instead of hook
   const allSelectedFilters = selectedFilters;
+
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return search || allSelectedFilters.length > 0;
+  }, [search, allSelectedFilters]);
 
   // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate');
@@ -202,6 +207,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
       payload,
+      builderType: 'NATIVE_SCREEN'
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
@@ -311,7 +317,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         setSearch: handleSearchChange,
         placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
         filter: allSelectedFilters,
-        setFilter: setFilters,
+        setFilter: (filters: string[]) => {
+          // This is called by DataController's "Clear all filters" button or individual filter removal
+          if (filters.length === 0) {
+            // Clear all filters including amount range
+            clearFilters();
+          } else {
+            // Handle individual filter removal - find which filters were removed and remove them
+            const removedFilters = allSelectedFilters.filter(f => !filters.includes(f));
+            removedFilters.forEach(filterId => removeFilter(filterId));
+          }
+        },
         filterLabelMap: filterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
@@ -427,15 +443,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {!isLoading && (!items || items.length === 0) ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="gba:py-8 gba:text-center">
-                          <div className="gba:text-gray-500">
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
+                                         {!isLoading && (!items || items.length === 0) ? (
+                       <TableRow>
+                         <TableCell colSpan={7} className="gba:py-8 gba:text-center">
+                           <div className="gba:text-gray-500">
+                             {hasActiveFilters 
+                               ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                               : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')
+                             }
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     ) : (
                       items?.map((record) => (
                         <TableRow
                           key={record.id}

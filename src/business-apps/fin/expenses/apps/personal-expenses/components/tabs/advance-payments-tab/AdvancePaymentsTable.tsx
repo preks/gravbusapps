@@ -110,6 +110,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
 
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return searchText || currentStatusFilter.length > 0 || 
+           (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
+           (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined));
+  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+
   // Build fetch parameters
   const fetchParams = useMemo(() => ({
     searchText,
@@ -356,7 +363,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
+                          {hasActiveFilters 
+                            ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')
+                          }
                         </div>
                       </TableCell>
                     </TableRow>

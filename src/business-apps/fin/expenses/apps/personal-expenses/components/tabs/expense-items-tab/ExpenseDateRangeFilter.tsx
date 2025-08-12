@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { DatePicker } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -15,7 +16,7 @@ export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
   expenseDateRange,
   onDateRangeChange,
   className = '',
-  placeholder = ['Start date', 'End date'] as [string, string]
+  placeholder = [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')] as [string, string]
 }) => {
   // Convert Date objects to dayjs objects for the DatePicker
   const dateRange: [Dayjs | null, Dayjs | null] = [

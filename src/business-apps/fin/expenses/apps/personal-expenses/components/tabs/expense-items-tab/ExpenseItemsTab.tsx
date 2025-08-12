@@ -31,7 +31,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     'ASSIGNED',
     'PENDING',
     'APPROVED',
-    'RETURNED',
     'REJECTED',
     'VERIFIED',
     'BOOKED',
@@ -57,6 +56,9 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     onStatusFilterChange
   } = useExpenseItemsFilters(availableStatuses);
 
+  // Use the selectedFilters from the hook which already includes date range and amount range
+  const allSelectedFilters = selectedFilters;
+
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
   // State for storing all items for statistics
@@ -71,11 +73,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   const graphqlClient = useGraphQLClient(contextProps.accessToken);
   
-  // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback(() => {
-    setFilters([]);
-    setExpenseDateRange(null);
-  }, [setFilters, setExpenseDateRange]);
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -255,7 +252,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Combine UI and card filters
   const finalFilters = useMemo(() => {
-    let filters = [...selectedFilters];
+    let filters = [...allSelectedFilters];
     
     // Map card keys to filter values as needed
     if (activeCard === 'pending-reimbursement' && !filters.includes('pending')) {
@@ -270,7 +267,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
     
     return filters;
-  }, [selectedFilters, activeCard]);
+  }, [allSelectedFilters, activeCard]);
 
   // Create a custom getFilters function that includes date range parameters
   const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
@@ -535,7 +532,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
       getFilters={getFiltersWithDateRange}
-      setFilters={handleClearAllFilters}
+      setFilters={setFilters}
       availableStatuses={availableStatuses}
       amountRange={amountRange}
       tableRefreshTrigger={tableRefreshTrigger}
