@@ -34,6 +34,11 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
     return employee.skills || [];
   }, [employee.skills]);
 
+  // Get non-deleted skills for display
+  const validSkills = useMemo(() => {
+    return employeeSkills.filter(skill => !skill.isDeleted);
+  }, [employeeSkills]);
+
   // Calculate skill statistics
   const skillStats = useMemo(() => {
     return calculateSkillStats(employeeSkills);
@@ -78,7 +83,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
         )}
       </div>
 
-      {employeeSkills.length === 0 ? (
+      {validSkills.length === 0 ? (
         <Empty 
           description={getTranslationFromI18nKeyAndLabel(
             "lowcoder:employee_record.no_skills",
@@ -119,10 +124,10 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
 
           {/* Skills Grid */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6" data-testid="skills-grid">
-            {employeeSkills
-              .filter(skill => skill.level && !skill.isDeleted)
+            {validSkills
               .map((skillItem) => {
-                const levelInfo = getLevelInfo(Number(skillItem.level));
+                const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== '';
+                const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0);
                 const category = getSkillCategory(skillItem.skill.additionalProperties);
                 const timeSinceCreated = getTimeSince(skillItem.skill.createdAt);
                 const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt);
@@ -157,22 +162,24 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                               className="gba:font-bold gba:text-xl"
                               style={{ color: levelInfo.color }}
                             >
-                              {skillItem.level}
+                              {hasLevel ? skillItem.level : 'N/A'}
                             </div>
                             <div className="gba:text-xs gba:text-gray-500">Level</div>
                           </div>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="gba:mb-4">
-                          <Progress 
-                            percent={(Number(skillItem.level) / 5) * 100} 
-                            showInfo={false}
-                            strokeColor={levelInfo.color}
-                            trailColor="var(--nw-color-gray-200)"
-                            strokeWidth={8}
-                          />
-                        </div>
+                        {/* Progress Bar - Only show if skill has a level */}
+                        {hasLevel && (
+                          <div className="gba:mb-4">
+                            <Progress 
+                              percent={(Number(skillItem.level) / 5) * 100} 
+                              showInfo={false}
+                              strokeColor={levelInfo.color}
+                              trailColor="var(--color-gray-200)"
+                              strokeWidth={8}
+                            />
+                          </div>
+                        )}
 
                         {/* Level Description */}
                         <div className="gba:mb-4">
