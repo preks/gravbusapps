@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Card, Tooltip } from 'antd';
 import { Badge } from '@newwork/nw-design-system';
 import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
@@ -48,6 +48,46 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
   stageConditionStatuses,
   context 
 }) => {
+  // Track hover state for condition icons
+  const [hoveredConditionId, setHoveredConditionId] = useState<string | null>(null);
+
+  // Create stable mouse event handlers
+  const handleConditionMouseLeave = useCallback(() => {
+    setHoveredConditionId(null);
+  }, []);
+
+  // Stable context array for conditions
+  const conditionContextsArray = useMemo(() => [FlowContextName.saveOpportunityStageConditionStatus], []);
+
+  // Create stable props for all conditions to prevent AppActionMenu re-renders
+  const conditionProps = useMemo(() => {
+    const props: Record<string, {
+      mouseHandlers: {
+        onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => void;
+        onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => void;
+      };
+      externalContextData: { stageConditionStatusId: string };
+      contextsArray: FlowContextName[];
+    }> = {};
+    
+    stageConditionStatuses.forEach(statusData => {
+      const conditionId = statusData.id;
+      props[conditionId] = {
+        mouseHandlers: {
+          onMouseEnter: () => setHoveredConditionId(conditionId),
+          onMouseLeave: handleConditionMouseLeave
+        },
+        externalContextData: {
+          stageConditionStatusId: conditionId
+        },
+        contextsArray: conditionContextsArray
+      };
+    });
+    
+    return props;
+  }, [stageConditionStatuses, handleConditionMouseLeave, conditionContextsArray]);
+
+
 
 
   // Transform real stage condition status data to UI format
@@ -185,54 +225,60 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
                   
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <div className="gba:flex-shrink-0">
-                      <AppActionButton
+                      <AppActionMenu
                         data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
-                        variant="ghost"
-                        showIcon={false}
-                        size="large"
-                        contextsArray={[FlowContextName.saveOpportunityStageConditionStatus]}
-                        externalContextData={{
-                          stageConditionStatusId: condition.stageConditionStatusId 
-                        }}
+                        contextsArray={conditionProps[condition.stageConditionStatusId]?.contextsArray}
+                        externalContextData={conditionProps[condition.stageConditionStatusId]?.externalContextData}
                         prefixDataTestId="stage-condition-status-icon"
                         accessToken={context.accessToken}
                         emptyStateBehavior="disable"
                         deferMainContextRequestsUntilClick={false}
                         autoExecuteSingleAction={true}
-                        onClick={(e) => e.stopPropagation()}
-                        className="gba:p-0 gba:hover:bg-gray-100 gba:rounded-full gba:transition-colors gba:border-0 gba:relative gba:group"
-                        style={{ minWidth: 'auto', minHeight: 'auto', background: 'transparent' }}
+                        style={{ display: 'inline-block' }}
+                        onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
+                        onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
                       >
-                        {/* Default State Icon */}
-                        <div className="gba:block group-hover:gba:hidden gba:transition-opacity">
-                          {condition.isCompleted ? (
-                            <CheckCircleFilled 
-                              className="gba:text-2xl" 
-                              style={{ color: '#16a34a' }}
-                            />
+                        <div 
+                          className="gba:p-0 gba:rounded-full gba:transition-colors gba:border-0 gba:relative gba:cursor-pointer gba:inline-flex gba:items-center gba:justify-center"
+                          style={{ 
+                            minWidth: 'auto', 
+                            minHeight: 'auto', 
+                            background: hoveredConditionId === condition.stageConditionStatusId ? '#f3f4f6' : 'transparent', 
+                            width: '32px', 
+                            height: '32px' 
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* Show appropriate icon based on hover state */}
+                          {hoveredConditionId === condition.stageConditionStatusId ? (
+                            // Hover State Icon (opposite of current state)
+                            condition.isCompleted ? (
+                              <CloseCircleFilled 
+                                className="gba:text-2xl" 
+                                style={{ color: '#f59e0b' }}
+                              />
+                            ) : (
+                              <CheckCircleFilled 
+                                className="gba:text-2xl" 
+                                style={{ color: '#16a34a' }}
+                              />
+                            )
                           ) : (
-                            <CloseCircleFilled 
-                              className="gba:text-2xl" 
-                              style={{ color: '#9ca3af' }}
-                            />
+                            // Default State Icon
+                            condition.isCompleted ? (
+                              <CheckCircleFilled 
+                                className="gba:text-2xl" 
+                                style={{ color: '#16a34a' }}
+                              />
+                            ) : (
+                              <CloseCircleFilled 
+                                className="gba:text-2xl" 
+                                style={{ color: '#9ca3af' }}
+                              />
+                            )
                           )}
                         </div>
-                        
-                        {/* Hover State Icon (opposite of current state) */}
-                        <div className="gba:hidden group-hover:gba:block gba:transition-opacity">
-                          {condition.isCompleted ? (
-                            <CloseCircleFilled 
-                              className="gba:text-2xl" 
-                              style={{ color: '#f59e0b' }}
-                            />
-                          ) : (
-                            <CheckCircleFilled 
-                              className="gba:text-2xl" 
-                              style={{ color: '#16a34a' }}
-                            />
-                          )}
-                        </div>
-                      </AppActionButton>
+                      </AppActionMenu>
                     </div>
                     
                     <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">

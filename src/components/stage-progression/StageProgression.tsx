@@ -1,129 +1,42 @@
 import React from 'react';
-import { Tooltip } from 'antd';
-import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
+import { TooltipProvider } from '@newwork/nw-design-system';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { StageProgressionProps, Stage, StageCondition } from './types';
-
-// Default tooltip content component
-const DefaultTooltipContent: React.FC<{ 
-  stage: Stage; 
-  conditions: StageCondition[];
-  isCurrentStage: boolean;
-}> = ({ stage, conditions, isCurrentStage }) => {
-  // Sort conditions: incomplete (false) first, then completed (true)
-  const sortedConditions = [...conditions].sort((a, b) => {
-    if (a.isCompleted === b.isCompleted) return 0;
-    return a.isCompleted ? 1 : -1; // false comes before true
-  });
-  
-  return (
-    <div style={{ maxWidth: '280px', padding: '4px 0' }}>
-      <div style={{ 
-        fontSize: '13px', 
-        fontWeight: '600', 
-        marginBottom: '8px',
-        color: '#ffffff',
-        borderBottom: '1px solid #4b5563',
-        paddingBottom: '6px'
-      }}>
-        {stage.value} Stage Conditions
-      </div>
-      <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-        {sortedConditions.length > 0 ? (
-          sortedConditions.map((condition) => (
-            <div 
-              key={condition.id}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '4px 0',
-                fontSize: '12px'
-              }}
-            >
-              {condition.isCompleted ? (
-                <CheckCircleFilled style={{ color: '#4ade80', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
-              ) : (
-                <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
-              )}
-              <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontWeight: '500',
-                  color: condition.isCompleted ? '#4ade80' : '#e5e7eb',
-                  lineHeight: '1.3'
-                }}>
-                  {condition.title}
-                </div>
-                {condition.isCompleted && condition.completedBy && (
-                  <div style={{ 
-                    fontSize: '10px', 
-                    color: '#d1d5db',
-                    marginTop: '2px'
-                  }}>
-                    Completed by: {condition.completedBy}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div style={{
-            color: '#d1d5db',
-            fontSize: '12px',
-            fontStyle: 'italic',
-            textAlign: 'center',
-            padding: '8px 0'
-          }}>
-            {isCurrentStage 
-              ? 'No conditions configured for this stage'
-              : 'Conditions shown only for active stage'
-            }
-          </div>
-        )}
-      </div>
-      <div style={{
-        fontSize: '10px',
-        color: '#d1d5db',
-        marginTop: '8px',
-        paddingTop: '6px',
-        borderTop: '1px solid #4b5563',
-        fontStyle: 'italic'
-      }}>
-        Click stage to change • {conditions.filter(c => c.isCompleted).length}/{conditions.length} completed
-      </div>
-    </div>
-  );
-};
+import { StageProgressionProps } from './types';
 
 export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
   styling = {},
-  tooltip = { showConditions: true },
-  getStageConditions,
   getStageCompletionPercentage,
   onStageClick,
   renderStageContent,
-  renderTooltipContent,
+  children,
   dataTestIdPrefix = 'stage-progression'
 }) => {
-  // Default styling
+
+
+  // Default styling with proper type safety
+  const defaultColors = {
+    completed: '#4CAF50',
+    current: {
+      border: 'linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6))',
+      background: '#ffffff',
+      text: '#333333'
+    },
+    pending: {
+      background: '#9CA3AF', // Darker gray background for better visibility
+      text: '#FFFFFF' // White text for better contrast
+    }
+  };
+
   const defaultStyling = {
     height: '40px',
     fontSize: '14px',
     fontWeight: '600',
     borderRadius: '20px',
     colors: {
-      completed: '#4CAF50',
-      current: {
-        border: 'linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6))',
-        background: '#ffffff',
-        text: '#333333'
-      },
-      pending: {
-        background: 'transparent',
-        text: '#666666'
-      }
+      ...defaultColors,
+      ...(styling.colors || {})
     },
     ...styling
   };
@@ -143,8 +56,9 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   }
 
   return (
-    <div>
-      <style>
+    <TooltipProvider>
+      <div>
+        <style>
         {`
           @keyframes premiumProgressWave {
             0% {
@@ -267,19 +181,18 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
         {stages.map((stage, index) => {
           const isCurrentStage = index === currentIndex;
           const isCompleted = index < currentIndex;
-          const conditions = getStageConditions ? getStageConditions(stage.code) : [];
           const completionPercentage = getStageCompletionPercentage ? getStageCompletionPercentage(stage.code) : 100;
           
           // Determine colors
-          let backgroundColor = 'transparent';
-          let textColor = defaultStyling.colors.pending.text;
+          let backgroundColor = defaultStyling.colors.pending?.background || defaultColors.pending.background;
+          let textColor = defaultStyling.colors.pending?.text || defaultColors.pending.text;
           
           if (isCompleted) {
-            backgroundColor = defaultStyling.colors.completed;
+            backgroundColor = defaultStyling.colors.completed || defaultColors.completed;
             textColor = 'white';
           } else if (isCurrentStage) {
             backgroundColor = 'transparent';
-            textColor = defaultStyling.colors.current.text;
+            textColor = defaultStyling.colors.current?.text || defaultColors.current.text;
           }
 
           // Determine border radius and clip path
@@ -332,7 +245,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                 transition: 'all 0.3s ease',
                 clipPath,
                 WebkitClipPath,
-                cursor: isCurrentStage ? 'default' : (onStageClick ? 'pointer' : 'default')
+                cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
               }}
               data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
               onClick={handleStageClick}
@@ -403,31 +316,15 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             </div>
           );
 
-          // Always wrap with tooltip for consistent DOM structure, but conditionally show content
-          const tooltipContent = (tooltip.showConditions && conditions.length > 0) ? 
-            (renderTooltipContent ? 
-              renderTooltipContent(stage, conditions) : 
-              <DefaultTooltipContent stage={stage} conditions={conditions} isCurrentStage={isCurrentStage} />
-            ) : null;
-
           return (
-            <Tooltip
-              key={stage.id}
-              title={tooltipContent}
-              placement={tooltip.placement || 'bottom'}
-              overlayStyle={{ 
-                maxWidth: tooltip.maxWidth || '300px',
-                zIndex: 1050
-              }}
-              mouseEnterDelay={tooltip.mouseEnterDelay || 0.3}
-              mouseLeaveDelay={tooltip.mouseLeaveDelay || 0.1}
-            >
-              {stageElement}
-            </Tooltip>
+            <React.Fragment key={stage.id}>
+              {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
+            </React.Fragment>
           );
         })}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 

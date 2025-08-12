@@ -21,7 +21,7 @@ import { ContactInformation } from "./components/ContactInformation";
 import { OpportunityDetails } from "./components/OpportunityDetails";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { StageProgression } from "./components/StageProgression";
+import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -154,7 +154,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         !stagesError &&
         opportunityStages.length > 0 &&
         opportunityData?.salesPipelineRef && (
-          <StageProgression
+          <OpportunityStageProgression
             currentStage={
               opportunityData?.salesPipelineStage?.code || "Discovery"
             }

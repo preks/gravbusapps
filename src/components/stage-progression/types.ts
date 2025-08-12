@@ -45,6 +45,8 @@ export interface StageProgressionStyling {
   };
 }
 
+// Removed ActionMenu configuration - this should be handled by specific implementations
+
 // Main props for the general stage progression component
 export interface StageProgressionProps {
   // Required props
@@ -53,10 +55,8 @@ export interface StageProgressionProps {
   
   // Optional visual configuration
   styling?: StageProgressionStyling;
-  tooltip?: StageTooltipConfig;
   
-  // Optional stage conditions for tooltips
-  getStageConditions?: (stageCode: string) => StageCondition[];
+  // Optional stage completion percentage for progress visualization
   getStageCompletionPercentage?: (stageCode: string) => number;
   
   // Event handlers
@@ -64,7 +64,9 @@ export interface StageProgressionProps {
   
   // Custom content
   renderStageContent?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean) => ReactNode;
-  renderTooltipContent?: (stage: Stage, conditions: StageCondition[]) => ReactNode;
+  
+  // Children render prop for custom stage wrapping (e.g., ActionMenu)
+  children?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean, stageElement: ReactNode) => ReactNode;
   
   // Data test id prefix
   dataTestIdPrefix?: string;
