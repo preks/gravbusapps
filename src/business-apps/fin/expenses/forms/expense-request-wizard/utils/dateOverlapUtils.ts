@@ -116,7 +116,7 @@ export const getOverlapWarningMessage = (
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
       `There is an existing plan ${expensePlan.title} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
-        expensePlanTitle: expensePlan.title,
+        planName: expensePlan.title,
         interpolation: {
           escapeValue: false
         }

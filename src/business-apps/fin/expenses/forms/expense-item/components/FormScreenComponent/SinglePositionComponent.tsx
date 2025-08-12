@@ -114,7 +114,7 @@ export const SinglePositionComponent: React.FC<
                       : []
                   }
                   onChange={(value: any) => {
-                    handleExpenseTypeChange(value?.value || "", index);
+                    handleExpenseTypeChange(value.value, index);
                   }}
                   placeholder={t(
                     "lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder",

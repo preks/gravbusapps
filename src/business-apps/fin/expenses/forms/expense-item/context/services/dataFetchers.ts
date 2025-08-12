@@ -479,6 +479,7 @@ export const setByEdit = async (
   setCustomFields: (fields: any) => void = () => {},
   employeeRuleId: string | null | object = null,
   t: (key: string, fallback: string) => string = (_key, fallback) => fallback,
+  setInitialItemValues?: (id: string, version: string | number) => void,
 ) => {
   try {
     const response = await graphqlClient.query({
@@ -491,6 +492,12 @@ export const setByEdit = async (
     
     if (response.data) {
       const item = response.data.ExpenseItemByPk;
+      
+      // Set initial item values if the function is provided
+      if (setInitialItemValues && item) {
+        setInitialItemValues(item.id, item.version);
+      }
+      
       if (item && item.expensePosition && item.expensePosition.length > 1) {
         await setMultiPositionItem(
           response.data, 

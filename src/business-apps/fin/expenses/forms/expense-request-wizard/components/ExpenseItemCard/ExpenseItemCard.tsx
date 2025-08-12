@@ -42,7 +42,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
       <div className="gba:p-10 gba:flex gba:flex-row gba:justify-between gba:box-border gba:min-h-[120px]">
         <div className="gba:flex gba:flex-col">
           <div className="gba:text-sm" data-testid={`expense-item-type-${id}`}>
-            {expenseGroup}{expenseType && ":"}{expenseType}
+            {expenseGroup}{expenseType && ": "}{expenseType}
           </div>
           <div className="gba:text-[18px] gba:font-bold gba:mt-[10px]" data-testid={`expense-item-title-${id}`}>
             {title}
