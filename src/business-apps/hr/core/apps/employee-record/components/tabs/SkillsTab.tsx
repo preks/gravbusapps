@@ -65,12 +65,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
         {isSelfView && (
         <AppActionButton
           variant="ghost"
-          data-testid="update-skills-button"
+          data-testid="employee-skills-edit-button"
           contextsArray={[FlowContextName.updateEmployeeSkill]}
           externalContextData={{
             employeeId: employee?.id
           }}
-          prefixDataTestId="update-skills"
+          prefixDataTestId="employee-skills-edit"
           accessToken={accessToken}
           autoExecuteSingleAction={true}
           icon={<PiPencilSimple />}
