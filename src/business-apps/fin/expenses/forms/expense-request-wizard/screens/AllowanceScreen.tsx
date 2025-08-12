@@ -10,7 +10,7 @@ import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects } from '..
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../../utils/notificationUtils';
 
 const { Title } = Typography;
@@ -42,9 +42,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     updateTripFormValidation
   } = useExpenseRequestWizardContext();
   
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData);
+  
   const [, setTravelRegionsData] = useState<any>(null);
   const [, setCostCentersData] = useState<any>(null);
   const [defaultCostCenter, setDefaultCostCenter] = useState<string>("");
+  const [defaultProject, setDefaultProject] = useState<string>("");
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [listDataArray, setListDataArray] = useState<any[]>([]);
   const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({});
@@ -109,8 +112,24 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     const requestProject = expenseRequestData.ExpenseRequestByPk;
     const allowanceData = getAllowanceItemsFunction(expenseRequestData.ExpenseItem);
     const tripData = requestProject.ExpenseItem?.expenseRequestTrip || [];
+    
+    // Set default project if it exists in the expense request
+    if (requestProject.project) {
+      setDefaultProject(requestProject.project.id || "");
+    }
+    
     const processedData = allowanceData.map((element) => {
       let updatedElement = { ...element };
+      
+      // Set default cost center for all allowances if it exists
+      if (!updatedElement.costCenterId && defaultCostCenter) {
+        updatedElement.costCenterId = defaultCostCenter;
+      }
+      
+      // Set default project for all allowances if it exists
+      if (!updatedElement.projectId && requestProject.project) {
+        updatedElement.projectId = requestProject.project.id || "";
+      }
       
       if (!updatedElement.projectId && requestProject && updatedElement.expenseDate && requestProject.validTo && 
           updatedElement.expenseDate <= requestProject.validTo) {
@@ -139,7 +158,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
       updateStructureIdArrayFromListData(processedData);
     }
     
-  }, [expenseRequestData]);
+  }, [expenseRequestData, defaultCostCenter]);
   
   const handleToggleCollapse = (index: number) => {
     setCollapsedStates(prev => ({
@@ -180,12 +199,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     }
   }, [costCenters, listDataArray]);
   
-  const handleCostCenterChange = (index: number, value: string) => {
+  const handleCostCenterChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
       const newArray = [...prev];
       newArray[index] = {
         ...newArray[index],
-        costCenterId: value,
+        costCenterId: value || undefined,
         projectId: undefined // Clear project when cost center changes
       };
       const updatedArray = [...newArray];
@@ -197,12 +216,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     });
   };
   
-  const handleProjectChange = (index: number, value: string) => {
+  const handleProjectChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
       const newArray = [...prev];
       newArray[index] = {
         ...newArray[index],
-        projectId: value
+        projectId: value || undefined
       };
       return newArray;
     });
@@ -256,7 +275,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.SAVE
         );
-        dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+        dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
       }
     };
     
@@ -271,7 +290,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           EVENTS.NEXT
         );
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+        dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
       }
     };
     
@@ -306,6 +325,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
                 defaultCostCenter={defaultCostCenter}
                 onCostCenterChange={handleCostCenterChange}
                 projects={projects}
+                defaultProject={defaultProject}
                 onProjectChange={handleProjectChange}
               />
             ))}

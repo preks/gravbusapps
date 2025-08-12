@@ -6,44 +6,44 @@ import dayjs from 'dayjs';
 export const getLevelInfo = (level: number) => {
   switch (level) {
     case 1: return { 
-      color: 'var(--color-chart-2)', // Blue
-      bgColor: 'var(--color-info-secondary)', 
-      textColor: 'var(--color-info-secondary-foreground)',
+      color: 'var(--nw-color-chart-2)', // Blue
+      bgColor: 'var(--nw-color-info-secondary)', 
+      textColor: 'var(--nw-color-info-secondary-foreground)',
       label: 'Beginner',
       description: 'Basic understanding'
     };
     case 2: return { 
-      color: 'var(--color-success)', // Green
-      bgColor: 'var(--color-success-secondary)', 
-      textColor: 'var(--color-success-secondary-foreground)',
+      color: 'var(--nw-color-success)', // Green
+      bgColor: 'var(--nw-color-success-secondary)', 
+      textColor: 'var(--nw-color-success-secondary-foreground)',
       label: 'Intermediate',
       description: 'Working knowledge'
     };
     case 3: return { 
-      color: 'var(--color-chart-5)', // Yellow
-      bgColor: 'var(--color-warning-secondary)', 
-      textColor: 'var(--color-warning-secondary-foreground)',
+      color: 'var(--nw-color-chart-5)', // Yellow
+      bgColor: 'var(--nw-color-warning-secondary)', 
+      textColor: 'var(--nw-color-warning-secondary-foreground)',
       label: 'Advanced',
       description: 'Proficient level'
     };
     case 4: return { 
-      color: 'var(--color-chart-6)', // Amber/Orange
-      bgColor: 'var(--color-warning-secondary)', 
-      textColor: 'var(--color-warning-secondary-foreground)',
+      color: 'var(--nw-color-chart-6)', // Amber/Orange
+      bgColor: 'var(--nw-color-warning-secondary)', 
+      textColor: 'var(--nw-color-warning-secondary-foreground)',
       label: 'Expert',
       description: 'Deep expertise'
     };
     case 5: return { 
-      color: 'var(--color-destructive)', // Red
-      bgColor: 'var(--color-destructive-secondary)', 
-      textColor: 'var(--color-destructive-secondary-foreground)',
+      color: 'var(--nw-color-destructive)', // Red
+      bgColor: 'var(--nw-color-destructive-secondary)', 
+      textColor: 'var(--nw-color-destructive-secondary-foreground)',
       label: 'Master',
       description: 'Subject matter expert'
     };
     default: return { 
-      color: 'var(--color-muted-foreground)', 
-      bgColor: 'var(--color-muted)', 
-      textColor: 'var(--color-muted-foreground)',
+      color: 'var(--nw-color-muted-foreground)', 
+      bgColor: 'var(--nw-color-muted)', 
+      textColor: 'var(--nw-color-muted-foreground)',
       label: 'Unknown',
       description: 'Level not specified'
     };
@@ -106,8 +106,7 @@ const getLevelNumber = (level: any): number => {
  * Calculate skill statistics
  */
 export const calculateSkillStats = (employeeSkills: any[]) => {
-  console.log("🚀 ~ employeeSkills:", employeeSkills)
-  const validSkills = employeeSkills.filter(skill => skill.level && !skill.isDeleted);
+  const validSkills = employeeSkills.filter(skill => !skill.isDeleted);
   
   if (validSkills.length === 0) {
     return {
@@ -116,11 +115,21 @@ export const calculateSkillStats = (employeeSkills: any[]) => {
     };
   }
   
+  // Filter skills that have levels for highest level calculation
+  const skillsWithLevels = validSkills.filter(skill => skill.level && skill.level !== null && skill.level !== '');
+  
+  if (skillsWithLevels.length === 0) {
+    return {
+      total: validSkills.length,
+      highestSkills: []
+    };
+  }
+  
   // Find the highest level using the helper function
-  const highestLevel = Math.max(...validSkills.map(skill => getLevelNumber(skill.level)));
+  const highestLevel = Math.max(...skillsWithLevels.map(skill => getLevelNumber(skill.level)));
   
   // Find all skills with the highest level
-  const highestSkills = validSkills.filter(skill => getLevelNumber(skill.level) === highestLevel);
+  const highestSkills = skillsWithLevels.filter(skill => getLevelNumber(skill.level) === highestLevel);
   
   return {
     total: validSkills.length,

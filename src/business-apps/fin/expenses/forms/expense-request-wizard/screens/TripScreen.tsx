@@ -20,7 +20,7 @@ import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLo
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
 import { mergeUniqueById } from '../../../utils/functionUtils';
-import { setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
+import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
 
 /**
  * Filters travel regions based on expense items' currency
@@ -370,9 +370,9 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) {
           myData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
         } else if (expenseRequestData.ExpenseRequestByPk.expensePlan) {
-          myData = expenseRequestData.ExpenseRequestByPk.expensePlan;
+          myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip;
         }
-        const startObject = myData.expenseRequestTrip?.find((item: any) => item.pointType === 'START_POINT');
+        const startObject = myData.find((item: any) => item.pointType === 'START_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
           const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ');
@@ -511,7 +511,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   };
 
   useEffect(() => {
-    if (accessToken && userInfo?.employeeId && expenseRequestData) {
+    if (accessToken && userInfo?.employeeDetails && expenseRequestData) {
       if (startLocation.departureDate || startLocation.departureTime) {
         checkAbsencesAndRequests(
           startLocation.departureDate,
@@ -574,7 +574,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
       return false;
     }
     
-    if (startLocationOverlap || endLocationOverlap) {
+    if (startLocationOverlap?.isError===true || endLocationOverlap?.isError===true) {
       updateTripFormValidation(false);
       return false;
     }
@@ -656,22 +656,8 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
   }
-
-  const getLatestRejectComment = () => {
-    if (expenseRequestData && 
-        expenseRequestData.ExpenseRequestByPk && 
-        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
-      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
-        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
-      
-      return filteredArray && filteredArray.length > 0 ? 
-        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
-        null;
-    }
-    return null;
-  };
   
-  const latestRejectComment = getLatestRejectComment();
+  const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
   return (
     <div

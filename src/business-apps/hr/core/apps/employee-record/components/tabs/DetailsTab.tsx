@@ -316,13 +316,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="address-action-button"
+                data-testid="employee-address-action-button"
                 variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeAddress]}
                 externalContextData={{
                   employeeId: employee?.id,
                 }}
-                prefixDataTestId="address-action"
+                prefixDataTestId="employee-address-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}

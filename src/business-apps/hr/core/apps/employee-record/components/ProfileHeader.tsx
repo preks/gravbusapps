@@ -394,7 +394,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                     >
                       {isHovering && (
                         <AppActionButton
-                          data-testid="employee-action-button"
+                          data-testid="employee-profile-picture-edit-button"
                           variant="secondary"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
@@ -402,7 +402,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                           externalContextData={{
                             employeeId: employee?.id,
                           }}
-                          prefixDataTestId="employee-action"
+                          prefixDataTestId="employee-profile-picture-edit"
                           accessToken={accessToken}
                           autoExecuteSingleAction={true}
                           icon={<PiPencilSimple className="gba:h-5 gba:w-5" />}

@@ -273,7 +273,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         {/* Request Absence Button */}
         <div>
           <AppActionButton
-            data-testid="request-vacation-button"
+            data-testid="employee-absence-request-button"
             variant="primary"
             contextsArray={[FlowContextName.employeeAbsenceRecord]}
             externalContextData={{
@@ -281,7 +281,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
               flowType: 'vacation'
             }}
-            prefixDataTestId="request-vacation"
+            prefixDataTestId="employee-absence-request"
             accessToken={accessToken}
           >
             Request Absence

@@ -15,6 +15,9 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
+  // Table refresh trigger state
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+  
   // Use the enhanced advance payment filters hook
   const {
     searchTerm,
@@ -76,6 +79,61 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     setFilters([]);
   }, [setFilters]);
 
+  // Process completion event listener to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, []);
+
   return (
     <AdvancePaymentsTable
       {...contextProps}
@@ -91,6 +149,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       advanceRange={advanceRange}
       selectedFilters={selectedFilters}
       removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

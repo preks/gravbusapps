@@ -293,13 +293,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="working-conditions-action-button"
+                data-testid="employee-working-conditions-edit-button"
                 variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingCondition]}
                 externalContextData={{
                   employeeId: employee.id
                 }}
-                prefixDataTestId="working-conditions-action"
+                prefixDataTestId="employee-working-conditions-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}
@@ -319,13 +319,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="working-hours-action-button"
+                data-testid="employee-working-hours-edit-button"
                 variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingHours]}
                 externalContextData={{
                   employeeId: employee.id
                 }}
-                prefixDataTestId="working-hours-action"
+                prefixDataTestId="employee-working-hours-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}

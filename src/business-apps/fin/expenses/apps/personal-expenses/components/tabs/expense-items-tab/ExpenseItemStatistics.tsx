@@ -1,4 +1,4 @@
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import React, { useMemo, useCallback } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
@@ -90,7 +90,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return {
       value: `${sign}${totalExpensesPercentageChange.toFixed(0)}%`,
       positive: totalExpensesPercentageChange >= 0,
-      description: `from ${previousMonthName}`
+      description: `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date','from ')} ${previousMonthName}`
     };
   }, [totalExpensesPercentageChange, totalExpenses, previousMonthTotalExpenses]);
 
@@ -99,7 +99,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     return {
       value: `${pendingItemCount} items`,
       positive: true,
-      description: 'pending reimbursement'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending reimbursement')
     };
   }, [pendingItemCount]);
 
@@ -158,26 +158,26 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-expenses',
-      title: `Total Expenses for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for') + ' ' + currentMonthName,
       value: formatNumberFunction(String(totalExpenses ?? 0)) + '€',
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: 'Current month expenses',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses','Current month expenses'),
       trend: totalExpensesTrend,
       active: activeWidgetKey === 'total-expenses',
       onClick: () => handleWidgetClick('total-expenses')
     },
     {
       key: 'pending-reimbursement',
-      title: 'Pending Reimbursement',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending Reimbursement'),
       value: formatNumberFunction(String(pendingReimbursement)) + '€',
       valueIsString: true,
       prefix: <WalletOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
-      description: 'Awaiting processing',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_processing','Awaiting processing'),
       trend: pendingReimbursementTrend,
       active: activeWidgetKey === 'pending-reimbursement',
       onClick: () => handleWidgetClick('pending-reimbursement')
@@ -212,7 +212,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         onRetry={fetchItemStatistics}
         onWidgetClick={handleWidgetClick}
         skeletonCount={4}
-        emptyText="No expense item statistics available."
+        emptyText={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_item_statistics_available','No expense item statistics available.')}
         data-testid="expense-item-statistics"
       />
     </div>

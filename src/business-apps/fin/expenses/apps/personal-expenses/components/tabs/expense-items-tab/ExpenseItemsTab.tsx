@@ -9,6 +9,7 @@ import ExpenseItemsTable from './ExpenseItemsTable';
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -58,12 +59,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
-  // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback(() => {
-    setFilters([]);
-    setExpenseDateRange(null);
-  }, [setFilters, setExpenseDateRange]);
-  
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
   const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
@@ -73,7 +68,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [previousMonthTotalExpenses, setPreviousMonthTotalExpenses] = useState<number | null>(null);
   const [pendingReimbursementTotal, setPendingReimbursementTotal] = useState<number>(0);
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   const graphqlClient = useGraphQLClient(contextProps.accessToken);
+  
+  // Centralized handler to clear all filters (UI + card)
+  const handleClearAllFilters = useCallback(() => {
+    setFilters([]);
+    setExpenseDateRange(null);
+  }, [setFilters, setExpenseDateRange]);
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -296,6 +298,87 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchPendingItems();
   }, [contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient]);
 
+  // Process completion event listener to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Refresh statistics data after successful process completion
+          fetchItemStatistics();
+          
+          // Refresh pending items data
+          const fetchPendingItems = async () => {
+            if (!contextProps.userInfo?.employeeDetails?.employeeId) return;
+            try {
+              const data = await graphqlClient.request(GET_PENDING_ITEMS, {
+                employeeId: contextProps.userInfo.employeeDetails.employeeId,
+              });
+              setPendingReimbursementTotal(
+                data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0
+              );
+              setPendingItemCountFromApi(
+                data?.pendingExcludingAllowance?.aggregate?.count ?? 0
+              );
+            } catch (e) {
+              setPendingReimbursementTotal(0);
+            }
+          };
+          fetchPendingItems();
+          
+          // Reset all items to force refresh of statistics
+          setHasLoadedAllItems(false);
+          setAllItems([]);
+          
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItemStatistics, contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient]);
+
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
@@ -425,7 +508,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
               console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-        console.warn('User information not loaded yet. Please wait a moment and try again.');
+        console.warn(getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.user_information_not_loaded','User information not loaded yet. Please wait a moment and try again.'));
       return;
     }
     
@@ -455,6 +538,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       setFilters={handleClearAllFilters}
       availableStatuses={availableStatuses}
       amountRange={amountRange}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

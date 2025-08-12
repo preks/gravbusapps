@@ -9,17 +9,19 @@ import FormFooter from './components/FormFooter';
 import ExpenseFormContent from './components/ExpenseFormContent';
 import PlanFormContent from './components/PlanFormContent';
 import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/planUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { formatDateToISO } from '@/common/utils/windowUtils';
 import { showToast } from '../../utils/notificationUtils';
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS} from './constants/constants';
 import { EVENTS } from '../../utils/constants';
+import './ExpenseRequest.css';
 
 const { Title } = Typography;
 
 interface ExpenseRequestContentProps {
   accessToken?: string;
   userInfo?: any;
+  additionalData?: any;
 }
 
 interface ExpenseFormValues {
@@ -44,7 +46,7 @@ interface PlanData {
   planCurrency: string;
 }
 
-const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo }) => {
+const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo, additionalData }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const { 
@@ -63,6 +65,8 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
   
   const [selectedPlan, setSelectedPlan] = React.useState<PlanData | null>(null);
   const [formIsValid, setFormIsValid] = React.useState<boolean>(false);
+  
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   
   const planData = React.useMemo(() => {
@@ -87,11 +91,50 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const handleTripClick = () => {
     setShowTransportation(true);
-    setStep(FORM_STEPS.EXPENSE);
+    setStep(FORM_STEPS.TRIP);
   };
 
   const handlePlanClick = () => {
     setStep(FORM_STEPS.PLAN);
+  };
+
+  const handlePlanSelect = (plan: PlanData) => {
+    setSelectedPlan(plan);
+    const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id);
+    if (fullPlanData) {
+      const formValues: Partial<ExpenseFormValues> = {};
+      if (fullPlanData.title) {
+        formValues.title = fullPlanData.title;
+      }
+      if (fullPlanData.costCenter?.id) {
+        formValues.costCenter = fullPlanData.costCenter.id;
+        setSelectedCostCenter(fullPlanData.costCenter.id);
+      }
+      if (fullPlanData.projectId) {
+        formValues.project = fullPlanData.projectId;
+      }
+      if (fullPlanData.description) {
+        formValues.comment = fullPlanData.description;
+      }
+      if (plan.planType === 'TRIP') {
+        setShowTransportation(true);
+        let additionalProps = fullPlanData.additionalProperties;
+        if (typeof additionalProps === 'string') {
+          try {
+            additionalProps = JSON.parse(additionalProps);
+          } catch (error) {
+            additionalProps = {};
+          }
+        }
+        
+        if (additionalProps?.transportationMeans) {
+          formValues.transportationMeans = additionalProps.transportationMeans;
+        }
+      }
+      form.setFieldsValue(formValues);
+      const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0);
+      setFormIsValid && setFormIsValid(isFormValidValue);
+    }
   };
 
   const backButtonClick = () => {
@@ -106,7 +149,18 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.ABORT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEventIfEnabled(
+        EVENTS.ABORT, {
+          "event": EVENTS.ABORT,
+          pso_exitStrategy: "abort",
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: t(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        });
     } catch (processError) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),
@@ -135,11 +189,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         return;
       }
       
-      const isTrip = step === FORM_STEPS.EXPENSE && values.transportationMeans;
-     
-      const expenseTypeRef = (isTrip 
+      const isTrip = (step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType=== 'TRIP'));
+      let expenseTypeRef =""
+      if(selectedPlan && selectedPlan?.planType){
+        if(selectedPlan?.planType === 'TRIP'){
+          expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
+        }else{
+          expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id
+        }}
+        
+      else{
+        expenseTypeRef = (isTrip 
         ? (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
         : (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id) || ""
+      }
     
       
       let selectedPlanCurrency = "";
@@ -156,7 +219,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         title: values.title,
         status: REQUEST_STATUS.CREATED,
         costCenter: values.costCenter,
-        project: values.project,
+        project: values.project || "",
         employee: employeeId,
         description: values.comment || "",
         expensePlan: selectedPlan?.id || "",
@@ -178,7 +241,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       let operationSuccessful = false;
       
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
         operationSuccessful = true;
       } catch (processError) {
         showToast(
@@ -188,9 +251,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       }
       
       if (operationSuccessful) {
-        form.resetFields();
+        setTimeout(()=>{
+          form.resetFields();
         setSelectedPlan(null);
         setStep(FORM_STEPS.START);
+        }, 3000)
       }
     } catch (error) {
       showToast(
@@ -204,7 +269,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   return (
     <div className="gba:mainContainer" data-testid="expense-request-main-container">
-{step === 'expense' || step === 'plan' ? (
+     {step === 'expense' || step === 'plan' || step === 'trip' ? (
         <>
           {/* Expense form header */}
           <div className="gba:headerContainer" data-testid="expense-form-header-container">
@@ -264,7 +329,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 <PlanFormContent 
                   form={form} 
                   planData={planData} 
-                  onPlanSelect={setSelectedPlan} 
+                  onPlanSelect={handlePlanSelect} 
                 />
               )}
             </>
@@ -291,6 +356,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               onCancel={handleCancel} 
               onSubmit={handleSubmit} 
               testIdPrefix="expense"
+              additionalData={additionalData}
             />
           )}
         </>
@@ -402,6 +468,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           step={step} 
           onCancel={handleCancel} 
           testIdPrefix="expense"
+          additionalData={additionalData}
         />
       </>
       )}
@@ -415,12 +482,12 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
  * @returns Expense Request component
  */
 const ExpenseRequest: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo } = props;
+  const { accessToken, userInfo, additionalData } = props;
   
   return (
     <div className="gba:expenseRequestWrapper" data-testid="expense-request-wrapper">
       <ExpenseRequestProvider {...props}>
-        <ExpenseRequestContent accessToken={accessToken} userInfo={userInfo} />
+        <ExpenseRequestContent accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
       </ExpenseRequestProvider>
     </div>
   );

@@ -163,13 +163,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           {/* Give Feedback Button */}
           <div>
             <AppActionButton 
-              data-testid="add-feedback-button"
+              data-testid="employee-feedback-give-button"
               variant="primary"
               contextsArray={[FlowContextName.employeeGiveFeedback]}
               externalContextData={{
                 employeeId: employee?.id
               }}
-              prefixDataTestId="add-feedback"
+              prefixDataTestId="employee-feedback-give"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
             >
@@ -183,24 +183,24 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           {/* Request Feedback Button - only visible when viewing own profile */}
           {isSelfView && (
             <div>
-              <AppActionButton 
-                data-testid="request-feedback-button"
+              <AppActionButton
+                data-testid="employee-feedback-request-button"
                 variant="secondary"
                 contextsArray={[FlowContextName.employeeRequestFeedback]}
                 externalContextData={{
                   employeeId: employee?.id,
-                isRequestingFeedback: true
-              }}
-              prefixDataTestId="request-feedback"
-              accessToken={accessToken}
-              autoExecuteSingleAction={true}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:hr_performance.request_feedback",
-                "Request Feedback"
-              )}
-            </AppActionButton>
-          </div>
+                  isRequestingFeedback: true
+                }}
+                prefixDataTestId="employee-feedback-request"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+              >
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:hr_performance.request_feedback",
+                  "Request Feedback"
+                )}
+              </AppActionButton>
+            </div>
           )}
         </div>
       </div>

@@ -4,7 +4,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean;
@@ -68,21 +68,21 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')  
       };
     }
     if (paymentsPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = paymentsPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${paymentsPercentageChange.toFixed(0)}%`,
       positive: paymentsPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
     };
   }, [paymentsPercentageChange, statistics.currentMonthPayments, statistics.previousMonthPayments]);
 
@@ -91,21 +91,21 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     if (amountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: 'from last month'
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
     const sign = amountPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${amountPercentageChange.toFixed(0)}%`,
       positive: amountPercentageChange >= 0,
-      description: 'from last month'
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')  
     };
   }, [amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount]);
 
@@ -124,24 +124,24 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const widgets: WidgetItem[] = useMemo(() => [
     {
       key: 'total-payments',
-      title: `Total Payments for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_payments_for_month','Total Payments for') + ' ' + currentMonthName,
       value: statistics.currentMonthPayments || 0,
       prefix: <FileTextOutlined />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Submitted advance payments',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submitted_advance_payments','Submitted advance payments'),
       trend: paymentsTrend,
       active: activeWidgetKey === 'total-payments',
       onClick: () => handleWidgetClick('total-payments')
     },
     {
       key: 'total-amount',
-      title: `Total Amount for ${currentMonthName}`,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for') + ' ' + currentMonthName,
       value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))} €`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Across all payments',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.across_all_payments','Across all payments'),
       trend: amountTrend,
       valueIsString: true,
       active: activeWidgetKey === 'total-amount',
@@ -149,23 +149,24 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     },
     {
       key: 'pending-payments',
-      title: 'Pending Payments',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payments','Pending Payments'),
       value: statistics.pendingPayments || 0,
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Awaiting approval',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval','Awaiting approval'),
       active: activeWidgetKey === 'pending-payments',
+      hideBadge: true,
       onClick: () => handleWidgetClick('pending-payments')
     },
     {
       key: 'approved-payments',
-      title: 'Approved Payments',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.approved_payments','Approved Payments'),
       value: statistics.approvedPayments || 0,
       prefix: <BankOutlined />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, md: 6 },
-      description: 'Ready for processing',
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.ready_for_processing','Ready for processing'),
       active: activeWidgetKey === 'approved-payments',
       onClick: () => handleWidgetClick('approved-payments')
     }
@@ -178,7 +179,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       error={error}
       onRetry={fetchStatistics}
       skeletonCount={4}
-      emptyText="No advance payment statistics available."
+      emptyText={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payment_statistics_available','No advance payment statistics available.')}
       data-testid="advance-payment-statistics"
     />
   );

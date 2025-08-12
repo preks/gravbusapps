@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, message, Typography, Divider } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { startProcess } from '@/common/utils/start-process';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useTranslation } from 'react-i18next';
 import FormScreenComponent from './components/FormScreenComponent';
 
@@ -13,25 +13,34 @@ interface PerformanceGoalFormProps {
   onSuccess?: () => void;
   employeeId: string;
   prefixDataTestId?: string;
+  additionalData: any;
 }
 
 interface PerformanceGoalFormData {
   title: string;
-  startDate: dayjs.Dayjs;
-  dueDate: dayjs.Dayjs;
+  startDate: Date;
+  dueDate: Date;
   status: string;
   progressPercent: number;
 }
 
+const statusOptions = [
+  { value: 'ON_TRACK', label: 'On Track' },
+  { value: 'BEHIND_TARGET', label: 'Behind Target' },
+  { value: 'AT_RISK', label: 'At Risk' },
+  { value: 'ACHIEVED', label: 'Achieved' },
+  { value: 'NOT_ACHIEVED', label: 'Not Achieved' }
+];
+
 /**
  * Performance Goal Form Component
- * Form for creating new employee performance goals
+ * Form for creating new employee performance goals or editing existing ones
  */
 const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   onClose,
   onSuccess,
-  employeeId,
-  prefixDataTestId = 'performance-goal-form'
+  prefixDataTestId = 'performance-goal-form',
+  additionalData
 }) => {
   const [form] = Form.useForm<PerformanceGoalFormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,53 +49,110 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   const { Title } = Typography;
   
   // Status options based on the API schema
-  const statusOptions = [
-    { value: 'ON_TRACK', label: 'On Track' },
-    { value: 'BEHIND_TARGET', label: 'Behind Target' },
-    { value: 'AT_RISK', label: 'At Risk' },
-    { value: 'ACHIEVED', label: 'Achieved' },
-    { value: 'NOT_ACHIEVED', label: 'Not Achieved' }
-  ];
-
+ 
+  const isEditMode = additionalData?.goalId ? true : false;
+  // Initialize form with existing data when in edit mode
+  useEffect(() => {
+    if (additionalData) {
+      // Helper function to safely convert date strings to Date objects
+      const safeDateConversion = (dateString: string | undefined): Date => {
+        if (!dateString) return new Date();
+        try {
+          const date = new Date(dateString);
+          return isNaN(date.getTime()) ? new Date() : date;
+        } catch (error) {
+          console.warn('Failed to parse date:', dateString, error);
+          return new Date();
+        }
+      };
+      const dueDate = dayjs(additionalData.dueDate).add(5, 'day');
+      const initialValues = {
+        title: additionalData.title || '',
+        startDate: safeDateConversion(additionalData.startDate),
+        dueDate: safeDateConversion(additionalData.dueDate || dueDate.toISOString()),
+        status: additionalData.status || 'ON_TRACK',
+        progressPercent: additionalData.progressPercent || 0
+      };
+      
+      form.setFieldsValue(initialValues);
+    } else {
+      // For create mode, set start date to today and due date to 5 days from today
+      const today = dayjs().startOf('day'); // Start of day to avoid time issues
+      const dueDate = today.add(5, 'day');
+      
+      
+      form.setFieldsValue({ 
+        startDate: today.toDate(),
+        dueDate: dueDate.toDate() 
+      });
+    }
+  }, [ additionalData, form]);
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const values = await form.validateFields();
       setIsSubmitting(true);
       
+      // Helper function to convert date to ISO string with noon time to avoid timezone issues
+      const dateToISOString = (date: Date | string): string => {
+        if (date instanceof Date) {
+          // Set time to noon to avoid timezone issues
+          const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+          return dateOnly.toISOString();
+        }
+        return date as string;
+      };
+
       // Transform dates to ISO string format as required by API
       const payload = {
         employeePerformanceGoal: {
+          id: isEditMode ? additionalData.goalId : null,
           title: values.title,
-          startDate: values.startDate.toISOString(),
-          dueDate: values.dueDate.toISOString(),
+          startDate: dateToISOString(values.startDate),
+          dueDate: dateToISOString(values.dueDate),
           status: values.status || 'ON_TRACK',
           progressPercent: values.progressPercent || 0,
-          employee: employeeId,
+          employee: additionalData?.employeeId,
+          version: isEditMode && additionalData?.version ? additionalData.version : 0
         },
-        changeMode: "INSERT"
+        changeMode: isEditMode ? "UPDATE" : "INSERT"
       };
       
-      // Start the process to save the performance goal
-      startProcess({
-        domain: 'employee',
-        processName: 'saveEmployeePerformanceGoal',
-        payload,
-        builderType: "NATIVE_SCREEN"
-      });
       
-      message.success('Performance goal was successfully created');
+      // Validate that we have the required data for edit mode
+      if (isEditMode && !additionalData?.goalId) {
+        console.error('Edit mode enabled but no goal ID found:', additionalData);
+        message.error('Cannot edit goal: Goal ID not found');
+        return;
+      }
+      
+      // For editing existing goals, continue the current process
+      dispatchProcessContinueEvent('pse_complete', payload);
+      
+      const successMessage = isEditMode 
+        ? 'Performance goal was successfully updated'
+        : 'Performance goal was successfully created';
+      
+      message.success(successMessage);
       form.resetFields();
       onSuccess?.();
       onClose();
     } catch (error) {
       console.error('Error saving performance goal:', error);
-      message.error('Failed to create performance goal');
+      const errorMessage = isEditMode 
+        ? 'Failed to update performance goal'
+        : 'Failed to create performance goal';
+      message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const getFormTitle = () => {
+    return isEditMode 
+      ? t("performance_goal.edit_title", "Edit Performance Goal")
+      : t("performance_goal.title", "Set New Goal");
+  };
 
   return (
     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-screen gba:px-4">
@@ -94,7 +160,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         <div className="gba:headerContainer">
           <div className="gba:titleContainer">
             <Title level={4} className="gba:headerTitle gba:text-center">
-              {t("performance_goal.title", "Set New Goal")}
+              {getFormTitle()}
             </Title>
           </div>
         </div>
@@ -106,6 +172,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           handleFormSubmit={handleFormSubmit}
           statusOptions={statusOptions}
           prefixDataTestId={prefixDataTestId}
+          isEditMode={isEditMode}
         />
       </div>
     </div>
@@ -113,16 +180,22 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 };
 
 // Wrapper component
-const PerformanceGoalForm: React.FC<BusinessAppContextProps & { employeeId: string, onClose?: () => void, onSuccess?: () => void }> = ({ 
+const PerformanceGoalForm: React.FC<BusinessAppContextProps & { 
+  employeeId: string, 
+  onClose?: () => void, 
+  onSuccess?: () => void,
+}> = ({ 
   employeeId,
   onClose = () => {},
-  onSuccess
+  onSuccess,
+  additionalData
 }) => {
   return (
     <PerformanceGoalFormContent 
       employeeId={employeeId}
       onClose={onClose}
       onSuccess={onSuccess}
+      additionalData={additionalData?.psi_taskPayload?.psi_initialParameters}
     />
   );
 };

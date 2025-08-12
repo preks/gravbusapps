@@ -62,18 +62,18 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
           onClick={() => onChange(option.key)}
           data-testid={`vacancy-status-${option.key}-button`}
           style={{
-            marginRight: 'var(--spacing-2)',
+            marginRight: 'var(--nw-spacing-2)',
             display: 'flex',
             alignItems: 'center',
-            gap: 'var(--spacing-2)',
+            gap: 'var(--nw-spacing-2)',
             color: value === option.key 
-              ? `var(--color-${option.color}-foreground)` 
-              : `var(--color-${option.color})`,
+              ? `var(--nw-color-${option.color}-foreground)` 
+              : `var(--nw-color-${option.color})`,
             backgroundColor: value === option.key 
-              ? `var(--color-${option.color})` 
+              ? `var(--nw-color-${option.color})` 
               : 'transparent',
-            borderColor: `var(--color-${option.color})`,
-            borderWidth: 'var(--spacing-px)',
+            borderColor: `var(--nw-color-${option.color})`,
+            borderWidth: 'var(--nw-spacing-px)',
             borderStyle: 'solid'
           }}
         >
