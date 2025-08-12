@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@newwork/gravity-ui-catalog";
+import { Button, Divider } from "@newwork/gravity-ui-catalog";
 import { useTranslation } from "react-i18next";
 import UploadComponent from "../UploadComponent";
 import { useExpenseItem } from "../../context/ExpenseItemContext";
@@ -10,18 +10,20 @@ interface StartScreenComponentProps {
   fileList: any[];
   setFileList: (files: any[]) => void;
   setCurrentStep: (step: FormStepType) => void;
+  handleCancel: () => void;
 }
 
 export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   fileList,
   setFileList,
   setCurrentStep,
+  handleCancel,
 }) => {
   const { t } = useTranslation();
   const { isProcessingFiles } = useExpenseItem();
 
   return (
-    <div className={`gba:startScreenContainer`} data-testid="start-screen-container">
+    <div className={`gba:startScreenContainer gba:flex gba:flex-col gba:h-full`} data-testid="start-screen-container">
       <div className={`gba:uploadWrapper`} data-testid="upload-component-wrapper">
         <UploadComponent 
           fileList={fileList} 
@@ -29,6 +31,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           data-testid="upload-component"
         />
       </div>
+      
       <div className={`gba:buttonContainer`} data-testid="continue-button-container">
         <Button
           variant="ghost"
@@ -47,6 +50,29 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
             />
           </div>
         </Button>
+      </div>
+      
+      {/* Spacer to push content to the bottom */}
+      <div className="gba:flex-grow" data-testid="start-screen-spacer" />
+      <div className="gba:flex gba:flex-col w-full">
+        <Divider 
+          color="#EFEFEF"
+          horizontal
+          size={1}
+          className="gba:mt-[30px] gba:mb-[30px]"
+          data-testid="start-screen-divider"
+        />
+        
+        <div className="gba:actionButtonsContainer" data-testid="start-screen-actions">
+          <Button
+            variant="outline" 
+            onClick={handleCancel}
+            className="gba:cancelButton"
+            data-testid="start-screen-cancel-button"
+          >
+            {t("lowcoder:create_expense_request.initiate_cancel_button", "Cancel")}
+          </Button>
+        </div>
       </div>
     </div>
   );

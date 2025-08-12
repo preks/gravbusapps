@@ -157,6 +157,9 @@ export const handleExpenseTypeChange = async (
     
 
     if (form) {
+      form.setFieldsValue({
+        [`expenseType-${positionIndex}`]: value || undefined
+      });
 
       const prevExpenseType = positions[positionIndex]?.expenseType;
       
@@ -271,7 +274,10 @@ export const handleSubmit = async (
   accessToken?: string,
   employeeId?: string,
   additionalData?: any,
-  userInfo?: any
+  userInfo?: any,
+  itemValues?: { id: string; version: string | number },
+  getIsProcessEventDispatched?: () => boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
     setLoading(true);
@@ -294,15 +300,22 @@ export const handleSubmit = async (
     
     if (accessToken && employeeId && hasExpenseRequest) {
       try {
-        const flowResult = await initiateFlow(accessToken, employeeId,FLOW_DOMAIN,FLOW_PROCESS_NAME);
-        if (flowResult && flowResult && flowResult.id) {
+        // Check if process event is already dispatched
+        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+          return;
+        }
+
+        const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME);
+        if (flowResult && flowResult.id) {
           flowProcessId = flowResult.id;
           const userId = userInfo?.id || "";
 
           const tasksResult = await getOpenedTaskFlow(
             accessToken,
             userId,
-            flowProcessId as string,FLOW_DOMAIN,FLOW_PROCESS_NAME
+            flowProcessId as string,
+            FLOW_DOMAIN,
+            FLOW_PROCESS_NAME
           );
           
           if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
@@ -356,6 +369,8 @@ export const handleSubmit = async (
     });
     const submitData = {
       expenseItem: {
+        ...(itemValues?.id && { id: itemValues.id }),
+        ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         expenseDate: values.date
           ? formatDateToISOString(values.date)
@@ -409,7 +424,12 @@ export const handleSubmit = async (
 
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        
+        if(dispatchProcessContinueEventIfEnabled){
+          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
+        }else{
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        }
         // operationSuccessful = true;
       } catch (processError) {
         showToast(

@@ -11,8 +11,10 @@ import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunctio
 import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload } from '../ExpenseRequestWizardQueries';
 import { SearchBarWithLabel } from '../../../forms/expense-request/components';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { showToast } from '../../../utils/notificationUtils';
+import RejectionComment from '../components/RejectionComment';
+import { getLatestRejectComment } from '../utils/tripScreenUtils';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -22,6 +24,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
     };
     [key: string]: any;
   };
+  isTrip:boolean
 }
 
 
@@ -29,7 +32,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
 
 
 const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
-  const { accessToken, additionalData, userInfo } = props;
+  const { accessToken, additionalData, userInfo, isTrip } = props;
   const { 
     expenseRequestData, 
     setExpenseRequestData, 
@@ -54,8 +57,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expenseTotals, setExpenseTotals] = useState<{currency: string, amount: number}[]>([]);
   
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
+  
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 4;
+  const itemListLimit = 3;
   
   const graphQLClient = useGraphqlClient(accessToken);
 
@@ -66,6 +71,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     
     return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
   }, [expenseRequestData]);
+  
+  const latestRejectComment = getLatestRejectComment(expenseRequestData);
+
   useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
@@ -393,7 +401,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.NEXT
       );
-      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -408,7 +416,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle, currentCurrency, expenseItems]);
   
@@ -463,7 +471,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   if (showSelectItems) {
     return (
-      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen">
+      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
         <div className="gba:screenHeader gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
           <SearchBarWithLabel 
             onSearch={handleSearch} 
@@ -486,7 +494,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                   return (
                     <div
                       key={item.id}
-                      className={`gba:cursor-pointer gba:hover:bg-gray-50 ${selectedItemIdsForSelection.includes(item.id) ? 'gba:border-4 gba:border-black' : ''}`}
+                      className="gba:cursor-pointer gba:hover:bg-gray-50"
+                      style={{
+                        border: selectedItemIdsForSelection.includes(item.id) ? '4px solid black' : 'none'
+                      }}
                       onClick={() => toggleItemSelection(item.id)}
                       data-testid={`select-item-${item.id}`}
                     >
@@ -528,12 +539,17 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-request-wizard-items-screen">
+    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" style={{flexGrow:1}} data-testid="expense-request-wizard-items-screen">
+      {!isTrip && latestRejectComment && (
+       <div className="gba:mb-4">
+        <RejectionComment isRequest={true} comment={latestRejectComment} />
+        </div>
+      )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
           <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
-            {expenseItems.length > 0 && `(${expenseItems.length})`}
+            {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button 
