@@ -124,7 +124,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
 
         const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
         const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
-        const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count ?? 0 + data?.pendingAdvancePayments?.aggregate?.count ?? 0;
+        const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count + data?.pendingAdvancePayments?.aggregate?.count;
 
         const expenseDashboard: ExpenseDashboard = {
           pendingPayouts: bookedExpenseRequests + pendingAdvancePayments,
