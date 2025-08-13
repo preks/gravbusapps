@@ -20,6 +20,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+  // Add sorting state for server-side sorting
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('descend');
 
   const {
     filterGroups,
@@ -204,14 +207,16 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     return buildWidgetFilters(baseFilters);
   }, [getFilters, buildWidgetFilters]);
 
-  // Only fetch when filters, page, or pageSize change
+  // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
     fetchItems(
       memoizedFilters,
       currentPage,
-      pageSize
+      pageSize,
+      sortField,
+      sortOrder
     );
-  }, [fetchItems, currentPage, pageSize, memoizedFilters]);
+  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder]);
 
   useEffect(() => {
     fetchStatistics();
@@ -227,7 +232,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           
           // Refresh plans data
           if (props.accessToken && props.userInfo?.employeeDetails?.employeeId) {
-            fetchItems(memoizedFilters, currentPage, pageSize);
+            fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder);
           }
           
           // Refresh statistics
@@ -284,7 +289,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       
       window.dispatchEvent = originalDispatchEvent;
     };
-  }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
+  }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, sortField, sortOrder, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
 
   // Memoize the label map to prevent unnecessary re-rendering
   const statusFilterLabelMap = useMemo(() => {
@@ -337,9 +342,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [props.onContentHeaderChange, contentHeader]);
 
+  // Enhanced table change handler for server-side sorting
   const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
+    
+    // Handle sorting for server-side sorting
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      // Reset to default sorting (creation date descending)
+      setSortField('createdAt');
+      setSortOrder('descend');
+    }
   }, []);
 
   return (
