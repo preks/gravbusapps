@@ -18,6 +18,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
 import { useMileageRulesIntegration, EnhancedMileageRule } from '../../hooks/useMileageRulesIntegration';
+import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
 import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form';
 import MileageRuleDetails from './MileageRuleDetails';
 import { 
@@ -93,24 +94,27 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
 
   const handleCreateSubmit = async (formData: MileageRuleFormData) => {
     try {
-      // TODO: Implement actual API call using expense settings integration
-      // await createMileageRule(formData);
+      await createMileageRule(formData);
+      message.success('Mileage rule created successfully');
       setIsCreateModalVisible(false);
       refetch();
     } catch (error) {
       console.error('Error creating rule:', error);
+      message.error('Failed to create mileage rule');
     }
   };
 
   const handleEditSubmit = async (formData: MileageRuleFormData) => {
     try {
-      // TODO: Implement actual API call using expense settings integration
-      // await updateMileageRule(editingRule.id, formData);
+      if (!editingRule) return;
+      await updateMileageRule(editingRule.id, formData);
+      message.success('Mileage rule updated successfully');
       setIsEditModalVisible(false);
       setEditingRule(null);
       refetch();
     } catch (error) {
       console.error('Error updating rule:', error);
+      message.error('Failed to update mileage rule');
     }
   };
 
@@ -129,6 +133,12 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
     searchMileageRules,
     refetch
   } = useMileageRulesIntegration({ ...context, accessToken });
+
+  // Use the API integration hook for CRUD operations
+  const { 
+    createMileageRule, 
+    updateMileageRule 
+  } = useExpenseSettingsIntegration({ ...context, accessToken });
 
   // Handle search with debounced effect
   useEffect(() => {
@@ -408,30 +418,48 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
               {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editMileageRule.title', 'Edit Mileage Rule')}
             </DialogTitle>
           </DialogHeader>
-          {editingRule && (
-            <MileageRuleForm
-              accessToken={accessToken}
-              initialData={{
-                id: editingRule.id,
-                ruleName: editingRule.name,
-                description: editingRule.description || '',
-                rulePeriod: editingRule.rulePeriod || '',
-                activeFrom: editingRule.effectiveFrom ? dayjs(editingRule.effectiveFrom).format('YYYY-MM-DD') : '',
-                activeTo: editingRule.effectiveTo ? dayjs(editingRule.effectiveTo).format('YYYY-MM-DD') : '',
-                details: editingRule.details.map(detail => ({
-                  id: detail.id,
-                  rateAmount: detail.amount,
-                  limitFrom: detail.limitFrom,
-                  limitTo: detail.limitTo,
-                  detailOrder: detail.detailOrder,
-                  activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
-                  activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : ''
-                }))
-              }}
-              onSubmit={handleEditSubmit}
-              onCancel={handleModalCancel}
-            />
-          )}
+          {editingRule && (() => {
+            const initialData = {
+              id: editingRule.id,
+              version: editingRule.version,
+              code: editingRule.code,
+              ruleName: editingRule.name,
+              description: editingRule.description || '',
+              rulePeriod: editingRule.rulePeriod || '',
+              activeFrom: editingRule.effectiveFrom ? dayjs(editingRule.effectiveFrom).format('YYYY-MM-DD') : '',
+              activeTo: editingRule.effectiveTo ? dayjs(editingRule.effectiveTo).format('YYYY-MM-DD') : '',
+              details: editingRule.details.map(detail => ({
+                id: detail.id,
+                version: detail.version,
+                rateAmount: detail.amount,
+                limitFrom: detail.limitFrom,
+                limitTo: detail.limitTo,
+                detailOrder: detail.detailOrder,
+                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
+                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : ''
+              }))
+            };
+            
+            // DEBUG: Log what we're passing to the form
+            console.log('🐛 EditingRule initial data:', {
+              ruleId: initialData.id,
+              ruleVersion: initialData.version,
+              ruleCode: initialData.code,
+              detailsWithVersions: initialData.details.map(d => ({ 
+                id: d.id, 
+                version: d.version 
+              }))
+            });
+            
+            return (
+              <MileageRuleForm
+                accessToken={accessToken}
+                initialData={initialData}
+                onSubmit={handleEditSubmit}
+                onCancel={handleModalCancel}
+              />
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Button, 
   Input, 
@@ -30,10 +30,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 
 interface MileageRuleFormData {
   id?: string;
   version?: number;
+  code: string;
   ruleName: string;
   description: string;
   rulePeriod: string;
@@ -52,6 +54,8 @@ interface MileageRuleDetailFormData {
   activeFrom: string;
   activeTo: string;
   tempId?: string; // For stable keys during drag operations
+  mileageRuleId?: string; // Parent rule ID for saving details separately
+  additionalProperties?: Record<string, any>; // Expected by API
 }
 
 interface MileageRuleFormProps {
@@ -106,19 +110,47 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
 }) => {
   
   // Form state
-  const [formData, setFormData] = useState<MileageRuleFormData>({
-    ruleName: initialData?.ruleName || '',
-    description: initialData?.description || '',
-    rulePeriod: initialData?.rulePeriod || '',
-    activeFrom: initialData?.activeFrom || '',
-    activeTo: initialData?.activeTo || '',
-    details: initialData?.details || []
+  const [formData, setFormData] = useState<MileageRuleFormData>(() => {
+    const initialFormData = {
+      ...(initialData?.id && { id: initialData.id }),
+      ...(initialData?.version !== undefined && { version: initialData.version }),
+      code: initialData?.code || '',
+      ruleName: initialData?.ruleName || '',
+      description: initialData?.description || '',
+      rulePeriod: initialData?.rulePeriod || '',
+      activeFrom: initialData?.activeFrom || '',
+      activeTo: initialData?.activeTo || '',
+      details: initialData?.details || []
+    };
+    
+    return initialFormData;
   });
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  
+  // Store original data for change detection
+  const [originalFormData, setOriginalFormData] = useState<MileageRuleFormData | null>(null);
+
+  // Store original data when form initializes or initialData changes
+  useEffect(() => {
+    if (initialData) {
+      const originalData = {
+        ...(initialData.id && { id: initialData.id }),
+        ...(initialData.version !== undefined && { version: initialData.version }),
+        code: initialData.code || '',
+        ruleName: initialData.ruleName || '',
+        description: initialData.description || '',
+        rulePeriod: initialData.rulePeriod || '',
+        activeFrom: initialData.activeFrom || '',
+        activeTo: initialData.activeTo || '',
+        details: initialData.details || []
+      };
+      setOriginalFormData(originalData);
+    }
+  }, [initialData]);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -216,6 +248,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
     const errors: string[] = [];
 
     // Basic validation
+    if (!formData.code.trim()) {
+      errors.push('Code is required');
+    }
     if (!formData.ruleName.trim()) {
       errors.push('Rule name is required');
     }
@@ -264,16 +299,12 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
     return errors.length === 0;
   };
 
-  // Handle submit
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
 
-    setIsSubmitting(true);
-    try {
-      // Sort details by limit ranges before saving
-      const sortedDetails = [...formData.details].sort((a, b) => {
+
+  // Auto-order details by limit ranges
+  const autoOrderDetails = (details: MileageRuleDetailFormData[]): MileageRuleDetailFormData[] => {
+    return details
+      .sort((a, b) => {
         const aFrom = a.limitFrom || 0;
         const bFrom = b.limitFrom || 0;
         if (aFrom !== bFrom) {
@@ -282,19 +313,175 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
         const aTo = a.limitTo || Infinity;
         const bTo = b.limitTo || Infinity;
         return aTo - bTo;
-      });
+      })
+      .map((detail, index) => ({
+        ...detail,
+        detailOrder: index + 1
+      }));
+  };
 
-      // Update detail order based on sorted position
-      sortedDetails.forEach((detail, idx) => {
-        detail.detailOrder = idx + 1;
-      });
+  // Save individual details
+  const saveDetailsToBackend = async (details: MileageRuleDetailFormData[]) => {
+    if (!formData.id) {
+      throw new Error('Parent mileage rule must be saved first');
+    }
 
-      const dataToSubmit = {
+    const client = new ExpenseSettingsClient();
+    client.setAccessToken(accessToken);
+    
+    const promises = details.map(async (detail, index) => {
+      const detailData = {
+        ...detail,
+        mileageRuleId: formData.id,
+        activeFrom: detail.activeFrom ? new Date(detail.activeFrom + 'T00:00:00.000Z').toISOString() : '',
+        activeTo: detail.activeTo ? new Date(detail.activeTo + 'T23:59:59.999Z').toISOString() : ''
+      };
+      
+      try {
+        console.log(`🐛 Saving detail ${index + 1}/${details.length}:`, detailData);
+        const result = await client.saveMileageRuleDetail(detailData);
+        console.log(`✅ Detail ${index + 1} saved successfully:`, result);
+        return result;
+      } catch (error) {
+        console.error(`❌ Error saving detail ${index + 1}:`, error);
+        console.error('Failed detail data:', detailData);
+        throw error;
+      }
+    });
+
+    await Promise.all(promises);
+  };
+
+  // Check if mileage rule data has changed
+  const hasRuleChanged = (current: MileageRuleFormData, original: MileageRuleFormData | null): boolean => {
+    if (!original) return true; // No original data means it's new
+    
+    return (
+      current.code !== original.code ||
+      current.ruleName !== original.ruleName ||
+      current.description !== original.description ||
+      current.rulePeriod !== original.rulePeriod ||
+      current.activeFrom !== original.activeFrom ||
+      current.activeTo !== original.activeTo
+    );
+  };
+
+  // Check if a detail has changed
+  const hasDetailChanged = (current: MileageRuleDetailFormData, original: MileageRuleDetailFormData): boolean => {
+    return (
+      current.limitFrom !== original.limitFrom ||
+      current.limitTo !== original.limitTo ||
+      current.rateAmount !== original.rateAmount ||
+      current.detailOrder !== original.detailOrder ||
+      current.activeFrom !== original.activeFrom ||
+      current.activeTo !== original.activeTo
+    );
+  };
+
+  // Get details that have changed
+  const getChangedDetails = (currentDetails: MileageRuleDetailFormData[], originalDetails: MileageRuleDetailFormData[]): MileageRuleDetailFormData[] => {
+    const changedDetails: MileageRuleDetailFormData[] = [];
+    
+    // Check existing details for changes
+    currentDetails.forEach(current => {
+      if (current.id) {
+        const original = originalDetails.find(orig => orig.id === current.id);
+        if (original && hasDetailChanged(current, original)) {
+          changedDetails.push(current);
+        }
+      } else {
+        // New detail (no id)
+        changedDetails.push(current);
+      }
+    });
+    
+    return changedDetails;
+  };
+
+  // Check if there are any changes to save (memoized for performance)
+  const hasAnyChanges = useMemo((): boolean => {
+    if (!originalFormData) {
+      // No original data means it's new (should be saveable)
+      return true;
+    }
+    
+    // Check if rule has changed
+    const ruleChanged = hasRuleChanged(formData, originalFormData);
+    
+    // Check if any details have changed
+    const changedDetails = getChangedDetails(formData.details, originalFormData.details);
+    
+    const anyChanges = ruleChanged || changedDetails.length > 0;
+    
+    // Debug logging for button state
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔘 Save button state check:', {
+        hasChanges: anyChanges,
+        ruleChanged,
+        changedDetailsCount: changedDetails.length,
+        totalDetailsCount: formData.details.length
+      });
+    }
+    
+    return anyChanges;
+  }, [formData, originalFormData]);
+
+  // Handle submit
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Step 1: Auto-order details first
+      const orderedDetails = autoOrderDetails(formData.details);
+      
+      // Update form data with ordered details
+      const formDataWithOrderedDetails = {
         ...formData,
-        details: sortedDetails
+        details: orderedDetails
       };
 
-      await onSubmit(dataToSubmit);
+      console.log('🐛 Starting save process with auto-ordered details');
+
+      // Step 2: Check what has changed
+      const ruleHasChanged = hasRuleChanged(formDataWithOrderedDetails, originalFormData);
+      const changedDetails = originalFormData ? getChangedDetails(orderedDetails, originalFormData.details) : orderedDetails;
+
+      console.log('🐛 Change detection:', {
+        ruleHasChanged,
+        changedDetailsCount: changedDetails.length,
+        totalDetailsCount: orderedDetails.length
+      });
+
+      // Step 3: Save rule if it has changed
+      if (ruleHasChanged) {
+        console.log('🐛 Saving mileage rule (has changes)');
+        const dataToSubmit = {
+          ...formDataWithOrderedDetails,
+          activeFrom: formDataWithOrderedDetails.activeFrom ? new Date(formDataWithOrderedDetails.activeFrom + 'T00:00:00.000Z').toISOString() : '',
+          activeTo: formDataWithOrderedDetails.activeTo ? new Date(formDataWithOrderedDetails.activeTo + 'T23:59:59.999Z').toISOString() : '',
+          details: [] // Empty details array since details are saved via separate API
+        };
+        await onSubmit(dataToSubmit);
+      } else {
+        console.log('🐛 Skipping mileage rule save (no changes)');
+      }
+
+      // Step 4: Save changed details
+      if (changedDetails.length > 0) {
+        console.log(`🐛 Saving ${changedDetails.length} changed details`);
+        await saveDetailsToBackend(changedDetails);
+      } else {
+        console.log('🐛 Skipping details save (no changes)');
+      }
+
+      // Step 5: Update original data to current state (for future change detection)
+      setOriginalFormData({ ...formDataWithOrderedDetails });
+      
+      console.log('🐛 Save process completed successfully');
+
     } catch (error) {
       console.error('Error submitting form:', error);
     } finally {
@@ -310,7 +497,17 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-4" style={{ overflow: 'visible' }}>
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+            <div>
+              <Label htmlFor="code">Code *</Label>
+              <Input
+                id="code"
+                value={formData.code}
+                onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                placeholder="Enter code"
+                data-testid="mileage-rule-form-code"
+              />
+            </div>
             <div>
               <Label htmlFor="ruleName">Rule Name *</Label>
               <Input
@@ -401,13 +598,13 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
               </AlertDescription>
             </Alert>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
-            >
+                          <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis]}
+              >
               <SortableContext
                 items={formData.details.map(detail => detail.tempId!)}
                 strategy={verticalListSortingStrategy}
@@ -527,6 +724,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
         </Alert>
       )}
 
+
+
       {/* Form Actions */}
       <div className="gba:flex gba:justify-end gba:gap-3">
         <Button variant="outline" onClick={onCancel} data-testid="mileage-rule-form-cancel">
@@ -534,7 +733,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={isSubmitting}
+          disabled={isSubmitting || !hasAnyChanges}
           data-testid="mileage-rule-form-save"
         >
           {isSubmitting ? (

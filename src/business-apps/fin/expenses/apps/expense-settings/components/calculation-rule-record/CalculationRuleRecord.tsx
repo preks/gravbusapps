@@ -25,6 +25,10 @@ import {
   PiCheckCircle
 } from 'react-icons/pi';
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+
+// Configure dayjs plugins
+dayjs.extend(isBetween);
 
 // Tab components (these would be separate modules in a full implementation)
 import GeneralExpensesTab from './tabs/GeneralExpensesTab';

@@ -20,6 +20,7 @@ export interface EnhancedMileageRule {
   createdAt: string;
   updatedAt: string;
   usageCount: number; // New field for calculation rule usage count
+  version?: number; // Add version field for optimistic locking
   details: {
     id: string;
     amount: number;
@@ -28,6 +29,7 @@ export interface EnhancedMileageRule {
     detailOrder: number;
     activeFrom?: string;
     activeTo?: string;
+    version?: number; // Add version field for details too
   }[];
 }
 
@@ -85,6 +87,7 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
         usageCount,
+        version: rule.version, // Add version field
         details: rule.mileageRuleDetail.map(detail => ({
           id: detail.id,
           amount: detail.amount,
@@ -92,7 +95,8 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
           limitTo: detail.limitTo,
           detailOrder: detail.detailOrder,
           activeFrom: detail.activeFrom,
-          activeTo: detail.activeTo
+          activeTo: detail.activeTo,
+          version: detail.version // Add version field for details
         }))
       };
     });

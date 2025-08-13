@@ -388,4 +388,65 @@ export interface ExpenseRuleCustomField {
   activeTo?: string;
   version?: number;
   isDeleted: boolean;
+}
+
+export interface ExpenseRuleGeneralExpense {
+  id: string;
+  code: string;
+  name: string;
+  reimbursable: boolean;
+  taxCodeRef?: string;
+  taxValue?: number;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
+  
+  // Relations
+  expenseGroup?: ExpenseGroupWithTranslations;
+}
+
+export interface ExpenseGroupWithTranslations {
+  id: string;
+  value: string;
+  code: string;
+  translations?: {
+    value: string;
+    localeCode: string;
+  }[];
+}
+
+export interface ExpenseRuleMileage {
+  id: string;
+  code: string;
+  name: string;
+  reimbursable: boolean;
+  taxCodeRef?: string;
+  taxValue?: number;
+  unitPrice?: number;
+  mileageOrder?: number;
+  activeFrom: string;
+  activeTo?: string;
+  version?: number;
+  isDeleted: boolean;
+  wageCode?: string;
+  
+  // Relations
+  expenseGroup?: ExpenseGroupWithTranslations;
+  measurementUnit?: MeasurementUnitWithTranslations;
+  mileageRule?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+}
+
+export interface MeasurementUnitWithTranslations {
+  id: string;
+  value: string;
+  code: string;
+  translations?: {
+    value: string;
+    localeCode: string;
+  }[];
 } 
