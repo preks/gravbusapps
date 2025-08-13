@@ -126,6 +126,13 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
     }
   }, [pipelines, form]);
 
+  // Initialize form with CRM default source app
+  useEffect(() => {
+    if (!form.getFieldValue("opportunitySourceApp")) {
+      form.setFieldsValue({ opportunitySourceApp: "CRM" });
+    }
+  }, [form]);
+
   // Auto-set default stage when stages are loaded
   useEffect(() => {
     if (currentPipeline) {
@@ -461,10 +468,11 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   ),
                 },
               ]}
-              initialValue="IRM"
+              initialValue="CRM"
             >
               <DesignSelect
-                value={form.getFieldValue("opportunitySourceApp") || "IRM"}
+                value={form.getFieldValue("opportunitySourceApp") || "CRM"}
+                defaultValue="CRM"
                 onValueChange={(value: string) => {
                   form.setFieldsValue({ opportunitySourceApp: value });
                 }}
@@ -482,8 +490,9 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   position="popper"
                   className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
                 >
-                  <SelectItem value="IRM">IRM</SelectItem>
+                  {/* CRM should be first/default option */}
                   <SelectItem value="CRM">CRM</SelectItem>
+                  <SelectItem value="IRM">IRM</SelectItem>
                 </SelectContent>
               </DesignSelect>
             </Form.Item>

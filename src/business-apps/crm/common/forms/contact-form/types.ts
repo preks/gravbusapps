@@ -28,6 +28,9 @@ export interface ContactFormValues {
   ownerEmployeeId: string;
   ownerOrganizationId: string;
 
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Additional Information
   notesSummary: string;
 

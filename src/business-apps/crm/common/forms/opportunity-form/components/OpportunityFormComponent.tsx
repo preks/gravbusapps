@@ -10,12 +10,25 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import OpportunityInformationSection from "./OpportunityInformationSection";
 import AdditionalInformationSection from "./AdditionalInformationSection";
+import SearchableSelect from "./SearchableSelect";
 
 const prefixDataTestId = "OpportunityForm";
 
 const OpportunityFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } =
-    useOpportunityFormContext();
+  const {
+    formValues,
+    setFormValues,
+    onSubmit,
+    onCancel,
+    isLoading,
+    error,
+    salesCampaigns,
+    salesCampaignsLoading,
+    salesCampaignsError,
+    salesCampaignsHasMore,
+    searchSalesCampaigns,
+    loadMoreSalesCampaigns,
+  } = useOpportunityFormContext();
 
   // Check if all mandatory fields are filled - Pipeline is now mandatory instead of opportunity status
   const isFormValid =
@@ -43,6 +56,7 @@ const OpportunityFormComponent: React.FC = () => {
         sourceApp: "CRM",
         name: toStringOrUndefined(formValues.name),
         accountId: toStringOrUndefined(formValues.accountId), // Account ID from selected company
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // Campaign ID for backend
         opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
         pipelineRef: toStringOrUndefined(formValues.pipeline),
         salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Same as pipelineRef
@@ -100,6 +114,29 @@ const OpportunityFormComponent: React.FC = () => {
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Opportunity Information Section */}
           <OpportunityInformationSection />
+
+          {/* Campaign Section */}
+          <div className="gba:space-y-2">
+            <SearchableSelect
+              label="Sales Campaign"
+              name="salesCampaignId"
+              value={formValues.salesCampaignId}
+              placeholder="Please Select Campaign..."
+              options={salesCampaigns as any}
+              loading={salesCampaignsLoading}
+              hasMore={salesCampaignsHasMore}
+              onSearch={searchSalesCampaigns}
+              onLoadMore={loadMoreSalesCampaigns}
+              onChange={(value) => {
+                setFormValues({
+                  salesCampaignId: value, // Store only ID for backend
+                });
+              }}
+              error={salesCampaignsError}
+              className="gba:w-full gba:min-w-[300px]"
+              data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+            />
+          </div>
 
           {/* Additional Information Section */}
           <AdditionalInformationSection />

@@ -192,12 +192,28 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   );
 
   // Static contact options (defined early to ensure availability)
+  // Using enum values expected by the API: FOUNDER_CONTACT, PRIMARY_CONTACT, SECONDARY_CONTACT, UNKNOWN_CONTACT
   const contactTypes = [
-    { id: "primary", value: "primary", label: "Primary Contact" },
-    { id: "secondary", value: "secondary", label: "Secondary Contact" },
-    { id: "technical", value: "technical", label: "Technical Contact" },
-    { id: "billing", value: "billing", label: "Billing Contact" },
-    { id: "executive", value: "executive", label: "Executive Contact" },
+    {
+      id: "PRIMARY_CONTACT",
+      value: "PRIMARY_CONTACT",
+      label: "Primary Contact",
+    },
+    {
+      id: "SECONDARY_CONTACT",
+      value: "SECONDARY_CONTACT",
+      label: "Secondary Contact",
+    },
+    {
+      id: "FOUNDER_CONTACT",
+      value: "FOUNDER_CONTACT",
+      label: "Founder Contact",
+    },
+    {
+      id: "UNKNOWN_CONTACT",
+      value: "UNKNOWN_CONTACT",
+      label: "Unknown Contact",
+    },
   ];
 
   const contactRoles = [
@@ -242,6 +258,13 @@ const ContactSection: React.FC<ContactSectionProps> = ({
       }
     }
   }, [accessToken]);
+
+  // Initialize form with CRM default source app
+  useEffect(() => {
+    if (!form.getFieldValue("contactSourceApp")) {
+      form.setFieldsValue({ contactSourceApp: "CRM" });
+    }
+  }, [form]);
 
   // Contact pagination functions (same pattern as accounts)
   const fetchContactsPaginated = useCallback(
@@ -885,10 +908,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                           ),
                         },
                       ]}
-                      initialValue="IRM"
+                      initialValue="CRM"
                     >
                       <DesignSelect
-                        value={form.getFieldValue("contactSourceApp") || "IRM"}
+                        value={form.getFieldValue("contactSourceApp") || "CRM"}
+                        defaultValue="CRM"
                         onValueChange={(value: string) => {
                           form.setFieldsValue({ contactSourceApp: value });
                         }}
@@ -906,8 +930,9 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                           position="popper"
                           className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
                         >
-                          <SelectItem value="IRM">IRM</SelectItem>
+                          {/* CRM should be first/default option */}
                           <SelectItem value="CRM">CRM</SelectItem>
+                          <SelectItem value="IRM">IRM</SelectItem>
                         </SelectContent>
                       </DesignSelect>
                     </Form.Item>
