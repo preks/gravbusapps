@@ -309,26 +309,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     return getFilters(filtersToApply, null, null, expenseDateRange);
   }, [getFilters, expenseDateRange]);
 
-  // Fetch pending reimbursement total
-  useEffect(() => {
-    const fetchPendingItems = async () => {
-      if (!contextProps.userInfo?.employeeDetails?.employeeId) return;
-      try {
-        const data = await graphqlClient.request(GET_PENDING_ITEMS, {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId,
-        });
-        setPendingReimbursementTotal(
-          data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0
-        );
-        setPendingItemCountFromApi(
-          data?.pendingExcludingAllowance?.aggregate?.count ?? 0
-        );
-      } catch (e) {
-        setPendingReimbursementTotal(0);
-      }
-    };
-    fetchPendingItems();
-  }, [contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient]);
+
 
   // Process completion event listener to refresh data
   useEffect(() => {
@@ -338,24 +319,21 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           // Refresh statistics data after successful process completion
           fetchItemStatistics();
           
-          // Refresh pending items data
-          const fetchPendingItems = async () => {
+          // Refresh pending item count (for display purposes, not for filtering)
+          const fetchPendingItemCount = async () => {
             if (!contextProps.userInfo?.employeeDetails?.employeeId) return;
             try {
               const data = await graphqlClient.request(GET_PENDING_ITEMS, {
                 employeeId: contextProps.userInfo.employeeDetails.employeeId,
               });
-              setPendingReimbursementTotal(
-                data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0
-              );
               setPendingItemCountFromApi(
                 data?.pendingExcludingAllowance?.aggregate?.count ?? 0
               );
             } catch (e) {
-              setPendingReimbursementTotal(0);
+              setPendingItemCountFromApi(0);
             }
           };
-          fetchPendingItems();
+          fetchPendingItemCount();
           
           // Reset all items to force refresh of statistics
           setHasLoadedAllItems(false);
