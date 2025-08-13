@@ -23,9 +23,10 @@ interface UseEmployeeActivitiesStatisticsReturn {
 // Calculate statistics from the same transformed activities data used in the table
 const calculateStatistics = (
   activities: SalesActivity[],
-  periodInMonths: number = 1
+  periodInMonths: number = 1,
+  total: number
 ): ActivityStatistics => {
-  const totalCount = activities.length;
+  const totalCount = total;
   const periodLabel =
     periodInMonths === 1 ? "This month" : `Last ${periodInMonths} months`;
 
@@ -125,20 +126,23 @@ export const useEmployeeActivitiesStatistics = ({
   const [statistics, setStatistics] = useState<ActivityStatistics | null>(null);
 
   // Use the same data as the main activities table
-  const { activities, loading, error, loadPage } = useEmployeeActivitiesData({
-    employeeId,
-    accessToken,
-    search: "", // No search filter for statistics
-    sortField: "createdAt",
-    sortOrder: "DESC",
-  });
-
+  const { activities, total, loading, error, loadPage } =
+    useEmployeeActivitiesData({
+      employeeId,
+      accessToken,
+      search: "", // No search filter for statistics
+      sortField: "createdAt",
+      sortOrder: "DESC",
+    });
+  console.log("activities", activities);
+  console.log("total", total);
   // Calculate statistics whenever activities data changes
   useEffect(() => {
     if (!loading && !error) {
       const calculatedStatistics = calculateStatistics(
         activities,
-        periodInMonths
+        periodInMonths,
+        total
       );
       setStatistics(calculatedStatistics);
     }
