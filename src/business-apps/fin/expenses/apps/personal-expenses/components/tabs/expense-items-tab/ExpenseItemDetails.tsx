@@ -273,9 +273,9 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     
     if (fileLoading) {
       return (
-        <Card className="gba:text-center gba:py-8" data-testid="expense-file-loading">
-          <Spinner />
-          <div className="gba:mt-2">
+        <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-loading">
+          <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+            <Spinner />
             <p className="gba:text-sm gba:text-gray-600">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
             </p>
@@ -395,9 +395,9 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     }
 
     return (
-      <Card className="gba:text-center gba:py-8" data-testid="expense-file-empty">
-        <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
-        <div className="gba:mt-2">
+      <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-empty">
+        <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+          <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>

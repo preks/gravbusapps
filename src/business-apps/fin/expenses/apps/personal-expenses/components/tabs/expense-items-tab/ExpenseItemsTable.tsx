@@ -94,6 +94,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
       const apiFilters = getFilters(allSelectedFilters);
       fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+      // Clear selection when table is refreshed (process finished)
+      setSelectedRowKeys([]);
     }
   }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, allSelectedFilters, getFilters, sortField, sortOrder]);
 
@@ -202,6 +204,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
+    
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
@@ -237,6 +240,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItemsIds: targetIds
     };
+    
     startProcess({
       domain: 'employee-expense',
       processName: 'discardExpenseItems',
