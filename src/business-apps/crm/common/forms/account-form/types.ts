@@ -10,6 +10,9 @@ export interface AccountFormValues {
   website: string;
   description: string;
 
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Contact Information
   phone: string;
   email: string;

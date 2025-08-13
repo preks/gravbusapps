@@ -24,6 +24,9 @@ export interface LeadFormValues {
   numberOfEmployees: string;
   annualRevenue: string;
 
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Address Information
   country: string;
   region: string;

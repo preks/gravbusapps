@@ -44,6 +44,9 @@ const OpportunityInformationSection: React.FC = () => {
     businessAppContext,
   } = useOpportunityFormContext();
 
+  // Ref to track previous pipeline to detect changes
+  const previousPipelineRef = useRef<string>(formValues.pipeline);
+
   // Simple currencies hook (like Account form countries)
   const {
     options: simpleCurrencies,
@@ -90,26 +93,41 @@ const OpportunityInformationSection: React.FC = () => {
       const selectedPipeline = standardPipeline || pipelines[0];
       setFormValues({ pipeline: selectedPipeline.value });
     }
-  }, [pipelines, formValues.pipeline, setFormValues]);
+  }, [pipelines.length, formValues.pipeline]);
 
-  // Load stages immediately when pipeline changes
+  // Handle pipeline changes: load stages for new pipeline
   useEffect(() => {
-    if (formValues.pipeline && refetchStages) {
-      refetchStages(formValues.pipeline);
+    const currentPipeline = formValues.pipeline;
+    const previousPipeline = previousPipelineRef.current;
+
+    console.log("🔍 Pipeline changed:", {
+      currentPipeline,
+      previousPipeline,
+      hasRefetchStages: !!refetchStages,
+    });
+
+    if (currentPipeline && refetchStages) {
+      console.log("📡 Loading stages for pipeline:", currentPipeline);
+      refetchStages(currentPipeline);
     }
+
+    // Update the ref to track current pipeline
+    previousPipelineRef.current = currentPipeline;
   }, [formValues.pipeline, refetchStages]);
 
-  // Auto-select first stage when stages are loaded for a pipeline
+  // When stages are loaded, ALWAYS set first stage as selected
   useEffect(() => {
-    if (formValues.pipeline) {
-      if (salesPipelineStages.length > 0) {
-        setFormValues({ salesPipelineStage: salesPipelineStages[0].value });
-      } else if (formValues.salesPipelineStage) {
-        // Clear selection if no stages available
-        setFormValues({ salesPipelineStage: "" });
-      }
+    if (formValues.pipeline && salesPipelineStages.length > 0) {
+      const firstStage = salesPipelineStages[0];
+      console.log(
+        "🎯 Setting first stage:",
+        firstStage.label,
+        "Value:",
+        firstStage.value
+      );
+      setFormValues({ salesPipelineStage: firstStage.value });
     }
-  }, [salesPipelineStages, formValues.pipeline, setFormValues]);
+  }, [formValues.pipeline, salesPipelineStages.length]);
 
   return (
     <Card

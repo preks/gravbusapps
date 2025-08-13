@@ -25,6 +25,11 @@ const ContactFormComponent: React.FC = () => {
     loadMoreAccounts,
     accountsHasMore,
     accountsLoading,
+    campaignSuggestions,
+    searchCampaigns,
+    loadMoreCampaigns,
+    campaignsHasMore,
+    campaignsLoading,
   } = useContactFormContext();
 
   // Safety check - if context is not properly initialized, show error
@@ -85,6 +90,7 @@ const ContactFormComponent: React.FC = () => {
           ? toStringOrUndefined(formValues.companyName)
           : undefined,
         accountId: toStringOrUndefined(formValues.accountId),
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         ownerEmployee:
           businessAppContext.userInfo?.employeeDetails?.employeeId ||
           toStringOrUndefined(formValues.ownerEmployeeId),
@@ -182,7 +188,31 @@ const ContactFormComponent: React.FC = () => {
                 }
               }}
               error={null}
+              className="gba:w-full gba:min-w-[300px]"
               data-testid={formatDataTestId(prefixDataTestId, "CompanySelect")}
+            />
+          </div>
+
+          {/* Campaign Name Section - Third field */}
+          <div className="gba:space-y-2">
+            <SearchableSelect
+              label="Sales Campaign"
+              name="salesCampaignId"
+              value={formValues.salesCampaignId}
+              placeholder="Please Select Campaign..."
+              options={campaignSuggestions as any}
+              loading={campaignsLoading}
+              hasMore={campaignsHasMore}
+              onSearch={searchCampaigns}
+              onLoadMore={loadMoreCampaigns}
+              onChange={(value) => {
+                setFormValues({
+                  salesCampaignId: value, // Store only ID for backend
+                });
+              }}
+              error={null}
+              className="gba:w-full gba:min-w-[300px]"
+              data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
             />
           </div>
 
