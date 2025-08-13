@@ -188,12 +188,12 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       }
 
       const today = dayjs();
-      const currentMonthStart = today.startOf('month').toISOString();
-      const currentMonthEnd = today.endOf('month').toISOString();
+      const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
       const lastMonth = today.subtract(1, 'month');
-      const previousMonthStart = lastMonth.startOf('month').toISOString();
-      const previousMonthEnd = lastMonth.endOf('month').toISOString();
+      const previousMonthStart = lastMonth.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const previousMonthEnd = lastMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
       const fetchStatsForPeriod = async (startDate: string, endDate: string) => {
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
@@ -253,7 +253,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           throw new Error(result.errors.map((e: any) => e.message).join(', '));
         }
 
-        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0;
+        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount;
       };
 
       const [currentMonthTotal, previousMonthTotal, currentMonthPending, previousMonthPending] = await Promise.all([

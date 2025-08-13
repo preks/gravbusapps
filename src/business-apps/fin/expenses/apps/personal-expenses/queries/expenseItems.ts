@@ -149,7 +149,8 @@ export const GET_PENDING_ITEMS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
-        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        currencyRef: {_eq: "Currency:v1:EUR"}
       }
     ) {
       aggregate {
@@ -168,8 +169,9 @@ export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"},
+        status: {_eq: "PENDING",_nin: ["DISCARDED"]},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        currencyRef: {_eq: "Currency:v1:EUR"},
         expenseDate: {
           _gte: $startDate,
           _lte: $endDate
@@ -229,14 +231,14 @@ export const GET_EXPENSE_ITEM_BY_ID = `
 `;
 
 export const GET_EXPENSE_ITEM_STATISTICS = `
-  query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamptz, $endDate: timestamptz, $currencyRef: String!) {
+  query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     totalExpenses: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_in: ["PAID", "CLOSED"]},
         currencyRef: {_eq: $currencyRef},
-        updatedAt: {
+        expenseDate: {
           _gte: $startDate,
           _lte: $endDate
         },

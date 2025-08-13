@@ -101,10 +101,14 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     const current = pendingReimbursementTotal ?? 0;
     const previous = previousMonthPendingReimbursementTotal ?? 0;
 
+   
+
     if (previous === 0) {
       return current > 0 ? 100 : 0;
     }
-    return ((current - previous) / previous) * 100;
+    
+    const percentageChange = ((current - previous) / previous) * 100;
+    return percentageChange;
   }, [pendingReimbursementTotal, previousMonthPendingReimbursementTotal]);
 
   // Generate trend data for pending reimbursement
@@ -112,13 +116,22 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     const current = pendingReimbursementTotal ?? 0;
     const previous = previousMonthPendingReimbursementTotal ?? 0;
 
-    if (previous === 0 && current > 0) {
+    // Handle the case where previous month had no pending reimbursement
+    if (previous === 0) {
+      if (current > 0) {
+        return {
+          value: '+100%',
+          positive: true,
+          description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
+        };
+      }
       return {
-        value: '+100%',
+        value: '0%',
         positive: true,
         description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
+    
     if (pendingReimbursementPercentageChange === 0) {
       return {
         value: '0%',
@@ -126,6 +139,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month','from last month')
       };
     }
+    // Always show the percentage, regardless of how large it is
     const sign = pendingReimbursementPercentageChange > 0 ? '+' : '';
     return {
       value: `${sign}${pendingReimbursementPercentageChange.toFixed(0)}%`,
