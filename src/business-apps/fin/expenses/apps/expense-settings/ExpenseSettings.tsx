@@ -126,19 +126,7 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
 
   // Render content based on active view and rule record parameters
   const renderViewContent = () => {
-    // If we have a ruleId, show the calculation rule record regardless of active view
-    if (ruleRecordParams.ruleId) {
-      return (
-        <CalculationRuleRecord
-          {...context}
-          ruleId={ruleRecordParams.ruleId}
-          page={ruleRecordParams.page || undefined}
-          onNavigateBack={handleNavigateBackFromRuleRecord}
-        />
-      );
-    }
-
-    // Otherwise, render the normal view content
+    // Render the normal view content
     switch (activeView) {
       case 'dashboard':
         return (
@@ -172,6 +160,24 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
     }
   };
 
+  // If we have a ruleId, show the calculation rule record in full screen mode
+  if (ruleRecordParams.ruleId) {
+    return (
+      <div 
+        data-testid={`${prefixDataTestId}-expense-settings`}
+        className={`gba:h-screen gba:w-full ${className}`}
+      >
+        <CalculationRuleRecord
+          {...context}
+          ruleId={ruleRecordParams.ruleId}
+          page={ruleRecordParams.page || undefined}
+          onNavigateBack={handleNavigateBackFromRuleRecord}
+        />
+      </div>
+    );
+  }
+
+  // Otherwise, render the normal PageLayout with views
   return (
     <div 
       data-testid={`${prefixDataTestId}-expense-settings`}

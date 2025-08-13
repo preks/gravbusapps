@@ -28,7 +28,8 @@ import {
   PiCalendar,
   PiPencil,
   PiEye,
-  PiUsers
+  PiUsers,
+  PiCar
 } from 'react-icons/pi';
 
 const { Title } = Typography;
@@ -195,25 +196,21 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       ),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.code', 'Code'),
-      dataIndex: 'code',
-      key: 'code',
+      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.mileageRule', 'Mileage Rule'),
+      key: 'mileageRule',
+      width: 250,
       sorter: (a: EnhancedMileageRule, b: EnhancedMileageRule) => a.code.localeCompare(b.code),
-      render: (text: string) => (
-        <span className="gba:font-mono gba:text-blue-600">{text}</span>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.name', 'Name'),
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: EnhancedMileageRule, b: EnhancedMileageRule) => a.name.localeCompare(b.name),
-      render: (text: string, record: EnhancedMileageRule) => (
-        <div className="gba:flex gba:flex-col">
-          <span className="gba:font-medium">{text}</span>
-          {record.description && (
-            <span className="gba:text-sm gba:text-gray-500">{record.description}</span>
-          )}
+      render: (_, record: EnhancedMileageRule) => (
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <PiCar className="gba:text-gray-400" />
+          <div>
+            <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600">
+              {record.code}
+            </div>
+            <div className="gba:text-gray-600 gba:text-xs">
+              {record.name}
+            </div>
+          </div>
         </div>
       )
     },

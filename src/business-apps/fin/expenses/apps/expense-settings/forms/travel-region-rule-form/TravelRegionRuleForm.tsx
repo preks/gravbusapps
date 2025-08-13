@@ -332,14 +332,15 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   };
 
   // Update amount in group
-  const updateAmount = (groupKey: string, amountIndex: number, value: number) => {
+  const updateAmount = (groupKey: string, amountIndex: number, value: string) => {
     setFormData(prev => ({
       ...prev,
       details: prev.details.map(detail => {
         const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
         if (detailGroupKey === groupKey) {
           const newAmounts = [...(detail.amounts || [])];
-          newAmounts[amountIndex] = value;
+          // Store as number but handle empty string case
+          newAmounts[amountIndex] = value === '' ? 0 : parseFloat(value) || 0;
           return { ...detail, amounts: newAmounts };
         }
         return detail;
@@ -517,6 +518,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 type="date"
                 value={formData.activeFrom || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, activeFrom: e.target.value }))}
+                data-testid="travel-region-rule-form-active-from"
+                min="1900-01-01"
+                max="2099-12-31"
               />
             </div>
             <div className="gba:space-y-2">
@@ -526,6 +530,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 type="date"
                 value={formData.activeTo || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, activeTo: e.target.value }))}
+                data-testid="travel-region-rule-form-active-to"
+                min="1900-01-01"
+                max="2099-12-31"
               />
             </div>
           </div>
@@ -625,6 +632,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                             type="date"
                             value={group.validFrom}
                             onChange={(e) => updateGroupDetail(group.key, 'activeFrom', e.target.value)}
+                            data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
+                            min="1900-01-01"
+                            max="2099-12-31"
                           />
                         </TableCell>
                         <TableCell>
@@ -632,6 +642,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                             type="date"
                             value={group.validTo || ''}
                             onChange={(e) => updateGroupDetail(group.key, 'activeTo', e.target.value || undefined)}
+                            data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
+                            min="1900-01-01"
+                            max="2099-12-31"
                           />
                         </TableCell>
                         <TableCell>
@@ -670,10 +683,11 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={amount?.toFixed(2) || '0.00'}
-                                    onChange={(e) => updateAmount(group.key, amountIndex, parseFloat(e.target.value) || 0)}
+                                    value={amount || ''}
+                                    onChange={(e) => updateAmount(group.key, amountIndex, e.target.value)}
                                     placeholder="0.00"
                                     className="gba:text-sm gba:w-24"
+                                    data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
                                   />
                                 </div>
                                 {group.amounts.length > 1 && (

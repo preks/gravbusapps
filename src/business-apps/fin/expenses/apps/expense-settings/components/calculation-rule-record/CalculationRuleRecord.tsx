@@ -1,34 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { 
   Button, 
   Typography, 
   Space, 
   Alert, 
-  Card, 
   Row, 
   Col, 
-  Tag, 
   Spin,
   Tabs,
   Form,
   Input,
   Checkbox,
   Select,
+  DatePicker,
   message
 } from 'antd';
+import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries';
 import { 
   PiArrowLeft, 
   PiWarning,
   PiCheckCircle
 } from 'react-icons/pi';
 import dayjs from 'dayjs';
-import isBetween from 'dayjs/plugin/isBetween';
-
-// Configure dayjs plugins
-dayjs.extend(isBetween);
 
 // Tab components (these would be separate modules in a full implementation)
 import GeneralExpensesTab from './tabs/GeneralExpensesTab';
@@ -38,9 +32,8 @@ import AllowanceCodeTab from './tabs/AllowanceCodeTab';
 import AllowanceSetupTab from './tabs/AllowanceSetupTab';
 import DeductionTab from './tabs/DeductionTab';
 import CustomFieldsTab from './tabs/CustomFieldsTab';
-import OtherCalculationTab from './tabs/OtherCalculationTab';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Option } = Select;
 
 interface CalculationRuleRecordProps extends BusinessAppContextProps {
@@ -118,50 +111,70 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   const [hasChanges, setHasChanges] = useState(false);
 
   // Form field change tracking
-  const [formValues, setFormValues] = useState<any>({});
+  const [_formValues, setFormValues] = useState<any>({});
+
+  // Use the GraphQL hook for fetching expense rule data
+  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context });
 
   const loadRuleDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // TODO: Replace with actual GraphQL query
-      const mockDetails: CalculationRuleDetails = {
-        id: ruleId,
-        code: '@ROM_tax_max',
-        name: 'Romanian according tax law with maximum allowances',
-        calculationTypeRef: 'CalculationType:v1:TIME_INTERVALS',
-        calculationType: {
-          id: 'CalculationType:v1:TIME_INTERVALS',
-          value: 'Time Intervals'
-        },
-        standard: false,
-        activeFrom: '2024-11-12T00:00:00+00:00',
-        activeTo: '9999-12-31T00:00:00+00:00',
-        currency: {
-          id: 'Currency:v1:RON',
-          value: 'Romanian Leu',
-          code: 'RON'
-        },
-        currencyRef: 'Currency:v1:RON',
-        country: {
-          id: 'Country:v1:RO',
-          value: 'Romania',
-          code: 'RO'
-        },
-        countryRef: 'Country:v1:RO',
-        deductionLimit: false,
-        taxesCode: '',
-        useLastCountry: true,
-        nonpayableCode: '',
-        advancePaymentCode: '',
-        useSingleCurrency: false,
-        version: 13,
-        createdAt: '2024-01-01T10:00:00Z',
-        updatedAt: '2024-01-15T14:30:00Z',
+      console.log('🔍 Fetching expense rule details for ID:', ruleId);
+      
+      // Fetch actual data from GraphQL
+      const ruleData = await fetchExpenseRuleById(ruleId);
+      
+      if (!ruleData) {
+        throw new Error(`Expense rule with ID ${ruleId} not found`);
+      }
+
+      console.log('✅ Loaded expense rule data:', {
+        id: ruleData.id,
+        code: ruleData.code,
+        name: ruleData.name,
+        calculationType: ruleData.calculationType?.value
+      });
+
+      // Transform GraphQL data to component format
+      const ruleDetails: CalculationRuleDetails = {
+        id: ruleData.id,
+        code: ruleData.code,
+        name: ruleData.name,
+        calculationTypeRef: ruleData.calculationType?.id,
+        calculationType: ruleData.calculationType ? {
+          id: ruleData.calculationType.id,
+          value: ruleData.calculationType.value
+        } : undefined,
+        standard: ruleData.standard || false,
+        activeFrom: ruleData.activeFrom,
+        activeTo: ruleData.activeTo,
+        currency: ruleData.currency ? {
+          id: ruleData.currency.id,
+          value: ruleData.currency.value,
+          code: ruleData.currency.code
+        } : undefined,
+        currencyRef: ruleData.currency?.id,
+        country: ruleData.country ? {
+          id: ruleData.country.id,
+          value: ruleData.country.value,
+          code: ruleData.country.code
+        } : undefined,
+        countryRef: ruleData.country?.id,
+        deductionLimit: ruleData.deductionLimit || false,
+        taxesCode: ruleData.taxesCode || '',
+        useLastCountry: ruleData.useLastCountry || false,
+        nonpayableCode: ruleData.nonpayableCode || '',
+        advancePaymentCode: ruleData.advancePaymentCode || '',
+        useSingleCurrency: ruleData.useSingleCurrency || false,
+        version: ruleData.version || 1,
+        createdAt: ruleData.createdAt || new Date().toISOString(),
+        updatedAt: ruleData.updatedAt || new Date().toISOString(),
         isDeleted: false
       };
 
+      // For now, use mock flags until we have proper flag data structure from GraphQL
       const mockFlags: ExpenseRuleFlag[] = [
         {
           id: 'flag-1',
@@ -180,19 +193,33 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         { id: 'Country:v1:AT', value: 'Austria', code: 'AT' }
       ];
       
-      setRuleDetails(mockDetails);
+      setRuleDetails(ruleDetails);
       setRuleFlags(mockFlags);
       setCountries(mockCountries);
 
       // Initialize form values
       const initialValues = {
-        advancePaymentCode: mockDetails.advancePaymentCode || '',
-        taxesCode: mockDetails.taxesCode || '',
-        nonpayableCode: mockDetails.nonpayableCode || '',
-        useLastCountry: mockDetails.useLastCountry,
-        deductionLimit: mockDetails.deductionLimit,
-        useSingleCurrency: mockDetails.useSingleCurrency,
-        countryRef: mockDetails.countryRef,
+        // Basic Information
+        code: ruleDetails.code || '',
+        name: ruleDetails.name || '',
+        standard: ruleDetails.standard || false,
+        
+        // Validity & Configuration
+        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
+        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : null,
+        calculationTypeRef: ruleDetails.calculationTypeRef || '',
+        currencyRef: ruleDetails.currencyRef || '',
+        
+        // Wage Codes
+        advancePaymentCode: ruleDetails.advancePaymentCode || '',
+        taxesCode: ruleDetails.taxesCode || '',
+        nonpayableCode: ruleDetails.nonpayableCode || '',
+        countryRef: ruleDetails.countryRef || '',
+        
+        // Special Settings
+        useLastCountry: ruleDetails.useLastCountry || false,
+        deductionLimit: ruleDetails.deductionLimit || false,
+        useSingleCurrency: ruleDetails.useSingleCurrency || false,
         romanianCalculation: mockFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
         austrianAbroad: mockFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
       };
@@ -201,11 +228,12 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       form.setFieldsValue(initialValues);
       
     } catch (err) {
+      console.error('❌ Error loading expense rule details:', err);
       setError(err instanceof Error ? err.message : 'Failed to load rule details');
     } finally {
       setIsLoading(false);
     }
-  }, [ruleId, form]);
+  }, [ruleId, form, fetchExpenseRuleById]);
 
   useEffect(() => {
     if (ruleId && accessToken) {
@@ -213,18 +241,32 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     }
   }, [ruleId, accessToken, loadRuleDetails]);
 
-  const handleFormChange = (changedFields: any, allValues: any) => {
+  const handleFormChange = (_changedFields: any, allValues: any) => {
     setFormValues(allValues);
     
     // Check if there are any changes
     const initialValues = {
+      // Basic Information
+      code: ruleDetails?.code || '',
+      name: ruleDetails?.name || '',
+      standard: ruleDetails?.standard || false,
+      
+      // Validity & Configuration (convert dates back to dayjs for comparison)
+      activeFrom: ruleDetails?.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
+      activeTo: ruleDetails?.activeTo ? dayjs(ruleDetails.activeTo) : null,
+      calculationTypeRef: ruleDetails?.calculationTypeRef || '',
+      currencyRef: ruleDetails?.currencyRef || '',
+      
+      // Wage Codes
       advancePaymentCode: ruleDetails?.advancePaymentCode || '',
       taxesCode: ruleDetails?.taxesCode || '',
       nonpayableCode: ruleDetails?.nonpayableCode || '',
+      countryRef: ruleDetails?.countryRef || '',
+      
+      // Special Settings
       useLastCountry: ruleDetails?.useLastCountry || false,
       deductionLimit: ruleDetails?.deductionLimit || false,
       useSingleCurrency: ruleDetails?.useSingleCurrency || false,
-      countryRef: ruleDetails?.countryRef || '',
       romanianCalculation: ruleFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
       austrianAbroad: ruleFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
     };
@@ -241,14 +283,14 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       setIsSaving(true);
       
       // TODO: Implement actual save logic with GraphQL mutations
-      const saveData = {
-        expenseRule: {
-          id: ruleDetails?.id,
-          version: ruleDetails?.version,
-          ...formValues
-        },
-        changeMode: 'UPDATE'
-      };
+      // const saveData = {
+      //   expenseRule: {
+      //     id: ruleDetails?.id,
+      //     version: ruleDetails?.version,
+      //     ...formValues
+      //   },
+      //   changeMode: 'UPDATE'
+      // };
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -270,13 +312,27 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   const handleDiscard = () => {
     if (ruleDetails) {
       const initialValues = {
+        // Basic Information
+        code: ruleDetails.code || '',
+        name: ruleDetails.name || '',
+        standard: ruleDetails.standard || false,
+        
+        // Validity & Configuration
+        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
+        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : null,
+        calculationTypeRef: ruleDetails.calculationTypeRef || '',
+        currencyRef: ruleDetails.currencyRef || '',
+        
+        // Wage Codes
         advancePaymentCode: ruleDetails.advancePaymentCode || '',
         taxesCode: ruleDetails.taxesCode || '',
         nonpayableCode: ruleDetails.nonpayableCode || '',
-        useLastCountry: ruleDetails.useLastCountry,
-        deductionLimit: ruleDetails.deductionLimit,
-        useSingleCurrency: ruleDetails.useSingleCurrency,
-        countryRef: ruleDetails.countryRef,
+        countryRef: ruleDetails.countryRef || '',
+        
+        // Special Settings
+        useLastCountry: ruleDetails.useLastCountry || false,
+        deductionLimit: ruleDetails.deductionLimit || false,
+        useSingleCurrency: ruleDetails.useSingleCurrency || false,
         romanianCalculation: ruleFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
         austrianAbroad: ruleFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
       };
@@ -285,20 +341,6 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       form.setFieldsValue(initialValues);
       setHasChanges(false);
     }
-  };
-
-  const formatValidDate = (dateString: string) => {
-    try {
-      return dayjs(dateString).format('DD.MM.YYYY');
-    } catch {
-      return dateString.split('T')[0].split('-').reverse().join('.');
-    }
-  };
-
-  const getCalculationTypeDisplay = () => {
-    if (!ruleDetails?.calculationTypeRef) return 'Time Interval';
-    const type = ruleDetails.calculationTypeRef.split(':').pop()?.replace(/_/g, ' ');
-    return type === 'CALENDAR_DAYS' ? 'Calendar Days' : 'Time Interval';
   };
 
   if (isLoading) {
@@ -337,14 +379,10 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   }
 
   return (
-    <div data-testid="calculation-rule-record-container">
-      {/* Profile Header */}
-      <Card 
-        className="gba:mb-6"
-        style={{ borderRadius: '8px' }}
-        data-testid="calculation-rule-profile-header"
-      >
-        <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
+    <div data-testid="calculation-rule-record-container" className="gba:h-full gba:flex gba:flex-col gba:p-6">
+      {/* Simple Header */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
           <Button
             icon={<PiArrowLeft />}
             onClick={onNavigateBack}
@@ -352,117 +390,14 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           >
             Back{page && ` to ${page}`}
           </Button>
-          
-          <Space>
-            <AppActionButton
-              data-testid="calculation-rule-record-edit-button"
-              variant="primary"
-              contextsArray={[FlowContextName.employeeExpenses]}
-              externalContextData={{ ruleId: ruleDetails.id }}
-              prefixDataTestId="calculation-rule-edit"
-              accessToken={accessToken}
-              emptyStateBehavior="disable"
-              deferMainContextRequestsUntilClick
-            />
-          </Space>
+          <Title level={2} style={{ margin: 0 }}>
+            {form.getFieldValue('name') || ruleDetails.name || 'Calculation Rule'}
+          </Title>
         </div>
+      </div>
 
-        {/* Profile Info */}
-        <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
-          <div className="gba:flex-1">
-            <Title level={2} style={{ margin: 0, color: '#1f2937' }}>
-              {ruleDetails.name}
-            </Title>
-            <Text type="secondary" className="gba:text-lg">
-              {ruleDetails.code}
-            </Text>
-          </div>
-          
-          <div className="gba:flex gba:gap-2">
-            <Tag 
-              color={ruleDetails.standard ? 'blue' : 'default'}
-              className="gba:px-3 gba:py-1"
-            >
-              {ruleDetails.standard ? 'Standard' : 'Custom'}
-            </Tag>
-            <Tag 
-              color={dayjs().isBetween(dayjs(ruleDetails.activeFrom), ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : dayjs().add(1, 'year')) ? 'green' : 'red'}
-              className="gba:px-3 gba:py-1"
-            >
-              {dayjs().isBetween(dayjs(ruleDetails.activeFrom), ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : dayjs().add(1, 'year')) ? 'Active' : 'Inactive'}
-            </Tag>
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <Row gutter={[16, 16]} className="gba:mb-4">
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Calculation</div>
-              <div className="gba:font-medium">{getCalculationTypeDisplay()}</div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Valid From</div>
-              <div className="gba:font-medium">{formatValidDate(ruleDetails.activeFrom)}</div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Valid To</div>
-              <div className="gba:font-medium">
-                {ruleDetails.activeTo ? formatValidDate(ruleDetails.activeTo) : 'No end date'}
-              </div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Company Currency</div>
-              <div className="gba:font-medium">{ruleDetails.currency?.code || 'Not set'}</div>
-            </div>
-          </Col>
-        </Row>
-
-        {/* Additional Rule Details */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Use Last Country</div>
-              <div className="gba:font-medium">
-                <Tag color={ruleDetails.useLastCountry ? 'green' : 'default'}>
-                  {ruleDetails.useLastCountry ? 'Yes' : 'No'}
-                </Tag>
-              </div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Single Currency</div>
-              <div className="gba:font-medium">
-                <Tag color={ruleDetails.useSingleCurrency ? 'green' : 'default'}>
-                  {ruleDetails.useSingleCurrency ? 'Yes' : 'No'}
-                </Tag>
-              </div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Taxes Code</div>
-              <div className="gba:font-medium">{ruleDetails.taxesCode || 'Not set'}</div>
-            </div>
-          </Col>
-          <Col xs={24} sm={6}>
-            <div className="gba:text-center">
-              <div className="gba:text-sm gba:text-gray-500 gba:mb-1">Non-payable Code</div>
-              <div className="gba:font-medium">{ruleDetails.nonpayableCode || 'Not set'}</div>
-            </div>
-          </Col>
-        </Row>
-      </Card>
-
-      {/* Tabs Container */}
-      <Card style={{ borderRadius: '8px' }}>
+      {/* Tabs */}
+      <div className="gba:flex-1">
         <Tabs 
           activeKey={activeTab} 
           onChange={setActiveTab}
@@ -478,135 +413,241 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                   onValuesChange={handleFormChange}
                   data-testid="calculation-rule-general-form"
                 >
-                  {/* Special Settings */}
-                  <div className="gba:mb-6">
-                    <Title level={4} className="gba:mb-4">Special Settings</Title>
+                  {/* Basic Information Section */}
+                  <div className="gba:mb-8">
+                    <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
+                      Basic Information
+                    </Title>
                     <Row gutter={[24, 16]}>
-                      <Col xs={24} md={12}>
+                      <Col xs={24} md={8}>
                         <Form.Item 
-                          name="romanianCalculation" 
-                          valuePropName="checked"
-                          data-testid="romanian-calculation-checkbox"
+                          name="code" 
+                          label="Code"
+                          data-testid="rule-code-input"
+                          rules={[{ required: true, message: 'Code is required' }]}
                         >
-                          <Checkbox
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                form.setFieldValue('austrianAbroad', false);
-                              }
-                            }}
-                          >
-                            Romanian Calculation
-                          </Checkbox>
+                          <Input placeholder="Enter rule code" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
                         <Form.Item 
-                          name="austrianAbroad" 
-                          valuePropName="checked"
-                          data-testid="austrian-abroad-checkbox"
+                          name="name" 
+                          label="Name"
+                          data-testid="rule-name-input"
+                          rules={[{ required: true, message: 'Name is required' }]}
                         >
-                          <Checkbox
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                form.setFieldValue('romanianCalculation', false);
-                              }
-                            }}
-                          >
-                            Austrian Abroad
-                          </Checkbox>
+                          <Input placeholder="Enter rule name" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={4}>
+                        <Form.Item 
+                          name="standard" 
+                          valuePropName="checked"
+                          data-testid="rule-standard-checkbox"
+                        >
+                          <Checkbox>Standard</Checkbox>
                         </Form.Item>
                       </Col>
                     </Row>
                   </div>
 
-                  {/* Wage Codes */}
-                  <div className="gba:mb-6">
-                    <Title level={4} className="gba:mb-4">Wage Codes</Title>
+                  {/* Validity & Configuration Section */}
+                  <div className="gba:mb-8">
+                    <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
+                      Validity & Configuration
+                    </Title>
                     <Row gutter={[24, 16]}>
                       <Col xs={24} md={8}>
                         <Form.Item 
-                          name="advancePaymentCode" 
-                          label="Advance Payment"
-                          data-testid="advance-payment-input"
+                          name="activeFrom" 
+                          label="Valid From"
+                          data-testid="rule-active-from-picker"
+                          rules={[{ required: true, message: 'Valid from date is required' }]}
                         >
-                          <Input placeholder="Enter advance payment code" />
+                          <DatePicker 
+                            style={{ width: '100%' }}
+                            format="DD/MM/YYYY"
+                            placeholder="Select start date"
+                          />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item 
-                          name="taxesCode" 
-                          label="Taxes"
-                          data-testid="taxes-input"
+                          name="activeTo" 
+                          label="Valid To"
+                          data-testid="rule-active-to-picker"
                         >
-                          <Input placeholder="Enter taxes code" />
+                          <DatePicker 
+                            style={{ width: '100%' }}
+                            format="DD/MM/YYYY"
+                            placeholder="Select end date (optional)"
+                          />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item 
-                          name="nonpayableCode" 
-                          label="Non Payable"
-                          data-testid="non-payable-input"
+                          name="calculationTypeRef" 
+                          label="Calculation Type"
+                          data-testid="rule-calculation-type-select"
                         >
-                          <Input placeholder="Enter non payable code" />
+                          <Select placeholder="Select calculation type">
+                            <Option value="CalculationType:v1:TIME_INTERVAL">Time Interval</Option>
+                            <Option value="CalculationType:v1:CALENDAR_DAYS">Calendar Days</Option>
+                          </Select>
                         </Form.Item>
                       </Col>
                     </Row>
-                  </div>
-
-                  {/* Settings */}
-                  <div className="gba:mb-6">
                     <Row gutter={[24, 16]}>
-                      <Col xs={24} md={12}>
+                      <Col xs={24} md={8}>
                         <Form.Item 
-                          name="useLastCountry" 
-                          valuePropName="checked"
-                          data-testid="use-last-country-checkbox"
+                          name="currencyRef" 
+                          label="Currency"
+                          data-testid="rule-currency-select"
                         >
-                          <Checkbox>Use Last Country</Checkbox>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item 
-                          name="deductionLimit" 
-                          valuePropName="checked"
-                          data-testid="deduction-limit-checkbox"
-                        >
-                          <Checkbox>Deduction Limit</Checkbox>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item 
-                          name="useSingleCurrency" 
-                          valuePropName="checked"
-                          data-testid="use-single-currency-checkbox"
-                        >
-                          <Checkbox>Use single currency in expense</Checkbox>
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item 
-                          name="countryRef" 
-                          label="Home Country"
-                          data-testid="home-country-select"
-                        >
-                          <Select 
-                            placeholder="Select home country"
-                            showSearch
-                            optionFilterProp="children"
-                          >
-                            {countries.map(country => (
-                              <Option key={country.id} value={country.id}>
-                                {country.value} ({country.code})
-                              </Option>
-                            ))}
+                          <Select placeholder="Select currency">
+                            <Option value="Currency:v1:EUR">EUR - Euro</Option>
+                            <Option value="Currency:v1:USD">USD - US Dollar</Option>
+                            <Option value="Currency:v1:RON">RON - Romanian Leu</Option>
                           </Select>
                         </Form.Item>
                       </Col>
                     </Row>
                   </div>
 
+                  {/* Two Column Layout for Wage Codes and Special Settings */}
+                  <Row gutter={[48, 0]}>
+                    {/* Left Column - Wage Codes */}
+                    <Col xs={24} lg={12}>
+                      <div className="gba:mb-6">
+                        <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
+                          Wage Codes
+                        </Title>
+                        
+                        <div className="gba:space-y-4">
+                          <Form.Item 
+                            name="advancePaymentCode" 
+                            label="Advance Payment"
+                            data-testid="advance-payment-input"
+                            className="gba:mb-4"
+                          >
+                            <Input placeholder="" />
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="taxesCode" 
+                            label="Taxes"
+                            data-testid="taxes-input"
+                            className="gba:mb-4"
+                          >
+                            <Input placeholder="" />
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="nonpayableCode" 
+                            label="Non Payable"
+                            data-testid="non-payable-input"
+                            className="gba:mb-4"
+                          >
+                            <Input placeholder="" />
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="countryRef" 
+                            label="Home Country"
+                            data-testid="home-country-select"
+                            className="gba:mb-4"
+                          >
+                            <Select 
+                              placeholder="Select home country"
+                              showSearch
+                              optionFilterProp="children"
+                            >
+                              {countries.map(country => (
+                                <Option key={country.id} value={country.id}>
+                                  {country.value} ({country.code})
+                                </Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </div>
+                      </div>
+                    </Col>
+
+                    {/* Right Column - Special Settings */}
+                    <Col xs={24} lg={12}>
+                      <div className="gba:mb-6">
+                        <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
+                          Special Setting
+                        </Title>
+                        
+                        <div className="gba:space-y-4">
+                          <Form.Item 
+                            name="austrianAbroad" 
+                            valuePropName="checked"
+                            data-testid="austrian-abroad-checkbox"
+                            className="gba:mb-4"
+                          >
+                            <Checkbox
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  form.setFieldValue('romanianCalculation', false);
+                                }
+                              }}
+                            >
+                              Austrian Calculation
+                            </Checkbox>
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="romanianCalculation" 
+                            valuePropName="checked"
+                            data-testid="romanian-calculation-checkbox"
+                            className="gba:mb-4"
+                          >
+                            <Checkbox
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  form.setFieldValue('austrianAbroad', false);
+                                }
+                              }}
+                            >
+                              Romanian Calculation
+                            </Checkbox>
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="useLastCountry" 
+                            valuePropName="checked"
+                            data-testid="use-last-country-checkbox"
+                            className="gba:mb-4"
+                          >
+                            <Checkbox>Use Last Country</Checkbox>
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="deductionLimit" 
+                            valuePropName="checked"
+                            data-testid="deduction-limit-checkbox"
+                            className="gba:mb-4"
+                          >
+                            <Checkbox>Deduction Limit</Checkbox>
+                          </Form.Item>
+                          
+                          <Form.Item 
+                            name="useSingleCurrency" 
+                            valuePropName="checked"
+                            data-testid="use-single-currency-checkbox"
+                            className="gba:mb-4"
+                          >
+                            <Checkbox>Use single currency in expense</Checkbox>
+                          </Form.Item>
+                        </div>
+                      </div>
+                    </Col>
+                  </Row>
+
                   {/* Action Buttons */}
-                  <div className="gba:flex gba:gap-3">
+                  <div className="gba:flex gba:gap-3 gba:pt-4">
                     <Button 
                       type="primary" 
                       onClick={handleSave}
@@ -662,15 +703,10 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
               key: 'custom-fields',
               label: 'Custom Fields',
               children: <CustomFieldsTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            },
-            {
-              key: 'other-calculation',
-              label: 'Other Calculation',
-              children: <OtherCalculationTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
             }
           ]}
         />
-      </Card>
+      </div>
     </div>
   );
 };

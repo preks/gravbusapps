@@ -559,6 +559,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
                 value={formData.activeFrom}
                 onChange={(e) => setFormData(prev => ({ ...prev, activeFrom: e.target.value }))}
                 data-testid="mileage-rule-form-active-from"
+                min="1900-01-01"
+                max="2099-12-31"
               />
             </div>
             <div>
@@ -569,6 +571,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
                 value={formData.activeTo}
                 onChange={(e) => setFormData(prev => ({ ...prev, activeTo: e.target.value }))}
                 data-testid="mileage-rule-form-active-to"
+                min="1900-01-01"
+                max="2099-12-31"
               />
             </div>
           </div>
@@ -663,6 +667,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
                             value={detail.activeFrom}
                             onChange={(e) => updateDetail(index, 'activeFrom', e.target.value)}
                             data-testid={`mileage-rule-form-detail-active-from-${index}`}
+                            min="1900-01-01"
+                            max="2099-12-31"
                           />
                         </TableCell>
                         <TableCell>
@@ -671,6 +677,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
                             value={detail.activeTo}
                             onChange={(e) => updateDetail(index, 'activeTo', e.target.value)}
                             data-testid={`mileage-rule-form-detail-active-to-${index}`}
+                            min="1900-01-01"
+                            max="2099-12-31"
                           />
                         </TableCell>
                         <TableCell>

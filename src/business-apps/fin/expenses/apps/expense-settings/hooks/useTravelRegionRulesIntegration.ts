@@ -12,6 +12,7 @@ export interface EnhancedTravelRegionRule {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  version?: number;
   details: {
     id: string;
     amount: number;
@@ -58,6 +59,7 @@ export const useTravelRegionRulesIntegration = (context: BusinessAppContextProps
         description: rule.name,
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
+        version: rule.version,
         details: rule.allowanceRegionRuleDetail.map(detail => ({
           id: detail.id,
           amount: detail.amount,

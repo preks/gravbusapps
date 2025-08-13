@@ -15,7 +15,9 @@ import {
   DatePicker, 
   message, 
   Popconfirm,
-  Tooltip
+  Tooltip,
+  Popover,
+  Badge
 } from 'antd';
 import { 
   PiPlus, 
@@ -24,7 +26,8 @@ import {
   PiCalendar, 
   PiCar,
   PiPercent,
-  PiCurrencyDollar
+  PiCurrencyDollar,
+  PiInfo
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -121,6 +124,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
                 name
                 code
               }
+              additionalProperties
+              businessKey
             }
           }
         }
@@ -293,6 +298,36 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
     return parts.length >= 3 ? parts[2] : taxCodeRef;
   };
 
+  const renderAdditionalProperties = (additionalProperties?: Record<string, any>) => {
+    if (!additionalProperties || Object.keys(additionalProperties).length === 0) {
+      return <span className="gba:text-gray-400">None</span>;
+    }
+
+    const propertyCount = Object.keys(additionalProperties).length;
+    
+    const content = (
+      <div className="gba:max-w-xs">
+        <div className="gba:font-medium gba:mb-2">Additional Properties:</div>
+        <pre className="gba:text-xs gba:bg-gray-50 gba:p-2 gba:rounded gba:overflow-auto gba:max-h-48">
+          {JSON.stringify(additionalProperties, null, 2)}
+        </pre>
+      </div>
+    );
+
+    return (
+      <Popover content={content} title="Additional Properties" trigger="hover">
+        <Badge count={propertyCount} showZero={false}>
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<PiInfo />}
+            className="gba:text-blue-500"
+          />
+        </Badge>
+      </Popover>
+    );
+  };
+
   const columns: ColumnsType<ExpenseRuleMileage> = [
     {
       title: 'Mileage',
@@ -313,6 +348,28 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
       )
     },
     {
+      title: 'Mileage Rule',
+      key: 'mileageRule',
+      width: 160,
+      render: (_, record) => {
+        if (record.mileageRule?.code && record.mileageRule?.name) {
+          return (
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <div>
+                <div className="gba:font-mono gba:font-medium gba:text-sm">
+                  {record.mileageRule.code}
+                </div>
+                <div className="gba:text-gray-600 gba:text-xs">
+                  {record.mileageRule.name}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return <span className="gba:text-gray-400">Not set</span>;
+      }
+    },
+    {
       title: 'Reimbursable',
       dataIndex: 'reimbursable',
       key: 'reimbursable',
@@ -325,12 +382,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
       key: 'rate',
       width: 130,
       render: (_, record) => (
-        <div className="gba:flex gba:items-center gba:gap-1">
-          <PiCurrencyDollar className="gba:text-gray-400" />
-          <span className="gba:font-mono gba:text-sm">
-            {formatCurrency(record.unitPrice, record.measurementUnit)}
-          </span>
-        </div>
+        <span className="gba:font-mono gba:text-sm">
+          {formatCurrency(record.unitPrice, record.measurementUnit)}
+        </span>
       )
     },
     {
@@ -379,6 +433,13 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
         }
         return <span className="gba:text-gray-400">Not set</span>;
       }
+    },
+    {
+      title: 'Properties',
+      key: 'additionalProperties',
+      width: 100,
+      align: 'center',
+      render: (_, record) => renderAdditionalProperties(record.additionalProperties)
     },
     {
       title: 'Actions',

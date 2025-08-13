@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import dayjs from 'dayjs';
+import { message } from 'antd';
 import { 
   Table,
   TableBody,
@@ -21,6 +23,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataDetails } from '@/components/data-details';
 import { useTravelRegionRulesIntegration, EnhancedTravelRegionRule } from '../../hooks/useTravelRegionRulesIntegration';
+import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
 import { TravelRegionRuleForm, TravelRegionRuleFormData } from '../../forms/travel-region-rule-form';
 import { 
   PiPlus, 
@@ -38,6 +41,15 @@ export type { EnhancedTravelRegionRule as TravelRegionRule };
 export interface TravelRegionRulesListProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
+
+// Date formatting utility (consistent with other tables)
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  
+  // Handle various date formats
+  const date = dayjs(dateString);
+  return date.isValid() ? date.format('DD/MM/YYYY') : dateString;
+};
 
 const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
   prefixDataTestId = '',
@@ -67,23 +79,34 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
   };
   const handleCreateSubmit = async (formData: TravelRegionRuleFormData) => {
     try {
-      // TODO: Implement actual API call using expense settings integration
-      // await createTravelRegionRule(formData);
+      console.log('🚀 Creating travel region rule:', formData);
+      await createTravelRegionRule(formData);
+      console.log('✅ Travel region rule created successfully');
+      message.success('Allowance region rule created successfully');
       setIsCreateModalVisible(false);
       refetch();
     } catch (error) {
-      console.error('Error creating rule:', error);
+      console.error('❌ Error creating travel region rule:', error);
+      message.error('Failed to create allowance region rule');
     }
   };
   const handleEditSubmit = async (formData: TravelRegionRuleFormData) => {
     try {
-      // TODO: Implement actual API call using expense settings integration
-      // await updateTravelRegionRule(editingRule.id, formData);
+      if (!editingRule) return;
+      console.log('🚀 Updating travel region rule:', { 
+        id: editingRule.id, 
+        version: editingRule.version, 
+        data: formData 
+      });
+      await updateTravelRegionRule(editingRule.id, formData, editingRule.version);
+      console.log('✅ Travel region rule updated successfully');
+      message.success('Allowance region rule updated successfully');
       setIsEditModalVisible(false);
       setEditingRule(null);
       refetch();
     } catch (error) {
-      console.error('Error updating rule:', error);
+      console.error('❌ Error updating travel region rule:', error);
+      message.error('Failed to update allowance region rule');
     }
   };
 
@@ -96,6 +119,13 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
     searchTravelRegionRules,
     refetch
   } = useTravelRegionRulesIntegration({ ...context, accessToken });
+
+  // Use the API integration hook for CRUD operations
+  const { 
+    createTravelRegionRule, 
+    updateTravelRegionRule,
+    deleteTravelRegionRule
+  } = useExpenseSettingsIntegration({ ...context, accessToken });
 
   // Handle search with debounced effect
   useEffect(() => {
@@ -281,8 +311,8 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar className="gba:text-purple-500 gba:h-4 gba:w-4" />
                         <span className="gba:text-sm">
-                          {rule.effectiveFrom}
-                          {rule.effectiveTo ? ` - ${rule.effectiveTo}` : ' - ongoing'}
+                          {formatDate(rule.effectiveFrom)}
+                          {rule.effectiveTo ? ` - ${formatDate(rule.effectiveTo)}` : ' - ∞'}
                         </span>
                       </div>
                     </TableCell>
@@ -389,8 +419,8 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
                     <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
                       <PiCalendar className="gba:text-purple-500 gba:h-4 gba:w-4" />
                       <span className="gba:text-sm gba:text-gray-900">
-                        {selectedRule.effectiveFrom}
-                        {selectedRule.effectiveTo ? ` - ${selectedRule.effectiveTo}` : ' - ongoing'}
+                        {formatDate(selectedRule.effectiveFrom)}
+                        {selectedRule.effectiveTo ? ` - ${formatDate(selectedRule.effectiveTo)}` : ' - ∞'}
                       </span>
                     </div>
                   </div>

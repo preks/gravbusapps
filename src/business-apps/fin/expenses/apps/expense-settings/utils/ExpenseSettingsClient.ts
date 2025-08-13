@@ -51,6 +51,7 @@ export class ExpenseSettingsClient extends RestClient {
       id: data.id,
       version: data.version,
       code: data.code,
+      ruleName: data.ruleName, // Note: this gets mapped to 'name' in API payload
       detailsWithVersions: data.details?.map((d: MileageRuleDetailFormData) => ({ id: d.id, version: d.version }))
     });
 
@@ -59,12 +60,15 @@ export class ExpenseSettingsClient extends RestClient {
     const payload = {
       mileageRule: {
         ...(hasId && { id: data.id }),
+        ...(data.version !== undefined && { version: data.version }),
         code: data.code,
-        ruleName: data.ruleName,
+        name: data.ruleName,  // API expects 'name', not 'ruleName'
         description: data.description,
         rulePeriod: data.rulePeriod,
         activeFrom: data.activeFrom,
         activeTo: data.activeTo,
+        businessKey: data.code || '', // Optional field, use code as fallback
+        additionalProperties: {}, // Optional empty object
         details: data.details?.map((detail: MileageRuleDetailFormData) => ({
           ...(detail.id && { id: detail.id }),
           limitFrom: detail.limitFrom,
@@ -74,8 +78,7 @@ export class ExpenseSettingsClient extends RestClient {
           activeFrom: detail.activeFrom,
           activeTo: detail.activeTo,
           ...(detail.version !== undefined && { version: detail.version })
-        })) || [],
-        ...(data.version !== undefined && { version: data.version })
+        })) || []
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
@@ -85,8 +88,12 @@ export class ExpenseSettingsClient extends RestClient {
       changeMode: payload.changeMode,
       mileageRuleId: payload.mileageRule.id,
       mileageRuleVersion: payload.mileageRule.version,
+      mileageRuleName: payload.mileageRule.name, // Mapped from 'ruleName' to 'name'
+      mileageRuleCode: payload.mileageRule.code,
       detailsWithVersions: payload.mileageRule.details.map((d: any) => ({ id: d.id, version: d.version }))
     });
+    
+    console.log('🐛 Full payload structure:', JSON.stringify(payload, null, 2));
     
     console.log('🐛 saveMileageRule - POST to:', `processes/${BASE_PATH}/saveMileageRule`);
     return this.post(`/${BASE_PATH}/saveMileageRule`, payload);

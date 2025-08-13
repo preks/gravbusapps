@@ -453,6 +453,124 @@ export const useGetExpenseRules = (context: BusinessAppContextProps) => {
   return { fetchExpenseRules };
 };
 
+export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
+  return `
+    query GetExpenseRuleById {
+      ExpenseRule(
+        where: {
+          _and: [
+            {id: {_eq: "${ruleId}"}},
+            {isDeleted: {_eq: false}}
+          ]
+        }
+        limit: 1
+      ) {
+        id
+        code
+        name
+        standard
+        activeFrom
+        activeTo
+        deductionLimit
+        advancePaymentCode
+        useLastCountry
+        useSingleCurrency
+        taxesCode
+        nonpayableCode
+        version
+        calculationType {
+          id
+          code
+          value
+        }
+        country {
+          id
+          code
+          value
+        }
+        currency {
+          id
+          code
+          value
+        }
+        expenseRuleGeneralExpense(where: { isDeleted: { _eq: false } }) {
+          id
+          code
+          name
+          reimbursable
+          taxCodeRef
+          taxValue
+          activeFrom
+          activeTo
+          version
+          expenseGroup {
+            id
+            value
+            code
+            translations {
+              value
+              localeCode
+            }
+          }
+        }
+        expenseRuleAllowanceCode(where: { isDeleted: { _eq: false } }, orderBy: { codeOrder: ASC }) {
+          id
+          code
+          amount
+          abroad
+          calculation
+          codeOrder
+          activeFrom
+          activeTo
+          version
+          isDeleted
+        }
+        expenseRuleDeduction(where: { isDeleted: { _eq: false } }, orderBy: { deductionOrder: ASC }) {
+          id
+          deductBreakfast
+          deductLunch
+          deductDinner
+          deductionDay
+          deductionOrder
+          overnightAllowance
+          activeFrom
+          activeTo
+          version
+          isDeleted
+        }
+        expenseRuleMileage(where: { isDeleted: { _eq: false } }, orderBy: { mileageOrder: ASC }) {
+          id
+          code
+          mileageOrder
+          unitPrice
+          taxValue
+          activeFrom
+          activeTo
+          version
+          isDeleted
+        }
+      }
+    }
+  `;
+};
+
+export const useGetExpenseRuleById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchExpenseRuleById = useCallback(async (ruleId: string) => {
+    const query = GET_EXPENSE_RULE_BY_ID(ruleId);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRule: any[] }>(query);
+      return result.ExpenseRule?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching expense rule by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchExpenseRuleById };
+};
+
 export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   

@@ -92,7 +92,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
               activeFrom
               activeTo
               version
-              isDeleted
               expenseGroup {
                 id
                 value
@@ -113,7 +112,23 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
       );
       
       const expenseRule = result.ExpenseRule?.[0];
-      setGeneralExpenses(expenseRule?.expenseRuleGeneralExpense || []);
+      const generalExpenses = expenseRule?.expenseRuleGeneralExpense || [];
+      
+      // Debug: Log expense group data
+      console.log('🔍 GeneralExpensesTab - Fetched expense data:', {
+        ruleId,
+        expenseCount: generalExpenses.length,
+        firstExpenseGroups: generalExpenses.slice(0, 3).map(exp => ({
+          id: exp.id,
+          code: exp.code,
+          name: exp.name,
+          expenseGroupCode: exp.expenseGroup?.code,
+          expenseGroupValue: exp.expenseGroup?.value,
+          expenseGroupId: exp.expenseGroup?.id
+        }))
+      });
+      
+      setGeneralExpenses(generalExpenses);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load general expenses');
       console.error('Error fetching general expenses:', err);
@@ -315,6 +330,14 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
       key: 'expenseGroup',
       width: 150,
       render: (expenseGroup) => {
+        // Debug: Log what we're receiving
+        console.log('🔍 ExpenseGroup render:', {
+          expenseGroup,
+          hasCode: !!expenseGroup?.code,
+          code: expenseGroup?.code,
+          value: expenseGroup?.value
+        });
+        
         if (expenseGroup?.code) {
           return (
             <Tag color="blue" title={getLocalizedExpenseGroupName(expenseGroup)}>

@@ -15,7 +15,9 @@ import {
   message, 
   Popconfirm,
   Tooltip,
-  Card
+  Card,
+  Row,
+  Col
 } from 'antd';
 import { 
   PiPlus, 
@@ -23,7 +25,10 @@ import {
   PiTrash, 
   PiCalendar, 
   PiCheck,
-  PiX 
+  PiX,
+  PiCoffee,
+  PiBowlFood,
+  PiMoon
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -44,6 +49,9 @@ interface DeductionFormData {
   deductBreakfast: boolean;
   deductLunch: boolean;
   deductDinner: boolean;
+  taxBreakfast: boolean; // ✅ UPDATED: Tax fields are booleans, not numbers
+  taxLunch: boolean; // ✅ UPDATED: Tax fields are booleans, not numbers
+  taxDinner: boolean; // ✅ UPDATED: Tax fields are booleans, not numbers
   deductionDay?: string;
   deductionOrder: number;
   overnightAllowance: boolean;
@@ -77,36 +85,40 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
     try {
       const query = `
         query GetExpenseRuleDeductions($ruleId: uuid!) {
-          ExpenseRuleDeduction(
-            where: {
-              _and: [
-                { expenseRuleId: { _eq: $ruleId } },
-                { isDeleted: { _eq: false } }
-              ]
-            }
-            orderBy: { deductionOrder: ASC }
-          ) {
+          ExpenseRule(where: { id: { _eq: $ruleId } }) {
             id
-            deductBreakfast
-            deductLunch
-            deductDinner
-            deductionDay
-            deductionOrder
-            overnightAllowance
-            activeFrom
-            activeTo
-            version
-            isDeleted
+            code
+            name
+            expenseRuleDeduction(where: { isDeleted: { _eq: false } }, orderBy: { deductionOrder: ASC }) {
+              id
+              deductBreakfast
+              deductLunch
+              deductDinner
+              taxBreakfast
+              taxLunch
+              taxDinner
+              deductionDay
+              deductionOrder
+              overnightAllowance
+              activeFrom
+              activeTo
+              version
+              additionalProperties
+              businessKey
+              express1
+              express2
+            }
           }
         }
       `;
       
-      const result = await graphqlClient.request<{ ExpenseRuleDeduction: ExpenseRuleDeduction[] }>(
+      const result = await graphqlClient.request<{ ExpenseRule: { expenseRuleDeduction: ExpenseRuleDeduction[] }[] }>(
         query, 
         { ruleId }
       );
       
-      setDeductions(result.ExpenseRuleDeduction || []);
+      const expenseRule = result.ExpenseRule?.[0];
+      setDeductions(expenseRule?.expenseRuleDeduction || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load deductions');
       console.error('Error fetching deductions:', err);
@@ -130,7 +142,10 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
       deductBreakfast: false,
       deductLunch: false,
       deductDinner: false,
-      overnightAllowance: false
+      overnightAllowance: false,
+      taxBreakfast: false,
+      taxLunch: false,
+      taxDinner: false
     });
     setIsModalVisible(true);
   };
@@ -140,7 +155,10 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
     form.setFieldsValue({
       ...record,
       activeFrom: dayjs(record.activeFrom),
-      activeTo: record.activeTo ? dayjs(record.activeTo) : undefined
+      activeTo: record.activeTo ? dayjs(record.activeTo) : undefined,
+      taxBreakfast: record.taxBreakfast || false,
+      taxLunch: record.taxLunch || false,
+      taxDinner: record.taxDinner || false
     });
     setIsModalVisible(true);
   };
@@ -192,111 +210,122 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
   };
 
   const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD.MM.YYYY');
+    return dayjs(dateString).format('DD/MM/YYYY');
   };
 
+  const renderMealDeductions = (record: ExpenseRuleDeduction) => {
+    const meals = [
+      { key: 'breakfast', icon: PiCoffee, label: 'Breakfast', deduct: record.deductBreakfast, tax: record.taxBreakfast },
+      { key: 'lunch', icon: PiBowlFood, label: 'Lunch', deduct: record.deductLunch, tax: record.taxLunch },
+      { key: 'dinner', icon: PiMoon, label: 'Dinner', deduct: record.deductDinner, tax: record.taxDinner }
+    ];
+
+    return (
+      <div className="gba:flex gba:gap-3">
+        {meals.map(meal => {
+          const IconComponent = meal.icon;
+          return (
+            <div 
+              key={meal.key}
+              className={`gba:flex gba:flex-col gba:items-center gba:p-2 gba:rounded gba:border-2 gba:min-w-20 ${
+                meal.deduct || meal.tax
+                  ? 'gba:border-green-200 gba:bg-green-50' 
+                  : 'gba:border-gray-200 gba:bg-gray-50'
+              }`}
+            >
+              <IconComponent 
+                className={`gba:text-lg gba:mb-1 ${
+                  meal.deduct ? 'gba:text-green-600' : 'gba:text-gray-400'
+                }`} 
+              />
+              <span className="gba:text-xs gba:font-medium gba:text-center">
+                {meal.label}
+              </span>
+              <div className="gba:flex gba:flex-col gba:items-center gba:mt-1 gba:gap-1">
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <span className="gba:text-xs gba:text-gray-600">Deduct:</span>
+                  {meal.deduct ? (
+                    <PiCheck className="gba:text-green-500 gba:text-sm" />
+                  ) : (
+                    <PiX className="gba:text-gray-400 gba:text-sm" />
+                  )}
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <span className="gba:text-xs gba:text-gray-600">Tax:</span>
+                  {meal.tax ? (
+                    <PiCheck className="gba:text-green-500 gba:text-sm" />
+                  ) : (
+                    <PiX className="gba:text-gray-400 gba:text-sm" />
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+
+
   const deductionDayOptions = [
+    { value: 'FIRST_DAY', label: 'First Day' },
+    { value: 'LAST_DAY', label: 'Last Day' },
+    { value: 'DAYS_BETWEEN', label: 'Days Between' },
     { value: 'FULL_DAY', label: 'Full Day' },
-    { value: 'HALF_DAY', label: 'Half Day' },
-    { value: 'QUARTER_DAY', label: 'Quarter Day' }
+    { value: 'HALF_DAY', label: 'Half Day' }
   ];
 
   const columns: ColumnsType<ExpenseRuleDeduction> = [
     {
-      title: 'Order',
-      dataIndex: 'deductionOrder',
-      key: 'deductionOrder',
-      width: 80,
-      sorter: (a, b) => a.deductionOrder - b.deductionOrder,
-      render: (order) => (
-        <Tag color="blue" className="gba:font-mono">
-          {order}
-        </Tag>
-      )
-    },
-    {
-      title: 'Breakfast',
-      dataIndex: 'deductBreakfast',
-      key: 'deductBreakfast',
-      width: 100,
-      align: 'center',
-      render: (deduct) => (
-        deduct ? 
-          <PiCheck className="gba:text-green-500 gba:text-lg" /> : 
-          <PiX className="gba:text-gray-400 gba:text-lg" />
-      )
-    },
-    {
-      title: 'Lunch',
-      dataIndex: 'deductLunch',
-      key: 'deductLunch',
-      width: 100,
-      align: 'center',
-      render: (deduct) => (
-        deduct ? 
-          <PiCheck className="gba:text-green-500 gba:text-lg" /> : 
-          <PiX className="gba:text-gray-400 gba:text-lg" />
-      )
-    },
-    {
-      title: 'Dinner',
-      dataIndex: 'deductDinner',
-      key: 'deductDinner',
-      width: 100,
-      align: 'center',
-      render: (deduct) => (
-        deduct ? 
-          <PiCheck className="gba:text-green-500 gba:text-lg" /> : 
-          <PiX className="gba:text-gray-400 gba:text-lg" />
-      )
-    },
-    {
       title: 'Deduction Day',
-      dataIndex: 'deductionDay',
-      key: 'deductionDay',
-      width: 120,
-      render: (day) => day ? (
-        <Tag color="orange">
-          {deductionDayOptions.find(opt => opt.value === day)?.label || day}
-        </Tag>
-      ) : (
-        <span className="gba:text-gray-400">Not set</span>
-      )
-    },
-    {
-      title: 'Overnight',
-      dataIndex: 'overnightAllowance',
-      key: 'overnightAllowance',
-      width: 100,
-      align: 'center',
-      render: (overnight) => (
-        overnight ? 
-          <Tag color="purple">Yes</Tag> : 
-          <Tag>No</Tag>
-      )
-    },
-    {
-      title: 'Valid Period',
-      key: 'period',
+      key: 'deductionInfo',
       width: 200,
       render: (_, record) => (
-        <div className="gba:text-sm">
-          <div className="gba:flex gba:items-center gba:gap-1">
-            <PiCalendar className="gba:text-gray-400" />
-            <span>{formatDate(record.activeFrom)}</span>
-          </div>
-          {record.activeTo && (
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500">
-              <span>to {formatDate(record.activeTo)}</span>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <div className="gba:flex gba:flex-col">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {record.deductionDay ? (
+                <Tag color="orange">
+                  {deductionDayOptions.find(opt => opt.value === record.deductionDay)?.label || record.deductionDay}
+                </Tag>
+              ) : (
+                <span className="gba:text-gray-400 gba:text-sm">Not set</span>
+              )}
             </div>
-          )}
+            {record.overnightAllowance && (
+              <Tag color="purple" className="gba:mt-1 gba:w-fit">
+                Overnight Allowance
+              </Tag>
+            )}
+          </div>
         </div>
       )
     },
     {
+      title: 'Meal Deductions',
+      key: 'mealDeductions',
+      width: 280,
+      render: (_, record) => renderMealDeductions(record)
+    },
+    {
+      title: 'Validity',
+      key: 'validity',
+      width: 180,
+      render: (_, record) => (
+        <div className="gba:flex gba:items-center gba:gap-1">
+          <PiCalendar className="gba:text-gray-400" />
+          <span className="gba:text-sm">
+            {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
+          </span>
+        </div>
+      )
+    },
+
+    {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 100,
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="Edit deduction rule">
@@ -390,7 +419,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
           showTotal: (total, range) => 
             `${range[0]}-${range[1]} of ${total} deduction rules`,
         }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 1000 }}
         data-testid="deductions-table"
       />
 
@@ -401,7 +430,7 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
         onOk={handleSave}
         onCancel={() => setIsModalVisible(false)}
         confirmLoading={isSaving}
-        width={600}
+        width={800}
         data-testid="deduction-modal"
       >
         <Form
@@ -417,29 +446,65 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Card title="Meal Deductions" className="gba:mb-4">
-            <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-              <Form.Item
-                name="deductBreakfast"
-                valuePropName="checked"
-              >
-                <Switch checkedChildren="Breakfast" unCheckedChildren="Breakfast" />
-              </Form.Item>
-
-              <Form.Item
-                name="deductLunch"
-                valuePropName="checked"
-              >
-                <Switch checkedChildren="Lunch" unCheckedChildren="Lunch" />
-              </Form.Item>
-
-              <Form.Item
-                name="deductDinner"
-                valuePropName="checked"
-              >
-                <Switch checkedChildren="Dinner" unCheckedChildren="Dinner" />
-              </Form.Item>
-            </div>
+          <Card title="Meal Deductions & Tax Settings" className="gba:mb-4">
+            <Row gutter={24}>
+              <Col span={8}>
+                <Card size="small" title={<><PiCoffee className="gba:mr-2" />Breakfast</>} className="gba:mb-4">
+                  <Form.Item
+                    name="deductBreakfast"
+                    valuePropName="checked"
+                    className="gba:mb-2"
+                  >
+                    <Switch checkedChildren="Deduct" unCheckedChildren="Skip" />
+                  </Form.Item>
+                  <Form.Item
+                    name="taxBreakfast"
+                    valuePropName="checked"
+                    className="gba:mb-0"
+                  >
+                    <Switch checkedChildren="Tax" unCheckedChildren="No Tax" />
+                  </Form.Item>
+                </Card>
+              </Col>
+              
+              <Col span={8}>
+                <Card size="small" title={<><PiBowlFood className="gba:mr-2" />Lunch</>} className="gba:mb-4">
+                  <Form.Item
+                    name="deductLunch"
+                    valuePropName="checked"
+                    className="gba:mb-2"
+                  >
+                    <Switch checkedChildren="Deduct" unCheckedChildren="Skip" />
+                  </Form.Item>
+                  <Form.Item
+                    name="taxLunch"
+                    valuePropName="checked"
+                    className="gba:mb-0"
+                  >
+                    <Switch checkedChildren="Tax" unCheckedChildren="No Tax" />
+                  </Form.Item>
+                </Card>
+              </Col>
+              
+              <Col span={8}>
+                <Card size="small" title={<><PiMoon className="gba:mr-2" />Dinner</>} className="gba:mb-4">
+                  <Form.Item
+                    name="deductDinner"
+                    valuePropName="checked"
+                    className="gba:mb-2"
+                  >
+                    <Switch checkedChildren="Deduct" unCheckedChildren="Skip" />
+                  </Form.Item>
+                  <Form.Item
+                    name="taxDinner"
+                    valuePropName="checked"
+                    className="gba:mb-0"
+                  >
+                    <Switch checkedChildren="Tax" unCheckedChildren="No Tax" />
+                  </Form.Item>
+                </Card>
+              </Col>
+            </Row>
           </Card>
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">

@@ -356,13 +356,20 @@ export interface ExpenseRuleDeduction {
   deductBreakfast: boolean;
   deductLunch: boolean;
   deductDinner: boolean;
-  deductionDay?: string; // Maps to DeductionDay enum
+  taxBreakfast: boolean; // ✅ ADDED: Tax information for breakfast
+  taxLunch: boolean; // ✅ ADDED: Tax information for lunch  
+  taxDinner: boolean; // ✅ ADDED: Tax information for dinner
+  deductionDay?: string; // Maps to DeductionDay enum (FIRST_DAY, LAST_DAY, DAYS_BETWEEN, etc.)
   deductionOrder: number;
   overnightAllowance: boolean;
   activeFrom: string;
   activeTo?: string;
   version?: number;
   isDeleted: boolean;
+  additionalProperties?: Record<string, any>;
+  businessKey?: string;
+  express1?: Record<string, any>;
+  express2?: Record<string, any>;
 }
 
 export interface ExpenseRuleMileage {
@@ -400,7 +407,7 @@ export interface ExpenseRuleGeneralExpense {
   activeFrom: string;
   activeTo?: string;
   version?: number;
-  isDeleted: boolean;
+  isDeleted?: boolean;
   
   // Relations
   expenseGroup?: ExpenseGroupWithTranslations;
@@ -430,6 +437,8 @@ export interface ExpenseRuleMileage {
   version?: number;
   isDeleted: boolean;
   wageCode?: string;
+  additionalProperties?: Record<string, any>;
+  businessKey?: string;
   
   // Relations
   expenseGroup?: ExpenseGroupWithTranslations;
