@@ -136,6 +136,8 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
   const [selectedAccount, setSelectedAccount] = useState<string | undefined>(
     undefined
   );
+  const [selectedAccountOwnerEmployee, setSelectedAccountOwnerEmployee] =
+    useState<string | undefined>(undefined);
   const [selectedContact, setSelectedContact] = useState<string | undefined>(
     undefined
   );
@@ -166,6 +168,15 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         organizationalUnit: emp.organizationalUnit.name,
       },
     }));
+
+  // Handle account selection with owner employee
+  const handleSelectedAccountChange = useCallback(
+    (accountId: string | undefined, ownerEmployeeId: string | undefined) => {
+      setSelectedAccount(accountId);
+      setSelectedAccountOwnerEmployee(ownerEmployeeId);
+    },
+    []
+  );
 
   // Track current pipeline for stages refetching (same as opportunity form)
 
@@ -376,16 +387,6 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
 
   const handleSubmit = (values: any) => {
     setSubmitting(true);
-    console.log("🔍 [Handle Submit] Values:", values);
-    console.log("🔍 All form fields:", form.getFieldsValue());
-    console.log(
-      "🔍 Account owner employee from values:",
-      values.accountOwnerEmployee
-    );
-    console.log(
-      "🔍 Account owner employee from form:",
-      form.getFieldValue("accountOwnerEmployee")
-    );
     try {
       const payload: any = {
         leadId: additionalData?.leadId,
@@ -395,7 +396,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
       if (accountOption === "match" && selectedAccount) {
         payload.account = {
           id: selectedAccount,
-          ownerEmployee: values.accountOwnerEmployee || null,
+          ownerEmployee: selectedAccountOwnerEmployee || null,
         };
       } else if (accountOption === "new") {
         payload.account = {
@@ -403,7 +404,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           legalFormRef: values.accountLegalForm || null,
           industryRef: values.accountIndustry || null,
           description: values.accountDescription || null,
-          sourceApp: values.accountSourceApp || "IRM",
+          sourceApp: values.accountSourceApp || "CRM",
           foundationDate: values.accountFoundationDate
             ? new Date(values.accountFoundationDate).toISOString()
             : null,
@@ -416,13 +417,13 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           annualRevenueRef: values.accountAnnualRevenue || null,
           numberOfEmployeesRef: values.accountNumberOfEmployees || null,
           currencyRef: values.accountCurrency || null,
-          timeZoneRef: values.accountTimeZone || null,
+          //   timeZoneRef: values.accountTimeZone || null,
           tickerSymbol: values.accountTickerSymbol || null,
           sicCodeRef: values.accountSicCode || null,
           ownerEmployee: values.accountOwnerEmployee || null,
-          addresses: hasAddressData(values.accountAddresses)
-            ? [formatEnhancedAddress(values.accountAddresses)]
-            : [],
+          // addresses: hasAddressData(values.accountAddresses)
+          //   ? [formatEnhancedAddress(values.accountAddresses)]
+          //   : [],
         };
       }
 
@@ -447,7 +448,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           department: values.contactDepartment || null,
           contactType: values.contactType || null,
           contactRole: values.contactRole || null,
-          sourceApp: values.contactSourceApp || "IRM",
+          sourceApp: values.contactSourceApp || "CRM",
           workExperienceYears: values.contactWorkExperienceYears || 0,
           birthDate: values.contactBirthDate
             ? new Date(values.contactBirthDate).toISOString()
@@ -455,9 +456,9 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           pictureUrl: values.contactPictureUrl || null,
           bio: values.contactBio || null,
           notesSummary: values.contactNotesSummary || null,
-          accountId: values.contactCompanyId || null, // Company/Account ID
+          account: values.contactCompanyId || null, // Company/Account ID
           ownerEmployee: values.contactOwnerEmployee || null,
-          address: hasAddressData(values.contactAddresses)
+          addresses: hasAddressData(values.contactAddresses)
             ? [formatAddress(values.contactAddresses)]
             : [],
         };
@@ -477,22 +478,15 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           estimatedAmount: values.opportunityEstimatedAmount || 0,
           winningChance: values.opportunityWinningChance || 0,
           currencyRef: values.opportunityCurrency || null,
-          sourceApp: values.opportunitySourceApp || "IRM",
-          pipelineRef: values.opportunityPipeline || null,
+          sourceApp: values.opportunitySourceApp || "CRM",
+          salesPipelineRef: values.opportunityPipeline || null,
           salesPipelineStageRef: values.opportunitySalesPipelineStage || null,
           status: values.opportunityStatus || null,
-          account: accountOption === "match" ? selectedAccount : undefined,
-          accountId: values.opportunityAccountId || null,
           ownerEmployee: values.opportunityOwnerEmployee || null,
-          ownerOrganization: null,
-          addresses: null,
           notesSummary: values.opportunityNoteSummary || null,
         };
       }
 
-      payload.version = leadData?.version || 0;
-
-      console.log("Submitting payload:", payload);
       dispatchProcessContinueEvent("pse_submit", payload);
     } catch (error) {
       console.error("Error submitting convert lead form:", error);
@@ -817,6 +811,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           setAccountOption={setAccountOption}
           selectedAccount={selectedAccount}
           setSelectedAccount={setSelectedAccount}
+          onSelectedAccountChange={handleSelectedAccountChange}
         />
 
         <Separator className="gba:my-6" />
