@@ -77,7 +77,7 @@ export const useEmployeeActivitiesTrendData = (
     const percentage = ((current - previous) / previous) * 100;
     const trend = percentage > 3 ? "up" : percentage < -3 ? "down" : "stable";
 
-    return { trend, percentage: Math.abs(percentage) };
+    return { trend, percentage };
   };
 
   const getCurrentAndPreviousMonthDates = () => {

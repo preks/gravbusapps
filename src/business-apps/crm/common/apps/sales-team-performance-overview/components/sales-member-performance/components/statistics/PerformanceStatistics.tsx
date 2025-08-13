@@ -6,11 +6,9 @@ import {
   DollarOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { PiTrendUp, PiTrendDown, PiChartLine } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { usePerformanceStatisticsData } from "../../hooks";
 import { useEmployeeTrendData } from "../../hooks/useEmployeeTrendData";
-import { formatCurrency } from "../../../../../../utils/currencyUtils";
 
 const DATA_TEST_ID_PREFIX = "PerformanceStatistics";
 
@@ -42,39 +40,10 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
     onRetry?.();
   };
 
-  // Helper functions for trend visualization
-  const getTrendIcon = (trend: "up" | "down" | "stable") => {
-    switch (trend) {
-      case "up":
-        return <PiTrendUp />;
-      case "down":
-        return <PiTrendDown />;
-      default:
-        return <PiChartLine />;
-    }
-  };
-
-  const getTrendColor = (trend: "up" | "down" | "stable") => {
-    switch (trend) {
-      case "up":
-        return "#10b981";
-      case "down":
-        return "#ef4444";
-      default:
-        return "#6b7280";
-    }
-  };
-
-  const getTrendDescription = (
-    trend: "up" | "down" | "stable",
-    percentage: number,
-    baseDescription: string
-  ) => {
-    if (trend === "stable") return `${baseDescription} • Stable vs last month`;
-    const direction = trend === "up" ? "increase" : "decrease";
-    return `${baseDescription} • ${percentage.toFixed(
-      1
-    )}% ${direction} vs last month`;
+  // Helper function to format trend percentage with proper sign
+  const formatTrendPercent = (changePercent: number): string => {
+    const sign = changePercent >= 0 ? "+" : "";
+    return `${sign}${changePercent.toFixed(1)}%`;
   };
 
   // Transform stats data into widgets format with trend comparisons
@@ -83,50 +52,54 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
       key: "leads-worked",
       title: "Leads Worked",
       value: statistics.leadsWorked.total,
-      prefix: getTrendIcon(trends.leadsWorked.trend),
-      color: getTrendColor(trends.leadsWorked.trend),
-      description: getTrendDescription(
-        trends.leadsWorked.trend,
-        trends.leadsWorked.trendPercentage,
-        `${statistics.leadsWorked.converted} converted (${statistics.leadsWorked.conversionRate}%)`
-      ),
+      prefix: <UserOutlined />,
+      color: "#1677ff",
+      description: `${statistics.leadsWorked.converted} converted (${statistics.leadsWorked.conversionRate}%)`,
+      trend: {
+        value: `${statistics.leadsWorked.conversionRate}%`,
+        positive: statistics.leadsWorked.conversionRate >= 50,
+        description: "conversion rate",
+      },
     },
     {
       key: "contacts-worked",
       title: "Contacts Worked",
       value: statistics.contactsWorked.total,
-      prefix: getTrendIcon(trends.contactsWorked.trend),
-      color: getTrendColor(trends.contactsWorked.trend),
-      description: getTrendDescription(
-        trends.contactsWorked.trend,
-        trends.contactsWorked.trendPercentage,
-        `${statistics.contactsWorked.salesRelated} sales-related (${statistics.contactsWorked.percentage}%)`
-      ),
+      prefix: <ContactsOutlined />,
+      color: "#52c41a",
+      description: `${statistics.contactsWorked.salesRelated} sales-related (${statistics.contactsWorked.percentage}%)`,
+      trend: {
+        value: `${statistics.contactsWorked.percentage}%`,
+        positive: statistics.contactsWorked.percentage >= 70,
+        description: "engagement rate",
+      },
     },
     {
       key: "opportunities-managed",
       title: "Opportunities Managed",
       value: statistics.opportunitiesManaged.total,
-      prefix: getTrendIcon(trends.opportunitiesManaged.trend),
-      color: getTrendColor(trends.opportunitiesManaged.trend),
-      description: getTrendDescription(
-        trends.opportunitiesManaged.trend,
-        trends.opportunitiesManaged.trendPercentage,
-        `${statistics.opportunitiesManaged.won} won (${statistics.opportunitiesManaged.winRate}%)`
-      ),
+      prefix: <DollarOutlined />,
+      color: "#ff4d4f",
+      description: `${statistics.opportunitiesManaged.won} won (${statistics.opportunitiesManaged.winRate}%)`,
+      trend: {
+        value: `${statistics.opportunitiesManaged.winRate}%`,
+        positive: statistics.opportunitiesManaged.winRate >= 30,
+        description: "win rate",
+      },
     },
     {
       key: "activities-completed",
       title: "Activities Completed",
       value: trends.activitiesCompleted.currentValue,
-      prefix: getTrendIcon(trends.activitiesCompleted.trend),
-      color: getTrendColor(trends.activitiesCompleted.trend),
-      description: getTrendDescription(
-        trends.activitiesCompleted.trend,
-        trends.activitiesCompleted.trendPercentage,
-        `Focus on sales execution`
-      ),
+      prefix: <TeamOutlined />,
+      color: "#722ed1",
+      description: "Focus on sales execution",
       precision: 0,
+      trend: {
+        value: formatTrendPercent(trends.activitiesCompleted.trendPercentage),
+        positive: trends.activitiesCompleted.trend === "up",
+        description: "vs last month",
+      },
     },
   ];
 
