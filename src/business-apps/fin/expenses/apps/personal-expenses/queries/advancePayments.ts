@@ -644,7 +644,8 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
         createdAt: {_gte: $startDate, _lte: $endDate}
-        status: {_in: ["APPROVED", "PAID", "BOOKED"]}
+        status: {_in: ["APPROVED", "PAID", "BOOKED"]},
+        currencyRef: {_eq: "Currency:v1:EUR"}
       }
     ) {
       aggregate {

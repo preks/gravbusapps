@@ -14,7 +14,11 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system';
 import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
@@ -23,6 +27,46 @@ import { getExpenseItemStatusDisplay } from '../../../utils';
 import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
+
+// Utility function to truncate file names
+const truncateFileName = (fileName: string, maxLength: number = 15): string => {
+  if (!fileName || fileName.length <= maxLength) {
+    return fileName || '';
+  }
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    // No extension, just truncate
+    return fileName.substring(0, maxLength - 3) + '...';
+  }
+  
+  const name = fileName.substring(0, lastDotIndex);
+  const extension = fileName.substring(lastDotIndex);
+  
+  // If extension is too long, just show the extension
+  if (extension.length >= maxLength - 3) {
+    return '...' + extension;
+  }
+  
+  // If name is very short, just truncate the whole thing
+  if (name.length <= 3) {
+    return fileName.substring(0, maxLength - 3) + '...';
+  }
+  
+  const maxNameLength = maxLength - extension.length - 3;
+  return name.substring(0, maxNameLength) + '...' + extension;
+};
+
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null;
@@ -84,7 +128,10 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   
   // Fetch file attachments for an expense item
   const fetchFileAttachments = useCallback(async (item: ExpenseItem) => {
+    console.log('Fetching file attachments for item:', item.id, 'Files:', item?.expenseItemFile);
+    
     if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
+      console.log('No expense item files found');
       setFileList([]);
       return;
     }
@@ -113,32 +160,65 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       
       for (const fileInfo of item.expenseItemFile) {
         try {
-          // Use the fileInfo.id as the file identifier
+          console.log('Processing file info:', fileInfo);
+          
+          // Extract file ID from fileUrl if available, otherwise use id
+          let fileId = fileInfo.id;
+          if (fileInfo.fileUrl) {
+            // Try to extract file ID from URL (e.g., "https://.../files/123" -> "123")
+            const urlParts = fileInfo.fileUrl.split('/');
+            const potentialFileId = urlParts[urlParts.length - 1];
+            if (potentialFileId && potentialFileId !== 'files') {
+              fileId = potentialFileId;
+            }
+          }
+          
+          console.log('Using file ID:', fileId);
+          
+          // Use the fileId as the file identifier
           const pathParams = {
             accessScope: 'tenant',
-            fileId: fileInfo.id
+            fileId: fileId
           };
           
           // Get file as blob and create object URL
-          const fileBlob = await fileClient.getFile(pathParams, {
-            appName: 'expenses',
-            folderPath: `employees/${employeeId}/expense-items/${item.id}`
-          });
+          let fileBlob;
+          try {
+            fileBlob = await fileClient.getFile(pathParams, {
+              appName: 'expenses',
+              folderPath: `/expenseItemsDocuments/${employeeId}`
+            });
+          } catch (firstError) {
+            console.log('First attempt failed, trying alternative path:', firstError);
+            // Try alternative folder path
+            try {
+              fileBlob = await fileClient.getFile(pathParams, {
+                appName: 'expenses',
+                folderPath: `employees/${employeeId}/expense-items/${item.id}`
+              });
+            } catch (secondError) {
+              console.log('Second attempt also failed:', secondError);
+              throw secondError;
+            }
+          }
           
           if (fileBlob && isMounted.current) {
+            console.log('File blob retrieved successfully:', fileBlob.size, 'bytes, type:', fileBlob.type);
+            
             // Create object URL for the blob
             const downloadUrl = URL.createObjectURL(fileBlob);
             
             // Create UploadFile object
             const uploadFile: UploadFile = {
-              uid: fileInfo.id,
-              name: fileInfo.fileName || fileInfo.id, // Use fileName from fileInfo
+              uid: fileId,
+              name: fileInfo.fileName || fileId, // Use fileName from fileInfo
               status: 'done',
               url: downloadUrl,
               size: fileBlob.size,
               type: fileBlob.type || 'application/octet-stream'
             };
             
+            console.log('Created upload file:', uploadFile);
             processedFiles.push(uploadFile);
           }
         } catch (fileError) {
@@ -189,11 +269,13 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
 
   // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
+    console.log('Rendering attachment preview - fileLoading:', fileLoading, 'fileList:', fileList);
+    
     if (fileLoading) {
       return (
-        <Card className="gba:text-center gba:py-8" data-testid="expense-file-loading">
-          <Spinner />
-          <div className="gba:mt-2">
+        <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-loading">
+          <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+            <Spinner />
             <p className="gba:text-sm gba:text-gray-600">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
             </p>
@@ -205,11 +287,11 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     if (fileList.length > 0) {
       return (
         <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:sm:gba:grid-cols-3 gba:md:gba:grid-cols-4 gba:lg:gba:grid-cols-5" data-testid="expense-files-grid">
-          {fileList.map((file, idx) => {
-            const fileName = file.name || '';
-            const fileUrl = file.url || '';
-            const fileType = file.type || '';
-            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                     {fileList.map((file, idx) => {
+             const fileName = file.name || `File_${idx + 1}`;
+             const fileUrl = file.url || '';
+             const fileType = file.type || '';
+             const ext = fileName.split('.').pop()?.toLowerCase() || '';
             
             // Helper: Render icon by file type
             const renderFileIcon = () => {
@@ -227,7 +309,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                   <img
                     src={fileUrl}
                     alt={fileName}
-                    className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:object-cover gba:cursor-pointer"
+                    className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:object-cover gba:cursor-pointer hover:gba:opacity-80"
                     data-testid={`expense-file-image-${idx}`}
                     onClick={() => {
                       setPreviewImage(fileUrl);
@@ -257,34 +339,65 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                   <a
                     href={fileUrl}
                     download={fileName}
-                    className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline"
+                    className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline gba:cursor-pointer"
                     data-testid={`expense-file-download-${idx}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open(fileUrl, '_blank');
+                    }}
                   >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.download', 'Download')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
                   </a>
                 </div>
               );
             };
 
-            return (
-              <div
-                key={file.uid}
-                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:h-[130px]"
-                data-testid={`expense-file-card-${idx}`}
-              >
-                {renderPreview()}
-                <div className="gba:mt-2 gba:truncate gba:text-xs gba:text-center" title={fileName} data-testid={`expense-file-name-${idx}`}>{fileName}</div>
-              </div>
-            );
+                         return (
+               <div
+                 key={file.uid}
+                 className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+                 data-testid={`expense-file-card-${idx}`}
+               >
+                 {renderPreview()}
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                                                <div 
+                           className="gba:mt-2 gba:text-xs gba:text-center gba:w-full gba:px-1 gba:break-words gba:cursor-help" 
+                           data-testid={`expense-file-name-${idx}`}
+                           style={{
+                             overflow: 'hidden',
+                             textOverflow: 'ellipsis',
+                             whiteSpace: 'nowrap',
+                             maxWidth: '100%',
+                             lineHeight: '1.2',
+                             wordBreak: 'break-all'
+                           }}
+                         >
+                           {truncateFileName(fileName, 18)}
+                         </div>
+                     </TooltipTrigger>
+                                            <TooltipContent>
+                         <div className="gba:max-w-xs">
+                           <div className="gba:font-medium gba:break-words">{fileName}</div>
+                           <div className="gba:text-xs gba:text-gray-500">
+                             {file.size ? formatFileSize(file.size) : 'Unknown size'}
+                           </div>
+                         </div>
+                       </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+               </div>
+             );
           })}
         </div>
       );
     }
 
     return (
-      <Card className="gba:text-center gba:py-8" data-testid="expense-file-empty">
-        <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
-        <div className="gba:mt-2">
+      <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-empty">
+        <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+          <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>
@@ -429,6 +542,25 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       <div className="gba:mt-2">
         {renderAttachmentPreview()}
       </div>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4 gba:flex gba:justify-center">
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="gba:max-w-full gba:max-h-[calc(90vh-120px)] gba:object-contain"
+              data-testid="image-preview"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* PDF Preview Dialog */}
       <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>

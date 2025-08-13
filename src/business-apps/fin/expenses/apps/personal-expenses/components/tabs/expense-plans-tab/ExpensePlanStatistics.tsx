@@ -139,7 +139,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     {
       key: 'total-estimated',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for') + ' ' + currentMonthName,
-      value: `${formatNumberFunction(String(totalEstimated ?? '0'))} €`,
+      value: `${formatNumberFunction(String(totalEstimated ?? '0'))}`,
+      suffix: '€',
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },

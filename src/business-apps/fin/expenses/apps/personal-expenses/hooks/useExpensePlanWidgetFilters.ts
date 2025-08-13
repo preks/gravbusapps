@@ -3,7 +3,6 @@
 
 import { useMemo } from 'react';
 import { ExpenseStatus } from '../utils';
-import dayjs from 'dayjs';
 
 export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWidget: string | null): string[] {
   return useMemo(() => {

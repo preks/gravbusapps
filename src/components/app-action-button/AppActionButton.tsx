@@ -90,7 +90,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   } = props;
 
   return (
-    <div data-testid={customDataTestId || `${dataTestId}-container`}>
+    <div data-testid={customDataTestId || `${dataTestId}-container`} className="gba:flex gba:items-center gba:justify-center">
       <ActionButton
         {...restProps}
         data-testid={formatDataTestId(dataTestId, "Button")}
@@ -103,6 +103,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
         dropdownLoading={isLoading || (deferMainContextRequestsUntilClick && combinedData.length === 0 && !hasDeferredFetchAttempted)}
         flowData={combinedData}
         portalContainer={document.body}
+        className="gba:flex gba:items-center gba:justify-center"
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
