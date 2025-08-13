@@ -61,10 +61,17 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    const isDeactivating = activeWidget === widgetKey;
+    const newActiveWidget = isDeactivating ? null : widgetKey;
     setActiveWidget(newActiveWidget);
     
-    // Clear existing filters for all widget activations
+    // If deactivating (clicking the same widget again), clear all filters
+    if (isDeactivating) {
+      clearFilters();
+      return;
+    }
+    
+    // Clear existing filters when switching to a different widget
     clearFilters();
     
     // Apply widget-specific filter logic

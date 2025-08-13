@@ -98,12 +98,19 @@ export const useExpensePlanFilters = () => {
       ] });
     }
     
-    // Process status filters (exclude date range filter IDs from the original selectedFilters)
+    // Process status filters (exclude date range filter IDs and special filters from the original selectedFilters)
     const statusFilters = selectedFilters.filter(f => 
-      !['planDateRange', 'startDateRange', 'endDateRange'].includes(f)
+      !['planDateRange', 'startDateRange', 'endDateRange', 'top-destination'].includes(f)
     );
     if (statusFilters.length > 0) {
       conditions.push({ status: { _in: statusFilters } });
+    }
+    
+    // Process top destination filter - just ensure we don't show discarded plans
+    if (selectedFilters.includes('top-destination')) {
+      // The actual destination filtering is handled by the widget logic
+      // We just ensure we don't show discarded plans
+      conditions.push({ status: { _neq: 'DISCARDED' } });
     }
     
     // Process all date ranges independently with proper formatting
@@ -179,6 +186,8 @@ export const useExpensePlanFilters = () => {
       filters.push('endDateRange');
     }
     
+
+    
     return filters;
   }, [selectedFilters, planDateRange, startDateRange, endDateRange]);
 
@@ -210,6 +219,8 @@ export const useExpensePlanFilters = () => {
     if (endDateLabel) {
       map['endDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date')}: ${endDateLabel}`;
     }
+    
+
     
     return map;
   }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange]);

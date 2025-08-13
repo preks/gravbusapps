@@ -18,10 +18,6 @@ interface ExpenseItemStatisticsProps {
   statsLoading?: boolean;
   statsError?: string | null;
   fetchItemStatistics?: () => Promise<void>;
-  // Add expense date range filter callback
-  onExpenseDateRangeFilterChange?: (expenseDateRange: [Date | null, Date | null] | null) => void;
-  // Add status filter callback
-  onStatusFilterChange?: (status: string, selected: boolean) => void;
 }
 
 const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ 
@@ -37,9 +33,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   activeWidgetKey,
   statsLoading = false,
   statsError = null,
-  fetchItemStatistics = () => Promise.resolve(),
-  onExpenseDateRangeFilterChange,
-  onStatusFilterChange
+  fetchItemStatistics = () => Promise.resolve()
 }) => {
   const currentMonthName = dayjs().format('MMMM');
   
@@ -150,58 +144,11 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    // Provide immediate visual feedback
+    // Provide immediate visual feedback - let parent component handle all filtering
     if (onWidgetClick) {
       onWidgetClick(widgetKey);
     }
-    
-    // Set expense date range filters when total-expenses widget is clicked
-    if (widgetKey === 'total-expenses') {
-      const today = dayjs();
-      const currentMonthStart = today.startOf('month').toDate();
-      const currentMonthEnd = today.endOf('month').toDate();
-      
-      // Set expense date range to current month
-      if (onExpenseDateRangeFilterChange) {
-        onExpenseDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
-      }
-      
-      // Set status filters to only show PAID and CLOSED items
-      if (onStatusFilterChange) {
-        // First, clear any existing status filters
-        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
-        allStatuses.forEach(status => {
-          onStatusFilterChange(status, false);
-        });
-        // Then add only PAID and CLOSED statuses
-        onStatusFilterChange('PAID', true);
-        onStatusFilterChange('CLOSED', true);
-      }
-    }
-    
-    // Set filters when pending-reimbursement widget is clicked
-    if (widgetKey === 'pending-reimbursement') {
-      const today = dayjs();
-      const currentMonthStart = today.startOf('month').toDate();
-      const currentMonthEnd = today.endOf('month').toDate();
-      
-      // Set expense date range to current month (same as total-expenses)
-      if (onExpenseDateRangeFilterChange) {
-        onExpenseDateRangeFilterChange([currentMonthStart, currentMonthEnd]);
-      }
-      
-      // Set status filter to only show PENDING items
-      if (onStatusFilterChange) {
-        // Clear all existing status filters first
-        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatuses.forEach(status => {
-          onStatusFilterChange(status, false);
-        });
-        // Then add only PENDING status
-        onStatusFilterChange('PENDING', true);
-      }
-    }
-  }, [onWidgetClick, onExpenseDateRangeFilterChange, onStatusFilterChange]);
+  }, [onWidgetClick]);
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => [
