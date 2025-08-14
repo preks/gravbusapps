@@ -97,7 +97,7 @@ export function getActiveWidgetFromFilters(selectedFilters: string[]): string | 
     ExpenseStatus.TRANSFERRED,
     'planDateRange'
   ];
-  console.log('selectedFilters', selectedFilters)
+
   
   const hasEstimatedPattern = estimatedFilters.every(filter => 
     selectedFilters.includes(filter)
