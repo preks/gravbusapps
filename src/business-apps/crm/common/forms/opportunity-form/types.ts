@@ -44,6 +44,9 @@ export interface OpportunityFormValues {
   lead: string;
   companyName: string; // Company name from searchable input
 
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Business Information
   businessKey: string;
   code: string;

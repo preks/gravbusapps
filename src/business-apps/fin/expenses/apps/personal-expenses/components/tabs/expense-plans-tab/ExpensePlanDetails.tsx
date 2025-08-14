@@ -93,7 +93,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.plan_date', 'Plan Date')}: {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: {' '}
                 {dayjs(selectedItem.planDate).format(getDateFormat('date.short'))}
               </span>
             </div>
@@ -115,7 +115,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       {selectedItem.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.description','Description')}</CardTitle>
+            <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.description','Description')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">

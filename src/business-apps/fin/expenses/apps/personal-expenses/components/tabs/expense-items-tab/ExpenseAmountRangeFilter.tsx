@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { Input } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseAmountRangeFilterProps {
   amountRange?: { min?: number; max?: number } | null;
@@ -14,7 +15,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
   amountRange,
   onAmountRangeChange,
   className = '',
-  placeholder = ['Min Amount', 'Max Amount'],
+  placeholder = [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount','Min Amount'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount','Max Amount')],
   label,
   dataTestIdPrefix
 }) => {
@@ -68,7 +69,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
     <div className={`gba:flex gba:flex-col gba:gap-2 gba:p-2 ${className}`}>
       <div className="gba:flex gba:items-center gba:gap-2">
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">Min Amount</label>
+          <label className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount','Min Amount')}</label>
           <Input
             type="number"
             value={minValue}
@@ -81,7 +82,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
           />
         </div>
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">Max Amount</label>
+          <label className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount','Max Amount')}</label>
           <Input
             type="number"
             value={maxValue}

@@ -13,6 +13,7 @@ import { useEmployeePositions } from "../../lead-form/hooks/useEmployeePositions
 import { useEmployeeById } from "../../lead-form/hooks/useEmployeeById";
 import { useAccountsGraphQL } from "../../opportunity-form/hooks/useAccountsGraphQL";
 import { useSearchableCatalog } from "../../lead-form/hooks/useSearchableCatalog";
+import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
 // Academic Title and Languages catalog constants
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
@@ -41,6 +42,13 @@ interface ContactFormContextValue {
   loadMoreAccounts: () => void;
   accountsHasMore: boolean;
   accountsLoading: boolean;
+
+  // Campaign suggestions (using GraphQL hook)
+  campaignSuggestions: SelectOption[];
+  searchCampaigns: (searchTerm: string) => void;
+  loadMoreCampaigns: () => void;
+  campaignsHasMore: boolean;
+  campaignsLoading: boolean;
 
   // Catalog data
   academicTitles: SelectOption[];
@@ -114,6 +122,9 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     ownerEmployeeId: "",
     ownerOrganizationId: "",
 
+    // Campaign Information
+    salesCampaignId: "",
+
     // Additional Information
     notesSummary: "",
 
@@ -152,6 +163,16 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     loadMore: loadMoreAccounts,
   } = useAccountsGraphQL({ accessToken: businessAppContext.accessToken });
 
+  // Campaign search hook (using GraphQL hook)
+  const {
+    options: campaignSuggestions,
+    loading: campaignsLoading,
+    error: campaignsError,
+    hasMore: campaignsHasMore,
+    search: searchCampaigns,
+    loadMore: loadMoreCampaigns,
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+
   // Create search wrapper for account autocomplete
   const searchAccountsWrapper = useCallback(
     (searchTerm: string) => {
@@ -163,10 +184,26 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     [searchAccounts]
   );
 
+  // Create search wrapper for campaign autocomplete
+  const searchCampaignsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all campaigns, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchCampaigns(searchTerm);
+      }
+    },
+    [searchCampaigns]
+  );
+
   // Create wrapper function to match interface
   const loadMoreAccountsWrapper = useCallback((): void => {
     loadMoreAccounts();
   }, [loadMoreAccounts]);
+
+  // Create wrapper function for campaigns to match interface
+  const loadMoreCampaignsWrapper = useCallback((): void => {
+    loadMoreCampaigns();
+  }, [loadMoreCampaigns]);
 
   // Auto-selection reference
   const autoSelectionDone = useRef(false);
@@ -478,6 +515,13 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     loadMoreAccounts: loadMoreAccountsWrapper,
     accountsHasMore: accountsHasMore,
     accountsLoading: accountsLoading,
+
+    // Campaign suggestions (using GraphQL hook)
+    campaignSuggestions: campaignSuggestions,
+    searchCampaigns: searchCampaignsWrapper,
+    loadMoreCampaigns: loadMoreCampaignsWrapper,
+    campaignsHasMore: campaignsHasMore,
+    campaignsLoading: campaignsLoading,
 
     // Academic Titles (using AcademicTitle catalog)
     academicTitles: academicTitlesHook.options,

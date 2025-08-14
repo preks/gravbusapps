@@ -54,6 +54,10 @@ interface AccountSectionProps extends BusinessAppContextProps {
   setAccountOption: (option: string) => void;
   selectedAccount: string | undefined;
   setSelectedAccount: (account: string | undefined) => void;
+  onSelectedAccountChange?: (
+    accountId: string | undefined,
+    ownerEmployeeId: string | undefined
+  ) => void;
 }
 
 // Single account query for both initial load and search
@@ -82,6 +86,9 @@ const GET_ACCOUNTS_PAGINATED = (variables: {
       name
       email
       phone
+      ownerEmployee {
+        id
+      }
     }
 
       AccountAggregate(
@@ -106,6 +113,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   setAccountOption,
   selectedAccount,
   setSelectedAccount,
+  onSelectedAccountChange,
 }) => {
   // Account search and pagination state
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -269,6 +277,13 @@ const AccountSection: React.FC<AccountSectionProps> = ({
     }
   }, [accessToken]);
 
+  // Initialize form with CRM default source app
+  useEffect(() => {
+    if (!form.getFieldValue("accountSourceApp")) {
+      form.setFieldsValue({ accountSourceApp: "CRM" });
+    }
+  }, [form]);
+
   // Enhanced account search function
   const fetchAccountsPaginated = useCallback(
     async (searchTerm: string = "", resetOffset: boolean = false) => {
@@ -330,6 +345,35 @@ const AccountSection: React.FC<AccountSectionProps> = ({
       timestamp: new Date().toLocaleTimeString(),
     });
   }, [accounts]);
+
+  // Function to handle account selection and get owner employee ID
+  const handleAccountSelection = useCallback(
+    (accountId: string | undefined) => {
+      setSelectedAccount(accountId);
+
+      if (accountId && onSelectedAccountChange) {
+        // Find the selected account in the accounts array
+        const selectedAccountData = accounts.find(
+          (acc: any) => acc.id === accountId
+        );
+        const ownerEmployeeId =
+          selectedAccountData?.ownerEmployee?.id || undefined;
+
+        console.log("🔍 Account selected:", {
+          accountId,
+          ownerEmployeeId,
+          selectedAccountData: selectedAccountData?.name,
+        });
+
+        // Call the callback with both account ID and owner employee ID
+        onSelectedAccountChange(accountId, ownerEmployeeId);
+      } else if (onSelectedAccountChange) {
+        // No account selected
+        onSelectedAccountChange(accountId, undefined);
+      }
+    },
+    [accounts, setSelectedAccount, onSelectedAccountChange]
+  );
 
   const searchAccountsFunction = useCallback(
     (searchTerm: string = "") => {
@@ -638,7 +682,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                 hasMore={accountsHasMore}
                 onSearch={searchAccountsFunction}
                 onLoadMore={loadMoreAccounts}
-                onChange={setSelectedAccount}
+                onChange={handleAccountSelection}
                 data-testid="account-select"
                 className="gba:w-full"
               />
@@ -703,10 +747,11 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                         ),
                       },
                     ]}
-                    initialValue="IRM"
+                    initialValue="CRM"
                   >
                     <DesignSelect
-                      value={form.getFieldValue("accountSourceApp") || "IRM"}
+                      value={form.getFieldValue("accountSourceApp") || "CRM"}
+                      defaultValue="CRM"
                       onValueChange={(value: string) => {
                         form.setFieldsValue({ accountSourceApp: value });
                       }}
@@ -724,8 +769,9 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                         position="popper"
                         className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
                       >
-                        <SelectItem value="IRM">IRM</SelectItem>
+                        {/* CRM should be first/default option */}
                         <SelectItem value="CRM">CRM</SelectItem>
+                        <SelectItem value="IRM">IRM</SelectItem>
                       </SelectContent>
                     </DesignSelect>
                   </Form.Item>

@@ -1,6 +1,12 @@
 import React, { useCallback } from 'react';
 import { DatePicker } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Extend dayjs with required plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 const { RangePicker } = DatePicker;
 

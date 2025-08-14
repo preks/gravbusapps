@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -40,29 +40,9 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
   const [opportunitiesTotal, setOpportunitiesTotal] = useState<number>(0);
   const [accountsTotal, setAccountsTotal] = useState<number>(0);
 
-  // Refs for scroll position management
-  const scrollPositionRef = useRef<number>(0);
-  const tabContentRef = useRef<HTMLDivElement>(null);
-
-  // Handle entity tab change with scroll position preservation
+  // Handle entity tab change with simplified logic
   const handleEntityTabChange = (value: string) => {
-    // Save current scroll position before any changes
-    scrollPositionRef.current = window.scrollY;
-
-    // Prevent scroll position from jumping during tab change
-    document.body.style.scrollBehavior = "auto";
-
     setActiveEntityTab(value as EntityType);
-
-    // Restore scroll position immediately after state update
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollPositionRef.current);
-
-      // Re-enable smooth scrolling after position is restored
-      setTimeout(() => {
-        document.body.style.scrollBehavior = "";
-      }, 100);
-    });
   };
 
   // Load initial counts for all entities when employee changes
@@ -151,6 +131,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
       </CardHeader>
       <CardContent className="gba:px-2 gba:py-6">
         <Tabs
+          key={`entities-tabs-${employeeId}`}
           value={activeEntityTab}
           onValueChange={handleEntityTabChange}
           className="gba:w-full"
@@ -178,7 +159,6 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
 
           {/* Tab Contents - Stabilized container */}
           <div
-            ref={tabContentRef}
             className="gba:h-[800px] gba:overflow-auto"
             data-testid={`${DATA_TEST_ID_PREFIX}-tab-content-container`}
           >

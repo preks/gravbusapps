@@ -221,15 +221,24 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
+        console.log('ExpensePlansTab: Process completion event received:', event.type, event.detail);
         if (event.detail?.resolution === 'success') {
+          console.log('ExpensePlansTab: Refreshing data after successful process completion');
+          
           // Refresh plans data
           if (props.accessToken && props.userInfo?.employeeDetails?.employeeId) {
             fetchItems(memoizedFilters, currentPage, pageSize);
           }
+          
           // Refresh statistics
           fetchStatistics();
-          // Trigger table refresh
+          
+          // Reset active widget to force refresh of statistics
+          setActiveWidget(null);
+          
+          // Trigger table refresh by updating a state that forces re-render
           setTableRefreshTrigger(prev => prev + 1);
+          
           return;
         }
       } catch (err) {
@@ -237,37 +246,42 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       }
     };
 
-    // Override the dispatchEvent to capture process completion events
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event) {
-      if (event.type === 'com.newwork.process.completion' || 
-          event.type === 'com.newwork.process.flow.completion' ||
-          event.type === 'com.newwork.process.flow.task.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.reassignment.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.delegation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.escalation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.timeout.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.cancellation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.suspension.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.resumption.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.termination.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.reassignment.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.delegation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.escalation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.timeout.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.cancellation.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.suspension.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.resumption.completion' ||
-          event.type === 'com.newwork.process.flow.task.assignment.termination.completion') {
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
       }
       return originalDispatchEvent.call(this, event);
     };
 
-    // Cleanup function to restore original dispatchEvent
     return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
       window.dispatchEvent = originalDispatchEvent;
     };
   }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
