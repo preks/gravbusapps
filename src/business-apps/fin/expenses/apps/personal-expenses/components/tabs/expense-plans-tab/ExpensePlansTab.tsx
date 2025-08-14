@@ -44,13 +44,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
   const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props);
 
-  // Combine widget and table filters
-  const finalFilters = useExpensePlanWidgetFilters(selectedFilters, activeWidget);
-
+ 
   // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
     const expectedActiveWidget = getActiveWidgetFromFilters(selectedFilters);
-    if (expectedActiveWidget !== activeWidget) {
+    // Don't deactivate top-destinations widget based on status filters alone
+    // since destination filtering is handled separately
+    if (expectedActiveWidget !== activeWidget && activeWidget !== 'top-destinations') {
       setActiveWidget(expectedActiveWidget);
     }
   }, [selectedFilters, activeWidget]);
@@ -126,6 +126,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         // Set destination filter
         if (statistics.topDestination && statistics.topDestination !== 'N/A') {
           setDestinationFilter(statistics.topDestination);
+        } else {
+          setDestinationFilter(null);
         }
         break;
       case null:
@@ -168,17 +170,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         filters._and = [planDateCondition];
       }
     }
-    console.log('activeWidget', activeWidget)
+  
     // Add top-destinations widget filters
     if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
-      console.log('destinationFilter', destinationFilter)
       const destinationCondition = {
         expenseRequestTrip: {
           pointType: { _eq: "DESTINATION_POINT" },
           travelRegion: {
             _or: [
               { value: { _eq: destinationFilter } },
-              { translations: { value: { _eq: destinationFilter } } }
+              { translations: { value: { _eq: destinationFilter } } },
+              { code: { _eq: destinationFilter } }
             ]
           }
         }
@@ -197,7 +199,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const baseFilters = getFilters();
-    return buildWidgetFilters(baseFilters);
+    const finalFilters = buildWidgetFilters(baseFilters);
+    return finalFilters;
   }, [getFilters, buildWidgetFilters]);
 
   // Only fetch when filters, page, pageSize, or sorting changes
@@ -214,6 +217,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
+
 
   // Process completion event listener for refreshing data
   useEffect(() => {
