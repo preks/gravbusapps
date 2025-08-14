@@ -70,6 +70,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     ...contextProps
   } = props;
 
+  console.log('items', plans)
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
     return search || selectedFilters.length > 0;

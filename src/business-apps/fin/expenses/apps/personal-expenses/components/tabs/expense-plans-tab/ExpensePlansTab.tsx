@@ -65,10 +65,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    const isDeactivating = activeWidget === widgetKey;
+    const newActiveWidget = isDeactivating ? null : widgetKey;
     setActiveWidget(newActiveWidget);
+   
+    // If deactivating (clicking the same widget again), clear all filters
+    if (isDeactivating) {
+      clearFilters();
+      setDestinationFilter(null);
+      return;
+    }
     
-    // Clear existing filters for all widget activations
+    // Clear existing filters when switching to a different widget
     clearFilters();
     
     // Clear destination filter for all widgets except top-destinations
@@ -127,23 +135,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter, statistics.topDestination, setStartDateRange, setEndDateRange]);
 
-  // Handle destination filter changes
-  const handleDestinationFilterChange = useCallback((destination: string | null) => {
-    setDestinationFilter(destination);
-  }, [activeWidget]);
 
-  // Handle clearing all filters (widget + table)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    // If clearing all filters (empty array), use the proper clearFilters function
-    if (filters.length === 0) {
-      clearFilters(); // This properly clears all filters including date ranges
-      setActiveWidget(null);
-      setDestinationFilter(null);
-    } else {
-      // Otherwise, set specific filters
-      setFilters(filters);
-    }
-  }, [clearFilters, setFilters]);
 
   // Wrapper for clear all filters without parameters (for ExpensePlansTable clearFilters prop)
   const handleClearAllFiltersNoParams = useCallback(() => {
@@ -176,9 +168,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         filters._and = [planDateCondition];
       }
     }
-    
+    console.log('activeWidget', activeWidget)
     // Add top-destinations widget filters
     if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
+      console.log('destinationFilter', destinationFilter)
       const destinationCondition = {
         expenseRequestTrip: {
           pointType: { _eq: "DESTINATION_POINT" },
@@ -200,7 +193,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     
     return filters;
   }, [activeWidget, destinationFilter]);
-
+ 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const baseFilters = getFilters();
@@ -291,32 +284,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     };
   }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, sortField, sortOrder, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
 
-  // Memoize the label map to prevent unnecessary re-rendering
-  const statusFilterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {};
-    
-    const statusLabels = {
-      [ExpenseStatus.CREATED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-      [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-      [ExpenseStatus.ASSIGNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-      [ExpenseStatus.PENDING]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
-      [ExpenseStatus.APPROVED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-      [ExpenseStatus.RETURNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
-      [ExpenseStatus.REJECTED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-      [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
-      [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
-      [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-      [ExpenseStatus.CLOSED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-      [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
-    };
-    
-    // Add all status mappings
-    Object.entries(statusLabels).forEach(([status, label]) => {
-      labelMap[status] = label;
-    });
-    
-    return labelMap;
-  }, []);
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
