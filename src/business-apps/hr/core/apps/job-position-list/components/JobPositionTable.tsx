@@ -34,7 +34,6 @@ const MemoizedAppActionButton = React.memo<{
 }>(({ jobPositionId, employeeId, userId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${jobPositionId}`)}
-    variant="primary"
     size="sm"
     contextsArray={[FlowContextName.jobPositionEntity]}
     externalContextData={{
@@ -44,7 +43,7 @@ const MemoizedAppActionButton = React.memo<{
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${jobPositionId}`}
     accessToken={accessToken}
-    emptyStateBehavior="enabled"
+    emptyStateBehavior="enable"
     deferMainContextRequestsUntilClick
     autoExecuteSingleAction={true}
   />
