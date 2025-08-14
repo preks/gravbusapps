@@ -17,7 +17,7 @@ export type AppActionMenuProps = Omit<ActionMenuProps, "actions"> & AppActionCom
    * Controls how the menu behaves when no flow items are available
    * @default 'disable'
    */
-  emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
+  emptyStateBehavior?: 'disable' | 'hide' | 'enable';
   /**
    * CSS style object for the container
    */
@@ -99,7 +99,7 @@ export const AppActionMenu: React.FC<AppActionMenuProps> = (props) => {
       <ActionMenu
         {...actionMenuProps}
         actions={combinedData}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enabled' ? 'disable' : appActionConfig.emptyStateBehavior}
+        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enable' ? 'disable' : appActionConfig.emptyStateBehavior}
         actionsLoading={shouldShowLoading}
         loadingText={translations.loading}
         noActionsText={translations.noActions}

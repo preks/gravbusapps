@@ -17,7 +17,7 @@ export type AppActionButtonProps = Omit<ActionButtonProps, "actions"> & AppActio
    * Controls how the button behaves when no flow items are available
    * @default 'disable'
    */
-  emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
+  emptyStateBehavior?: 'disable' | 'hide' | 'enable';
 };
 
 const DATA_TEST_ID_PREFIX = "AppActionButton";
@@ -71,7 +71,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
         data-testid={buttonTestId}
         noActionsText={translations.noActions}
         loadingText={translations.loading}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enabled' ? 'disable' : appActionConfig.emptyStateBehavior}
+        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enable' ? 'disable' : appActionConfig.emptyStateBehavior}
         actionsLoading={shouldShowLoading}
         actions={combinedData}
         onDropdownOpen={handleDropdownOpen}

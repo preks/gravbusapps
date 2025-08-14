@@ -19,7 +19,7 @@ export interface AppActionCommonProps {
   prefixDataTestId?: string;
   accessToken?: string;
   deferMainContextRequestsUntilClick?: boolean;
-  emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
+  emptyStateBehavior?: 'disable' | 'hide' | 'enable';
   'data-testid'?: string;
   loadingText?: string;
   noActionsText?: string;
@@ -35,7 +35,7 @@ export interface UseAppActionDataConfig {
   prefixDataTestId?: string;
   accessToken?: string;
   deferMainContextRequestsUntilClick?: boolean;
-  emptyStateBehavior?: 'disable' | 'hide' | 'enabled';
+  emptyStateBehavior?: 'disable' | 'hide' | 'enable';
   loadingText?: string;
   noActionsText?: string;
 }
