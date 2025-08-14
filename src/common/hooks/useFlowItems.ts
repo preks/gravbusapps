@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FlowItemReduced } from '../types/FlowRegistryTypes';
 import { ActionOption } from '@newwork/gravity-ui-catalog';
 import { startProcess } from '../utils/start-process';
@@ -26,41 +26,41 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
 
   // Function that can be called manually to fetch flow items
   // Optional directContextData parameter allows passing context data directly without relying on state
-  const fetchFlowItems = async (directContextData?: Record<string, string>) => {
-      const contextData = directContextData || mainContextsData;
-      if (!contextData) return;
-      
-      setIsLoading(true);
-      try {
-        const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
-          contextName: contextName as any,
-          mainContextDataId: externalContextData?.[mainContextDataId as string] as string
-        }));
+  const fetchFlowItems = useCallback(async (directContextData?: Record<string, string>) => {
+    const contextData = directContextData || mainContextsData;
+    if (!contextData) return;
+    
+    setIsLoading(true);
+    try {
+      const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
+        contextName: contextName as any,
+        mainContextDataId: externalContextData?.[mainContextDataId as string] as string
+      }));
 
-        if (contexts.length === 0) return;
+      if (contexts.length === 0) return;
 
-        const response = await flowRegistry.getPermissionFlowItemsV2({
-          contexts
-        });
+      const response = await flowRegistry.getPermissionFlowItemsV2({
+        contexts
+      });
 
-        if (response?.flowItems) {
-          const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
-          setFlowData(mappedFlowItems);
-        }
-      } catch (error) {
-        console.error('Error fetching flow items:', error);
-        setFlowData([]);
-      } finally {
-        setIsLoading(false);
+      if (response?.flowItems) {
+        const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
+        setFlowData(mappedFlowItems);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching flow items:', error);
+      setFlowData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mainContextsData, externalContextData, flowRegistry]);
 
   // Only automatically fetch flow items if not in manual mode
   useEffect(() => {
     if (!manualFetch) {
       fetchFlowItems();
     }
-  }, [mainContextsData, externalContextData, manualFetch]);
+  }, [fetchFlowItems, manualFetch]);
 
   return { flowData, fetchFlowItems, isLoading };
 };
