@@ -3,6 +3,9 @@ alwaysApply: true
 ---
 # UI Component Patterns
 
+## Library
+- **Design System**: Strictly always use the "@newwork/nw-design-system" library for components. Do not use antd Do not use the gravity-ui-catalog.
+
 ## Styling Guidelines
 - **CSS Classes**: Always prefix with `gba:` (e.g., `gba:bg-blue-500`)
 - **Framework**: Use Tailwind v4 utility classes

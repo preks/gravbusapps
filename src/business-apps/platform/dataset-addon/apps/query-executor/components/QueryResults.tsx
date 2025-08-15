@@ -44,6 +44,19 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
 
   const { data, categories } = results;
 
+  // Detect if this is timeseries data
+  const isTimeseries = data.length > 0 && 'dateCategory' in data[0];
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.getFullYear().toString();
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Prepare table columns dynamically based on data
   const getTableColumns = () => {
     if (data.length === 0) return [];
@@ -56,6 +69,10 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
       render: (value: any) => {
         if (typeof value === 'number') {
           return new Intl.NumberFormat().format(value);
+        }
+        // Format dates in table
+        if (key === 'dateCategory' && typeof value === 'string') {
+          return formatDate(value);
         }
         return value;
       },
@@ -71,7 +88,11 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
   // Prepare chart data
   const chartData = data.map((item, index) => ({
     ...item,
-    id: index
+    id: index,
+    // Add formatted date for chart display
+    ...(isTimeseries && item.dateCategory && {
+      formattedDate: formatDate(item.dateCategory)
+    })
   }));
 
   const exportToCSV = () => {
