@@ -1,5 +1,5 @@
-export { default } from './OrganizationalHierarchyReport';
-export type { OrganizationalHierarchyReportProps } from './OrganizationalHierarchyReport';
+export { default } from './OrgHierarchyReport';
+export type { OrganizationalHierarchyReportProps } from './OrgHierarchyReport';
 
 // Export components for external use
 export { default as RadialBarChart } from './components/RadialBarChart';
@@ -17,8 +17,8 @@ export type {
 } from './types/hierarchyTypes';
 
 // Export hooks for external use
-export { useHierarchyDataIntegration } from './hooks/useHierarchyDataIntegration';
-export type { ViewMode } from './hooks/useHierarchyDataIntegration';
+export { useHierarchyDataIntegration } from './hooks/useHierarchyData';
+export type { ViewMode } from './hooks/useHierarchyData';
 
 // Export utilities for external use
 export {

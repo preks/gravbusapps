@@ -3,7 +3,7 @@ import { Card, Tooltip, Alert, Button, Space, Tag, Statistic, Row, Col, Progress
 import { ReloadOutlined, InfoCircleOutlined, SettingOutlined, TeamOutlined, ApartmentOutlined, GlobalOutlined, BankOutlined, EyeOutlined, SwitcherOutlined, DollarCircleOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
 import { RadialBarChart as RechartsRadialBarChart, RadialBar, ResponsiveContainer, Legend, PolarGrid, PolarAngleAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { SunburstVisualizationProps, SunburstNode, HierarchyTableData, HierarchyLevelReportData } from '../types/hierarchyTypes';
-import { ViewMode } from '../hooks/useHierarchyDataIntegration';
+import { ViewMode } from '../hooks/useHierarchyData';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
