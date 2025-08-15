@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Table, 
@@ -18,7 +18,7 @@ import {
   AlertDescription,
   Spinner
 } from '@newwork/nw-design-system';
-import { PiHandshake, PiFile, PiCaretLeft, PiCaretRight, PiCaretDoubleLeft, PiCaretDoubleRight } from 'react-icons/pi';
+import { PiCaretLeft, PiCaretRight, PiCaretDoubleLeft, PiCaretDoubleRight } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { JobPosition } from '../hooks/useJobPositionListData';
@@ -34,7 +34,7 @@ const MemoizedAppActionButton = React.memo<{
 }>(({ jobPositionId, employeeId, userId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${jobPositionId}`)}
-    size="sm"
+    size="icon"
     contextsArray={[FlowContextName.jobPositionEntity]}
     externalContextData={{
       jobPositionId: jobPositionId,
@@ -79,9 +79,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   jobPositions,
   loading,
   error,
-  hasMore,
-  loadMore,
-  loadPage,
   retry,
   total,
   currentPage,
@@ -129,36 +126,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
     onPageSizeChange(newPageSize);
     onPageChange(1); // Reset to first page when changing page size
   }, [onPageChange, onPageSizeChange]);
-
-  // State to track current pagination
-  const [currentPageLocal, setCurrentPageLocal] = useState(1);
-  const [pageSizeLocal, setPageSizeLocal] = useState(20);
-  
-  // Get contract type display value with locale support
-  const getContractTypeDisplay = (jobPosition: JobPosition) => {
-    if (!jobPosition.contractType) return '-';
-    
-    // Try to find a translation for the current locale first
-    const currentLocale = navigator.language.split('-')[0]; // Get language part (e.g., 'en' from 'en-US')
-    const translation = jobPosition.contractType.translations.find(
-      t => t.localeCode === currentLocale
-    );
-    
-    return translation?.value || jobPosition.contractType.value || '-';
-  };
-
-  // Get employment type display value with locale support
-  const getEmploymentTypeDisplay = (jobPosition: JobPosition) => {
-    if (!jobPosition.employmentType) return '-';
-    
-    // Try to find a translation for the current locale first
-    const currentLocale = navigator.language.split('-')[0]; // Get language part (e.g., 'en' from 'en-US')
-    const translation = jobPosition.employmentType.translations.find(
-      t => t.localeCode === currentLocale
-    );
-    
-    return translation?.value || jobPosition.employmentType.value || '-';
-  };
 
   // Get organizational unit display value
   const getOrganizationalUnitDisplay = (jobPosition: JobPosition) => {
@@ -269,10 +236,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           }}
         >
           <TableHeader>
-            <TableRow className="gba:grid gba:grid-cols-[auto_1fr_0.8fr_0.8fr_0.6fr_1fr] gba:gap-2">
-              <TableHead className="gba:px-2">
-                {t('job_position.actions', 'Actions')}
-              </TableHead>
+            <TableRow className="gba:grid gba:grid-cols-[1fr_0.8fr_0.8fr_0.6fr_1fr_auto] gba:gap-2">
               <TableHead className="gba:px-2">
                 {t('job_position.name', 'Position Name')}
               </TableHead>
@@ -288,6 +252,9 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
               <TableHead className="gba:px-2">
                 {t('job_position.employee', 'Employee')}
               </TableHead>
+              <TableHead className="gba:px-2">
+                {t('job_position.actions', 'Actions')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -296,25 +263,12 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 key={jobPosition.id}
                 onClick={() => handleRowClick(jobPosition)}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `row-${jobPosition.id}`)}
-                className={`gba:grid gba:grid-cols-[auto_1fr_0.8fr_0.8fr_0.6fr_1fr] gba:gap-2 cursor-pointer hover:bg-muted/50 ${
+                className={`gba:grid gba:grid-cols-[1fr_0.8fr_0.8fr_0.6fr_1fr_auto] gba:gap-2 cursor-pointer hover:bg-muted/50 ${
                   selectedJobPositionId === jobPosition.id 
                     ? 'bg-accent/50' 
                     : ''
                 }`}
               >
-                {/* Actions Column - First */}
-                <TableCell className="gba:px-2">
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <MemoizedAppActionButton
-                      jobPositionId={jobPosition.id}
-                      employeeId={jobPosition.employee?.id}
-                      userId={jobPosition.employee?.userId}
-                      accessToken={accessToken}
-                      dataTestIdPrefix={DATA_TEST_ID_PREFIX}
-                    />
-                  </div>
-                </TableCell>
-
                 {/* Position Name */}
                 <TableCell 
                   className="gba:px-2 font-medium" 
@@ -353,6 +307,19 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `employee-${jobPosition.id}`)}
                 >
                   {renderEmployeeCell(jobPosition)}
+                </TableCell>
+
+                {/* Actions Column - Last */}
+                <TableCell className="gba:px-2">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <MemoizedAppActionButton
+                      jobPositionId={jobPosition.id}
+                      employeeId={jobPosition.employeePositions[0]?.employeeId}
+                      userId={undefined}
+                      accessToken={accessToken}
+                      dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

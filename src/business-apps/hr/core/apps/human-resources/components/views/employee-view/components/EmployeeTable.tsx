@@ -19,7 +19,7 @@ const MemoizedAppActionButton = memo<{
 }>(({ employeeId, userId, supervisorEmployeeId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${employeeId}`)}
-    size="sm"
+    size="icon"
     contextsArray={[FlowContextName.employeeEntity]}
     externalContextData={{
       employeeId: employeeId,
