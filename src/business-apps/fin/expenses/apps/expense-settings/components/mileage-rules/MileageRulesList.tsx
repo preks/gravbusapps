@@ -1,5 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { 
   Table, 
   Spin, 
@@ -26,11 +32,11 @@ import {
   PiMagnifyingGlass, 
   PiArrowClockwise,
   PiCalendar,
-  PiPencil,
   PiEye,
   PiUsers,
   PiCar
 } from 'react-icons/pi';
+import { ContextMenu, createEditAction, createViewAction } from '../ContextMenu';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -169,28 +175,13 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       key: 'actions',
       width: '60px',
       render: (_: any, record: EnhancedMileageRule) => (
-        <div className="gba:flex gba:justify-start gba:gap-2">
-          <Button
-            type="text"
-            size="small"
-            icon={<PiEye />}
-            data-testid={`${prefixDataTestId}-view-mileage-rate-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleViewRuleDetails(record);
-            }}
-            title="View Details"
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<PiPencil />}
-            data-testid={`${prefixDataTestId}-edit-mileage-rate-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleEditRule(record);
-            }}
-            title="Edit Mileage Rule"
+        <div className="gba:flex gba:justify-center">
+          <ContextMenu
+            actions={[
+              createViewAction(() => handleViewRuleDetails(record)),
+              createEditAction(() => handleEditRule(record))
+            ]}
+            triggerTestId={`${prefixDataTestId}-mileage-rule-actions-${record.id}`}
           />
         </div>
       ),

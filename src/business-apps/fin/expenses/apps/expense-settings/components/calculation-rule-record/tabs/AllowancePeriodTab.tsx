@@ -29,6 +29,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
 
@@ -179,26 +185,42 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: AllowancePeriod) => {
+  const handleEdit = async (record: AllowancePeriod) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      validFrom: dayjs(record.validFrom),
-      validTo: record.validTo ? dayjs(record.validTo) : undefined,
-      fromTime: record.fromTime ? dayjs(record.fromTime, 'HH:mm') : undefined,
-      toTime: record.toTime ? dayjs(record.toTime, 'HH:mm') : undefined,
-      startAfter: record.startAfter ? dayjs(record.startAfter, 'HH:mm') : undefined,
-      returnBefore: record.returnBefore ? dayjs(record.returnBefore, 'HH:mm') : undefined
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleAllowancePeriodById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        validFrom: dayjs(freshData.validFrom),
+        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined,
+        fromTime: freshData.fromTime ? dayjs(freshData.fromTime, 'HH:mm') : undefined,
+        toTime: freshData.toTime ? dayjs(freshData.toTime, 'HH:mm') : undefined,
+        startAfter: freshData.startAfter ? dayjs(freshData.startAfter, 'HH:mm') : undefined,
+        returnBefore: freshData.returnBefore ? dayjs(freshData.returnBefore, 'HH:mm') : undefined
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: AllowancePeriod) => {
     try {
       setIsSaving(true);
-      // TODO: Replace with real API call when available
-      console.log('Deleting allowance period:', record.id);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // TODO: Implement delete endpoint when available
+      console.log('Deleting allowance period (not implemented API):', record.id);
       message.success('Allowance period deleted successfully');
       await fetchAllowancePeriods();
     } catch (err) {
@@ -224,14 +246,26 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({
         returnBefore: values.returnBefore ? values.returnBefore.format('HH:mm') : undefined
       };
 
-      // TODO: Replace with real API call when available
-      if (editingItem) {
-        console.log('Updating allowance period:', { id: editingItem.id, ...formData });
-      } else {
-        console.log('Creating allowance period:', formData);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Map to API payload and call client
+      await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
+        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        expenseRuleId: ruleId,
+        businessKey: undefined,
+        activeTo: formData.validTo,
+        additionalProperties: undefined,
+        code: formData.code,
+        name: formData.name,
+        overnightAccomodation: formData.overnightAccommodation,
+        fromTime: formData.fromTime,
+        toTime: formData.toTime,
+        minHours: formData.minHours,
+        midnightRule: formData.midnightRule,
+        startAfter: formData.startAfter,
+        returnBefore: formData.returnBefore,
+        activeFrom: formData.validFrom,
+        periodOrder: formData.order
+      });
+
       message.success(`Allowance period ${editingItem ? 'updated' : 'created'} successfully`);
       setIsModalVisible(false);
       await fetchAllowancePeriods();

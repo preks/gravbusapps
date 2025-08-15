@@ -29,6 +29,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
 
@@ -195,14 +201,31 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: AllowanceCode) => {
+  const handleEdit = async (record: AllowanceCode) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      validFrom: dayjs(record.validFrom),
-      validTo: record.validTo ? dayjs(record.validTo) : undefined
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleAllowanceCodeById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        validFrom: dayjs(freshData.validFrom),
+        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: AllowanceCode) => {

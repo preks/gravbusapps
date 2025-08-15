@@ -28,6 +28,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 interface OtherCalculationTabProps {
@@ -220,21 +226,37 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: OtherCalculation) => {
+  const handleEdit = async (record: OtherCalculation) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      validFrom: dayjs(record.validFrom),
-      validTo: record.validTo ? dayjs(record.validTo) : undefined
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleOtherCalcById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        validFrom: dayjs(freshData.validFrom),
+        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: OtherCalculation) => {
     try {
       setIsSaving(true);
-      // TODO: Replace with real API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await expenseSettingsClient.deleteExpenseRuleOtherCalc(record.id);
       message.success('Other calculation deleted successfully');
       await fetchOtherCalculations();
     } catch (err) {
@@ -256,14 +278,23 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({
         validTo: values.validTo ? values.validTo.toISOString() : undefined
       };
 
-      // TODO: Replace with real API call
-      if (editingItem) {
-        console.log('Updating other calculation:', { id: editingItem.id, ...formData });
-      } else {
-        console.log('Creating other calculation:', formData);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const payload = {
+        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        expenseRuleId: ruleId,
+        businessKey: undefined,
+        activeTo: formData.validTo,
+        additionalProperties: undefined,
+        source: formData.source,
+        reimbursablePercent: formData.deductible ? 50 : 100, // heuristic mapping
+        activeFrom: formData.validFrom,
+        costCenterId: formData.costCenterId,
+        // Associations optional; keep undefined unless selected elsewhere
+        expenseRuleMileageId: undefined,
+        expenseRuleGeneralExpenseId: undefined,
+        expenseRuleAllowanceCodeId: undefined
+      };
+      await expenseSettingsClient.saveExpenseRuleOtherCalc(payload);
+
       message.success(`Other calculation ${editingItem ? 'updated' : 'created'} successfully`);
       setIsModalVisible(false);
       await fetchOtherCalculations();

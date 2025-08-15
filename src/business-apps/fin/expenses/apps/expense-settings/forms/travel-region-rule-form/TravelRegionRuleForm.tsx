@@ -31,6 +31,13 @@ import {
 } from '@newwork/nw-design-system';
 import { PiFloppyDisk, PiX, PiWarning, PiPlus, PiTrash, PiCheck } from 'react-icons/pi';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
+import { useGetAllowanceRegionRuleById } from '../../queries/ExpenseRuleQueries';
 
 // Available travel regions (common categories)
 const TRAVEL_REGIONS = [
@@ -115,6 +122,12 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     details: []
   });
   
+  // ✅ Data source tracking for debugging
+  const [dataSource, setDataSource] = useState<'fresh' | 'stale' | 'new'>('new');
+  
+  // ✅ NEW: Hook for fetching fresh travel region rule data
+  const { fetchAllowanceRegionRuleById } = useGetAllowanceRegionRuleById({ accessToken, ...context } as BusinessAppContextProps);
+  
   // Catalog data
   const [countries, setCountries] = useState<CatalogOption[]>([]);
   const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
@@ -130,7 +143,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       const [countriesRes, currenciesRes, travelRegionsRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Country', version: 'v1' },
-          { limit: 200, offset: 0, returnTotalRecords: true }
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
         ),
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Currency', version: 'v1' },
@@ -189,9 +202,51 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     }
   }, [accessToken, loadCatalogData]);
 
-  // Initialize form with data
+  // ✅ FIXED: Fetch fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        console.log('🔄 TravelRegionRuleForm: Fetching FRESH data for ID:', initialData.id);
+        try {
+          const freshData = await fetchAllowanceRegionRuleById(initialData.id);
+          if (freshData) {
+            console.log('✅ TravelRegionRuleForm: Using FRESH data from API:', freshData);
+            setDataSource('fresh');
+            const transformedData = {
+              id: freshData.id,
+              version: freshData.version,
+              code: freshData.code || '',
+              name: freshData.name || '',
+              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              details: (freshData.allowanceRegionRuleDetail || []).map((detail: any) => ({
+                id: detail.id,
+                version: detail.version,
+                countryRef: detail.country?.id || '',
+                currencyRef: detail.currency?.id || '',
+                amounts: [detail.amount || 0],
+                home: false, // Default value
+                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : '',
+                businessKey: detail.businessKey,
+                additionalProperties: detail.additionalProperties
+              }))
+            };
+            setFormData(transformedData);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ TravelRegionRuleForm: Failed to load fresh travel region rule data:', error);
+          console.log('⚠️ TravelRegionRuleForm: Falling back to STALE list data');
+          setDataSource('stale');
+          // Continue with fallback to initial data
+        }
+      }
+      
+      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      if (initialData) {
+        console.log('📝 TravelRegionRuleForm: Using initial data (could be stale list data or new item data):', initialData);
       // Transform the initial data to ensure amounts are in the correct format
       const transformedDetails = initialData.details?.map(detail => {
         const anyDetail = detail as any; // Type assertion for backward compatibility
@@ -218,8 +273,11 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : '',
         details: transformedDetails
       });
-    }
-  }, [initialData]);
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, fetchAllowanceRegionRuleById]);
 
   // Group details into smart columns
   const groupedDetails = useCallback((): SmartColumnGroup[] => {
@@ -475,9 +533,22 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
   return (
     <div className="gba:p-6 gba:space-y-6">
-      <h3 className="gba:text-2xl gba:font-semibold">
-        {isEditing ? 'Edit Allowance Region Rule' : 'Create Allowance Region Rule'}
-      </h3>
+      <div className="gba:flex gba:items-center gba:gap-3">
+        <h3 className="gba:text-2xl gba:font-semibold">
+          {isEditing ? 'Edit Allowance Region Rule' : 'Create Allowance Region Rule'}
+        </h3>
+        {isEditing && (
+          <span className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
+            dataSource === 'fresh' ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300' : 
+            dataSource === 'stale' ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300' : 
+            'gba:bg-gray-100 gba:text-gray-800 gba:border gba:border-gray-300'
+          }`}>
+            {dataSource === 'fresh' ? '✅ Fresh Data' : 
+             dataSource === 'stale' ? '⚠️ Stale Data' : 
+             '📝 New Item'}
+          </span>
+        )}
+      </div>
 
       {error && showValidation && (
         <Alert variant="destructive">

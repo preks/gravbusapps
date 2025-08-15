@@ -1,266 +1,66 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
-  Badge
+  Button,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Badge,
+  Input, 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system';
 import { 
-  Table, 
-  Button,
-  Input, 
-  Typography, 
-  Tag, 
-  Space, 
-  Tooltip, 
-  Form, 
-  Select, 
-  DatePicker, 
-  Switch,
-  Alert,
-  message,
-  Modal
-} from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
-import { ColumnsType } from 'antd/es/table';
-import { 
   PiPlus, 
-  PiMagnifyingGlass, 
   PiFunnel, 
   PiArrowClockwise, 
-  PiPencil, 
-  PiFloppyDisk, 
-  PiX, 
-  PiDotsSixVertical,
-  PiWarning 
+  PiMagnifyingGlass
 } from 'react-icons/pi';
+import { ContextMenu, createEditAction, createDeleteAction } from '../ContextMenu';
 import { CalculationRuleForm, CalculationRuleFormData } from '../../forms/calculation-rule-form';
-import { AssignmentForm } from '../../forms/assignment-form';
-import HoverAddButton from './HoverAddButton';
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors,
-  DragEndEvent
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { 
-  EnhancedExpenseRuleAssignment, 
-  ExpenseRule,
-  SaveExpenseRuleAssignmentInput,
-  RuleValidationResult,
-  ExpenseRuleAssignmentFilters
+  ExpenseRule
 } from '../../types/ExpenseRuleTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import dayjs from 'dayjs';
 
-const { Title } = Typography;
-const { Search } = Input;
-const { Option } = Select;
+
 
 export interface CalculationRulesListProps extends BusinessAppContextProps {
-  assignments: EnhancedExpenseRuleAssignment[];
   rules: ExpenseRule[];
   isLoading: boolean;
-  onCreate: (data: SaveExpenseRuleAssignmentInput) => Promise<any>;
-  onUpdate: (id: string, data: SaveExpenseRuleAssignmentInput) => Promise<any>;
-  onDelete: (id: string) => Promise<any>;
-  onValidate: (data: SaveExpenseRuleAssignmentInput) => Promise<RuleValidationResult>;
-  onSearch: (params: { search?: string; filters?: ExpenseRuleAssignmentFilters }) => Promise<void>;
   onRefresh: () => void;
-  showRules: boolean;
+  onSearch: (params: { search?: string }) => Promise<void>;
   onNavigateToRule?: (ruleId: string, page?: string) => void;
 }
 
-// Batch change tracking interfaces
-interface PendingAssignmentChange {
-  id?: string; // undefined for new assignments
-  assignmentOrder: number;
-  assignmentData: SaveExpenseRuleAssignmentInput;
-  changeType: 'update' | 'create';
-  originalOrder?: number;
-}
-
-// Sortable row component for drag and drop
-interface SortableRowProps {
-  id: string;
-  children: React.ReactNode;
-  isEditMode: boolean;
-}
-
-const SortableRow: React.FC<SortableRowProps> = ({ id, children, isEditMode }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <tr 
-      ref={setNodeRef} 
-      style={style}
-      {...(isEditMode ? { ...attributes, ...listeners } : {})}
-    >
-      {children}
-    </tr>
-  );
-};
-
-// Inline creation form component
-interface InlineCreationFormProps {
-  rules: ExpenseRule[];
-  onSave: (data: SaveExpenseRuleAssignmentInput) => Promise<void>;
-  onCancel: () => void;
-  insertAfterOrder: number;
-}
-
-const InlineCreationForm: React.FC<InlineCreationFormProps> = ({ rules, onSave, onCancel, insertAfterOrder }) => {
-  const [form] = Form.useForm();
-
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      await onSave({
-        expenseRuleAssignment: {
-          assignmentOrder: insertAfterOrder + 1,
-          cascading: values.cascading || false,
-          applicants: false,
-          activeFrom: values.activeFrom.toISOString(),
-          activeTo: values.activeTo.toISOString(),
-          expenseRule: values.expenseRuleId,
-          company: values.companyId,
-          organizationalUnit: values.organizationalUnitId,
-          siteLocation: values.siteLocationId,
-          employee: values.employeeId,
-          employmentTypeRef: values.employmentTypeRef,
-          contractTypeRef: values.contractTypeRef,
-        },
-        changeMode: 'INSERT'
-      });
-      form.resetFields();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  return (
-    <tr style={{ backgroundColor: '#f0f9ff' }}>
-      <td colSpan={1}></td> {/* Drag handle column (if in edit mode) */}
-      <td colSpan={1}></td> {/* Order column */}
-      <td>
-        <Form form={form} layout="inline" style={{ width: '100%' }}>
-          <Form.Item 
-            name="expenseRuleId" 
-            rules={[{ required: true, message: 'Please select a rule' }]}
-            style={{ minWidth: '150px' }}
-          >
-            <Select placeholder="Select rule">
-              {rules.map(rule => (
-                <Option key={rule.id} value={rule.id}>
-                  {rule.code}{rule.name ? ` - ${rule.name}` : ''}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </td>
-      <td>
-        <Form.Item 
-          name="companyId"
-          style={{ minWidth: '150px' }}
-        >
-          <Select placeholder="Select target" allowClear>
-            <Option value="">General</Option>
-            {/* TODO: Add actual company/org/employee options */}
-          </Select>
-        </Form.Item>
-      </td>
-      <td>
-        <Space>
-          <Form.Item name="activeFrom" rules={[{ required: true }]}>
-            <DatePicker placeholder="Start date" />
-          </Form.Item>
-          <Form.Item name="activeTo" rules={[{ required: true }]}>
-            <DatePicker placeholder="End date" />
-          </Form.Item>
-        </Space>
-      </td>
-      <td>
-        <Form.Item name="cascading" valuePropName="checked">
-          <Switch size="small" />
-        </Form.Item>
-      </td>
-      <td>
-        <Space>
-          <Button type="primary" size="small" onClick={handleSave}>
-            <PiFloppyDisk />
-          </Button>
-          <Button size="small" onClick={onCancel}>
-            <PiX />
-          </Button>
-        </Space>
-      </td>
-    </tr>
-  );
-};
-
 const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
   accessToken,
-  assignments,
   rules,
   isLoading,
-  onCreate,
-  onUpdate,
-  onDelete,
-  onValidate,
-  onSearch,
   onRefresh,
-  showRules,
+  onSearch,
   onNavigateToRule
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [displayedAssignments, setDisplayedAssignments] = useState<EnhancedExpenseRuleAssignment[]>([]);
-  const [sortedAssignments, setSortedAssignments] = useState<EnhancedExpenseRuleAssignment[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [inlineCreationRow, setInlineCreationRow] = useState<number | null>(null);
-  const tableRef = useRef<HTMLDivElement>(null);
+  // Simple toast implementation until design system provides one
+  const toast = ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
+    const style = variant === 'destructive' ? 'color: red' : 'color: green';
+    console.log(`%c${title}: ${description}`, style);
+    // TODO: Replace with proper toast implementation when available in design system
+  };
   
-  // Batch changes state
-  const [pendingChanges, setPendingChanges] = useState<PendingAssignmentChange[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [tempAssignmentCounter, setTempAssignmentCounter] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Modal state management
   const [isCreateRuleModalVisible, setIsCreateRuleModalVisible] = useState(false);
   const [isEditRuleModalVisible, setIsEditRuleModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<ExpenseRule | null>(null);
-  const [isCreateAssignmentModalVisible, setIsCreateAssignmentModalVisible] = useState(false);
-  const [isEditAssignmentModalVisible, setIsEditAssignmentModalVisible] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<EnhancedExpenseRuleAssignment | null>(null);
-  
-  const ITEMS_PER_PAGE = 20;
 
   // Modal handlers
   const handleCreateRule = () => {
@@ -272,24 +72,35 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     setIsEditRuleModalVisible(true);
   };
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [ruleToDelete, setRuleToDelete] = useState<ExpenseRule | null>(null);
+
   const handleDeleteRule = (rule: ExpenseRule) => {
-    Modal.confirm({
-      title: 'Delete Calculation Rule',
-      content: `Are you sure you want to delete the calculation rule "${rule.code}"${rule.name ? ` - ${rule.name}` : ''}?`,
-      okText: 'Delete',
-      okButtonProps: { danger: true },
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await expenseSettingsClient.deleteCalculationRule(rule.id, rule.version);
-          message.success('Calculation rule deleted successfully');
+    setRuleToDelete(rule);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteRule = async () => {
+    if (!ruleToDelete) return;
+    
+    try {
+      await expenseSettingsClient.deleteCalculationRule(ruleToDelete.id, ruleToDelete.version);
+      toast({
+        title: "Success",
+        description: "Calculation rule deleted successfully"
+      });
           await onRefresh();
         } catch (error) {
           console.error('Error deleting calculation rule:', error);
-          message.error('Failed to delete calculation rule');
-        }
-      },
-    });
+      toast({
+        title: "Error",
+        description: "Failed to delete calculation rule",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setRuleToDelete(null);
+    }
   };
 
   // Transform ExpenseRule to CalculationRuleFormData
@@ -314,64 +125,42 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     };
   };
 
-  const handleCreateRuleSubmit = async (formData: CalculationRuleFormData) => {
+  const handleCreateRuleSubmit = async (_formData: CalculationRuleFormData) => {
     try {
       // TODO: Implement actual create API call
-      message.success('Rule created successfully');
+      toast({
+        title: "Success",
+        description: "Rule created successfully"
+      });
       setIsCreateRuleModalVisible(false);
       onRefresh();
     } catch (error) {
       console.error('Error creating rule:', error);
-      message.error('Failed to create rule');
+      toast({
+        title: "Error",
+        description: "Failed to create rule",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleEditRuleSubmit = async (formData: CalculationRuleFormData) => {
+  const handleEditRuleSubmit = async (_formData: CalculationRuleFormData) => {
     try {
       // TODO: Implement actual update API call
-      message.success('Rule updated successfully');
+      toast({
+        title: "Success",
+        description: "Rule updated successfully"
+      });
       setIsEditRuleModalVisible(false);
       setEditingRule(null);
       onRefresh();
     } catch (error) {
       console.error('Error updating rule:', error);
-      message.error('Failed to update rule');
-    }
-  };
-
-  const handleCreateAssignment = () => {
-    setIsCreateAssignmentModalVisible(true);
-  };
-
-  const handleEditAssignment = (assignment: EnhancedExpenseRuleAssignment) => {
-    setEditingAssignment(assignment);
-    setIsEditAssignmentModalVisible(true);
-  };
-
-  const handleCreateAssignmentSubmit = async (formData: SaveExpenseRuleAssignmentInput) => {
-    try {
-      await onCreate(formData);
-      message.success('Assignment created successfully');
-      setIsCreateAssignmentModalVisible(false);
-      onRefresh();
-    } catch (error) {
-      console.error('Error creating assignment:', error);
-      message.error('Failed to create assignment');
-    }
-  };
-
-  const handleEditAssignmentSubmit = async (formData: SaveExpenseRuleAssignmentInput) => {
-    try {
-      if (editingAssignment?.id) {
-        await onUpdate(editingAssignment.id, formData);
-        message.success('Assignment updated successfully');
-        setIsEditAssignmentModalVisible(false);
-        setEditingAssignment(null);
-        onRefresh();
-      }
-    } catch (error) {
-      console.error('Error updating assignment:', error);
-      message.error('Failed to update assignment');
+      toast({
+        title: "Error",
+        description: "Failed to update rule",
+        variant: "destructive"
+      });
     }
   };
 
@@ -379,675 +168,116 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
     setIsCreateRuleModalVisible(false);
     setIsEditRuleModalVisible(false);
     setEditingRule(null);
-    setIsCreateAssignmentModalVisible(false);
-    setIsEditAssignmentModalVisible(false);
-    setEditingAssignment(null);
   };
-
-  // Initialize sorted assignments on assignments change
-  useEffect(() => {
-    if (!showRules) {
-      const sorted = [...assignments].sort((a, b) => a.assignmentOrder - b.assignmentOrder);
-      setSortedAssignments(sorted);
-      setDisplayedAssignments(sorted.slice(0, ITEMS_PER_PAGE));
-      setHasMore(sorted.length > ITEMS_PER_PAGE);
-    }
-  }, [assignments, showRules]);
-
-  // Infinite scroll implementation
-  const loadMoreItems = useCallback(() => {
-    if (loadingMore || !hasMore || isEditMode) return;
-    
-    setLoadingMore(true);
-    
-    setTimeout(() => {
-      const currentLength = displayedAssignments.length;
-      const nextItems = sortedAssignments.slice(currentLength, currentLength + ITEMS_PER_PAGE);
-      
-      setDisplayedAssignments(prev => [...prev, ...nextItems]);
-      setHasMore(currentLength + nextItems.length < sortedAssignments.length);
-      setLoadingMore(false);
-    }, 500); // Simulate loading delay
-  }, [displayedAssignments.length, sortedAssignments, hasMore, loadingMore, isEditMode]);
-
-  // Scroll event handler for infinite scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!tableRef.current || isEditMode) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = tableRef.current;
-      if (scrollTop + clientHeight >= scrollHeight - 100) {
-        loadMoreItems();
-      }
-    };
-
-    const tableElement = tableRef.current;
-    if (tableElement) {
-      tableElement.addEventListener('scroll', handleScroll);
-      return () => tableElement.removeEventListener('scroll', handleScroll);
-    }
-  }, [loadMoreItems, isEditMode]);
-
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   const handleSearch = (value: string) => {
-    if (isEditMode) return; // Disable search in edit mode
-    setSearchTerm(value);
-    onSearch({ search: value });
+    onSearch({ search: value.trim() || undefined });
   };
 
-  const handleRowClick = (record: EnhancedExpenseRuleAssignment | ExpenseRule) => {
-    if (isEditMode) return; // Disable row click in edit mode
-    
-    // Navigate to rule record if it's a rule and navigation function is provided
-    if (showRules && onNavigateToRule && 'code' in record) {
-      const currentPage = showRules ? 'Rules' : 'Assignments';
-      onNavigateToRule(record.id, currentPage);
+  const handleRowClick = (record: ExpenseRule) => {
+    // Navigate to rule record if navigation function is provided
+    if (onNavigateToRule) {
+      onNavigateToRule(record.id, 'Rules');
     }
   };
 
-  const handleEditMode = () => {
-    if (isEditMode) {
-      // Exit edit mode - refresh data
-      onRefresh();
-    }
-    setIsEditMode(!isEditMode);
-    setInlineCreationRow(null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = displayedAssignments.findIndex(item => item.id === active.id);
-    const newIndex = displayedAssignments.findIndex(item => item.id === over.id);
-    
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    // Reorder the displayed assignments
-    const newOrder = arrayMove(displayedAssignments, oldIndex, newIndex);
-    setDisplayedAssignments(newOrder);
-
-    // Track changes for batch update
-    const newPendingChanges = newOrder.map((assignment, index) => {
-      const originalAssignment = assignments.find(a => a.id === assignment.id);
-      const newAssignmentOrder = index + 1;
-      
-      // Only track if order actually changed
-      if (originalAssignment && originalAssignment.assignmentOrder !== newAssignmentOrder) {
-        return {
-          id: assignment.id,
-          assignmentOrder: newAssignmentOrder,
-          originalOrder: originalAssignment.assignmentOrder,
-          changeType: 'update' as const,
-          assignmentData: {
-            expenseRuleAssignment: {
-              id: assignment.id,
-              assignmentOrder: newAssignmentOrder,
-              cascading: originalAssignment.cascading,
-              applicants: originalAssignment.applicants || false,
-              activeFrom: originalAssignment.activeFrom,
-              activeTo: originalAssignment.activeTo,
-              expenseRule: originalAssignment.expenseRuleId,
-              company: originalAssignment.companyId,
-              organizationalUnit: originalAssignment.organizationalUnitId,
-              siteLocation: originalAssignment.siteLocationId,
-              employee: originalAssignment.employeeId,
-              employmentTypeRef: originalAssignment.employmentType?.id,
-              contractTypeRef: originalAssignment.contractType?.id,
-              ...(originalAssignment.version !== undefined && { version: originalAssignment.version })
-            },
-            changeMode: 'UPDATE'
-          }
-        };
-      }
-      return null;
-    }).filter(Boolean) as PendingAssignmentChange[];
-
-    // Merge with existing pending changes
-    setPendingChanges(prev => {
-      const merged = [...prev];
-      newPendingChanges.forEach(newChange => {
-        const existingIndex = merged.findIndex(existing => existing.id === newChange.id);
-        if (existingIndex >= 0) {
-          merged[existingIndex] = newChange;
-        } else {
-          merged.push(newChange);
-        }
-      });
-      return merged;
-    });
-  };
-
-  // Batch save functionality
-  const handleSaveBatchChanges = async () => {
-    if (pendingChanges.length === 0) {
-      message.warning('No changes to save');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Prepare assignments for bulk API
-      const assignmentsToSave = pendingChanges.map(change => change.assignmentData);
-      
-      // Set access token on client
-      expenseSettingsClient.setAccessToken(accessToken);
-      
-      // Call bulk save endpoint
-      await expenseSettingsClient.saveBulkExpenseRuleAssignment(assignmentsToSave);
-      
-      message.success(`Successfully saved ${pendingChanges.length} changes`);
-      
-      // Clear pending changes
-      setPendingChanges([]);
-      
-      // Exit edit mode and refresh data
-      setIsEditMode(false);
-      setInlineCreationRow(null);
-      onRefresh();
-      
-    } catch (error) {
-      console.error('Failed to save batch changes:', error);
-      message.error('Failed to save changes. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCancelChanges = () => {
-    // Revert to original assignments
-    const sorted = [...assignments].sort((a, b) => a.assignmentOrder - b.assignmentOrder);
-    setDisplayedAssignments(sorted.slice(0, ITEMS_PER_PAGE));
-    
-    // Clear pending changes
-    setPendingChanges([]);
-    
-    // Exit edit mode
-    setIsEditMode(false);
-    setInlineCreationRow(null);
-  };
-
-  const handleInlineCreate = (afterOrder: number) => {
-    setInlineCreationRow(afterOrder);
-  };
-
-  const handleInlineSave = async (data: SaveExpenseRuleAssignmentInput) => {
-    try {
-      // Generate temporary ID for new assignment
-      const tempId = `temp-${Date.now()}-${tempAssignmentCounter}`;
-      setTempAssignmentCounter(prev => prev + 1);
-      
-      // Create new assignment with updated order
-      const newAssignment: EnhancedExpenseRuleAssignment = {
-        id: tempId,
-        assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
-        cascading: data.expenseRuleAssignment.cascading,
-        applicants: data.expenseRuleAssignment.applicants,
-        activeFrom: data.expenseRuleAssignment.activeFrom,
-        activeTo: data.expenseRuleAssignment.activeTo,
-        expenseRuleId: data.expenseRuleAssignment.expenseRule,
-        companyId: data.expenseRuleAssignment.company,
-        organizationalUnitId: data.expenseRuleAssignment.organizationalUnit,
-        siteLocationId: data.expenseRuleAssignment.siteLocation,
-        employeeId: data.expenseRuleAssignment.employee,
-        employmentType: data.expenseRuleAssignment.employmentTypeRef ? { id: data.expenseRuleAssignment.employmentTypeRef, value: '' } : undefined,
-        contractType: data.expenseRuleAssignment.contractTypeRef ? { id: data.expenseRuleAssignment.contractTypeRef, value: '' } : undefined,
-        ruleName: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.name || '',
-        ruleCode: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule)?.code || '',
-        displayName: (() => {
-          const rule = rules.find(r => r.id === data.expenseRuleAssignment.expenseRule);
-          return `${rule?.code || 'N/A'}${rule?.name ? ` - ${rule.name}` : ''}`;
-        })(),
-        expenseRule: rules.find(r => r.id === data.expenseRuleAssignment.expenseRule),
-        companyName: '',
-        orgUnitName: '',
-        locationName: '',
-        employeeName: '',
-        contractTypeName: '',
-        employmentTypeName: '',
-        effectivePeriod: `${data.expenseRuleAssignment.activeFrom} - ${data.expenseRuleAssignment.activeTo}`,
-        isDeleted: false
-      };
-      
-      // Update displayed assignments with new one in correct position
-      const updatedAssignments = [...displayedAssignments];
-      const insertIndex = updatedAssignments.findIndex(a => a.assignmentOrder > data.expenseRuleAssignment.assignmentOrder);
-      if (insertIndex >= 0) {
-        updatedAssignments.splice(insertIndex, 0, newAssignment);
-      } else {
-        updatedAssignments.push(newAssignment);
-      }
-      
-      // Reorder all assignments
-      const reorderedAssignments = updatedAssignments.map((assignment, index) => ({
-        ...assignment,
-        assignmentOrder: index + 1
-      }));
-      
-      setDisplayedAssignments(reorderedAssignments);
-      
-      // Add to pending changes (without id and version for new assignment)
-      const pendingChange: PendingAssignmentChange = {
-        assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
-        changeType: 'create',
-        assignmentData: {
-          expenseRuleAssignment: {
-            // Omit id and version for new assignments
-            assignmentOrder: data.expenseRuleAssignment.assignmentOrder,
-            cascading: data.expenseRuleAssignment.cascading,
-            applicants: data.expenseRuleAssignment.applicants,
-            activeFrom: data.expenseRuleAssignment.activeFrom,
-            activeTo: data.expenseRuleAssignment.activeTo,
-            expenseRule: data.expenseRuleAssignment.expenseRule,
-            company: data.expenseRuleAssignment.company,
-            organizationalUnit: data.expenseRuleAssignment.organizationalUnit,
-            siteLocation: data.expenseRuleAssignment.siteLocation,
-            employee: data.expenseRuleAssignment.employee,
-            employmentTypeRef: data.expenseRuleAssignment.employmentTypeRef,
-            contractTypeRef: data.expenseRuleAssignment.contractTypeRef,
-          },
-          changeMode: 'INSERT'
-        }
-      };
-      
-      setPendingChanges(prev => [...prev, pendingChange]);
-      setInlineCreationRow(null);
-      
-    } catch (error) {
-      console.error('Failed to create assignment:', error);
-      message.error('Failed to add assignment');
-    }
-  };
-
-  const handleInlineCancel = () => {
-    setInlineCreationRow(null);
-  };
-
-  const renderAssignmentTargets = (record: EnhancedExpenseRuleAssignment) => {
-    const targets = [];
-    
-    if (record.employeeName) {
-      targets.push(
-        <div key="employee" className="gba:mb-1">
-          <Tag color="blue">Employee</Tag>
-          <span className="gba:ml-1">{record.employeeName}</span>
-        </div>
-      );
-    }
-    
-    if (record.companyName) {
-      targets.push(
-        <div key="company" className="gba:mb-1">
-          <Tag color="green">Company</Tag>
-          <span className="gba:ml-1">{record.companyName}</span>
-        </div>
-      );
-    }
-    
-    if (record.orgUnitName) {
-      targets.push(
-        <div key="orgUnit" className="gba:mb-1">
-          <Tag color="orange">Org Unit</Tag>
-          <span className="gba:ml-1">{record.orgUnitName}</span>
-        </div>
-      );
-    }
-    
-    if (record.locationName) {
-      targets.push(
-        <div key="location" className="gba:mb-1">
-          <Tag color="purple">Location</Tag>
-          <span className="gba:ml-1">{record.locationName}</span>
-        </div>
-      );
-    }
-    
-    if (record.contractTypeName) {
-      targets.push(
-        <div key="contractType" className="gba:mb-1">
-          <Tag color="cyan">Contract Type</Tag>
-          <span className="gba:ml-1">{record.contractTypeName}</span>
-        </div>
-      );
-    }
-    
-    if (record.employmentTypeName) {
-      targets.push(
-        <div key="employmentType" className="gba:mb-1">
-          <Tag color="magenta">Employment Type</Tag>
-          <span className="gba:ml-1">{record.employmentTypeName}</span>
-        </div>
-      );
-    }
-    
-    if (targets.length === 0) {
-      return <Tag color="default">General</Tag>;
-    }
-    
-    if (targets.length > 2) {
+  const renderRulesTable = () => {
       return (
+      <div className="gba:w-full gba:overflow-x-auto">
+        <Table className="gba:min-w-[900px] gba:table-fixed gba:text-sm">
+        <TableHeader>
+          <TableRow className="gba:h-10">
+            <TableHead className="gba:w-[220px] gba:py-2 gba:px-3 gba:text-xs">RULE</TableHead>
+            <TableHead className="gba:w-[140px] gba:py-2 gba:px-3 gba:text-xs">CALCULATION TYPE</TableHead>
+            <TableHead className="gba:w-[100px] gba:py-2 gba:px-3 gba:text-xs">COUNTRY</TableHead>
+            <TableHead className="gba:w-[90px] gba:py-2 gba:px-3 gba:text-xs">CURRENCY</TableHead>
+            <TableHead className="gba:w-[80px] gba:py-2 gba:px-3 gba:text-xs">STANDARD</TableHead>
+            <TableHead className="gba:w-[170px] gba:py-2 gba:px-3 gba:text-xs">ACTIVE PERIOD</TableHead>
+            <TableHead className="gba:w-[70px] gba:py-2 gba:px-3 gba:text-xs">ACTIONS</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rules.map((rule) => (
+                        <TableRow 
+              key={rule.id}
+              className="gba:cursor-pointer hover:gba:bg-gray-50 gba:h-12"
+              onClick={() => handleRowClick(rule)}
+              data-testid={`calculation-rules-rule-row-${rule.id}`}
+            >
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[220px]">
         <div>
-          {targets.slice(0, 2)}
-          <Tooltip
-            title={
-              <div>
-                <strong>All Assignment Targets:</strong>
-                <div className="gba:mt-2">
-                  {targets}
+                  <div className="gba:font-medium gba:text-gray-900 gba:text-sm gba:truncate gba:leading-tight" title={rule.name || '-'}>
+                    {rule.name || '-'}
                 </div>
+                  <div className="gba:text-xs gba:text-gray-500 gba:truncate gba:leading-tight" title={rule.code}>
+                    {rule.code}
               </div>
-            }
-          >
-            <Tag color="gray">+{targets.length - 2} more</Tag>
-          </Tooltip>
         </div>
-      );
-    }
-    
-    return <div>{targets}</div>;
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[140px]">
+                <div className="gba:text-gray-900 gba:text-sm gba:truncate" title={rule.calculationType?.value || '-'}>
+                  {rule.calculationType?.value || '-'}
+          </div>
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[100px]">
+                <div className="gba:text-gray-900 gba:text-sm gba:truncate" title={rule.country?.value || '-'}>
+                  {rule.country?.value || '-'}
+          </div>
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[90px]">
+                <div className="gba:text-gray-900 gba:text-sm gba:truncate" title={rule.currency?.value || '-'}>
+                  {rule.currency?.value || '-'}
+          </div>
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[80px]">
+                <Badge variant={rule.standard ? 'default' : 'secondary'} className="gba:text-xs gba:px-2 gba:py-0.5">
+                  {rule.standard ? 'Yes' : 'No'}
+                </Badge>
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[170px]">
+                {(() => {
+        const now = new Date();
+                  const activeFrom = new Date(rule.activeFrom);
+                  const activeTo = rule.activeTo ? new Date(rule.activeTo) : null;
+                  const isActive = activeFrom <= now && (!activeTo || activeTo >= now);
+                  const timeFrame = `${dayjs(rule.activeFrom).format('DD/MM/YYYY')} - ${rule.activeTo ? dayjs(rule.activeTo).format('DD/MM/YYYY') : 'Ongoing'}`;
+        
+        return (
+                    <div 
+                      className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium gba:text-center gba:truncate ${
+                        isActive 
+                          ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-200' 
+                          : 'gba:bg-gray-100 gba:text-gray-600 gba:border gba:border-gray-200'
+                      }`}
+                      title={`${timeFrame} (${isActive ? 'Active' : 'Inactive'})`}
+                    >
+                      {timeFrame}
+          </div>
+        );
+                })()}
+              </TableCell>
+              <TableCell className="gba:py-2 gba:px-3 gba:w-[70px]">
+                <div className="gba:flex gba:justify-center">
+                  <ContextMenu
+                    actions={[
+                      createEditAction(() => handleEditRule(rule)),
+                      createDeleteAction(() => handleDeleteRule(rule))
+                    ]}
+                    triggerTestId={`calculation-rules-actions-${rule.id}`}
+          />
+        </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        </Table>
+          </div>
+        );
   };
-
-
-
-  // Define columns for assignments table
-  const assignmentColumns: ColumnsType<any> = [
-    // Drag handle column (only in edit mode)
-    ...(isEditMode ? [{
-      title: '',
-      key: 'dragHandle',
-      width: 40,
-      fixed: 'left' as const,
-      render: (_: any, record: any) => {
-        if (record.isHoverZone) return null;
-        return (
-          <div 
-            className="gba:drag-handle"
-            style={{ 
-              padding: '8px', 
-              textAlign: 'center', 
-              cursor: 'grab' 
-            }}
-          >
-            <PiDotsSixVertical />
-          </div>
-        );
-      },
-    }] : []),
-    {
-      title: '#',
-      key: 'order',
-      width: 50,
-      fixed: 'left',
-      render: (_: any, record: any) => {
-        if (record.isHoverZone) return null;
-        const order = record.assignmentOrder || 1;
-        return (
-          <span style={{ fontWeight: 'normal' }}>{order}.</span>
-        );
-      },
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 60,
-      render: (_: any, record: any) => {
-        if (record.isHoverZone) return null;
-        return (
-          <div className="gba:flex gba:justify-start gba:gap-2">
-            <Button
-              type="text"
-              size="small"
-              icon={<PiPencil />}
-              data-testid={`calculation-rules-edit-assignment-button-${record.id}`}
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                handleEditAssignment(record);
-              }}
-              title="Edit Assignment"
-            />
-          </div>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule', 'Rule'),
-      dataIndex: 'ruleCode',
-      key: 'ruleCode',
-      sorter: !isEditMode,
-      render: (text: string, record: any) => {
-        if (record.isHoverZone) return null;
-        return (
-          <div>
-            <strong>{text}</strong>
-            {record.ruleName && (
-              <>
-                <br />
-                <span className="gba:text-sm gba:text-gray-500">{record.ruleName}</span>
-              </>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.standard', 'Standard'),
-      key: 'standard',
-      width: 100,
-      render: (_: any, record: any) => {
-        if (record.isHoverZone) return null;
-        // For assignments, we need to check the related rule's standard flag
-        const isStandard = record.expenseRule?.standard === true;
-        return (
-          <Tag color={isStandard ? 'green' : 'default'}>
-            {isStandard 
-              ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-              : getTranslationFromI18nKeyAndLabel('common.no', 'No')
-            }
-          </Tag>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.assignment_targets', 'Assignment Targets'),
-      key: 'targets',
-      render: (_: any, record: any) => {
-        if (record.isHoverZone) return null;
-        return renderAssignmentTargets(record);
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.effective_period', 'Effective Period'),
-      dataIndex: 'effectivePeriod',
-      key: 'effectivePeriod',
-      sorter: !isEditMode,
-      render: (text: string, record: any) => {
-        if (record.isHoverZone) return null;
-        const now = new Date();
-        const activeFrom = new Date(record.activeFrom);
-        const activeTo = new Date(record.activeTo);
-        const isActive = activeFrom <= now && activeTo >= now;
-        
-        return (
-          <div>
-            <div className="gba:text-sm">{text}</div>
-            <Tag color={isActive ? 'green' : 'default'}>
-              {isActive 
-                ? getTranslationFromI18nKeyAndLabel('common.active', 'Active')
-                : getTranslationFromI18nKeyAndLabel('common.inactive', 'Inactive')
-              }
-            </Tag>
-          </div>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.cascading', 'Cascading'),
-      dataIndex: 'cascading',
-      key: 'cascading',
-      width: 100,
-      render: (cascading: boolean, record: any) => {
-        if (record.isHoverZone) return null;
-        return (
-          <Tag color={cascading ? 'green' : 'default'}>
-            {cascading 
-              ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-              : getTranslationFromI18nKeyAndLabel('common.no', 'No')
-            }
-          </Tag>
-        );
-      },
-    },
-  ];
-
-  // Define columns for rules table (unchanged)
-  const ruleColumns: ColumnsType<ExpenseRule> = [
-    {
-      title: '',
-      key: 'actions',
-      width: 100,
-      render: (_: any, record: ExpenseRule) => (
-        <div className="gba:flex gba:justify-start gba:gap-2">
-          <Button
-            type="text"
-            size="small"
-            icon={<PiPencil />}
-            data-testid={`calculation-rules-edit-rule-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleEditRule(record);
-            }}
-            title="Edit Rule"
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<DeleteOutlined />}
-            data-testid={`calculation-rules-delete-rule-button-${record.id}`}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              handleDeleteRule(record);
-            }}
-            title="Delete Rule"
-            danger
-          />
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.rule', 'Rule'),
-      dataIndex: 'code',
-      key: 'code',
-      sorter: true,
-      render: (text: string, record: ExpenseRule) => (
-        <div>
-          <strong>{text}</strong>
-          {record.name && (
-            <>
-              <br />
-              <span className="gba:text-sm gba:text-gray-500">{record.name}</span>
-            </>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.standard', 'Standard'),
-      dataIndex: 'standard',
-      key: 'standard',
-      width: 100,
-      sorter: true,
-      render: (standard: boolean) => (
-        <Tag color={standard ? 'green' : 'default'}>
-          {standard 
-            ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-            : getTranslationFromI18nKeyAndLabel('common.no', 'No')
-          }
-        </Tag>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.calculation_type', 'Calculation Type'),
-      key: 'calculationType',
-      render: (_: any, record: ExpenseRule) => (
-        <div>
-          {record.calculationType?.value || 
-           getTranslationFromI18nKeyAndLabel('common.not_specified', 'Not Specified')}
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.country', 'Country'),
-      key: 'country',
-      render: (_: any, record: ExpenseRule) => (
-        <div>
-          {record.country?.value || 
-           getTranslationFromI18nKeyAndLabel('common.all_countries', 'All Countries')}
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.currency', 'Currency'),
-      key: 'currency',
-      render: (_: any, record: ExpenseRule) => (
-        <div>
-          {record.currency?.value || 
-           getTranslationFromI18nKeyAndLabel('common.default_currency', 'Default Currency')}
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.effective_period', 'Effective Period'),
-      key: 'effectivePeriod',
-      render: (_: any, record: ExpenseRule) => {
-        const now = new Date();
-        const activeFrom = new Date(record.activeFrom);
-        const activeTo = record.activeTo ? new Date(record.activeTo) : null;
-        const isActive = activeFrom <= now && (!activeTo || activeTo >= now);
-        
-        const formatDate = (date: string) => new Date(date).toLocaleDateString();
-        
-        return (
-          <div>
-            <div className="gba:text-sm">
-              {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : 'Ongoing'}
-            </div>
-            <Tag color={isActive ? 'green' : 'default'}>
-              {isActive 
-                ? getTranslationFromI18nKeyAndLabel('common.active', 'Active')
-                : getTranslationFromI18nKeyAndLabel('common.inactive', 'Inactive')
-              }
-            </Tag>
-          </div>
-        );
-      },
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expense_settings.table.deduction_limit', 'Deduction Limit'),
-      dataIndex: 'deductionLimit',
-      key: 'deductionLimit',
-      width: 120,
-      render: (deductionLimit: boolean) => (
-        <Tag color={deductionLimit ? 'orange' : 'default'}>
-          {deductionLimit 
-            ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
-            : getTranslationFromI18nKeyAndLabel('common.no', 'No')
-          }
-        </Tag>
-      ),
-    },
-  ];
 
   return (
     <div
-      data-testid={`calculation-rules-${showRules ? 'rules' : 'assignments'}-container`}
+      data-testid="calculation-rules-container"
       style={{ 
         background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
         minHeight: '100%',
@@ -1063,75 +293,25 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
         marginBottom: '16px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
-            {showRules 
-              ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.title', 'Expense Rules')
-              : getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.title', 'Rule Assignments')
-            }
-          </Title>
-          <Tag color="blue">{showRules ? rules.length : assignments.length} items</Tag>
-          {isEditMode && (
-            <Tag color="orange">
-              {getTranslationFromI18nKeyAndLabel('common.edit_mode', 'Edit Mode')}
-            </Tag>
-          )}
+          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:m-0">
+            {getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.title', 'Expense Rules')}
+          </h2>
+          <Badge variant="secondary">{rules.length} items</Badge>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {!showRules && !isEditMode && (
             <Button 
-              type="dashed"
-              icon={<PiPencil />}
-              onClick={handleEditMode}
-              data-testid="calculation-rules-edit-mode-button"
-            >
-              {getTranslationFromI18nKeyAndLabel('common.edit_order', 'Edit Order')}
-            </Button>
-          )}
-          
-          {!showRules && isEditMode && (
-            <>
-              <Button 
-                type="primary"
-                icon={<PiFloppyDisk />}
-                onClick={handleSaveBatchChanges}
-                loading={isSaving}
-                disabled={pendingChanges.length === 0}
-                data-testid="calculation-rules-save-changes-button"
-              >
-                {getTranslationFromI18nKeyAndLabel('common.save_changes', 'Save Changes')}
-                {pendingChanges.length > 0 && ` (${pendingChanges.length})`}
-              </Button>
-              <Button 
-                icon={<PiX />}
-                onClick={handleCancelChanges}
-                disabled={isSaving}
-                data-testid="calculation-rules-cancel-changes-button"
-              >
-                {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-              </Button>
-            </>
-          )}
-          
-          {!isEditMode && (
-            <Button 
-              type="primary" 
-              icon={<PiPlus />} 
-              onClick={showRules ? handleCreateRule : handleCreateAssignment}
-              data-testid={`calculation-rules-create-${showRules ? 'rule' : 'assignment'}-button`}
-            >
-              {showRules 
-                ? getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createRule', 'Create Rule')
-                : getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')
-              }
-            </Button>
-          )}
-          
-          <Button 
-            icon={<PiArrowClockwise />} 
-            onClick={onRefresh}
-            disabled={isEditMode}
-            data-testid={`calculation-rules-refresh-${showRules ? 'rules' : 'assignments'}-button`}
+            onClick={handleCreateRule}
+            data-testid="calculation-rules-create-rule-button"
           >
+            <PiPlus className="gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createRule', 'Create Rule')}
+            </Button>
+          
+              <Button 
+            onClick={onRefresh}
+            data-testid="calculation-rules-refresh-rules-button"
+          >
+            <PiArrowClockwise className="gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
           </Button>
         </div>
@@ -1139,212 +319,93 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
 
       {/* Search and filters */}
       <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-        <Search
-          placeholder={showRules 
-            ? getTranslationFromI18nKeyAndLabel('expenseSettings.search.rules.placeholder', 'Search rules by code, type, country...')
-            : getTranslationFromI18nKeyAndLabel('expenseSettings.search.assignments.placeholder', 'Search assignments by rule, target, type...')
-          }
-          allowClear
-          style={{ maxWidth: '400px' }}
-          onSearch={handleSearch}
-          disabled={isEditMode}
-          data-testid={`calculation-rules-search-${showRules ? 'rules' : 'assignments'}-input`}
-        />
+        <div className="gba:relative gba:max-w-sm">
+          <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:h-4 gba:w-4" />
+          <Input
+            placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.search.rules.placeholder', 'Search rules by code, type, country...')}
+            className="gba:pl-10"
+            onChange={(e) => handleSearch(e.target.value)}
+            data-testid="calculation-rules-search-rules-input"
+          />
+        </div>
         <Button 
-          icon={<PiFunnel />}
+          variant="outline"
           onClick={() => setShowFilters(!showFilters)}
-          disabled={isEditMode}
-          data-testid={`calculation-rules-filter-${showRules ? 'rules' : 'assignments'}-button`}
+          data-testid="calculation-rules-filter-rules-button"
         >
+          <PiFunnel className="gba:mr-2 gba:h-4 gba:w-4" />
           {getTranslationFromI18nKeyAndLabel('common.filters', 'Filters')}
         </Button>
       </div>
 
-      {/* Pending Changes Warning */}
-      {isEditMode && pendingChanges.length > 0 && (
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel('expenseSettings.pendingChanges.title', 'Pending Changes')}
-          description={getTranslationFromI18nKeyAndLabel(
-            'expenseSettings.pendingChanges.description', 
-            `You have ${pendingChanges.length} unsaved change${pendingChanges.length !== 1 ? 's' : ''}. Click "Save Changes" to apply them or "Cancel" to discard.`
-          )}
-          type="warning"
-          icon={<PiWarning />}
-          showIcon
-          style={{ marginBottom: '16px' }}
-          data-testid="calculation-rules-pending-changes-alert"
-        />
-      )}
-
       {/* Description */}
       <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
         <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-          {showRules 
-            ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.description', 'Manage calculation rules that define how expenses are processed and validated.')
-            : isEditMode
-            ? getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.editDescription', 'Drag and drop to reorder assignments. Hover between rows to add new assignments. Changes are saved in batch when you click "Save Changes".')
-            : getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.assignments.description', 'Manage rule assignments that determine which rules apply to specific employees, companies, or organizational units.')
-          }
+          {getTranslationFromI18nKeyAndLabel('expenseSettings.calculationRules.rules.description', 'Manage calculation rules that define how expenses are processed and validated.')}
         </p>
       </div>
 
-      {/* Table */}
-      <div 
-        ref={tableRef}
-        style={{ 
-          maxHeight: showRules || isEditMode ? 'none' : '600px', 
-          overflowY: showRules || isEditMode ? 'visible' : 'auto'
-        }}
-      >
-        {showRules ? (
-          <Table<ExpenseRule>
-            columns={ruleColumns}
-            dataSource={rules}
-            rowKey="id"
-            loading={isLoading}
-            onRow={(record) => ({
-              onClick: () => handleRowClick(record),
-              style: { cursor: 'pointer' }
-            })}
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => 
-                `${range[0]}-${range[1]} of ${total} items`,
-            }}
-            scroll={{ x: 'max-content' }}
-            data-testid="calculation-rules-rules-table"
-          />
-        ) : (
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={displayedAssignments.map(item => item.id)}
-              strategy={verticalListSortingStrategy}
-              disabled={!isEditMode}
-            >
-              <div>
-                {/* Add button before first assignment in edit mode */}
-                {isEditMode && displayedAssignments.length > 0 && (
-                  <HoverAddButton
-                    afterOrder={0}
-                    onAdd={handleInlineCreate}
-                    isEditMode={isEditMode}
-                  />
-                )}
-                
-                <Table<EnhancedExpenseRuleAssignment>
-                  columns={assignmentColumns}
-                  dataSource={displayedAssignments}
-                  rowKey="id"
-                  loading={isLoading}
-                  pagination={isEditMode ? false : {
-                    hideOnSinglePage: true,
-                    showSizeChanger: false,
-                    showQuickJumper: false,
-                    position: ['bottomCenter'],
-                    simple: true,
-                    showTotal: () => `${displayedAssignments.length} of ${assignments.length} loaded`
-                  }}
-                  scroll={{ x: 'max-content' }}
-                  data-testid="calculation-rules-assignments-table"
-                  components={isEditMode ? {
-                    body: {
-                      row: ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => {
-                        const record = displayedAssignments.find(item => item.id === props['data-row-key']);
-                        if (!record) return <tr {...props}>{children}</tr>;
-                        
-                        return (
-                          <>
-                            <SortableRow 
-                              id={record.id} 
-                              isEditMode={isEditMode}
-                            >
-                              {children}
-                            </SortableRow>
-                            
-                            {/* Add hover button after each row in edit mode */}
-                            {isEditMode && (
-                              <tr>
-                                <td colSpan={7} style={{ padding: 0, border: 'none' }}>
-                                  <HoverAddButton
-                                    afterOrder={record.assignmentOrder}
-                                    onAdd={handleInlineCreate}
-                                    isEditMode={isEditMode}
-                                  />
-                                </td>
-                              </tr>
-                            )}
-                            
-                            {/* Inline creation form */}
-                            {inlineCreationRow === record.assignmentOrder && (
-                              <InlineCreationForm
-                                rules={rules}
-                                onSave={handleInlineSave}
-                                onCancel={handleInlineCancel}
-                                insertAfterOrder={record.assignmentOrder}
-                              />
-                            )}
-                          </>
-                        );
-                      }
-                    }
-                  } : undefined}
-                onRow={(record) => ({
-                  onClick: () => handleRowClick(record),
-                  style: { cursor: isEditMode ? 'move' : 'pointer' },
-                  'data-row-key': record.id
-                })}
-              />
+      {/* Rules Table */}
+      <div className="gba:border gba:rounded-md">
+        {isLoading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
+            <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600"></div>
             </div>
-            </SortableContext>
-          </DndContext>
+        ) : (
+          renderRulesTable()
         )}
-        
-        {/* Infinite scroll loading indicator */}
-        {!showRules && !isEditMode && hasMore && (
-          <div style={{ textAlign: 'center', padding: '16px' }}>
-            {loadingMore ? (
-              <span>Loading more...</span>
-            ) : (
-              <Button onClick={loadMoreItems}>Load More</Button>
-            )}
-          </div>
+        {/* Pagination for rules */}
+        {rules.length > 20 && (
+          <div className="gba:p-4 gba:border-t gba:text-center gba:text-sm gba:text-gray-500">
+            Showing {Math.min(20, rules.length)} of {rules.length} rules
+            </div>
         )}
       </div>
 
-      {/* Create Rule Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createRule.title', 'Create Calculation Rule')}
-        open={isCreateRuleModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={800}
-        destroyOnClose
-        data-testid="calculation-rules-create-rule-modal"
-      >
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="calculation-rules-delete-confirmation-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Calculation Rule</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p className="gba:text-sm gba:text-gray-600">
+              Are you sure you want to delete the calculation rule "{ruleToDelete?.code}"
+              {ruleToDelete?.name ? ` - ${ruleToDelete.name}` : ''}? This action cannot be undone.
+            </p>
+          </div>
+          <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteRule}>
+              Delete
+            </Button>
+      </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Rule Dialog */}
+      <Dialog open={isCreateRuleModalVisible} onOpenChange={setIsCreateRuleModalVisible}>
+        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-create-rule-dialog">
+          <DialogHeader>
+            <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createRule.title', 'Create Calculation Rule')}</DialogTitle>
+          </DialogHeader>
         <CalculationRuleForm
           accessToken={accessToken}
           onSave={handleCreateRuleSubmit}
           onCancel={handleModalCancel}
           isEditing={false}
         />
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
-      {/* Edit Rule Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editRule.title', 'Edit Calculation Rule')}
-        open={isEditRuleModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={800}
-        destroyOnClose
-        data-testid="calculation-rules-edit-rule-modal"
-      >
+      {/* Edit Rule Dialog */}
+      <Dialog open={isEditRuleModalVisible} onOpenChange={setIsEditRuleModalVisible}>
+        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-edit-rule-dialog">
+          <DialogHeader>
+            <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editRule.title', 'Edit Calculation Rule')}</DialogTitle>
+          </DialogHeader>
         {editingRule && (
           <CalculationRuleForm
             accessToken={accessToken}
@@ -1354,48 +415,8 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
             initialData={transformRuleToFormData(editingRule)}
           />
         )}
-      </Modal>
-
-      {/* Create Assignment Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createAssignment.title', 'Create Rule Assignment')}
-        open={isCreateAssignmentModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={900}
-        destroyOnClose
-        data-testid="calculation-rules-create-assignment-modal"
-      >
-        <AssignmentForm
-          accessToken={accessToken}
-          availableRules={rules}
-          onSave={handleCreateAssignmentSubmit}
-          onCancel={handleModalCancel}
-          isEditing={false}
-        />
-      </Modal>
-
-      {/* Edit Assignment Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editAssignment.title', 'Edit Rule Assignment')}
-        open={isEditAssignmentModalVisible}
-        onCancel={handleModalCancel}
-        footer={null}
-        width={900}
-        destroyOnClose
-        data-testid="calculation-rules-edit-assignment-modal"
-      >
-        {editingAssignment && (
-          <AssignmentForm
-            accessToken={accessToken}
-            availableRules={rules}
-            initialData={editingAssignment}
-            onSave={handleEditAssignmentSubmit}
-            onCancel={handleModalCancel}
-            isEditing={true}
-          />
-        )}
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

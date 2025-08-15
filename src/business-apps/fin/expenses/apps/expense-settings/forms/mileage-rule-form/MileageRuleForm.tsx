@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { 
   Button, 
   Input, 
@@ -31,6 +32,8 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
+import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface MileageRuleFormData {
   id?: string;
@@ -109,6 +112,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
   accessToken
 }) => {
   
+  // ✅ NEW: Hook for fetching fresh data when editing
+  const { fetchMileageRuleById } = useGetMileageRuleStandaloneById({ accessToken } as BusinessAppContextProps);
+  
   // Form state
   const [formData, setFormData] = useState<MileageRuleFormData>(() => {
     const initialFormData = {
@@ -134,23 +140,81 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
   // Store original data for change detection
   const [originalFormData, setOriginalFormData] = useState<MileageRuleFormData | null>(null);
 
-  // Store original data when form initializes or initialData changes
+  // ✅ FIXED: Fetch fresh data when editing, set initial data when creating
   useEffect(() => {
-    if (initialData) {
-      const originalData = {
-        ...(initialData.id && { id: initialData.id }),
-        ...(initialData.version !== undefined && { version: initialData.version }),
-        code: initialData.code || '',
-        ruleName: initialData.ruleName || '',
-        description: initialData.description || '',
-        rulePeriod: initialData.rulePeriod || '',
-        activeFrom: initialData.activeFrom || '',
-        activeTo: initialData.activeTo || '',
-        details: initialData.details || []
-      };
-      setOriginalFormData(originalData);
-    }
-  }, [initialData]);
+    const loadData = async () => {
+      if (initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        console.log('🔄 MileageRuleForm: Fetching FRESH data for ID:', initialData.id);
+        try {
+          const freshData = await fetchMileageRuleById(initialData.id);
+          if (freshData) {
+            console.log('✅ MileageRuleForm: Using FRESH data from API:', freshData);
+            const transformedData = {
+              id: freshData.id,
+              version: freshData.version,
+              code: freshData.code || '',
+              ruleName: freshData.name || '',
+              description: freshData.name || '', // Use name as description
+              rulePeriod: freshData.rulePeriod || '',
+              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : '',
+              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              details: (freshData.mileageRuleDetail || []).map((detail: any) => ({
+                id: detail.id,
+                version: detail.version,
+                limitFrom: detail.limitFrom,
+                limitTo: detail.limitTo,
+                rateAmount: detail.amount || 0,
+                detailOrder: detail.detailOrder || 0,
+                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
+                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : '',
+                tempId: `temp-${detail.id}`,
+                mileageRuleId: freshData.id,
+                additionalProperties: detail.additionalProperties
+              }))
+            };
+            setFormData(transformedData);
+            setOriginalFormData(transformedData);
+          }
+        } catch (error) {
+          console.error('❌ MileageRuleForm: Failed to load fresh mileage rule data:', error);
+          console.log('⚠️ MileageRuleForm: Falling back to STALE list data');
+          // Fallback to initial data if fresh fetch fails
+          const fallbackData = {
+            ...(initialData.id && { id: initialData.id }),
+            ...(initialData.version !== undefined && { version: initialData.version }),
+            code: initialData.code || '',
+            ruleName: initialData.ruleName || '',
+            description: initialData.description || '',
+            rulePeriod: initialData.rulePeriod || '',
+            activeFrom: initialData.activeFrom || '',
+            activeTo: initialData.activeTo || '',
+            details: initialData.details || []
+          };
+          setFormData(fallbackData);
+          setOriginalFormData(fallbackData);
+        }
+      } else if (initialData) {
+        // ✅ For creating new items, use the provided initial data
+        console.log('📝 MileageRuleForm: Using initial data for NEW item:', initialData);
+        const originalData = {
+          ...(initialData.id && { id: initialData.id }),
+          ...(initialData.version !== undefined && { version: initialData.version }),
+          code: initialData.code || '',
+          ruleName: initialData.ruleName || '',
+          description: initialData.description || '',
+          rulePeriod: initialData.rulePeriod || '',
+          activeFrom: initialData.activeFrom || '',
+          activeTo: initialData.activeTo || '',
+          details: initialData.details || []
+        };
+        setFormData(originalData);
+        setOriginalFormData(originalData);
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, fetchMileageRuleById]);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -280,20 +344,63 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
       }
     });
 
-    // Check for overlapping ranges
-    const sortedDetails = [...formData.details].sort((a, b) => (a.limitFrom || 0) - (b.limitFrom || 0));
-    for (let i = 0; i < sortedDetails.length - 1; i++) {
-      const current = sortedDetails[i];
-      const next = sortedDetails[i + 1];
-      
-      const currentTo = current.limitTo || Infinity;
-      const nextFrom = next.limitFrom || 0;
-      
-      if (currentTo > nextFrom) {
-        errors.push(`Overlapping ranges detected between rows`);
-        break;
+    // Check for overlapping ranges with time period consideration
+    // Two details can have overlapping limit ranges if their validity periods don't overlap
+    const checkTimeBasedOverlaps = () => {
+      for (let i = 0; i < formData.details.length; i++) {
+        for (let j = i + 1; j < formData.details.length; j++) {
+          const detail1 = formData.details[i];
+          const detail2 = formData.details[j];
+          
+          // Check if limit ranges overlap
+          const detail1From = detail1.limitFrom || 0;
+          const detail1To = detail1.limitTo || Infinity;
+          const detail2From = detail2.limitFrom || 0;
+          const detail2To = detail2.limitTo || Infinity;
+          
+          const rangesOverlap = !(detail1To <= detail2From || detail2To <= detail1From);
+          
+          if (rangesOverlap) {
+            // If ranges overlap, check if time periods also overlap
+            // Handle date parsing more robustly - skip validation if dates are invalid
+            let detail1ActiveFrom: Date, detail1ActiveTo: Date, detail2ActiveFrom: Date, detail2ActiveTo: Date;
+            
+            try {
+              detail1ActiveFrom = detail1.activeFrom ? new Date(detail1.activeFrom) : new Date('1900-01-01');
+              detail1ActiveTo = detail1.activeTo ? new Date(detail1.activeTo) : new Date('2099-12-31');
+              detail2ActiveFrom = detail2.activeFrom ? new Date(detail2.activeFrom) : new Date('1900-01-01');
+              detail2ActiveTo = detail2.activeTo ? new Date(detail2.activeTo) : new Date('2099-12-31');
+              
+              // Check if dates are valid
+              if (isNaN(detail1ActiveFrom.getTime()) || isNaN(detail1ActiveTo.getTime()) || 
+                  isNaN(detail2ActiveFrom.getTime()) || isNaN(detail2ActiveTo.getTime())) {
+                // If any date is invalid, skip time-based validation for this pair
+                // But still add a validation error about the invalid date format
+                const detail1Index = formData.details.indexOf(detail1) + 1;
+                const detail2Index = formData.details.indexOf(detail2) + 1;
+                errors.push(`Rows ${detail1Index} and ${detail2Index}: Cannot validate time overlap due to invalid date format. Please check date fields.`);
+                return;
+              }
+              
+              const timePeriodsOverlap = !(detail1ActiveTo <= detail2ActiveFrom || detail2ActiveTo <= detail1ActiveFrom);
+              
+              if (timePeriodsOverlap) {
+                const detail1Index = formData.details.indexOf(detail1) + 1;
+                const detail2Index = formData.details.indexOf(detail2) + 1;
+                errors.push(`Rows ${detail1Index} and ${detail2Index}: Overlapping limit ranges (${detail1From}-${detail1To === Infinity ? '∞' : detail1To} and ${detail2From}-${detail2To === Infinity ? '∞' : detail2To}) with overlapping validity periods`);
+              }
+            } catch (dateError) {
+              // Handle date parsing errors gracefully
+              const detail1Index = formData.details.indexOf(detail1) + 1;
+              const detail2Index = formData.details.indexOf(detail2) + 1;
+              errors.push(`Rows ${detail1Index} and ${detail2Index}: Invalid date format prevents validation`);
+            }
+          }
+        }
       }
-    }
+    };
+    
+    checkTimeBasedOverlaps();
 
     setValidationErrors(errors);
     return errors.length === 0;
@@ -482,6 +589,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
       
       console.log('🐛 Save process completed successfully');
 
+      // ✅ FIX: Call the onSubmit callback to notify parent and close form
+      await onSubmit(formDataWithOrderedDetails);
+
     } catch (error) {
       console.error('Error submitting form:', error);
     } finally {
@@ -655,8 +765,19 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({
                           <Input
                             type="number"
                             step="0.01"
-                            value={detail.rateAmount.toFixed(2)}
-                            onChange={(e) => updateDetail(index, 'rateAmount', parseFloat(e.target.value) || 0)}
+                            value={detail.rateAmount || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Allow empty string for better editing experience
+                              if (value === '') {
+                                updateDetail(index, 'rateAmount', 0);
+                              } else {
+                                const parsedValue = parseFloat(value);
+                                if (!isNaN(parsedValue)) {
+                                  updateDetail(index, 'rateAmount', parsedValue);
+                                }
+                              }
+                            }}
                             placeholder="0.00"
                             data-testid={`mileage-rule-form-detail-rate-amount-${index}`}
                           />

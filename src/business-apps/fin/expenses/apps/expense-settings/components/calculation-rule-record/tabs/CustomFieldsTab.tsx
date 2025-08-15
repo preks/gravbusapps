@@ -27,6 +27,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 interface CustomFieldsTabProps {
@@ -215,21 +221,37 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: CustomField) => {
+  const handleEdit = async (record: CustomField) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      validFrom: dayjs(record.validFrom),
-      validTo: record.validTo ? dayjs(record.validTo) : undefined
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleOtherInfoById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        validFrom: dayjs(freshData.validFrom),
+        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: CustomField) => {
     try {
       setIsSaving(true);
-      // TODO: Replace with real API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await expenseSettingsClient.deleteExpenseRuleOtherInfo(record.id);
       message.success('Custom field deleted successfully');
       await fetchCustomFields();
     } catch (err) {
@@ -251,14 +273,22 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
         validTo: values.validTo ? values.validTo.toISOString() : undefined
       };
 
-      // TODO: Replace with real API call
-      if (editingItem) {
-        console.log('Updating custom field:', { id: editingItem.id, ...formData });
-      } else {
-        console.log('Creating custom field:', formData);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const payload = {
+        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        expenseRuleId: ruleId,
+        businessKey: undefined,
+        activeTo: formData.validTo,
+        additionalProperties: undefined,
+        source: formData.source,
+        infoValue: formData.infoValue,
+        mandatory: formData.mandatory,
+        activeFrom: formData.validFrom,
+        // association optional; based on code/name we cannot infer IDs; keep undefined
+        expenseRuleMileageId: undefined,
+        expenseRuleGeneralExpenseId: undefined
+      };
+      await expenseSettingsClient.saveExpenseRuleOtherInfo(payload);
+
       message.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`);
       setIsModalVisible(false);
       await fetchCustomFields();

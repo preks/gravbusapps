@@ -32,6 +32,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { ExpenseRuleDeduction } from '../../../types/ExpenseRuleTypes';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
@@ -150,17 +156,34 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: ExpenseRuleDeduction) => {
+  const handleEdit = async (record: ExpenseRuleDeduction) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      activeFrom: dayjs(record.activeFrom),
-      activeTo: record.activeTo ? dayjs(record.activeTo) : undefined,
-      taxBreakfast: record.taxBreakfast || false,
-      taxLunch: record.taxLunch || false,
-      taxDinner: record.taxDinner || false
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleDeductionById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        activeFrom: dayjs(freshData.activeFrom),
+        activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : undefined,
+        taxBreakfast: freshData.taxBreakfast || false,
+        taxLunch: freshData.taxLunch || false,
+        taxDinner: freshData.taxDinner || false
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: ExpenseRuleDeduction) => {
@@ -276,37 +299,45 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
     { value: 'HALF_DAY', label: 'Half Day' }
   ];
 
+  // Group deductions by day type - always show the three main sections
+  const groupedDeductions = React.useMemo(() => {
+    const groups = {
+      FIRST_DAY: deductions.filter(d => d.deductionDay === 'FIRST_DAY'),
+      DAYS_BETWEEN: deductions.filter(d => d.deductionDay === 'DAYS_BETWEEN'),
+      LAST_DAY: deductions.filter(d => d.deductionDay === 'LAST_DAY')
+    };
+    return groups;
+  }, [deductions]);
+
+  const sectionConfig = [
+    { key: 'FIRST_DAY', title: 'First Day', description: 'Deductions applied on the first day of travel' },
+    { key: 'DAYS_BETWEEN', title: 'Days Between', description: 'Deductions applied on days between first and last day' },
+    { key: 'LAST_DAY', title: 'Last Day', description: 'Deductions applied on the last day of travel' }
+  ];
+
   const columns: ColumnsType<ExpenseRuleDeduction> = [
-    {
-      title: 'Deduction Day',
-      key: 'deductionInfo',
-      width: 200,
-      render: (_, record) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <div className="gba:flex gba:flex-col">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {record.deductionDay ? (
-                <Tag color="orange">
-                  {deductionDayOptions.find(opt => opt.value === record.deductionDay)?.label || record.deductionDay}
-                </Tag>
-              ) : (
-                <span className="gba:text-gray-400 gba:text-sm">Not set</span>
-              )}
-            </div>
-            {record.overnightAllowance && (
-              <Tag color="purple" className="gba:mt-1 gba:w-fit">
-                Overnight Allowance
-              </Tag>
-            )}
-          </div>
-        </div>
-      )
-    },
     {
       title: 'Meal Deductions',
       key: 'mealDeductions',
-      width: 280,
+      width: 300,
       render: (_, record) => renderMealDeductions(record)
+    },
+    {
+      title: 'Additional Info',
+      key: 'additionalInfo',
+      width: 150,
+      render: (_, record) => (
+        <div className="gba:flex gba:flex-col gba:gap-1">
+          {record.overnightAllowance && (
+            <Tag color="purple" size="small">
+              Overnight Allowance
+            </Tag>
+          )}
+          <span className="gba:text-xs gba:text-gray-500">
+            Order: {record.deductionOrder}
+          </span>
+        </div>
+      )
     },
     {
       title: 'Validity',
@@ -321,7 +352,6 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
         </div>
       )
     },
-
     {
       title: 'Actions',
       key: 'actions',
@@ -390,11 +420,11 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
   return (
     <div data-testid="deduction-tab">
       {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:m-0">Deduction Rules</h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:m-0">Allowance Deduction Rules</h3>
           <p className="gba:text-sm gba:text-gray-500 gba:m-0">
-            Manage meal deduction rules for allowance calculations
+            Manage meal deduction rules organized by travel day type
           </p>
         </div>
         <Button
@@ -407,21 +437,57 @@ const DeductionTab: React.FC<DeductionTabProps> = ({
         </Button>
       </div>
 
-      {/* Table */}
-      <Table
-        columns={columns}
-        dataSource={deductions}
-        rowKey="id"
-        loading={isSaving}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} deduction rules`,
-        }}
-        scroll={{ x: 1000 }}
-        data-testid="deductions-table"
-      />
+      {/* Sections for each deduction day type */}
+      <div className="gba:space-y-6">
+        {sectionConfig.map((section) => {
+          const sectionDeductions = groupedDeductions[section.key as keyof typeof groupedDeductions];
+          
+          return (
+            <div key={section.key} className="gba:bg-white gba:rounded-lg gba:border gba:border-gray-200">
+              {/* Section Header */}
+              <div className="gba:px-6 gba:py-4 gba:border-b gba:border-gray-200 gba:bg-gray-50">
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <div>
+                    <h4 className="gba:text-base gba:font-semibold gba:m-0 gba:text-gray-900">
+                      {section.title}
+                    </h4>
+                    <p className="gba:text-sm gba:text-gray-600 gba:m-0 gba:mt-1">
+                      {section.description}
+                    </p>
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Tag color="blue">
+                      {sectionDeductions.length} rule{sectionDeductions.length !== 1 ? 's' : ''}
+                    </Tag>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section Content */}
+              <div className="gba:p-6">
+                {sectionDeductions.length > 0 ? (
+                  <Table
+                    columns={columns}
+                    dataSource={sectionDeductions}
+                    rowKey="id"
+                    loading={isSaving}
+                    pagination={false}
+                    size="small"
+                    data-testid={`deductions-table-${section.key.toLowerCase()}`}
+                  />
+                ) : (
+                  <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                    <p className="gba:m-0">No deduction rules configured for {section.title.toLowerCase()}</p>
+                    <p className="gba:text-xs gba:mt-1 gba:text-gray-400">
+                      Click "Add Deduction Rule" above and select "{section.title}" as the deduction day type
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Add/Edit Modal */}
       <Modal

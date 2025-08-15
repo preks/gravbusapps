@@ -19,6 +19,7 @@ import {
   getRuleSourceOptions
 } from '../../types/ExpenseEnums';
 import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes';
+import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -46,11 +47,15 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
   isEditing = false,
   onSave,
   onCancel,
-  loading = false
+  loading = false,
+  accessToken
 }) => {
   const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ NEW: Hook for fetching fresh custom field data
+  const { fetchExpenseRuleOtherInfoById } = useGetExpenseRuleOtherInfoById({ accessToken } as BusinessAppContextProps);
 
   // Field type options
   const fieldTypeOptions = [
@@ -62,25 +67,50 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
     { value: 'PERCENTAGE', label: 'Percentage' }
   ];
 
-  // Initialize form with data
+  // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        fieldName: initialData.fieldName,
-        fieldValue: initialData.fieldValue,
-        fieldType: initialData.fieldType,
-        ruleSource: initialData.ruleSource,
-        fieldOrder: initialData.fieldOrder
-      });
-    } else {
-      // Set defaults for new custom field
-      form.setFieldsValue({
-        fieldType: 'TEXT',
-        fieldOrder: 1,
-        ruleSource: RuleSource.GENERAL_EXPENSE_RULE
-      });
-    }
-  }, [initialData, form]);
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        try {
+          const freshData = await fetchExpenseRuleOtherInfoById(initialData.id);
+          if (freshData) {
+            form.setFieldsValue({
+              fieldName: freshData.source || 'Custom Field',
+              fieldValue: freshData.infoValue,
+              fieldType: 'TEXT', // Default value - map from freshData if available
+              ruleSource: freshData.source || RuleSource.GENERAL_EXPENSE_RULE,
+              fieldOrder: 1 // Default value - map from freshData if available
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load fresh custom field data:', error);
+          // Continue with fallback to initial data
+        }
+      }
+      
+      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      if (initialData) {
+        form.setFieldsValue({
+          fieldName: initialData.fieldName,
+          fieldValue: initialData.fieldValue,
+          fieldType: initialData.fieldType,
+          ruleSource: initialData.ruleSource,
+          fieldOrder: initialData.fieldOrder
+        });
+      } else {
+        // Set defaults for new custom field
+        form.setFieldsValue({
+          fieldType: 'TEXT',
+          fieldOrder: 1,
+          ruleSource: RuleSource.GENERAL_EXPENSE_RULE
+        });
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleOtherInfoById]);
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);

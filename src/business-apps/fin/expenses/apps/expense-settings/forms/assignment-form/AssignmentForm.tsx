@@ -25,8 +25,15 @@ import {
 import { PiFloppyDisk, PiX, PiWarning, PiUser, PiBuilding, PiTree, PiMapPin } from 'react-icons/pi';
 import { SearchOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes';
+import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -83,6 +90,9 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
   const catalogClient = useCatalogManagerClient(accessToken);
   
+  // ✅ NEW: Hook for fetching fresh assignment data
+  const { fetchExpenseRuleAssignmentById } = useGetExpenseRuleAssignmentById({ accessToken } as BusinessAppContextProps);
+  
   // Selection hooks - pass the full context
   const context = { accessToken };
   const employeeSelection = useEmployeeSelection(context);
@@ -131,31 +141,66 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     loadCatalogs();
   }, [loadCatalogs]);
 
-  // Initialize form with data
+  // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        cascading: initialData.cascading,
-        applicants: initialData.applicants,
-        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : undefined,
-        activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : undefined,
-        expenseRuleId: initialData.expenseRuleId,
-        employeeId: initialData.employeeId,
-        companyId: initialData.companyId,
-        organizationalUnitId: initialData.organizationalUnitId,
-        siteLocationId: initialData.siteLocationId,
-        employmentTypeRef: initialData.employmentType?.id,
-        contractTypeRef: initialData.contractType?.id
-      });
-    } else {
-      // Set defaults for new assignment
-      form.setFieldsValue({
-        cascading: false,
-        applicants: false
-        // Leave dates empty by default (eternity)
-      });
-    }
-  }, [initialData, form]);
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        console.log('🔄 AssignmentForm: Fetching FRESH data for ID:', initialData.id);
+        try {
+          const freshData = await fetchExpenseRuleAssignmentById(initialData.id);
+          if (freshData) {
+            console.log('✅ AssignmentForm: Using FRESH data from API:', freshData);
+            form.setFieldsValue({
+              cascading: freshData.cascading,
+              applicants: freshData.applicants,
+              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom) : undefined,
+              activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : undefined,
+              expenseRuleId: freshData.expenseRuleId,
+              employeeId: freshData.employeeId,
+              companyId: freshData.companyId,
+              organizationalUnitId: freshData.organizationalUnitId,
+              siteLocationId: freshData.siteLocationId,
+              employmentTypeRef: freshData.employmentType?.id,
+              contractTypeRef: freshData.contractType?.id
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('❌ AssignmentForm: Failed to load fresh assignment data:', error);
+          console.log('⚠️ AssignmentForm: Falling back to STALE list data');
+          // Continue with fallback to initial data
+        }
+      }
+      
+      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      if (initialData) {
+        console.log('📝 AssignmentForm: Using initial data (could be stale list data or new item data):', initialData);
+        form.setFieldsValue({
+          cascading: initialData.cascading,
+          applicants: initialData.applicants,
+          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : undefined,
+          activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : undefined,
+          expenseRuleId: initialData.expenseRuleId,
+          employeeId: initialData.employeeId,
+          companyId: initialData.companyId,
+          organizationalUnitId: initialData.organizationalUnitId,
+          siteLocationId: initialData.siteLocationId,
+          employmentTypeRef: initialData.employmentType?.id,
+          contractTypeRef: initialData.contractType?.id
+        });
+      } else {
+        // Set defaults for new assignment
+        form.setFieldsValue({
+          cascading: false,
+          applicants: false
+          // Leave dates empty by default (eternity)
+        });
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleAssignmentById]);
 
   const handleSubmit = async () => {
     try {

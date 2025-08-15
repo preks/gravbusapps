@@ -1,5 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { message } from 'antd';
 import { 
   Table,
@@ -31,15 +37,17 @@ import {
   PiMapPin,
   PiCurrencyCircleDollar,
   PiCalendar,
-  PiPencil,
-  PiGlobe
+  PiGlobe,
+  PiArrowLeft
 } from 'react-icons/pi';
+import { ContextMenu, createEditAction } from '../ContextMenu';
 
 // Re-export the enhanced interface for external use
 export type { EnhancedTravelRegionRule as TravelRegionRule };
 
 export interface TravelRegionRulesListProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
+  onBackToNew?: () => void;
 }
 
 // Date formatting utility (consistent with other tables)
@@ -54,6 +62,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
   prefixDataTestId = '',
   accessToken,
+  onBackToNew,
   ...context
 }) => {
 
@@ -197,8 +206,20 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
           {/* Header */}
           <div className="gba:flex gba:justify-between gba:items-center">
             <div className="gba:flex gba:items-center gba:gap-4">
+              {onBackToNew && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBackToNew}
+                  className="gba:gap-2"
+                  data-testid={`${prefixDataTestId}-back-to-new-view-button`}
+                >
+                  <PiArrowLeft className="gba:h-4 gba:w-4" />
+                  Back to Travel Region Sets
+                </Button>
+              )}
               <h4 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:m-0">
-                {getTranslationFromI18nKeyAndLabel('expenseSettings.allowanceRegionRules.title', 'Allowance Region Rules')}
+                {getTranslationFromI18nKeyAndLabel('expenseSettings.allowanceRegionRules.title', 'Allowance Region Rules (Legacy View)')}
               </h4>
               <Badge variant="secondary">
                 {filteredData.length} items
@@ -261,18 +282,14 @@ const TravelRegionRulesList: React.FC<TravelRegionRulesListProps> = ({
                     }`}
                   >
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`${prefixDataTestId}-edit-allowance-region-rule-button-${rule.id}`}
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          handleEditRule(rule);
-                        }}
-                        title="Edit Allowance Region Rule"
-                      >
-                        <PiPencil className="gba:h-4 gba:w-4" />
-                      </Button>
+                      <div className="gba:flex gba:justify-center">
+                        <ContextMenu
+                          actions={[
+                            createEditAction(() => handleEditRule(rule))
+                          ]}
+                          triggerTestId={`${prefixDataTestId}-travel-region-rule-actions-${rule.id}`}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <strong>{rule.code}</strong>

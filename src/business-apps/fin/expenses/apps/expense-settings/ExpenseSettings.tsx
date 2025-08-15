@@ -81,10 +81,12 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('view', view);
     
-    // Clear rule record parameters if requested
+    // Clear rule record and tab parameters if requested
     if (clearRuleRecord) {
       urlParams.delete('ruleId');
       urlParams.delete('page');
+      urlParams.delete('tab');
+      urlParams.delete('subTab');
     }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;

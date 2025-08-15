@@ -9,6 +9,12 @@ import {
 } from '../../queries/MileageRuleQueries';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 const { Title, Text } = Typography;
 

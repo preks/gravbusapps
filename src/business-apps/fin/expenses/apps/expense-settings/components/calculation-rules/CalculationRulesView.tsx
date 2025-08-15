@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiFileText, PiUsers } from 'react-icons/pi';
 import CalculationRulesList from './CalculationRulesList';
+import CalculationRuleAssignmentList from './CalculationRuleAssignmentList';
 import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
 
 export interface CalculationRulesViewProps extends BusinessAppContextProps {
@@ -26,15 +27,14 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
   const {
     assignments,
     rules,
-    statistics,
     isLoading,
-    error,
     refetch,
     createAssignment,
     updateAssignment,
     deleteAssignment,
     validateAssignment,
-    searchAssignments
+    searchAssignments,
+    searchRules
   } = useExpenseSettingsIntegration(context);
 
   // Update URL when tab changes
@@ -113,22 +113,16 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
         <TabsContent value="rules" className="gba:mt-6">
           <CalculationRulesList
             {...context}
-            assignments={assignments}
             rules={rules}
             isLoading={isLoading}
-            onCreate={createAssignment}
-            onUpdate={updateAssignment}
-            onDelete={deleteAssignment}
-            onValidate={validateAssignment}
-            onSearch={searchAssignments}
             onRefresh={refetch}
-            showRules={true}
+            onSearch={searchRules}
             onNavigateToRule={handleNavigateToRule}
           />
         </TabsContent>
         
         <TabsContent value="assignments" className="gba:mt-6">
-          <CalculationRulesList
+          <CalculationRuleAssignmentList
             {...context}
             assignments={assignments}
             rules={rules}
@@ -139,7 +133,6 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
             onValidate={validateAssignment}
             onSearch={searchAssignments}
             onRefresh={refetch}
-            showRules={false}
             onNavigateToRule={handleNavigateToRule}
           />
         </TabsContent>

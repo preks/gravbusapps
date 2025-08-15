@@ -453,6 +453,478 @@ export const useGetExpenseRules = (context: BusinessAppContextProps) => {
   return { fetchExpenseRules };
 };
 
+// ✅ NEW: Individual item fetch queries for fresh data loading
+export const GET_MILEAGE_RULE_BY_ID = (mileageRuleId: string): string => {
+  return `
+    query GetMileageRuleById {
+      ExpenseRuleMileage(where: { id: { _eq: "${mileageRuleId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        code
+        name
+        reimbursable
+        taxCodeRef
+        taxValue
+        unitPrice
+        mileageOrder
+        activeFrom
+        activeTo
+        wageCode
+        businessKey
+        additionalProperties
+        expenseGroup {
+          id
+          code
+          value
+        }
+        measurementUnit {
+          id
+          code
+          value
+        }
+        mileageRule {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+export const GET_GENERAL_EXPENSE_BY_ID = (generalExpenseId: string): string => {
+  return `
+    query GetGeneralExpenseById {
+      ExpenseRuleGeneralExpense(where: { id: { _eq: "${generalExpenseId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        code
+        name
+        reimbursable
+        taxCodeRef
+        taxValue
+        activeFrom
+        activeTo
+        businessKey
+        additionalProperties
+        expenseGroup {
+          id
+          code
+          value
+        }
+      }
+    }
+  `;
+};
+
+export const GET_DEDUCTION_BY_ID = (deductionId: string): string => {
+  return `
+    query GetDeductionById {
+      ExpenseRuleDeduction(where: { id: { _eq: "${deductionId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        deductBreakfast
+        deductLunch
+        deductDinner
+        taxBreakfast
+        taxLunch
+        taxDinner
+        deductionDay
+        deductionOrder
+        overnightAllowance
+        activeFrom
+        activeTo
+        businessKey
+        additionalProperties
+      }
+    }
+  `;
+};
+
+// ✅ Hooks for fetching individual items
+export const useGetMileageRuleById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchMileageRuleById = useCallback(async (id: string) => {
+    const query = GET_MILEAGE_RULE_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleMileage: any[] }>(query);
+      return result.ExpenseRuleMileage?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching mileage rule by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchMileageRuleById };
+};
+
+export const useGetGeneralExpenseById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchGeneralExpenseById = useCallback(async (id: string) => {
+    const query = GET_GENERAL_EXPENSE_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleGeneralExpense: any[] }>(query);
+      return result.ExpenseRuleGeneralExpense?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching general expense by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchGeneralExpenseById };
+};
+
+export const useGetDeductionById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchDeductionById = useCallback(async (id: string) => {
+    const query = GET_DEDUCTION_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query);
+      return result.ExpenseRuleDeduction?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching deduction by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchDeductionById };
+};
+
+// ✅ NEW: Main entity queries for lists and forms
+export const GET_MILEAGE_RULE_STANDALONE_BY_ID = (mileageRuleId: string): string => {
+  return `
+    query GetMileageRuleById {
+      MileageRule(where: { id: { _eq: "${mileageRuleId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        code
+        name
+        activeFrom
+        activeTo
+        ruleOrder
+        rulePeriod
+        businessKey
+        additionalProperties
+        mileageRuleDetail(where: { isDeleted: { _eq: false } }, orderBy: { detailOrder: ASC }) {
+          id
+          version
+          limitFrom
+          limitTo
+          amount
+          detailOrder
+          activeFrom
+          activeTo
+          businessKey
+          additionalProperties
+        }
+      }
+    }
+  `;
+};
+
+export const GET_ALLOWANCE_REGION_RULE_BY_ID = (allowanceRegionRuleId: string): string => {
+  return `
+    query GetAllowanceRegionRuleById {
+      AllowanceRegionRule(where: { id: { _eq: "${allowanceRegionRuleId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        code
+        name
+        activeFrom
+        activeTo
+        ruleOrder
+        businessKey
+        additionalProperties
+        allowanceRegionRuleDetail(where: { isDeleted: { _eq: false } }) {
+          id
+          version
+          amount
+          activeFrom
+          activeTo
+          country {
+            id
+            code
+            value
+          }
+          currency {
+            id
+            code
+            value
+          }
+          businessKey
+          additionalProperties
+        }
+      }
+    }
+  `;
+};
+
+// ✅ NEW: Hooks for main entities
+export const useGetMileageRuleStandaloneById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchMileageRuleById = useCallback(async (id: string) => {
+    const query = GET_MILEAGE_RULE_STANDALONE_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ MileageRule: any[] }>(query);
+      return result.MileageRule?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching mileage rule by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchMileageRuleById };
+};
+
+export const useGetAllowanceRegionRuleById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchAllowanceRegionRuleById = useCallback(async (id: string) => {
+    const query = GET_ALLOWANCE_REGION_RULE_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ AllowanceRegionRule: any[] }>(query);
+      return result.AllowanceRegionRule?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching allowance region rule by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchAllowanceRegionRuleById };
+};
+
+export const GET_EXPENSE_RULE_ASSIGNMENT_BY_ID = (assignmentId: string): string => {
+  return `
+    query GetExpenseRuleAssignmentById {
+      ExpenseRuleAssignment(where: { id: { _eq: "${assignmentId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        cascading
+        applicants
+        activeFrom
+        activeTo
+        assignmentOrder
+        businessKey
+        additionalProperties
+        expenseRule {
+          id
+          code
+          name
+        }
+        employee {
+          id
+          firstName
+          lastName
+          displayName
+        }
+        company {
+          id
+          name
+        }
+        organizationalUnit {
+          id
+          name
+        }
+        siteLocation {
+          id
+          name
+        }
+        employmentType {
+          id
+          code
+          value
+        }
+        contractType {
+          id
+          code
+          value
+        }
+        employeeId
+        companyId
+        organizationalUnitId
+        siteLocationId
+        employmentTypeRef
+        contractTypeRef
+        expenseRuleId
+      }
+    }
+  `;
+};
+
+export const useGetExpenseRuleAssignmentById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchExpenseRuleAssignmentById = useCallback(async (id: string) => {
+    const query = GET_EXPENSE_RULE_ASSIGNMENT_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleAssignment: any[] }>(query);
+      return result.ExpenseRuleAssignment?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching expense rule assignment by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchExpenseRuleAssignmentById };
+};
+
+// ✅ NEW: Additional queries for remaining forms
+export const GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID = (allowanceCodeId: string): string => {
+  return `
+    query GetExpenseRuleAllowanceCodeById {
+      ExpenseRuleAllowanceCode(where: { id: { _eq: "${allowanceCodeId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        code
+        name
+        amount
+        abroad
+        calculation
+        calculationRef
+        codeOrder
+        activeFrom
+        activeTo
+        businessKey
+        additionalProperties
+        expenseGroup {
+          id
+          code
+          value
+        }
+        expenseRule {
+          id
+          code
+          name
+        }
+        expenseRuleId
+        expenseGroupRef
+      }
+    }
+  `;
+};
+
+export const GET_EXPENSE_RULE_DEDUCTION_BY_ID = (deductionId: string): string => {
+  return `
+    query GetExpenseRuleDeductionById {
+      ExpenseRuleDeduction(where: { id: { _eq: "${deductionId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        deductBreakfast
+        deductLunch
+        deductDinner
+        taxBreakfast
+        taxLunch
+        taxDinner
+        deductionDay
+        deductionOrder
+        overnightAllowance
+        activeFrom
+        activeTo
+        businessKey
+        additionalProperties
+        expenseRule {
+          id
+          code
+          name
+        }
+        expenseRuleId
+      }
+    }
+  `;
+};
+
+export const GET_EXPENSE_RULE_OTHER_INFO_BY_ID = (otherInfoId: string): string => {
+  return `
+    query GetExpenseRuleOtherInfoById {
+      ExpenseRuleOtherInfo(where: { id: { _eq: "${otherInfoId}" }, isDeleted: { _eq: false } }) {
+        id
+        version
+        source
+        infoValue
+        mandatory
+        activeFrom
+        activeTo
+        businessKey
+        additionalProperties
+        expenseRule {
+          id
+          code
+          name
+        }
+        expenseRuleId
+        expenseRuleGeneralExpense {
+          id
+          code
+          name
+        }
+        expenseRuleGeneralExpenseId
+        expenseRuleMileage {
+          id
+          code
+          name
+        }
+        expenseRuleMileageId
+      }
+    }
+  `;
+};
+
+// ✅ NEW: Hooks for the remaining entities
+export const useGetExpenseRuleAllowanceCodeById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchExpenseRuleAllowanceCodeById = useCallback(async (id: string) => {
+    const query = GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleAllowanceCode: any[] }>(query);
+      return result.ExpenseRuleAllowanceCode?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching expense rule allowance code by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchExpenseRuleAllowanceCodeById };
+};
+
+export const useGetExpenseRuleDeductionById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchExpenseRuleDeductionById = useCallback(async (id: string) => {
+    const query = GET_EXPENSE_RULE_DEDUCTION_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query);
+      return result.ExpenseRuleDeduction?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching expense rule deduction by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchExpenseRuleDeductionById };
+};
+
+export const useGetExpenseRuleOtherInfoById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchExpenseRuleOtherInfoById = useCallback(async (id: string) => {
+    const query = GET_EXPENSE_RULE_OTHER_INFO_BY_ID(id);
+    try {
+      const result = await graphqlClient.request<{ ExpenseRuleOtherInfo: any[] }>(query);
+      return result.ExpenseRuleOtherInfo?.[0] || null;
+    } catch (error) {
+      console.error('Error fetching expense rule other info by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchExpenseRuleOtherInfoById };
+};
+
 export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
   return `
     query GetExpenseRuleById {

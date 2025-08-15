@@ -50,6 +50,7 @@ export interface UseExpenseSettingsIntegrationResult {
   // Utility functions
   refetch: () => Promise<void>;
   searchAssignments: (params: { search?: string; filters?: ExpenseRuleAssignmentFilters }) => Promise<void>;
+  searchRules: (params: { search?: string }) => Promise<void>;
 }
 
 export const useExpenseSettingsIntegration = (context: BusinessAppContextProps): UseExpenseSettingsIntegrationResult => {
@@ -200,6 +201,29 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
       setIsAssignmentsLoading(false);
     }
   }, [context.accessToken, fetchExpenseRuleAssignments, transformAssignments]);
+  
+  // Search rules
+  const searchRules = useCallback(async (params: { search?: string }) => {
+    if (!context.accessToken) return;
+    
+    setIsRulesLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchExpenseRules({
+        search: params.search,
+        limit: 100
+      });
+      
+      setRules(response.ExpenseRule || []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Search failed';
+      setError(errorMessage);
+      console.error('Error searching rules:', err);
+    } finally {
+      setIsRulesLoading(false);
+    }
+  }, [context.accessToken, fetchExpenseRules]);
   
   // CRUD Operations
   const createAssignment = useCallback(async (data: SaveExpenseRuleAssignmentInput) => {
@@ -379,6 +403,7 @@ export const useExpenseSettingsIntegration = (context: BusinessAppContextProps):
     
     // Utility functions
     refetch: loadData,
-    searchAssignments
+    searchAssignments,
+    searchRules
   };
 }; 

@@ -19,6 +19,7 @@ import {
   getDeductionDayOptions
 } from '../../types/ExpenseEnums';
 import { ExpenseRuleDeduction } from '../../types/ExpenseRuleTypes';
+import { useGetExpenseRuleDeductionById } from '../../queries/ExpenseRuleQueries';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -46,35 +47,65 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   isEditing = false,
   onSave,
   onCancel,
-  loading = false
+  loading = false,
+  accessToken
 }) => {
   const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize form with data
+  // ✅ NEW: Hook for fetching fresh deduction data
+  const { fetchExpenseRuleDeductionById } = useGetExpenseRuleDeductionById({ accessToken } as BusinessAppContextProps);
+
+  // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        deductBreakfast: initialData.deductBreakfast,
-        deductLunch: initialData.deductLunch,
-        deductDinner: initialData.deductDinner,
-        deductionDay: initialData.deductionDay,
-        deductionOrder: initialData.deductionOrder,
-        overnightAllowance: initialData.overnightAllowance
-      });
-    } else {
-      // Set defaults for new deduction
-      form.setFieldsValue({
-        deductBreakfast: false,
-        deductLunch: false,
-        deductDinner: false,
-        deductionOrder: 1,
-        overnightAllowance: false,
-        deductionDay: DeductionDay.FIRST_DAY
-      });
-    }
-  }, [initialData, form]);
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        try {
+          const freshData = await fetchExpenseRuleDeductionById(initialData.id);
+          if (freshData) {
+            form.setFieldsValue({
+              deductBreakfast: freshData.deductBreakfast,
+              deductLunch: freshData.deductLunch,
+              deductDinner: freshData.deductDinner,
+              deductionDay: freshData.deductionDay,
+              deductionOrder: freshData.deductionOrder,
+              overnightAllowance: freshData.overnightAllowance
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load fresh deduction data:', error);
+          // Continue with fallback to initial data
+        }
+      }
+      
+      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      if (initialData) {
+        form.setFieldsValue({
+          deductBreakfast: initialData.deductBreakfast,
+          deductLunch: initialData.deductLunch,
+          deductDinner: initialData.deductDinner,
+          deductionDay: initialData.deductionDay,
+          deductionOrder: initialData.deductionOrder,
+          overnightAllowance: initialData.overnightAllowance
+        });
+      } else {
+        // Set defaults for new deduction
+        form.setFieldsValue({
+          deductBreakfast: false,
+          deductLunch: false,
+          deductDinner: false,
+          deductionOrder: 1,
+          overnightAllowance: false,
+          deductionDay: DeductionDay.FIRST_DAY
+        });
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleDeductionById]);
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { 
   Button, 
   Typography, 
@@ -23,6 +24,12 @@ import {
   PiCheckCircle
 } from 'react-icons/pi';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 // Tab components (these would be separate modules in a full implementation)
 import GeneralExpensesTab from './tabs/GeneralExpensesTab';
@@ -32,9 +39,16 @@ import AllowanceCodeTab from './tabs/AllowanceCodeTab';
 import AllowanceSetupTab from './tabs/AllowanceSetupTab';
 import DeductionTab from './tabs/DeductionTab';
 import CustomFieldsTab from './tabs/CustomFieldsTab';
+import OtherCalculationTab from './tabs/OtherCalculationTab';
 
 const { Title } = Typography;
 const { Option } = Select;
+
+interface CatalogOption {
+  id: string;
+  value: string;
+  code: string;
+}
 
 interface CalculationRuleRecordProps extends BusinessAppContextProps {
   ruleId: string;
@@ -87,11 +101,7 @@ interface ExpenseRuleFlag {
   version?: number;
 }
 
-interface Country {
-  id: string;
-  value: string;
-  code: string;
-}
+
 
 const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   ruleId,
@@ -103,18 +113,73 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   const [form] = Form.useForm();
   const [ruleDetails, setRuleDetails] = useState<CalculationRuleDetails | null>(null);
   const [ruleFlags, setRuleFlags] = useState<ExpenseRuleFlag[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('general');
+  // Tab and sub-tab management with query parameters
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const validTabs = ['general', 'expenses', 'mileage', 'allowance', 'other-calculation', 'custom-fields'];
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+  };
+
+  const getInitialSubTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subTabFromUrl = urlParams.get('subTab');
+    const validSubTabs = ['allowance-period', 'allowance-code', 'allowance-setup', 'allowance-deduction'];
+    return subTabFromUrl && validSubTabs.includes(subTabFromUrl) ? subTabFromUrl : 'allowance-period';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+  const [activeSubTab, setActiveSubTab] = useState(getInitialSubTab());
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Catalog data
+  const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([]);
+  const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
+  const [countries, setCountries] = useState<CatalogOption[]>([]);
+  const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   // Form field change tracking
   const [_formValues, setFormValues] = useState<any>({});
 
+  // URL update functions for tab navigation
+  const updateUrl = (newTab?: string, newSubTab?: string) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (newTab !== undefined) {
+      urlParams.set('tab', newTab);
+    }
+    
+    if (newSubTab !== undefined) {
+      if (newTab === 'allowance' || activeTab === 'allowance') {
+        urlParams.set('subTab', newSubTab);
+      } else {
+        // Clear subTab if not on allowance tab
+        urlParams.delete('subTab');
+      }
+    }
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    updateUrl(tab, tab === 'allowance' ? activeSubTab : undefined);
+  };
+
+  const handleSubTabChange = (subTab: string) => {
+    setActiveSubTab(subTab);
+    updateUrl(undefined, subTab);
+  };
+
   // Use the GraphQL hook for fetching expense rule data
   const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context });
+  
+  // Catalog client for loading calculation types and currencies
+  const catalogClient = useCatalogManagerClient(accessToken);
 
   const loadRuleDetails = useCallback(async () => {
     setIsLoading(true);
@@ -186,16 +251,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         }
       ];
 
-      const mockCountries: Country[] = [
-        { id: 'Country:v1:RO', value: 'Romania', code: 'RO' },
-        { id: 'Country:v1:DE', value: 'Germany', code: 'DE' },
-        { id: 'Country:v1:FR', value: 'France', code: 'FR' },
-        { id: 'Country:v1:AT', value: 'Austria', code: 'AT' }
-      ];
-      
       setRuleDetails(ruleDetails);
       setRuleFlags(mockFlags);
-      setCountries(mockCountries);
 
       // Initialize form values
       const initialValues = {
@@ -235,11 +292,79 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     }
   }, [ruleId, form, fetchExpenseRuleById]);
 
+  // Load catalog data for calculation types, currencies, and countries
+  const loadCatalogData = useCallback(async () => {
+    setCatalogsLoading(true);
+    try {
+      const [calculationTypesRes, currenciesRes, countriesRes] = await Promise.all([
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'ExpenseCalculationType', version: 'v1' },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        ),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Currency', version: 'v1' },
+          { limit: 100, offset: 0, returnTotalRecords: true }
+        ),
+        catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
+        )
+      ]);
+
+      setCalculationTypes(calculationTypesRes.data.map((item: any) => ({
+        id: item.id,
+        value: item.value,
+        code: item.code
+      })));
+
+      setCurrencies(currenciesRes.data.map((item: any) => ({
+        id: item.id,
+        value: item.value,
+        code: item.code
+      })));
+
+      setCountries(countriesRes.data.map((item: any) => ({
+        id: item.id,
+        value: item.value,
+        code: item.code
+      })));
+
+    } catch (error) {
+      console.error('Error loading catalog data:', error);
+    } finally {
+      setCatalogsLoading(false);
+    }
+  }, [catalogClient]);
+
   useEffect(() => {
     if (ruleId && accessToken) {
       loadRuleDetails();
     }
   }, [ruleId, accessToken, loadRuleDetails]);
+
+  useEffect(() => {
+    if (accessToken) {
+      loadCatalogData();
+    }
+  }, [accessToken, loadCatalogData]);
+
+  // Ensure URL always has tab parameter and handle browser navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('tab')) {
+      updateUrl(activeTab, activeTab === 'allowance' ? activeSubTab : undefined);
+    }
+
+    const handlePopState = () => {
+      const newTab = getInitialTab();
+      const newSubTab = getInitialSubTab();
+      setActiveTab(newTab);
+      setActiveSubTab(newSubTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeTab, activeSubTab]);
 
   const handleFormChange = (_changedFields: any, allValues: any) => {
     setFormValues(allValues);
@@ -400,7 +525,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       <div className="gba:flex-1">
         <Tabs 
           activeKey={activeTab} 
-          onChange={setActiveTab}
+          onChange={handleTabChange}
           data-testid="calculation-rule-record-tabs"
           items={[
             {
@@ -490,9 +615,16 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           label="Calculation Type"
                           data-testid="rule-calculation-type-select"
                         >
-                          <Select placeholder="Select calculation type">
-                            <Option value="CalculationType:v1:TIME_INTERVAL">Time Interval</Option>
-                            <Option value="CalculationType:v1:CALENDAR_DAYS">Calendar Days</Option>
+                          <Select 
+                            placeholder="Select calculation type"
+                            loading={catalogsLoading}
+                            disabled={catalogsLoading}
+                          >
+                            {calculationTypes.map(type => (
+                              <Option key={type.id} value={type.id}>
+                                {type.value}
+                              </Option>
+                            ))}
                           </Select>
                         </Form.Item>
                       </Col>
@@ -504,10 +636,16 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                           label="Currency"
                           data-testid="rule-currency-select"
                         >
-                          <Select placeholder="Select currency">
-                            <Option value="Currency:v1:EUR">EUR - Euro</Option>
-                            <Option value="Currency:v1:USD">USD - US Dollar</Option>
-                            <Option value="Currency:v1:RON">RON - Romanian Leu</Option>
+                          <Select 
+                            placeholder="Select currency"
+                            loading={catalogsLoading}
+                            disabled={catalogsLoading}
+                          >
+                            {currencies.map(currency => (
+                              <Option key={currency.id} value={currency.id}>
+                                {currency.code} - {currency.value}
+                              </Option>
+                            ))}
                           </Select>
                         </Form.Item>
                       </Col>
@@ -561,6 +699,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                               placeholder="Select home country"
                               showSearch
                               optionFilterProp="children"
+                              loading={catalogsLoading}
+                              disabled={catalogsLoading}
                             >
                               {countries.map(country => (
                                 <Option key={country.id} value={country.id}>
@@ -680,24 +820,74 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
               children: <MileageRulesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
             },
             {
-              key: 'allowance-period',
-              label: 'Allowance Period',
-              children: <AllowancePeriodTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+              key: 'allowance',
+              label: 'Allowance',
+              children: (
+                <div data-testid="allowance-tab-container" className="gba:p-2">
+                  <Tabs
+                    activeKey={activeSubTab}
+                    onChange={handleSubTabChange}
+                    data-testid="allowance-subtabs"
+                    items={[
+                      {
+                        key: 'allowance-period',
+                        label: 'Allowance Period',
+                        children: (
+                          <AllowancePeriodTab
+                            ruleId={ruleId}
+                            accessToken={accessToken}
+                            activeFrom={ruleDetails.activeFrom}
+                          />
+                        )
+                      },
+                      {
+                        key: 'allowance-code',
+                        label: 'Allowance Code',
+                        children: (
+                          <AllowanceCodeTab
+                            ruleId={ruleId}
+                            accessToken={accessToken}
+                            activeFrom={ruleDetails.activeFrom}
+                          />
+                        )
+                      },
+                      {
+                        key: 'allowance-setup',
+                        label: 'Allowance Setup',
+                        children: (
+                          <AllowanceSetupTab
+                            ruleId={ruleId}
+                            accessToken={accessToken}
+                            activeFrom={ruleDetails.activeFrom}
+                          />
+                        )
+                      },
+                      {
+                        key: 'allowance-deduction',
+                        label: 'Allowance Deduction',
+                        children: (
+                          <DeductionTab
+                            ruleId={ruleId}
+                            accessToken={accessToken}
+                            activeFrom={ruleDetails.activeFrom}
+                          />
+                        )
+                      }
+                    ]}
+                  />
+                </div>
+              )
             },
             {
-              key: 'allowance-code',
-              label: 'Allowance Code',
-              children: <AllowanceCodeTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            },
-            {
-              key: 'allowance-setup',
-              label: 'Allowance Setup',
-              children: <AllowanceSetupTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            },
-            {
-              key: 'deduction',
-              label: 'Deduction',
-              children: <DeductionTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+              key: 'other-calculation',
+              label: 'Other Calculation',
+              children: (
+                <OtherCalculationTab
+                  ruleId={ruleId}
+                  accessToken={accessToken}
+                  activeFrom={ruleDetails.activeFrom}
+                />
+              )
             },
             {
               key: 'custom-fields',

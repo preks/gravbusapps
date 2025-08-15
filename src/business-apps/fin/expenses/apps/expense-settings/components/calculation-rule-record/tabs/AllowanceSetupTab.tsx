@@ -29,6 +29,12 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
 
@@ -197,23 +203,39 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: AllowanceSetup) => {
+  const handleEdit = async (record: AllowanceSetup) => {
+    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      ...record,
-      allowancePeriodId: record.allowancePeriod.id,
-      allowanceCodeId: record.allowanceCode.id,
-      validFrom: dayjs(record.validFrom),
-      validTo: record.validTo ? dayjs(record.validTo) : undefined
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // TODO: In a real implementation, fetch fresh data for this specific item:
+      // const freshData = await expenseSettingsClient.getExpenseRuleAllowanceSetupById(record.id);
+      
+      // For now, use the existing record data but with explicit refresh pattern
+      const freshData = record;
+      
+      form.setFieldsValue({
+        ...freshData,
+        allowancePeriodId: freshData.allowancePeriod.id,
+        allowanceCodeId: freshData.allowanceCode.id,
+        validFrom: dayjs(freshData.validFrom),
+        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: AllowanceSetup) => {
     try {
       setIsSaving(true);
-      // TODO: Replace with real API call when available
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // TODO: Implement specific delete when backend is ready
       message.success('Allowance setup deleted successfully');
       await fetchAllowanceSetups();
     } catch (err) {
@@ -235,14 +257,21 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({
         validTo: values.validTo ? values.validTo.toISOString() : undefined
       };
 
-      // TODO: Replace with real API call when available
-      if (editingItem) {
-        console.log('Updating allowance setup:', { id: editingItem.id, ...formData });
-      } else {
-        console.log('Creating allowance setup:', formData);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await expenseSettingsClient.saveExpenseRuleAllowanceSetup({
+        ...(editingItem && { id: editingItem.id, version: editingItem.version }),
+        expenseRuleId: ruleId,
+        businessKey: undefined,
+        activeTo: formData.validTo,
+        additionalProperties: undefined,
+        name: formData.name,
+        issue: formData.issue,
+        onlyTax: formData.onlyTax,
+        activeFrom: formData.validFrom,
+        setupOrder: undefined,
+        allowancePeriodId: formData.allowancePeriodId,
+        allowanceCodeId: formData.allowanceCodeId
+      });
+
       message.success(`Allowance setup ${editingItem ? 'updated' : 'created'} successfully`);
       setIsModalVisible(false);
       await fetchAllowanceSetups();

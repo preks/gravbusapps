@@ -3,6 +3,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetMileageRulesData, MileageRuleData, MileageRuleQueryVariables, useGetCalculationRuleUsage } from '../queries/MileageRuleQueries';
 import { getMileageRulePeriodLabel } from '../types/ExpenseEnums';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 export interface EnhancedMileageRule {
   id: string;

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
+import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries';
 import { 
   Form, 
   Input, 
@@ -19,6 +20,12 @@ import {
 } from 'antd';
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -71,6 +78,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // ✅ NEW: Hook for fetching fresh calculation rule data
+  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context } as BusinessAppContextProps);
+  
   // Catalog data
   const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([]);
   const [countries, setCountries] = useState<CatalogOption[]>([]);
@@ -97,7 +107,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         ),
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Country', version: 'v1' },
-          { limit: 200, offset: 0, returnTotalRecords: true }
+          { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
         ),
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Currency', version: 'v1' },
@@ -136,22 +146,63 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
     }
   }, [accessToken, loadCatalogData]);
 
-  // Initialize form with data
+  // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        ...initialData,
-        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
-        activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
-      });
-    } else {
-      // Set default values for new rule
-      form.setFieldsValue({
-        deductionLimit: false,
-        activeFrom: dayjs(),
-      });
-    }
-  }, [initialData, form]);
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        console.log('🔄 CalculationRuleForm: Fetching FRESH data for ID:', initialData.id);
+        try {
+          const freshData = await fetchExpenseRuleById(initialData.id);
+          if (freshData) {
+            console.log('✅ CalculationRuleForm: Using FRESH data from API:', freshData);
+            form.setFieldsValue({
+              code: freshData.code,
+              name: freshData.name,
+              description: freshData.name, // Use name as description fallback
+              standard: freshData.standard,
+              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom) : null,
+              activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : null,
+              deductionLimit: freshData.deductionLimit,
+              useLastCountry: freshData.useLastCountry,
+              useSingleCurrency: freshData.useSingleCurrency,
+              taxesCode: freshData.taxesCode,
+              nonpayableCode: freshData.nonpayableCode,
+              advancePaymentCode: freshData.advancePaymentCode,
+              calculationTypeRef: freshData.calculationType?.id,
+              countryRef: freshData.country?.id,
+              currencyRef: freshData.currency?.id,
+            });
+          }
+        } catch (error) {
+          console.error('❌ CalculationRuleForm: Failed to load fresh calculation rule data:', error);
+          console.log('⚠️ CalculationRuleForm: Falling back to STALE list data');
+          // Fallback to initial data if fresh fetch fails
+          form.setFieldsValue({
+            ...initialData,
+            activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
+            activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
+          });
+        }
+      } else if (initialData) {
+        // ✅ For creating new items, use the provided initial data
+        console.log('📝 CalculationRuleForm: Using initial data for NEW item:', initialData);
+        form.setFieldsValue({
+          ...initialData,
+          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
+          activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
+        });
+      } else {
+        // Set default values for new rule
+        form.setFieldsValue({
+          deductionLimit: false,
+          activeFrom: dayjs(),
+        });
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleById]);
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);
@@ -313,7 +364,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 >
                   {calculationTypes.map(type => (
                     <Option key={type.id} value={type.id}>
-                      {type.value} {type.code && `(${type.code})`}
+                      {type.value}
                     </Option>
                   ))}
                 </Select>

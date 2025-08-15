@@ -31,9 +31,17 @@ import {
 } from 'react-icons/pi';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { ExpenseRuleMileage, ExpenseGroupWithTranslations, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
+import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries';
 
 const { Option } = Select;
 
@@ -62,19 +70,57 @@ interface MileageRuleFormData {
   version?: number;
 }
 
+interface TaxCodeOption {
+  id: string;
+  value: string;
+  code: string;
+}
+
 const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
   ruleId,
   accessToken,
   activeFrom
 }) => {
+  const graphqlClient = useGraphQLClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken);
   const [mileageRules, setMileageRules] = useState<ExpenseRuleMileage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  
+  // ✅ NEW: Hook for fetching individual mileage rules
+  const { fetchMileageRuleById } = useGetMileageRuleById({ accessToken } as any);
+  
+  // ✅ NEW: TaxCode catalog state
+  const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([]);
+  const [catalogsLoading, setCatalogsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<ExpenseRuleMileage | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [form] = Form.useForm();
-  const graphqlClient = useGraphQLClient(accessToken);
+
+  // Set up client
+  expenseSettingsClient.setAccessToken(accessToken);
+
+  // ✅ NEW: Load TaxCode catalog
+  const loadTaxCodes = useCallback(async () => {
+    setCatalogsLoading(true);
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'TaxCode', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
+      );
+      
+      setTaxCodes(response.data.map((item: any) => ({
+        id: item.id,
+        value: item.value,
+        code: item.code
+      })));
+    } catch (error) {
+      console.error('Error loading TaxCode catalog:', error);
+    } finally {
+      setCatalogsLoading(false);
+    }
+  }, [catalogClient]);
 
   const fetchMileageRules = useCallback(async () => {
     setIsLoading(true);
@@ -87,7 +133,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
             id
             code
             name
-            expenseRuleMileage(where: { isDeleted: { _eq: false } }, orderBy: { mileageOrder: ASC }) {
+            expenseRuleMileage(where: { isDeleted: { _eq: false } }, orderBy: { code: ASC }) {
               id
               code
               name
@@ -95,7 +141,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
               taxCodeRef
               taxValue
               unitPrice
-              mileageOrder
               activeFrom
               activeTo
               version
@@ -149,8 +194,9 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchMileageRules();
+      loadTaxCodes();
     }
-  }, [ruleId, accessToken, fetchMileageRules]);
+  }, [ruleId, accessToken, fetchMileageRules, loadTaxCodes]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -159,30 +205,42 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
       activeFrom: dayjs(activeFrom),
       reimbursable: true,
       taxValue: 0,
-      unitPrice: 0,
-      mileageOrder: mileageRules.length + 1
+      unitPrice: 0
     });
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: ExpenseRuleMileage) => {
+  const handleEdit = async (record: ExpenseRuleMileage) => {
+    // ✅ FIXED: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      code: record.code,
-      name: record.name,
-      reimbursable: record.reimbursable,
-      taxCodeRef: record.taxCodeRef,
-      taxValue: record.taxValue,
-      unitPrice: record.unitPrice,
-      mileageOrder: record.mileageOrder,
-      activeFrom: dayjs(record.activeFrom),
-      activeTo: record.activeTo ? dayjs(record.activeTo) : undefined,
-      wageCode: record.wageCode,
-      expenseGroupRef: record.expenseGroup?.id,
-      measurementUnitRef: record.measurementUnit?.id,
-      mileageRuleId: record.mileageRule?.id
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // ✅ NEW: Fetch fresh data for this specific item
+      const freshData = await fetchMileageRuleById(record.id);
+      
+      form.setFieldsValue({
+        code: freshData.code,
+        name: freshData.name,
+        reimbursable: freshData.reimbursable,
+        taxCodeRef: freshData.taxCodeRef,
+        taxValue: freshData.taxValue,
+        unitPrice: freshData.unitPrice,
+        activeFrom: dayjs(freshData.activeFrom),
+        activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : undefined,
+        wageCode: freshData.wageCode,
+        expenseGroupRef: freshData.expenseGroup?.id,
+        measurementUnitRef: freshData.measurementUnit?.id,
+        mileageRuleId: freshData.mileageRule?.id
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: ExpenseRuleMileage) => {
@@ -213,13 +271,14 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
         taxCodeRef: values.taxCodeRef,
         taxValue: values.taxValue,
         unitPrice: values.unitPrice,
-        mileageOrder: values.mileageOrder,
         activeFrom: values.activeFrom.toISOString(),
         activeTo: values.activeTo ? values.activeTo.toISOString() : undefined,
         wageCode: values.wageCode,
         expenseGroupRef: values.expenseGroupRef,
         measurementUnitRef: values.measurementUnitRef,
-        mileageRuleId: values.mileageRuleId
+        mileageRuleId: values.mileageRuleId,
+        additionalProperties: undefined,
+        businessKey: undefined
       };
 
       await expenseSettingsClient.saveExpenseRuleMileage(saveData);
@@ -292,7 +351,13 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
   const formatTaxCode = (taxCodeRef?: string): string => {
     if (!taxCodeRef) return 'Not set';
     
-    // Extract the actual tax code from the reference
+    // Find the tax code in the loaded catalog
+    const taxCode = taxCodes.find(tc => tc.id === taxCodeRef);
+    if (taxCode) {
+      return taxCode.code;
+    }
+    
+    // Fallback: Extract the actual tax code from the reference
     // "TaxCode:v1:V00" -> "V00"
     const parts = taxCodeRef.split(':');
     return parts.length >= 3 ? parts[2] : taxCodeRef;
@@ -599,12 +664,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
               />
             </Form.Item>
 
-            <Form.Item
-              name="mileageOrder"
-              label="Order"
-            >
-              <InputNumber min={1} style={{ width: '100%' }} />
-            </Form.Item>
+
           </div>
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -612,7 +672,19 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({
               name="taxCodeRef"
               label="Tax Code"
             >
-              <Input placeholder="e.g., TaxCode:v1:V00" />
+              <Select 
+                placeholder="Select tax code"
+                showSearch
+                optionFilterProp="children"
+                loading={catalogsLoading}
+                disabled={catalogsLoading}
+              >
+                {taxCodes.map(taxCode => (
+                  <Option key={taxCode.id} value={taxCode.id}>
+                    {taxCode.code} - {taxCode.value}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
 
             <Form.Item

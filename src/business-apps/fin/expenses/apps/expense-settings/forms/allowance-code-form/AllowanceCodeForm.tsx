@@ -23,6 +23,7 @@ import {
   convertAbroadToTravelLocation
 } from '../../types/ExpenseEnums';
 import { ExpenseRuleAllowanceCode } from '../../types/ExpenseRuleTypes';
+import { useGetExpenseRuleAllowanceCodeById } from '../../queries/ExpenseRuleQueries';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -50,32 +51,62 @@ const AllowanceCodeForm: React.FC<AllowanceCodeFormProps> = ({
   isEditing = false,
   onSave,
   onCancel,
-  loading = false
+  loading = false,
+  accessToken
 }) => {
   const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize form with data
+  // ✅ NEW: Hook for fetching fresh allowance code data
+  const { fetchExpenseRuleAllowanceCodeById } = useGetExpenseRuleAllowanceCodeById({ accessToken } as BusinessAppContextProps);
+
+  // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
-    if (initialData) {
-      form.setFieldsValue({
-        code: initialData.code,
-        amount: initialData.amount,
-        travelLocation: convertAbroadToTravelLocation(initialData.abroad),
-        allowanceType: initialData.allowanceType,
-        calculation: initialData.calculation,
-        codeOrder: initialData.codeOrder || 1
-      });
-    } else {
-      // Set defaults for new allowance code
-      form.setFieldsValue({
-        amount: 0,
-        codeOrder: 1,
-        travelLocation: TravelLocation.BOTH
-      });
-    }
-  }, [initialData, form]);
+    const loadData = async () => {
+      if (isEditing && initialData?.id) {
+        // ✅ NEW: For editing, fetch fresh data from the server
+        try {
+          const freshData = await fetchExpenseRuleAllowanceCodeById(initialData.id);
+          if (freshData) {
+            form.setFieldsValue({
+              code: freshData.code,
+              amount: freshData.amount,
+              travelLocation: convertAbroadToTravelLocation(freshData.abroad),
+              allowanceType: freshData.allowanceType,
+              calculation: freshData.calculation,
+              codeOrder: freshData.codeOrder || 1
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load fresh allowance code data:', error);
+          // Continue with fallback to initial data
+        }
+      }
+      
+      // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
+      if (initialData) {
+        form.setFieldsValue({
+          code: initialData.code,
+          amount: initialData.amount,
+          travelLocation: convertAbroadToTravelLocation(initialData.abroad),
+          allowanceType: initialData.allowanceType,
+          calculation: initialData.calculation,
+          codeOrder: initialData.codeOrder || 1
+        });
+      } else {
+        // Set defaults for new allowance code
+        form.setFieldsValue({
+          amount: 0,
+          codeOrder: 1,
+          travelLocation: TravelLocation.BOTH
+        });
+      }
+    };
+
+    loadData();
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleAllowanceCodeById]);
 
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);

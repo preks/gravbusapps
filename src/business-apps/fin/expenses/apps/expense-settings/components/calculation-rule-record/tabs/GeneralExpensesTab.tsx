@@ -19,17 +19,24 @@ import {
 } from 'antd';
 import { 
   PiPlus, 
-  PiPencil, 
-  PiTrash, 
   PiCalendar, 
   PiReceipt,
   PiPercent
 } from 'react-icons/pi';
+import { ContextMenu, createEditAction, createDeleteAction } from '../../ContextMenu';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Register dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { ExpenseRuleGeneralExpense, ExpenseGroupWithTranslations } from '../../../types/ExpenseRuleTypes';
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient';
+import { useGetGeneralExpenseById } from '../../../queries/ExpenseRuleQueries';
 
 const { Option } = Select;
 
@@ -53,6 +60,12 @@ interface GeneralExpenseFormData {
   version?: number;
 }
 
+interface TaxCodeOption {
+  id: string;
+  value: string;
+  code: string;
+}
+
 const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
   ruleId,
   accessToken,
@@ -60,6 +73,10 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
 }) => {
   const [form] = Form.useForm();
   const graphqlClient = useGraphQLClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken);
+  
+  // ✅ NEW: Hook for fetching individual general expenses
+  const { fetchGeneralExpenseById } = useGetGeneralExpenseById({ accessToken } as any);
   
   const [generalExpenses, setGeneralExpenses] = useState<ExpenseRuleGeneralExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,9 +84,34 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<ExpenseRuleGeneralExpense | null>(null);
+  
+  // ✅ NEW: TaxCode catalog state
+  const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([]);
+  const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   // Set up client
   expenseSettingsClient.setAccessToken(accessToken);
+
+  // ✅ NEW: Load TaxCode catalog
+  const loadTaxCodes = useCallback(async () => {
+    setCatalogsLoading(true);
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'TaxCode', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
+      );
+      
+      setTaxCodes(response.data.map((item: any) => ({
+        id: item.id,
+        value: item.value,
+        code: item.code
+      })));
+    } catch (error) {
+      console.error('Error loading TaxCode catalog:', error);
+    } finally {
+      setCatalogsLoading(false);
+    }
+  }, [catalogClient]);
 
   const fetchGeneralExpenses = useCallback(async () => {
     setIsLoading(true);
@@ -140,8 +182,9 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchGeneralExpenses();
+      loadTaxCodes();
     }
-  }, [ruleId, accessToken, fetchGeneralExpenses]);
+  }, [ruleId, accessToken, fetchGeneralExpenses, loadTaxCodes]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -154,19 +197,33 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
     setIsModalVisible(true);
   };
 
-  const handleEdit = (record: ExpenseRuleGeneralExpense) => {
+  const handleEdit = async (record: ExpenseRuleGeneralExpense) => {
+    // ✅ FIXED: Fetch fresh data instead of relying on potentially stale list data
     setEditingItem(record);
-    form.setFieldsValue({
-      code: record.code,
-      name: record.name,
-      reimbursable: record.reimbursable,
-      taxCodeRef: record.taxCodeRef,
-      taxValue: record.taxValue,
-      activeFrom: dayjs(record.activeFrom),
-      activeTo: record.activeTo ? dayjs(record.activeTo) : undefined,
-      expenseGroupRef: record.expenseGroup?.id
-    });
     setIsModalVisible(true);
+    
+    try {
+      setIsSaving(true);
+      // ✅ NEW: Fetch fresh data for this specific item
+      const freshData = await fetchGeneralExpenseById(record.id);
+      
+      form.setFieldsValue({
+        code: freshData.code,
+        name: freshData.name,
+        reimbursable: freshData.reimbursable,
+        taxCodeRef: freshData.taxCodeRef,
+        taxValue: freshData.taxValue,
+        activeFrom: dayjs(freshData.activeFrom),
+        activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : undefined,
+        expenseGroupRef: freshData.expenseGroup?.id
+      });
+    } catch (err) {
+      message.error('Failed to load latest data for editing');
+      console.error('Edit load error:', err);
+      setIsModalVisible(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (record: ExpenseRuleGeneralExpense) => {
@@ -191,6 +248,8 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
       const saveData: GeneralExpenseFormData = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
+        businessKey: undefined,
+        additionalProperties: undefined,
         code: values.code,
         name: values.name,
         reimbursable: values.reimbursable,
@@ -198,7 +257,9 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
         taxValue: values.taxValue,
         activeFrom: values.activeFrom.toISOString(),
         activeTo: values.activeTo ? values.activeTo.toISOString() : undefined,
-        expenseGroupRef: values.expenseGroupRef
+        expenseGroupRef: values.expenseGroupRef,
+        wageCode: undefined,
+        expenseOrder: undefined
       };
 
       await expenseSettingsClient.saveExpenseRuleGeneralExpense(saveData);
@@ -260,7 +321,13 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
   const formatTaxCode = (taxCodeRef?: string): string => {
     if (!taxCodeRef) return 'Not set';
     
-    // Extract the actual tax code from the reference
+    // Find the tax code in the loaded catalog
+    const taxCode = taxCodes.find(tc => tc.id === taxCodeRef);
+    if (taxCode) {
+      return taxCode.code;
+    }
+    
+    // Fallback: Extract the actual tax code from the reference
     // "TaxCode:v1:V00" -> "V00"
     const parts = taxCodeRef.split(':');
     return parts.length >= 3 ? parts[2] : taxCodeRef;
@@ -353,34 +420,15 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
       key: 'actions',
       width: 100,
       render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="Edit general expense">
-            <Button
-              type="text"
-              size="small"
-              icon={<PiPencil />}
-              onClick={() => handleEdit(record)}
-              data-testid={`edit-general-expense-${record.id}`}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete general expense"
-            description="Are you sure you want to delete this general expense?"
-            onConfirm={() => handleDelete(record)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Tooltip title="Delete general expense">
-              <Button
-                type="text"
-                size="small"
-                icon={<PiTrash />}
-                danger
-                data-testid={`delete-general-expense-${record.id}`}
-              />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
+        <div className="gba:flex gba:justify-center">
+          <ContextMenu
+            actions={[
+              createEditAction(() => handleEdit(record)),
+              createDeleteAction(() => handleDelete(record))
+            ]}
+            triggerTestId={`general-expense-actions-${record.id}`}
+          />
+        </div>
       )
     }
   ];
@@ -495,7 +543,19 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({
               name="taxCodeRef"
               label="Tax Code"
             >
-              <Input placeholder="e.g., TaxCode:v1:V00" />
+              <Select 
+                placeholder="Select tax code"
+                showSearch
+                optionFilterProp="children"
+                loading={catalogsLoading}
+                disabled={catalogsLoading}
+              >
+                {taxCodes.map(taxCode => (
+                  <Option key={taxCode.id} value={taxCode.id}>
+                    {taxCode.code} - {taxCode.value}
+                  </Option>
+                ))}
+              </Select>
             </Form.Item>
           </div>
 
