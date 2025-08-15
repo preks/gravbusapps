@@ -54,15 +54,9 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   ) => {
     let success = false;
     
-    // Ensure the queryType matches the current active tab
-    const dataWithQueryType = {
-      ...queryData,
-      queryType: activeQueryType
-    };
-    
     if (selectedQuery) {
       // Update existing query
-      success = await updateQuery(selectedQuery.id!, dataWithQueryType, validate);
+      success = await updateQuery(selectedQuery.id!, queryData, validate);
       if (success) {
         toast.success('Query Updated', {
           description: 'Query definition has been updated successfully.'
@@ -70,7 +64,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
       }
     } else {
       // Create new query
-      success = await createQuery(dataWithQueryType, validate);
+      success = await createQuery(queryData, validate);
       if (success) {
         toast.success('Query Created', {
           description: 'Query definition has been created successfully.'
@@ -243,6 +237,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
         onCancel={handleCancelForm}
         isLoading={isCreating || isUpdating}
         defaultQueryType={activeQueryType}
+        currentService={activeService}
       />
     </div>
   );
