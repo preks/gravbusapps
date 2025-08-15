@@ -59,29 +59,38 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = (context) => {
     }
   ];
 
-  // Get initial subview from URL
-  const getInitialSubView = () => {
+  // Get initial tab from URL
+  const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const subViewFromUrl = urlParams.get('subView');
+    const tabFromUrl = urlParams.get('tab');
 
-    // Validate that the subview exists in our options
-    if (subViewFromUrl && viewOptions.some(option => option.key === subViewFromUrl)) {
-      return subViewFromUrl;
+    // Validate that the tab exists in our options
+    if (tabFromUrl && viewOptions.some(option => option.key === tabFromUrl)) {
+      return tabFromUrl;
     }
 
     return viewOptions[0].key;
   };
 
-  const [activeSubTab, setActiveSubTab] = useState<string>(getInitialSubView());
+  const [activeSubTab, setActiveSubTab] = useState<string>(getInitialTab());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleSubTabChange = (value: string) => {
     setActiveSubTab(value);
     
-    // Update URL to reflect the current subview
+    // Update URL to reflect the current tab
     const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('subView', value);
+    urlParams.set('tab', value);
+    
+    // Define which tabs have content sections
+    const tabsWithContent = ['workforce', 'structural-analysis', 'forecasting'];
+    
+    // If switching to a tab without content sections, remove the content parameter
+    if (!tabsWithContent.includes(value)) {
+      urlParams.delete('content');
+    }
+    
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, '', newUrl);
   };
@@ -89,8 +98,8 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = (context) => {
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newSubView = getInitialSubView();
-      setActiveSubTab(newSubView);
+      const newTab = getInitialTab();
+      setActiveSubTab(newTab);
     };
 
     window.addEventListener('popstate', handlePopState);

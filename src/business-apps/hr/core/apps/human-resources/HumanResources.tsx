@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PageLayout } from "@newwork/nw-design-system";
 import { PiUsersThree, PiBriefcase, PiChartPie } from "react-icons/pi";
-import { Users } from "@phosphor-icons/react";
+
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { EmployeeList } from "./components/views/employee-view/EmployeeList";
 import { JobPositionList } from "./components/views/job-position-view/JobPositionList";
@@ -62,6 +62,19 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
   const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set("view", view);
+    
+    // Always clean up all subview parameters first
+    urlParams.delete("tab");
+    urlParams.delete("content");
+    
+    // Set appropriate subview parameters for the target view
+    if (view === "analytics") {
+      // For analytics, always set default tab
+      urlParams.set("tab", "dashboard");
+      // content will be set by the analytics component if needed
+    }
+    // For employees and positions, no additional parameters needed
+    
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, "", newUrl);
   };
@@ -80,6 +93,14 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
       updateUrl(activeTab);
+    } else {
+      // If view is present, ensure proper tab parameters
+      const currentView = urlParams.get("view");
+      if (currentView === "analytics" && !urlParams.has("tab")) {
+        urlParams.set("tab", "dashboard");
+        const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+        window.history.replaceState({}, "", newUrl);
+      }
     }
   }, []);
 
@@ -125,7 +146,7 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
     <div data-testid="human-resources-app">
       <PageLayout
         headerPhosphorIcon={{
-          icon: PiUsersThree,
+          icon: PiUsersThree as any,
           variant: "premium",
           size: "lg",
           label: "Human Resources",

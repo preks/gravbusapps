@@ -77,25 +77,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
     setSelectedEmployee((prev: Employee | null) => prev?.id === employee.id ? null : employee);
   }, []);
 
-  // Handle click outside of employee cards to close details
-  const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of any employee card and outside the details panel
-    const target = e.target as HTMLElement;
-    const isOutsideEmployeeCard = !target.closest('.employee-card-wrapper');
-    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
-    
-    if (isOutsideEmployeeCard && isOutsideDetailsPanel && selectedEmployee) {
-      setSelectedEmployee(null);
-    }
-  }, [selectedEmployee]);
 
-  // Add and remove click listener for outside clicks
-  useEffect(() => {
-    document.addEventListener('click', handleOutsideClick);
-    return () => {
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  }, [handleOutsideClick]);
 
   return (
     <div data-testid="employee-directory-app">
@@ -167,7 +149,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
             selectedEmployee ? {
               title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
               icon: <PiUser size={20} />,
-              content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
+              content: <EmployeeDetails employeeId={selectedEmployee.id} employeeData={selectedEmployee} accessToken={accessToken} userInfo={props.userInfo} />,
               onClose: () => setSelectedEmployee(null)
             } : undefined
           }

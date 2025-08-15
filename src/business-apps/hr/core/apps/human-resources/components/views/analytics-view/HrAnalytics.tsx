@@ -77,12 +77,12 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
     const url = new URL(window.location.href);
     url.searchParams.set('tab', value);
     
-    // Define which tabs have sections
-    const tabsWithSections = ['workforce', 'structural-analysis', 'forecasting'];
+    // Define which tabs have content sections
+    const tabsWithContent = ['workforce', 'structural-analysis', 'forecasting'];
     
-    // If switching to a tab without sections, remove the section parameter
-    if (!tabsWithSections.includes(value)) {
-      url.searchParams.delete('section');
+    // If switching to a tab without content sections, remove the content parameter
+    if (!tabsWithContent.includes(value)) {
+      url.searchParams.delete('content');
     }
     
     window.history.pushState({}, '', url.toString());

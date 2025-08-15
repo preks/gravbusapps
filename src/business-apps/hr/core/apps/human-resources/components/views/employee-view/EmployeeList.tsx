@@ -127,25 +127,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     setSelectedEmployee(null);
   }, []);
   
-  // Handle click outside of employee table to close details
-  const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of the employee table and outside the details panel
-    const target = e.target as HTMLElement;
-    const isOutsideEmployeeTable = !target.closest('[data-testid="employee-table-container"]');
-    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
-    
-    if (isOutsideEmployeeTable && isOutsideDetailsPanel && selectedEmployee) {
-      setSelectedEmployee(null);
-    }
-  }, [selectedEmployee]);
-  
-  // Add and remove click listener for outside clicks
-  React.useEffect(() => {
-    document.addEventListener('click', handleOutsideClick);
-    return () => {
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  }, [handleOutsideClick]);
+
 
      return (
      <div data-testid="employee-list-content">
@@ -220,7 +202,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
               selectedEmployee ? {
                 title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
                 icon: <PiUser size={20} />,
-                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} employeeData={selectedEmployee} accessToken={accessToken} userInfo={props.userInfo} />,
                 onClose: handleDetailsPanelClose,
                              } : undefined
              }

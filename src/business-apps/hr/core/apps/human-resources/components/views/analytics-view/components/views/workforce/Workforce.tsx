@@ -15,17 +15,17 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
   const validTabs = ['headcount-trends', 'turnover-retention', 'employment', 'performance'];
   const defaultTab = 'headcount-trends';
 
-  // Get section from URL query parameter or use default
+  // Get content from URL query parameter or use default
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const sectionFromUrl = urlParams.get('section');
+    const contentFromUrl = urlParams.get('content');
     
-    if (validTabs.includes(sectionFromUrl ?? '')) {
-      return sectionFromUrl!;
+    if (validTabs.includes(contentFromUrl ?? '')) {
+      return contentFromUrl!;
     } else {
-      // No valid section in URL, set default section in URL
+      // No valid content in URL, set default content in URL
       const url = new URL(window.location.href);
-      url.searchParams.set('section', defaultTab);
+      url.searchParams.set('content', defaultTab);
       window.history.replaceState({}, '', url.toString());
       return defaultTab;
     }
@@ -42,11 +42,11 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
 
   const prefixDataTestId = 'Workforce';
 
-  // Update URL when section changes
+  // Update URL when content changes
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     const url = new URL(window.location.href);
-    url.searchParams.set('section', key);
+    url.searchParams.set('content', key);
     window.history.pushState({}, '', url.toString());
   };
 
@@ -54,8 +54,8 @@ const Workforce: React.FC<WorkforceProps> = (context) => {
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const sectionFromUrl = urlParams.get('section');
-      const newTab = validTabs.includes(sectionFromUrl ?? '') ? sectionFromUrl! : defaultTab;
+      const contentFromUrl = urlParams.get('content');
+      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab;
       setActiveTab(newTab);
     };
 
