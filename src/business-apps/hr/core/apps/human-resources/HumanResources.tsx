@@ -1,21 +1,11 @@
 import React, { useState, useEffect } from "react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@newwork/nw-design-system";
 import { PageLayout } from "@newwork/nw-design-system";
-import {
-  Users,
-  Building2,
-  Briefcase,
-  PeopleDuoOutlined,
-} from "lucide-react";
-import { PiUsersThree, PiBriefcase } from "react-icons/pi";
+import { PiUsersThree, PiBriefcase, PiChartPie } from "react-icons/pi";
+import { Users } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { EmployeeList } from "./components/views/employee-view/EmployeeList";
 import { JobPositionList } from "./components/views/job-position-view/JobPositionList";
+import { HrAnalyticsView } from "./components/views/analytics-view/HrAnalyticsView";
 
 export interface HumanResourcesProps extends BusinessAppContextProps {}
 
@@ -25,11 +15,22 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
       key: "employees",
       icon: <PiUsersThree />,
       label: "Employees",
+      title: "Employee Management",
+      description: "View and manage all employees in your organization, including their profiles, roles, and organizational assignments.",
     },
     {
       key: "positions",
       icon: <PiBriefcase />,
       label: "Job Positions",
+      title: "Job Position Management",
+      description: "Manage job positions, departments, profiles, and track employee assignments across your organizational structure.",
+    },
+    {
+      key: "analytics",
+      icon: <PiChartPie />,
+      label: "Analytics",
+      title: "HR Analytics & Insights",
+      description: "Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.",
     },
   ];
 
@@ -51,6 +52,11 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
+
+  // Get active tab information
+  const getActiveTabInfo = () => {
+    return viewOptions.find((option) => option.key === activeTab) || viewOptions[0];
+  };
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
@@ -102,10 +108,18 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
             <JobPositionList {...context} />
           </div>
         );
+      case "analytics":
+        return (
+          <div data-testid="analytics-tab-content">
+            <HrAnalyticsView {...context} />
+          </div>
+        );
       default:
         return null;
     }
   };
+
+  const activeTabInfo = getActiveTabInfo();
 
   return (
     <div data-testid="human-resources-app">
@@ -118,6 +132,8 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
         }}
         headerTitle="Human Resources"
         headerDescription="Manage employees, job positions, and organizational structure"
+        sectionTitle={activeTabInfo.title}
+        sectionDescription={activeTabInfo.description}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,

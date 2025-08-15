@@ -31,6 +31,8 @@ export type EmployeeFilters = {
   employmentTypes?: string[];
   contractTypes?: string[];
   matrixTeams?: string[];
+  sortField?: string;
+  sortOrder?: "ASC" | "DESC";
 };
 
 const EMPLOYEES_PER_PAGE = 20;
@@ -57,11 +59,11 @@ function extractMatrixTeamNames(matrixUnitEmployees: any[] | null | undefined): 
 
 // GraphQL query to fetch employee positions with employee and related info
 const EMPLOYEE_POSITION_QUERY = `
-  query EmployeePositions($limit: Int!, $offset: Int!, $where: EmployeePositionBoolExp!) {
+  query EmployeePositions($limit: Int!, $offset: Int!, $where: EmployeePositionBoolExp!, $orderBy: [EmployeePositionOrderBy!]) {
     EmployeePosition(
       limit: $limit,
       offset: $offset,
-      orderBy: [{ firstName: ASC }, { lastName: ASC }],
+      orderBy: $orderBy,
       where: {
         _and: [
           { jobPositionId: { _isNull: false } },
@@ -122,6 +124,40 @@ const EMPLOYEE_POSITION_QUERY = `
 `;
 
 /**
+ * Helper function to build sort condition for GraphQL orderBy (matches AccountList pattern)
+ */
+const buildSortCondition = (sortField: string, sortOrder: "ASC" | "DESC", orderBy: any) => {
+  const sortDirection = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+  
+  switch (sortField) {
+    case "name":
+      // For name sorting, prioritize firstName then lastName
+      orderBy.firstName = sortDirection;
+      break;
+    case "firstName":
+      orderBy.firstName = sortDirection;
+      break;
+    case "lastName":
+      orderBy.lastName = sortDirection;
+      break;
+    case "jobTitle":
+      orderBy.jobPosition = { name: sortDirection };
+      break;
+    case "organizationalUnit":
+      orderBy.organizationalUnit = { name: sortDirection };
+      break;
+    case "employmentType":
+      // Fixed: Use correct GraphQL path for employment type sorting
+      orderBy.employee = { workingConditionAggregate: { max: { employmentTypeRef: sortDirection } } };
+      break;
+    case "contractType":
+      // Fixed: Use correct GraphQL path for contract type sorting
+      orderBy.employee = { workingConditionAggregate: { max: { contractTypeRef: sortDirection } } };
+      break;
+  }
+};
+
+/**
  * Custom hook to fetch employee directory data with filters and pagination.
  * @param filters Filters for the employee directory.
  * @returns Employees, total count, loading, error, hasMore, loadMore, loadPage, retry
@@ -134,7 +170,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const { alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams } = filters;
+  const { alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, sortField, sortOrder } = filters;
   const alphaFilter = alpha ? `${alpha}%` : `%`;
   const searchFilter = search ? `%${search}%` : `%`;
   const organizationalUnitObj = organizationalUnits && organizationalUnits.length > 0 ? { organizationalUnitId: { _in: organizationalUnits } } : undefined;
@@ -152,7 +188,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     setEmployees([]);
     setOffset(0);
     setHasMore(true);
-  }, [alpha, search, JSON.stringify(organizationalUnits), JSON.stringify(employmentTypes), JSON.stringify(contractTypes), JSON.stringify(matrixTeams)]);
+  }, [alpha, search, JSON.stringify(organizationalUnits), JSON.stringify(employmentTypes), JSON.stringify(contractTypes), JSON.stringify(matrixTeams), sortField, sortOrder]);
 
   /**
    * Loads more employees from the API. Guards against undefined client and SSR.
@@ -180,10 +216,19 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
       ...contractTypeObj,
       ...matrixTeamObj
     };
+    // Build order by condition (matches AccountList pattern)
+    const orderBy: any = {};
+    if (sortField && sortField.trim() !== "" && sortOrder) {
+      buildSortCondition(sortField, sortOrder, orderBy);
+    }
+    
     client.request?.(EMPLOYEE_POSITION_QUERY, {
       limit: EMPLOYEES_PER_PAGE,
       offset,
-      where
+      where,
+      orderBy: Object.keys(orderBy).length > 0 
+        ? [orderBy] 
+        : [{ firstName: "ASC_NULLS_LAST" }]
     })
       .then((res: any) => {
         if (!res) {
@@ -221,7 +266,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, hasMore, client, offset, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter]);
+  }, [loading, hasMore, client, offset, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -261,10 +306,19 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
       ...matrixTeamObj
     };
     
+    // Build order by condition (matches AccountList pattern)
+    const orderBy: any = {};
+    if (sortField && sortField.trim() !== "" && sortOrder) {
+      buildSortCondition(sortField, sortOrder, orderBy);
+    }
+    
     client.request?.(EMPLOYEE_POSITION_QUERY, {
       limit: pageSize,
       offset: pageOffset,
-      where
+      where,
+      orderBy: Object.keys(orderBy).length > 0 
+        ? [orderBy] 
+        : [{ firstName: "ASC_NULLS_LAST" }]
     })
       .then((res: any) => {
         if (!res) {
@@ -304,7 +358,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, client, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter]);
+  }, [loading, client, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder]);
 
   return { employees, total, loading, error, hasMore, loadMore, loadPage, retry };
 }

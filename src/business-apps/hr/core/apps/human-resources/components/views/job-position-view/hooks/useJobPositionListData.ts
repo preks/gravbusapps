@@ -147,6 +147,8 @@ export interface JobPositionListFilters {
   jobFunctions?: string[];
   vacant?: boolean;
   missingJobProfile?: boolean;
+  sortField?: string;
+  sortOrder?: "ASC" | "DESC";
 }
 
 /**
@@ -155,6 +157,30 @@ export interface JobPositionListFilters {
 export type VacancyFilter = 'vacant' | 'filled' | 'all';
 
 const POSITIONS_PER_PAGE = 20;
+
+/**
+ * Helper function to build sort condition for GraphQL orderBy (matches AccountList pattern)
+ */
+const buildSortCondition = (sortField: string, sortOrder: "ASC" | "DESC", orderBy: any) => {
+  const sortDirection = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+  
+  switch (sortField) {
+    case "name":
+      orderBy.name = sortDirection;
+      break;
+    // Department sorting disabled - not supported due to GraphQL schema limitations
+    case "jobFunction":
+      orderBy.jobFunction = { name: sortDirection };
+      break;
+    case "profile":
+      orderBy.jobProfile = { name: sortDirection };
+      break;
+    case "employee":
+      // Fixed: Use correct GraphQL path for employee sorting
+      orderBy.employeePositionsAggregate = { max: { firstName: sortDirection } };
+      break;
+  }
+};
 
 /**
  * Custom hook to fetch job position list data with filters and pagination.
@@ -169,7 +195,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile } = filters;
+  const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile, sortField, sortOrder } = filters;
   
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId();
@@ -180,7 +206,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     setOffset(0);
     setHasMore(true);
     setTotal(0);
-  }, [search, JSON.stringify(departments), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), vacant, missingJobProfile]);
+  }, [search, JSON.stringify(departments), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), vacant, missingJobProfile, sortField, sortOrder]);
 
   /**
    * Loads a specific page of job positions. Used for true pagination.
@@ -245,6 +271,12 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     // PERFORMANCE: Use simplified search for initial load if no search term
     const hasActiveSearch = currentFilters.search && currentFilters.search.trim().length > 0;
     
+    // Build order by condition (matches AccountList pattern)
+    const orderBy: any = {};
+    if (currentFilters.sortField && currentFilters.sortField.trim() !== "" && currentFilters.sortOrder) {
+      buildSortCondition(currentFilters.sortField, currentFilters.sortOrder, orderBy);
+    }
+
     // Prepare query variables
     const variables: any = {
       structureId,
@@ -253,7 +285,10 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
       filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
       search: hasActiveSearch ? `%${currentFilters.search.trim()}%` : '%%', // Match all if no search
       // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
-      vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant
+      vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant,
+      orderBy: Object.keys(orderBy).length > 0 
+        ? [orderBy] 
+        : [{ name: "ASC_NULLS_LAST" }]
     };
 
     client.request?.(JOB_POSITION_QUERY, variables)

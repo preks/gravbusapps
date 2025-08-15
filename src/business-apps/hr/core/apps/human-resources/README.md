@@ -17,18 +17,33 @@ src/business-apps/hr/core/apps/human-resources/
         │   ├── components/
         │   │   └── EmployeeTable.tsx
         │   └── index.ts
-        └── job-position-view/  # Job position management view
-            ├── JobPositionList.tsx
+        ├── job-position-view/  # Job position management view
+        │   ├── JobPositionList.tsx
+        │   ├── components/
+        │   │   ├── JobPositionDetails.tsx
+        │   │   ├── JobPositionTable.tsx
+        │   │   └── VacancyStatusToggle.tsx
+        │   ├── hooks/
+        │   │   ├── useJobPositionFilters.ts
+        │   │   ├── useJobPositionListData.ts
+        │   │   └── [other hooks...]
+        │   ├── queries/
+        │   │   └── JobPositionQueries.ts
+        │   └── index.ts
+        └── analytics-view/     # HR Analytics view
+            ├── HrAnalyticsView.tsx
+            ├── HrAnalytics.tsx  # Original standalone component
             ├── components/
-            │   ├── JobPositionDetails.tsx
-            │   ├── JobPositionTable.tsx
-            │   └── VacancyStatusToggle.tsx
-            ├── hooks/
-            │   ├── useJobPositionFilters.ts
-            │   ├── useJobPositionListData.ts
-            │   └── [other hooks...]
-            ├── queries/
-            │   └── JobPositionQueries.ts
+            │   └── views/       # Analytics sub-views
+            │       ├── dashboard/
+            │       ├── demographics/
+            │       ├── workforce/
+            │       ├── compensation/
+            │       ├── forecasting/
+            │       └── structural-analysis/
+            ├── hooks/           # Analytics-specific hooks
+            ├── queries/         # Analytics GraphQL queries
+            ├── utils/           # Analytics utilities
             └── index.ts
 ```
 
@@ -46,10 +61,29 @@ src/business-apps/hr/core/apps/human-resources/
 - Filtering by department, job family, and other criteria
 - Support for missing job profile identification
 
+### Analytics View
+- Comprehensive HR analytics dashboard with multiple specialized views:
+  - **Dashboard**: Overview metrics and key performance indicators
+  - **Demographics**: Employee demographic analysis and visualizations
+  - **Workforce**: Workforce composition, trends, and insights
+  - **Compensation**: Salary analysis, payroll insights, and compensation trends
+  - **Forecasting**: Predictive analytics for workforce planning and budgeting
+  - **Structural Analysis**: Organizational hierarchy analysis and reporting chain insights
+
 ## Navigation
 The application uses URL-based navigation with query parameters:
 - `?view=employees` - Shows the employee management view
 - `?view=positions` - Shows the job position management view
+- `?view=analytics` - Shows the HR analytics view
+
+### Analytics Sub-Navigation
+When in analytics view, additional sub-view parameters are supported:
+- `?view=analytics&subView=dashboard` - Analytics dashboard
+- `?view=analytics&subView=demographics` - Demographics analysis
+- `?view=analytics&subView=workforce` - Workforce analytics
+- `?view=analytics&subView=compensation` - Compensation analysis
+- `?view=analytics&subView=forecasting` - Forecasting analytics
+- `?view=analytics&subView=structural-analysis` - Structural analysis
 
 ## Usage
 ```typescript

@@ -297,7 +297,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   return (
                     <div
                       key={key}
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1"
                       data-testid={`data-controller-action-${idx}`}
                     >
                       {action}
@@ -305,7 +305,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   );
                 })
               ) : (
-                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1" data-testid="data-controller-single-action">
+                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1" data-testid="data-controller-single-action">
                   {actions}
                 </div>
               ))}

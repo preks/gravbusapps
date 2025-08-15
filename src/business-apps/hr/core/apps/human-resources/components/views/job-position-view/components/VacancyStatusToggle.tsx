@@ -1,6 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@newwork/nw-design-system';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@newwork/nw-design-system';
 import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi';
 import { VacancyFilter } from '../hooks/useJobPositionListData';
 
@@ -15,7 +21,7 @@ interface VacancyStatusToggleProps {
 
 /**
  * VacancyStatusToggle component allows users to switch between different vacancy status filters.
- * It displays as a set of toggle buttons with icons and labels.
+ * It displays as a select dropdown with icons and labels.
  */
 export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
   value,
@@ -52,35 +58,51 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
     }
   ];
 
+  // Find the current selected option for display
+  const selectedOption = options.find(option => option.key === value);
+
   return (
-    <div className={`flex ${className}`} data-testid="vacancy-status-toggle">
-      {options.map((option) => (
-        <Button
-          key={option.key}
-          variant={value === option.key ? "default" : "secondary"}
-          size="sm"
-          onClick={() => onChange(option.key)}
-          data-testid={`vacancy-status-${option.key}-button`}
-          style={{
-            marginRight: 'var(--nw-spacing-2)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--nw-spacing-2)',
-            color: value === option.key 
-              ? `var(--nw-color-${option.color}-foreground)` 
-              : `var(--nw-color-${option.color})`,
-            backgroundColor: value === option.key 
-              ? `var(--nw-color-${option.color})` 
-              : 'transparent',
-            borderColor: `var(--nw-color-${option.color})`,
-            borderWidth: 'var(--nw-spacing-px)',
-            borderStyle: 'solid'
-          }}
+    <div className={`gba:w-64 ${className}`} data-testid="vacancy-status-toggle">
+      <Select value={value} onValueChange={(newValue: ExtendedVacancyFilter) => onChange(newValue)}>
+        <SelectTrigger 
+          className="gba:w-full gba:h-9" 
+          data-testid="vacancy-status-select-trigger"
         >
-          {option.icon}
-          <span>{option.label}</span>
-        </Button>
-      ))}
+          <SelectValue>
+            {selectedOption && (
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span 
+                  style={{ color: `var(--nw-color-${selectedOption.color})` }}
+                  className="gba:flex gba:items-center"
+                >
+                  {selectedOption.icon}
+                </span>
+                <span className="gba:text-sm">{selectedOption.label}</span>
+              </div>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent data-testid="vacancy-status-select-content">
+          {options.map((option) => (
+            <SelectItem
+              key={option.key}
+              value={option.key}
+              data-testid={`vacancy-status-${option.key}-option`}
+              className="gba:cursor-pointer"
+            >
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span 
+                  style={{ color: `var(--nw-color-${option.color})` }}
+                  className="gba:flex gba:items-center"
+                >
+                  {option.icon}
+                </span>
+                <span className="gba:text-sm">{option.label}</span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

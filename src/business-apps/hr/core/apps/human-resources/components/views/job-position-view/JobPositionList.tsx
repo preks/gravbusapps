@@ -2,9 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
-import { useJobPositionListData, VacancyFilter, JobPosition } from './hooks/useJobPositionListData';
+import { useJobPositionListData, JobPosition } from './hooks/useJobPositionListData';
 import { useJobPositionFilters } from './hooks/useJobPositionFilters';
 import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount';
 import { JobPositionTable } from './components/JobPositionTable';
@@ -12,7 +11,9 @@ import { JobPositionDetails } from './components/JobPositionDetails';
 import { VacancyStatusToggle, ExtendedVacancyFilter } from './components/VacancyStatusToggle';
 import { PiBriefcase } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PlusSquareIcon } from '@/components/dataController/DataController';
 
 /**
  * Job Position List page component. Renders the job position list module with a table view.
@@ -20,12 +21,14 @@ import { startProcess } from '@/common/utils/start-process';
  * @returns {JSX.Element}
  */
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
-  const { accessToken, additionalData } = props;
+  const { accessToken } = props;
   const { t } = useTranslation();
   const [vacancyFilter, setVacancyFilter] = useState<ExtendedVacancyFilter>('vacant'); // Default to vacant positions
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+  const [sortField, setSortField] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const initialLoadDone = useRef(false);
 
 
@@ -66,15 +69,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     }
   };
 
-  // Handle adding a new job position
-  const handleAddJobPosition = useCallback(() => {
-    startProcess({
-      domain: 'employee',
-      processName: 'saveJobPosition',
-      builderType: 'NATIVE_SCREEN',
-      payload: {}
-    });
-  }, []);
+
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -105,7 +100,9 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     jobProfiles: currentFilters.jobProfiles,
     jobFunctions: currentFilters.jobFunctions,
     ...filterParams, // vacant or missingJobProfile
-    accessToken
+    accessToken,
+    sortField,
+    sortOrder
   });
   
   // Handle page changes
@@ -128,6 +125,34 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
       ...getFilterParams(vacancyFilter)
     });
   }, [loadPage, getFilters, vacancyFilter]);
+
+  // Handle sorting changes
+  const handleSortingChange = useCallback((field: string, order: "ASC" | "DESC" | "") => {
+    // When order is empty, clear sorting completely
+    if (order === "") {
+      setSortField("");
+      setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
+      setCurrentPage(1);
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+    }
+    // Note: Data reload happens automatically via useEffect below when sortField/sortOrder change
+  }, []);
+
+  // Auto-reload when sorting changes (fixes race condition)
+  React.useEffect(() => {
+    if ((sortField || sortOrder) && initialLoadDone.current) { // Only reload if there's been a sorting change and initial load is done
+      const filters = getFilters();
+      loadPage(1, pageSize, {
+        ...filters,
+        ...getFilterParams(vacancyFilter),
+        sortField,
+        sortOrder
+      });
+    }
+  }, [sortField, sortOrder, vacancyFilter]); // Only depend on primitive values to avoid loops
   
   // Trigger initial data loading when component mounts - OPTIMIZED: Don't wait for filters
   useEffect(() => {
@@ -175,15 +200,10 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   // Create filter array for DataController (without vacancy status)
   const activeFilters = useMemo(() => selectedFilters, [selectedFilters]);
 
-  return (
-    <div className="gba:w-full gba:h-screen gba:flex gba:flex-row gba:relative gba:bg-white gba:overflow-hidden">
-      <PageLayout
-        variant="default"
-        headerIcon={<PiBriefcase size={24} className="gba:text-primary" />}
-        headerLabel={t('job_position.list_title', 'Job Position List')}
-        contentContainer={
-          <DataContainer
-            dataControllerProps={{
+     return (
+     <div data-testid="job-position-list-content">
+       <DataContainer
+         dataControllerProps={{
               search,
               setSearch,
               debounceDelay: 500,
@@ -204,11 +224,27 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                   />
                 </div>
               ),
-              addButton: {
-                onClick: handleAddJobPosition,
-                label: 'Add',
-                'data-testid': 'add-job-position-button'
-              },
+                             actions: (
+                 <AppActionMenu
+                   contextsArray={[FlowContextName.createJobPosition]}
+                   accessToken={accessToken}
+                   data-testid="add-job-position-menu"
+                   emptyStateBehavior="disable"
+                 >
+                   <button
+                     className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                     data-testid="add-job-position-button"
+                     type="button"
+                   >
+                     <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
+                       <PlusSquareIcon />
+                     </span>
+                     <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                       Add
+                     </span>
+                   </button>
+                 </AppActionMenu>
+               ),
             }}
             dataFilterProps={{
               filterGroups: allFilterGroups,
@@ -232,6 +268,9 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                   pageSize={pageSize}
                   onPageChange={handlePageChange}
                   onPageSizeChange={handlePageSizeChange}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onSortingChange={handleSortingChange}
                 />
               </div>
             }
@@ -240,13 +279,11 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
               icon: <PiBriefcase size={20} />,
               content: <JobPositionDetails jobPosition={selectedJobPosition} onClose={handleCloseDetails} />,
               onClose: handleCloseDetails
-            } : undefined}
-            floatingDetails={true}
-          />
-        }
-      />
-    </div>
-  );
+                         } : undefined}
+             floatingDetails={true}
+         />
+     </div>
+   );
 };
 
 export default JobPositionList;

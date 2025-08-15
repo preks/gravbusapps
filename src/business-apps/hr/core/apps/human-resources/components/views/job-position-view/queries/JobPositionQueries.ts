@@ -8,6 +8,8 @@ export interface JobPositionQueryVariables {
   vacant?: boolean;
   filter: any; // JobPositionBoolExp type
   search: string;
+  sortField?: string;
+  sortOrder?: "ASC" | "DESC";
 }
 
 // GraphQL query to fetch job positions with employee positions (RESTORED ORIGINAL)
@@ -18,7 +20,8 @@ export const JOB_POSITION_QUERY = `
     $offset: Int,
     $vacant: Boolean,
     $filter: JobPositionBoolExp!,
-    $search: String!
+    $search: String!,
+    $orderBy: [JobPositionOrderBy!]
   ) {
     JobPosition(
       where: {
@@ -56,7 +59,8 @@ export const JOB_POSITION_QUERY = `
         ]
       },
       limit: $limit,
-      offset: $offset
+      offset: $offset,
+      orderBy: $orderBy
     ) {
       id
       name
