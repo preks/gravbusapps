@@ -225,11 +225,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   return (
     <Card data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'container')}>
       <CardContent className="gba:p-0">
-        {loading && (
-          <div className="gba:flex gba:justify-center gba:p-4">
-            <Spinner />
-          </div>
-        )}
+
 
         <div className="gba:overflow-x-auto">
           <Table data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}>
@@ -455,23 +451,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* Loading Overlay */}
-      {loading && employees.length > 0 && (
-        <div 
-          className="flex items-center justify-center"
-          style={{ 
-            padding: 'var(--nw-spacing-4)',
-            borderTop: '1px solid var(--nw-color-border)',
-            backgroundColor: 'var(--nw-color-background)'
-          }}
-        >
-          <Spinner size="sm" />
-          <span className="ml-2 text-sm text-muted-foreground">
-            {t('employee.loading', 'Loading...')}
-          </span>
-    </div>
-      )}
+
       </CardContent>
     </Card>
   );

@@ -183,11 +183,12 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     } 
   } : undefined;
 
-  // Reset on filter change
+  // Reset pagination state on filter change (but keep data visible)
   useEffect(() => {
-    setEmployees([]);
     setOffset(0);
     setHasMore(true);
+    // Note: We intentionally DON'T clear employees to avoid loading flicker
+    // The data will be replaced when the new query completes
   }, [alpha, search, JSON.stringify(organizationalUnits), JSON.stringify(employmentTypes), JSON.stringify(contractTypes), JSON.stringify(matrixTeams), sortField, sortOrder]);
 
   /**
@@ -201,7 +202,12 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
       return;
     }
     if (loading || !hasMore) return;
-    setLoading(true);
+    
+    // Only show loading for initial load (no existing data)
+    if (employees.length === 0) {
+      setLoading(true); // Full loading for initial load only
+    }
+    // For existing data: no loading indicator - seamless like pagination
     // Dynamically build the where filter
     const where = {
       ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
@@ -289,7 +295,12 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     if (loading) return;
     
     const pageOffset = (page - 1) * pageSize;
-    setLoading(true);
+    
+    // Only show loading for initial load (no existing data)
+    if (employees.length === 0) {
+      setLoading(true); // Full loading for initial load only
+    }
+    // For existing data: no loading indicator - seamless like pagination
     
     // Dynamically build the where filter
     const where = {

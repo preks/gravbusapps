@@ -153,15 +153,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
     return result;
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:flex gba:items-center gba:justify-center">
-        <Spinner size="large" />
-      </div>
-    );
-  }
-
   // Error state
   if (error || !employeeData) {
     return (
@@ -191,11 +182,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
       <div className="gba:p-6 gba:relative">
         {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
-          <div className="gba:absolute gba:top-4 gba:right-2">
+          <div className="gba:absolute gba:top-4 gba:right-2" onClick={(e) => e.stopPropagation()}>
             <AppActionButton
               data-testid="employee-details-action-button"
-              variant="primary"
-              size="md"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
                 employeeId: employeeData.id,

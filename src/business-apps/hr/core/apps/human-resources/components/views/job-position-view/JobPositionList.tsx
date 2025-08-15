@@ -27,8 +27,8 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
-  const [sortField, setSortField] = useState<string>("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortField, setSortField] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
   const initialLoadDone = useRef(false);
 
 
@@ -277,7 +277,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
             dataDetails={selectedJobPosition ? {
               title: selectedJobPosition.name,
               icon: <PiBriefcase size={20} />,
-              content: <JobPositionDetails jobPosition={selectedJobPosition} onClose={handleCloseDetails} />,
+              content: <JobPositionDetails jobPosition={selectedJobPosition} accessToken={accessToken} />,
               onClose: handleCloseDetails
                          } : undefined}
              floatingDetails={true}

@@ -200,12 +200,12 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId();
 
-  // Reset on filter change
+  // Reset pagination state on filter change (but keep data visible)
   useEffect(() => {
-    setJobPositions([]);
     setOffset(0);
     setHasMore(true);
-    setTotal(0);
+    // Note: We intentionally DON'T clear jobPositions to avoid loading flicker
+    // The data will be replaced when the new query completes
   }, [search, JSON.stringify(departments), JSON.stringify(jobProfiles), JSON.stringify(jobFunctions), vacant, missingJobProfile, sortField, sortOrder]);
 
   /**
@@ -224,7 +224,12 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     if (loading) return;
     
     const pageOffset = (page - 1) * pageSize;
-    setLoading(true);
+    
+    // Only show loading for initial load (no existing data)
+    if (jobPositions.length === 0) {
+      setLoading(true); // Full loading for initial load only
+    }
+    // For existing data: no loading indicator - seamless like pagination
     setError(null);
 
     // Use provided filters or current filters

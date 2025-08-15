@@ -29,17 +29,17 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const validTabs: AnalysisTab[] = ['overview', 'span-control', 'depth-analysis', 'reporting-chains', 'organizational-hierarchy'];
   const defaultTab: AnalysisTab = 'overview';
 
-  // Get tab from URL query parameter or use default
+  // Get section from URL query parameter or use default
   const getInitialTab = (): AnalysisTab => {
     const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab') as AnalysisTab;
+    const sectionFromUrl = urlParams.get('section') as AnalysisTab;
     
-    if (validTabs.includes(tabFromUrl)) {
-      return tabFromUrl;
+    if (validTabs.includes(sectionFromUrl)) {
+      return sectionFromUrl;
     } else {
-      // No valid tab in URL, set default tab in URL
+      // No valid section in URL, set default section in URL
       const url = new URL(window.location.href);
-      url.searchParams.set('tab', defaultTab);
+      url.searchParams.set('section', defaultTab);
       window.history.replaceState({}, '', url.toString());
       return defaultTab;
     }
@@ -49,12 +49,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
 
   const { data, isLoading, error, refetch } = useStructuralAnalysisDataIntegration(props);
 
-  // Update URL when tab changes
+  // Update URL when section changes
   const handleTabChange = (key: string) => {
     const newTab = key as AnalysisTab;
     setActiveTab(newTab);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', newTab);
+    url.searchParams.set('section', newTab);
     window.history.pushState({}, '', url.toString());
   };
 
@@ -62,8 +62,8 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const tabFromUrl = urlParams.get('tab') as AnalysisTab;
-      const newTab = validTabs.includes(tabFromUrl) ? tabFromUrl : defaultTab;
+      const sectionFromUrl = urlParams.get('section') as AnalysisTab;
+      const newTab = validTabs.includes(sectionFromUrl) ? sectionFromUrl : defaultTab;
       setActiveTab(newTab);
     };
 

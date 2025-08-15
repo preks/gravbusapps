@@ -7,9 +7,7 @@ import {
   ChartBar,
   Gear,
   UserPlus,
-  Calendar,
   FileText,
-  Wrench,
   FolderOpen
 } from '@phosphor-icons/react';
 
@@ -94,7 +92,17 @@ export const hrAreas: HrArea[] = [
     description: 'Manage employee records, profiles, onboarding, and lifecycle processes',
     icon: UserCheck,
     category: 'management',
-    kpiType: 'employees'
+    kpiType: 'employees',
+    links: [
+      {
+        label: 'Employee List',
+        action: '/platform/hr/human-resources?view=employees'
+      },
+      {
+        label: 'Employee Directory',
+        action: '/platform/employee-directory'
+      }
+    ]
   },
   {
     id: 'job-management',
@@ -102,7 +110,17 @@ export const hrAreas: HrArea[] = [
     description: 'Manage job positions, descriptions, hierarchies, and organizational structure',
     icon: Briefcase,
     category: 'management',
-    kpiType: 'jobs'
+    kpiType: 'jobs',
+    links: [
+      {
+        label: 'Job Positions',
+        action: '/platform/hr/human-resources?view=positions'
+      },
+      {
+        label: 'Job Structure Data',
+        action: '/platform/mdm/job-structure-data'
+      }
+    ]
   }
 ];
 

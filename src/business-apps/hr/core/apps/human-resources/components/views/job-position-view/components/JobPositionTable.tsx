@@ -279,11 +279,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   return (
     <Card data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'container')}>
       <CardContent className="gba:p-0">
-        {loading && (
-          <div className="gba:flex gba:justify-center gba:p-4">
-            <Spinner />
-          </div>
-        )}
+
 
         <div className="gba:overflow-x-auto">
           <Table data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}>
@@ -295,7 +291,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'name-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('job_position.name', 'Position Name')}
+                    {t('job_position.name', 'Name')}
                     {renderSortIcon("name")}
                   </div>
                 </TableHead>
@@ -371,7 +367,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     : ''
                 }`}
               >
-                {/* Position Name */}
+                {/* Name */}
                 <TableCell 
                   className="gba:py-4 gba:px-6 gba:font-medium" 
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `name-${jobPosition.id}`)}
@@ -519,23 +515,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           </div>
         </div>
       </div>
-      
-      {/* Loading Overlay */}
-      {loading && jobPositions.length > 0 && (
-        <div 
-          className="flex items-center justify-center"
-          style={{ 
-            padding: 'var(--nw-spacing-4)',
-            borderTop: '1px solid var(--nw-color-border)',
-            backgroundColor: 'var(--nw-color-background)'
-          }}
-        >
-          <Spinner size="sm" />
-          <span className="ml-2 text-sm text-muted-foreground">
-            {t('job_position.loading', 'Loading...')}
-          </span>
-        </div>
-      )}
+
       </CardContent>
     </Card>
   );

@@ -17,17 +17,17 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
   const validTabs = ['overview', 'charts', 'details'];
   const defaultTab = 'overview';
 
-  // Get tab from URL query parameter or use default
+  // Get section from URL query parameter or use default
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab');
+    const sectionFromUrl = urlParams.get('section');
     
-    if (validTabs.includes(tabFromUrl ?? '')) {
-      return tabFromUrl!;
+    if (validTabs.includes(sectionFromUrl ?? '')) {
+      return sectionFromUrl!;
     } else {
-      // No valid tab in URL, set default tab in URL
+      // No valid section in URL, set default section in URL
       const url = new URL(window.location.href);
-      url.searchParams.set('tab', defaultTab);
+      url.searchParams.set('section', defaultTab);
       window.history.replaceState({}, '', url.toString());
       return defaultTab;
     }
@@ -50,11 +50,11 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
 
   const prefixDataTestId = 'AbsenceReport';
 
-  // Update URL when tab changes
+  // Update URL when section changes
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', key);
+    url.searchParams.set('section', key);
     window.history.pushState({}, '', url.toString());
   };
 
@@ -62,8 +62,8 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const tabFromUrl = urlParams.get('tab');
-      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : defaultTab;
+      const sectionFromUrl = urlParams.get('section');
+      const newTab = validTabs.includes(sectionFromUrl ?? '') ? sectionFromUrl! : defaultTab;
       setActiveTab(newTab);
     };
 

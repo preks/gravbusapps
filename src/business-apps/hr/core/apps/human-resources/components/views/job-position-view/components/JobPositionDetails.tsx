@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi';
 import { JobPosition } from '../hooks/useJobPositionListData';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface JobPositionDetailsProps {
   jobPosition: JobPosition;
-  onClose?: () => void;
+  accessToken: string;
 }
 
 /**
@@ -15,7 +17,7 @@ interface JobPositionDetailsProps {
  */
 export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ 
   jobPosition, 
-  onClose 
+  accessToken
 }) => {
   const { t } = useTranslation();
   const userLocale = getCurrentActiveUserLocale() || 'en-US';
@@ -71,7 +73,24 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
   const isVacant = !jobPosition.employeePositions || jobPosition.employeePositions.length === 0;
 
   return (
-    <div className="gba:p-6 gba:space-y-6">
+    <div className="gba:p-6 gba:space-y-6 gba:relative">
+      {/* Action button in top right corner with absolute positioning */}
+      {accessToken && (
+        <div className="gba:absolute gba:top-4 gba:right-2" onClick={(e) => e.stopPropagation()}>
+          <AppActionButton
+            data-testid="job-position-details-action-button"
+            contextsArray={[FlowContextName.jobPositionEntity]}
+            externalContextData={{
+              jobPositionId: jobPosition.id
+            }}
+            prefixDataTestId="job-position-details-action"
+            accessToken={accessToken}
+          >
+            Actions
+          </AppActionButton>
+        </div>
+      )}
+
       {/* Header */}
       <div className="gba:border-b gba:border-gray-200 gba:pb-4">
         <div className="gba:flex gba:items-center gba:gap-3">

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button } from 'antd';
+import { Alert, Button } from 'antd';
 import { PageLayout } from '@newwork/nw-design-system';
 import {
   DashboardOutlined,
-  CalendarOutlined,
   UserOutlined,
   TeamOutlined,
   ApartmentOutlined,
@@ -58,11 +57,11 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
   // Get initial view from URL or default to first view
   const getInitialView = () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const tabFromUrl = urlParams.get('tab');
 
-    // Validate that the view exists in our options
-    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
-      return viewFromUrl;
+    // Validate that the tab exists in our options
+    if (tabFromUrl && viewOptions.some(option => option.key === tabFromUrl)) {
+      return tabFromUrl;
     }
 
     return viewOptions[0].key;
@@ -70,21 +69,20 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     
-    // Update URL to reflect the current view
+    // Update URL to reflect the current tab
     const url = new URL(window.location.href);
-    url.searchParams.set('view', value);
+    url.searchParams.set('tab', value);
     
-    // Define which views have tabs
-    const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+    // Define which tabs have sections
+    const tabsWithSections = ['workforce', 'structural-analysis', 'forecasting'];
     
-    // If switching to a view without tabs, remove the tab parameter
-    if (!viewsWithTabs.includes(value)) {
-      url.searchParams.delete('tab');
+    // If switching to a tab without sections, remove the section parameter
+    if (!tabsWithSections.includes(value)) {
+      url.searchParams.delete('section');
     }
     
     window.history.pushState({}, '', url.toString());
@@ -94,18 +92,18 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const viewFromUrl = urlParams.get('view');
+      const tabFromUrl = urlParams.get('tab');
       
-      if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
-        setActiveTab(viewFromUrl);
+      if (tabFromUrl && viewOptions.some(option => option.key === tabFromUrl)) {
+        setActiveTab(tabFromUrl);
         
-        // Define which views have tabs
-        const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+        // Define which tabs have sections
+        const tabsWithSections = ['workforce', 'structural-analysis', 'forecasting'];
         
-        // If navigating to a view without tabs, clean up the tab parameter
-        if (!viewsWithTabs.includes(viewFromUrl) && urlParams.has('tab')) {
+        // If navigating to a tab without sections, clean up the section parameter
+        if (!tabsWithSections.includes(tabFromUrl) && urlParams.has('section')) {
           const url = new URL(window.location.href);
-          url.searchParams.delete('tab');
+          url.searchParams.delete('section');
           window.history.replaceState({}, '', url.toString());
         }
       }
@@ -120,14 +118,14 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
     console.log(`HR Analytics - Active view: ${activeTab}`);
   }, [activeTab]);
 
-  // Clean up tab parameter on initial load if current view doesn't support tabs
+  // Clean up section parameter on initial load if current tab doesn't support sections
   useEffect(() => {
-    const viewsWithTabs = ['workforce', 'structural-analysis', 'forecasting'];
+    const tabsWithSections = ['workforce', 'structural-analysis', 'forecasting'];
     const urlParams = new URLSearchParams(window.location.search);
     
-    if (!viewsWithTabs.includes(activeTab) && urlParams.has('tab')) {
+    if (!tabsWithSections.includes(activeTab) && urlParams.has('section')) {
       const url = new URL(window.location.href);
-      url.searchParams.delete('tab');
+      url.searchParams.delete('section');
       window.history.replaceState({}, '', url.toString());
     }
   }, []); // Run only on initial mount
@@ -154,19 +152,8 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
     return null;
   };
 
-  const renderLoadingContent = (viewName: string) => {
-    if (isLoading) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-          <div className="gba:text-center">
-            <Spin size="large" />
-            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">
-              Loading {viewName}...
-            </div>
-          </div>
-        </div>
-      );
-    }
+  const renderLoadingContent = () => {
+    // Individual views handle their own loading states
     return null;
   };
 
@@ -174,7 +161,7 @@ export const HrAnalytics: React.FC<HrAnalyticsProps> = (context) => {
     const errorContent = renderErrorContent('HR Analytics');
     if (errorContent) return errorContent;
 
-    const loadingContent = renderLoadingContent('HR Analytics');
+    const loadingContent = renderLoadingContent();
     if (loadingContent) return loadingContent;
 
     switch (activeTab) {
