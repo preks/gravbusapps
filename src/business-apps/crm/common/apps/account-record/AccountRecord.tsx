@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Spinner } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Button, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
+import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FileOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -9,6 +9,8 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
+import { AccountOpportunities } from "./components";
+import { AccountDocuments } from "./components/AccountDocuments";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -19,6 +21,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
 
@@ -114,43 +117,73 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         onStatusUpdate={refetchAccountData} 
       />
 
-      {/* Main content */}
+      {/* Main content with tabs */}
       <div className="gba:contact-details-content" data-testid="contact-details-content">
-        
-        {/* First Row: Company Information + Personal Info */}
-        <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
-          {/* Company Information - 3/4 width */}
-          <div className="gba:col-span-3 gba:flex">
-            <CompanyInformation 
-              account={account} 
-              accountData={accountData} 
-              accountId={accountId}
-              context={props}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+          <TabsList className="gba:bg-white gba:border gba:mb-6">
+            <TabsTrigger value="overview" data-testid="overview-tab">
+              <UserOutlined className="gba:mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="opportunities" data-testid="opportunities-tab">
+              <BarChartOutlined className="gba:mr-2" />
+              Opportunities
+            </TabsTrigger>
+            <TabsTrigger value="documents" data-testid="documents-tab">
+              <FileOutlined className="gba:mr-2" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" data-testid="overview-content">
+            {/* First Row: Company Information + Personal Info */}
+            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
+              {/* Company Information - 3/4 width */}
+              <div className="gba:col-span-3 gba:flex">
+                <CompanyInformation 
+                  account={account} 
+                  accountData={accountData} 
+                  accountId={accountId}
+                  context={props}
+                />
+              </div>
+
+              {/* Personal Information - 1/4 width */}
+              <div className="gba:col-span-1 gba:flex">
+                <ContactInformation 
+                  accountData={accountData} 
+                  accountId={accountId}
+                  context={props}
+                />
+              </div>
+            </div>
+
+            {/* Second Row: Activity Timeline + Tasks */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+              {/* Activity Timeline - 1/2 width */}
+              <div>
+                <ActivityTimeline accountId={accountId} context={props} />
+              </div>
+
+              {/* Tasks - 1/2 width */}
+              <div>
+                <TasksSection accountId={accountId} context={props} />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="opportunities" data-testid="opportunities-content">
+            <AccountOpportunities 
+              accountId={accountId} 
+              context={props} 
             />
-          </div>
+          </TabsContent>
 
-          {/* Personal Information - 1/4 width */}
-          <div className="gba:col-span-1 gba:flex">
-            <ContactInformation 
-              accountData={accountData} 
-              accountId={accountId}
-              context={props}
-            />
-          </div>
-        </div>
+          <TabsContent value="documents" data-testid="documents-content">
+            <AccountDocuments accountId={accountId} context={props} />
+          </TabsContent>
 
-        {/* Second Row: Activity Timeline + Tasks */}
-        <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-          {/* Activity Timeline - 1/2 width */}
-          <div>
-            <ActivityTimeline accountId={accountId} context={props} />
-          </div>
-
-          {/* Tasks - 1/2 width */}
-          <div>
-            <TasksSection accountId={accountId} context={props} />
-          </div>
-        </div>
+        </Tabs>
       </div>
     </div>
   );

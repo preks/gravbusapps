@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect, useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
 export interface EmployeeByIdData {
   id: string;
@@ -91,7 +91,10 @@ export const GET_EMPLOYEE_BY_ID = (employeeId: string): string => {
 /**
  * Custom hook for fetching a single employee by ID
  */
-export const useEmployeeById = ({ accessToken, employeeId }: UseEmployeeByIdProps): UseEmployeeByIdReturn => {
+export const useEmployeeById = ({
+  accessToken,
+  employeeId,
+}: UseEmployeeByIdProps): UseEmployeeByIdReturn => {
   const [employee, setEmployee] = useState<EmployeeByIdData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,35 +102,41 @@ export const useEmployeeById = ({ accessToken, employeeId }: UseEmployeeByIdProp
   const graphqlClient = useGraphQLClient(accessToken);
 
   // Fetch employee by ID
-  const fetchEmployee = useCallback(async (id: string) => {
-    if (!accessToken || !graphqlClient) return;
+  const fetchEmployee = useCallback(
+    async (id: string) => {
+      if (!accessToken || !graphqlClient) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const query = GET_EMPLOYEE_BY_ID(id);
-      const result = await graphqlClient.request<EmployeeByIdResponse>(query);
-      
-      const employeeData = result.EmployeePosition?.[0] || null;
-      setEmployee(employeeData);
-      
-      if (!employeeData) {
-        setError(`Employee with ID ${id} not found`);
+      try {
+        const query = GET_EMPLOYEE_BY_ID(id);
+        const result = await graphqlClient.request<EmployeeByIdResponse>(query);
+
+        const employeeData = result.EmployeePosition?.[0] || null;
+        setEmployee(employeeData);
+
+        if (!employeeData) {
+          setError(`Employee with ID ${id} not found`);
+        }
+      } catch (err: any) {
+        console.error("Error fetching employee by ID:", err);
+        setError(err.message || "Failed to fetch employee");
+        setEmployee(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      console.error('Error fetching employee by ID:', err);
-      setError(err.message || 'Failed to fetch employee');
-      setEmployee(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, graphqlClient]);
+    },
+    [accessToken, graphqlClient]
+  );
 
   // Auto-fetch if employeeId is provided
   useEffect(() => {
     if (employeeId) {
+      console.log("👤 Employee by ID hook auto-fetching for:", employeeId);
       fetchEmployee(employeeId);
+    } else {
+      console.log("⚠️ Employee by ID hook: No employeeId provided");
     }
   }, [employeeId, fetchEmployee]);
 
@@ -137,4 +146,4 @@ export const useEmployeeById = ({ accessToken, employeeId }: UseEmployeeByIdProp
     error,
     fetchEmployee,
   };
-}; 
+};

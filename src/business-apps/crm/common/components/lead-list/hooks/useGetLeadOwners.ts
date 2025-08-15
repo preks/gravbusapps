@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useState, useEffect, useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface LeadOwner {
   id: string;
@@ -31,7 +31,7 @@ const GET_LEAD_OWNERS_QUERY = `
 
 export const useGetLeadOwners = (
   context: BusinessAppContextProps,
-  search: string = '',
+  search: string = "",
   offset: number = 0
 ) => {
   const [leadOwners, setLeadOwners] = useState<LeadOwner[]>([]);
@@ -42,7 +42,7 @@ export const useGetLeadOwners = (
 
   const fetchLeadOwners = useCallback(async () => {
     if (!context.accessToken) {
-      console.log('No access token available for lead owners');
+      console.log("No access token available for lead owners");
       return;
     }
 
@@ -56,55 +56,59 @@ export const useGetLeadOwners = (
         ownerEmployee: {
           _and: [
             { id: { _isNull: false } },
-            ...(search.trim() ? [{
-              _or: [
-                { firstName: { _ilike: `%${search}%` } },
-                { lastName: { _ilike: `%${search}%` } },
-                { displayName: { _ilike: `%${search}%` } }
-              ]
-            }] : [])
-          ]
-        }
+            ...(search.trim()
+              ? [
+                  {
+                    _or: [
+                      { firstName: { _ilike: `%${search}%` } },
+                      { lastName: { _ilike: `%${search}%` } },
+                      { displayName: { _ilike: `%${search}%` } },
+                    ],
+                  },
+                ]
+              : []),
+          ],
+        },
       };
 
       const variables = {
         where: whereCondition,
         limit: 5, // Limit to 5 items as per other filters
-        offset
+        offset,
       };
 
-      console.log('Fetching lead owners with variables:', variables);
-
-      const result = await graphqlClient.request(GET_LEAD_OWNERS_QUERY, variables);
-      
-      console.log('Lead owners result:', result);
+      const result = await graphqlClient.request(
+        GET_LEAD_OWNERS_QUERY,
+        variables
+      );
 
       if (result?.Lead) {
-        const owners = result.Lead
-          .filter((lead: any) => lead.ownerEmployee) // Ensure ownerEmployee exists
+        const owners = result.Lead.filter((lead: any) => lead.ownerEmployee) // Ensure ownerEmployee exists
           .map((lead: any) => ({
             id: lead.ownerEmployee.id,
-            name: lead.ownerEmployee.displayName || 
-                  `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim(),
+            name:
+              lead.ownerEmployee.displayName ||
+              `${lead.ownerEmployee.firstName || ""} ${
+                lead.ownerEmployee.lastName || ""
+              }`.trim(),
             displayName: lead.ownerEmployee.displayName,
             firstName: lead.ownerEmployee.firstName,
-            lastName: lead.ownerEmployee.lastName
+            lastName: lead.ownerEmployee.lastName,
           }))
           .slice(0, 5); // Frontend enforcement of limit
 
         setLeadOwners(owners);
-        console.log('Processed lead owners:', owners);
       } else {
         setLeadOwners([]);
       }
     } catch (err) {
-      console.error('Error fetching lead owners:', err);
+      console.error("Error fetching lead owners:", err);
       setError(err);
       setLeadOwners([]);
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, search, offset, graphqlClient]);
+  }, [context.accessToken, search, offset]); // Removed graphqlClient from dependencies
 
   useEffect(() => {
     fetchLeadOwners();
@@ -114,6 +118,6 @@ export const useGetLeadOwners = (
     leadOwners,
     isLoading,
     error,
-    refetch: fetchLeadOwners
+    refetch: fetchLeadOwners,
   };
-}; 
+};

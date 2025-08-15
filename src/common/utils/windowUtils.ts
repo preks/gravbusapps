@@ -32,30 +32,46 @@ export function getCurrentActiveUserLocale(): string {
 }
 
 export function getCatalogValue(catalogEntry: any): string {
+  // Handle null, undefined, or empty catalogEntry
+  if (!catalogEntry) {
+    return "";
+  }
+
   try {
-    const currentLocale = (window?.lowcoder?.i18n?.selectedLocale || 'en-US').toLowerCase();
+    const currentLocale = (
+      window?.lowcoder?.i18n?.selectedLocale || "en-US"
+    ).toLowerCase();
     if (Array.isArray(catalogEntry.translations)) {
-      const translation = catalogEntry.translations.find((t: any) => t?.localeCode?.toLowerCase() === currentLocale);
+      const translation = catalogEntry.translations.find(
+        (t: any) => t?.localeCode?.toLowerCase() === currentLocale
+      );
       if (translation && translation.value) return translation.value;
     }
-    return catalogEntry.value || '';
+    return catalogEntry.value || "";
   } catch {
-    return catalogEntry.value || '';
+    return catalogEntry?.value || "";
   }
 }
 
-export function getDateFormat(format:string):string{
-  if(window?.lowcoder?.getDateFormat)
-    return window.lowcoder.getDateFormat(format)
-  return "DD.MM.YYYY"
+export function getDateFormat(format: string): string {
+  if (window?.lowcoder?.getDateFormat)
+    return window.lowcoder.getDateFormat(format);
+  return "DD.MM.YYYY";
 }
 
-export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: string, translationVariables?: {}) {
-  if (typeof window?.lowcoder?.i18n?.t !== 'function') {
+export function getTranslationFromI18nKeyAndLabel(
+  key: string,
+  defaultValue: string,
+  translationVariables?: {}
+) {
+  if (typeof window?.lowcoder?.i18n?.t !== "function") {
     return defaultValue;
   }
-  const translation = window?.lowcoder?.i18n?.t(key, { defaultValue, ...(translationVariables || {}) });
-  if (key?.split('lowcoder:')?.[1] === translation) {
+  const translation = window?.lowcoder?.i18n?.t(key, {
+    defaultValue,
+    ...(translationVariables || {}),
+  });
+  if (key?.split("lowcoder:")?.[1] === translation) {
     return defaultValue;
   }
   return translation || defaultValue;
@@ -63,38 +79,43 @@ export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: str
 
 export const formatDate = (
   dateValue: Date | string | undefined,
-  format = 'date.short',
+  format = "date.short",
   customSpecificFormat = null
 ): string | undefined => {
   if (!dateValue) return dateValue;
 
   const date = new Date(dateValue);
 
-  if (typeof window?.lowcoder?.i18n?.formatDate !== 'function') {
+  if (typeof window?.lowcoder?.i18n?.formatDate !== "function") {
     return date.toISOString();
   }
 
   return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat);
 };
 
-export const formatNumberFunction=(number :string, format :string="0.00[,]00"):string=>{
-  if (!window.lowcoder?.i18n?.formatNumber || typeof window.lowcoder.i18n?.formatNumber !== 'function') {
+export const formatNumberFunction = (
+  number: string,
+  format: string = "0.00[,]00"
+): string => {
+  if (
+    !window.lowcoder?.i18n?.formatNumber ||
+    typeof window.lowcoder.i18n?.formatNumber !== "function"
+  ) {
     return number;
   }
   return window.lowcoder.i18n.formatNumber(number, format);
-}
+};
 
-export const formatDateToISO= (dateValue:Date) : Date | string | undefined => {
-  if(!dateValue)
-    return ""
- try {
-  if (!window?.lowcoder?.i18n?.l10nResources?.dateTime['fullDateTime.ISO']) {
-    return dateValue;
-  }
-  if(window.lowcoder.formatDate)
-  return window.lowcoder.formatDate(dateValue, 'fullDateTime.ISO');
-return dateValue.toISOString()
+export const formatDateToISO = (dateValue: Date): Date | string | undefined => {
+  if (!dateValue) return "";
+  try {
+    if (!window?.lowcoder?.i18n?.l10nResources?.dateTime["fullDateTime.ISO"]) {
+      return dateValue;
+    }
+    if (window.lowcoder.formatDate)
+      return window.lowcoder.formatDate(dateValue, "fullDateTime.ISO");
+    return dateValue.toISOString();
   } catch {
     return dateValue;
   }
-}
+};

@@ -4,7 +4,7 @@ export interface LeadFormValues {
   leadStatus: string;
   leadSource: string;
   rating: string;
-  
+
   // Contact Information
   salutation: string;
   firstName: string;
@@ -12,7 +12,7 @@ export interface LeadFormValues {
   jobPosition: string; // Replaces title
   phone: string;
   email: string;
-  
+
   // Company Information
   legalForm: string;
   industry: string;
@@ -21,10 +21,12 @@ export interface LeadFormValues {
   companyEmail: string;
   companyPhone: string;
   timeZone: string;
-  foundationDate: string;
   numberOfEmployees: string;
   annualRevenue: string;
-  
+
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Address Information
   country: string;
   region: string;
@@ -34,14 +36,14 @@ export interface LeadFormValues {
   addressLine4: string;
   postalCode: string;
   city: string;
-  
+
   // Notes
   notes: string;
-  
+
   // System fields
   id?: string;
   version?: number;
-  
+
   // Legacy fields for backward compatibility
   followUp?: boolean;
   address?: string;
@@ -71,7 +73,7 @@ export interface LeadContextState {
   // Loading states
   isLoading: boolean;
   error: string | null;
-  
+
   // Data collections
   leadSources: SelectOption[];
   leadStatuses: SelectOption[];
@@ -81,5 +83,26 @@ export interface LeadContextState {
   industries: SelectOption[];
   timeZones: SelectOption[];
   countries: SelectOption[];
-  numberOfEmployeesOptions: SelectOption[];
-} 
+  employeeSizes: SelectOption[];
+  employeeSizesLoading: boolean;
+  employeeSizesError: string | null;
+  employeeSizesHasMore: boolean;
+  employeeSizesNeedsMoreData: boolean;
+  employeeSizesDisplayCount: number;
+  employeeSizesTotalFetched: number;
+  searchEmployeeSizes: (search: string) => void;
+  loadMoreEmployeeSizes: () => void;
+  showMoreEmployeeSizes: () => void;
+
+  // Revenue Sizes
+  revenueSizes: SelectOption[];
+  revenueSizesLoading: boolean;
+  revenueSizesError: string | null;
+  revenueSizesHasMore: boolean;
+  revenueSizesNeedsMoreData: boolean;
+  revenueSizesDisplayCount: number;
+  revenueSizesTotalFetched: number;
+  searchRevenueSizes: (search: string) => void;
+  loadMoreRevenueSizes: () => void;
+  showMoreRevenueSizes: () => void;
+}

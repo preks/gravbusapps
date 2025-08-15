@@ -24,64 +24,64 @@ import {
 
 // Location/Country Colors - Using entity-location and complementary colors
 const LOCATION_COLORS = [
-  'var(--entity-location)', // Yellow-600 - Primary location color
-  'var(--entity-tech)', // Teal-600 - Technology/modern locations
-  'var(--entity-job)', // Sky-600 - Professional locations
-  'var(--entity-premium)', // Lime-600 - Premium locations
-  'var(--info)', // Blue-600 - Information/standard locations
-  'var(--status-running)', // Cyan-600 - Active locations
-  'var(--ai-primary-from)', // Purple-600 - AI/strategic locations
-  'var(--entity-strategy)', // Fuchsia-600 - Strategic locations
-  'var(--warning)', // Orange-600 - Warning/attention locations
-  'var(--entity-department)', // Gray-600 - Department locations
-  'var(--entity-order)', // Blue-600 - Order/process locations
-  'var(--status-pending)', // Yellow-500 - Pending locations
+  'var(--nw-entity-location)', // Yellow-600 - Primary location color
+  'var(--nw-entity-tech)', // Teal-600 - Technology/modern locations
+  'var(--nw-entity-job)', // Sky-600 - Professional locations
+  'var(--nw-entity-premium)', // Lime-600 - Premium locations
+  'var(--nw-info)', // Blue-600 - Information/standard locations
+  'var(--nw-status-running)', // Cyan-600 - Active locations
+  'var(--nw-ai-primary-from)', // Purple-600 - AI/strategic locations
+  'var(--nw-entity-strategy)', // Fuchsia-600 - Strategic locations
+  'var(--nw-warning)', // Orange-600 - Warning/attention locations
+  'var(--nw-entity-department)', // Gray-600 - Department locations
+  'var(--nw-entity-order)', // Blue-600 - Order/process locations
+  'var(--nw-status-pending)', // Yellow-500 - Pending locations
 ];
 
 // Company Colors - Using entity-order and business-focused colors
 const COMPANY_COLORS = [
-  'var(--entity-order)', // Blue-600 - Primary company color
-  'var(--entity-employee)', // Purple-600 - Employee-focused companies
-  'var(--entity-strategy)', // Fuchsia-600 - Strategic companies
-  'var(--entity-tech)', // Teal-600 - Technology companies
-  'var(--entity-premium)', // Lime-600 - Premium companies
-  'var(--info)', // Blue-600 - Information/service companies
-  'var(--warning)', // Orange-600 - Manufacturing/industrial companies
-  'var(--status-running)', // Cyan-600 - Active/operational companies
-  'var(--entity-job)', // Sky-600 - Professional services companies
-  'var(--entity-department)', // Gray-600 - Administrative companies
-  'var(--ai-primary-from)', // Purple-600 - AI/innovation companies
-  'var(--status-pending)', // Yellow-500 - Developing companies
+  'var(--nw-entity-order)', // Blue-600 - Primary company color
+  'var(--nw-entity-employee)', // Purple-600 - Employee-focused companies
+  'var(--nw-entity-strategy)', // Fuchsia-600 - Strategic companies
+  'var(--nw-entity-tech)', // Teal-600 - Technology companies
+  'var(--nw-entity-premium)', // Lime-600 - Premium companies
+  'var(--nw-info)', // Blue-600 - Information/service companies
+  'var(--nw-warning)', // Orange-600 - Manufacturing/industrial companies
+  'var(--nw-status-running)', // Cyan-600 - Active/operational companies
+  'var(--nw-entity-job)', // Sky-600 - Professional services companies
+  'var(--nw-entity-department)', // Gray-600 - Administrative companies
+  'var(--nw-ai-primary-from)', // Purple-600 - AI/innovation companies
+  'var(--nw-status-pending)', // Yellow-500 - Developing companies
 ];
 
 // Cost Center Colors - Using entity-department and organizational colors
 const COST_CENTER_COLORS = [
-  'var(--entity-department)', // Gray-600 - Primary department color
-  'var(--entity-employee)', // Purple-600 - HR/employee cost centers
-  'var(--entity-tech)', // Teal-600 - IT/technology cost centers
-  'var(--entity-job)', // Sky-600 - Operations cost centers
-  'var(--entity-order)', // Blue-600 - Sales/order cost centers
-  'var(--entity-strategy)', // Fuchsia-600 - Strategic cost centers
-  'var(--warning)', // Orange-600 - Finance/accounting cost centers
-  'var(--info)', // Blue-600 - Information/admin cost centers
-  'var(--status-running)', // Cyan-600 - Active/operational cost centers
-  'var(--entity-premium)', // Lime-600 - Premium/executive cost centers
-  'var(--ai-primary-from)', // Purple-600 - AI/innovation cost centers
-  'var(--status-pending)', // Yellow-500 - Development cost centers
+  'var(--nw-entity-department)', // Gray-600 - Primary department color
+  'var(--nw-entity-employee)', // Purple-600 - HR/employee cost centers
+  'var(--nw-entity-tech)', // Teal-600 - IT/technology cost centers
+  'var(--nw-entity-job)', // Sky-600 - Operations cost centers
+  'var(--nw-entity-order)', // Blue-600 - Sales/order cost centers
+  'var(--nw-entity-strategy)', // Fuchsia-600 - Strategic cost centers
+  'var(--nw-warning)', // Orange-600 - Finance/accounting cost centers
+  'var(--nw-info)', // Blue-600 - Information/admin cost centers
+  'var(--nw-status-running)', // Cyan-600 - Active/operational cost centers
+  'var(--nw-entity-premium)', // Lime-600 - Premium/executive cost centers
+  'var(--nw-ai-primary-from)', // Purple-600 - AI/innovation cost centers
+  'var(--nw-status-pending)', // Yellow-500 - Development cost centers
 ];
 
 // Hierarchy Level Colors - Using structured progression
 const LEVEL_COLORS = [
-  'var(--entity-strategy)', // Fuchsia-600 - C-Level/Executive
-  'var(--entity-employee)', // Purple-600 - VP/Senior Management
-  'var(--entity-order)', // Blue-600 - Directors
-  'var(--entity-job)', // Sky-600 - Managers
-  'var(--entity-tech)', // Teal-600 - Team Leads
-  'var(--info)', // Blue-600 - Senior Staff
-  'var(--status-running)', // Cyan-600 - Staff
-  'var(--entity-department)', // Gray-600 - Associates
-  'var(--warning)', // Orange-600 - Entry Level
-  'var(--status-pending)', // Yellow-500 - Interns/Trainees
+  'var(--nw-entity-strategy)', // Fuchsia-600 - C-Level/Executive
+  'var(--nw-entity-employee)', // Purple-600 - VP/Senior Management
+  'var(--nw-entity-order)', // Blue-600 - Directors
+  'var(--nw-entity-job)', // Sky-600 - Managers
+  'var(--nw-entity-tech)', // Teal-600 - Team Leads
+  'var(--nw-info)', // Blue-600 - Senior Staff
+  'var(--nw-status-running)', // Cyan-600 - Staff
+  'var(--nw-entity-department)', // Gray-600 - Associates
+  'var(--nw-warning)', // Orange-600 - Entry Level
+  'var(--nw-status-pending)', // Yellow-500 - Interns/Trainees
 ];
 
 /**

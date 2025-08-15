@@ -7,33 +7,37 @@ export interface ContactFormValues {
   languageRef: string;
   bio: string;
   pictureUrl: string;
-  
+
   // Professional Information
   jobTitle: string;
   department: string;
   contactRole: string;
   contactType: string;
   workExperienceYears: string;
-  
+
   // Contact Information
   email: string;
   phone: string;
   fax: string;
   linkedinUrl: string;
   xingUrl: string;
-  
+
   // Account Information
   accountId: string;
+  companyName: string; // Company name for display (same as opportunity form)
   ownerEmployeeId: string;
   ownerOrganizationId: string;
-  
+
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Additional Information
   notesSummary: string;
-  
+
   // System fields
   id?: string;
   version?: number;
-  
+
   // Source tracking
   sourceApp?: string;
   recordState?: string;
@@ -59,7 +63,7 @@ export interface ContactContextState {
   // Loading states
   isLoading: boolean;
   error: string | null;
-  
+
   // Data collections
   contactTypes: SelectOption[];
   contactRoles: SelectOption[];
@@ -68,4 +72,4 @@ export interface ContactContextState {
   departments: SelectOption[];
   employeePositions: SelectOption[];
   accounts: SelectOption[];
-} 
+}

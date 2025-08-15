@@ -2,9 +2,6 @@ import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils"
 import { flowClient } from "@/common/network/flows/FlowClient";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
-// Constants for flow domain and process name
-const FLOW_DOMAIN = "employee-expense";
-const FLOW_PROCESS_NAME = "changeExpenseItem";
 
 /**
  * Initiates a workflow process for expense item changes
@@ -14,7 +11,9 @@ const FLOW_PROCESS_NAME = "changeExpenseItem";
  */
 export const initiateFlow = async (
   accessToken: string,
-  employeeId: string
+  employeeId: string,
+  flowDomain:string,
+  flowProcessName:string
 ): Promise<any> => {
   if (!employeeId) {
     showToast(
@@ -29,7 +28,7 @@ export const initiateFlow = async (
 
   try {
     flowClient.setAccessToken(accessToken);
-    return await flowClient.initiateFlow(FLOW_DOMAIN, FLOW_PROCESS_NAME, { employeeId });
+    return await flowClient.initiateFlow(flowDomain, flowProcessName, { employeeId });
   } catch (error) {
     showToast(
       getTranslationFromI18nKeyAndLabel(
@@ -52,7 +51,9 @@ export const initiateFlow = async (
 export const getOpenedTaskFlow = async (
   accessToken: string,
   userId: string,
-  processInstanceId: string
+  processInstanceId: string,
+  flowDomain:string,
+  flowProcessName:string
 ): Promise<any> => {
   if (!processInstanceId) {
     showToast(
@@ -67,7 +68,7 @@ export const getOpenedTaskFlow = async (
 
   try {
     flowClient.setAccessToken(accessToken);
-    return await flowClient.getOpenedTaskFlow(FLOW_DOMAIN, FLOW_PROCESS_NAME, processInstanceId, userId);
+    return await flowClient.getOpenedTaskFlow(flowDomain, flowProcessName, processInstanceId, userId);
   } catch (error) {
     showToast(
       getTranslationFromI18nKeyAndLabel(
@@ -96,7 +97,9 @@ export const completeTaskFlow = async (
   processInstanceId: string,
   taskName: string,
   taskId: string,
-  submitData: any
+  submitData: any,
+  flowDomain: string,
+  flowProcessName: string
 ): Promise<any> => {
   if (!processInstanceId || !taskId || !taskName) {
     showToast(
@@ -112,8 +115,8 @@ export const completeTaskFlow = async (
   try {
     flowClient.setAccessToken(accessToken);
     return await flowClient.completeTaskFlow(
-      FLOW_DOMAIN, 
-      FLOW_PROCESS_NAME, 
+      flowDomain, 
+      flowProcessName, 
       processInstanceId, 
       taskName, 
       taskId, 

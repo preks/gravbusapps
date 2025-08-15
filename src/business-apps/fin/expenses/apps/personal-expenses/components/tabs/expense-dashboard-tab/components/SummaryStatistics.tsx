@@ -1,11 +1,10 @@
 import React from 'react';
-import { Row, Col, Card, Typography, Statistic, Tooltip, Spin, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, ClockCircleOutlined, WarningOutlined, GlobalOutlined } from '@ant-design/icons';
+import { Card, Alert, Spinner } from '@newwork/nw-design-system';
+import { ArrowUpOutlined, ArrowDownOutlined, GlobalOutlined } from '@ant-design/icons';
 import { PiCurrencyCircleDollar } from 'react-icons/pi';
-import { formatCurrency, calculatePercentChange } from '../utils/formatters';
+import { calculatePercentChange } from '../utils/formatters';
 import { DashboardStats } from '../types';
-
-const { Text } = Typography;
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface SummaryStatisticsProps {
   stats: DashboardStats | undefined;
@@ -16,9 +15,9 @@ interface SummaryStatisticsProps {
 export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isLoading, error }) => {
   if (isLoading) {
     return (
-      <div className="gba:summary-stats">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
-          <Spin size="large" />
+      <div className="gba:summary-stats" data-testid="summary-statistics-loading">
+        <div className="gba:flex gba:justify-center gba:p-6">
+          <Spinner size="lg" />
         </div>
       </div>
     );
@@ -26,13 +25,11 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
 
   if (error) {
     return (
-      <div className="gba:summary-stats">
-        <Alert
-          message="Error loading statistics"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+      <div className="gba:summary-stats" data-testid="summary-statistics-error">
+        <Alert variant="destructive">
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_statistics','Error loading statistics')}</h4>
+          <p>{error.message}</p>
+        </Alert>
       </div>
     );
   }
@@ -40,69 +37,59 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({ stats, isL
   if (!stats) return null;
   
   const currentTotal = stats.currentMonthExpenses?.total || 0;
-  const previousTotal = stats.lastMonthExpenses?.total || 0;
+  const previousTotal = stats.previousMonthExpenses?.total || 0;
   const percentChange = calculatePercentChange(currentTotal, previousTotal);
   const isPositiveChange = percentChange >= 0;
 
   return (
-    <Row gutter={[16, 16]} className="gba:summary-stats">
-      <Col xs={24} sm={12} md={6}>
-        <Card bordered={true}>
-            <Statistic
-              title="Current Month Expenses"
-              value={currentTotal}
-              precision={2}
-              valueStyle={{ color: isPositiveChange ? '#cf1322' : '#3f8600' }}
-              prefix={<PiCurrencyCircleDollar size={24} />}
-              suffix={
-                <Tooltip title={`${Math.abs(percentChange).toFixed(1)}% ${isPositiveChange ? 'increase' : 'decrease'} from last month`}>
-                  {isPositiveChange ? 
-                    <ArrowUpOutlined style={{ fontSize: '16px', color: '#cf1322' }} /> : 
-                    <ArrowDownOutlined style={{ fontSize: '16px', color: '#3f8600' }} />
-                  }
-                </Tooltip>
+    <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:summary-stats" data-testid="summary-statistics">
+      <Card className="gba:h-full" data-testid="current-month-expenses-card">
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses_title','Current Month Expenses')}</h3>
+            <div className="gba:flex gba:items-center gba:space-x-1" title={`${Math.abs(percentChange).toFixed(1)}% ${isPositiveChange ? 'increase' : 'decrease'} from last month`}>
+              {isPositiveChange ? 
+                <ArrowUpOutlined className="gba:text-red-500" /> : 
+                <ArrowDownOutlined className="gba:text-green-600" />
               }
-              formatter={(value) => formatCurrency(Number(value))}
-            />
-            <Text type="secondary">{stats?.currentMonthExpenses?.count || 0} expense items</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
-            <Statistic
-              title="Pending Payouts"
-              value={stats?.pendingPayouts || 0}
-              precision={2}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<ClockCircleOutlined />}
-              formatter={(value) => formatCurrency(Number(value))}
-            />
-            <Text type="secondary">Awaiting payment</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
-            <Statistic
-              title="Flagged Items"
-              value={stats?.flaggedItems || 0}
-              valueStyle={{ color: '#fa8c16' }}
-              prefix={<WarningOutlined />}
-            />
-            <Text type="secondary">Requiring attention</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={true}>
-            <Statistic
-              title="Upcoming Trips"
-              value={stats?.upcomingTrips || 0}
-              valueStyle={{ color: '#722ed1' }}
-              prefix={<GlobalOutlined />}
-            />
-            <Text type="secondary">Planned business trips</Text>
-          </Card>
-        </Col>
-      </Row>
+            </div>
+          </div>
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <PiCurrencyCircleDollar size={24} className={isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'} />
+            <span className={`gba:text-2xl gba:font-bold ${isPositiveChange ? 'gba:text-red-500' : 'gba:text-green-600'}`} data-testid="current-month-value">
+              {formatNumberFunction(String(currentTotal), '0,0.00[,]00')}
+            </span>
+          </div>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{stats?.currentMonthExpenses?.count || 0} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_requests','expense requests')}</p>
+        </div>
+      </Card>
+
+      <Card className="gba:h-full" data-testid="pending-payouts-card">
+        <div className="gba:space-y-2">
+          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts_title','Pending Payouts')}</h3>
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <PiCurrencyCircleDollar size={24} className="gba:text-blue-500" />
+            <span className="gba:text-2xl gba:font-bold gba:text-blue-500" data-testid="pending-payouts-value">
+              {formatNumberFunction(String(stats?.pendingPayouts || 0), '0,0.00[,]00')}
+            </span>
+          </div>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment_description','Awaiting payment')}</p>
+        </div>
+      </Card>
+
+      <Card className="gba:h-full" data-testid="upcoming-trips-card">
+        <div className="gba:space-y-2">
+          <h3 className="gba:text-sm gba:font-medium gba:text-gray-600 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips_title','Upcoming Trips')}</h3>
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <GlobalOutlined className="gba:text-2xl gba:text-purple-600" />
+            <span className="gba:text-2xl gba:font-bold gba:text-purple-600" data-testid="upcoming-trips-value">
+              {stats?.upcomingTrips || 0}
+            </span>
+          </div>
+          <p className="gba:text-sm gba:text-gray-500 gba:m-0">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.planned_business_trips_description','Planned business trips')}</p>
+        </div>
+      </Card>
+    </div>
   );
 };
 

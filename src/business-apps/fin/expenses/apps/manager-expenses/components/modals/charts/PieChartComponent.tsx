@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Empty } from 'antd';
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
 
@@ -28,43 +28,60 @@ const PieChartComponent: React.FC<PieChartProps> = ({
 }) => {
   if (!data || data.length === 0) {
     return (
-      <Card title={title} className="gba:w-full">
-        <Empty description="No data available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <Card className="gba:w-full">
+        {title && (
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+          </CardHeader>
+        )}
+        <CardContent>
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
+            <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+              No data available
+            </div>
+            <div className="gba:text-gray-400 gba:text-sm">
+              There is no data to display for this chart.
+            </div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card title={title} className="gba:w-full">
-      <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              outerRadius={100}
-              innerRadius={60}
-              fill="#8884d8"
-              dataKey={dataKey}
-              nameKey={nameKey}
-            >
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip 
-              formatter={(value: number, name: string) => {
-                const total = data.reduce((sum, item) => sum + item.value, 0);
-                const percent = ((Number(value) / total) * 100).toFixed(0);
-                return [`${formatNumberFunction(value.toString(), "0.00[,]00")} (${percent}%)`, name];
-              }}
-            />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+    <Card className="gba:w-full">
+      {title && (
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent>
+        <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={100}
+                innerRadius={60}
+                fill="#8884d8"
+                dataKey={dataKey}
+                label={(entry) => `${entry[nameKey]}: ${formatNumberFunction(entry[dataKey].toString(), "0.00[,]00")}`}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
     </Card>
   );
 };

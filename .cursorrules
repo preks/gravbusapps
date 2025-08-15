@@ -124,3 +124,6 @@ src
 # Processes with native screens
 - When wanting to continue a Kogito process by completing the current task, use `dispatchProcessContinueEvent(event, payload)` from src\common\utils\processEventUtils.ts
 - `dispatchProcessContinueEvent` assumes that there is a native screen rendered in the platform in a running Kogito process.
+
+# Usage of project rules
+- every time you choose to apply a rule(s), explicitly state the rule(s) in the output with the unique name or title of the rule, you can abbreviate the rule description to a single word or phrase, one paragraph per rule. For example: ✨ Applying rules: <br> 📋 output.rules: ***short description*** <br>

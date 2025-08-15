@@ -5,14 +5,13 @@
  * It integrates with the MCP GraphQL API to fetch real expense request data.
  */
 
-import React, { useState, ReactNode, useEffect } from 'react';
-import { Tabs } from '@newwork/gravity-ui-catalog';
+import React, { useState, useEffect } from 'react';
+import { PageLayout } from '@newwork/nw-design-system';
 import { PiGauge, PiMoney, PiHandCoins, PiWalletDuotone } from 'react-icons/pi';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-// Import tab components
 import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab/ExpenseDashboardTab';
 import ExpenseRequestTab from './components/tabs/expence-requests-tab/ExpenseRequestTab';
 import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePaymentTab';
@@ -20,61 +19,33 @@ import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePay
 interface BackofficeExpensesProps extends BusinessAppContextProps {}
 
 const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
-  const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
-
-  const tabItems = [
+  const viewOptions = [
     {
       key: 'dashboard',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGauge style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Dashboard</span>
-        </div>
-      ),
-      children: <ExpenseDashboardTab {...props} />,
-      renderContentHeader: () => null,
+      icon: <PiGauge className="gba:w-5 gba:h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
     },
     {
       key: 'expense-requests',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiMoney style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Expense Requests</span>
-        </div>
-      ),
-      children: <ExpenseRequestTab 
-        {...props} 
-        onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
-      />,
-      renderContentHeader: () => contentHeader,
+      icon: <PiMoney className="gba:w-5 gba:h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
     },
     {
       key: 'advance-payments',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiHandCoins style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Advance Payments</span>
-        </div>
-      ),
-      children: <AdvancePaymentTab 
-        {...props} 
-        onContentHeaderChange={(header: ReactNode) => setContentHeader(header)}
-      />,
-      renderContentHeader: () => contentHeader,
-    },
+      icon: <PiHandCoins className="gba:w-5 gba:h-5" />,
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')
+    }
   ];
 
-  // Get tab from URL query parameter or use first tab as default
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get('tab');
-    const validTabs = tabItems.map(item => item.key);
+    const validTabs = viewOptions.map(item => item.key);
     
     if (validTabs.includes(tabFromUrl ?? '')) {
       return tabFromUrl!;
     } else {
-      // No valid tab in URL, set default tab in URL
-      const defaultTab = tabItems[0].key;
+      const defaultTab = viewOptions[0].key;
       const url = new URL(window.location.href);
       url.searchParams.set('tab', defaultTab);
       window.history.replaceState({}, '', url.toString());
@@ -84,7 +55,6 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
 
-  // Update URL when tab changes
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     const url = new URL(window.location.href);
@@ -92,13 +62,12 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
     window.history.pushState({}, '', url.toString());
   };
 
-  // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const tabFromUrl = urlParams.get('tab');
-      const validTabs = tabItems.map(item => item.key);
-      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : tabItems[0].key;
+      const validTabs = viewOptions.map(item => item.key);
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key;
       setActiveTab(newTab);
     };
 
@@ -106,25 +75,45 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const activeTabItem = tabItems.find(item => item.key === activeTab);
-  const activeTabContent = activeTabItem?.children;
-  const activeTabContentHeader = activeTabItem?.renderContentHeader();
+  const renderTabContent = () => {
+    const tabProps = {
+      ...props
+    };
+
+    switch (activeTab) {
+      case 'dashboard':
+        return <ExpenseDashboardTab {...tabProps} />;
+      case 'expense-requests':
+        return <ExpenseRequestTab {...tabProps} />;
+      case 'advance-payments':
+        return <AdvancePaymentTab {...tabProps} />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <PageLayout
-      headerIcon={<PiWalletDuotone color="#0dbc7bff"/>}
-      headerLabel="Expense Management"
-      pageController={
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            items={tabItems.map(item => ({ key: item.key, label: item.label }))}
-            className="w-full"
-          />
-      }
-      contentHeader={activeTabContentHeader}
-      contentContainer={activeTabContent}
-    />
+    <div data-testid="backoffice-expenses-container">
+      <PageLayout
+        headerIcon={<PiWalletDuotone className="gba:w-6 gba:h-6 gba:text-purple-600" />}
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.expense_management_title', 'Expense Management')}
+        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.expense_management_subheader', 'Manage backoffice expenses, track expense requests, and advance payments')}
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: viewOptions.map((option) => ({
+            value: option.key,
+            label: option.label,
+            icon: option.icon
+          }))
+        }}
+        className="gba:min-h-screen"
+      >
+        <div className="gba:h-full gba:overflow-auto">
+          {renderTabContent()}
+        </div>
+      </PageLayout>
+    </div>
   );
 };
 

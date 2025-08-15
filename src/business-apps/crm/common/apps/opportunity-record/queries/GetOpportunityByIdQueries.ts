@@ -5,16 +5,60 @@ export interface GetOpportunityByIdResponse {
   Opportunity: OpportunityResponse[];
 }
 
+export interface StageConditionStatusResponse {
+  id: string;
+  completed: boolean;
+  completedAt?: string | null;
+  completedByEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+  } | null;
+  deadlineAt?: string | null;
+  processInstanceId?: string | null;
+  salesPipelineStageCondition?: {
+    id: string;
+    value: string;
+    code: string;
+    type?: string | null;
+    objectValue?: any;
+    parentEntryId?: string | null;
+  };
+  configSnapshot?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OpportunityResponse {
   id: string;
   version: string;
   name: string;
   estimatedAmount?: number;
+  // Indicates which source app created/owns the opportunity (e.g. 'CRM' or 'IRM')
+  sourceApp?: string;
+  salesPipelineRef?: string;
+  salesPipeline?: {
+    id: string;
+    value: string;
+    type: string;
+    code: string;
+    objectValue?: any;
+  };
+  salesPipelineStageRef?: string;
+  salesPipelineStage?: {
+    id: string;
+    value: string;
+    type: string;
+    code: string;
+    objectValue?: any;
+  };
   opportunityStatus?: {
     id: string;
     value: string;
     type: string;
     code: string;
+    objectValue?: any;
   };
   currency?: {
     id: string;
@@ -66,8 +110,10 @@ export interface OpportunityResponse {
       value: string;
       type: string;
       code: string;
+      objectValue?: any;
     };
   };
+  stageConditionStatuses?: StageConditionStatusResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -78,12 +124,30 @@ export const GET_OPPORTUNITY_BY_ID = `
       id
       version
       name
+      sourceApp
       estimatedAmount
+      salesPipelineRef
+      salesPipeline {
+        id
+        value
+        type
+        code
+        objectValue
+      }
+      salesPipelineStageRef
+      salesPipelineStage {
+        id
+        value
+        type
+        code
+        objectValue
+      }
       opportunityStatus {
         id
         value
         type
         code
+        objectValue
       }
       currency {
         id
@@ -135,7 +199,32 @@ export const GET_OPPORTUNITY_BY_ID = `
           value
           type
           code
+          objectValue
         }
+      }
+      stageConditionStatuses {
+        id
+        completed
+        completedAt
+        completedByEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
+        deadlineAt
+        processInstanceId
+        salesPipelineStageCondition {
+          id
+          value
+          code
+          type
+          objectValue
+          parentEntryId
+        }
+        configSnapshot
+        createdAt
+        updatedAt
       }
       createdAt
       updatedAt

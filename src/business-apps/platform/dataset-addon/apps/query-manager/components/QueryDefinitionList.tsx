@@ -1,30 +1,47 @@
 import React, { useState } from 'react';
 import { 
-  Table, 
-  Button, 
-  Tag, 
-  Space, 
-  Tooltip, 
-  Popconfirm, 
-  Typography, 
-  Select, 
-  Input, 
-  Row, 
-  Col,
-  Card
-} from 'antd';
+  Card,
+  CardContent,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Button,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Input,
+  Spinner,
+  Alert
+} from '@newwork/nw-design-system';
 import { 
-  EditOutlined, 
-  DeleteOutlined, 
-  PlayCircleOutlined, 
-  PauseCircleOutlined,
-  SearchOutlined
-} from '@ant-design/icons';
+  PencilSimpleIcon, 
+  TrashIcon, 
+  PlayCircleIcon, 
+  PauseCircleIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  WarningCircleIcon
+} from '@phosphor-icons/react';
 import { QueryDefinition, QueryType, QueryStatus } from '@/common/network/dataset';
-
-const { Title } = Typography;
-const { Option } = Select;
-const { Search } = Input;
 
 interface QueryDefinitionListProps {
   queries: QueryDefinition[];
@@ -39,6 +56,10 @@ interface QueryDefinitionListProps {
   onStatusChange: (id: string, status: QueryStatus) => void;
   onPageChange: (page: number, size: number) => void;
   onFilter: (filters: { queryType?: QueryType; status?: QueryStatus; search?: string }) => void;
+  onCreateNew: () => void;
+  error?: string;
+  onRetry?: () => void;
+  formatErrorMessage?: (error: string) => string;
 }
 
 export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
@@ -53,7 +74,11 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
   onDelete,
   onStatusChange,
   onPageChange,
-  onFilter
+  onFilter,
+  onCreateNew,
+  error,
+  onRetry,
+  formatErrorMessage
 }) => {
   const [filters, setFilters] = useState<{
     queryType?: QueryType;
@@ -72,193 +97,376 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
     onFilter({});
   };
 
+  const getStatusVariant = (status: QueryStatus) => {
+    return status === QueryStatus.ACTIVE ? 'default' : 'secondary';
+  };
+
+  const getTypeVariant = (type: QueryType) => {
+    return type === QueryType.DATASET ? 'default' : 'outline';
+  };
+
   const getStatusColor = (status: QueryStatus) => {
-    return status === QueryStatus.ACTIVE ? 'green' : 'orange';
+    return status === QueryStatus.ACTIVE 
+      ? { backgroundColor: 'var(--nw-color-success)', color: 'var(--nw-color-on-success)' }
+      : { backgroundColor: 'var(--nw-color-warning)', color: 'var(--nw-color-on-warning)' };
   };
 
   const getTypeColor = (type: QueryType) => {
-    return type === QueryType.DATASET ? 'blue' : 'purple';
+    return type === QueryType.DATASET 
+      ? { backgroundColor: 'var(--nw-color-primary)', color: 'var(--nw-color-on-primary)' }
+      : { backgroundColor: 'var(--nw-color-secondary)', color: 'var(--nw-color-on-secondary)' };
   };
 
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: QueryDefinition, b: QueryDefinition) => a.name.localeCompare(b.name),
-      render: (name: string, record: QueryDefinition) => (
-        <div>
-          <Typography.Text strong>{name}</Typography.Text>
-          <br />
-          <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.description}
-          </Typography.Text>
-        </div>
-      )
-    },
-    {
-      title: 'Type',
-      dataIndex: 'queryType',
-      key: 'queryType',
-      width: 100,
-      filters: [
-        { text: 'Dataset', value: QueryType.DATASET },
-        { text: 'Timeseries', value: QueryType.TIMESERIES }
-      ],
-      render: (type: QueryType) => (
-        <Tag color={getTypeColor(type)}>{type}</Tag>
-      )
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      filters: [
-        { text: 'Active', value: QueryStatus.ACTIVE },
-        { text: 'Draft', value: QueryStatus.DRAFT }
-      ],
-      render: (status: QueryStatus, record: QueryDefinition) => (
-        <Tag color={getStatusColor(status)}>{status}</Tag>
-      )
-    },
-    {
-      title: 'Parameters',
-      dataIndex: 'parameters',
-      key: 'parameters',
-      width: 120,
-      render: (parameters: any[]) => (
-        <span>{parameters.length} params</span>
-      )
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 120,
-      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-'
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
-             render: (_value: any, record: QueryDefinition) => (
-        <Space>
-          <Tooltip title="Edit Query">
-            <Button
-              icon={<EditOutlined />}
-              size="small"
-              onClick={() => onEdit(record)}
-              data-testid={`edit-query-${record.name}`}
-            />
-          </Tooltip>
-          
-          <Tooltip title={record.status === QueryStatus.ACTIVE ? 'Deactivate' : 'Activate'}>
-            <Button
-              icon={record.status === QueryStatus.ACTIVE ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-              size="small"
-              loading={isUpdating}
-              onClick={() => onStatusChange(
-                record.id!,
-                record.status === QueryStatus.ACTIVE ? QueryStatus.DRAFT : QueryStatus.ACTIVE
-              )}
-              data-testid={`toggle-status-${record.name}`}
-            />
-          </Tooltip>
-          
-          <Popconfirm
-            title="Delete Query"
-            description="Are you sure you want to delete this query? This action cannot be undone."
-            onConfirm={() => onDelete(record.id!)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="Delete Query">
-              <Button
-                icon={<DeleteOutlined />}
-                size="small"
-                danger
-                loading={isDeleting}
-                data-testid={`delete-query-${record.name}`}
-              />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      )
-    }
-  ];
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ 
+        paddingTop: 'var(--nw-spacing-12)', 
+        paddingBottom: 'var(--nw-spacing-12)' 
+      }}>
+        <Spinner />
+        <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading query definitions...</span>
+      </div>
+    );
+  }
 
   return (
-    <Card data-testid="query-definition-list">
-      {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:mb-0">
-          Query Definitions ({totalQueries})
-        </Title>
-      </div>
-
-      {/* Filters */}
-      <Row gutter={16} className="gba:mb-4">
-        <Col span={6}>
-          <Select
-            placeholder="Filter by Type"
-            allowClear
-            style={{ width: '100%' }}
-            value={filters.queryType}
-            onChange={(value) => handleFilterChange('queryType', value)}
-            data-testid="filter-by-type"
-          >
-            <Option value={QueryType.DATASET}>Dataset</Option>
-            <Option value={QueryType.TIMESERIES}>Timeseries</Option>
-          </Select>
-        </Col>
-        <Col span={6}>
-          <Select
-            placeholder="Filter by Status"
-            allowClear
-            style={{ width: '100%' }}
-            value={filters.status}
-            onChange={(value) => handleFilterChange('status', value)}
-            data-testid="filter-by-status"
-          >
-            <Option value={QueryStatus.ACTIVE}>Active</Option>
-            <Option value={QueryStatus.DRAFT}>Draft</Option>
-          </Select>
-        </Col>
-        <Col span={8}>
-          <Search
-            placeholder="Search queries..."
-            allowClear
-            value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            data-testid="search-queries"
-          />
-        </Col>
-        <Col span={4}>
-          <Button onClick={clearFilters}>Clear Filters</Button>
-        </Col>
-      </Row>
-
-      {/* Table */}
-      <Table
-        dataSource={queries}
-        columns={columns}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          current: currentPage + 1,
-          pageSize,
-          total: totalQueries,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} queries`,
-          onChange: (page, size) => onPageChange(page - 1, size || 20)
+    <TooltipProvider>
+      <div 
+        className="gba:h-full gba:w-full"
+        style={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--nw-spacing-4)',
+          height: '100%',
+          width: '100%'
         }}
-        scroll={{ x: true }}
-        data-testid="query-definitions-table"
-      />
-    </Card>
+      >
+        {/* Error Alert - Outside the list */}
+        {error && (
+          <Alert 
+            className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
+            style={{ marginBottom: 'var(--nw-spacing-4)' }}
+            data-testid="load-error-alert"
+          >
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'auto auto 1fr auto',
+              alignItems: 'center',
+              width: '100%',
+              gap: 'var(--nw-spacing-3)'
+            }}>
+              <WarningCircleIcon 
+                style={{ 
+                  color: 'var(--nw-color-destructive)'
+                }}
+                size={20}
+              />
+              <span style={{ 
+                color: 'var(--nw-color-destructive)',
+                fontWeight: '600',
+                whiteSpace: 'nowrap'
+              }}>
+                Unable to Load Queries:
+              </span>
+              <span style={{ 
+                color: 'var(--nw-color-muted-foreground)',
+                fontSize: '14px',
+                whiteSpace: 'nowrap'
+              }}>
+                {formatErrorMessage ? formatErrorMessage(error) : error}
+              </span>
+              {onRetry && (
+                <Button 
+                  size="sm" 
+                  onClick={onRetry}
+                  style={{
+                    justifySelf: 'end',
+                    marginLeft: 'auto'
+                  }}
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
+          </Alert>
+        )}
+
+        <Card data-testid="query-definition-list" className="gba:h-full gba:w-full gba:flex gba:flex-col">
+          <CardContent 
+            className="gba:h-full gba:w-full gba:flex gba:flex-col"
+            style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--nw-spacing-6)',
+              height: '100%',
+              width: '100%'
+            }}
+          >
+            {/* Header */}
+            <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
+              <h4 style={{ 
+                color: 'var(--nw-color-foreground)', 
+                margin: 0,
+                fontSize: '1.25rem',
+                fontWeight: '600'
+              }}>
+                Query Definitions ({totalQueries})
+              </h4>
+            </div>
+
+            {/* Filters and Actions */}
+            <div 
+              className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:w-full"
+              style={{ 
+                gap: 'var(--nw-spacing-3)'
+              }}
+            >
+              <div className="gba:flex gba:flex-wrap gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
+                <Select 
+                  value={filters.queryType || ''} 
+                  onValueChange={(value) => handleFilterChange('queryType', value || undefined)}
+                >
+                  <SelectTrigger data-testid="filter-by-type" className="gba:w-40">
+                    <SelectValue placeholder="Filter by Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={QueryType.DATASET}>Dataset</SelectItem>
+                    <SelectItem value={QueryType.TIMESERIES}>Timeseries</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select 
+                  value={filters.status || ''} 
+                  onValueChange={(value) => handleFilterChange('status', value || undefined)}
+                >
+                  <SelectTrigger data-testid="filter-by-status" className="gba:w-40">
+                    <SelectValue placeholder="Filter by Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={QueryStatus.ACTIVE}>Active</SelectItem>
+                    <SelectItem value={QueryStatus.DRAFT}>Draft</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="gba:relative gba:w-64">
+                  <MagnifyingGlassIcon 
+                    className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none" 
+                    style={{ color: 'var(--nw-color-muted-foreground)' }}
+                    size={16}
+                  />
+                  <Input
+                    placeholder="Search queries..."
+                    value={filters.search || ''}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    data-testid="search-queries"
+                    className="gba:pl-10"
+                    style={{ paddingLeft: 'var(--nw-spacing-10)' }}
+                  />
+                </div>
+              </div>
+
+              <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                <Button
+                  variant="default"
+                  onClick={onCreateNew}
+                  data-testid="create-new-query-button"
+                  className="gba:flex gba:items-center gba:whitespace-nowrap"
+                  style={{ gap: 'var(--nw-spacing-2)' }}
+                >
+                  <PlusIcon size={16} />
+                  Create New Query
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={clearFilters}
+                  data-testid="clear-filters-button"
+                  className="gba:flex gba:items-center gba:whitespace-nowrap"
+                  style={{ gap: 'var(--nw-spacing-2)' }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+
+          {/* Table */}
+          <div className="gba:border gba:rounded-md gba:flex-1 gba:min-h-0 gba:overflow-auto gba:w-full">
+            <Table data-testid="query-definitions-table" className="gba:w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="gba:w-[300px]">Name</TableHead>
+                  <TableHead className="gba:w-[100px]">Type</TableHead>
+                  <TableHead className="gba:w-[100px]">Status</TableHead>
+                  <TableHead className="gba:w-[120px]">Parameters</TableHead>
+                  <TableHead className="gba:w-[120px]">Created</TableHead>
+                  <TableHead className="gba:w-[200px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {queries.map((record) => (
+                  <TableRow key={record.id}>
+                    <TableCell>
+                      <div>
+                        <div className="gba:font-bold" style={{ marginBottom: 'var(--nw-spacing-1)' }}>
+                          {record.name}
+                        </div>
+                        <div style={{ 
+                          color: 'var(--nw-color-muted-foreground)', 
+                          fontSize: '0.75rem',
+                          lineHeight: '1.2'
+                        }}>
+                          {record.description}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={getTypeVariant(record.queryType)}
+                        style={getTypeColor(record.queryType)}
+                      >
+                        {record.queryType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={getStatusVariant(record.status)}
+                        style={getStatusColor(record.status)}
+                      >
+                        {record.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span>{record.parameters.length} params</span>
+                    </TableCell>
+                    <TableCell>
+                      {record.createdAt ? new Date(record.createdAt).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onEdit(record)}
+                              data-testid={`edit-query-${record.name}`}
+                            >
+                              <PencilSimpleIcon />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit Query</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isUpdating}
+                              onClick={() => onStatusChange(
+                                record.id!,
+                                record.status === QueryStatus.ACTIVE ? QueryStatus.DRAFT : QueryStatus.ACTIVE
+                              )}
+                              data-testid={`toggle-status-${record.name}`}
+                            >
+                              {record.status === QueryStatus.ACTIVE ? <PauseCircleIcon /> : <PlayCircleIcon />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{record.status === QueryStatus.ACTIVE ? 'Deactivate' : 'Activate'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        
+                        <AlertDialog>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isDeleting}
+                                  data-testid={`delete-query-${record.name}`}
+                                  style={{ 
+                                    borderColor: 'var(--nw-color-destructive)',
+                                    color: 'var(--nw-color-destructive)'
+                                  }}
+                                >
+                                  <TrashIcon />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete Query</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Query</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this query? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => onDelete(record.id!)}
+                                style={{ 
+                                  backgroundColor: 'var(--nw-color-destructive)',
+                                  color: 'var(--nw-color-on-destructive)'
+                                }}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            {/* Simple pagination info */}
+            {totalQueries > 0 && (
+              <div style={{ 
+                padding: 'var(--nw-spacing-4)', 
+                textAlign: 'center',
+                color: 'var(--nw-color-muted-foreground)',
+                fontSize: '0.875rem',
+                borderTop: '1px solid var(--nw-color-border)'
+              }}>
+                Showing {Math.min(currentPage * pageSize + 1, totalQueries)}-{Math.min((currentPage + 1) * pageSize, totalQueries)} of {totalQueries} queries
+                {totalQueries > pageSize && (
+                  <div className="gba:flex gba:justify-center" style={{ 
+                    gap: 'var(--nw-spacing-2)', 
+                    marginTop: 'var(--nw-spacing-2)' 
+                  }}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 0}
+                      onClick={() => onPageChange(currentPage - 1, pageSize)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={(currentPage + 1) * pageSize >= totalQueries}
+                      onClick={() => onPageChange(currentPage + 1, pageSize)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      </div>
+    </TooltipProvider>
   );
 }; 

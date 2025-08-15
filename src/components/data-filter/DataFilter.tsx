@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { PiMagnifyingGlass, PiCaretUp, PiCaretDown } from "react-icons/pi";
-import { Checkbox } from "@newwork/gravity-ui-catalog";
+import { PiCaretUp, PiCaretDown } from "react-icons/pi";
 import { Tooltip } from "antd";
 import { cn } from "../../common/utils/cn";
 import { DebouncedInput } from "./DebouncedInput";
+import { getTranslationFromI18nKeyAndLabel } from "../../common/utils/windowUtils";
 
 /**
  * Data Filter Group type definition
@@ -139,15 +139,11 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
     return (group.filters ?? []).filter((f) => f.selected).length;
   };
 
-  // Handle search button click
-  const handleSearchClick = () => {
-    setShowSearchInput(true);
-  };
 
   return (
     <aside
       className={cn(
-        "gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full gba:pr-6 gba:relative",
+        "gba:flex gba:flex-row gba:items-start gba:w-[336px] gba:h-full gba:pl-6 gba:pr-6 gba:relative",
         className
       )}
       data-testid="data-filter-sidebar"
@@ -158,68 +154,6 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
           onSubmit={(e) => e.preventDefault()}
           data-testid="data-filter-form"
         >
-          <div className="gba:min-w-0 gba:w-full gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-1 gba:gap-4" data-testid="data-filter-header">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              {!showSearchInput ? (
-                <>
-                  <div className="gba:flex gba:flex-col gba:items-start gba:p-0 gba:w-8 gba:h-8 gba:relative">
-                    <button
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:hover:bg-gray-100/80 gba:transition-colors"
-                      type="button"
-                      aria-label="Search filters"
-                      onClick={handleSearchClick}
-                      data-testid="data-filter-search-toggle-button"
-                    >
-                      <PiMagnifyingGlass
-                        size={20}
-                        className="gba:text-black"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  </div>
-                  <span className="gba:text-base gba:font-medium gba:text-gray-900" data-testid="data-filter-title">
-                    Filter
-                  </span>
-                </>
-              ) : (
-                <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:h-8 gba:!bg-black/[0.04] gba:rounded gba:px-2" data-testid="data-filter-search-container">
-                  <span className="gba:flex gba:items-center gba:justify-center gba:mr-2">
-                    <PiMagnifyingGlass
-                      size={20}
-                      className="gba:text-black"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <DebouncedInput
-                    ref={searchInputRef}
-                    className="gba:grow gba:bg-transparent gba:border-none gba:outline-none gba:text-sm"
-                    placeholder="Search for Filter Group..."
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    ariaLabel="Search filter groups and filters"
-                    debounceDelay={300}
-                    data-testid="data-filter-global-search-input"
-                  />
-                  {/* Close button for search */}
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      className="gba:ml-1 gba:text-gray-400 gba:hover:text-gray-600"
-                      onClick={() => {
-                        setSearchQuery("");
-                        if (!searchQuery) setShowSearchInput(false);
-                      }}
-                      aria-label="Clear search"
-                      data-testid="data-filter-clear-global-search-button"
-                    >
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
           <div className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow" data-testid="data-filter-groups-container">
             {filteredGroups.map((group) => {
               // Determine if this group uses backend-powered search
@@ -280,14 +214,16 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                     data-testid={`data-filter-option-${filter.id}`}
                   >
                     <div className="gba:flex gba:items-center gba:justify-center gba:mr-2">
-                      <Checkbox
-                        value={filter.selected}
+                      <input
+                        type="checkbox"
+                        checked={filter.selected}
                         onChange={() =>
                           onFilterChange?.(filter.id, !filter.selected)
                         }
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         name={filter.id}
                         data-testid={`data-filter-checkbox-${filter.id}`}
+                        className="gba:w-4 gba:h-4 gba:text-primary-600 gba:bg-gray-100 gba:border-gray-300 gba:rounded gba:focus:ring-primary-500 gba:focus:ring-2"
                       />
                     </div>
                     <Tooltip 
@@ -377,16 +313,28 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
                           {!group.hideSearch && (
                             <div className="gba:w-full gba:mb-2 gba:mt-1" data-testid={`data-filter-group-search-container-${group.id}`}>
                               <DebouncedInput
-                                className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
-                                placeholder={`Search in ${group.title}...`}
-                                value={groupSearch}
-                                onChange={(value) =>
-                                  handleGroupSearchChange(group.id, value)
-                                }
-                                ariaLabel={`Search filters in ${group.title}`}
-                                debounceDelay={300}
-                                data-testid={`data-filter-group-search-input-${group.id}`}
-                              />
+                                 className="gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none"
+                                 placeholder={`${getTranslationFromI18nKeyAndLabel(
+                                   "lowcoder:data_filter.search_in",
+                                   "Search in"
+                                 )} ${getTranslationFromI18nKeyAndLabel(
+                                   `lowcoder:data_filter.group_title_${group.id}`,
+                                   group.title
+                                 )}...`}
+                                 value={groupSearch}
+                                 onChange={(value) =>
+                                   handleGroupSearchChange(group.id, value)
+                                 }
+                                 ariaLabel={`${getTranslationFromI18nKeyAndLabel(
+                                   "lowcoder:data_filter.search_filters_in",
+                                   "Search filters in"
+                                 )} ${getTranslationFromI18nKeyAndLabel(
+                                   `lowcoder:data_filter.group_title_${group.id}`,
+                                   group.title
+                                 )}`}
+                                 debounceDelay={300}
+                                 data-testid={`data-filter-group-search-input-${group.id}`}
+                               />
                             </div>
                           )}
                           {/* Show loading, error, or filter options */}

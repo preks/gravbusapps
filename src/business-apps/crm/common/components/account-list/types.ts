@@ -4,8 +4,10 @@ export interface Account {
   website?: string;
   phone?: string;
   email?: string;
+  fax?: string;
   contactFirstName?: string;
   contactLastName?: string;
+  contactId?: string;
   industry?: {
     id: string;
     value: string;
@@ -23,13 +25,18 @@ export interface Account {
     displayName?: string;
     pictureThumbnail?: string;
   };
-  annualRevenue?: number;
-  numberOfEmployees?: number;
+  annualRevenue?: string;
+  numberOfEmployees?: string;
+  foundationDate?: string;
   billingStreet?: string;
   billingCity?: string;
   billingState?: string;
   billingCountry?: string;
   billingPostalCode?: string;
+  // Address fields (from addresses array)
+  city?: string;
+  region?: string;
+  country?: string;
   sourceApp?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -42,7 +49,13 @@ export interface UseAccountListDataReturn {
   error: Error | null;
   hasMore: boolean;
   loadMore: () => void;
-  loadPage: (page: number, pageSize?: number, additionalFilters?: any) => Promise<void>;
+  loadPage: (
+    page: number,
+    pageSize?: number,
+    additionalFilters?: any,
+    overrideSortField?: string,
+    overrideSortOrder?: "ASC" | "DESC" | ""
+  ) => Promise<void>;
   retry: () => void;
 }
 
@@ -60,4 +73,4 @@ export interface AccountListResponse {
       count: number;
     };
   };
-} 
+}

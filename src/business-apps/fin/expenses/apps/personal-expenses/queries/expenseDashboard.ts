@@ -1,27 +1,162 @@
 // GraphQL query to get dashboard statistics for an employee
 export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
-  query GetExpenseDashboardByEmployee($employeeId: uuid!) {
-    # Pending payouts (expense requests awaiting payment)
-    pendingPayouts: ExpenseRequestAggregate(
+  query GetExpenseDashboardByEmployee(
+    $employeeId: uuid!,
+    $currentDate: timestamp!,
+    $currentMonthStart: timestamp!,
+    $currentMonthEnd: timestamp!,
+    $previousMonthStart: timestamp!,
+    $previousMonthEnd: timestamp!,
+    $currentQuarterStart: timestamp!,
+    $currentQuarterEnd: timestamp!,
+    $previousQuarterStart: timestamp!,
+    $previousQuarterEnd: timestamp!,
+    $currentYearStart: timestamp!,
+    $currentYearEnd: timestamp!,
+    $previousYearStart: timestamp!,
+    $previousYearEnd: timestamp!,
+    $currentMonthStartTz: timestamptz!,
+    $currentMonthEndTz: timestamptz!,
+    $currentQuarterStartTz: timestamptz!,
+    $currentQuarterEndTz: timestamptz!,
+    $currentYearStartTz: timestamptz!,
+    $currentYearEndTz: timestamptz!,
+    $currency: String!
+  ) {
+
+
+    # Sum of BOOKED expense requests
+    bookedExpenseRequests: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "BOOKED"},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+       count
+        sum {
+          totalAmount
+        }
+      }
+    }
+
+    # Sum of PENDING advance payments
+    pendingAdvancePayments: AdvancePaymentAggregate(
+      where: {
+        expensePlan: {employeeId: {_eq: $employeeId}},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        count
+        sum {
+          amount
+        }
+      }
+    }
+    
+    # This month's expenses
+    currentMonthExpenses: ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false}, 
-        status: {_in: ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]}
+        isDeleted: {_eq: false},
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+        currencyRef: {_eq: $currency}
       }
     ) {
       aggregate {
         sum {
           totalAmount
         }
+        count
       }
     }
     
-    # This month's expenses
-    currentMonthExpenses: ExpenseItemAggregate(
+    # Last month's expenses
+    previousMonthExpenses: ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        createdAt: {_gte: "2025-06-01", _lt: "2025-07-01"}
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $previousMonthStart, _lt: $previousMonthEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+
+    # This quarter's expenses
+    currentQuarterExpenses: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId}, 
+        isDeleted: {_eq: false},
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+
+    # Last quarter's expenses
+    previousQuarterExpenses: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId}, 
+        isDeleted: {_eq: false},
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $previousQuarterStart, _lt: $previousQuarterEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+
+    # This year's expenses
+    currentYearExpenses: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $currentYearStart, _lt: $currentYearEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum {
+          totalAmount
+        }
+        count
+      }
+    }
+
+    # Last year's expenses
+    previousYearExpenses: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $previousYearStart, _lt: $previousYearEnd},
+        currencyRef: {_eq: $currency}
       }
     ) {
       aggregate {
@@ -50,7 +185,8 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        startDate: {_gt: "2025-06-02"}
+        status: {_eq: "APPROVED"},
+        startDate: {_gt: $currentDate}
       }
     ) {
       aggregate {
@@ -62,10 +198,11 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     recentActivity: ExpenseItem(
       where: {
         employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        currencyRef: {_eq: $currency},
+        expenseDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd}
       },
-      orderBy: {updatedAt: DESC},
-      limit: 10
+      orderBy: {updatedAt: DESC}
     ) {
       id
       title
@@ -75,68 +212,82 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       totalAmount
       expenseClass {
         value
+         translations {
+          value
+          localeCode
+        }
       }
       expenseDate
     }
     
-    # Last 6 months expense data for charts
-    monthlyExpenses: ExpenseItemAggregate(
-      where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2024-12-01", _lt: "2025-07-01"}
-      }
-    ) {
-      aggregate {
-        sum {
-          totalAmount
-        }
-        count
-      }
-    }
+
     
-    # Last month's expenses (for comparison)
-    lastMonthExpenses: ExpenseItemAggregate(
+    # Expenses by type for donut chart (monthly)
+    expensesByTypeMonth: ExpensePosition(
       where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2025-05-01", _lt: "2025-06-01"}
-      }
-    ) {
-      aggregate {
-        sum {
-          totalAmount
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          updatedAt: {_gte: $currentMonthStartTz, _lt: $currentMonthEndTz},
+          currencyRef: {_eq: $currency}
         }
-        count
-      }
-    }
-    
-    # Expenses by type for donut chart
-    expensesByType: ExpenseItem(
-      where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        createdAt: {_gte: "2025-01-01"}
       }
     ) {
       totalAmount
-      expenseClass {
+      expenseGroup {
         value
+        translations {
+          value
+          localeCode
+        }
+      }
+    }
+
+    # Expenses by type for donut chart (quarterly)
+    expensesByTypeQuarter: ExpensePosition(
+      where: {
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          updatedAt: {_gte: $currentQuarterStartTz, _lt: $currentQuarterEndTz},
+          currencyRef: {_eq: $currency}
+        }
+      }
+    ) {
+      totalAmount
+      expenseGroup {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+    }
+
+    # Expenses by type for donut chart (yearly)
+    expensesByTypeYear: ExpensePosition(
+      where: {
+        expenseItem: {
+          employeeId: {_eq: $employeeId},
+          isDeleted: {_eq: false},
+          status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+          updatedAt: {_gte: $currentYearStartTz, _lt: $currentYearEndTz},
+          currencyRef: {_eq: $currency}
+        }
+      }
+    ) {
+      totalAmount
+      expenseGroup {
+        value
+        translations {
+          value
+          localeCode
+        }
       }
     }
     
-    # Items without receipts
-    itemsWithoutReceipts: ExpenseItemAggregate(
-      where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        _not: { expenseItemFile: {} }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
+
   }
 `;

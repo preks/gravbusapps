@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -7,6 +7,7 @@ import {
   PiXCircle,
   PiX,
 } from "react-icons/pi";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
@@ -98,7 +99,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   filter = [],
   setFilter,
   filterLabelMap,
-  placeholder = "Search...",
+  placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
   listTitle,
   listIcon,
   listAmount,
@@ -107,12 +108,11 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   hideFilter = false,
   dateRange,
 }) => {
+  const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   // Local state for immediate UI feedback
-  const [localSearch, setLocalSearch] = useState<string>(search || "");
-  
   // Keep local search in sync with external changes to search prop
   useEffect(() => {
     setLocalSearch(search || "");
@@ -173,6 +173,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     return '';
   }, []);
 
+  // Helper function to format text with only first letter uppercase
+  const formatFilterText = (text: string): string => {
+    if (!text) return text;
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  };
+
   // Check if date range filter is active
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
@@ -180,29 +186,32 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4" data-testid="data-controller-container">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2" data-testid="data-controller-main-bar">
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0" data-testid="data-controller-left-section">
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0" data-testid="data-controller-left-section">
           {!hideFilter && (
-            <button
-              className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
-                showDataFilter
-                  ? "gba:!bg-black gba:text-white"
-                  : "gba:!bg-black/[0.04] gba:text-black"
-              }`}
-              aria-label={
-                showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
-              }
-              onClick={onToggleDataFilter}
-              type="button"
-              data-testid="data-controller-filter-toggle-button"
-            >
-              <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
-                {showDataFilter ? (
-                  <PiFunnelSimpleX fill="#fff" size={20} />
-                ) : (
-                  <PiFunnelSimple size={20} />
-                )}
-              </div>
-            </button>
+            <>
+              <button
+                className={`gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:flex-none gba:order-0 gba:grow-0 ${
+                  showDataFilter
+                    ? "gba:!bg-black gba:text-white"
+                    : "gba:!bg-black/[0.04] gba:text-black"
+                }`}
+                aria-label={
+                  showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
+                }
+                onClick={onToggleDataFilter}
+                type="button"
+                data-testid="data-controller-filter-toggle-button"
+              >
+                <div className="gba:w-5 gba:h-5 gba:flex-none order-0 gba:grow-0">
+                  {showDataFilter ? (
+                    <PiFunnelSimpleX fill="#fff" size={20} />
+                  ) : (
+                    <PiFunnelSimple size={20} />
+                  )}
+                </div>
+              </button>
+
+            </>
           )}
           {!showSearchInput ? (
             <button
@@ -237,7 +246,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="gba:flex-1 gba:ml-4 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
+            <div className="gba:flex-1 gba:ml-1 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
               {listTitle}
             </div>
           )}
@@ -359,7 +368,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             type="button"
             data-testid="data-controller-clear-all-filters-button"
           >
-            <span>Clear all filters</span>
+            <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear_all_filters_btn','Clear all filters')}</span>
             <span className="gba:flex gba:items-center gba:justify-center">
               <PiXCircle size={16} />
             </span>

@@ -16,6 +16,10 @@ export const PROCESSES_ENDPOINT = env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
 
 export const EVENTS = {
     SUBMIT: "pse_submit",
+    SAVE:"pse_save",
+    NEXT:"pse_next",
     CANCEL:"pse_cancel",
-    ABORT: "pse_abort"
+    ABORT: "pse_abort",
+    SKIP: "pse_skip",
+    DISCARD: "pse_discard"
   } as const;

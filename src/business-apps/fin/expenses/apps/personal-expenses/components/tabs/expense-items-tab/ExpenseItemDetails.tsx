@@ -1,27 +1,77 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Typography, Spin, Descriptions, Divider, Card, Image, Upload, Alert } from 'antd';
-import { FileImageOutlined, LoadingOutlined } from '@ant-design/icons';
+import { 
+  Badge,
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system';
+import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
-import Pill from '@/components/pill/Pill';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
+import dayjs from 'dayjs';
 
-const { Text } = Typography;
+// Utility function to truncate file names
+const truncateFileName = (fileName: string, maxLength: number = 15): string => {
+  if (!fileName || fileName.length <= maxLength) {
+    return fileName || '';
+  }
+  
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) {
+    // No extension, just truncate
+    return fileName.substring(0, maxLength - 3) + '...';
+  }
+  
+  const name = fileName.substring(0, lastDotIndex);
+  const extension = fileName.substring(lastDotIndex);
+  
+  // If extension is too long, just show the extension
+  if (extension.length >= maxLength - 3) {
+    return '...' + extension;
+  }
+  
+  // If name is very short, just truncate the whole thing
+  if (name.length <= 3) {
+    return fileName.substring(0, maxLength - 3) + '...';
+  }
+  
+  const maxNameLength = maxLength - extension.length - 3;
+  return name.substring(0, maxNameLength) + '...' + extension;
+};
+
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null;
   onClose: () => void;
 }
-
-// Custom styles for centering the upload component
-const uploadCenterStyle = {
-  display: 'flex',
-  justifyContent: 'center',
-  marginBottom: '1.5rem',
-  width: '100%'
-};
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   selectedItem,
@@ -35,6 +85,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewOpen, setPreviewOpen] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string>('');
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState<boolean>(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('');
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -76,7 +128,10 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   
   // Fetch file attachments for an expense item
   const fetchFileAttachments = useCallback(async (item: ExpenseItem) => {
+    console.log('Fetching file attachments for item:', item.id, 'Files:', item?.expenseItemFile);
+    
     if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
+      console.log('No expense item files found');
       setFileList([]);
       return;
     }
@@ -101,168 +156,261 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     
     try {
       // Process each file attachment
-      const filesPromises = item.expenseItemFile.map(async (file: any, index: number) => {
-        const fileId = file.fileUrl?.split('/').pop();
-        
-        if (!fileId) {
-          return null;
-        }
-        
+      const processedFiles: UploadFile[] = [];
+      
+      for (const fileInfo of item.expenseItemFile) {
         try {
-          // Fetch the file blob using the FileClient with proper authorization
-          const blob = await fileClient.getFile(
-            { 
-              accessScope: 'tenant', 
-              fileId 
-            },
-            { 
+          console.log('Processing file info:', fileInfo);
+          
+          // Extract file ID from fileUrl if available, otherwise use id
+          let fileId = fileInfo.id;
+          if (fileInfo.fileUrl) {
+            // Try to extract file ID from URL (e.g., "https://.../files/123" -> "123")
+            const urlParts = fileInfo.fileUrl.split('/');
+            const potentialFileId = urlParts[urlParts.length - 1];
+            if (potentialFileId && potentialFileId !== 'files') {
+              fileId = potentialFileId;
+            }
+          }
+          
+          console.log('Using file ID:', fileId);
+          
+          // Use the fileId as the file identifier
+          const pathParams = {
+            accessScope: 'tenant',
+            fileId: fileId
+          };
+          
+          // Get file as blob and create object URL
+          let fileBlob;
+          try {
+            fileBlob = await fileClient.getFile(pathParams, {
               appName: 'expenses',
               folderPath: `/expenseItemsDocuments/${employeeId}`
+            });
+          } catch (firstError) {
+            console.log('First attempt failed, trying alternative path:', firstError);
+            // Try alternative folder path
+            try {
+              fileBlob = await fileClient.getFile(pathParams, {
+                appName: 'expenses',
+                folderPath: `employees/${employeeId}/expense-items/${item.id}`
+              });
+            } catch (secondError) {
+              console.log('Second attempt also failed:', secondError);
+              throw secondError;
             }
-          );
+          }
           
-          // Create an object URL from the blob
-          const objectUrl = URL.createObjectURL(blob);
-          
-          // Create an UploadFile object for the antd Upload component
-          const uploadFile = {
-            uid: `-${index}`,
-            name: file.fileName ?? `Receipt-${index + 1}`,
-            status: 'done',
-            url: objectUrl,
-            originFileObj: new File([blob], file.fileName ?? `Receipt-${index + 1}`, {
-              type: blob.type
-            })
-          } as UploadFile;
-          
-          return uploadFile;
-        } catch (err) {
-          console.error(`Error fetching file ${fileId}:`, err);
-          // Fall back to using the direct URL if blob fetching fails
-          return {
-            uid: `-${index}`,
-            name: file.fileName ?? `Receipt-${index + 1}`,
-            status: 'done',
-            url: file.fileUrl
-          } as UploadFile;
+          if (fileBlob && isMounted.current) {
+            console.log('File blob retrieved successfully:', fileBlob.size, 'bytes, type:', fileBlob.type);
+            
+            // Create object URL for the blob
+            const downloadUrl = URL.createObjectURL(fileBlob);
+            
+            // Create UploadFile object
+            const uploadFile: UploadFile = {
+              uid: fileId,
+              name: fileInfo.fileName || fileId, // Use fileName from fileInfo
+              status: 'done',
+              url: downloadUrl,
+              size: fileBlob.size,
+              type: fileBlob.type || 'application/octet-stream'
+            };
+            
+            console.log('Created upload file:', uploadFile);
+            processedFiles.push(uploadFile);
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${fileInfo.id}:`, fileError);
+          // Continue with other files even if one fails
         }
-      });
-      
-      const files = await Promise.all(filesPromises);
-      const validFiles = files.filter(Boolean) as UploadFile[];
+      }
       
       if (isMounted.current) {
-        setFileList(validFiles);
+        setFileList(processedFiles);
       }
     } catch (error) {
-      console.error('Error processing file attachments:', error);
+      console.error('Error fetching file attachments:', error);
       if (isMounted.current) {
         setFileList([]);
       }
     } finally {
-      // Ensure fileLoading is set to false with a small delay to allow React to process state updates
-      setTimeout(() => {
-        if (isMounted.current) {
-          setFileLoading(false);
-          console.log('File loading state set to false (with timeout)');
-        }
-      }, 100);
+      if (isMounted.current) {
+        setFileLoading(false);
+      }
     }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+  }, [fileClient, contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken]);
   
-  // Load file attachments when detailedItem changes
+  // Fetch file attachments when detailed item changes
   useEffect(() => {
     if (detailedItem) {
       fetchFileAttachments(detailedItem);
-    } else {
-      setFileList([]);
     }
   }, [detailedItem, fetchFileAttachments]);
   
-  const handlePreview = useCallback((file: UploadFile) => {
-    setPreviewImage(file.url ?? '');
-    setPreviewOpen(true);
-  }, []);
-  
-  // We're not using any DOM manipulation anymore, just proper CSS
-  
-  // Render attachment preview section
+  // Get status badge variant
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'CREATED':
+        return 'secondary' as const;
+      case 'PENDING':
+        return 'warning' as const;
+      case 'APPROVED':
+        return 'success' as const;
+      case 'REJECTED':
+        return 'destructive' as const;
+      case 'CLOSED':
+        return 'success' as const;
+      default:
+        return 'default' as const;
+    }
+  };
+
+  // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
-    console.log('renderAttachmentPreview called - fileLoading:', fileLoading, 'fileList.length:', fileList.length);
+    console.log('Rendering attachment preview - fileLoading:', fileLoading, 'fileList:', fileList);
     
     if (fileLoading) {
-      console.log('Rendering loading spinner for attachments');
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} size="large" />
+        <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-loading">
+          <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+            <Spinner />
+            <p className="gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
+            </p>
+          </div>
+        </Card>
+      );
+    }
+
+    if (fileList.length > 0) {
+      return (
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:sm:gba:grid-cols-3 gba:md:gba:grid-cols-4 gba:lg:gba:grid-cols-5" data-testid="expense-files-grid">
+                     {fileList.map((file, idx) => {
+             const fileName = file.name || `File_${idx + 1}`;
+             const fileUrl = file.url || '';
+             const fileType = file.type || '';
+             const ext = fileName.split('.').pop()?.toLowerCase() || '';
+            
+            // Helper: Render icon by file type
+            const renderFileIcon = () => {
+              if (fileType.includes('pdf') || ext === 'pdf') return <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 32 }} />;
+              if (fileType.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) return <FileImageOutlined className="gba:text-blue-500" style={{ fontSize: 32 }} />;
+              if (fileType.includes('word') || ['doc','docx'].includes(ext)) return <FileWordOutlined className="gba:text-blue-700" style={{ fontSize: 32 }} />;
+              if (fileType.includes('excel') || ['xls','xlsx','csv'].includes(ext)) return <FileExcelOutlined className="gba:text-green-700" style={{ fontSize: 32 }} />;
+              return <FileOutlined className="gba:text-gray-500" style={{ fontSize: 32 }} />;
+            };
+
+            // Helper: Render preview by file type
+            const renderPreview = () => {
+              if (fileType.includes('image') || ['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) {
+                return (
+                  <img
+                    src={fileUrl}
+                    alt={fileName}
+                    className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:object-cover gba:cursor-pointer hover:gba:opacity-80"
+                    data-testid={`expense-file-image-${idx}`}
+                    onClick={() => {
+                      setPreviewImage(fileUrl);
+                      setPreviewOpen(true);
+                    }}
+                  />
+                );
+              }
+              if (fileType.includes('pdf') || ext === 'pdf') {
+                return (
+                  <div
+                    className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200"
+                    onClick={() => {
+                      setPdfPreviewUrl(fileUrl);
+                      setPdfPreviewOpen(true);
+                    }}
+                    data-testid={`expense-file-pdf-thumb-${idx}`}
+                  >
+                    <FilePdfOutlined className="gba:text-red-500" style={{ fontSize: 48 }} />
+                  </div>
+                );
+              }
+              // For other types: icon + download
+              return (
+                <div className="gba:flex gba:flex-col gba:items-center" data-testid={`expense-file-generic-${idx}`}> 
+                  {renderFileIcon()}
+                  <a
+                    href={fileUrl}
+                    download={fileName}
+                    className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline gba:cursor-pointer"
+                    data-testid={`expense-file-download-${idx}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.open(fileUrl, '_blank');
+                    }}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
+                  </a>
+                </div>
+              );
+            };
+
+                         return (
+               <div
+                 key={file.uid}
+                 className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+                 data-testid={`expense-file-card-${idx}`}
+               >
+                 {renderPreview()}
+                 <TooltipProvider>
+                   <Tooltip>
+                     <TooltipTrigger asChild>
+                                                <div 
+                           className="gba:mt-2 gba:text-xs gba:text-center gba:w-full gba:px-1 gba:break-words gba:cursor-help" 
+                           data-testid={`expense-file-name-${idx}`}
+                           style={{
+                             overflow: 'hidden',
+                             textOverflow: 'ellipsis',
+                             whiteSpace: 'nowrap',
+                             maxWidth: '100%',
+                             lineHeight: '1.2',
+                             wordBreak: 'break-all'
+                           }}
+                         >
+                           {truncateFileName(fileName, 18)}
+                         </div>
+                     </TooltipTrigger>
+                                            <TooltipContent>
+                         <div className="gba:max-w-xs">
+                           <div className="gba:font-medium gba:break-words">{fileName}</div>
+                           <div className="gba:text-xs gba:text-gray-500">
+                             {file.size ? formatFileSize(file.size) : 'Unknown size'}
+                           </div>
+                         </div>
+                       </TooltipContent>
+                   </Tooltip>
+                 </TooltipProvider>
+               </div>
+             );
+          })}
         </div>
       );
     }
-    
-    if (fileList.length > 0) {
-      // Calculate a fixed width based on the number of files
-      // Each card is 104px wide, plus potential margin of 8px between them
-      const cardWidth = 104;
-      const cardMargin = 8;
-      
-      // Calculate the total width needed for all cards in a single row
-      // This helps ensure proper centering for any number of files
-      const calculateWidth = () => {
-        if (fileList.length === 0) return 0;
-        if (fileList.length === 1) return cardWidth;
-        return fileList.length * cardWidth + (fileList.length - 1) * cardMargin;
-      };
-      
-      return (
-        <>
-          {/* Fixed-width container that's centered with flex */}
-          <div style={{
-            ...uploadCenterStyle,
-            alignItems: 'center'
-          }}>
-            {/* This div has an exact width based on the number of items */}
-            <div style={{ 
-              width: `${calculateWidth()}px`,
-              // The key is setting this inner container to have an exact width
-              // that fits the number of cards we have - then flex-center works properly
-            }}>
-              <Upload
-                listType="picture-card"
-                fileList={fileList}
-                onPreview={handlePreview}
-                onChange={() => {}}
-                showUploadList={{ showRemoveIcon: false }}
-              />
-            </div>
-          </div>
-          <Image
-            wrapperStyle={{ display: 'none' }}
-            preview={{
-              visible: previewOpen,
-              onVisibleChange: (visible) => setPreviewOpen(visible),
-              afterOpenChange: (visible) => !visible && setPreviewImage(''),
-            }}
-            src={previewImage}
-          />
-        </>
-      );
-    }
-    
+
     return (
-      <Card className="gba:text-center gba:py-8">
-        <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
-        <div className="gba:mt-2">
-          <Text type="secondary">No receipt attached</Text>
+      <Card className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8" data-testid="expense-file-empty">
+        <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
+          <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
+          <p className="gba:text-sm gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
+          </p>
         </div>
       </Card>
     );
-  }, [fileLoading, fileList.length, handlePreview, previewOpen, previewImage]);
+  }, [fileLoading, fileList, previewOpen, previewImage, setPreviewOpen, setPreviewImage]);
   
   // Show loading state while fetching detailed item data
   if (isItemLoading) {
     return (
       <div className="gba:p-4 gba:flex gba:justify-center gba:items-center gba:py-8">
-        <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} size="large" />
+        <Spinner />
       </div>
     );
   }
@@ -271,49 +419,167 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   if (itemError) {
     return (
       <div className="gba:p-4">
-        <Alert message="Error" description={itemError} type="error" showIcon />
+        <Alert>
+          <AlertDescription>{itemError}</AlertDescription>
+        </Alert>
       </div>
     );
   }
-  
+
   // Use the detailed item if available, otherwise fall back to the selectedItem
   const displayItem = detailedItem || selectedItem;
   if (!displayItem) return null;
 
   return (
-    <div className="gba:p-4">
-      <div className="gba:mb-0">
+    <div className="gba:space-y-6">
+      {/* Header: Title, Code, Status Badge */}
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
+            {typeof displayItem.title === 'string' ? displayItem.title : ''}
+          </h2>
+          <p className="gba:text-sm gba:text-gray-600">
+            {typeof displayItem.code === 'string' ? displayItem.code : ''}
+          </p>
+        </div>
+        <Badge
+          variant={getStatusBadgeVariant(displayItem.status)}
+          data-testid="expense-item-status-badge"
+        >
+          {getExpenseItemStatusDisplay(displayItem.status).label}
+        </Badge>
+      </div>
+
+      {/* Dates Section */}
+                <Card>
+            <CardContent className="gba:p-4 gba:space-y-3">
+              {displayItem.expenseDate && (
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <span className="gba:text-sm gba:text-gray-700">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date')}: {' '}
+                    {dayjs(displayItem.expenseDate).format(getDateFormat('date-long'))}
+                  </span>
+                </div>
+              )}
+              {displayItem.invoiceDate && (
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <span className="gba:text-sm gba:text-gray-700">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date')}: {' '}
+                    {dayjs(displayItem.invoiceDate).format(getDateFormat('date-long'))}
+                  </span>
+                </div>
+              )}
+              {!displayItem.expenseDate && !displayItem.invoiceDate && (
+                <div className="gba:text-center gba:py-4 gba:text-sm gba:text-gray-500">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_date_information_available', 'No date information available')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+      {/* Description Section */}
+      {typeof displayItem.description === 'string' && displayItem.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-base gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_description_label', 'Description')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="gba:text-sm gba:text-gray-700">{displayItem.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-base gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details_title', 'Item Details')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:space-y-3 gba:text-sm">
+            {displayItem.employee && displayItem.employee.fullName && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.employee.fullName)}</span>
+              </div>
+            )}
+            {displayItem.expenseClass && displayItem.expenseClass.value && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_e_class_label', 'Expense Class')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.expenseClass.value)}</span>
+              </div>
+            )}
+            {displayItem.costCenter && displayItem.costCenter.name && (
+              <div className="gba:flex gba:justify-between">
+                <span className="gba:font-medium gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}:
+                </span>
+                <span className="gba:text-gray-900">{String(displayItem.costCenter.name)}</span>
+              </div>
+            )}
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount')}:
+              </span>
+              <span className="gba:text-gray-900 gba:font-semibold">
+                €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* File Viewer Section */}
+      <div className="gba:mt-2">
         {renderAttachmentPreview()}
       </div>
-      
-      {/* Expense Details Section */}
-      <Descriptions bordered column={1}>
-        <Descriptions.Item label="Code">{displayItem.code}</Descriptions.Item>
-        <Descriptions.Item label="Title">{displayItem.title}</Descriptions.Item>
-        <Descriptions.Item label="Description">{displayItem.description ?? 'No description'}</Descriptions.Item>
-        <Descriptions.Item label="Date">{displayItem.invoiceDate}</Descriptions.Item>
-        <Descriptions.Item label="Amount">
-          <span style={{ fontWeight: 'bold' }}>€{displayItem.reimbursableAmount?.toFixed(2) ?? '0.00'}</span>
-        </Descriptions.Item>
-        <Descriptions.Item label="Status">
-          <Pill
-            label={getExpenseItemStatusDisplay(displayItem.status).label}
-            type={getExpenseItemStatusDisplay(displayItem.status).type}
-            className="gba:text-center"
-          />
-        </Descriptions.Item>
-        {displayItem.expenseClass && (
-          <Descriptions.Item label="Expense Class">
-            {displayItem.expenseClass.value}
-          </Descriptions.Item>
-        )}
-        {displayItem.costCenter && (
-          <Descriptions.Item label="Cost Center">
-            {displayItem.costCenter.name}
-          </Descriptions.Item>
-        )}
-      </Descriptions>
-      <Divider />
+
+      {/* Image Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4 gba:flex gba:justify-center">
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="gba:max-w-full gba:max-h-[calc(90vh-120px)] gba:object-contain"
+              data-testid="image-preview"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
+        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="gba:mt-4">
+            <iframe
+              src={pdfPreviewUrl}
+              className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
+              title="PDF Preview"
+              data-testid="pdf-preview-iframe"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,12 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@newwork/gravity-ui-catalog';
-import { PiCircle, PiCheckCircle, PiList } from 'react-icons/pi';
+import { Button } from '@newwork/nw-design-system';
+import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi';
 import { VacancyFilter } from '../hooks/useJobPositionListData';
 
+export type ExtendedVacancyFilter = VacancyFilter | 'missing-profile';
+
 interface VacancyStatusToggleProps {
-  value: VacancyFilter;
-  onChange: (value: VacancyFilter) => void;
+  value: ExtendedVacancyFilter;
+  onChange: (value: ExtendedVacancyFilter) => void;
+  missingJobProfileCount?: number;
   className?: string;
 }
 
@@ -17,64 +20,67 @@ interface VacancyStatusToggleProps {
 export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
   value,
   onChange,
+  missingJobProfileCount = 0,
   className = ''
 }) => {
   const { t } = useTranslation();
 
   const options = [
     {
-      key: 'vacant' as VacancyFilter,
+      key: 'vacant' as ExtendedVacancyFilter,
       label: t('job_position.vacant', 'Vacant'),
       icon: <PiCircle size={16} />,
-      color: 'orange'
+      color: 'warning'
     },
     {
-      key: 'filled' as VacancyFilter,
+      key: 'filled' as ExtendedVacancyFilter,
       label: t('job_position.filled', 'Filled'),
       icon: <PiCheckCircle size={16} />,
-      color: 'green'
+      color: 'success'
     },
     {
-      key: 'all' as VacancyFilter,
+      key: 'all' as ExtendedVacancyFilter,
       label: t('job_position.all', 'All'),
       icon: <PiList size={16} />,
-      color: 'blue'
+      color: 'info'
+    },
+    {
+      key: 'missing-profile' as ExtendedVacancyFilter,
+      label: `${t('job_position.missing_profile', 'Missing Job Profile')} (${missingJobProfileCount})`,
+      icon: <PiWarning size={16} />,
+      color: 'destructive'
     }
   ];
 
   return (
-    <div className={`gba:flex gba:items-center gba:gap-1 gba:bg-gray-50 gba:p-1 gba:rounded-lg ${className}`}>
-      {options.map((option) => {
-        const isSelected = value === option.key;
-        return (
-          <Button
-            key={option.key}
-            variant={isSelected ? 'primary' : 'text'}
-            size="small"
-            onClick={() => onChange(option.key)}
-            className={`gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:px-3 gba:py-1.5 ${
-              isSelected 
-                ? 'gba:bg-primary gba:text-white gba:shadow-sm' 
-                : 'gba:text-gray-600 hover:gba:bg-gray-100'
-            }`}
-          >
-            <span className={`gba:flex-shrink-0 ${
-              isSelected 
-                ? 'gba:text-white' 
-                : option.color === 'orange' 
-                  ? 'gba:text-orange-500' 
-                  : option.color === 'green' 
-                    ? 'gba:text-green-500' 
-                    : 'gba:text-blue-500'
-            }`}>
-              {option.icon}
-            </span>
-            <span className="gba:text-sm gba:font-medium gba:whitespace-nowrap">
-              {option.label}
-            </span>
-          </Button>
-        );
-      })}
+    <div className={`flex ${className}`} data-testid="vacancy-status-toggle">
+      {options.map((option) => (
+        <Button
+          key={option.key}
+          variant={value === option.key ? "default" : "secondary"}
+          size="sm"
+          onClick={() => onChange(option.key)}
+          data-testid={`vacancy-status-${option.key}-button`}
+          style={{
+            marginRight: 'var(--nw-spacing-2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--nw-spacing-2)',
+            color: value === option.key 
+              ? `var(--nw-color-${option.color}-foreground)` 
+              : `var(--nw-color-${option.color})`,
+            backgroundColor: value === option.key 
+              ? `var(--nw-color-${option.color})` 
+              : 'transparent',
+            borderColor: `var(--nw-color-${option.color})`,
+            borderWidth: 'var(--nw-spacing-px)',
+            borderStyle: 'solid'
+          }}
+        >
+          {option.icon}
+          <span>{option.label}</span>
+        </Button>
+      ))}
     </div>
   );
 };

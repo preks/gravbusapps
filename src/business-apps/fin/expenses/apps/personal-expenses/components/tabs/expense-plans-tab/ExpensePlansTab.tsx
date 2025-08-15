@@ -1,58 +1,368 @@
-import React, { useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
-import ExpensePlanStatistics from './ExpensePlanStatistics';
 import ExpensePlansTable from './ExpensePlansTable';
+import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
+import { useGetExpensePlanStatistics } from '../../../hooks/useGetExpensePlanStatistics';
+import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
+import { useExpensePlanWidgetFilters, getActiveWidgetFromFilters } from '../../../hooks/useExpensePlanWidgetFilters';
+import ExpensePlanStatistics from './ExpensePlanStatistics';
+import dayjs from 'dayjs';
+import { ExpenseStatus } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-export interface ExpensePlansTabProps extends BusinessAppContextProps {
+interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
 }
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Fetch all expense plans for statistics
-  const { items: allPlans, fetchItems } = useGetExpensePlans(contextProps);
-  
-  // State for search coordination
-  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [activeWidget, setActiveWidget] = useState<string | null>(null);
+  const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
 
-  // Load all items for statistics when component mounts
+  const {
+    filterGroups,
+    selectedFilters,
+    setFilters,
+    handleFilterChange,
+    clearFilters,
+    search,
+    setSearch,
+    getFilters,
+    setStartDateRange,
+    setEndDateRange,
+    setPlanDateRange,
+    filterLabelMap,
+    addFilter,
+    removeFilter
+  } = useExpensePlanFilters();
+  
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
+  const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props);
+
+  // Combine widget and table filters
+  const finalFilters = useExpensePlanWidgetFilters(selectedFilters, activeWidget);
+
+  // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
-    if (contextProps.accessToken) {
-      // Fetch all items for statistics display (large page size)
-      fetchItems('', 1, 1000);
+    const expectedActiveWidget = getActiveWidgetFromFilters(selectedFilters);
+    if (expectedActiveWidget !== activeWidget) {
+      setActiveWidget(expectedActiveWidget);
     }
-  }, [contextProps.accessToken, fetchItems]);
+  }, [selectedFilters, activeWidget]);
 
-  // Create memoized content header with statistics component
+  // Helper function to get current month date range
+  const getCurrentMonthRange = useCallback(() => {
+    const today = dayjs();
+    const currentMonthStart = today.startOf('month').toDate();
+    const currentMonthEnd = today.endOf('month').toDate();
+    return [currentMonthStart, currentMonthEnd] as [Date, Date];
+  }, []);
+
+  // Handle widget clicks with immediate visual feedback
+  const handleWidgetClick = useCallback((widgetKey: string) => {
+    const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    setActiveWidget(newActiveWidget);
+    
+    // Clear existing filters for all widget activations
+    clearFilters();
+    
+    // Clear destination filter for all widgets except top-destinations
+    if (newActiveWidget !== 'top-destinations') {
+      setDestinationFilter(null);
+    }
+    
+    // Apply widget-specific filter logic
+    switch (newActiveWidget) {
+      case 'total-plans':
+        const currentMonthRange = getCurrentMonthRange();
+        setPlanDateRange(currentMonthRange);
+        handleFilterChange(ExpenseStatus.CLOSED, true);
+        handleFilterChange(ExpenseStatus.PAID, true);
+        break;
+      case 'total-estimated':
+        const today = dayjs();
+        const currentMonthStart = today.startOf('month').toDate();
+        const currentMonthEnd = today.endOf('month').toDate();
+        setPlanDateRange([currentMonthStart, currentMonthEnd]);
+        // Set status filters to exclude DRAFT (CREATED) and PAID
+        const allStatuses = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          handleFilterChange(status, true);
+        });
+        break;
+      case 'pending-approval':
+        // Clear any existing date range filters
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Set status filter to only show PENDING plans
+        const allStatusesForPending = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForPending.forEach(status => {
+          handleFilterChange(status, false);
+        });
+        handleFilterChange('PENDING', true);
+        break;
+      case 'top-destinations':
+        // Clear any existing date range filters
+        setStartDateRange(null);
+        setEndDateRange(null);
+        // Clear all status filters to show all plans for the destination
+        const allStatusesForDestination = ['PREPARED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForDestination.forEach(status => {
+          handleFilterChange(status, false);
+        });
+        // Set destination filter
+        if (statistics.topDestination && statistics.topDestination !== 'N/A') {
+          setDestinationFilter(statistics.topDestination);
+        }
+        break;
+      case null:
+        // Widget deactivated - filters already cleared above
+        setDestinationFilter(null);
+        break;
+    }
+  }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter, statistics.topDestination, setStartDateRange, setEndDateRange]);
+
+  // Handle destination filter changes
+  const handleDestinationFilterChange = useCallback((destination: string | null) => {
+    setDestinationFilter(destination);
+  }, [activeWidget]);
+
+  // Handle clearing all filters (widget + table)
+  const handleClearAllFilters = useCallback((filters: string[]) => {
+    // If clearing all filters (empty array), use the proper clearFilters function
+    if (filters.length === 0) {
+      clearFilters(); // This properly clears all filters including date ranges
+      setActiveWidget(null);
+      setDestinationFilter(null);
+    } else {
+      // Otherwise, set specific filters
+      setFilters(filters);
+    }
+  }, [clearFilters, setFilters]);
+
+  // Wrapper for clear all filters without parameters (for ExpensePlansTable clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
+    setActiveWidget(null);
+    setDestinationFilter(null);
+  }, [setFilters]);
+
+  // Helper function to build widget-specific filters
+  const buildWidgetFilters = useCallback((baseFilters: any) => {
+    const filters = { ...baseFilters };
+    
+    // Add total-estimated widget filters
+    if (activeWidget === 'total-estimated') {
+      const today = dayjs();
+      const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss');
+      
+      const planDateCondition = {
+        _and: [
+          { planDate: { _gte: currentMonthStart } },
+          { planDate: { _lte: currentMonthEnd } }
+        ]
+      };
+      
+      if (filters._and) {
+        filters._and.push(planDateCondition);
+      } else {
+        filters._and = [planDateCondition];
+      }
+    }
+    
+    // Add top-destinations widget filters
+    if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
+      const destinationCondition = {
+        expenseRequestTrip: {
+          pointType: { _eq: "DESTINATION_POINT" },
+          travelRegion: {
+            _or: [
+              { value: { _eq: destinationFilter } },
+              { translations: { value: { _eq: destinationFilter } } }
+            ]
+          }
+        }
+      };
+      
+      if (filters._and) {
+        filters._and.push(destinationCondition);
+      } else {
+        filters._and = [destinationCondition];
+      }
+    }
+    
+    return filters;
+  }, [activeWidget, destinationFilter]);
+
+  // Memoize the filters to prevent unnecessary API calls
+  const memoizedFilters = useMemo(() => {
+    const baseFilters = getFilters();
+    return buildWidgetFilters(baseFilters);
+  }, [getFilters, buildWidgetFilters]);
+
+  // Only fetch when filters, page, or pageSize change
+  useEffect(() => {
+    fetchItems(
+      memoizedFilters,
+      currentPage,
+      pageSize
+    );
+  }, [fetchItems, currentPage, pageSize, memoizedFilters]);
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
+
+  // Process completion event listener for refreshing data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('ExpensePlansTab: Process completion event received:', event.type, event.detail);
+        if (event.detail?.resolution === 'success') {
+          console.log('ExpensePlansTab: Refreshing data after successful process completion');
+          
+          // Refresh plans data
+          if (props.accessToken && props.userInfo?.employeeDetails?.employeeId) {
+            fetchItems(memoizedFilters, currentPage, pageSize);
+          }
+          
+          // Refresh statistics
+          fetchStatistics();
+          
+          // Reset active widget to force refresh of statistics
+          setActiveWidget(null);
+          
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
+
+  // Memoize the label map to prevent unnecessary re-rendering
+  const statusFilterLabelMap = useMemo(() => {
+    const labelMap: Record<string, string> = {};
+    
+    const statusLabels = {
+      [ExpenseStatus.CREATED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+      [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+      [ExpenseStatus.ASSIGNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+      [ExpenseStatus.PENDING]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
+      [ExpenseStatus.APPROVED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+      [ExpenseStatus.RETURNED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+      [ExpenseStatus.REJECTED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+      [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
+      [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
+      [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+      [ExpenseStatus.CLOSED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+      [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
+    };
+    
+    // Add all status mappings
+    Object.entries(statusLabels).forEach(([status, label]) => {
+      labelMap[status] = label;
+    });
+    
+    return labelMap;
+  }, []);
+
+  // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
-    return allPlans && allPlans.length > 0 ? (
-      <ExpensePlanStatistics plans={allPlans} />
-    ) : null;
-  }, [allPlans]);
-  
-  // Update the content header when it changes
+    return <ExpensePlanStatistics 
+      plans={items} 
+      currentMonthTotal={statistics.currentMonthTotal} 
+      previousMonthTotal={statistics.previousMonthTotal} 
+      totalEstimated={statistics.totalEstimated} 
+      pendingApproval={statistics.pendingApproval} 
+      topDestination={statistics.topDestination} 
+      statsLoading={statsLoading} 
+      statsError={statsError ? new Error(statsError) : null}
+      onWidgetClick={handleWidgetClick}
+      activeWidgetKey={activeWidget ?? undefined}
+      currentMonthClosedPlans={statistics.currentMonthClosedPlans}
+      previousMonthClosedPlans={statistics.previousMonthClosedPlans}
+    />;
+  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget]);
+
   useEffect(() => {
     if (props.onContentHeaderChange) {
       props.onContentHeaderChange(contentHeader);
     }
   }, [props.onContentHeaderChange, contentHeader]);
 
-  // Handle search term changes from table
-  const handleSearchChange = useCallback((term: string) => {
-    setSearchTerm(term);
+  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+    setCurrentPage(pagination.current);
+    setPageSize(pagination.pageSize);
   }, []);
 
   return (
     <ExpensePlansTable
-      {...contextProps}
-      search={searchTerm}
-      onSearchChange={handleSearchChange}
+      {...props}
+      items={items.filter(plan => plan.status !== 'DISCARDED')}
+      isLoading={isLoading}
+      error={error}
+      totalCount={totalCount}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onTableChange={handleTableChange}
+      search={search}
+      onSearchChange={setSearch}
+      selectedFilters={selectedFilters}
+      setFilters={setFilters}
+      filterGroups={filterGroups}
+      handleFilterChange={handleFilterChange}
+      clearFilters={handleClearAllFiltersNoParams}
+      filterLabelMap={filterLabelMap}
+      addFilter={addFilter}
+      removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

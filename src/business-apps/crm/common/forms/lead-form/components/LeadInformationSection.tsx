@@ -1,131 +1,396 @@
-import React from 'react';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useLeadFormContext } from '../context/LeadFormContext';
-import OwnerSelector from './OwnerSelector';
-import SearchableSelect from './SearchableSelect';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  Alert,
+  AlertDescription,
+  Input,
+  Label,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { useLeadFormContext } from "../context/LeadFormContext";
+import { toStringOrUndefined } from "../utils/validationUtils";
+import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
+// Note: Removed SearchableSelect and useAccountsGraphQL imports since we're using simple input
 
-const prefixDataTestId = 'LeadForm';
+const prefixDataTestId = "LeadForm";
 
 const LeadInformationSection: React.FC = () => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isSourceOpen, setIsSourceOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+
   const {
     formValues,
     setFormValues,
     isLoading,
-    error,
-    
+
     // Lead Sources
     leadSources,
     leadSourcesLoading,
     leadSourcesError,
     leadSourcesHasMore,
+    leadSourcesNeedsMoreData,
+    leadSourcesDisplayCount,
+    leadSourcesTotalFetched,
     searchLeadSources,
     loadMoreLeadSources,
-    
+    showMoreLeadSources,
+
     // Lead Statuses
     leadStatuses,
     leadStatusesLoading,
     leadStatusesError,
     leadStatusesHasMore,
+    leadStatusesNeedsMoreData,
+    leadStatusesDisplayCount,
+    leadStatusesTotalFetched,
     searchLeadStatuses,
     loadMoreLeadStatuses,
-    
+    showMoreLeadStatuses,
+
     // Lead Ratings
     leadRatings,
     leadRatingsLoading,
     leadRatingsError,
     leadRatingsHasMore,
+    leadRatingsNeedsMoreData,
+    leadRatingsDisplayCount,
+    leadRatingsTotalFetched,
     searchLeadRatings,
     loadMoreLeadRatings,
-    
-    // Employee positions
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions,
+    showMoreLeadRatings,
+
+    // Sales Campaigns
+    salesCampaigns,
+    salesCampaignsLoading,
+    salesCampaignsError,
+    salesCampaignsHasMore,
+    searchSalesCampaigns,
+    loadMoreSalesCampaigns,
+
+    // Access token for API calls
+    accessToken,
   } = useLeadFormContext();
 
-  return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
-      <div className="gba:p-6 gba:space-y-6">
-        {error && (
-          <div className="gba:text-red-700 gba:text-sm gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg">
-            {error}
-          </div>
-        )}
+  // Note: Removed accounts hook since we're using simple input instead of dropdown
 
-        {/* Owner */}
-        <div>
-          <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-            Owner <span className="gba:text-red-500">*</span>
-          </label>
-          <OwnerSelector
-            value={formValues.owner}
-            onChange={(value: string) => setFormValues({ owner: value })}
-            employees={employeePositions}
-            loading={employeePositionsLoading}
-            hasMore={employeePositionsHasMore}
-            onLoadMore={loadMoreEmployeePositions}
-            onSearch={(searchTerm: string) => {
-              searchEmployeePositions(searchTerm);
-            }}
-            error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
+  // Simple effect to load more lead sources when needed
+  useEffect(() => {
+    if (leadSourcesNeedsMoreData && !leadSourcesLoading && leadSourcesHasMore) {
+      loadMoreLeadSources();
+    }
+  }, [
+    leadSourcesNeedsMoreData,
+    leadSourcesLoading,
+    leadSourcesHasMore,
+    leadSourcesTotalFetched,
+    loadMoreLeadSources,
+  ]);
+
+  // Simple effect to load more lead statuses when needed
+  useEffect(() => {
+    if (
+      leadStatusesNeedsMoreData &&
+      !leadStatusesLoading &&
+      leadStatusesHasMore
+    ) {
+      loadMoreLeadStatuses();
+    }
+  }, [
+    leadStatusesNeedsMoreData,
+    leadStatusesLoading,
+    leadStatusesHasMore,
+    leadStatusesTotalFetched,
+    loadMoreLeadStatuses,
+  ]);
+
+  // Simple effect to load more lead ratings when needed
+  useEffect(() => {
+    if (leadRatingsNeedsMoreData && !leadRatingsLoading && leadRatingsHasMore) {
+      loadMoreLeadRatings();
+    }
+  }, [
+    leadRatingsNeedsMoreData,
+    leadRatingsLoading,
+    leadRatingsHasMore,
+    leadRatingsTotalFetched,
+    loadMoreLeadRatings,
+  ]);
+
+  // When dropdowns open, show more if we have them cached
+  useEffect(() => {
+    if (
+      isStatusOpen &&
+      leadStatusesDisplayCount < leadStatusesTotalFetched &&
+      leadStatusesTotalFetched > 5
+    ) {
+      showMoreLeadStatuses();
+    }
+  }, [
+    isStatusOpen,
+    leadStatusesDisplayCount,
+    leadStatusesTotalFetched,
+    showMoreLeadStatuses,
+  ]);
+
+  useEffect(() => {
+    if (
+      isSourceOpen &&
+      leadSourcesDisplayCount < leadSourcesTotalFetched &&
+      leadSourcesTotalFetched > 5
+    ) {
+      showMoreLeadSources();
+    }
+  }, [
+    isSourceOpen,
+    leadSourcesDisplayCount,
+    leadSourcesTotalFetched,
+    showMoreLeadSources,
+  ]);
+
+  useEffect(() => {
+    if (
+      isRatingOpen &&
+      leadRatingsDisplayCount < leadRatingsTotalFetched &&
+      leadRatingsTotalFetched > 5
+    ) {
+      showMoreLeadRatings();
+    }
+  }, [
+    isRatingOpen,
+    leadRatingsDisplayCount,
+    leadRatingsTotalFetched,
+    showMoreLeadRatings,
+  ]);
+
+  return (
+    <Card
+      className="gba:border-0 gba:shadow-none gba:bg-transparent"
+      style={{
+        border: "0",
+        borderWidth: "0",
+        borderStyle: "none",
+        borderColor: "transparent",
+        boxShadow: "none",
+        padding: "0",
+        background: "transparent",
+      }}
+    >
+      <CardContent
+        className="gba:space-y-6 gba:p-0"
+        style={{
+          border: "0",
+          borderWidth: "0",
+          borderStyle: "none",
+          borderColor: "transparent",
+          padding: "0",
+        }}
+      >
+        {/* First Name and Last Name - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              First Name <span className="gba:text-red-500">*</span>
+            </Label>
+            <Input
+              name="firstName"
+              value={
+                typeof formValues.firstName === "string"
+                  ? formValues.firstName
+                  : ""
+              }
+              onChange={(e) => setFormValues({ firstName: e.target.value })}
+              placeholder="Please Enter..."
+              required
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, "FirstNameInput")}
+            />
+          </div>
+
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Last Name <span className="gba:text-red-500">*</span>
+            </Label>
+            <Input
+              name="lastName"
+              value={
+                typeof formValues.lastName === "string"
+                  ? formValues.lastName
+                  : ""
+              }
+              onChange={(e) => setFormValues({ lastName: e.target.value })}
+              placeholder="Please Enter..."
+              required
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, "LastNameInput")}
+            />
+          </div>
+        </div>
+
+        {/* Company Name Input Field */}
+        <div className="gba:space-y-2">
+          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+            Company Name <span className="gba:text-red-500">*</span>
+          </Label>
+          <Input
+            name="company"
+            value={
+              typeof formValues.company === "string"
+                ? formValues.company
+                : String(formValues.company || "")
+            }
+            onChange={(e) => setFormValues({ company: e.target.value })}
+            placeholder="Please Enter..."
+            required
+            className="gba:border-gray-300 gba:bg-white"
+            data-testid={formatDataTestId(prefixDataTestId, "CompanyInput")}
           />
         </div>
 
         {/* Status and Source - Side by side */}
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-          <SearchableSelect
-            label="Status"
-            name="leadStatus"
-            value={formValues.leadStatus}
-            onChange={value => setFormValues({ leadStatus: value })}
-            options={leadStatuses}
-            placeholder="Please Select..."
-            loading={leadStatusesLoading}
-            hasMore={leadStatusesHasMore}
-            onLoadMore={loadMoreLeadStatuses}
-            onSearch={searchLeadStatuses}
-            error={leadStatusesError}
-            data-testid={formatDataTestId(prefixDataTestId, 'LeadStatusSelect')}
-          />
+          {/* Status dropdown like Country */}
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Status
+            </Label>
+            <Select
+              value={formValues.leadStatus}
+              onValueChange={(value) => setFormValues({ leadStatus: value })}
+              onOpenChange={setIsStatusOpen}
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "LeadStatusSelect"
+              )}
+            >
+              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectValue placeholder="Please Select..." />
+              </SelectTrigger>
+              <SelectContent
+                className="gba:max-h-[200px] gba:overflow-y-auto"
+                style={{ maxHeight: "200px", overflowY: "auto" }}
+              >
+                {leadStatuses.map((option, index) => (
+                  <SelectItem
+                    key={`${option.id}-${index}`}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+                {leadStatusesLoading && (
+                  <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
+                    🔄 Loading more statuses...
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <SearchableSelect
-            label="Source"
-            name="leadSource"
-            value={formValues.leadSource}
-            onChange={value => setFormValues({ leadSource: value })}
-            options={leadSources}
-            placeholder="Please Select..."
-            loading={leadSourcesLoading}
-            hasMore={leadSourcesHasMore}
-            onLoadMore={loadMoreLeadSources}
-            onSearch={searchLeadSources}
-            error={leadSourcesError}
-            data-testid={formatDataTestId(prefixDataTestId, 'LeadSourceSelect')}
-          />
+          {/* Source dropdown like Country */}
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              Source
+            </Label>
+            <Select
+              value={formValues.leadSource}
+              onValueChange={(value) => setFormValues({ leadSource: value })}
+              onOpenChange={setIsSourceOpen}
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "LeadSourceSelect"
+              )}
+            >
+              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectValue placeholder="Please Select..." />
+              </SelectTrigger>
+              <SelectContent
+                className="gba:max-h-[200px] gba:overflow-y-auto"
+                style={{ maxHeight: "200px", overflowY: "auto" }}
+              >
+                {leadSources.map((option, index) => (
+                  <SelectItem
+                    key={`${option.id}-${index}`}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+                {leadSourcesLoading && (
+                  <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
+                    🔄 Loading more sources...
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {/* Rating */}
-        <SearchableSelect
-          label="Rating"
-          name="rating"
-          value={formValues.rating}
-          onChange={value => setFormValues({ rating: value })}
-          options={leadRatings}
-          placeholder="Please Select..."
-          loading={leadRatingsLoading}
-          hasMore={leadRatingsHasMore}
-          onLoadMore={loadMoreLeadRatings}
-          onSearch={searchLeadRatings}
-          error={leadRatingsError}
-          data-testid={formatDataTestId(prefixDataTestId, 'RatingSelect')}
-        />
-      </div>
-    </div>
+        {/* Rating like Country */}
+        <div className="gba:space-y-2">
+          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+            Rating
+          </Label>
+          <Select
+            value={formValues.rating}
+            onValueChange={(value) => setFormValues({ rating: value })}
+            onOpenChange={setIsRatingOpen}
+            data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
+          >
+            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectValue placeholder="Please Select..." />
+            </SelectTrigger>
+            <SelectContent
+              className="gba:max-h-[200px] gba:overflow-y-auto"
+              style={{ maxHeight: "200px", overflowY: "auto" }}
+            >
+              {leadRatings.map((option, index) => (
+                <SelectItem key={`${option.id}-${index}`} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+              {leadRatingsLoading && (
+                <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
+                  🔄 Loading more ratings...
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sales Campaign Section */}
+        <div className="gba:space-y-2">
+          <SearchableSelect
+            label="Sales Campaign"
+            name="salesCampaignId"
+            value={formValues.salesCampaignId}
+            placeholder="Please Select Campaign..."
+            options={salesCampaigns as any}
+            loading={salesCampaignsLoading}
+            hasMore={salesCampaignsHasMore}
+            onSearch={searchSalesCampaigns}
+            onLoadMore={loadMoreSalesCampaigns}
+            onChange={(value) => {
+              setFormValues({
+                salesCampaignId: value, // Store only ID for backend
+              });
+            }}
+            error={salesCampaignsError}
+            className="gba:w-full gba:min-w-[300px]"
+            data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
-export default LeadInformationSection; 
+export default LeadInformationSection;

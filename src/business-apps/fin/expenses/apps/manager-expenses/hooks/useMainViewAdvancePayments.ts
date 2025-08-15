@@ -99,7 +99,7 @@ export const useMainViewAdvancePayments = ({
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   // Log the managerId to help with debugging
-  console.log('useMainViewAdvancePayments - managerId:', managerId);
+
   
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -153,7 +153,6 @@ export const useMainViewAdvancePayments = ({
   }, [searchTerm, currentStatusFilter]);
 
   const fetchPayments = useCallback(async () => {
-    console.log('fetchPayments called with accessToken:', !!accessToken, 'managerId:', managerId);
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch advance payments.'));
@@ -173,8 +172,7 @@ export const useMainViewAdvancePayments = ({
     try {
       const offset = (currentPage - 1) * pageSize;
       const whereClause = buildWhereClause();
-      
-      console.log('Fetching advance payments with managerId:', managerId, 'whereClause:', whereClause);
+    
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -200,13 +198,6 @@ export const useMainViewAdvancePayments = ({
       }
 
       const data = result.data as AdvancePaymentResponse;
-      console.log('Advance payments data received:', {
-        paymentsCount: data.AdvancePayment?.length,
-        totalCount: data.AdvancePaymentAggregate?.aggregate?.count,
-        firstPayment: data.AdvancePayment?.[0],
-        managerId,
-        whereClause
-      });
       
       // Apply client-side filtering for employee if needed
       let filteredPayments = data.AdvancePayment;
@@ -270,12 +261,6 @@ export const useMainViewAdvancePayments = ({
       
       const data = result.data as AdvancePaymentStatisticsResponse;
       
-      console.log('Advance payment statistics received:', {
-        totalCount: data.allPaymentsStats?.aggregate.totalCount,
-        sumAmount: data.allPaymentsStats?.aggregate.sum?.amount,
-        pendingCount: data.pendingPaymentsStats?.aggregate.pendingCount,
-        pendingAmount: data.pendingPaymentsStats?.aggregate.sum?.amount
-      });
       
       setPaymentStats({
         totalCount: data.allPaymentsStats?.aggregate.totalCount || 0,

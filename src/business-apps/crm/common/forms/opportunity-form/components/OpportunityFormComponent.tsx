@@ -1,30 +1,44 @@
-import React from 'react';
-import { useOpportunityFormContext } from '../context/OpportunityFormContext';
-import { Button, Spinner } from '@newwork/nw-design-system';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import OpportunityInformationSection from './OpportunityInformationSection';
-import SalesInformationSection from './SalesInformationSection';
-import RelationshipInformationSection from './RelationshipInformationSection';
-import BusinessInformationSection from './BusinessInformationSection';
-import AdditionalInformationSection from './AdditionalInformationSection';
+import React from "react";
+import { useOpportunityFormContext } from "../context/OpportunityFormContext";
+import {
+  Button,
+  Alert,
+  AlertDescription,
+  Spinner,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import OpportunityInformationSection from "./OpportunityInformationSection";
+import AdditionalInformationSection from "./AdditionalInformationSection";
+import SearchableSelect from "./SearchableSelect";
 
-const prefixDataTestId = 'OpportunityForm';
+const prefixDataTestId = "OpportunityForm";
 
 const OpportunityFormComponent: React.FC = () => {
   const {
     formValues,
+    setFormValues,
     onSubmit,
     onCancel,
     isLoading,
     error,
+    salesCampaigns,
+    salesCampaignsLoading,
+    salesCampaignsError,
+    salesCampaignsHasMore,
+    searchSalesCampaigns,
+    loadMoreSalesCampaigns,
   } = useOpportunityFormContext();
 
-  // Check if all mandatory fields are filled
-  const isFormValid = 
+  // Check if all mandatory fields are filled - Pipeline is now mandatory instead of opportunity status
+  const isFormValid =
     formValues.owner &&
     formValues.name &&
-    formValues.opportunityStatus;
+    formValues.pipeline &&
+    formValues.estimatedAmount &&
+    !isNaN(parseFloat(formValues.estimatedAmount)) &&
+    parseFloat(formValues.estimatedAmount) > 0 &&
+    formValues.currency;
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (value: string): string | undefined => {
@@ -33,98 +47,110 @@ const OpportunityFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    console.log("Form values:", formValues);
     try {
       await onSubmit(formValues);
-      
-      // Determine if this is an update or create operation
-      const isUpdate = formValues.id;
-      
+
       // Prepare comprehensive opportunity payload following the API structure
       const opportunityPayload: any = {
         sourceApp: "CRM",
         name: toStringOrUndefined(formValues.name),
+        accountId: toStringOrUndefined(formValues.accountId), // Account ID from selected company
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // Campaign ID for backend
         opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
         pipelineRef: toStringOrUndefined(formValues.pipeline),
-        salesPipelineStageRef: toStringOrUndefined(formValues.salesPipelineStage),
+        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Same as pipelineRef
+        salesPipelineStageRef: toStringOrUndefined(
+          formValues.salesPipelineStage
+        ),
         stage: toStringOrUndefined(formValues.stage),
         status: toStringOrUndefined(formValues.status),
-        estimatedAmount: formValues.estimatedAmount ? parseFloat(formValues.estimatedAmount) : undefined,
+        estimatedAmount: formValues.estimatedAmount
+          ? parseFloat(formValues.estimatedAmount)
+          : undefined,
         currencyRef: toStringOrUndefined(formValues.currency),
-        winningChance: formValues.winningChance ? parseFloat(formValues.winningChance) : undefined,
         closeDate: toStringOrUndefined(formValues.closeDate),
-        accountId: toStringOrUndefined(formValues.account),
-        leadId: toStringOrUndefined(formValues.lead),
-        businessKey: toStringOrUndefined(formValues.businessKey),
-        code: toStringOrUndefined(formValues.code),
-        personal: formValues.personal,
+        winningChance: formValues.winningChance
+          ? Number(formValues.winningChance)
+          : undefined,
+        personal: formValues.personal || false,
         notesSummary: toStringOrUndefined(formValues.notesSummary),
-        lastInteraction: toStringOrUndefined(formValues.lastInteraction),
-        ownerEmployeeId: toStringOrUndefined(formValues.owner),
-        ownerOrganizationId: undefined, // Will be set by backend based on owner employee
+        ownerEmployee: toStringOrUndefined(formValues.owner),
       };
 
-      // For updates, include the opportunity ID and version
-      if (isUpdate) {
-        opportunityPayload.id = formValues.id;
-        if (formValues.version !== undefined) {
-          opportunityPayload.version = formValues.version;
-        }
-      }
+      const changeMode = "INSERT";
 
-      // Remove undefined fields
-      Object.keys(opportunityPayload).forEach(key => {
-        if (opportunityPayload[key] === undefined) {
-          delete opportunityPayload[key];
-        }
-      });
+      const payload = {
+        opportunity: opportunityPayload,
+        changeMode: changeMode,
+      };
 
-      console.log('OpportunityForm: Prepared payload for submission:', opportunityPayload);
-
-      // Dispatch process continue event with the opportunity payload
-      dispatchProcessContinueEvent('processContinue', opportunityPayload);
-      
-    } catch (error) {
-      console.error('OpportunityForm: Error during submission:', error);
+      // Dispatch process continue event on successful submission
+      dispatchProcessContinueEvent("pse_submit", payload);
+    } catch (err) {
+      console.error("Error submitting opportunity form:", err);
     }
   };
 
-  // Handle form cancellation  
+  // Handle form cancellation
   const handleCancel = async () => {
     try {
       await onCancel();
-    } catch (error) {
-      console.error('OpportunityForm: Error during cancellation:', error);
+
+      // Dispatch process continue event for cancellation (pause)
+      dispatchProcessContinueEvent("pse_pause", null);
+    } catch (err) {
+      console.error("Error cancelling opportunity form:", err);
     }
   };
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
+      <div
+        className="gba:h-full gba:flex gba:flex-col"
+        data-testid={formatDataTestId(prefixDataTestId, "Form")}
+      >
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          
           {/* Opportunity Information Section */}
           <OpportunityInformationSection />
 
-          {/* Sales Information Section */}
-          <SalesInformationSection />
-
-          {/* Relationship Information Section */}
-          <RelationshipInformationSection />
-
-          {/* Business Information Section */}
-          <BusinessInformationSection />
+          {/* Campaign Section */}
+          <div className="gba:space-y-2">
+            <SearchableSelect
+              label="Sales Campaign"
+              name="salesCampaignId"
+              value={formValues.salesCampaignId}
+              placeholder="Please Select Campaign..."
+              options={salesCampaigns as any}
+              loading={salesCampaignsLoading}
+              hasMore={salesCampaignsHasMore}
+              onSearch={searchSalesCampaigns}
+              onLoadMore={loadMoreSalesCampaigns}
+              onChange={(value) => {
+                setFormValues({
+                  salesCampaignId: value, // Store only ID for backend
+                });
+              }}
+              error={salesCampaignsError}
+              className="gba:w-full gba:min-w-[300px]"
+              data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+            />
+          </div>
 
           {/* Additional Information Section */}
           <AdditionalInformationSection />
 
           {/* Error Display */}
           {error && (
-            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">
+            <Alert
+              variant="destructive"
+              className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4"
+            >
+              <AlertDescription className="gba:text-red-800 gba:text-sm">
                 {error}
-              </div>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
@@ -135,7 +161,7 @@ const OpportunityFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
           >
             Cancel
           </Button>
@@ -145,10 +171,10 @@ const OpportunityFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Opportunity' : 'Create Opportunity'}
+            {formValues.id ? "Update Opportunity" : "Create Opportunity"}
           </Button>
         </div>
       </div>
@@ -156,4 +182,4 @@ const OpportunityFormComponent: React.FC = () => {
   );
 };
 
-export default OpportunityFormComponent; 
+export default OpportunityFormComponent;

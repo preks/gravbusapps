@@ -1,102 +1,143 @@
-import React from 'react';
-import { Row, Col, Card, Typography, Button, List, Space } from 'antd';
-import { PlusCircleOutlined, SendOutlined, ExperimentOutlined, UploadOutlined } from '@ant-design/icons';
+import React, { useCallback } from 'react';
+import { Card, Button, CardContent } from '@newwork/nw-design-system';
+import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { startProcess } from '@/common/utils/start-process';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-const { Title, Text, Paragraph } = Typography;
+const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
+  const { userInfo } = props;
 
-const QuickActionCards: React.FC = () => {
+  const handleRecordExpense = useCallback(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      // TODO: Replace with nw-design-system toast when available
+      console.warn('User information not loaded yet. Please wait a moment and try again.');
+      return;
+    }
+    
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
+  }, [userInfo?.employeeDetails?.employeeId]);
+
+  const handleSubmitRequest = useCallback(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      // TODO: Replace with nw-design-system toast when available
+      console.warn('User information not loaded yet. Please wait a moment and try again.');
+      return;
+    }
+    
+
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseRequest',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
+  }, [userInfo?.employeeDetails?.employeeId]);
+
   const actionCards = [
     {
       id: 'record-expense',
-      title: 'Record Expense',
-      description: 'Quickly add a new expense to your records. Keep track of your spending efficiently.',
-      icon: <PlusCircleOutlined style={{ fontSize: '24px', color: '#1890ff' }} />,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense','Record Expense'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense_description','Quickly add a new expense to your records. Keep track of your spending efficiently.'),
+      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
       features: [
-        'Single or multiple items',
-        'Attach receipts easily',
-        'Categorize for clarity'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.single_or_multiple_items','Single or multiple items'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.attach_receipts_easily','Attach receipts easily'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity','Categorize for clarity')
       ],
-      buttonText: 'New Expense',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense','New Expense'),
       buttonIcon: <PlusCircleOutlined />,
-      buttonAction: () => console.log('Record expense clicked')
+      buttonAction: handleRecordExpense
     },
     {
       id: 'submit-request',
-      title: 'Submit Request',
-      description: 'Submit your expense reports for reimbursement and manage your trip requests efficiently.',
-      icon: <SendOutlined style={{ fontSize: '24px', color: '#52c41a' }} />,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_request','Submit Request'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_request_description','Submit your expense reports for reimbursement and manage your trip requests efficiently.'),
+      icon: <SendOutlined className="gba:text-2xl gba:text-green-500" />,
       features: [
-        'Create expense report',
-        'Request trip approval',
-        'Track submission status'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.create_expense_report','Create expense report'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_trip_approval','Request trip approval'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.track_submission_status','Track submission status')
       ],
-      buttonText: 'New Request',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_request','New Request'),
       buttonIcon: <SendOutlined />,
-      buttonAction: () => console.log('Submit request clicked')
+      buttonAction: handleSubmitRequest
     },
     {
       id: 'view-reports',
-      title: 'View Reports',
-      description: 'Access and review your expense reports and analytics to track your spending patterns.',
-      icon: <ExperimentOutlined style={{ fontSize: '24px', color: '#722ed1' }} />,
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports_description','Access and review your expense reports and analytics to track your spending patterns.'),
+      icon: <ExperimentOutlined className="gba:text-2xl gba:text-purple-500" />,
       features: [
-        'View trends over time',
-        'Export custom reports',
-        'Analyze spending data'
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_trends_over_time','View trends over time'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.export_custom_reports','Export custom reports'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.analyze_spending_data','Analyze spending data')
       ],
-      buttonText: 'View Reports',
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
       buttonIcon: <ExperimentOutlined />,
       buttonAction: () => console.log('View reports clicked')
-    },
-    {
-      id: 'upload-receipts',
-      title: 'Upload Receipts',
-      description: 'Quickly upload receipts for your expense items. Supports multiple file formats.',
-      icon: <UploadOutlined style={{ fontSize: '24px', color: '#fa8c16' }} />,
-      features: [
-        'Batch upload',
-        'Auto-categorization',
-        'Comply with policies'
-      ],
-      buttonText: 'Upload Receipts',
-      buttonIcon: <UploadOutlined />,
-      buttonAction: () => console.log('Upload receipts clicked')
     }
   ];
 
   return (
-    <Row gutter={[16, 16]}>
+    <div className="gba:grid gba:grid-cols-3 gba:gap-4">
       {actionCards.map(card => (
-        <Col key={card.id} xs={24} sm={12} md={8} lg={6}>
-          <Card hoverable className="gba:quick-action-card">
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Space align="center">
+        <Card 
+          key={card.id} 
+          className="gba:quick-action-card gba:h-full gba:transition-all gba:duration-200 hover:gba:shadow-lg"
+          data-testid={`quick-action-card-${card.id}`}
+        >
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:flex-col gba:h-full gba:space-y-4">
+              <div className="gba:flex gba:items-center gba:space-x-3">
                 {card.icon}
-                <Title level={5} style={{ marginBottom: 0 }}>{card.title}</Title>
-              </Space>
-              <Paragraph type="secondary" style={{ minHeight: '60px' }}>
+                <h3 className="gba:text-lg gba:font-semibold gba:m-0" data-testid={`card-title-${card.id}`}>
+                  {card.title}
+                </h3>
+              </div>
+              
+              <p className="gba:text-sm gba:text-gray-600 gba:min-h-[60px] gba:flex-1" data-testid={`card-description-${card.id}`}>
                 {card.description}
-              </Paragraph>
-              <List size="small" bordered={false} className="gba:quick-action-list">
+              </p>
+              
+              <div className="gba:space-y-1" data-testid={`card-features-${card.id}`}>
                 {card.features.map((feature, index) => (
-                  <List.Item key={index} style={{borderBlockEnd: 'none', padding: '4px 0'}}>
-                    <Text>- {feature}</Text>
-                  </List.Item>
+                  <div key={index} className="gba:text-sm gba:flex gba:items-center">
+                    <span className="gba:mr-2">-</span>
+                    <span>{feature}</span>
+                  </div>
                 ))}
-              </List>
+              </div>
+              
               <Button 
-                type="primary" 
-                icon={card.buttonIcon} 
-                onClick={card.buttonAction} 
-                block
+                variant="default"
+                className="gba:w-full gba:mt-auto" 
+                onClick={card.buttonAction}
+                data-testid={`action-button-${card.id}`}
               >
-                {card.buttonText}
+                <span className="gba:flex gba:items-center gba:justify-center gba:space-x-2">
+                  {card.buttonIcon}
+                  <span>{card.buttonText}</span>
+                </span>
               </Button>
-            </Space>
-          </Card>
-        </Col>
+            </div>
+          </CardContent>
+        </Card>
       ))}
-    </Row>
+    </div>
   );
 };
 

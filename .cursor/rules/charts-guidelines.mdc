@@ -139,7 +139,7 @@ const chartConfig = React.useMemo(() => {
     <Line 
       type="monotone" 
       dataKey="value" 
-      stroke="var(--color-value)" 
+      stroke="var(--nw-color-value)" 
       strokeWidth={3}
       dot={{ r: 4 }}
       activeDot={{ r: 6 }}
@@ -159,7 +159,7 @@ const chartConfig = React.useMemo(() => {
     <ChartTooltip content={<ChartTooltipContent />} />
     <Bar 
       dataKey="value" 
-      fill="var(--color-value)" 
+      fill="var(--nw-color-value)" 
       radius={[4, 4, 0, 0]}
     />
   </BarChart>
@@ -207,12 +207,12 @@ const lineData = [
 
 ### CSS Variables
 
-Charts automatically use CSS variables for colors when using `var(--color-{key})`:
+Charts automatically use CSS variables for colors when using `var(--nw-color-{key})`:
 
 ```typescript
 <Line 
   dataKey="revenue" 
-  stroke="var(--color-revenue)" 
+  stroke="var(--nw-color-revenue)" 
 />
 ```
 
@@ -318,7 +318,7 @@ import { PieChart } from 'recharts';
 
 ```typescript
 // DO: Use CSS variables for colors
-<Bar dataKey="value" fill="var(--color-value)" />
+<Bar dataKey="value" fill="var(--nw-color-value)" />
 ```
 
 ## Troubleshooting
@@ -330,7 +330,7 @@ import { PieChart } from 'recharts';
 
 ### Colors Not Working
 1. Verify chartConfig includes color properties
-2. Use `var(--color-{key})` format
+2. Use `var(--nw-color-{key})` format
 3. Check data includes `fill` property for Pie charts
 
 ### Tooltips Not Showing
@@ -348,7 +348,6 @@ import { PieChart } from 'recharts';
 Refer to these migrated components for real-world examples:
 
 - `AnalyticsCharts.tsx` - Pie and Line charts
-- `RevenueSourceChart.tsx` - Donut chart with custom styling
 - `OverviewTab.tsx` - Progress components
 
 ## Migration Notes

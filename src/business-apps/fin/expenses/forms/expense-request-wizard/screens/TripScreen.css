@@ -1,0 +1,254 @@
+/* TripScreen component styles */
+
+/* Location summary styles - just basic padding */
+/* Location summary styles with horizontal padding */
+.gba\:locationSummary {
+  padding: 0px 32px;
+}
+
+
+.gba\:tripScreenContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.gba\:tripContent {
+  display: flex;
+  flex-direction: column;
+  /* gap: 12px; */
+  padding:0 16px 32px 16px;
+}
+
+
+
+.gba\:locationContainerWrapper.gba\:withDivider {
+  border-bottom: 1px solid #e8e8e8;
+  padding: 16px 0px;
+}
+
+.gba\:locationContainerWrapper {
+  padding: 16px 0px;
+}
+
+/* Location container styles */
+.gba\:locationContainer {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Warning message styles */
+.gba\:warningMessageRow {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.gba\:locationContainer {
+  background-color: #ffffff;
+}
+
+.gba\:locationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0px 10px 0px;
+  background-color: #ffffff;
+  border-bottom: none;
+}
+
+.gba\:locationTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gba\:locationIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.gba\:locationTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.gba\:locationActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gba\:collapseButton {
+  padding: 0 !important;
+  min-width: auto !important;
+  height: auto !important;
+  margin-left: 4px;
+  background: transparent !important;
+  border: none !important;
+}
+
+.gba\:removeButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px !important;
+  border-radius: 16px !important;
+  font-size: 14px;
+  height: auto !important;
+}
+
+/* Vertical line styling */
+.gba\:verticalLine {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom:10px;
+}
+
+.gba\:verticalLine::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #000000;
+}
+
+/* Warning message styling */
+.gba\:warningMessage {
+  color: #000000;
+  font-size: 14px;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Remove button styling */
+.gba\:removeButtonContainer {
+
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+.gba\:removeButtonContainer>button {
+  padding: 0px 10px !important;
+  margin-left: -10px;
+  border-radius: 20px !important;
+}
+
+.gba\:locationContent {
+  margin-top: 8px;
+}
+
+
+.gba\:locationSummaryContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gba\:locationSummaryLine {
+  font-size: 14px;
+  color: #595959;
+}
+
+/* Form content styles */
+.gba\:locationFormContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gba\:switchContainer {
+  margin-bottom: 0px;
+}
+
+.gba\:inputContainer {
+  position: relative;
+}
+
+.gba\:dateTimeContainer {
+  display: flex;
+  gap: 16px;
+}
+
+.gba\:dateInputContainer,
+.gba\:timeInputContainer {
+  flex: 1;
+  position: relative;
+}
+
+/* Add destination button styles */
+.gba\:addDestinationContainer {
+  display: flex;
+  padding: 0px 0px 0px 48px;
+
+}
+
+.gba\:addDestinationContainer.gba\:withDivider {
+  border-bottom: 1px solid #e8e8e8;
+  padding: 16px 0px;
+  
+}
+
+.gba\:addDestinationContainer >button {
+  padding: 0px 10px !important;
+  margin-left: -10px;
+  border-radius: 20px !important;
+}
+
+.gba\:addIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.gba\:addDestinationText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gba\:skipAdvancePaymentContainer{
+  font-weight: 500;
+  padding: 16px 0px;
+  label {flex-direction: row-reverse;}
+}
+/* Form field styling according to guidelines */
+:global(.gravity-input-field),
+:global(.gravity-date-input-field),
+:global(.gravity-select-field) {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+:global(.gravity-input-field label),
+:global(.gravity-date-input-field label),
+:global(.gravity-select-field label) {
+  padding: 8px 12px 0;
+  color: #595959;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+:global(.gravity-input-field input),
+:global(.gravity-date-input-field input),
+:global(.gravity-select-field .ant-select-selector) {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 12px 8px !important;
+  height: auto !important;
+}
+
+:global(.gravity-input-field-required::after),
+:global(.gravity-date-input-field-required::after),
+:global(.gravity-select-field-required::after) {
+  color: #595959;
+  position: absolute;
+  top: 8px;
+  right: 12px;
+}

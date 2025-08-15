@@ -1,8 +1,8 @@
 import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetAdvancePayments } from '../../../hooks/useGetAdvancePayments';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -15,26 +15,35 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Fetch all advance payments for statistics
-  const { items: allPayments, fetchItems } = useGetAdvancePayments(contextProps);
+  // Table refresh trigger state
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   
-  // State for search coordination
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Load all items for statistics when component mounts
-  useEffect(() => {
-    if (contextProps.accessToken && allPayments.length === 0) {
-      // Fetch all items for statistics display (large page size)
-      fetchItems('', 1, 1000);
-    }
-  }, [contextProps.accessToken]);
+  // Use the enhanced advance payment filters hook
+  const {
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    amountRange,
+    setAmountRange,
+    advanceRange,
+    setAdvanceRange,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+    selectedFilters,
+    setFilters,
+    removeFilter,
+    clearFilters,
+  } = useAdvancePaymentFilters();
 
   // Create memoized content header with statistics component
   const contentHeader = useMemo(() => {
-    return allPayments && allPayments.length > 0 ? (
-      <AdvancePaymentStatistics payments={allPayments} />
-    ) : null;
-  }, [allPayments]);
+    return <AdvancePaymentStatistics 
+      accessToken={contextProps.accessToken}
+      userInfo={contextProps.userInfo}
+    />;
+  }, [contextProps.accessToken, contextProps.userInfo]);
   
   // Update the content header when it changes
   useEffect(() => {
@@ -46,6 +55,83 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   // Handle search term changes from table
   const handleSearchChange = useCallback((term: string) => {
     setSearchTerm(term);
+  }, [setSearchTerm]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
+    handleDataFilterChange(filterId, selected);
+  }, [handleDataFilterChange]);
+
+  // Handle clearing all filters with proper coordination
+  const handleClearAllFilters = useCallback((filters: string[]) => {
+    // If clearing all filters (empty array), use the proper clearFilters function
+    if (filters.length === 0) {
+      clearFilters(); // This properly clears all filters including ranges
+    } else {
+      // Otherwise, set specific filters
+      setFilters(filters);
+    }
+  }, [clearFilters, setFilters]);
+
+  // Wrapper for clear all filters without parameters (for table clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
+  }, [setFilters]);
+
+  // Process completion event listener to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
   }, []);
 
   return (
@@ -53,6 +139,17 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       {...contextProps}
       search={searchTerm}
       onSearchChange={handleSearchChange}
+      activeFilter={statusFilter} // Pass raw status values - DataController will handle display
+      onFilterChange={setFilters} // Use enhanced setFilters for individual filter removal
+      onClearFilters={handleClearAllFiltersNoParams} // Use wrapper for clear all
+      filterGroups={filterGroups}
+      handleFilterChange={handleFilterChange}
+      filterLabelMap={filterLabelMap}
+      amountRange={amountRange}
+      advanceRange={advanceRange}
+      selectedFilters={selectedFilters}
+      removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

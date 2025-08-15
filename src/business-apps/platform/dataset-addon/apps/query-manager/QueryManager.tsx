@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { Typography, Space, Button, Alert, Spin, notification, Tabs } from 'antd';
-import { ReloadOutlined, SettingOutlined, PlusOutlined, DatabaseOutlined, BarChartOutlined } from '@ant-design/icons';
+import { 
+  Button, 
+  Alert, 
+  Spinner, 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent
+} from '@newwork/nw-design-system';
+import { toast, Toaster } from 'sonner';
+import { ArrowClockwiseIcon, GearIcon, PlusIcon, DatabaseIcon, ChartBarIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { QueryDefinition, QueryType, QueryStatus, Services, getAllServices, getServiceLabel } from '@/common/network/dataset';
 import { useQueryManagerData } from './hooks/useQueryManagerData';
 import { QueryDefinitionList } from './components/QueryDefinitionList';
 import { QueryDefinitionForm } from './components/QueryDefinitionForm';
-
-const { Title } = Typography;
 
 const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   const [selectedQuery, setSelectedQuery] = useState<QueryDefinition | null>(null);
@@ -51,18 +58,16 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
       // Update existing query
       success = await updateQuery(selectedQuery.id!, queryData, validate);
       if (success) {
-        notification.success({
-          message: 'Query Updated',
-          description: 'Query definition has been updated successfully.',
+        toast.success('Query Updated', {
+          description: 'Query definition has been updated successfully.'
         });
       }
     } else {
       // Create new query
       success = await createQuery(queryData, validate);
       if (success) {
-        notification.success({
-          message: 'Query Created',
-          description: 'Query definition has been created successfully.',
+        toast.success('Query Created', {
+          description: 'Query definition has been created successfully.'
         });
       }
     }
@@ -95,9 +100,8 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   const handleDeleteQuery = async (id: string) => {
     const success = await deleteQuery(id);
     if (success) {
-      notification.success({
-        message: 'Query Deleted',
-        description: 'Query definition has been deleted successfully.',
+      toast.success('Query Deleted', {
+        description: 'Query definition has been deleted successfully.'
       });
     }
   };
@@ -106,9 +110,8 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   const handleToggleQueryStatus = async (id: string, newStatus: QueryStatus) => {
     const success = await updateQueryStatus(id, newStatus);
     if (success) {
-      notification.success({
-        message: 'Status Updated',
-        description: `Query status has been updated to ${newStatus}.`,
+      toast.success('Status Updated', {
+        description: `Query status has been updated to ${newStatus}.`
       });
     }
   };
@@ -119,61 +122,111 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
     loadQueries(newFilters, 0, pageSize);
   };
 
-  const renderQueryTypeContent = () => (
-    <div className="gba:max-w-7xl gba:mx-auto">
-      {/* Error Display */}
-      {error && (
-        <Alert
-          message="Error Loading Queries"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          className="gba:mb-4"
-          action={
-            <Button size="small" onClick={refetch}>
-              Retry
-            </Button>
-          }
-          data-testid="load-error-alert"
-        />
-      )}
+  const formatErrorMessage = (error: string) => {
+    // Handle common error patterns
+    if (error.includes('403')) {
+      return 'Access denied. You don\'t have permission to access query definitions.';
+    }
+    if (error.includes('404')) {
+      return 'Query service not found. Please check your configuration.';
+    }
+    if (error.includes('500')) {
+      return 'Server error occurred. Please try again later or contact support.';
+    }
+    if (error.includes('Network Error') || error.includes('fetch')) {
+      return 'Network connection failed. Please check your internet connection and try again.';
+    }
+    
+    // For other errors, try to extract meaningful message
+    const match = error.match(/HTTP error! status: (\d+)/);
+    if (match) {
+      const status = match[1];
+      return `Service unavailable (${status}). Please try again later.`;
+    }
+    
+    // Fallback to original error but cleaned up
+    return error.length > 100 ? error.substring(0, 100) + '...' : error;
+  };
 
-      {/* Action Error Display */}
+  const renderQueryTypeContent = () => (
+    <div 
+      className="gba:h-full gba:w-full"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        gap: 'var(--nw-spacing-4)'
+      }}
+    >
+      {/* Action Error Display - Keep this separate since it's for actions */}
       {actionError && (
-        <Alert
-          message="Action Failed"
-          description={actionError}
-          type="error"
-          showIcon
-          closable
-          onClose={clearActionError}
-          className="gba:mb-4"
+        <Alert 
+          className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
           data-testid="action-error-alert"
-        />
+        >
+          <div className="gba:flex gba:items-start gba:w-full" style={{ gap: 'var(--nw-spacing-3)' }}>
+            <WarningCircleIcon 
+              className="gba:shrink-0" 
+              style={{ 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
+              }}
+              size={20}
+            />
+            <div className="gba:flex-1 gba:min-w-0">
+              <h4 className="gba:font-semibold gba:text-lg" style={{ 
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
+              }}>
+                Action Failed
+              </h4>
+              <p className="gba:text-sm" style={{ 
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
+              }}>
+                {formatErrorMessage(actionError)}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={clearActionError} className="gba:shrink-0">
+              Dismiss
+            </Button>
+          </div>
+        </Alert>
       )}
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-          <Spin size="large" />
-          <span className="gba:ml-3">Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...</span>
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-full" style={{ 
+          paddingTop: 'var(--nw-spacing-12)', 
+          paddingBottom: 'var(--nw-spacing-12)' 
+        }}>
+          <Spinner />
+          <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...</span>
         </div>
       ) : (
-        <QueryDefinitionList
-          queries={queries}
-          isLoading={isLoading}
-          isUpdating={isUpdating}
-          isDeleting={isDeleting}
-          totalQueries={totalQueries}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          onEdit={handleEditQuery}
-          onDelete={handleDeleteQuery}
-          onStatusChange={handleToggleQueryStatus}
-          onPageChange={(page, size) => loadQueries(filters, page - 1, size)}
-          onFilter={handleFiltersChange}
-        />
+        <div className="gba:h-full gba:w-full gba:flex-1 gba:min-h-0">
+          <QueryDefinitionList
+            queries={queries}
+            isLoading={isLoading}
+            isUpdating={isUpdating}
+            isDeleting={isDeleting}
+            totalQueries={totalQueries}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onEdit={handleEditQuery}
+            onDelete={handleDeleteQuery}
+            onStatusChange={handleToggleQueryStatus}
+            onPageChange={(page, size) => loadQueries(filters, page - 1, size)}
+            onFilter={handleFiltersChange}
+            onCreateNew={handleCreateQuery}
+            error={error || undefined}
+            onRetry={refetch}
+            formatErrorMessage={formatErrorMessage}
+          />
+        </div>
       )}
 
       {/* Query Form Modal */}
@@ -190,86 +243,90 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   );
 
   const renderServiceContent = (service: Services) => {
-    const queryTypeTabItems = [
-      {
-        key: QueryType.DATASET,
-        label: (
-          <Space>
-            <DatabaseOutlined />
-            Dataset Queries
-          </Space>
-        ),
-        children: renderQueryTypeContent()
-      },
-      {
-        key: QueryType.TIMESERIES,
-        label: (
-          <Space>
-            <BarChartOutlined />
-            Timeseries Queries
-          </Space>
-        ),
-        children: renderQueryTypeContent()
-      }
-    ];
-
     return (
-      <Tabs
-        activeKey={activeQueryType}
-        onChange={(key) => setActiveQueryType(key as QueryType)}
-        items={queryTypeTabItems}
-        size="small"
-        className="gba:h-full"
-        data-testid={`query-type-tabs-${service}`}
-      />
+      <Tabs value={activeQueryType} onValueChange={(value) => setActiveQueryType(value as QueryType)} className="gba:h-full gba:w-full">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
+          <TabsTrigger value={QueryType.DATASET} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+            <DatabaseIcon />
+            Dataset Queries
+          </TabsTrigger>
+          <TabsTrigger value={QueryType.TIMESERIES} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+            <ChartBarIcon />
+            Timeseries Queries
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value={QueryType.DATASET} className="gba:h-full gba:w-full">
+          {renderQueryTypeContent()}
+        </TabsContent>
+        <TabsContent value={QueryType.TIMESERIES} className="gba:h-full gba:w-full">
+          {renderQueryTypeContent()}
+        </TabsContent>
+      </Tabs>
     );
   };
 
-  const tabItems = getAllServices().map(service => ({
-    key: service,
-    label: (
-      <Space>
-        <DatabaseOutlined />
-        {getServiceLabel(service)}
-      </Space>
-    ),
-    children: renderServiceContent(service)
-  }));
-
   return (
-    <PageLayout
-      headerIcon={<SettingOutlined />}
-      headerLabel="Query Manager"
-      pageHeaderRight={
-        <Space>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateQuery}
-            data-testid="create-query-button"
+    <>
+      <PageLayout
+        headerIcon={<GearIcon />}
+        headerLabel="Query Manager"
+        pageHeaderRight={
+          <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
+            <Button
+              variant="default"
+              size="default"
+              onClick={handleCreateQuery}
+              data-testid="create-query-button"
+              className="gba:flex gba:items-center gba:whitespace-nowrap"
+              style={{ gap: 'var(--nw-spacing-2)' }}
+            >
+              <PlusIcon size={16} />
+              Create Query
+            </Button>
+            <Button
+              variant="outline"
+              size="default"
+              onClick={refetch}
+              disabled={isLoading}
+              data-testid="refresh-queries-button"
+              className="gba:flex gba:items-center gba:whitespace-nowrap"
+              style={{ gap: 'var(--nw-spacing-2)' }}
+            >
+              <ArrowClockwiseIcon size={16} />
+              Refresh
+            </Button>
+          </div>
+        }
+        contentContainer={
+          <div 
+            className="gba:h-full gba:w-full gba:overflow-auto"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              maxHeight: '100%'
+            }}
           >
-            Create Query
-          </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={refetch}
-            loading={isLoading}
-            data-testid="refresh-queries-button"
-          >
-            Refresh
-          </Button>
-        </Space>
-      }
-      contentContainer={
-        <Tabs
-          activeKey={activeService}
-          onChange={(key) => setActiveService(key as Services)}
-          items={tabItems}
-          size="large"
-          className="gba:h-full"
-        />
-      }
-    />
+            <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full gba:w-full">
+              <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}>
+                {getAllServices().map(service => (
+                  <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                    <DatabaseIcon />
+                    {getServiceLabel(service)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {getAllServices().map(service => (
+                <TabsContent key={service} value={service} className="gba:h-full gba:w-full">
+                  {renderServiceContent(service)}
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
+        }
+      />
+      <Toaster />
+    </>
   );
 };
 

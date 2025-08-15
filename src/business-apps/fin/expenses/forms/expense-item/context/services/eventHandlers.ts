@@ -6,6 +6,7 @@ import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { EMPLOYEE_FILES_LOCATION, EVENTS, FILES_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
 import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../../constants/constants";
 import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
+import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 
 /**
  * Uploads documents to the file server
@@ -156,6 +157,9 @@ export const handleExpenseTypeChange = async (
     
 
     if (form) {
+      form.setFieldsValue({
+        [`expenseType-${positionIndex}`]: value || undefined
+      });
 
       const prevExpenseType = positions[positionIndex]?.expenseType;
       
@@ -270,7 +274,10 @@ export const handleSubmit = async (
   accessToken?: string,
   employeeId?: string,
   additionalData?: any,
-  userInfo?: any
+  userInfo?: any,
+  itemValues?: { id: string; version: string | number },
+  getIsProcessEventDispatched?: () => boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
     setLoading(true);
@@ -284,7 +291,8 @@ export const handleSubmit = async (
       uploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t);
     }
     
-    const hasExpenseRequest = additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+    // Check if we have an expense request from either the wizard or task payload
+    const hasExpenseRequest = additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;
@@ -292,15 +300,22 @@ export const handleSubmit = async (
     
     if (accessToken && employeeId && hasExpenseRequest) {
       try {
-        const flowResult = await initiateFlow(accessToken, employeeId);
-        if (flowResult && flowResult && flowResult.id) {
+        // Check if process event is already dispatched
+        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+          return;
+        }
+
+        const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME);
+        if (flowResult && flowResult.id) {
           flowProcessId = flowResult.id;
-          const userId = userInfo?.id || "c813b143-360d-491f-a8f5-a4ac6b769fe9";
+          const userId = userInfo?.id || "";
 
           const tasksResult = await getOpenedTaskFlow(
             accessToken,
             userId,
-            flowProcessId as string
+            flowProcessId as string,
+            FLOW_DOMAIN,
+            FLOW_PROCESS_NAME
           );
           
           if (tasksResult && Array.isArray(tasksResult) && tasksResult.length > 0) {
@@ -354,6 +369,8 @@ export const handleSubmit = async (
     });
     const submitData = {
       expenseItem: {
+        ...(itemValues?.id && { id: itemValues.id }),
+        ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         expenseDate: values.date
           ? formatDateToISOString(values.date)
@@ -366,7 +383,7 @@ export const handleSubmit = async (
         expenseClassRef: "ExpenseClass:v1:EXPENSE",
         status: DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
-        expenseRequest: values.expenseRequest || "",
+        expenseRequest: values.expenseRequest || additionalData?.expenseRequestId || "",
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },
@@ -387,14 +404,14 @@ export const handleSubmit = async (
     
     if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
       try {
-        const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
+        const userId = userInfo?.id || "";
         await completeTaskFlow(
           accessToken,
           userId,
           flowProcessId as string,
           taskName as string,
           taskId as string,
-          submitData
+          submitData,FLOW_DOMAIN,FLOW_PROCESS_NAME
         );
         operationSuccessful = true;
       } catch (completeError) {
@@ -407,7 +424,12 @@ export const handleSubmit = async (
 
     if(accessToken && employeeId && !hasExpenseRequest){
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        
+        if(dispatchProcessContinueEventIfEnabled){
+          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
+        }else{
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        }
         // operationSuccessful = true;
       } catch (processError) {
         showToast(

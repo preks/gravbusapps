@@ -12,6 +12,10 @@ import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
+// Import page components
+import { ApprovalsPage, ExpenseReportsPage } from './components/pages';
+import TeamSpendingAnalyticsPage from './components/pages/TeamSpendingAnalyticsPage';
+
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
@@ -43,6 +47,9 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     }
   ];
 
+  // State for current view/page
+  const [currentView, setCurrentView] = useState<'tabs' | 'approvals' | 'reports' | 'analytics'>('tabs');
+  
   // Get tab from URL query parameter or use first tab as default
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -61,15 +68,33 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  // State for active tab within the tabs view
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
 
-  // Update URL when tab changes
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
+  // Navigation handlers
+  const handleNavigateToApprovals = useCallback(() => {
+    setCurrentView('approvals');
+  }, []);
+
+  const handleNavigateToReports = useCallback(() => {
+    setCurrentView('reports');
+  }, []);
+
+  const handleNavigateToAnalytics = useCallback(() => {
+    setCurrentView('analytics');
+  }, []);
+
+  const handleNavigateBackToDashboard = useCallback(() => {
+    setCurrentView('tabs');
+    setActiveTab('dashboard');
+  }, []);
+
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', key);
+    url.searchParams.set('tab', tab);
     window.history.pushState({}, '', url.toString());
-  };
+  }, []);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -85,14 +110,26 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const renderTabContent = () => {
-    const tabProps = {
-      ...props
-    };
+  // Create tab props for passing to tab components
+  const tabProps = {
+    ...props,
+    onNavigateToApprovals: handleNavigateToApprovals,
+    onNavigateToReports: handleNavigateToReports,
+    onNavigateToAnalytics: handleNavigateToAnalytics
+  };
 
+  // Render tab content based on active tab
+  const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <ExpenseDashboardTab {...tabProps} />;
+        return (
+          <ExpenseDashboardTab 
+            {...tabProps}
+            onNavigateToApprovals={handleNavigateToApprovals}
+            onNavigateToReports={handleNavigateToReports}
+            onNavigateToAnalytics={handleNavigateToAnalytics}
+          />
+        );
       case 'expense-plans':
         return <ExpensePlansTab {...tabProps} />;
       case 'advance-payments':
@@ -106,8 +143,35 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     }
   };
 
+  // Render based on current view
+  if (currentView === 'approvals') {
+    return (
+      <ApprovalsPage 
+        {...props}
+        onNavigateBack={handleNavigateBackToDashboard}
+      />
+    );
+  }
 
+  if (currentView === 'reports') {
+    return (
+      <ExpenseReportsPage 
+        {...props}
+        onNavigateBack={handleNavigateBackToDashboard}
+      />
+    );
+  }
 
+  if (currentView === 'analytics') {
+    return (
+      <TeamSpendingAnalyticsPage 
+        {...props}
+        onNavigateBack={handleNavigateBackToDashboard}
+      />
+    );
+  }
+
+  // Default tabs view
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout

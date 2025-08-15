@@ -1,23 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
-import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetSalesActivities, SalesActivityData } from '../queries/OpportunityActivityQueries';
-import { useGetCrmDocuments, CrmDocumentData } from '../queries/CrmDocumentQueries';
+
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { useAiSummary } from '../hooks/useAiSummary';
+import { useSalesManagerEmployees } from '../hooks/useSalesManagerEmployees';
+import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 const { Text } = Typography;
 
 interface ActivityTimelineProps {
-  opportunityId?: string;
+  opportunityId: string;
   context: BusinessAppContextProps;
 }
 
@@ -28,37 +32,55 @@ interface TranslatedActivity extends SalesActivityData {
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityId, context }) => {
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'documents'>('activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'ai-summary'>('activities');
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<CrmDocumentData[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [approvalTasks, setApprovalTasks] = useState<SalesTaskData[]>([]);
+  const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
+  const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
+
   const [notesKey, setNotesKey] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
 
   const { fetchSalesActivities } = useGetSalesActivities(context);
-  const { fetchCrmDocuments } = useGetCrmDocuments(context);
+  const { fetchSalesTasks } = useGetSalesTasks(context);
+  const { salesManagers, loading: salesManagersLoading, error: salesManagersError } = useSalesManagerEmployees(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken);
+
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const fileClient = useFileClient(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
+
+  // Listen for process completion to refetch approval tasks
+  useProcessCompletion({
+    onSuccess: () => {
+      console.log('Process completed successfully, refreshing approval tasks');
+      if (activeTab === 'approvals') {
+        loadApprovalTasks();
+      }
+    },
+    onFailure: () => {
+      console.log('Process failed');
+      message.error('Failed to create approval task');
+    }
+  });
 
   const loadActivities = async () => {
     if (!opportunityId) return;
-    
+
     setActivitiesLoading(true);
     setActivitiesError(null);
-    
+
     try {
       const result = await fetchSalesActivities({ opportunityId });
       // Sort activities by createdAt in descending order (newest first)
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => 
+      const sortedActivities = (result.SalesActivity || []).sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
+
       // Store original activities for translation reference
       originalActivitiesRef.current = sortedActivities;
       setActivities(sortedActivities);
@@ -69,11 +91,80 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     }
   };
 
+  const loadApprovalTasks = async () => {
+    if (!opportunityId) return;
+
+    setApprovalTasksLoading(true);
+    setApprovalTasksError(null);
+
+    try {
+      const result = await fetchSalesTasks({ opportunityId });
+      
+      // Filter for approval tasks only - check both possible field structures
+      let approvalTasks = (result.SalesTask || []).filter(task => {
+        // Check both type.value (catalog reference) and direct typeRef fields
+        const taskTypeValue = task.type?.value;
+        const typeRef = task.typeRef;
+        
+        return (
+          // Check type.value field (catalog reference)
+          (taskTypeValue && taskTypeValue.toLowerCase() === 'approval') ||
+          // Check direct typeRef field for various formats
+          (typeRef && (
+            typeRef.toLowerCase() === 'approval' ||
+            typeRef === 'SalesTaskType:v1:APPROVAL'
+          ))
+        );
+      });
+
+      // Fetch creator employee information for tasks where creatorEmployee is null
+      const enhancedTasks = await Promise.all(
+        approvalTasks.map(async (task) => {
+          if (!task.creatorEmployee && task.createdBy) {
+            try {
+              // Look up employee by userId
+              const employeeQuery = `
+                query GetEmployeeByUserId($userId: String!) {
+                  Employee(where: {userId: {_eq: $userId}, isDeleted: {_eq: false}}, limit: 1) {
+                    id
+                    firstName
+                    lastName
+                    displayName
+                    fullName
+                  }
+                }
+              `;
+              
+              const employeeResult = await graphqlClient.request(employeeQuery, { userId: task.createdBy });
+              const employee = employeeResult?.Employee?.[0];
+              
+              if (employee) {
+                return {
+                  ...task,
+                  creatorEmployee: employee
+                };
+              }
+            } catch (error) {
+              console.warn('Failed to fetch creator employee for task:', task.id, error);
+            }
+          }
+          return task;
+        })
+      );
+      
+      setApprovalTasks(enhancedTasks);
+    } catch (err) {
+      setApprovalTasksError(err instanceof Error ? err.message : 'Failed to load approval tasks');
+    } finally {
+      setApprovalTasksLoading(false);
+    }
+  };
+
   // Handle language change and translate activities
   useEffect(() => {
     const translateActivities = async () => {
       const originalActivities = originalActivitiesRef.current;
-      
+
       if (selectedLanguage === 'Original' || originalActivities.length === 0) {
         // Reset to original text for Original language or no activities
         setActivities(originalActivities);
@@ -81,24 +172,24 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }
 
       setTranslating(true);
-      
+
       try {
         // Collect all text to translate from original activities
         const textsToTranslate: string[] = [];
         const activityMapping: Array<{ activityIndex: number, titleIndex: number, descriptionIndex: number }> = [];
-        
+
         originalActivities.forEach((activity, activityIndex) => {
           const titleIndex = textsToTranslate.length;
           textsToTranslate.push(activity.title);
-          
+
           const descriptionIndex = textsToTranslate.length;
           textsToTranslate.push(activity.description);
-          
+
           activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
         });
 
         const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-        
+
         const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
           const mapping = activityMapping[activityIndex];
           return {
@@ -108,7 +199,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             isTranslating: false
           };
         });
-        
+
         setActivities(translatedActivities);
       } catch (err) {
         console.error('Translation error:', err);
@@ -124,21 +215,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     }
   }, [selectedLanguage, activeTab, context.accessToken]);
 
-  const loadDocuments = async () => {
-    if (!opportunityId) return;
-    
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    
-    try {
-      const result = await fetchCrmDocuments({ opportunityId });
-      setDocuments(result.CrmDocument || []);
-    } catch (err) {
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents');
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
+
 
   const refreshNotes = () => {
     setNotesKey(prev => prev + 1);
@@ -147,8 +224,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   useEffect(() => {
     if (activeTab === 'activities') {
       loadActivities();
-    } else if (activeTab === 'documents') {
-      loadDocuments();
+    } else if (activeTab === 'approvals') {
+      loadApprovalTasks();
     }
   }, [opportunityId, activeTab]);
 
@@ -156,8 +233,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     const handleFocus = () => {
       if (activeTab === 'activities') {
         loadActivities();
-      } else if (activeTab === 'documents') {
-        loadDocuments();
+      } else if (activeTab === 'approvals') {
+        loadApprovalTasks();
       }
       refreshNotes();
     };
@@ -180,9 +257,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       try {
         if (event.detail?.resolution === 'success') {
           loadActivities();
-          loadDocuments();
+          loadApprovalTasks();
           refreshNotes();
-          
+
           return
         }
       } catch (err) {
@@ -193,7 +270,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     const handlePostMessage = (event: MessageEvent) => {
       try {
         if (event.data?.type === 'CRM_DOCUMENT_UPLOADED' && event.data?.opportunityId === opportunityId) {
-          loadDocuments();
+          // Documents are now handled in the separate documents tab
         }
       } catch (err) {
         console.error('Error handling postMessage:', err);
@@ -222,11 +299,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     eventNames.forEach(eventName => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
-    
+
     window.addEventListener('message', handlePostMessage);
 
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         handleAllEvents(event);
       }
@@ -238,7 +315,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
       window.removeEventListener('message', handlePostMessage);
-      
+
       window.dispatchEvent = originalDispatchEvent;
     };
   }, [opportunityId]);
@@ -256,18 +333,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     }
   };
 
-  const handleAddDocument = () => {
+  const handleRequestApproval = () => {
     if (opportunityId) {
+      // Pre-fill task with approval type, let user select from managers
       startProcess({
         domain: 'customer-relations',
-        processName: 'saveCrmDocument',
+        processName: 'saveSalesTask',
         payload: {
           opportunityId,
+          typeRef: 'SalesTaskType:v1:APPROVAL', // Correct catalog format
         },
         builderType: 'NATIVE_SCREEN',
       });
     }
   };
+
+
 
   const handleDeleteActivity = (activity: SalesActivityData) => {
     Modal.confirm({
@@ -288,19 +369,53 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           }, {
             headers: { Authorization: `Bearer ${context.accessToken}` }
           });
-          
+
           // Remove the activity from both states
-          setActivities(prevActivities => 
+          setActivities(prevActivities =>
             prevActivities.filter(a => a.id !== activity.id)
           );
-          
+
           // Also remove from original activities ref
           originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-          
+
           message.success('Activity deleted successfully');
         } catch (error) {
           console.error('Error deleting activity:', error);
           message.error('Failed to delete activity');
+        }
+      },
+    });
+  };
+
+  const handleDeleteTask = (task: SalesTaskData) => {
+    Modal.confirm({
+      title: 'Confirm Deletion',
+      content: `Are you sure you want to delete the approval task "${task.name}"?`,
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await restClient.post('/customer-relations/saveSalesTask', {
+            changeMode: "DELETE",
+            salesTask: {
+              id: task.id,
+              version: task.version,
+              opportunity: opportunityId
+            }
+          }, {
+            headers: { Authorization: `Bearer ${context.accessToken}` }
+          });
+
+          // Remove the task from state
+          setApprovalTasks(prevTasks =>
+            prevTasks.filter(t => t.id !== task.id)
+          );
+
+          message.success('Approval task deleted successfully');
+        } catch (error) {
+          console.error('Error deleting approval task:', error);
+          message.error('Failed to delete approval task');
         }
       },
     });
@@ -317,42 +432,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     return '';
   };
 
-  const handleDeleteDocument = (document: CrmDocumentData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the document "${document.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
-            changeMode: "DELETE",
-            crmDocument: {
-              id: document.id,
-              version: document.version,
-              opportunity: opportunityId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the document from local state
-          setDocuments(prevDocuments => 
-            prevDocuments.filter(d => d.id !== document.id)
-          );
-          
-          message.success('Document deleted successfully');
-        } catch (error) {
-          console.error('Error deleting document:', error);
-          message.error('Failed to delete document');
-        }
-      },
-    });
-  };
+
 
   return (
-    <div 
+    <div
       style={{
         backgroundColor: 'white',
         borderRadius: '8px',
@@ -362,7 +445,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       }}
     >
       {/* Tab Navigation */}
-      <div 
+      <div
         style={{
           borderBottom: '1px solid #f0f0f0',
           backgroundColor: '#fafafa'
@@ -401,15 +484,29 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             style={{
               padding: '12px 24px',
               fontWeight: '500',
-              color: activeTab === 'documents' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'documents' ? 'white' : 'transparent',
+              color: activeTab === 'approvals' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'approvals' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
               cursor: 'pointer'
             }}
-            onClick={() => setActiveTab('documents')}
+            onClick={() => setActiveTab('approvals')}
           >
-            Documents
+            Approvals
+          </div>
+          <div
+            style={{
+              padding: '12px 24px',
+              fontWeight: '500',
+              color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
+              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
+              flex: 1,
+              textAlign: 'center',
+              cursor: 'pointer'
+            }}
+            onClick={() => setActiveTab('ai-summary')}
+          >
+            AI Summary
           </div>
         </div>
       </div>
@@ -417,7 +514,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       {/* Activities Tab Content */}
       {activeTab === 'activities' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -426,8 +523,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div 
-                className="gba:activities-title" 
+              <div
+                className="gba:activities-title"
                 style={{ fontSize: '18px', fontWeight: '500' }}
               >
                 Activities
@@ -437,13 +534,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                 onChange={handleLanguageChange}
               />
               {translating && (
-                <Spin 
-                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
-                  size="small" 
+                <Spin
+                  indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />}
+                  size="small"
                 />
               )}
             </div>
-            <Button 
+            <Button
               type="primary"
               icon={<PlusCircleOutlined />}
               onClick={handleAddActivity}
@@ -504,11 +601,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
                         <div style={{ marginTop: '4px', marginBottom: '4px' }}>
-                          <span style={{ 
-                            backgroundColor: '#f0f0f0', 
-                            color: '#333', 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
+                          <span style={{
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: '500'
                           }}>
@@ -519,13 +616,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                       <div style={{ marginTop: '4px' }}>
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
+                      <Button
+                        type="text"
+                        icon={<CloseOutlined />}
                         size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
                           top: 0,
                           padding: '4px',
                           lineHeight: 1
@@ -547,10 +644,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
         <NotesSection key={notesKey} opportunityId={opportunityId} context={context} />
       )}
 
-      {/* Documents Tab Content */}
-      {activeTab === 'documents' && (
+      {/* Approvals Tab Content */}
+      {activeTab === 'approvals' && (
         <div>
-          <div 
+          <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -558,96 +655,284 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
               padding: '16px 24px'
             }}
           >
-            <div 
-              className="gba:documents-title" 
+            <div
+              className="gba:approvals-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
-              Documents
+              Approval Tasks
             </div>
-            <Button 
+            <Button
               type="primary"
-              icon={<CloudUploadOutlined />}
-              onClick={handleAddDocument}
-              data-testid="add-document-button"
+              icon={<CheckCircleOutlined />}
+              onClick={handleRequestApproval}
+              data-testid="request-approval-button"
             >
-              Upload Document
+              Request Approval
             </Button>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
-            {documentsLoading && (
+            {approvalTasksLoading && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <Spin size="large" />
               </div>
             )}
 
-            {documentsError && (
+            {approvalTasksError && (
               <Alert
-                message="Error Loading Documents"
-                description={documentsError}
+                message="Error Loading Approval Tasks"
+                description={approvalTasksError}
+                type="error"
+                showIcon
+                style={{ marginBottom: '16px' }}
+              />
+            )}
+
+            {!approvalTasksLoading && !approvalTasksError && approvalTasks.length === 0 && (
+              <Empty
+                description="No approval tasks found"
+                style={{ padding: '40px 0' }}
+              />
+            )}
+
+            {!approvalTasksLoading && !approvalTasksError && approvalTasks.length > 0 && (
+              <Timeline>
+                {approvalTasks.map((task, index) => (
+                  <Timeline.Item key={task.id || index} color="blue">
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text strong>
+                          {task.name}
+                        </Text>
+                      </div>
+                      <div>
+                        <Text type="secondary">
+                          {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {
+                            task.creatorEmployee 
+                              ? (task.creatorEmployee.displayName || 
+                                 task.creatorEmployee.fullName || 
+                                 `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() || 
+                                 'Unknown Employee')
+                              : task.createdBy
+                          }
+                        </Text>
+                      </div>
+                      <div style={{ marginTop: '4px', marginBottom: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {task.priority?.value && (
+                          <span style={{
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            {task.priority.value} priority
+                          </span>
+                        )}
+                        <span style={{
+                          backgroundColor: '#e6f7ff',
+                          color: '#1890ff',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}>
+                          Approval
+                        </span>
+                        {task.assignedEmployee && (
+                          <span style={{
+                            backgroundColor: '#f6ffed',
+                            color: '#52c41a',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            Assigned to: {task.assignedEmployee.displayName || task.assignedEmployee.fullName || `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() || 'Unknown Employee'}
+                          </span>
+                        )}
+                      </div>
+                      {task.description && (
+                        <div style={{ marginTop: '4px' }}>
+                          <div>{task.description}</div>
+                        </div>
+                      )}
+                                             {task.dueDate && (
+                         <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+                           Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
+                         </div>
+                       )}
+                       <Button
+                         type="text"
+                         icon={<CloseOutlined />}
+                         size="small"
+                         style={{
+                           position: 'absolute',
+                           right: 0,
+                           top: 0,
+                           padding: '4px',
+                           lineHeight: 1
+                         }}
+                         onClick={() => handleDeleteTask(task)}
+                         data-testid={`delete-approval-task-${task.id}`}
+                       />
+                     </div>
+                   </Timeline.Item>
+                ))}
+              </Timeline>
+            )}
+
+            {salesManagersError && (
+              <Alert
+                message="Warning"
+                description={`Error loading sales managers: ${salesManagersError}. Approval requests may not work properly.`}
+                type="warning"
+                showIcon
+                style={{ marginTop: '16px' }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Documents functionality moved to separate Documents tab */}
+
+      {/* AI Summary Tab Content */}
+      {activeTab === 'ai-summary' && (
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px'
+            }}
+          >
+            <div
+              className="gba:ai-summary-title"
+              style={{ fontSize: '18px', fontWeight: '500' }}
+            >
+              AI Summary
+            </div>
+            <Button
+              type="primary"
+              icon={<RobotOutlined />}
+              onClick={generateSummary}
+              loading={aiSummaryState?.type === 'loading'}
+              data-testid="generate-summary-button"
+            >
+              Generate Summary
+            </Button>
+          </div>
+
+          <div style={{ padding: '0 24px 24px' }}>
+            {aiSummaryState?.type === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
+                  Generating AI summary...
+                </div>
+              </div>
+            )}
+
+            {aiSummaryState?.type === 'error' && (
+              <Alert
+                message="Error Generating Summary"
+                description="Failed to generate AI summary. Please try again."
                 type="error"
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadDocuments}>
+                  <Button size="small" onClick={generateSummary}>
                     Retry
                   </Button>
                 }
               />
             )}
 
-            {!documentsLoading && !documentsError && documents.length === 0 && (
+            {!aiSummaryState && (
               <Empty
-                description="No documents yet"
+                description="No summary generated yet"
                 style={{ padding: '40px 0' }}
-                data-testid="empty-documents"
+                data-testid="empty-ai-summary"
               >
                 <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                  Start by uploading your first document
+                  Click "Generate Summary" to create an AI-powered summary of this opportunity
                 </div>
               </Empty>
             )}
 
-            {!documentsLoading && !documentsError && documents.length > 0 && (
-              <Timeline>
-                {documents.map((document, index) => (
-                  <Timeline.Item key={document.id || index} color="green">
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileTextOutlined />
-                        <Text strong>{document.name}</Text>
-                      </div>
-                      <div>
-                        <Text type="secondary">
-                          {dayjs(document.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(document.createdBy)}
-                        </Text>
-                      </div>
-                      <div style={{ marginTop: '4px' }}>
-                        <Text type="secondary">Type: {document.mimeType || 'Unknown'}</Text>
-                        {document.fileSize && (
-                          <Text type="secondary" style={{ marginLeft: '16px' }}>
-                            Size: {Math.floor(document.fileSize / 1024)} KB
-                          </Text>
-                        )}
-                      </div>
-                      <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
-                        size="small"
-                        style={{ 
-                          position: 'absolute', 
-                          right: 0, 
-                          top: 0,
-                          padding: '4px',
-                          lineHeight: 1
-                        }}
-                        onClick={() => handleDeleteDocument(document)}
-                        data-testid={`delete-document-${document.id}`}
-                      />
+            {aiSummaryState?.type === 'success' && (
+              <div>
+                {/* Executive Summary */}
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    marginBottom: '12px',
+                    color: '#262626'
+                  }}>
+                    Executive Summary
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    color: '#595959',
+                    backgroundColor: '#fafafa',
+                    padding: '16px',
+                    borderRadius: '6px',
+                    border: '1px solid #f0f0f0'
+                  }}>
+                    {aiSummaryState.content.summary}
+                  </div>
+                </div>
+
+                {/* Key Insights */}
+                {aiSummaryState.content.keyInsights && aiSummaryState.content.keyInsights.length > 0 && (
+                  <div>
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      marginBottom: '12px',
+                      color: '#262626'
+                    }}>
+                      Key Insights & Next Steps
                     </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
+                    <List
+                      dataSource={aiSummaryState.content.keyInsights}
+                      renderItem={(insight, index) => (
+                        <List.Item style={{ padding: '8px 0', border: 'none' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{
+                              minWidth: '20px',
+                              height: '20px',
+                              backgroundColor: '#1890ff',
+                              color: 'white',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              marginTop: '2px'
+                            }}>
+                              {index + 1}
+                            </div>
+                            <div style={{
+                              fontSize: '14px',
+                              lineHeight: '1.5',
+                              color: '#595959'
+                            }}>
+                              {insight}
+                            </div>
+                          </div>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

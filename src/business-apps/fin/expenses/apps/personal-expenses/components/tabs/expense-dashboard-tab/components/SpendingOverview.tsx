@@ -1,11 +1,42 @@
 import React from 'react';
-import { Row, Col, Card, Typography, Statistic, Segmented, Empty, Spin, Alert, Progress } from 'antd';
-import { formatCurrency } from '../utils/formatters';
-import { DashboardStats, ExpenseType } from '../types';
+import { Card, CardHeader, CardContent, CardTitle, Alert, Spinner, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { DashboardStats } from '../types';
+import ComparisonCard from './ComparisonCard';
+import ExpenseDistribution from './ExpenseDistribution';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
-const { Text } = Typography;
+// Helper function to get comparison data based on chart view
+const getComparisonProps = (stats: DashboardStats, chartView: string | number) => {
+  switch (chartView) {
+    case 'Quarterly':
+      return {
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly_comparison','Quarterly Comparison'),
+        currentValue: stats.currentQuarterExpenses?.total || 0,
+        previousValue: stats.previousQuarterExpenses?.total || 0,
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_quarter','This Quarter'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_quarter','Last Quarter'),
+      };
+    case 'Yearly':
+      return {
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly_comparison','Yearly Comparison'),
+        currentValue: stats.currentYearExpenses?.total || 0,
+        previousValue: stats.previousYearExpenses?.total || 0,
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_year','This Year'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_year','Last Year'),
+      };
+    case 'Monthly':
+    default:
+      return {
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly_comparison','Monthly Comparison'),
+        currentValue: stats.currentMonthExpenses?.total || 0,
+        previousValue: stats.previousMonthExpenses?.total || 0,
+        currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_month','This Month'),
+        previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_month','Last Month'),
+      };
+  }
+};
 
-interface SpendingOverviewProps {
+export interface SpendingOverviewProps {
   stats: DashboardStats | undefined;
   isLoading: boolean;
   error: Error | null;
@@ -13,18 +44,18 @@ interface SpendingOverviewProps {
   setChartView: (view: string | number) => void;
 }
 
-export const SpendingOverview: React.FC<SpendingOverviewProps> = ({ 
-  stats, 
-  isLoading, 
-  error, 
-  chartView, 
-  setChartView 
+export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
+  stats,
+  isLoading,
+  error,
+  chartView,
+  setChartView,
 }) => {
   if (isLoading) {
     return (
-      <Card className="gba:spending-overview-card">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
-          <Spin size="large" />
+      <Card className="gba:spending-overview-card" data-testid="spending-overview-loading">
+        <div className="gba:flex gba:justify-center gba:p-6">
+          <Spinner size="lg" />
         </div>
       </Card>
     );
@@ -32,143 +63,43 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
 
   if (error) {
     return (
-      <Card className="gba:spending-overview-card">
-        <Alert
-          message="Error loading spending overview"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+      <Card className="gba:spending-overview-card" data-testid="spending-overview-error">
+        <Alert variant="destructive">
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_spending_overview','Error loading spending overview')}</h4>
+          <p>{error.message}</p>
+        </Alert>
       </Card>
     );
   }
 
   if (!stats) return null;
 
-  // Process expense types for visualization
-  const expenseTypes: ExpenseType[] = stats.expensesByType 
-    ? Object.entries(stats.expensesByType)
-        .map(([type, amount]) => ({ type, amount }))
-        .sort((a, b) => b.amount - a.amount)
-    : [];
-  
-  // Get total expenses for percentage calculations
-  const totalExpenses = expenseTypes.reduce((sum, item) => sum + item.amount, 0) || 1; // Avoid division by zero
+  const comparisonProps = getComparisonProps(stats, chartView);
 
   return (
-    <Card 
-      title="Spending Overview" 
-      className="gba:spending-overview-card"
-      extra={
-        <Segmented
-          options={['Monthly', 'Quarterly']}
-          value={chartView}
-          onChange={setChartView}
-        />
-      }
-    >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="Expense Distribution" bordered={false}>
-            {expenseTypes.length > 0 ? (
-              <div>
-                <Row gutter={[16, 0]}>
-                  <Col span={12} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', width: 120, height: 120 }}>
-                      {expenseTypes.slice(0, 5).map((item, index) => {
-                        const percentage = (item.amount / totalExpenses) * 100;
-                        // Create a staggered circle effect
-                        return (
-                          <div key={item.type} style={{ position: 'absolute', top: 0, left: 0 }}>
-                            <Progress 
-                              type="circle" 
-                              percent={percentage} 
-                              width={120 - index * 10} // Decreasing size
-                              strokeWidth={12}
-                              strokeColor={['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#f5222d'][index % 5]}
-                              format={() => ''} // No label inside
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Col>
-                  <Col span={12}>
-                    {expenseTypes.slice(0, 5).map((item, index) => {
-                      const percentage = Math.round((item.amount / totalExpenses) * 100);
-                      return (
-                        <div key={item.type} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                          <div style={{ 
-                            width: 12, 
-                            height: 12, 
-                            backgroundColor: ['#1890ff', '#52c41a', '#722ed1', '#fa8c16', '#f5222d'][index % 5],
-                            marginRight: 8
-                          }}></div>
-                          <Text style={{ marginRight: 'auto' }}>{item.type}</Text>
-                          <Text strong>{percentage}%</Text>
-                          <Text type="secondary" style={{ marginLeft: 8 }}>{formatCurrency(item.amount)}</Text>
-                        </div>
-                      );
-                    })}
-                  </Col>
-                </Row>
-              </div>
-            ) : (
-              <Empty description="No expense data available" />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Monthly Comparison" bordered={false}>
-            <Row gutter={[16, 16]} align="middle" style={{ marginBottom: '16px' }}>
-              <Col span={12}>
-                <Statistic 
-                  title="This Month"
-                  value={stats?.currentMonthExpenses?.total || 0}
-                  precision={2}
-                  formatter={(value) => formatCurrency(Number(value))}
-                  valueStyle={{ color: '#108ee9' }}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic 
-                  title="Last Month"
-                  value={stats?.lastMonthExpenses?.total || 0}
-                  precision={2}
-                  formatter={(value) => formatCurrency(Number(value))}
-                  valueStyle={{ color: '#8c8c8c' }}
-                />
-              </Col>
-            </Row>
-            
-            {/* Visual comparison of current vs previous month */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: '100px', marginTop: '20px' }}>
-              <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ 
-                  width: '60px', 
-                  height: `${stats?.currentMonthExpenses?.total ? 
-                    Math.min(90, Math.max(10, (stats?.currentMonthExpenses?.total / Math.max(stats?.currentMonthExpenses?.total || 0, stats?.lastMonthExpenses?.total || 0)) * 90)) : 10}px`, 
-                  backgroundColor: '#1890ff', 
-                  marginBottom: '8px'
-                }}></div>
-                <Text>Current</Text>
-              </div>
-              <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ 
-                  width: '60px', 
-                  height: `${stats?.lastMonthExpenses?.total ? 
-                    Math.min(90, Math.max(10, (stats?.lastMonthExpenses?.total / Math.max(stats?.currentMonthExpenses?.total || 0, stats?.lastMonthExpenses?.total || 0)) * 90)) : 10}px`, 
-                  backgroundColor: '#d9d9d9', 
-                  marginBottom: '8px'
-                }}></div>
-                <Text>Previous</Text>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+    <Card className="gba:spending-overview-card" data-testid="spending-overview-card">
+      <CardHeader>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.spending_overview','Spending Overview')}</CardTitle>
+          <Tabs value={String(chartView)} onValueChange={setChartView} data-testid="view-selector">
+            <TabsList>
+              <TabsTrigger value="Monthly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly','Monthly')}</TabsTrigger>
+              <TabsTrigger value="Quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly','Quarterly')}</TabsTrigger>
+              <TabsTrigger value="Yearly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly','Yearly')}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="gba:flex gba:flex-row gba:gap-6">
+          <div className="gba:w-1/2" data-testid="expense-distribution">
+            <ExpenseDistribution stats={stats} chartView={chartView} />
+          </div>
+          <div className="gba:w-1/2" data-testid="comparison-card">
+            <ComparisonCard {...comparisonProps} />
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 };
-
-export default SpendingOverview;

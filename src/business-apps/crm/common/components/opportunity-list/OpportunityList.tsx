@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { DataContainer } from '@/components/layout/dataContainer';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useOpportunityListData } from './hooks/useOpportunityListData';
-import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend';
-import { useOpportunityFilters } from './hooks/useOpportunityFilters';
-import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics';
-import OpportunityTable from './components/OpportunityTable';
-import { Opportunity } from './types';
-import { Alert, Button } from 'antd';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { PlusOutlined, DollarCircleOutlined } from '@ant-design/icons';
-import { startProcess } from '@/common/utils/start-process';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { DataContainer } from "@/components/layout/dataContainer";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useOpportunityListData } from "./hooks/useOpportunityListData";
+import { useOpportunityStatisticsWithTrend } from "./hooks/useOpportunityStatisticsWithTrend";
+import { useOpportunityFilters } from "./hooks/useOpportunityFilters";
+import { OpportunityStatisticsWithTrend } from "./components/OpportunityStatistics";
+import OpportunityTable from "./components/OpportunityTable";
+import { Opportunity } from "./types";
+import { ColumnVisibilityDropdown, ColumnConfig } from "./components/ColumnVisibilityDropdown";
+import { Alert, Button } from "antd";
+import { getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
+import { PlusOutlined, DollarCircleOutlined } from "@ant-design/icons";
+import { startProcess } from "@/common/utils/start-process";
 
 interface OpportunityListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -19,19 +20,71 @@ interface OpportunityListProps extends BusinessAppContextProps {
 const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const { sourceApp } = context;
   const locale = getCurrentActiveUserLocale();
-  
+
   // State management
-  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | undefined>(undefined);
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<
+    string | undefined
+  >(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState('');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const initialLoadDone = useRef(false);
-  
+
+  // Define available columns with default visibility
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: 'actions', label: 'Actions', visible: true, disabled: true }, // Always visible
+    { id: 'opportunity', label: 'Opportunity', visible: true },
+    { id: 'value', label: 'Value', visible: true },
+    { id: 'winRate', label: 'Win Rate', visible: true },
+    { id: 'stage', label: 'Stage', visible: true },
+    { id: 'pipeline', label: 'Pipeline', visible: true },
+    { id: 'closeDate', label: 'Close Date', visible: true },
+    { id: 'owner', label: 'Owner', visible: true },
+    { id: 'account', label: 'Account', visible: true },
+    { id: 'status', label: 'Status', visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig(prev => 
+      prev.map(col => 
+        col.id === columnId ? { ...col, visible } : col
+      )
+    );
+  }, []);
+
   // Filters
   const opportunityFilters = useOpportunityFilters(context);
   const appliedFilters = opportunityFilters.getFilters();
-  
+  const { filtersInitialized } = opportunityFilters;
+
+  // Filter groups based on visible columns
+  const visibleFilterGroups = useMemo(() => {
+    const columnToFilterMap: Record<string, string> = {
+      stage: 'stage',
+      winRate: 'winningChance',
+      value: 'estimatedAmount',
+      account: 'accounts',
+      status: 'statuses',
+      // Note: opportunity, closeDate, owner, pipeline don't have corresponding filters yet
+    };
+
+    return opportunityFilters.filterGroups.filter(group => {
+      // Find the column that corresponds to this filter group
+      const correspondingColumn = Object.keys(columnToFilterMap).find(
+        columnId => columnToFilterMap[columnId] === group.id
+      );
+      
+      // If there's no corresponding column (shouldn't happen), show the filter
+      // If there is a corresponding column, only show the filter if the column is visible
+      return !correspondingColumn || visibleColumns.includes(correspondingColumn);
+    });
+  }, [opportunityFilters.filterGroups, visibleColumns]);
+
   // Data hooks with all filter parameters
   const opportunityListData = useOpportunityListData({
     search: appliedFilters.search,
@@ -42,92 +95,115 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     stages: appliedFilters.stages,
     winningChanceRanges: appliedFilters.winningChanceRanges,
     amountRanges: appliedFilters.amountRanges,
+    statuses: appliedFilters.statuses,
     createdAfter: appliedFilters.createdAfter,
-    createdBefore: appliedFilters.createdBefore
+    createdBefore: appliedFilters.createdBefore,
+    owners: appliedFilters.owners,
+    pipelines: appliedFilters.pipelines,
   });
-  
+
   const opportunityStatistics = useOpportunityStatisticsWithTrend({
     ...context,
-    sourceApp
+    sourceApp,
   });
 
   // Initial load effect
   useEffect(() => {
-    if (!initialLoadDone.current && context.accessToken) {
+    if (!initialLoadDone.current && context.accessToken && filtersInitialized) {
       initialLoadDone.current = true;
-      opportunityListData.loadPage(1, pageSize);
+      // Pass current sorting state to initial load
+      opportunityListData.loadPage(1, pageSize, appliedFilters, sortField, sortOrder);
       opportunityStatistics.refetch();
     }
-  }, [context.accessToken, pageSize]); // Removed opportunityListData and opportunityStatistics from dependencies
+  }, [context.accessToken, pageSize, filtersInitialized, sortField, sortOrder]); // Added sortField, sortOrder
 
   // Effect to reload data when filters change
   useEffect(() => {
-    if (initialLoadDone.current) {
+    if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1); // Reset to first page when filters change
-      opportunityListData.loadPage(1, pageSize);
+      // Pass current sorting state when filters change
+      opportunityListData.loadPage(1, pageSize, appliedFilters, sortField, sortOrder);
     }
   }, [
     appliedFilters.search,
     JSON.stringify(appliedFilters.stages), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.winningChanceRanges), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.amountRanges), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.statuses), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.owners), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.pipelines), // Use JSON.stringify for array
     appliedFilters.createdAfter,
     appliedFilters.createdBefore,
-    pageSize
+    pageSize,
+    sortField,
+    sortOrder,
+    filtersInitialized,
   ]); // Removed opportunityListData from dependencies
 
   // Effect to reload data when sort changes
   useEffect(() => {
-    if (initialLoadDone.current) {
-      opportunityListData.loadPage(currentPage, pageSize);
+    if (initialLoadDone.current && filtersInitialized) {
+      opportunityListData.loadPage(currentPage, pageSize, appliedFilters, sortField, sortOrder);
     }
-  }, [sortField, sortOrder, currentPage, pageSize]); // Removed opportunityListData from dependencies
+  }, [sortField, sortOrder, currentPage, pageSize, filtersInitialized]); // Removed opportunityListData from dependencies
 
   // Handlers
   const handleOpportunityClick = useCallback((opportunity: Opportunity) => {
     setSelectedOpportunityId(opportunity.id);
     // TODO: Open opportunity detail side panel
-    console.log('Opportunity clicked:', opportunity);
   }, []);
 
   const handleOpportunityEdit = useCallback((opportunity: Opportunity) => {
     setSelectedOpportunityId(opportunity.id);
     // TODO: Open opportunity edit modal
-    console.log('Edit opportunity:', opportunity);
   }, []);
 
-  const handleSort = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
-    // When order is empty, clear sorting completely
-    if (order === '') {
-      setSortField('');
-      setSortOrder('DESC'); // Keep DESC as default for state type, but field will be empty
-      setCurrentPage(1);
-    } else {
-      setSortField(field);
-      setSortOrder(order);
-      setCurrentPage(1);
-    }
-  }, []);
+  const handleSort = useCallback(
+    (field: string, order: "ASC" | "DESC" | "") => {
+      // When order is empty, clear sorting completely
+      if (order === "") {
+        setSortField("");
+        setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
+        setCurrentPage(1);
+        // Pass empty field to loadPage immediately
+        opportunityListData.loadPage(1, pageSize, appliedFilters, "", "DESC");
+      } else {
+        setSortField(field);
+        setSortOrder(order);
+        setCurrentPage(1);
+        // Pass new sorting values to loadPage immediately
+        opportunityListData.loadPage(1, pageSize, appliedFilters, field, order);
+      }
+    },
+    [opportunityListData, pageSize]
+  );
 
-  const handlePageChange = useCallback((page: number, size?: number) => {
-    const newSize = size || pageSize;
-    setCurrentPage(page);
-    setPageSize(newSize);
-    opportunityListData.loadPage(page, newSize);
-  }, [pageSize]); // Removed opportunityListData from dependencies
+  const handlePageChange = useCallback(
+    (page: number, size?: number) => {
+      const newSize = size || pageSize;
+      setCurrentPage(page);
+      setPageSize(newSize);
+      // Pass current sorting state when changing pages
+      opportunityListData.loadPage(page, newSize, appliedFilters, sortField, sortOrder);
+    },
+    [pageSize, sortField, sortOrder, appliedFilters]
+  ); // Added sortField, sortOrder, appliedFilters dependencies
 
-  const handleSearch = useCallback((searchTerm: string) => {
-    opportunityFilters.setSearch(searchTerm);
-    setCurrentPage(1);
-    // Data will reload automatically via useEffect
-  }, [opportunityFilters]);
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      opportunityFilters.setSearch(searchTerm);
+      setCurrentPage(1);
+      // Data will reload automatically via useEffect
+    },
+    [opportunityFilters]
+  );
 
   const handleAddOpportunity = useCallback(() => {
     startProcess({
-      domain: 'customer-relations',
-      processName: 'saveOpportunity',
-      builderType: 'NATIVE_SCREEN',
-      payload: {}
+      domain: "customer-relations",
+      processName: "saveOpportunity",
+      builderType: "NATIVE_SCREEN",
+      payload: {},
     });
   }, []);
 
@@ -136,8 +212,8 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   }, [opportunityStatistics]);
 
   const handleRetryData = useCallback(() => {
-    opportunityListData.loadPage(currentPage, pageSize);
-  }, [currentPage, pageSize]); // Removed opportunityListData from dependencies
+    opportunityListData.loadPage(currentPage, pageSize, appliedFilters, sortField, sortOrder);
+  }, [currentPage, pageSize, appliedFilters, sortField, sortOrder]); // Removed opportunityListData from dependencies
 
   // If there's an error loading opportunities, show error state
   if (opportunityListData.error) {
@@ -145,7 +221,11 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
       <div data-testid="opportunity-list-error">
         <Alert
           message="Error Loading Opportunities"
-          description={opportunityListData.error instanceof Error ? opportunityListData.error.message : String(opportunityListData.error)}
+          description={
+            opportunityListData.error instanceof Error
+              ? opportunityListData.error.message
+              : String(opportunityListData.error)
+          }
           type="error"
           showIcon
           data-testid="opportunity-list-error-alert"
@@ -187,35 +267,52 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               opportunityFilters.clearAllFilters();
             } else {
               // Handle individual filter removal - find which filters were removed and remove them
-              const removedFilters = opportunityFilters.selectedFilters.filter(f => !filters.includes(f));
-              removedFilters.forEach(filterId => opportunityFilters.removeFilter(filterId));
+              const removedFilters = opportunityFilters.selectedFilters.filter(
+                (f) => !filters.includes(f)
+              );
+              removedFilters.forEach((filterId) =>
+                opportunityFilters.removeFilter(filterId)
+              );
             }
           },
           filterLabelMap: opportunityFilters.filterLabelMap,
           dateRange: {
             createdAfter: opportunityFilters.createdAfter,
             createdBefore: opportunityFilters.createdBefore,
-            onClear: () => opportunityFilters.handleDateRangeChange(undefined, undefined)
+            onClear: () =>
+              opportunityFilters.handleDateRangeChange(undefined, undefined),
           },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>Opportunities</span>
-                <span className="gba:text-gray-500">({opportunityListData.total})</span>
+                <span className="gba:text-gray-500">
+                  ({opportunityListData.total})
+                </span>
               </div>
             </div>
           ),
           addButton: {
             onClick: handleAddOpportunity,
-            label: 'Add',
-            'data-testid': 'add-opportunity-button'
+            label: "Add",
+            "data-testid": "add-opportunity-button",
           },
+          actions: [
+            <ColumnVisibilityDropdown
+              key="column-visibility"
+              columns={columnConfig}
+              onColumnVisibilityChange={handleColumnVisibilityChange}
+              data-testid="opportunity-list-column-visibility"
+            />
+          ],
         }}
         dataFilterProps={{
-          filterGroups: opportunityFilters.filterGroups,
+          filterGroups: visibleFilterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
-            selected ? opportunityFilters.addFilter(filterId) : opportunityFilters.removeFilter(filterId);
-          }
+            selected
+              ? opportunityFilters.addFilter(filterId)
+              : opportunityFilters.removeFilter(filterId);
+          },
         }}
         dataBody={
           <div data-testid="opportunity-table-container">
@@ -237,6 +334,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               onPaginationChange={handlePageChange}
               onSortingChange={handleSort}
               selectedOpportunityId={selectedOpportunityId}
+              visibleColumns={visibleColumns}
             />
           </div>
         }
@@ -245,4 +343,4 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   );
 };
 
-export default OpportunityList; 
+export default OpportunityList;

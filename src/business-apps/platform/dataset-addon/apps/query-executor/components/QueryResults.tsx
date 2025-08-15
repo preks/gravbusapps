@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { 
   Card, 
-  Table, 
-  Typography, 
-  Space, 
+  CardHeader, 
+  CardTitle, 
+  CardContent,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
   Button, 
-  Tag, 
+  Badge, 
   Alert,
   Tabs,
-  Statistic,
-  Row,
-  Col
-} from 'antd';
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from '@newwork/nw-design-system';
 import { 
-  BarChartOutlined, 
-  TableOutlined, 
-  DownloadOutlined, 
-  CloseOutlined 
-} from '@ant-design/icons';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+  ChartBarIcon, 
+  TableIcon, 
+  DownloadIcon, 
+  XIcon 
+} from '@phosphor-icons/react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatasetDTO } from '@/common/network/dataset';
-
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 
 interface QueryResultsProps {
   results: DatasetDTO | null;
@@ -121,116 +124,169 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
     window.URL.revokeObjectURL(url);
   };
 
+  const tableColumns = getTableColumns();
+
   return (
     <Card
       data-testid="query-results-card"
-      className="gba:mt-6"
-      title={
-        <Space>
-          <BarChartOutlined />
-          <Title level={4} className="gba:mb-0">Query Results</Title>
-        </Space>
-      }
-      extra={
-        <Space>
+      style={{ 
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        marginBottom: 'var(--nw-spacing-4)'
+      }}
+    >
+      <CardHeader style={{ 
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingBottom: 'var(--nw-spacing-4)',
+        gap: 'var(--nw-spacing-4)'
+      }}>
+        <CardTitle className="gba:flex gba:items-center gba:flex-1" style={{ 
+          gap: 'var(--nw-spacing-2)',
+          minWidth: 0
+        }}>
+          <ChartBarIcon size={20} />
+          <span>Query Results</span>
+        </CardTitle>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 'var(--nw-spacing-2)',
+          flexShrink: 0
+        }}>
           <Button 
-            icon={<DownloadOutlined />} 
+            variant="outline"
             onClick={exportToCSV}
             data-testid="export-csv-button"
+            className="gba:flex gba:items-center gba:min-w-[120px] gba:h-9"
+            style={{ 
+              gap: 'var(--nw-spacing-2)',
+              fontSize: '14px',
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
+            }}
           >
+            <DownloadIcon size={16} />
             Export CSV
           </Button>
           <Button 
-            icon={<CloseOutlined />} 
+            variant="outline"
             onClick={onClear}
             data-testid="clear-results-button"
+            className="gba:flex gba:items-center gba:min-w-[80px] gba:h-9"
+            style={{ 
+              gap: 'var(--nw-spacing-2)',
+              fontSize: '14px',
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
+            }}
           >
+            <XIcon size={16} />
             Clear
           </Button>
-        </Space>
-      }
-    >
-      <div className="gba:space-y-4">
+        </div>
+      </CardHeader>
+
+      <CardContent style={{ 
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--nw-spacing-4)'
+      }}>
         {/* Summary Statistics */}
-        <Row gutter={16} className="gba:mb-4">
-          <Col span={8}>
-            <Statistic 
-              title="Total Records" 
-              value={data.length} 
-              data-testid="total-records-stat"
-            />
-          </Col>
-          <Col span={8}>
-            <Statistic 
-              title="Categories" 
-              value={categories.length} 
-              data-testid="categories-stat"
-            />
-          </Col>
-          <Col span={8}>
-            <div>
-              <Text className="gba:text-gray-500 gba:block">Categories:</Text>
-              <Space wrap>
-                {categories.map(category => (
-                  <Tag key={category} color="blue">{category}</Tag>
-                ))}
-              </Space>
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 'var(--nw-spacing-4)', 
+          marginBottom: 'var(--nw-spacing-4)',
+          flexShrink: 0
+        }}>
+          <div>
+            <h3 className="gba:text-sm" style={{ 
+              color: 'var(--nw-color-muted-foreground)',
+              margin: '0 0 var(--nw-spacing-1) 0'
+            }}>
+              Total Records
+            </h3>
+            <p className="gba:text-2xl gba:font-bold" style={{ 
+              color: 'var(--nw-color-foreground)',
+              margin: 'var(--nw-spacing-0)'
+            }} data-testid="total-records-stat">
+              {data.length}
+            </p>
+          </div>
+          <div>
+            <h3 className="gba:text-sm" style={{ 
+              color: 'var(--nw-color-muted-foreground)',
+              margin: '0 0 var(--nw-spacing-1) 0'
+            }}>
+              Categories
+            </h3>
+            <p className="gba:text-2xl gba:font-bold" style={{ 
+              color: 'var(--nw-color-foreground)',
+              margin: 'var(--nw-spacing-0)'
+            }} data-testid="categories-stat">
+              {categories.length}
+            </p>
+          </div>
+          <div>
+            <h3 className="gba:text-sm" style={{ 
+              color: 'var(--nw-color-muted-foreground)', 
+              margin: '0 0 var(--nw-spacing-1) 0'
+            }}>
+              Categories:
+            </h3>
+            <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-1)' }}>
+              {categories.slice(0, 3).map(category => (
+                <Badge key={category} variant="secondary" style={{ fontSize: '0.75rem' }}>
+                  {category}
+                </Badge>
+              ))}
+              {categories.length > 3 && (
+                <Badge variant="outline" style={{ fontSize: '0.75rem' }}>
+                  +{categories.length - 3} more
+                </Badge>
+              )}
             </div>
-          </Col>
-        </Row>
+          </div>
+        </div>
 
         {data.length === 0 ? (
-          <Alert
-            message="No Data"
-            description="The query executed successfully but returned no results."
-            type="info"
-            showIcon
-            data-testid="no-data-alert"
-          />
+          <Alert data-testid="no-data-alert">
+            <div>
+              <h4 style={{ 
+                color: 'var(--nw-color-info)',
+                margin: 'var(--nw-spacing-0)'
+              }}>No Data</h4>
+              <p style={{ margin: 'var(--nw-spacing-0)' }}>The query executed successfully but returned no results.</p>
+            </div>
+          </Alert>
         ) : (
-          <Tabs 
-            activeKey={activeTab} 
-            onChange={setActiveTab}
-            data-testid="results-tabs"
-          >
-            <TabPane 
-              tab={
-                <span>
-                  <BarChartOutlined />
-                  {isTimeseries ? 'Timeseries Chart' : 'Dataset Chart'}
-                </span>
-              } 
-              key="chart"
-            >
-              <div className="gba:h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  {isTimeseries ? (
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="formattedDate" 
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis />
-                      <Tooltip 
-                        labelFormatter={(label) => `Year: ${label}`}
-                        formatter={(value, name) => [new Intl.NumberFormat().format(value as number), name]}
-                      />
-                      <Legend />
-                      {categories.map((category, index) => (
-                        <Line 
-                          key={category}
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke={`hsl(${index * 137.5 % 360}, 70%, 50%)`}
-                          strokeWidth={2}
-                          name={category}
-                        />
-                      ))}
-                    </LineChart>
-                  ) : (
+          <div style={{ 
+            minHeight: '500px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} data-testid="results-tabs" style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              flex: 1
+            }}>
+              <TabsList className="gba:grid gba:w-full gba:grid-cols-2" style={{ flexShrink: 0, marginBottom: 'var(--nw-spacing-4)' }}>
+                <TabsTrigger value="chart" className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                  <ChartBarIcon size={16} />
+                  Chart View
+                </TabsTrigger>
+                <TabsTrigger value="table" className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                  <TableIcon size={16} />
+                  Table View
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="chart" style={{ flex: 1, minHeight: '400px' }}>
+                <div style={{ height: '400px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
@@ -240,44 +296,69 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
                         height={80}
                       />
                       <YAxis />
-                      <Tooltip 
-                        formatter={(value, name) => [new Intl.NumberFormat().format(value as number), name]}
-                      />
+                      <Tooltip />
                       <Legend />
-                      <Bar dataKey="value" fill="#1890ff" name="Value" />
+                      <Bar dataKey="value" fill="var(--nw-color-primary)" name="Value" />
                     </BarChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-            </TabPane>
+                  </ResponsiveContainer>
+                </div>
+              </TabsContent>
 
-            <TabPane 
-              tab={
-                <span>
-                  <TableOutlined />
-                  Table View
-                </span>
-              } 
-              key="table"
-            >
-              <Table
-                dataSource={data}
-                columns={getTableColumns()}
-                rowKey={(record, index) => index?.toString() || '0'}
-                pagination={{
-                  pageSize: 50,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} of ${total} records`
-                }}
-                scroll={{ x: true }}
-                data-testid="results-table"
-              />
-            </TabPane>
-          </Tabs>
+              <TabsContent value="table" style={{ flex: 1, minHeight: '400px' }}>
+                <div style={{ 
+                  border: '1px solid var(--nw-color-border)', 
+                  borderRadius: 'var(--nw-border-radius-md)',
+                  overflow: 'hidden',
+                  height: '400px',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <div style={{ 
+                    flex: 1,
+                    overflow: 'auto'
+                  }}>
+                    <Table data-testid="results-table">
+                      <TableHeader style={{ position: 'sticky', top: 0, backgroundColor: 'var(--nw-color-background)', zIndex: 1 }}>
+                        <TableRow>
+                          {tableColumns.map((column) => (
+                            <TableHead key={column.key}>
+                              {column.title}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.map((record, index) => (
+                          <TableRow key={index}>
+                            {tableColumns.map((column) => (
+                              <TableCell key={column.key}>
+                                {column.render ? column.render(record[column.dataIndex]) : record[column.dataIndex]}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {data.length > 0 && (
+                    <div style={{ 
+                      padding: 'var(--nw-spacing-3)', 
+                      textAlign: 'center',
+                      color: 'var(--nw-color-muted-foreground)',
+                      fontSize: '0.875rem',
+                      borderTop: '1px solid var(--nw-color-border)',
+                      backgroundColor: 'var(--nw-color-background)',
+                      flexShrink: 0
+                    }}>
+                      Showing all {data.length} records
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
-      </div>
+      </CardContent>
     </Card>
   );
 }; 

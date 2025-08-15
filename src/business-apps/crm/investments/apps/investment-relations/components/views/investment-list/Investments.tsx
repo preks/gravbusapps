@@ -1,18 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { Button, Input } from '@newwork/nw-design-system';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
-import { Spin, Alert } from 'antd';
-import { BarChart3, Home, Briefcase, DollarSign, Search, Filter } from 'lucide-react';
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { EquityMetricsCards, RealEstateMetricsCards, PrivateEquityMetricsCards, LiquidFundsMetricsCards } from './components';
-import EquityTable from './components/EquityTable';
-import RealEstateTable from './components/RealEstateTable';
-import PrivateEquityTable from './components/PrivateEquityTable';
-import LiquidFundsTable from './components/LiquidFundsTable';
-import { useInvestmentDataIntegration } from './hooks';
-import { getStatusBadge } from './utils/helpers';
+import React, { useState, useEffect } from "react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@newwork/nw-design-system";
+import { Button, Input } from "@newwork/nw-design-system";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@newwork/nw-design-system";
+import { Spin, Alert } from "antd";
+import {
+  BarChart3,
+  Home,
+  Briefcase,
+  DollarSign,
+  Search,
+  Filter,
+} from "lucide-react";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import {
+  EquityMetricsCards,
+  RealEstateMetricsCards,
+  PrivateEquityMetricsCards,
+  LiquidFundsMetricsCards,
+} from "./components";
+import EquityTable from "./components/EquityTable";
+import RealEstateTable from "./components/RealEstateTable";
+import PrivateEquityTable from "./components/PrivateEquityTable";
+import LiquidFundsTable from "./components/LiquidFundsTable";
+import { useInvestmentDataIntegration } from "./hooks";
+import { getStatusBadge } from "./utils/helpers";
 
 interface InvestmentsProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -20,14 +44,14 @@ interface InvestmentsProps extends BusinessAppContextProps {
 }
 
 const Investments: React.FC<InvestmentsProps> = (props) => {
-  const { initialSubTab = 'overview', onSubTabChange } = props;
+  const { initialSubTab = "overview", onSubTabChange } = props;
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
   // Sorting state for overview table
-  const [sortField, setSortField] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
+  const [sortField, setSortField] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
 
   // Pagination state for overview table
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,17 +59,26 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
   const [total, setTotal] = useState(0);
 
   // Sorting state for individual table components
-  const [equitySortField, setEquitySortField] = useState<string>('');
-  const [equitySortOrder, setEquitySortOrder] = useState<'ASC' | 'DESC' | ''>('');
-  
-  const [realEstateSortField, setRealEstateSortField] = useState<string>('');
-  const [realEstateSortOrder, setRealEstateSortOrder] = useState<'ASC' | 'DESC' | ''>('');
-  
-  const [privateEquitySortField, setPrivateEquitySortField] = useState<string>('');
-  const [privateEquitySortOrder, setPrivateEquitySortOrder] = useState<'ASC' | 'DESC' | ''>('');
-  
-  const [liquidFundsSortField, setLiquidFundsSortField] = useState<string>('');
-  const [liquidFundsSortOrder, setLiquidFundsSortOrder] = useState<'ASC' | 'DESC' | ''>('');
+  const [equitySortField, setEquitySortField] = useState<string>("");
+  const [equitySortOrder, setEquitySortOrder] = useState<"ASC" | "DESC" | "">(
+    ""
+  );
+
+  const [realEstateSortField, setRealEstateSortField] = useState<string>("");
+  const [realEstateSortOrder, setRealEstateSortOrder] = useState<
+    "ASC" | "DESC" | ""
+  >("");
+
+  const [privateEquitySortField, setPrivateEquitySortField] =
+    useState<string>("");
+  const [privateEquitySortOrder, setPrivateEquitySortOrder] = useState<
+    "ASC" | "DESC" | ""
+  >("");
+
+  const [liquidFundsSortField, setLiquidFundsSortField] = useState<string>("");
+  const [liquidFundsSortOrder, setLiquidFundsSortOrder] = useState<
+    "ASC" | "DESC" | ""
+  >("");
 
   // Pagination state for individual table components
   const [equityCurrentPage, setEquityCurrentPage] = useState(1);
@@ -84,7 +117,7 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 300);
-    
+
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
@@ -93,38 +126,41 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     if (sortField !== fieldName) {
       // New field, start with ASC
       setSortField(fieldName);
-      setSortOrder('ASC');
+      setSortOrder("ASC");
     } else {
       // Same field, cycle through states
-      if (sortOrder === '') {
-        setSortOrder('ASC');
-      } else if (sortOrder === 'ASC') {
-        setSortOrder('DESC');
+      if (sortOrder === "") {
+        setSortOrder("ASC");
+      } else if (sortOrder === "ASC") {
+        setSortOrder("DESC");
       } else {
         // DESC -> reset to no sorting
-        setSortField('');
-        setSortOrder('');
+        setSortField("");
+        setSortOrder("");
       }
     }
   };
 
   // Sorting handlers for individual tables
-  const handleEquitySort = (field: string, order: 'ASC' | 'DESC' | '') => {
+  const handleEquitySort = (field: string, order: "ASC" | "DESC" | "") => {
     setEquitySortField(field);
     setEquitySortOrder(order);
   };
 
-  const handleRealEstateSort = (field: string, order: 'ASC' | 'DESC' | '') => {
+  const handleRealEstateSort = (field: string, order: "ASC" | "DESC" | "") => {
     setRealEstateSortField(field);
     setRealEstateSortOrder(order);
   };
 
-  const handlePrivateEquitySort = (field: string, order: 'ASC' | 'DESC' | '') => {
+  const handlePrivateEquitySort = (
+    field: string,
+    order: "ASC" | "DESC" | ""
+  ) => {
     setPrivateEquitySortField(field);
     setPrivateEquitySortOrder(order);
   };
 
-  const handleLiquidFundsSort = (field: string, order: 'ASC' | 'DESC' | '') => {
+  const handleLiquidFundsSort = (field: string, order: "ASC" | "DESC" | "") => {
     setLiquidFundsSortField(field);
     setLiquidFundsSortOrder(order);
   };
@@ -147,7 +183,10 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     }
   };
 
-  const handleRealEstatePaginationChange = (page: number, newPageSize?: number) => {
+  const handleRealEstatePaginationChange = (
+    page: number,
+    newPageSize?: number
+  ) => {
     setRealEstateCurrentPage(page);
     if (newPageSize && newPageSize !== realEstatePageSize) {
       setRealEstatePageSize(newPageSize);
@@ -155,7 +194,10 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     }
   };
 
-  const handlePrivateEquityPaginationChange = (page: number, newPageSize?: number) => {
+  const handlePrivateEquityPaginationChange = (
+    page: number,
+    newPageSize?: number
+  ) => {
     setPrivateEquityCurrentPage(page);
     if (newPageSize && newPageSize !== privateEquityPageSize) {
       setPrivateEquityPageSize(newPageSize);
@@ -163,7 +205,10 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     }
   };
 
-  const handleLiquidFundsPaginationChange = (page: number, newPageSize?: number) => {
+  const handleLiquidFundsPaginationChange = (
+    page: number,
+    newPageSize?: number
+  ) => {
     setLiquidFundsCurrentPage(page);
     if (newPageSize && newPageSize !== liquidFundsPageSize) {
       setLiquidFundsPageSize(newPageSize);
@@ -176,19 +221,25 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
     if (sortField !== fieldName) {
       return null;
     }
-    
-          if (sortOrder === 'ASC') {
-        return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
-      } else if (sortOrder === 'DESC') {
-        return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
-      }
-    
+
+    if (sortOrder === "ASC") {
+      return <PiArrowUp className="gba:h-4 gba:w-4 gba:ml-1" />;
+    } else if (sortOrder === "DESC") {
+      return <PiArrowDown className="gba:h-4 gba:w-4 gba:ml-1" />;
+    }
+
     return null;
   };
 
   // Create sortable header component
-  const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
-    <TableHead 
+  const SortableHeader = ({
+    field,
+    children,
+  }: {
+    field: string;
+    children: React.ReactNode;
+  }) => (
+    <TableHead
       className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
       onClick={() => handleSort(field)}
       data-testid={`sort-header-${field}`}
@@ -199,76 +250,91 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
       </div>
     </TableHead>
   );
-   
+
   // Get the current active sorting and pagination based on which tab is selected
   const getCurrentSortingAndPagination = () => {
     switch (activeSubTab) {
-      case 'equity':
-        return { 
-          sortBy: equitySortField || undefined, 
+      case "equity":
+        return {
+          sortBy: equitySortField || undefined,
           sortOrder: equitySortOrder || undefined,
           currentPage: equityCurrentPage,
-          pageSize: equityPageSize
+          pageSize: equityPageSize,
         };
-      case 'real-estate':
-        return { 
-          sortBy: realEstateSortField || undefined, 
+      case "real-estate":
+        return {
+          sortBy: realEstateSortField || undefined,
           sortOrder: realEstateSortOrder || undefined,
           currentPage: realEstateCurrentPage,
-          pageSize: realEstatePageSize
+          pageSize: realEstatePageSize,
         };
-      case 'private-equity':
-        return { 
-          sortBy: privateEquitySortField || undefined, 
+      case "private-equity":
+        return {
+          sortBy: privateEquitySortField || undefined,
           sortOrder: privateEquitySortOrder || undefined,
           currentPage: privateEquityCurrentPage,
-          pageSize: privateEquityPageSize
+          pageSize: privateEquityPageSize,
         };
-      case 'liquid-funds':
-        return { 
-          sortBy: liquidFundsSortField || undefined, 
+      case "liquid-funds":
+        return {
+          sortBy: liquidFundsSortField || undefined,
           sortOrder: liquidFundsSortOrder || undefined,
           currentPage: liquidFundsCurrentPage,
-          pageSize: liquidFundsPageSize
+          pageSize: liquidFundsPageSize,
         };
-      case 'overview':
+      case "overview":
       default:
-        return { 
-          sortBy: sortField || undefined, 
+        return {
+          sortBy: sortField || undefined,
           sortOrder: sortOrder || undefined,
           currentPage: currentPage,
-          pageSize: pageSize
+          pageSize: pageSize,
         };
     }
   };
 
   // Use useMemo to prevent object recreation on every render
-  const currentSortingAndPagination = React.useMemo(() => 
-    getCurrentSortingAndPagination(), 
+  const currentSortingAndPagination = React.useMemo(
+    () => getCurrentSortingAndPagination(),
     [
       activeSubTab,
-      sortField, sortOrder, currentPage, pageSize,
-      equitySortField, equitySortOrder, equityCurrentPage, equityPageSize,
-      realEstateSortField, realEstateSortOrder, realEstateCurrentPage, realEstatePageSize,
-      privateEquitySortField, privateEquitySortOrder, privateEquityCurrentPage, privateEquityPageSize,
-      liquidFundsSortField, liquidFundsSortOrder, liquidFundsCurrentPage, liquidFundsPageSize
+      sortField,
+      sortOrder,
+      currentPage,
+      pageSize,
+      equitySortField,
+      equitySortOrder,
+      equityCurrentPage,
+      equityPageSize,
+      realEstateSortField,
+      realEstateSortOrder,
+      realEstateCurrentPage,
+      realEstatePageSize,
+      privateEquitySortField,
+      privateEquitySortOrder,
+      privateEquityCurrentPage,
+      privateEquityPageSize,
+      liquidFundsSortField,
+      liquidFundsSortOrder,
+      liquidFundsCurrentPage,
+      liquidFundsPageSize,
     ]
   );
-  
-  const { 
-    investments, 
-    metrics, 
-    typeMetrics, 
-    isLoading, 
-    error, 
+
+  const {
+    investments,
+    metrics,
+    typeMetrics,
+    isLoading,
+    error,
     refetch,
-    totalCounts 
+    totalCounts,
   } = useInvestmentDataIntegration(props, {
     searchTerm: debouncedSearchTerm,
     sortBy: currentSortingAndPagination.sortBy,
     sortOrder: currentSortingAndPagination.sortOrder,
     currentPage: currentSortingAndPagination.currentPage,
-    pageSize: currentSortingAndPagination.pageSize
+    pageSize: currentSortingAndPagination.pageSize,
   });
 
   // Refetch data when active tab changes to apply correct sorting
@@ -291,14 +357,23 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
   const filteredInvestments = investments;
 
   // Get investments by type
-  const equityInvestments = investments.filter(inv => inv.type === 'Equity');
-  const realEstateInvestments = investments.filter(inv => inv.type === 'Real Estate');
-  const privateEquityInvestments = investments.filter(inv => inv.type === 'Private Equity');
-  const liquidFundsInvestments = investments.filter(inv => inv.type === 'Liquid Funds');
+  const equityInvestments = investments.filter((inv) => inv.type === "Equity");
+  const realEstateInvestments = investments.filter(
+    (inv) => inv.type === "Real Estate"
+  );
+  const privateEquityInvestments = investments.filter(
+    (inv) => inv.type === "Private Equity"
+  );
+  const liquidFundsInvestments = investments.filter(
+    (inv) => inv.type === "Liquid Funds"
+  );
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="investments-loading-spinner">
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+        data-testid="investments-loading-spinner"
+      >
         <Spin size="large" />
       </div>
     );
@@ -306,17 +381,16 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
 
   if (error) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="investments-error">
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+        data-testid="investments-error"
+      >
         <Alert
           message="Error Loading Investments"
           description={error}
           type="error"
           showIcon
-          action={
-            <Button onClick={refetch}>
-              Retry
-            </Button>
-          }
+          action={<Button onClick={refetch}>Retry</Button>}
         />
       </div>
     );
@@ -325,41 +399,79 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
   return (
     <div className="gba:space-y-6" data-testid="investments-container">
       <Tabs value={activeSubTab} onValueChange={handleSubTabChange}>
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-5" data-testid="investments-tabs">
-          <TabsTrigger value="overview" data-testid="investments-overview-tab">Overview</TabsTrigger>
-          <TabsTrigger value="equity" data-testid="investments-equity-tab">Equity</TabsTrigger>
-          <TabsTrigger value="real-estate" data-testid="investments-real-estate-tab">Real Estate</TabsTrigger>
-          <TabsTrigger value="private-equity" data-testid="investments-private-equity-tab">Private Equity</TabsTrigger>
-          <TabsTrigger value="liquid-funds" data-testid="investments-liquid-funds-tab">Liquid Funds</TabsTrigger>
+        <TabsList
+          className="gba:grid gba:w-full gba:grid-cols-5"
+          data-testid="investments-tabs"
+        >
+          <TabsTrigger value="overview" data-testid="investments-overview-tab">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="equity" data-testid="investments-equity-tab">
+            Equity
+          </TabsTrigger>
+          <TabsTrigger
+            value="real-estate"
+            data-testid="investments-real-estate-tab"
+          >
+            Real Estate
+          </TabsTrigger>
+          <TabsTrigger
+            value="private-equity"
+            data-testid="investments-private-equity-tab"
+          >
+            Private Equity
+          </TabsTrigger>
+          <TabsTrigger
+            value="liquid-funds"
+            data-testid="investments-liquid-funds-tab"
+          >
+            Liquid Funds
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" data-testid="investments-overview-content">
+        <TabsContent
+          value="overview"
+          data-testid="investments-overview-content"
+        >
           <div className="gba:flex gba:lg:flex-row gba:lg:items-center gba:justify-between gba:gap-4 gba:mb-6">
             <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
               <div className="gba:relative gba:flex-1 gba:max-w-md">
-                <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400" size={20} />
-              <Input
+                <Search
+                  className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400"
+                  size={20}
+                />
+                <Input
                   type="text"
-                placeholder="Search investments..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search investments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="gba:[&&]:pl-10 gba:pr-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
                   data-testid="investments-search-input"
-              />
+                />
               </div>
             </div>
-            
+
             <div className="gba:flex gba:items-center gba:gap-2">
-              <Button variant="outline" size="sm" className="gba:flex gba:items-center gba:gap-2" data-testid="investments-filter-button">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="investments-filter-button"
+              >
                 <Filter size={16} />
                 Filter
-            </Button>
+              </Button>
             </div>
           </div>
 
           {filteredInvestments.length === 0 ? (
-            <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid="investments-no-investments-message">
-              {searchTerm ? 'No investments match your search.' : 'No investments found.'}
+            <div
+              className="gba:text-center gba:py-8 gba:text-gray-500"
+              data-testid="investments-no-investments-message"
+            >
+              {searchTerm
+                ? "No investments match your search."
+                : "No investments found."}
             </div>
           ) : (
             <>
@@ -367,44 +479,70 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <SortableHeader field="name">INVESTMENT</SortableHeader>
-                    <SortableHeader field="initialInvestmentAmount">AMOUNT</SortableHeader>
-                    <SortableHeader field="bookValue">BOOK VALUE</SortableHeader>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">EXPECTED ROI</TableHead>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">STATUS</TableHead>
-                    <SortableHeader field="acquisitionDate">DATE ACQUIRED</SortableHeader>
+                    <SortableHeader field="initialInvestmentAmount">
+                      AMOUNT
+                    </SortableHeader>
+                    <SortableHeader field="bookValue">
+                      BOOK VALUE
+                    </SortableHeader>
+                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      EXPECTED ROI
+                    </TableHead>
+                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                      STATUS
+                    </TableHead>
+                    <SortableHeader field="acquisitionDate">
+                      DATE ACQUIRED
+                    </SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInvestments.map((investment, index) => (
-                    <TableRow 
-                      key={investment.id} 
-                      className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors gba:cursor-pointer" 
+                    <TableRow
+                      key={investment.id}
+                      className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors gba:cursor-pointer"
                       data-testid={`investments-overview-row-${index + 1}`}
-                      onClick={() => handleInvestmentClick(investment.rawData.investment.id)}
+                      onClick={() =>
+                        handleInvestmentClick(investment.rawData.investment.id)
+                      }
                     >
                       <TableCell className="gba:py-4 gba:px-6">
                         <div>
-                          <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investment.name}</div>
-                          <div className="gba:text-sm gba:text-gray-600">{investment.subType}</div>
+                          <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">
+                            {investment.name}
+                          </div>
+                          <div className="gba:text-sm gba:text-gray-600">
+                            {investment.subType}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6">
-                        <span className="gba:font-semibold gba:text-gray-900">{investment.amount}</span>
+                        <span className="gba:font-semibold gba:text-gray-900">
+                          {investment.amount}
+                        </span>
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6">
                         <div>
-                          <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">{investment.bookValue}</div>
-                          <div className="gba:text-sm gba:text-green-600 gba:font-medium">{investment.bookValueChange}</div>
+                          <div className="gba:font-semibold gba:text-gray-900 gba:mb-1">
+                            {investment.bookValue}
+                          </div>
+                          <div className="gba:text-sm gba:text-green-600 gba:font-medium">
+                            {investment.bookValueChange}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6">
-                        <span className="gba:font-semibold gba:text-green-600">{investment.expectedROI}</span>
+                        <span className="gba:font-semibold gba:text-green-600">
+                          {investment.expectedROI}
+                        </span>
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6">
                         {getStatusBadge(investment.status)}
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6">
-                        <span className="gba:text-gray-900">{investment.dateAcquired}</span>
+                        <span className="gba:text-gray-900">
+                          {investment.dateAcquired}
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -421,22 +559,26 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
                 <BarChart3 className="gba:h-6 gba:w-6 gba:text-white" />
               </div>
               <div>
-                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">Equity Investments</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">
+                  Equity Investments
+                </h2>
                 <p className="gba:text-sm gba:text-gray-600">
                   {equityInvestments.length} Equity Investments
                 </p>
               </div>
             </div>
 
-            <EquityMetricsCards 
-              investments={equityInvestments} 
-              data-testid="investments-equity-metrics" 
+            <EquityMetricsCards
+              investments={equityInvestments}
+              data-testid="investments-equity-metrics"
             />
-            
-            <EquityTable 
-              investments={equityInvestments} 
+
+            <EquityTable
+              investments={equityInvestments}
               onRowClick={(equityId) => {
-                const investment = equityInvestments.find(inv => inv.id === equityId);
+                const investment = equityInvestments.find(
+                  (inv) => inv.id === equityId
+                );
                 if (investment) {
                   handleInvestmentClick(investment.rawData.investment.id);
                 }
@@ -454,29 +596,36 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="real-estate" data-testid="investments-real-estate-content">
+        <TabsContent
+          value="real-estate"
+          data-testid="investments-real-estate-content"
+        >
           <div className="gba:space-y-6">
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
               <div className="gba:p-3 gba:bg-green-500 gba:rounded-lg">
                 <Home className="gba:h-6 gba:w-6 gba:text-white" />
               </div>
               <div>
-                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">Real Estate Investments</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">
+                  Real Estate Investments
+                </h2>
                 <p className="gba:text-sm gba:text-gray-600">
                   {realEstateInvestments.length} Real Estate Investments
                 </p>
               </div>
             </div>
 
-            <RealEstateMetricsCards 
-              investments={realEstateInvestments} 
+            <RealEstateMetricsCards
+              investments={realEstateInvestments}
               data-testid="investments-real-estate-metrics"
             />
-            
-            <RealEstateTable 
-              investments={realEstateInvestments} 
+
+            <RealEstateTable
+              investments={realEstateInvestments}
               onRowClick={(realEstateId) => {
-                const investment = realEstateInvestments.find(inv => inv.id === realEstateId);
+                const investment = realEstateInvestments.find(
+                  (inv) => inv.id === realEstateId
+                );
                 if (investment) {
                   handleInvestmentClick(investment.rawData.investment.id);
                 }
@@ -494,29 +643,36 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="private-equity" data-testid="investments-private-equity-content">
+        <TabsContent
+          value="private-equity"
+          data-testid="investments-private-equity-content"
+        >
           <div className="gba:space-y-6">
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
               <div className="gba:p-3 gba:bg-purple-500 gba:rounded-lg">
                 <Briefcase className="gba:h-6 gba:w-6 gba:text-white" />
               </div>
               <div>
-                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">Private Equity Investments</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">
+                  Private Equity Investments
+                </h2>
                 <p className="gba:text-sm gba:text-gray-600">
                   {privateEquityInvestments.length} Private Equity Investments
                 </p>
               </div>
             </div>
 
-            <PrivateEquityMetricsCards 
-              investments={privateEquityInvestments} 
+            <PrivateEquityMetricsCards
+              investments={privateEquityInvestments}
               data-testid="investments-private-equity-metrics"
             />
-            
-            <PrivateEquityTable 
-              investments={privateEquityInvestments} 
+
+            <PrivateEquityTable
+              investments={privateEquityInvestments}
               onRowClick={(privateEquityId) => {
-                const investment = privateEquityInvestments.find(inv => inv.id === privateEquityId);
+                const investment = privateEquityInvestments.find(
+                  (inv) => inv.id === privateEquityId
+                );
                 if (investment) {
                   handleInvestmentClick(investment.rawData.investment.id);
                 }
@@ -534,29 +690,36 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="liquid-funds" data-testid="investments-liquid-funds-content">
+        <TabsContent
+          value="liquid-funds"
+          data-testid="investments-liquid-funds-content"
+        >
           <div className="gba:space-y-6">
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
               <div className="gba:p-3 gba:bg-yellow-500 gba:rounded-lg">
                 <DollarSign className="gba:h-6 gba:w-6 gba:text-white" />
               </div>
               <div>
-                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">Liquid Fund Investments</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1">
+                  Liquid Fund Investments
+                </h2>
                 <p className="gba:text-sm gba:text-gray-600">
                   {liquidFundsInvestments.length} Liquid Fund Investments
                 </p>
               </div>
             </div>
 
-            <LiquidFundsMetricsCards 
-              investments={liquidFundsInvestments} 
+            <LiquidFundsMetricsCards
+              investments={liquidFundsInvestments}
               data-testid="investments-liquid-funds-metrics"
             />
-            
-            <LiquidFundsTable 
-              investments={liquidFundsInvestments} 
+
+            <LiquidFundsTable
+              investments={liquidFundsInvestments}
               onRowClick={(liquidFundId) => {
-                const investment = liquidFundsInvestments.find(inv => inv.id === liquidFundId);
+                const investment = liquidFundsInvestments.find(
+                  (inv) => inv.id === liquidFundId
+                );
                 if (investment) {
                   handleInvestmentClick(investment.rawData.investment.id);
                 }
@@ -578,4 +741,4 @@ const Investments: React.FC<InvestmentsProps> = (props) => {
   );
 };
 
-export default Investments; 
+export default Investments;

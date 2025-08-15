@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
 import { Button, Spinner } from '@newwork/nw-design-system';
 import { PiWarning, PiArrowClockwise } from 'react-icons/pi';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface WidgetItem {
   key: string;
@@ -39,6 +40,10 @@ export interface WidgetItem {
    * Optional click handler for the widget
    */
   onClick?: () => void;
+  /**
+   * Flag to indicate if the widget is currently active/selected
+   */
+  active?: boolean;
 }
 
 export interface WidgetGroupProps {
@@ -204,7 +209,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
     // Create placeholder KPI cards for loading state
     const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
       id: `loading-${index}`,
-      title: 'Loading...',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text','Loading...'),
       value: 0,
     }));
 
@@ -297,13 +302,49 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   // Transform widgets to KPI cards
   const kpiCards: KpiCardData[] = widgets.map(widget => transformWidgetToKpiCard(widget, onWidgetClick));
 
-  // Display widgets using SectionKpiCards
+  // Display widgets using SectionKpiCards with conditional click handling
   return (
     <div className={className} data-testid={dataTestId}>
-      <SectionKpiCards 
-        cards={kpiCards} 
-        data-testid={`${dataTestId}-cards`}
-      />
+      {onWidgetClick ? (
+        // Add clickable wrapper only when onWidgetClick is provided
+        <div 
+          className="gba:relative gba:cursor-pointer"
+          style={{ 
+            // Make the entire container clickable
+            cursor: 'pointer'
+          }}
+          onClick={(e) => {
+            // Calculate which card was clicked based on mouse position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const cardWidth = rect.width / 4; // Assuming 4 cards per row
+            const cardIndex = Math.floor(x / cardWidth);
+            
+            if (cardIndex >= 0 && cardIndex < widgets.length) {
+              const widgetKey = widgets[cardIndex].key;
+              if (onWidgetClick) {
+                onWidgetClick(widgetKey);
+              }
+              // Also call individual widget onClick if it exists
+              if (widgets[cardIndex]?.onClick) {
+                widgets[cardIndex].onClick();
+              }
+            }
+          }}
+          data-testid={`${dataTestId}-clickable-container`}
+        >
+          <SectionKpiCards 
+            cards={kpiCards} 
+            data-testid={`${dataTestId}-cards`}
+          />
+        </div>
+      ) : (
+        // Use SectionKpiCards directly when no click functionality is needed
+        <SectionKpiCards 
+          cards={kpiCards} 
+          data-testid={`${dataTestId}-cards`}
+        />
+      )}
     </div>
   );
 };
