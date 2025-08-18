@@ -44,7 +44,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
-    filterLabelMap
+    filterLabelMap,
+    addFilter,
+    removeFilter
   } = useExpenseRequestFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
@@ -241,7 +243,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       processName: 'changeExpenseRequest',
       payload: {
         employeeId: employeeId
-      }
+      },
+      builderType: 'NATIVE_SCREEN'
     });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
@@ -260,11 +263,25 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     }
   }, []);
 
-  const handleClearAllFilters = useCallback(() => {
-    clearFilters();
-    setActiveWidget(null);
+  // Function for DataController setFilter requirement
+  const handleSetFilter = useCallback((filters: string[]) => {
+    // This is called by DataController's "Clear all filters" button or individual filter removal
+    if (filters.length === 0) {
+      // Clear all filters
+      clearFilters();
+      setActiveWidget(null);
+    } else {
+      // Handle individual filter removal - find which filters were removed and remove them
+      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
+      removedFilters.forEach(filterId => removeFilter(filterId));
+    }
     setCurrentPage(1);
-  }, [clearFilters]);
+  }, [clearFilters, selectedFilters, removeFilter]);
+
+  // Adapter function for DataFilter component
+  const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
+    selected ? addFilter(filterId) : removeFilter(filterId);
+  }, [addFilter, removeFilter]);
 
   return (
     <ExpenseRequestsTable
@@ -279,13 +296,15 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       search={search}
       onSearchChange={setSearch}
       selectedFilters={selectedFilters}
-      setFilters={handleClearAllFilters}
+      setFilters={handleSetFilter}
       filterGroups={filterGroups}
-      handleFilterChange={handleFilterChange}
+      handleFilterChange={handleFilterChangeCallback}
       clearFilters={clearFilters}
       filterLabelMap={{ ...filterLabelMap }}
       onAddExpenseRequest={handleAddExpenseRequest}
       tableRefreshTrigger={tableRefreshTrigger}
+      addFilter={addFilter}
+      removeFilter={removeFilter}
     />
   );
 };

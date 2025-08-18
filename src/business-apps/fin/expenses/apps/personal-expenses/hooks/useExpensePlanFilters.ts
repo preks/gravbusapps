@@ -28,7 +28,7 @@ export const useExpensePlanFilters = () => {
       customComponent: React.createElement(PlanDateRangeFilter, {
         planDateRange: planDateRange,
         onDateRangeChange: setPlanDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -39,7 +39,7 @@ export const useExpensePlanFilters = () => {
       customComponent: React.createElement(DateRangeFilter, {
         startDateRange: startDateRange,
         onDateRangeChange: setStartDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [ getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -50,7 +50,7 @@ export const useExpensePlanFilters = () => {
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
         onDateRangeChange: setEndDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -198,17 +198,17 @@ export const useExpensePlanFilters = () => {
     // Add date range labels if active
     const planDateLabel = formatDateRangeLabel(planDateRange);
     if (planDateLabel) {
-      map['planDateRange'] = `Plan Date: ${planDateLabel}`;
+      map['planDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date','Plan Date')}: ${planDateLabel}`;
     }
     
     const startDateLabel = formatDateRangeLabel(startDateRange);
     if (startDateLabel) {
-      map['startDateRange'] = `Start Date: ${startDateLabel}`;
+      map['startDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date')}: ${startDateLabel}`;
     }
     
     const endDateLabel = formatDateRangeLabel(endDateRange);
     if (endDateLabel) {
-      map['endDateRange'] = `End Date: ${endDateLabel}`;
+      map['endDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date')}: ${endDateLabel}`;
     }
     
     return map;

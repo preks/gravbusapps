@@ -6,7 +6,7 @@ import {
   Legend, ResponsiveContainer, Cell, LabelList
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { OrganizationalUnitSalary } from '../../hooks/useSalaryByOrgUnit';
+import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit';
 import { theme } from 'antd';
 
 const { Title, Text } = Typography;

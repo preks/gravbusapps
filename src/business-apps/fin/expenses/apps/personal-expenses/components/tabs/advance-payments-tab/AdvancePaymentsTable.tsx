@@ -110,6 +110,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
 
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return searchText || currentStatusFilter.length > 0 || 
+           (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
+           (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined));
+  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+
   // Build fetch parameters
   const fetchParams = useMemo(() => ({
     searchText,
@@ -356,7 +363,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
+                          {hasActiveFilters 
+                            ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')
+                          }
                         </div>
                       </TableCell>
                     </TableRow>
@@ -378,7 +388,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                               variant="secondary"
                               staticFlowData={[
                                 {
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-advance-payment',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -387,7 +397,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 },
                                 ...(record.expensePlanId ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-plan-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -396,7 +406,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 }] : []),
                                 ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-request-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                                   onClick: (e?: React.MouseEvent) => {

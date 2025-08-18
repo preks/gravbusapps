@@ -8,7 +8,7 @@ import {
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean;
@@ -140,7 +140,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for`) + " " + currentMonthName,
-      value: statistics.currentMonthAmount,
+      value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))}`,
       prefix: <DollarOutlined />,
       suffix: '€',
       color: '#3f8600',

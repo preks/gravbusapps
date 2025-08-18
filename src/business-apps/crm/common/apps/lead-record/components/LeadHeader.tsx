@@ -97,8 +97,7 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
           {accessToken && (
             <AppActionButton
               data-testid="lead-record-action-button"
-              variant="primary"
-              size="md"
+              size="default"
               contextsArray={[FlowContextName.leadEntity]}
               externalContextData={{
                 leadId: leadId
@@ -106,7 +105,7 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, 
               staticFlowData={staticActions}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enabled"
+              emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick
             >
               Actions

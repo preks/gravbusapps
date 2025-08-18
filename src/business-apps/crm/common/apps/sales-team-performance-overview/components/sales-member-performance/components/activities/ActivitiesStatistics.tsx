@@ -12,6 +12,7 @@ import {
 import { ActivitiesStatisticsProps } from "../../types/activitiesTypes";
 import { useEmployeeActivitiesStatistics } from "../../hooks/useEmployeeActivitiesStatistics";
 import { useEmployeeActivitiesTrendData } from "../../hooks/useEmployeeActivitiesTrendData";
+import { useEmployeeActivitiesData } from "../../hooks/useEmployeeActivitiesData";
 
 const DATA_TEST_ID_PREFIX = "ActivitiesStatistics";
 
@@ -35,10 +36,21 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
     employeeId
   );
 
+  // Get aggregate total from the activities query
+  const { total: aggregateTotal, retry: retryActivitiesData } =
+    useEmployeeActivitiesData({
+      employeeId,
+      accessToken,
+      search: "",
+      sortField: "createdAt",
+      sortOrder: "DESC",
+    });
+
   // Handle retry
   const handleRetry = () => {
     refetch();
     refetchTrends();
+    retryActivitiesData();
     if (onRetry) {
       onRetry();
     }
@@ -93,6 +105,14 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             trends.totalActivities.trendPercentage,
             statistics.totalActivities.period
           ),
+          trend: {
+            value: `${Math.round(
+              (trends.completedActivities.currentValue / aggregateTotal) * 100
+            )}%`,
+            positive:
+              trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            description: "completion rate",
+          },
         },
         {
           key: "completed-activities",
@@ -106,6 +126,14 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             `Execution focus`
           ),
           precision: 0,
+          trend: {
+            value: `${Math.round(
+              (trends.completedActivities.currentValue / aggregateTotal) * 100
+            )}%`,
+            positive:
+              trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            description: "completion rate",
+          },
         },
         {
           key: "most-common-activity",
@@ -121,6 +149,15 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             trends.mostCommonActivityType.current.count === 0
               ? "No activities found"
               : `${trends.mostCommonActivityType.current.count} activities (${trends.mostCommonActivityType.current.percentage}%)`,
+          trend:
+            trends.mostCommonActivityType.current.count > 0
+              ? {
+                  value: `${trends.mostCommonActivityType.current.percentage}%`,
+                  positive:
+                    trends.mostCommonActivityType.current.percentage >= 40,
+                  description: "of total activities",
+                }
+              : undefined,
         },
         {
           key: "most-worked-entity",
@@ -136,6 +173,15 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             trends.mostWorkedEntityType.current.count === 0
               ? "No activities found"
               : `${trends.mostWorkedEntityType.current.count} activities (${trends.mostWorkedEntityType.current.percentage}%)`,
+          trend:
+            trends.mostWorkedEntityType.current.count > 0
+              ? {
+                  value: `${trends.mostWorkedEntityType.current.percentage}%`,
+                  positive:
+                    trends.mostWorkedEntityType.current.percentage >= 30,
+                  description: "focus distribution",
+                }
+              : undefined,
         },
       ]
     : [];

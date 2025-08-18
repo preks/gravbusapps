@@ -1,7 +1,6 @@
 import { useState, useEffect, createElement, useCallback } from "react";
 import {
   Layout,
-  Menu,
   Modal,
   Form,
   Input,
@@ -15,9 +14,9 @@ import {
 import {
   SettingOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  HomeOutlined
+  MenuUnfoldOutlined
 } from "@ant-design/icons";
+import { IdeMainMenu, BusinessAppInfo } from '@/components/ide-main-menu';
 import { UserInfoProps } from "./common/BusinessAppContext";
 import ProcessEventListener, {
   ProcessLocalDevEvent
@@ -34,14 +33,6 @@ import { useRewrapAntDStylesLive } from "./common/hooks/useRewrapAntDStylesLive"
 const modulePatterns = import.meta.glob("./business-apps/**/index.ts", {
   eager: false
 });
-
-interface BusinessAppInfo {
-  name: string;
-  path: string;
-  module: string;
-  subModule?: string;
-  screenKey: string; // Key for dynamic loading
-}
 
 const businessApps: BusinessAppInfo[] = [];
 
@@ -93,13 +84,20 @@ for (const path in modulePatterns) {
       continue;
     }
 
-    // Only include paths that are actual apps (typically in "apps" or "forms" directories)
-    const hasAppsOrForms = pathParts.some(
-      (part) => part === "apps" || part === "forms"
-    );
-    if (!hasAppsOrForms) {
+    // Only include paths that are actual apps (typically in "apps", "forms", or "popups" directories)
+    const hasAppsFormsOrPopups = pathParts.some(part => part === "apps" || part === "forms" || part === "popups");
+    if (!hasAppsFormsOrPopups) {
       continue;
     }
+
+    // Determine the type based on the parent directory
+    let componentType: 'app' | 'form' | 'popup' = 'app';
+    if (pathParts.includes('forms')) {
+      componentType = 'form';
+    } else if (pathParts.includes('popups')) {
+      componentType = 'popup';
+    }
+    
 
     let subModule = "";
     if (pathParts.length > 4) {
@@ -123,7 +121,8 @@ for (const path in modulePatterns) {
       path,
       module: moduleName,
       subModule: subModule || undefined,
-      screenKey
+      screenKey,
+      type: componentType,
     });
   }
 }
@@ -509,119 +508,17 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setSettingsModalVisible(false);
   };
 
-  const createAppURL = (app: BusinessAppInfo): string => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("app", app.name);
-    return url.toString();
-  };
 
-  const handleAppLinkClick = (
-    event: React.MouseEvent,
-    app: BusinessAppInfo
-  ) => {
-    // Allow middle-click and right-click to work with browser defaults
-    if (event.button === 1 || event.button === 2) {
-      return; // Let browser handle middle-click and right-click
-    }
 
-    // For left-click, prevent default and handle navigation
-    event.preventDefault();
-    handleAppSelect(app);
-  };
 
-  const createAppMenuItem = (app: BusinessAppInfo) => ({
-    key: app.screenKey,
-    label: (
-      <a
-        href={createAppURL(app)}
-        onClick={(e) => handleAppLinkClick(e, app)}
-        onAuxClick={(e) => {
-          // Handle middle-click specifically
-          if (e.button === 1) {
-            // Allow browser to open in new tab
-            e.stopPropagation();
-          }
-        }}
-        style={{
-          textDecoration: "none",
-          color: "inherit",
-          display: "block",
-          width: "100%"
-        }}
-      >
-        {app.name}
-      </a>
-    )
-  });
 
-  const getMenuItems = (): any => {
-    const moduleGroups: Record<string, Record<string, BusinessAppInfo[]>> = {};
+  
 
-    businessApps.forEach((app) => {
-      if (!moduleGroups[app.module]) {
-        moduleGroups[app.module] = {};
-      }
 
-      // Extract the first level of subModule as the actual sub-module
-      let subModuleName = "default";
-      if (app.subModule) {
-        const subModuleParts = app.subModule.split("/");
-        subModuleName = subModuleParts[0]; // Take the first part as the sub-module
-      }
 
-      if (!moduleGroups[app.module][subModuleName]) {
-        moduleGroups[app.module][subModuleName] = [];
-      }
 
-      moduleGroups[app.module][subModuleName].push(app);
-    });
 
-    const moduleMenuItems = Object.entries(moduleGroups).map(
-      ([module, subModules]) => {
-        const subModuleEntries = Object.entries(subModules);
 
-        if (
-          subModuleEntries.length === 1 &&
-          subModuleEntries[0][0] === "default"
-        ) {
-          return {
-            key: module,
-            label: module.charAt(0).toUpperCase() + module.slice(1),
-            children: subModuleEntries[0][1].map(createAppMenuItem)
-          };
-        }
-
-        const children = subModuleEntries
-          .map(([subModule, apps]) => {
-            if (subModule === "default") {
-              return apps.map(createAppMenuItem);
-            }
-
-            return {
-              key: `${module}/${subModule}`,
-              label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
-              children: apps.map(createAppMenuItem)
-            };
-          })
-          .flat();
-
-        return {
-          key: module,
-          label: module.charAt(0).toUpperCase() + module.slice(1),
-          children
-        };
-      }
-    );
-
-    const homeMenuItem = {
-      key: "home",
-      label: "Home",
-      icon: <HomeOutlined />,
-      onClick: goToStartScreen
-    };
-
-    return [homeMenuItem, ...moduleMenuItems];
-  };
 
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
@@ -777,14 +674,13 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                 position: "relative"
               }}
             >
-              <Menu
-                mode="inline"
-                selectedKeys={selectedApp ? [selectedApp.screenKey] : ["home"]}
+              <IdeMainMenu
+                businessApps={businessApps}
+                selectedApp={selectedApp}
+                collapsed={collapsed}
                 openKeys={openKeys}
+                onAppSelect={handleAppSelect}
                 onOpenChange={handleOpenChange}
-                style={{ borderRight: 0 }}
-                items={getMenuItems()}
-                inlineCollapsed={collapsed}
               />
             </div>
 

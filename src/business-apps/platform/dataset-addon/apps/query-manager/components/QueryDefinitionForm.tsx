@@ -35,7 +35,9 @@ import {
   QueryStatus, 
   ParameterType, 
   QueryParameter,
-  AdditionalColumn
+  AdditionalColumn,
+  Services,
+  getServiceLabel
 } from '@/common/network/dataset';
 
 // Environment detection utility
@@ -77,6 +79,7 @@ interface QueryDefinitionFormProps {
   onCancel: () => void;
   isLoading: boolean;
   defaultQueryType?: QueryType;
+  currentService: Services;
 }
 
 export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
@@ -85,7 +88,8 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   onSave,
   onCancel,
   isLoading,
-  defaultQueryType
+  defaultQueryType,
+  currentService
 }) => {
   const [formValues, setFormValues] = useState({
     name: '',

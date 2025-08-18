@@ -19,7 +19,6 @@ const MemoizedAppActionButton = memo<{
 }>(({ employeeId, userId, supervisorEmployeeId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${employeeId}`)}
-    variant="primary"
     size="sm"
     contextsArray={[FlowContextName.employeeEntity]}
     externalContextData={{
@@ -29,7 +28,7 @@ const MemoizedAppActionButton = memo<{
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
     accessToken={accessToken}
-    emptyStateBehavior="enabled"
+    emptyStateBehavior="enable"
     deferMainContextRequestsUntilClick
   >
 

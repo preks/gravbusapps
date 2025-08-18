@@ -190,7 +190,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     <CompactRangeFilter
       range={amountRange}
       onRangeChange={setAmountRange}
-      label="Amount Range"
+      label={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range')}
       dataTestIdPrefix="amount-range"
     />
   ), [amountRange]);
@@ -199,7 +199,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     <CompactRangeFilter
       range={advanceRange}
       onRangeChange={setAdvanceRange}
-      label="Advance Range"
+      label={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter','Advance Range')}
       dataTestIdPrefix="advance-range"
     />
   ), [advanceRange]);
