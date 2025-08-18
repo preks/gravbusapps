@@ -7,7 +7,12 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { LeadFormValues, SelectOption, LeadContextState } from "../types";
+import {
+  LeadFormValues,
+  SelectOption,
+  LeadContextState,
+  Address,
+} from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useEmployeePositions } from "../hooks/useEmployeePositions";
 import { useEmployeeById } from "../hooks/useEmployeeById";
@@ -131,6 +136,16 @@ interface LeadFormContextValue extends LeadContextState {
   addAddressLine: () => void;
   removeAddressLine: () => void;
 
+  // Address management (new dynamic structure)
+  addAddress: () => void;
+  removeAddress: (addressId: string) => void;
+  updateAddress: (addressId: string, updates: Partial<Address>) => void;
+  addAddressLineToAddress: (addressId: string) => void;
+  removeAddressLineFromAddress: (addressId: string, lineIndex: number) => void;
+
+  // Business app context for child components
+  businessAppContext: BusinessAppContextProps;
+
   // Sales Campaigns
   salesCampaigns: SelectOption[];
   salesCampaignsLoading: boolean;
@@ -191,7 +206,20 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // Campaign Information
     salesCampaignId: "",
 
-    // Address Information
+    // Address Information (New dynamic structure)
+    addresses: [
+      {
+        id: "default-address",
+        addressType: "UNKNOWN_ADDRESS",
+        addressLines: [""],
+        postalCode: "",
+        city: "",
+        region: "",
+        country: "",
+      },
+    ],
+
+    // Address Information (Legacy fields for backward compatibility)
     country: "",
     region: "",
     addressLine1: "",
@@ -528,6 +556,122 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Address management functions (new dynamic structure)
+  const addAddress = useCallback(() => {
+    const newAddress: Address = {
+      id: `address-${Date.now()}`,
+      addressType: "UNKNOWN_ADDRESS",
+      addressLines: [""],
+      postalCode: "",
+      city: "",
+      region: "",
+      country: "",
+    };
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: [...prev.addresses, newAddress],
+    }));
+  }, []);
+
+  const removeAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
+    }));
+  }, []);
+
+  const updateAddress = useCallback(
+    (addressId: string, updates: Partial<Address>) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId ? { ...addr, ...updates } : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  const addAddressLineToAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.map((addr) =>
+        addr.id === addressId
+          ? { ...addr, addressLines: [...addr.addressLines, ""] }
+          : addr
+      ),
+    }));
+  }, []);
+
+  const removeAddressLineFromAddress = useCallback(
+    (addressId: string, lineIndex: number) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId
+            ? {
+                ...addr,
+                addressLines: addr.addressLines.filter(
+                  (_, index) => index !== lineIndex
+                ),
+              }
+            : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  // Function to sync legacy address fields with new dynamic structure
+  const syncLegacyFieldsToAddresses = useCallback(() => {
+    if (formValues.addresses.length === 0) return;
+
+    const legacyLines = [
+      formValues.addressLine1,
+      formValues.addressLine2,
+      formValues.addressLine3,
+      formValues.addressLine4,
+    ].filter((line) => line && line.trim());
+
+    if (
+      legacyLines.length > 0 ||
+      formValues.city ||
+      formValues.postalCode ||
+      formValues.region ||
+      formValues.country
+    ) {
+      const firstAddress = formValues.addresses[0];
+      const updatedAddress: Address = {
+        ...firstAddress,
+        addressLines:
+          legacyLines.length > 0 ? legacyLines : firstAddress.addressLines,
+        city: formValues.city || firstAddress.city,
+        postalCode: formValues.postalCode || firstAddress.postalCode,
+        region: formValues.region || firstAddress.region,
+        country: formValues.country || firstAddress.country,
+      };
+
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: [updatedAddress, ...prev.addresses.slice(1)],
+      }));
+    }
+  }, [formValues]);
+
+  // Sync legacy fields to dynamic structure when they change
+  useEffect(() => {
+    syncLegacyFieldsToAddresses();
+  }, [
+    formValues.addressLine1,
+    formValues.addressLine2,
+    formValues.addressLine3,
+    formValues.addressLine4,
+    formValues.city,
+    formValues.postalCode,
+    formValues.region,
+    formValues.country,
+  ]);
+
   const contextValue: LeadFormContextValue = {
     // Form state
     formValues,
@@ -658,6 +802,16 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+
+    // Address management (new dynamic structure)
+    addAddress,
+    removeAddress,
+    updateAddress,
+    addAddressLineToAddress,
+    removeAddressLineFromAddress,
+
+    // Business app context for child components
+    businessAppContext,
 
     // Sales Campaigns
     salesCampaigns: salesCampaignsOptions,

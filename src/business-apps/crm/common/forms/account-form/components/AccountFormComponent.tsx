@@ -17,7 +17,7 @@ import FinancialInformationSection from "./FinancialInformationSection";
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } =
+  const { formValues, onSubmit, onCancel, isLoading, error, addressLineCount } =
     useAccountFormContext();
 
   // Check if all mandatory fields are filled
@@ -54,10 +54,7 @@ const AccountFormComponent: React.FC = () => {
         fax: toStringOrUndefined(formValues.fax),
         countryRef: toStringOrUndefined(formValues.country),
         regionRef: toStringOrUndefined(formValues.region),
-        addressLine:
-          toStringOrUndefined(formValues.addressLine1) ||
-          toStringOrUndefined(formValues.address) ||
-          undefined,
+        addressLine: undefined, // Will be set from addresses array below
         postalCode: toStringOrUndefined(formValues.postalCode),
         city: toStringOrUndefined(formValues.city),
         annualRevenue: toStringOrUndefined(formValues.annualRevenue),
@@ -79,39 +76,58 @@ const AccountFormComponent: React.FC = () => {
         }
       }
 
-      // Build addresses array if we have address data
-      const addresses = [];
-      const addressLine =
-        toStringOrUndefined(formValues.addressLine1) ||
-        toStringOrUndefined(formValues.address) ||
-        [
-          formValues.addressLine1,
-          formValues.addressLine2,
-          formValues.addressLine3,
-          formValues.addressLine4,
-        ]
-          .filter((line) => toStringOrUndefined(line))
-          .join(", ") ||
-        "";
+      // Build addresses array from dynamic addresses
+      const addresses: any[] = [];
 
-      if (
-        addressLine ||
-        toStringOrUndefined(formValues.city) ||
-        toStringOrUndefined(formValues.postalCode)
-      ) {
-        addresses.push({
-          addressType: "BILLING_ADDRESS",
-          addressLine: addressLine,
-          postalCode: toStringOrUndefined(formValues.postalCode),
-          city: toStringOrUndefined(formValues.city),
-          regionRef: toStringOrUndefined(formValues.region),
-          countryRef: toStringOrUndefined(formValues.country),
+      // Process dynamic addresses (new implementation)
+      if (formValues.addresses && formValues.addresses.length > 0) {
+        formValues.addresses.forEach((address) => {
+          // Filter out empty address lines
+          const nonEmptyLines = address.addressLines
+            .map((line) => toStringOrUndefined(line))
+            .filter((line) => line);
+
+          nonEmptyLines.forEach((addressLine) => {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: addressLine,
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          });
+
+          // If no address lines but other address data exists, create one address with empty addressLine
+          if (
+            nonEmptyLines.length === 0 &&
+            (toStringOrUndefined(address.city) ||
+              toStringOrUndefined(address.postalCode) ||
+              toStringOrUndefined(address.region) ||
+              toStringOrUndefined(address.country))
+          ) {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: "",
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          }
         });
       }
 
-      accountPayload.addresses = addresses;
+      // Set addresses to null if empty, otherwise use the addresses array
+      accountPayload.addresses = addresses.length > 0 ? addresses : null;
 
-      // Initialize empty arrays for tags and communication channels
+      // Set the main addressLine field from the first address (for backward compatibility)
+      if (addresses.length > 0) {
+        accountPayload.addressLine = addresses[0].addressLine;
+      } else {
+        accountPayload.addressLine = null;
+      }
+
       accountPayload.tags = [];
 
       // Determine change mode based on whether we have an ID

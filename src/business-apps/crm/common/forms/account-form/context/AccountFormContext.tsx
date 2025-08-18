@@ -7,7 +7,12 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { AccountFormValues, SelectOption, AccountContextState } from "../types";
+import {
+  AccountFormValues,
+  SelectOption,
+  AccountContextState,
+  Address,
+} from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
 import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
@@ -28,6 +33,9 @@ interface AccountFormContextValue extends AccountContextState {
   setFormValues: (updates: Partial<AccountFormValues>) => void;
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
+
+  // Business app context for hooks
+  businessAppContext: BusinessAppContextProps;
 
   // Employee positions (for owner selection)
   employeePositions: SelectOption[];
@@ -132,10 +140,17 @@ interface AccountFormContextValue extends AccountContextState {
   searchSalesCampaigns: (searchTerm: string) => void;
   loadMoreSalesCampaigns: () => void;
 
-  // Address lines management
+  // Address lines management (legacy)
   addressLineCount: number;
   addAddressLine: () => void;
   removeAddressLine: () => void;
+
+  // Dynamic addresses management
+  addAddress: () => void;
+  removeAddress: (addressId: string) => void;
+  updateAddress: (addressId: string, updates: Partial<Address>) => void;
+  addAddressLineToAddress: (addressId: string) => void;
+  removeAddressLineFromAddress: (addressId: string, lineIndex: number) => void;
 
   // Legacy compatibility (using employeeSizes data)
   numberOfEmployeesOptions: SelectOption[];
@@ -179,7 +194,20 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     email: "",
     fax: "",
 
-    // Address Information
+    // Dynamic Addresses
+    addresses: [
+      {
+        id: "default-address",
+        addressType: "UNKNOWN_ADDRESS",
+        addressLines: [""],
+        postalCode: "",
+        city: "",
+        region: "",
+        country: "",
+      },
+    ],
+
+    // Legacy Address Information (for backward compatibility)
     country: "",
     region: "",
     addressLine1: "",
@@ -497,7 +525,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     []
   );
 
-  // Address line management
+  // Address line management (legacy)
   const addAddressLine = useCallback(() => {
     if (addressLineCount < 4) {
       setAddressLineCount((prev) => prev + 1);
@@ -513,6 +541,73 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       setFormValues({ [lineKey]: "" });
     }
   }, [addressLineCount, setFormValues]);
+
+  // Dynamic addresses management
+  const addAddress = useCallback(() => {
+    const newAddress: Address = {
+      id: `address-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      addressType: "UNKNOWN_ADDRESS",
+      addressLines: [""],
+      postalCode: "",
+      city: "",
+      region: "",
+      country: "",
+    };
+
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: [...prev.addresses, newAddress],
+    }));
+  }, []);
+
+  const removeAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
+    }));
+  }, []);
+
+  const updateAddress = useCallback(
+    (addressId: string, updates: Partial<Address>) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId ? { ...addr, ...updates } : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  const addAddressLineToAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.map((addr) =>
+        addr.id === addressId
+          ? { ...addr, addressLines: [...addr.addressLines, ""] }
+          : addr
+      ),
+    }));
+  }, []);
+
+  const removeAddressLineFromAddress = useCallback(
+    (addressId: string, lineIndex: number) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId
+            ? {
+                ...addr,
+                addressLines: addr.addressLines.filter(
+                  (_, index) => index !== lineIndex
+                ),
+              }
+            : addr
+        ),
+      }));
+    },
+    []
+  );
 
   // Auto-select current user once their employee data has loaded
   useEffect(() => {
@@ -538,6 +633,9 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     onCancel,
     isLoading,
     error,
+
+    // Business app context
+    businessAppContext,
 
     // Employee positions
     employeePositions,
@@ -640,10 +738,17 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     searchSalesCampaigns: searchSalesCampaignsWrapper,
     loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
-    // Address lines management
+    // Address lines management (legacy)
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+
+    // Dynamic addresses management
+    addAddress,
+    removeAddress,
+    updateAddress,
+    addAddressLineToAddress,
+    removeAddressLineFromAddress,
 
     // Legacy compatibility (using employeeSizes data)
     numberOfEmployeesOptions: employeeSizesHook.allOptions,
