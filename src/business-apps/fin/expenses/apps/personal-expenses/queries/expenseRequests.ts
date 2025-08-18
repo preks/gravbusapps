@@ -125,7 +125,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         requestDate: {_gte: $startDate, _lt: $endDate}
-        status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]}
+        status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]},
+        currencyRef: {_eq: "Currency:v1:EUR"}
       }
     ) {
       aggregate {
@@ -150,7 +151,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        status: {_nin: ["PAID", "CLOSED", "TRANSFERRED"]}
+        status: {_nin: ["PAID", "CLOSED", "TRANSFERRED"]},
+        currencyRef: {_eq: "Currency:v1:EUR"}
       }
     ) {
       aggregate {

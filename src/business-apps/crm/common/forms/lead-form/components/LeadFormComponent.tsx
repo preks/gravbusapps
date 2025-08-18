@@ -1,20 +1,22 @@
-import React from "react";
-import { useLeadFormContext } from "../context/LeadFormContext";
+import React, { useState, useRef } from "react";
 import {
   Button,
+  Input,
+  Label,
+  Spinner,
   Alert,
   AlertDescription,
-  Label,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
+import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import DescriptionSection from "./DescriptionSection";
-import OwnerSelector from "./OwnerSelector";
 
 const prefixDataTestId = "LeadForm";
 
@@ -62,6 +64,7 @@ const LeadFormComponent: React.FC = () => {
         position: toStringOrUndefined(formValues.jobPosition),
         companyName: toStringOrUndefined(formValues.company),
         accountId: toStringOrUndefined(formValues.accountId), // Include accountId from selected company
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
         industryRef: toStringOrUndefined(formValues.industry),

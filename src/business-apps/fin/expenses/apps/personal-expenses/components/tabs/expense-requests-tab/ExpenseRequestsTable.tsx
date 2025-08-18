@@ -49,6 +49,8 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   filterLabelMap?: Record<string, string>;
   onAddExpenseRequest?: () => void;
   tableRefreshTrigger?: number;
+  addFilter?: (filterId: string) => void;
+  removeFilter?: (filterId: string) => void;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -105,6 +107,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Use the file service hook
   const { printExpenseRequest, isMounted } = useExpenseRequestFileService(props);
 
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return search || selectedFilters.length > 0;
+  }, [search, selectedFilters]);
+
   // Sync local search input with prop changes
   useEffect(() => {
     setSearchInput(search || '');
@@ -138,10 +145,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
   // Handle filter changes
   const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
-    if (handleFilterChange) {
-      handleFilterChange(filterId, selected);
+    if (selected) {
+      props.addFilter?.(filterId);
+    } else {
+      props.removeFilter?.(filterId);
     }
-  }, [handleFilterChange]);
+  }, [props.addFilter, props.removeFilter]);
 
   // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
@@ -233,7 +242,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
       payload: {
             employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
             expenseRequestId: item.id
-      }
+      },
+      builderType: 'NATIVE_SCREEN'
     });
   }, []);
 
@@ -382,10 +392,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                   {!isLoading && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
-                        <Empty 
-                          description="No expense requests found matching your criteria." 
-                          style={{ margin: '40px 0' }}
-                        />
+                        <div className="gba:text-gray-500">
+                          {hasActiveFilters 
+                            ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_requests_found','No expense requests found. Create your first expense request to get started.')
+                          }
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -404,7 +416,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'edit-expense-request',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn','Update Request'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -414,7 +426,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                 }]: [],
                                   ...((record.status === "APPROVED"  || record.status === "VERIFIED" || record.status === "BOOKED" || record.status === "TRANSFERRED" || record.status === "PAID") && (record.employeeDocument && record.employeeDocument?.file && record.employeeDocument.file.trim() !== '')) ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'print',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print','Print'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -423,7 +435,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                   }
                                 }]: [],
                                   {
-                                    category: 'Navigations',
+                                    category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations')  ,
                                     key: 'view-expense-request',
                                     label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details','View Request Details'),
                                     onClick: (e?: React.MouseEvent) => {

@@ -585,7 +585,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                    <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}>
                      {selectedExpense.employee || 'N/A'}
                    </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')}>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Codes')}>
                      {selectedExpense.employeeCode || 'N/A'}
                    </Descriptions.Item>
                    <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.sap_number', 'SAP Number')}>
@@ -609,7 +609,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                    <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}>
                      {getExpenseRequestStatusDisplay(selectedExpense.status).label}
                    </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.remaining', 'Remaining Amount')}>
+                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}>
                      <span style={{ fontWeight: 'bold' }}>
                        {(() => {
                          const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0;
@@ -639,7 +639,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                      }}
                      data-testid="view-expense-request-details-button"
                    >
-                     {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.view_full_details', 'View Full Details')}
+                     {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.view_full_details', 'View Full Details')}
                    </Button>
                  </div>
               </div>

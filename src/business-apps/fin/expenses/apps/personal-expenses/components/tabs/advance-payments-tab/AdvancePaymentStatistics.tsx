@@ -137,7 +137,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for') + ' ' + currentMonthName,
-      value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))} €`,
+      value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))}`,
+      suffix: '€',
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },

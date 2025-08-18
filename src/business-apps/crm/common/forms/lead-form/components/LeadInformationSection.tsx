@@ -16,6 +16,7 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
+import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
 // Note: Removed SearchableSelect and useAccountsGraphQL imports since we're using simple input
 
 const prefixDataTestId = "LeadForm";
@@ -66,6 +67,14 @@ const LeadInformationSection: React.FC = () => {
     searchLeadRatings,
     loadMoreLeadRatings,
     showMoreLeadRatings,
+
+    // Sales Campaigns
+    salesCampaigns,
+    salesCampaignsLoading,
+    salesCampaignsError,
+    salesCampaignsHasMore,
+    searchSalesCampaigns,
+    loadMoreSalesCampaigns,
 
     // Access token for API calls
     accessToken,
@@ -355,6 +364,29 @@ const LeadInformationSection: React.FC = () => {
               )}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Sales Campaign Section */}
+        <div className="gba:space-y-2">
+          <SearchableSelect
+            label="Sales Campaign"
+            name="salesCampaignId"
+            value={formValues.salesCampaignId}
+            placeholder="Please Select Campaign..."
+            options={salesCampaigns as any}
+            loading={salesCampaignsLoading}
+            hasMore={salesCampaignsHasMore}
+            onSearch={searchSalesCampaigns}
+            onLoadMore={loadMoreSalesCampaigns}
+            onChange={(value) => {
+              setFormValues({
+                salesCampaignId: value, // Store only ID for backend
+              });
+            }}
+            error={salesCampaignsError}
+            className="gba:w-full gba:min-w-[300px]"
+            data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+          />
         </div>
       </CardContent>
     </Card>

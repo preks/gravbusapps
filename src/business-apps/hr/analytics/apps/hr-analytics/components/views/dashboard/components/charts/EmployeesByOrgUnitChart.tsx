@@ -1,12 +1,11 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, Spin, Empty, Typography, theme } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useEmployeesByOrgUnit } from '../../hooks/useEmployeesByOrgUnit';
+import { useEmployeesByOrgUnit } from '../../../../../hooks/useEmployeesByOrgUnit';
 import { BusinessAppContextProps } from '@/business-apps/types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface EmployeesByOrgUnitChartProps extends BusinessAppContextProps {}
 
@@ -48,96 +47,82 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
 
   return (
     <Card
-      title={
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} style={{ margin: 0 }}>
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit', 'Employees by Org Unit')}
-          </Title>
-          <div className="gba:flex gba:items-center">
-            <InfoCircleOutlined 
-              style={{ fontSize: '16px', color: token.colorTextSecondary }}
-              data-testid="employees-by-org-unit-info-icon"
-            />
-          </div>
-        </div>
-      }
-      bordered={false}
-      style={{ height: '100%' }}
+      className="gba:w-full gba:mb-6 gba:shadow-sm"
       data-testid="employees-by-org-unit-chart"
     >
-      <div 
-        className="gba:flex gba:flex-col gba:w-full gba:h-full" 
-        style={{ 
-          minHeight: '400px', 
-          position: 'relative',
-          backgroundColor: '#ffffff'
-        }}
-        data-testid="employees-by-org-unit-chart-container"
-      >
-        {/* Chart container with fixed height */}
-        <div className="gba:h-[400px] gba:w-full" style={{ height: '400px' }}>
-          {loading ? (
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Spin size="large" data-testid="employees-by-org-unit-chart-loading" />
-            </div>
-          ) : error ? (
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-red-500">
-              <div data-testid="employees-by-org-unit-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
-            </div>
-          ) : data.length === 0 ? (
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="employees-by-org-unit-chart-empty"
-              />
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%" data-testid="employees-by-org-unit-chart-rendered">
-              <BarChart
-                data={chartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                barSize={40}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={token.colorBorderSecondary} />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45} 
-                  textAnchor="end" 
-                  height={70} 
-                  tick={{ fontSize: 12, fill: token.colorTextSecondary }}
-                  tickLine={false}
-                  axisLine={{ stroke: token.colorBorderSecondary }}
-                />
-                <YAxis 
-                  tickFormatter={(value) => value.toLocaleString()}
-                  tick={{ fontSize: 12, fill: token.colorTextSecondary }}
-                  tickLine={false}
-                  axisLine={{ stroke: token.colorBorderSecondary }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="value" 
-                  name="Employees" 
-                  fill="#06B6D4" /* Cyan color to differentiate from default blue/green */
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+      {/* Header */}
+      <div className="gba:mb-4">
+        <Title level={4} className="gba:m-0 gba:text-gray-800">
+          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit', 'Employees by Org Unit')}
+        </Title>
+        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit_description', 'Employee distribution across organizational units showing workforce concentration and department sizes')}
+        </Text>
+      </div>
 
-        {/* Optional - Chart footnote */}
-        {!loading && !error && data.length > 0 && data.length > 10 && (
-          <div className="gba:mt-4 gba:text-center gba:text-sm gba:text-gray-500" data-testid="org-unit-chart-footnote">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_top_org_units_note', 
-              `Showing top 10 org units out of ${data.length} total`
-            )}
+      {/* Chart Content */}
+      <div className="gba:h-96" data-testid="employees-by-org-unit-chart-container">
+        {loading ? (
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
+            <Spin size="large" data-testid="employees-by-org-unit-chart-loading" />
           </div>
+        ) : error ? (
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-red-500">
+            <div data-testid="employees-by-org-unit-chart-error">
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
+            </div>
+          </div>
+        ) : data.length === 0 ? (
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
+            <Empty
+              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+              data-testid="employees-by-org-unit-chart-empty"
+            />
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" data-testid="employees-by-org-unit-chart-rendered">
+            <BarChart
+              data={chartData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              barSize={40}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={token.colorBorderSecondary} />
+              <XAxis 
+                dataKey="name" 
+                angle={-45} 
+                textAnchor="end" 
+                height={70} 
+                tick={{ fontSize: 12, fill: token.colorTextSecondary }}
+                tickLine={false}
+                axisLine={{ stroke: token.colorBorderSecondary }}
+              />
+              <YAxis 
+                tickFormatter={(value) => value.toLocaleString()}
+                tick={{ fontSize: 12, fill: token.colorTextSecondary }}
+                tickLine={false}
+                axisLine={{ stroke: token.colorBorderSecondary }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar 
+                dataKey="value" 
+                name="Employees" 
+                fill="#06B6D4" /* Cyan color to differentiate from default blue/green */
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
         )}
       </div>
+
+      {/* Chart footnote */}
+      {!loading && !error && data.length > 0 && data.length > 10 && (
+        <div className="gba:mt-4 gba:text-center gba:text-sm gba:text-gray-500" data-testid="org-unit-chart-footnote">
+          {getTranslationFromI18nKeyAndLabel(
+            'hr_analytics_top_org_units_note', 
+            `Showing top 10 org units out of ${data.length} total`
+          )}
+        </div>
+      )}
     </Card>
   );
 };

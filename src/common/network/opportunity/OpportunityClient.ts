@@ -1,6 +1,6 @@
-import { RestClient } from '../rest/RestClient';
-import { env } from '../../env/EnvUtils';
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
+import { RestClient } from "../rest/RestClient";
+import { env } from "../../env/EnvUtils";
+import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
 
 export interface OpportunityAddress {
   id?: string;
@@ -39,14 +39,14 @@ export interface OpportunityPayload {
   name?: string;
   businessKey?: string;
   code?: string;
-  
+
   // Core opportunity fields
   estimatedAmount?: number;
   winningChance?: number;
   closeDate?: string;
   lastInteraction?: string;
   notesSummary?: string;
-  
+
   // Status and pipeline fields
   opportunityStatusRef?: string;
   status?: string;
@@ -54,29 +54,32 @@ export interface OpportunityPayload {
   pipelineRef?: string;
   salesPipelineRef?: string;
   salesPipelineStageRef?: string;
-  
+
   // Relationship fields
   accountId?: string;
   leadId?: string;
   ownerEmployeeId?: string;
   ownerOrganizationId?: string;
-  
+
+  // Campaign Information
+  salesCampaignId?: string;
+
   // Currency and system fields
   currencyRef?: string;
   sourceApp?: string;
   personal?: boolean;
-  
+
   // Additional properties
   additionalProperties?: Record<string, any>;
   acl?: Record<string, any>;
   express1?: Record<string, any>;
   express2?: Record<string, any>;
-  
+
   // Related entities
   addresses?: OpportunityAddress[];
   communicationChannels?: OpportunityCommunicationChannel[];
   tags?: OpportunityTag[];
-  
+
   // Audit fields
   activeFrom?: string;
   activeTo?: string;
@@ -92,7 +95,7 @@ export interface OpportunityPayload {
 
 export interface OpportunitySavePayload {
   opportunity: OpportunityPayload;
-  changeMode: 'UPDATE' | 'INSERT' | 'DELETE';
+  changeMode: "UPDATE" | "INSERT" | "DELETE";
 }
 
 export interface OpportunityUpdatePayload {
@@ -128,14 +131,14 @@ export interface OpportunityUpdatePayload {
       opportunity: string;
     }>;
   };
-  changeMode: 'UPDATE' | 'INSERT' | 'DELETE';
+  changeMode: "UPDATE" | "INSERT" | "DELETE";
 }
 
 export class OpportunityClient extends RestClient {
   private static instance: OpportunityClient;
 
   private constructor() {
-    super(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || '');
+    super(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT") || "");
   }
 
   public static getInstance(): OpportunityClient {
@@ -155,23 +158,22 @@ export class OpportunityClient extends RestClient {
   public async saveOpportunity(
     opportunityData: OpportunityPayload,
     accessToken: string,
-    changeMode: 'INSERT' | 'UPDATE' = 'INSERT'
+    changeMode: "INSERT" | "UPDATE" = "INSERT"
   ): Promise<any> {
-    
     if (!accessToken) {
-      throw new Error('Invalid access token for opportunity save operation');
+      throw new Error("Invalid access token for opportunity save operation");
     }
 
     const payload: OpportunitySavePayload = {
       opportunity: opportunityData,
-      changeMode
+      changeMode,
     };
 
-    return this.post('/customer-relations/saveOpportunity', payload, {
+    return this.post("/customer-relations/saveOpportunity", payload, {
       headers: {
-        'Authorization': setAccessTokenToAuthorizationHeader(accessToken),
-        'Content-Type': 'application/json'
-      }
+        Authorization: setAccessTokenToAuthorizationHeader(accessToken),
+        "Content-Type": "application/json",
+      },
     });
   }
 
@@ -186,34 +188,35 @@ export class OpportunityClient extends RestClient {
    */
   public async updateOpportunityStage(
     opportunityId: string,
-    stageId: string, 
+    stageId: string,
     version: number,
-    opportunityData: any, 
+    opportunityData: any,
     accessToken: string
   ): Promise<any> {
-    
     const updatedOpportunity = {
       id: opportunityId,
       version: version,
       salesPipelineStageRef: stageId, // Use only catalog entry ID for salesPipelineStageRef (stage field is deprecated)
       ...(opportunityData.name ? { name: opportunityData.name } : {}),
-      ...(typeof opportunityData.estimatedAmount !== 'undefined' ? { estimatedAmount: opportunityData.estimatedAmount } : {})
+      ...(typeof opportunityData.estimatedAmount !== "undefined"
+        ? { estimatedAmount: opportunityData.estimatedAmount }
+        : {}),
     };
-    
+
     const payload = {
       opportunity: updatedOpportunity,
-      changeMode: 'UPDATE'
+      changeMode: "UPDATE",
     };
 
     // Ensure accessToken is valid
     if (!accessToken) {
-      throw new Error('Invalid access token for opportunity stage update');
+      throw new Error("Invalid access token for opportunity stage update");
     }
 
-    return this.post('/customer-relations/saveOpportunity', payload, {
+    return this.post("/customer-relations/saveOpportunity", payload, {
       headers: {
-        'Authorization': setAccessTokenToAuthorizationHeader(accessToken)
-      }
+        Authorization: setAccessTokenToAuthorizationHeader(accessToken),
+      },
     });
   }
 }

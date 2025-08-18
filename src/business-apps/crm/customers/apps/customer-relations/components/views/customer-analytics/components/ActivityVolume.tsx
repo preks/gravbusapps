@@ -16,9 +16,9 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
 }) => {
   const getTrendIcon = (current: number, previous: number) => {
     if (current > previous) {
-      return <ArrowUpOutlined style={{ color: 'var(--success)' }} />;
+      return <ArrowUpOutlined style={{ color: 'var(--nw-success)' }} />;
     } else if (current < previous) {
-      return <ArrowDownOutlined style={{ color: 'var(--destructive)' }} />;
+      return <ArrowDownOutlined style={{ color: 'var(--nw-destructive)' }} />;
     }
     return null;
   };
@@ -30,17 +30,17 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
 
   const getActivityIcon = (type: 'calls' | 'emails' | 'meetings') => {
     switch (type) {
-      case 'calls': return <PhoneOutlined style={{ color: 'var(--info)' }} />;
-      case 'emails': return <MailOutlined style={{ color: 'var(--success)' }} />;
-      case 'meetings': return <CalendarOutlined style={{ color: 'var(--warning)' }} />;
+      case 'calls': return <PhoneOutlined style={{ color: 'var(--nw-info)' }} />;
+      case 'emails': return <MailOutlined style={{ color: 'var(--nw-success)' }} />;
+      case 'meetings': return <CalendarOutlined style={{ color: 'var(--nw-warning)' }} />;
     }
   };
 
   const getActivityColor = (type: 'calls' | 'emails' | 'meetings') => {
     switch (type) {
-      case 'calls': return 'var(--info)';
-      case 'emails': return 'var(--success)';
-      case 'meetings': return 'var(--warning)';
+      case 'calls': return 'var(--nw-info)';
+      case 'emails': return 'var(--nw-success)';
+      case 'meetings': return 'var(--nw-warning)';
     }
   };
 
@@ -60,7 +60,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
           <Card>
             <div data-testid={`activity-7days-${pipelineId}`}>
               <Text type="secondary" style={{ fontSize: '12px' }}>Last 7 Days</Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--info)', margin: '4px 0' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--nw-info)', margin: '4px 0' }}>
                 {activityVolume.last7Days.total}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
@@ -76,7 +76,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
           <Card>
             <div data-testid={`activity-30days-${pipelineId}`}>
               <Text type="secondary" style={{ fontSize: '12px' }}>Last 30 Days</Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--success)', margin: '4px 0' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--nw-success)', margin: '4px 0' }}>
                 {activityVolume.last30Days.total}
               </div>
               <Text style={{ fontSize: '11px' }}>
@@ -114,7 +114,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
                   <Text style={{ fontSize: '12px' }}>
                     7d: <strong>{current7Days}</strong>
                   </Text>
-                  <Text style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                  <Text style={{ fontSize: '12px', color: 'var(--nw-muted-foreground)' }}>
                     30d avg: {avg30Days}
                   </Text>
                 </div>
@@ -125,7 +125,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
                 <Progress
                   percent={progress7Days}
                   strokeColor={getActivityColor(activityType)}
-                  trailColor="var(--muted)"
+                  trailColor="var(--nw-muted)"
                   size="small"
                   showInfo={false}
                 />
@@ -135,14 +135,14 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
               <div style={{ marginBottom: '4px' }}>
                 <Progress
                   percent={progressAvg}
-                  strokeColor={{ '0%': 'var(--border)', '100%': 'var(--muted-foreground)' }}
-                  trailColor="var(--accent)"
+                  strokeColor={{ '0%': 'var(--nw-border)', '100%': 'var(--nw-muted-foreground)' }}
+                  trailColor="var(--nw-accent)"
                   size="small"
                   showInfo={false}
                 />
               </div>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--nw-muted-foreground)' }}>
                 <span>Recent week</span>
                 <span>30-day average</span>
               </div>
@@ -154,24 +154,24 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
       {/* Activity Summary */}
       <div style={{ 
         padding: '12px', 
-        backgroundColor: 'var(--muted)',
+        backgroundColor: 'var(--nw-muted)',
         borderRadius: '6px'
       }}>
         <Row gutter={8}>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--info)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--nw-info)' }}>
               {Math.round((activityVolume.last7Days.total / 7) * 10) / 10}
             </div>
             <Text type="secondary" style={{ fontSize: '10px' }}>Daily Avg (7d)</Text>
           </Col>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--success)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--nw-success)' }}>
               {Math.round((activityVolume.last30Days.total / 30) * 10) / 10}
             </div>
             <Text type="secondary" style={{ fontSize: '10px' }}>Daily Avg (30d)</Text>
           </Col>
           <Col span={8} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--warning)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--nw-warning)' }}>
               {getTrendPercentage(activityVolume.last7Days.total, Math.round(activityVolume.last30Days.total / 4.3))}%
             </div>
             <Text type="secondary" style={{ fontSize: '10px' }}>Change</Text>

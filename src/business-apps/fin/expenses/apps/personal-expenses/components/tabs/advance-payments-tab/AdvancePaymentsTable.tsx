@@ -31,40 +31,6 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable';
 
-// Sorting utilities following SOLID principles
-interface SortableField<T> {
-  key: keyof T;
-  type: 'string' | 'number' | 'date';
-  nullable?: boolean;
-}
-
-class SortingService {
-  static createSorter<T>(field: SortableField<T>) {
-    return (a: T, b: T) => {
-      const aValue = a[field.key];
-      const bValue = b[field.key];
-      
-      // Handle nullable values
-      const aSafe = field.nullable ? (aValue ?? 0) : aValue;
-      const bSafe = field.nullable ? (bValue ?? 0) : bValue;
-      
-      switch (field.type) {
-        case 'string':
-          return String(aSafe).localeCompare(String(bSafe));
-        case 'number':
-          return Number(aSafe) - Number(bSafe);
-        case 'date':
-          const aDate = aSafe ? new Date(String(aSafe)).getTime() : 0;
-          const bDate = bSafe ? new Date(String(bSafe)).getTime() : 0;
-          return aDate - bDate;
-        default:
-          return 0;
-      }
-    };
-  }
-}
-
-
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
   onSearchChange?: (search: string) => void;
@@ -98,10 +64,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // Internal sorting state - managed locally like expense plans table
+  // Server-side sorting state - managed by parent component
   const [sortField, setSortField] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
-  const [sortConfig, setSortConfig] = useState<{ field: string | null; direction: 'asc' | 'desc' | null }>({ field: null, direction: null });
 
   // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
@@ -110,6 +75,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
 
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return searchText || currentStatusFilter.length > 0 || 
+           (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
+           (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined));
+  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+
   // Build fetch parameters
   const fetchParams = useMemo(() => ({
     searchText,
@@ -117,8 +89,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     pageSize,
     currentStatusFilter,
     currentAmountRange,
-    currentAdvanceRange
-  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+    currentAdvanceRange,
+    sortField,
+    sortOrder
+  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange, sortField, sortOrder]);
 
   // Sync search with parent prop
   useEffect(() => {
@@ -136,7 +110,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         fetchParams.pageSize,
         fetchParams.currentStatusFilter,
         fetchParams.currentAmountRange,
-        fetchParams.currentAdvanceRange
+        fetchParams.currentAdvanceRange,
+        fetchParams.sortField,
+        fetchParams.sortOrder
       );
     } else {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId', {
@@ -157,7 +133,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           fetchParams.pageSize,
           fetchParams.currentStatusFilter,
           fetchParams.currentAmountRange,
-          fetchParams.currentAdvanceRange
+          fetchParams.currentAdvanceRange,
+          fetchParams.sortField,
+          fetchParams.sortOrder
         );
       }
     }
@@ -228,48 +206,33 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     }
   }, []);
 
+  // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
-    setSortConfig(prev => ({
-      field,
-      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
-    }));
-  }, []);
-
-  const renderSortIcon = useCallback((field: string) => {
-    if (sortConfig.field !== field) {
-      return null;
-    }
-    return sortConfig.direction === 'asc' ? 
-      <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" /> : 
-      <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />;
-  }, [sortConfig]);
-
-  const sortedItems = useMemo(() => {
-    if (!items || !sortConfig.field || !sortConfig.direction) {
-      return items;
-    }
-
-    return [...items].sort((a, b) => {
-      const aValue = a[sortConfig.field as keyof AdvancePayment];
-      const bValue = b[sortConfig.field as keyof AdvancePayment];
-      
-      if (aValue === null || aValue === undefined) return 1;
-      if (bValue === null || bValue === undefined) return -1;
-      
-      let comparison = 0;
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        comparison = aValue.localeCompare(bValue);
-      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-        comparison = aValue - bValue;
-      } else if (aValue instanceof Date && bValue instanceof Date) {
-        comparison = aValue.getTime() - bValue.getTime();
+    if (sortField === field) {
+      // Cycle through: ascend -> descend -> clear
+      if (sortOrder === 'ascend') {
+        setSortOrder('descend');
+      } else if (sortOrder === 'descend') {
+        setSortField('');
+        setSortOrder(undefined);
       } else {
-        comparison = String(aValue).localeCompare(String(bValue));
+        setSortOrder('ascend');
       }
-      
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  }, [items, sortConfig]);
+    } else {
+      setSortField(field);
+      setSortOrder('ascend');
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
+  }, [sortField, sortOrder]);
+
+  // Helper function to render sort icon
+  const renderSortIcon = useCallback((field: string) => {
+    if (sortField !== field) return null;
+    if (sortOrder === 'ascend') return <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />;
+    if (sortOrder === 'descend') return <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />;
+    return null;
+  }, [sortField, sortOrder]);
 
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
@@ -292,23 +255,19 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead
-                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                      onClick={() => handleSort('expensePlanTitle')}
+                      className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-header`}
                     >
                       <div className="gba:flex gba:items-center">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan')}
-                        {renderSortIcon('expensePlanTitle')}
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                      onClick={() => handleSort('planCode')}
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-header`}
                     >
                       <div className="gba:flex gba:items-center">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.plan_number_input', 'Plan Number')}
-                        {renderSortIcon('planCode')}
                       </div>
                     </TableHead>
                     <TableHead
@@ -322,21 +281,21 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
-                      onClick={() => handleSort('amount')}
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
                       data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')}
-                        {renderSortIcon('amount')}
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right"
+                      className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100 gba:text-right"
+                      onClick={() => handleSort('amount')}
                       data-testid={`${DATA_TEST_ID_PREFIX}-advance-header`}
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
                         {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}
+                        {renderSortIcon('amount')}
                       </div>
                     </TableHead>
                     <TableHead
@@ -352,16 +311,19 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!sortedItems || sortedItems.length === 0) ? (
+                  {!isLoading && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')}
+                          {hasActiveFilters 
+                            ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')
+                          }
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedItems?.map((record) => (
+                    items?.map((record) => (
                       <TableRow
                         key={record.id}
                         className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
@@ -378,7 +340,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                               variant="secondary"
                               staticFlowData={[
                                 {
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-advance-payment',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -387,7 +349,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 },
                                 ...(record.expensePlanId ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-plan-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -396,7 +358,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                   }
                                 }] : []),
                                 ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-request-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
                                   onClick: (e?: React.MouseEvent) => {
@@ -552,7 +514,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         </Card>
       </div>
     );
-  }, [sortedItems, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePageChange, handlePageSizeChange, sortConfig, handleSort, renderSortIcon]);
+  }, [items, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePageChange, handlePageSizeChange, sortField, sortOrder, handleSort, renderSortIcon]);
 
   // Memoize DataContainer props to prevent unnecessary re-renders
   const dataControllerProps = useMemo(() => ({

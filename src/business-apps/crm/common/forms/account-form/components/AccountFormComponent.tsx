@@ -48,6 +48,7 @@ const AccountFormComponent: React.FC = () => {
         industryRef: toStringOrUndefined(formValues.industry),
         website: toStringOrUndefined(formValues.website),
         description: toStringOrUndefined(formValues.description),
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         phone: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         fax: toStringOrUndefined(formValues.fax),

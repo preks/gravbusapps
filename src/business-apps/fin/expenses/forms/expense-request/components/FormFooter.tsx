@@ -10,14 +10,14 @@ interface FormFooterProps {
   onCancel: () => void;
   onSubmit?: () => void;
   testIdPrefix?: string;
+  additionalData?: any;
 }
 
 /**
  * Footer component with cancel and submit buttons
  */
-const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = "expense" }) => {
+const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = "expense", additionalData }) => {
   const { t } = useTranslation();
-  
   return (
     <div className="gba:footerContainer" data-testid={`${testIdPrefix}-footer`}>
       <Divider className="gba:divider" data-testid={`${testIdPrefix}-bottom-divider`} />
@@ -31,7 +31,7 @@ const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsVa
         >
           {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
-        {step === 'expense' && (
+        {(step === 'expense' || step === 'trip') && (
           <Button 
             variant="primary" 
             className="gba:submitButton" 

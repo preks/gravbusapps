@@ -21,6 +21,7 @@ import {
 } from "@/business-apps/crm/common/forms/lead-form/hooks/useLeadCatalogs";
 import { useCurrenciesGraphQL } from "../hooks/useCurrenciesGraphQL";
 import { useCountriesGraphQL } from "../hooks/useCountriesGraphQL";
+import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
@@ -123,6 +124,14 @@ interface AccountFormContextValue extends AccountContextState {
   setIsSearchingParentAccounts: (loading: boolean) => void;
   setParentAccountSuggestions: (suggestions: SelectOption[]) => void;
 
+  // Sales Campaigns
+  salesCampaigns: SelectOption[];
+  salesCampaignsLoading: boolean;
+  salesCampaignsError: string | null;
+  salesCampaignsHasMore: boolean;
+  searchSalesCampaigns: (searchTerm: string) => void;
+  loadMoreSalesCampaigns: () => void;
+
   // Address lines management
   addressLineCount: number;
   addAddressLine: () => void;
@@ -161,6 +170,9 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     industry: "",
     website: "",
     description: "",
+
+    // Campaign Information
+    salesCampaignId: "",
 
     // Contact Information
     phone: "",
@@ -236,6 +248,32 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     searchEmployees,
     loadMore: loadMoreEmployeePositions,
   } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
+
+  // Sales Campaigns hook
+  const {
+    options: salesCampaignsOptions,
+    loading: salesCampaignsLoading,
+    error: salesCampaignsError,
+    hasMore: salesCampaignsHasMore,
+    search: searchSalesCampaigns,
+    loadMore: loadMoreSalesCampaigns,
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+
+  // Create search wrapper for campaign autocomplete
+  const searchSalesCampaignsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all campaigns, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchSalesCampaigns(searchTerm);
+      }
+    },
+    [searchSalesCampaigns]
+  );
+
+  // Create wrapper function for campaigns to match interface
+  const loadMoreSalesCampaignsWrapper = useCallback((): void => {
+    loadMoreSalesCampaigns();
+  }, [loadMoreSalesCampaigns]);
 
   // Countries hook
   const {
@@ -593,6 +631,14 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     isSearchingParentAccounts,
     setIsSearchingParentAccounts,
     setParentAccountSuggestions,
+
+    // Sales Campaigns
+    salesCampaigns: salesCampaignsOptions,
+    salesCampaignsLoading: salesCampaignsLoading,
+    salesCampaignsError: salesCampaignsError,
+    salesCampaignsHasMore: salesCampaignsHasMore,
+    searchSalesCampaigns: searchSalesCampaignsWrapper,
+    loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
     // Address lines management
     addressLineCount,

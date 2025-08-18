@@ -170,7 +170,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>

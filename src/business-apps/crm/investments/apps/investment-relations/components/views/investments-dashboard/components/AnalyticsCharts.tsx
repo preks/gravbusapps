@@ -36,14 +36,14 @@ import {
 const AnalyticsCharts = () => {
   // Mock data for charts - in real implementation, this would come from props or API
   const allocationData = [
-    { type: "Real Estate", value: 45.8, fill: "var(--color-real-estate)" },
-    { type: "Equity", value: 33.7, fill: "var(--color-equity)" },
+    { type: "Real Estate", value: 45.8, fill: "var(--nw-color-real-estate)" },
+    { type: "Equity", value: 33.7, fill: "var(--nw-color-equity)" },
     {
       type: "Private Equity",
       value: 10.0,
-      fill: "var(--color-private-equity)",
+      fill: "var(--nw-color-private-equity)",
     },
-    { type: "Liquid Funds", value: 10.5, fill: "var(--color-liquid-funds)" },
+    { type: "Liquid Funds", value: 10.5, fill: "var(--nw-color-liquid-funds)" },
   ];
 
   const performanceData = [
@@ -83,7 +83,7 @@ const AnalyticsCharts = () => {
   const performanceChartConfig = {
     value: {
       label: "Portfolio Value (M€)",
-      color: "hsl(var(--chart-1))",
+      color: "hsl(var(--nw-chart-1))",
     },
   };
 
@@ -170,10 +170,10 @@ const AnalyticsCharts = () => {
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="var(--color-value)"
+                  stroke="var(--nw-color-value)"
                   strokeWidth={3}
-                  dot={{ fill: "var(--color-value)", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: "var(--color-value)" }}
+                  dot={{ fill: "var(--nw-color-value)", strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: "var(--nw-color-value)" }}
                   connectNulls={false}
                 />
               </LineChart>

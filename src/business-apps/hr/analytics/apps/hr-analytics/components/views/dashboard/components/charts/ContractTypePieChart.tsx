@@ -4,7 +4,7 @@ import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useContractTypeDistribution } from '../../hooks/useContractTypeDistribution';
+import { useContractTypeDistribution } from '../../../../../hooks/useContractTypeDistribution';
 
 const { Title } = Typography;
 

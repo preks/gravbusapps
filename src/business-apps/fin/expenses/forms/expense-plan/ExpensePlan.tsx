@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { ExpensePlanProvider, useExpensePlanContext } from './context/ExpensePlanContext';
 import { FormFooter, ExpenseFormContent } from './components';
 
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 import { showToast } from '../../utils/notificationUtils';
 import { FORM_STEPS, PLAN_TYPES, PLAN_STATUS} from './constants/constants';
@@ -21,6 +21,7 @@ const { Title } = Typography;
 interface ExpensePlanContentProps {
   accessToken?: string;
   userInfo?: any;
+  additionalData?: any;
 }
 
 interface ExpenseFormValues {
@@ -31,7 +32,7 @@ interface ExpenseFormValues {
   transportationMeans?: string[];
 }
 
-const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, userInfo }) => {
+const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, userInfo, additionalData }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const { 
@@ -49,6 +50,8 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
   const [showTransportation, setShowTransportation] = React.useState(false);
   const [formIsValid, setFormIsValid] = React.useState<boolean>(false);
   
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
+  
   const isExpenseDisabled = React.useMemo(() => {
     const expenseType = getCatalogTypeTransformer(PLAN_TYPES.EXPENSE, expenseCatalogueData);
     return expenseType?.additionalValue1 === "disabled";
@@ -65,7 +68,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   const handleTripClick = () => {
     setShowTransportation(true);
-    setStep(FORM_STEPS.EXPENSE);
+    setStep(FORM_STEPS.TRIP);
   };
 
   const backButtonClick = () => {
@@ -76,7 +79,18 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   const handleCancel = () => {
     try {
-      dispatchProcessContinueEvent(EVENTS.CANCEL, {event:EVENTS.ABORT,pso_exitStrategy:"abort"});
+      dispatchProcessContinueEventIfEnabled(
+        EVENTS.ABORT, {
+          "event": EVENTS.ABORT,
+          pso_exitStrategy: "abort",
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        });
     } catch (processError) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),
@@ -104,7 +118,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         return;
       }
       
-      const isTrip = step === FORM_STEPS.EXPENSE && values.transportationMeans;
+      const isTrip = step === FORM_STEPS.TRIP
      
       const expenseTypeRef = (isTrip 
         ? (getCatalogTypeTransformer(PLAN_TYPES.TRIP, expenseCatalogueData))?.id
@@ -126,7 +140,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
               transportationMeans: values.transportationMeans
             }
           }),
-          project: values.project
+          project: values.project || ""
         },
         event: EVENTS.SUBMIT
       };
@@ -134,7 +148,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       let operationSuccessful = false;
       
       try {
-        dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+        dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
         operationSuccessful = true;
       } catch (processError) {
         showToast(
@@ -144,8 +158,10 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       }
       
       if (operationSuccessful) {
-        form.resetFields();
+        setTimeout(()=>{
+          form.resetFields();
         setStep(FORM_STEPS.START);
+        }, 3000)
       }
     } catch (error) {
       showToast(
@@ -159,7 +175,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   return (
     <div className="gba:mainContainer" data-testid="expense-plan-main-container">
-      {step === 'expense' ? (
+      {step === 'expense' || step === 'trip' ? (
         <>
           {/* Expense form header */}
           <div className="gba:headerContainer" data-testid="expense-plan-form-header-container">
@@ -207,6 +223,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
             onCancel={handleCancel} 
             onSubmit={handleSubmit} 
             testIdPrefix="expense-plan"
+            additionalData={additionalData}
           />
         </>
       ) : (
@@ -282,6 +299,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
             step={step} 
             onCancel={handleCancel} 
             testIdPrefix="expense-plan"
+            additionalData={additionalData}
           />
         </>
       )}
@@ -295,12 +313,12 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
  * @returns Expense Plan component
  */
 const ExpensePlan: React.FC<BusinessAppContextProps> = (props) => {
-  const { accessToken, userInfo } = props;
+  const { accessToken, userInfo, additionalData } = props;
   
   return (
     <div className="gba:expensePlanWrapper" data-testid="expense-plan-wrapper">
       <ExpensePlanProvider {...props}>
-        <ExpensePlanContent accessToken={accessToken} userInfo={userInfo} />
+        <ExpensePlanContent accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
       </ExpensePlanProvider>
     </div>
   );

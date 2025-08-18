@@ -30,6 +30,7 @@ import {
   usePipelineCatalogs,
   useCurrencyCatalog,
 } from "../hooks";
+import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
 interface OpportunityFormContextValue {
   formValues: OpportunityFormValues;
@@ -66,6 +67,14 @@ interface OpportunityFormContextValue {
   loadMoreCurrencies: () => void;
   showMoreCurrencies: () => void;
   searchCurrencies: (search: string) => void;
+
+  // Sales Campaigns
+  salesCampaigns: SelectOption[];
+  salesCampaignsLoading: boolean;
+  salesCampaignsError: string | null;
+  salesCampaignsHasMore: boolean;
+  searchSalesCampaigns: (searchTerm: string) => void;
+  loadMoreSalesCampaigns: () => void;
 
   // Catalog refresh functions
   refetchStages: (selectedPipelineId?: string) => void;
@@ -172,6 +181,9 @@ export const OpportunityFormProvider: React.FC<
     ownerEmployeeId: "",
     ownerOrganizationId: "",
 
+    // Sales Campaign
+    salesCampaignId: "",
+
     ...initialValues,
   });
 
@@ -201,6 +213,32 @@ export const OpportunityFormProvider: React.FC<
     loadMore: loadMoreEmployeePositions,
     searchEmployees,
   } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
+
+  // Sales Campaigns hook
+  const {
+    options: salesCampaignsOptions,
+    loading: salesCampaignsLoading,
+    error: salesCampaignsError,
+    hasMore: salesCampaignsHasMore,
+    search: searchSalesCampaigns,
+    loadMore: loadMoreSalesCampaigns,
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+
+  // Create search wrapper for campaign autocomplete
+  const searchSalesCampaignsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all campaigns, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchSalesCampaigns(searchTerm);
+      }
+    },
+    [searchSalesCampaigns]
+  );
+
+  // Create wrapper function for campaigns to match interface
+  const loadMoreSalesCampaignsWrapper = useCallback((): void => {
+    loadMoreSalesCampaigns();
+  }, [loadMoreSalesCampaigns]);
 
   // Current user employee hook
   const { employee: currentUserEmployee } = useEmployeeById({
@@ -252,6 +290,9 @@ export const OpportunityFormProvider: React.FC<
           leadId: values.lead || values.leadId,
           ownerEmployeeId: values.owner || values.ownerEmployeeId,
           ownerOrganizationId: values.ownerOrganizationId,
+
+          // Campaign Information
+          salesCampaignId: values.salesCampaignId,
 
           // Currency and system fields
           currencyRef: values.currency,
@@ -538,6 +579,14 @@ export const OpportunityFormProvider: React.FC<
       showMoreCurrencies,
       searchCurrencies,
 
+      // Sales Campaigns
+      salesCampaigns: salesCampaignsOptions, // Use salesCampaignsOptions directly
+      salesCampaignsLoading: salesCampaignsLoading,
+      salesCampaignsError: salesCampaignsError,
+      salesCampaignsHasMore: salesCampaignsHasMore,
+      searchSalesCampaigns: searchSalesCampaignsWrapper,
+      loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
+
       // Catalog refresh functions
       refetchStages: refetchPipelineStages,
 
@@ -586,6 +635,14 @@ export const OpportunityFormProvider: React.FC<
       loadMoreCurrencies,
       showMoreCurrencies,
       searchCurrencies,
+
+      // Sales Campaigns
+      salesCampaignsOptions, // Use salesCampaignsOptions directly
+      salesCampaignsLoading,
+      salesCampaignsError,
+      salesCampaignsHasMore,
+      searchSalesCampaignsWrapper,
+      loadMoreSalesCampaignsWrapper,
 
       // Catalog refresh functions
       refetchPipelineStages,

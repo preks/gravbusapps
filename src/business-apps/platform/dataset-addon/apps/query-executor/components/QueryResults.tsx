@@ -44,6 +44,19 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
 
   const { data, categories } = results;
 
+  // Detect if this is timeseries data
+  const isTimeseries = data.length > 0 && 'dateCategory' in data[0];
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.getFullYear().toString();
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Prepare table columns dynamically based on data
   const getTableColumns = () => {
     if (data.length === 0) return [];
@@ -56,6 +69,10 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
       render: (value: any) => {
         if (typeof value === 'number') {
           return new Intl.NumberFormat().format(value);
+        }
+        // Format dates in table
+        if (key === 'dateCategory' && typeof value === 'string') {
+          return formatDate(value);
         }
         return value;
       },
@@ -71,7 +88,11 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
   // Prepare chart data
   const chartData = data.map((item, index) => ({
     ...item,
-    id: index
+    id: index,
+    // Add formatted date for chart display
+    ...(isTimeseries && item.dateCategory && {
+      formattedDate: formatDate(item.dateCategory)
+    })
   }));
 
   const exportToCSV = () => {
@@ -112,7 +133,7 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginBottom: 'var(--spacing-4)'
+        marginBottom: 'var(--nw-spacing-4)'
       }}
     >
       <CardHeader style={{ 
@@ -120,11 +141,11 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingBottom: 'var(--spacing-4)',
-        gap: 'var(--spacing-4)'
+        paddingBottom: 'var(--nw-spacing-4)',
+        gap: 'var(--nw-spacing-4)'
       }}>
         <CardTitle className="gba:flex gba:items-center gba:flex-1" style={{ 
-          gap: 'var(--spacing-2)',
+          gap: 'var(--nw-spacing-2)',
           minWidth: 0
         }}>
           <ChartBarIcon size={20} />
@@ -133,7 +154,7 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
-          gap: 'var(--spacing-2)',
+          gap: 'var(--nw-spacing-2)',
           flexShrink: 0
         }}>
           <Button 
@@ -142,9 +163,9 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
             data-testid="export-csv-button"
             className="gba:flex gba:items-center gba:min-w-[120px] gba:h-9"
             style={{ 
-              gap: 'var(--spacing-2)',
+              gap: 'var(--nw-spacing-2)',
               fontSize: '14px',
-              padding: 'var(--spacing-2) var(--spacing-4)'
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
             }}
           >
             <DownloadIcon size={16} />
@@ -156,9 +177,9 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
             data-testid="clear-results-button"
             className="gba:flex gba:items-center gba:min-w-[80px] gba:h-9"
             style={{ 
-              gap: 'var(--spacing-2)',
+              gap: 'var(--nw-spacing-2)',
               fontSize: '14px',
-              padding: 'var(--spacing-2) var(--spacing-4)'
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
             }}
           >
             <XIcon size={16} />
@@ -171,52 +192,52 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--spacing-4)'
+        gap: 'var(--nw-spacing-4)'
       }}>
         {/* Summary Statistics */}
         <div style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 'var(--spacing-4)', 
-          marginBottom: 'var(--spacing-4)',
+          gap: 'var(--nw-spacing-4)', 
+          marginBottom: 'var(--nw-spacing-4)',
           flexShrink: 0
         }}>
           <div>
             <h3 className="gba:text-sm" style={{ 
-              color: 'var(--color-muted-foreground)',
-              margin: '0 0 var(--spacing-1) 0'
+              color: 'var(--nw-color-muted-foreground)',
+              margin: '0 0 var(--nw-spacing-1) 0'
             }}>
               Total Records
             </h3>
             <p className="gba:text-2xl gba:font-bold" style={{ 
-              color: 'var(--color-foreground)',
-              margin: 'var(--spacing-0)'
+              color: 'var(--nw-color-foreground)',
+              margin: 'var(--nw-spacing-0)'
             }} data-testid="total-records-stat">
               {data.length}
             </p>
           </div>
           <div>
             <h3 className="gba:text-sm" style={{ 
-              color: 'var(--color-muted-foreground)',
-              margin: '0 0 var(--spacing-1) 0'
+              color: 'var(--nw-color-muted-foreground)',
+              margin: '0 0 var(--nw-spacing-1) 0'
             }}>
               Categories
             </h3>
             <p className="gba:text-2xl gba:font-bold" style={{ 
-              color: 'var(--color-foreground)',
-              margin: 'var(--spacing-0)'
+              color: 'var(--nw-color-foreground)',
+              margin: 'var(--nw-spacing-0)'
             }} data-testid="categories-stat">
               {categories.length}
             </p>
           </div>
           <div>
             <h3 className="gba:text-sm" style={{ 
-              color: 'var(--color-muted-foreground)', 
-              margin: '0 0 var(--spacing-1) 0'
+              color: 'var(--nw-color-muted-foreground)', 
+              margin: '0 0 var(--nw-spacing-1) 0'
             }}>
               Categories:
             </h3>
-            <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--spacing-1)' }}>
+            <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-1)' }}>
               {categories.slice(0, 3).map(category => (
                 <Badge key={category} variant="secondary" style={{ fontSize: '0.75rem' }}>
                   {category}
@@ -235,10 +256,10 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
           <Alert data-testid="no-data-alert">
             <div>
               <h4 style={{ 
-                color: 'var(--color-info)',
-                margin: 'var(--spacing-0)'
+                color: 'var(--nw-color-info)',
+                margin: 'var(--nw-spacing-0)'
               }}>No Data</h4>
-              <p style={{ margin: 'var(--spacing-0)' }}>The query executed successfully but returned no results.</p>
+              <p style={{ margin: 'var(--nw-spacing-0)' }}>The query executed successfully but returned no results.</p>
             </div>
           </Alert>
         ) : (
@@ -252,12 +273,12 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
               flexDirection: 'column',
               flex: 1
             }}>
-              <TabsList className="gba:grid gba:w-full gba:grid-cols-2" style={{ flexShrink: 0, marginBottom: 'var(--spacing-4)' }}>
-                <TabsTrigger value="chart" className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+              <TabsList className="gba:grid gba:w-full gba:grid-cols-2" style={{ flexShrink: 0, marginBottom: 'var(--nw-spacing-4)' }}>
+                <TabsTrigger value="chart" className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                   <ChartBarIcon size={16} />
                   Chart View
                 </TabsTrigger>
-                <TabsTrigger value="table" className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                <TabsTrigger value="table" className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                   <TableIcon size={16} />
                   Table View
                 </TabsTrigger>
@@ -277,7 +298,7 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="value" fill="var(--color-primary)" name="Value" />
+                      <Bar dataKey="value" fill="var(--nw-color-primary)" name="Value" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -285,8 +306,8 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
 
               <TabsContent value="table" style={{ flex: 1, minHeight: '400px' }}>
                 <div style={{ 
-                  border: '1px solid var(--color-border)', 
-                  borderRadius: 'var(--border-radius-md)',
+                  border: '1px solid var(--nw-color-border)', 
+                  borderRadius: 'var(--nw-border-radius-md)',
                   overflow: 'hidden',
                   height: '400px',
                   display: 'flex',
@@ -297,7 +318,7 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
                     overflow: 'auto'
                   }}>
                     <Table data-testid="results-table">
-                      <TableHeader style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-background)', zIndex: 1 }}>
+                      <TableHeader style={{ position: 'sticky', top: 0, backgroundColor: 'var(--nw-color-background)', zIndex: 1 }}>
                         <TableRow>
                           {tableColumns.map((column) => (
                             <TableHead key={column.key}>
@@ -321,12 +342,12 @@ export const QueryResults: React.FC<QueryResultsProps> = ({
                   </div>
                   {data.length > 0 && (
                     <div style={{ 
-                      padding: 'var(--spacing-3)', 
+                      padding: 'var(--nw-spacing-3)', 
                       textAlign: 'center',
-                      color: 'var(--color-muted-foreground)',
+                      color: 'var(--nw-color-muted-foreground)',
                       fontSize: '0.875rem',
-                      borderTop: '1px solid var(--color-border)',
-                      backgroundColor: 'var(--color-background)',
+                      borderTop: '1px solid var(--nw-color-border)',
+                      backgroundColor: 'var(--nw-color-background)',
                       flexShrink: 0
                     }}>
                       Showing all {data.length} records

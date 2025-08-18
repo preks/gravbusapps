@@ -60,7 +60,8 @@ export const useSalesTaskEmployees = (accessToken: string, params?: UseSalesTask
       let searchPattern: string;
       let limit: number;
 
-      if (params?.search && params.search.trim().length >= 2) {
+      // Trigger filtered search as soon as the user types at least 1 character
+      if (params?.search && params.search.trim().length >= 1) {
         // User is searching - use search pattern and higher limit
         searchPattern = `%${params.search.trim()}%`;
         limit = 50;

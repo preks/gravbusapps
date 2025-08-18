@@ -273,9 +273,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       id: 'transfer-required',
       title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.transfer_required', "Transfer Required")} (${selectedCurrencyCode})`,
       value: formatCurrency(stats.transferRequired, selectedCurrencyCode),
-      footer: getTransferRequiredFooter(),
-      icon: 'exclamation',
-      iconColor: '#ff4d4f'
+      footer: getTransferRequiredFooter()
     });
 
     // 5. Pending Requests Card
@@ -305,9 +303,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       id: 'pending-requests',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.pending_requests', "Pending Requests"),
       value: stats.pendingRequestsCount.toString(),
-      footer: getPendingRequestsFooter(),
-      icon: 'clock',
-      iconColor: '#faad14'
+      footer: getPendingRequestsFooter()
     });
 
     // 6. Advance Payment Card
@@ -315,9 +311,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       id: 'advance-payment',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', "Advance Payment"),
       value: stats.advancePaymentsApproved.count.toString(),
-      footer: getAdvancePaymentFooter(),
-      icon: 'credit-card',
-      iconColor: '#52c41a'
+      footer: getAdvancePaymentFooter()
     });
 
     // 7. Average Spend Per Trip Card
@@ -336,9 +330,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       id: 'avg-spend-per-trip',
       title: `${getTranslationFromI18nKeyAndLabel('lowcoder:cards.average_spend_per_trip', "Average Spend Per Trip (Based on Completed Trips)")} (${selectedCurrencyCode})`,
       value: formatCurrency(stats.avgSpendPerTrip, selectedCurrencyCode),
-      footer: getPeriodText(),
-      icon: 'car',
-      iconColor: '#722ed1'
+      footer: getPeriodText()
     });
 
     return cards;

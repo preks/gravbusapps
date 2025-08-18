@@ -54,15 +54,9 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
   ) => {
     let success = false;
     
-    // Ensure the queryType matches the current active tab
-    const dataWithQueryType = {
-      ...queryData,
-      queryType: activeQueryType
-    };
-    
     if (selectedQuery) {
       // Update existing query
-      success = await updateQuery(selectedQuery.id!, dataWithQueryType, validate);
+      success = await updateQuery(selectedQuery.id!, queryData, validate);
       if (success) {
         toast.success('Query Updated', {
           description: 'Query definition has been updated successfully.'
@@ -70,7 +64,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
       }
     } else {
       // Create new query
-      success = await createQuery(dataWithQueryType, validate);
+      success = await createQuery(queryData, validate);
       if (success) {
         toast.success('Query Created', {
           description: 'Query definition has been created successfully.'
@@ -162,36 +156,36 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
         flexDirection: 'column',
         height: '100%',
         width: '100%',
-        gap: 'var(--spacing-4)'
+        gap: 'var(--nw-spacing-4)'
       }}
     >
       {/* Action Error Display - Keep this separate since it's for actions */}
       {actionError && (
         <Alert 
           className="gba:border-destructive gba:bg-destructive/10 gba:w-full"
-          style={{ marginBottom: 'var(--spacing-4)' }}
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
           data-testid="action-error-alert"
         >
-          <div className="gba:flex gba:items-start gba:w-full" style={{ gap: 'var(--spacing-3)' }}>
+          <div className="gba:flex gba:items-start gba:w-full" style={{ gap: 'var(--nw-spacing-3)' }}>
             <WarningCircleIcon 
               className="gba:shrink-0" 
               style={{ 
-                color: 'var(--color-destructive)',
-                marginTop: 'var(--spacing-1)' 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
               }}
               size={20}
             />
             <div className="gba:flex-1 gba:min-w-0">
               <h4 className="gba:font-semibold gba:text-lg" style={{ 
-                color: 'var(--color-destructive)',
-                margin: 'var(--spacing-0)'
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
               }}>
                 Action Failed
               </h4>
               <p className="gba:text-sm" style={{ 
-                color: 'var(--color-muted-foreground)',
-                margin: 'var(--spacing-0)',
-                marginTop: 'var(--spacing-1)'
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
               }}>
                 {formatErrorMessage(actionError)}
               </p>
@@ -206,11 +200,11 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
       {/* Loading State */}
       {isLoading ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-full" style={{ 
-          paddingTop: 'var(--spacing-12)', 
-          paddingBottom: 'var(--spacing-12)' 
+          paddingTop: 'var(--nw-spacing-12)', 
+          paddingBottom: 'var(--nw-spacing-12)' 
         }}>
           <Spinner />
-          <span style={{ marginLeft: 'var(--spacing-3)' }}>Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...</span>
+          <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading {activeQueryType.toLowerCase()} query definitions for {getServiceLabel(activeService)}...</span>
         </div>
       ) : (
         <div className="gba:h-full gba:w-full gba:flex-1 gba:min-h-0">
@@ -243,6 +237,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
         onCancel={handleCancelForm}
         isLoading={isCreating || isUpdating}
         defaultQueryType={activeQueryType}
+        currentService={activeService}
       />
     </div>
   );
@@ -251,11 +246,11 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
     return (
       <Tabs value={activeQueryType} onValueChange={(value) => setActiveQueryType(value as QueryType)} className="gba:h-full gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-2" data-testid={`query-type-tabs-${service}`}>
-          <TabsTrigger value={QueryType.DATASET} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+          <TabsTrigger value={QueryType.DATASET} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
             <DatabaseIcon />
             Dataset Queries
           </TabsTrigger>
-          <TabsTrigger value={QueryType.TIMESERIES} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+          <TabsTrigger value={QueryType.TIMESERIES} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
             <ChartBarIcon />
             Timeseries Queries
           </TabsTrigger>
@@ -276,14 +271,14 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
         headerIcon={<GearIcon />}
         headerLabel="Query Manager"
         pageHeaderRight={
-          <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-3)' }}>
+          <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-3)' }}>
             <Button
               variant="default"
               size="default"
               onClick={handleCreateQuery}
               data-testid="create-query-button"
               className="gba:flex gba:items-center gba:whitespace-nowrap"
-              style={{ gap: 'var(--spacing-2)' }}
+              style={{ gap: 'var(--nw-spacing-2)' }}
             >
               <PlusIcon size={16} />
               Create Query
@@ -295,7 +290,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
               disabled={isLoading}
               data-testid="refresh-queries-button"
               className="gba:flex gba:items-center gba:whitespace-nowrap"
-              style={{ gap: 'var(--spacing-2)' }}
+              style={{ gap: 'var(--nw-spacing-2)' }}
             >
               <ArrowClockwiseIcon size={16} />
               Refresh
@@ -315,7 +310,7 @@ const QueryManager: React.FC<BusinessAppContextProps> = (context) => {
             <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full gba:w-full">
               <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${getAllServices().length}, minmax(0, 1fr))` }}>
                 {getAllServices().map(service => (
-                  <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+                  <TabsTrigger key={service} value={service} className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                     <DatabaseIcon />
                     {getServiceLabel(service)}
                   </TabsTrigger>
