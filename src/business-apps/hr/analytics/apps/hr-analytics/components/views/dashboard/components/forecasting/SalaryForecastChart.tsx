@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { Card } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { MonthlySalaryForecast } from '../../hooks/useMonthlySalaryForecast';
+import { MonthlySalaryForecast } from '../../../../../hooks/useMonthlySalaryForecast';
 
 interface SalaryForecastChartProps {
   data: MonthlySalaryForecast[];
