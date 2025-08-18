@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PiPlus } from 'react-icons/pi';
 
 interface HoverAddButtonProps {
@@ -47,22 +47,14 @@ const HoverAddButton: React.FC<HoverAddButtonProps> = ({
         }`}
       >
         <Button
-          type="primary"
-          shape="circle"
-          size="small"
-          icon={<PiPlus className="gba:text-xs" />}
+          variant="default"
+          size="sm"
           onClick={handleClick}
-          className="gba:shadow-md gba:border-2 gba:border-white"
-          style={{
-            width: '24px',
-            height: '24px',
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className="gba:w-6 gba:h-6 gba:rounded-full gba:p-0 gba:shadow-md gba:border-2 gba:border-white gba:bg-blue-500 gba:text-white hover:gba:bg-blue-600 gba:flex gba:items-center gba:justify-center"
           title={`Add assignment after position ${afterOrder}`}
-        />
+        >
+          <PiPlus className="gba:text-xs" />
+        </Button>
       </div>
     </div>
   );

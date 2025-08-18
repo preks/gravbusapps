@@ -57,6 +57,7 @@ import {
   RuleValidationResult,
   ExpenseRuleAssignmentFilters
 } from '../../types/ExpenseRuleTypes';
+
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
 
@@ -124,6 +125,65 @@ const SortableRow: React.FC<SortableRowProps> = ({ id, children, isEditMode }) =
   );
 };
 
+// Hover Add Row component for table integration
+interface HoverAddRowProps {
+  afterOrder: number;
+  onAdd: (afterOrder: number) => void;
+  isEditMode: boolean;
+}
+
+const HoverAddRow: React.FC<HoverAddRowProps> = ({ afterOrder, onAdd, isEditMode }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Calculate column span based on edit mode
+  const colSpan = isEditMode ? 8 : 7; // All columns
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAdd(afterOrder);
+  };
+
+  return (
+    <TableRow 
+      className="gba:h-3 gba:cursor-pointer gba:group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      data-testid={`hover-add-row-${afterOrder}`}
+    >
+      <TableCell 
+        colSpan={colSpan}
+        className="gba:p-0 gba:relative gba:h-3"
+      >
+        {/* Hover line */}
+        <div 
+          className={`gba:absolute gba:top-1/2 gba:left-0 gba:right-0 gba:h-px gba:bg-blue-400 gba:transition-opacity gba:duration-200 ${
+            isHovered ? 'gba:opacity-100' : 'gba:opacity-0'
+          }`}
+        />
+        
+        {/* Add button */}
+        <div 
+          className={`gba:absolute gba:top-1/2 gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:-translate-y-1/2 gba:transition-all gba:duration-200 gba:z-20 ${
+            isHovered 
+              ? 'gba:opacity-100 gba:scale-100' 
+              : 'gba:opacity-0 gba:scale-75'
+          }`}
+        >
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleClick}
+            className="gba:w-6 gba:h-6 gba:rounded-full gba:p-0 gba:shadow-md gba:border-2 gba:border-white gba:bg-blue-500 gba:text-white hover:gba:bg-blue-600 gba:flex gba:items-center gba:justify-center"
+            title={`Add assignment after position ${afterOrder}`}
+          >
+            <PiPlus className="gba:text-xs" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps> = ({
   accessToken,
   assignments,
@@ -156,6 +216,13 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
   const ITEMS_PER_PAGE = 20;
 
   const handleCreateAssignment = () => {
+    setIsCreateAssignmentModalVisible(true);
+  };
+
+  const handleAddAssignmentAtPosition = (afterOrder: number) => {
+    // TODO: Implement positional assignment creation
+    // This would open a modal with pre-filled order position
+    console.log(`Add assignment after position ${afterOrder}`);
     setIsCreateAssignmentModalVisible(true);
   };
 
@@ -684,12 +751,22 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                     </TableRow>
                   </TableHeader>
                 <TableBody>
-                  {displayedAssignments.map((assignment) => (
-                    <SortableRow 
-                      key={assignment.id}
-                      id={assignment.id} 
+                  {/* Hover add zone before first assignment */}
+                  {!isEditMode && displayedAssignments.length > 0 && (
+                    <HoverAddRow
+                      key="hover-before-0"
+                      afterOrder={0}
+                      onAdd={handleAddAssignmentAtPosition}
                       isEditMode={isEditMode}
-                    >
+                    />
+                  )}
+                  
+                  {displayedAssignments.map((assignment) => (
+                    <React.Fragment key={assignment.id}>
+                      <SortableRow 
+                        id={assignment.id} 
+                        isEditMode={isEditMode}
+                      >
                       {isEditMode && (
                         <TableCell className="gba:py-2 gba:px-2 gba:w-[50px]">
                           <div className="gba:cursor-grab gba:text-center gba:p-1">
@@ -761,6 +838,17 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                         </div>
                       </TableCell>
                     </SortableRow>
+                    
+                    {/* Hover add zone after each assignment (except in edit mode) */}
+                    {!isEditMode && (
+                      <HoverAddRow
+                        key={`hover-after-${assignment.assignmentOrder}`}
+                        afterOrder={assignment.assignmentOrder}
+                        onAdd={handleAddAssignmentAtPosition}
+                        isEditMode={isEditMode}
+                      />
+                    )}
+                  </React.Fragment>
                   ))}
                 </TableBody>
                 </Table>

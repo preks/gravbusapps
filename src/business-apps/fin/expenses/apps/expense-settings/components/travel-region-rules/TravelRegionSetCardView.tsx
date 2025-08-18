@@ -1,11 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Spin, Alert, Button, Space, Typography } from 'antd';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  Button, 
+  Alert, 
+  AlertDescription,
+  Badge
+} from '@newwork/nw-design-system';
 import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { TravelRegionSetForm, TravelRegionSetFormData } from '../../forms/travel-region-set-form';
 
-const { Title, Text } = Typography;
+// Custom toast function
+const toast = (message: string, type: 'success' | 'error' = 'success') => {
+  console.log(`[${type.toUpperCase()}] ${message}`);
+};
 
 interface TravelRegionSet {
   id: string;
@@ -31,6 +44,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   const [travelRegionSets, setTravelRegionSets] = useState<TravelRegionSet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
 
   const catalogClient = useCatalogManagerClient(accessToken);
 
@@ -75,29 +89,45 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-96">
-        <Spin size="large" />
+        <div className="gba:text-gray-500">Loading travel region sets...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Travel Region Sets"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={loadTravelRegionSets}>
-            Retry
-          </Button>
-        }
-      />
+      <Alert className="gba:max-w-md gba:mx-auto">
+        <AlertDescription>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <div className="gba:font-medium gba:mb-1">Error Loading Travel Region Sets</div>
+              <div className="gba:text-sm">{error}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={loadTravelRegionSets}>
+              Retry
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
   }
 
   const handleSetSelect = (set: TravelRegionSet) => {
     onSelectSet(set.id, set.value);
+  };
+
+  const handleCreateTravelRegionSet = () => {
+    setIsCreateFormVisible(true);
+  };
+
+  const handleCreateFormClose = () => {
+    setIsCreateFormVisible(false);
+  };
+
+  const handleCreateFormSave = (data: TravelRegionSetFormData) => {
+    // Refresh the list to show the newly created set
+    loadTravelRegionSets();
+    toast('Travel Region Set created successfully', 'success');
   };
 
   return (
@@ -108,105 +138,104 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       <div className="gba:mb-6">
         <div className="gba:flex gba:justify-between gba:items-center">
           <div>
-            <Title level={3} className="gba:mb-2">
+            <h3 className="gba:text-2xl gba:font-semibold gba:mb-2">
               {getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_sets', 'Travel Region Sets')}
-            </Title>
-            <Text type="secondary">
+            </h3>
+            <p className="gba:text-gray-600">
               {getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_sets_description', 'Manage travel regions and their allowance rules')}
-            </Text>
+            </p>
           </div>
-          <Space>
+          <div className="gba:flex gba:gap-3">
             <Button
-              type="default"
-              icon={<PiTable />}
+              variant="outline"
               onClick={onViewUnassigned}
               data-testid={`${prefixDataTestId}-view-unassigned-button`}
             >
+              <PiTable className="gba:w-4 gba:h-4 gba:mr-2" />
               View Unassigned Rules
             </Button>
             <Button
-              type="primary"
-              icon={<PiPlus />}
+              variant="default"
+              onClick={handleCreateTravelRegionSet}
               data-testid={`${prefixDataTestId}-add-travel-region-set-button`}
             >
+              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Travel Region Set
             </Button>
-          </Space>
+          </div>
         </div>
       </div>
 
-      <Row gutter={[16, 16]}>
+      <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 gba:gap-4">
         {travelRegionSets.map((set) => (
-          <Col key={set.id} xs={24} sm={12} md={8} lg={6}>
-            <Card
-              hoverable
-              className="gba:h-full"
-              data-testid={`${prefixDataTestId}-travel-region-set-card-${set.id}`}
-              onClick={() => handleSetSelect(set)}
-              actions={[
-                <div key="action" className="gba:flex gba:justify-center">
+          <Card
+            key={set.id}
+            className="gba:cursor-pointer gba:h-full hover:gba:shadow-lg gba:transition-shadow"
+            data-testid={`${prefixDataTestId}-travel-region-set-card-${set.id}`}
+            onClick={() => handleSetSelect(set)}
+          >
+            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:space-y-0 gba:pb-3">
+              <div className="gba:w-12 gba:h-12 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mr-4">
+                <PiMapPin className="gba:text-blue-600 gba:text-xl" />
+              </div>
+              <div className="gba:flex-1">
+                <CardTitle className="gba:text-lg gba:font-semibold">{set.value}</CardTitle>
+                <p className="gba:text-sm gba:text-gray-500">{set.code}</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="gba:space-y-3">
+                {set.description && (
+                  <p className="gba:text-sm gba:text-gray-600">
+                    {set.description}
+                  </p>
+                )}
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <Badge variant="secondary" className="gba:text-xs">
+                    {set.childCount || 0} travel regions
+                  </Badge>
                   <Button
-                    type="link"
-                    icon={<PiMapPin />}
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSetSelect(set);
                     }}
                   >
+                    <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
                     View Matrix
                   </Button>
                 </div>
-              ]}
-            >
-              <Card.Meta
-                avatar={
-                  <div className="gba:w-12 gba:h-12 gba:bg-blue-100 gba:rounded-full gba:flex gba:items-center gba:justify-center">
-                    <PiMapPin className="gba:text-blue-600 gba:text-xl" />
-                  </div>
-                }
-                title={
-                  <div>
-                    <Text strong>{set.value}</Text>
-                    <br />
-                    <Text type="secondary" className="gba:text-sm">
-                      {set.code}
-                    </Text>
-                  </div>
-                }
-                description={
-                  <div className="gba:mt-2">
-                    {set.description && (
-                      <Text className="gba:text-sm gba:mb-2 gba:block">
-                        {set.description}
-                      </Text>
-                    )}
-                    <Text type="secondary" className="gba:text-xs">
-                      {set.childCount || 0} travel regions
-                    </Text>
-                  </div>
-                }
-              />
-            </Card>
-          </Col>
+              </div>
+            </CardContent>
+          </Card>
         ))}
-      </Row>
+      </div>
 
       {travelRegionSets.length === 0 && (
         <div className="gba:text-center gba:py-12">
           <PiMapPin className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-          <Title level={4} type="secondary">
+          <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">
             No Travel Region Sets Found
-          </Title>
-          <Text type="secondary">
+          </h4>
+          <p className="gba:text-gray-500 gba:mb-4">
             Create your first travel region set to start organizing your travel allowance rules.
-          </Text>
-          <div className="gba:mt-4">
-            <Button type="primary" icon={<PiPlus />}>
-              Create Travel Region Set
-            </Button>
-          </div>
+          </p>
+          <Button variant="default" onClick={handleCreateTravelRegionSet}>
+            <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+            Create Travel Region Set
+          </Button>
         </div>
       )}
+
+      {/* Travel Region Set Creation Form */}
+      <TravelRegionSetForm
+        accessToken={accessToken}
+        open={isCreateFormVisible}
+        onClose={handleCreateFormClose}
+        onSave={handleCreateFormSave}
+        prefixDataTestId={`${prefixDataTestId}-create-travel-region-set`}
+      />
     </div>
   );
 };

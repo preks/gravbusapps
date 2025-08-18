@@ -1,7 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Spin, Alert, Button, Tag, Typography, Space, Card, Modal, Select, message } from 'antd';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  Badge,
+  Alert,
+  AlertDescription,
+  Card,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system';
 import { PiArrowLeft, PiPlus, PiWarning } from 'react-icons/pi';
-import type { ColumnsType } from 'antd/es/table';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
@@ -9,7 +31,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+// Custom toast function
+const toast = (message: string, type: 'success' | 'error' = 'success') => {
+  console.log(`[${type.toUpperCase()}] ${message}`);
+};
 
 interface UnassignedAllowanceRegionRule {
   id: string;
@@ -39,7 +64,6 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
   accessToken,
   prefixDataTestId = '',
   onBack,
-  ...context
 }) => {
   const [unassignedRules, setUnassignedRules] = useState<UnassignedAllowanceRegionRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -137,7 +161,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
       setTravelRegionSets(sets);
     } catch (err) {
       console.error('Error loading travel region sets:', err);
-      message.error('Failed to load travel region sets');
+      toast('Failed to load travel region sets', 'error');
     }
   }, [catalogClient]);
 
@@ -163,7 +187,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
 
   const handleAssignConfirm = async () => {
     if (!selectedRule || !selectedTravelRegionSet) {
-      message.error('Please select a travel region set');
+      toast('Please select a travel region set', 'error');
       return;
     }
 
@@ -194,7 +218,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
       // Call the save endpoint
       await expenseSettingsClient.saveAllowanceRegionRule(saveData);
       
-      message.success(`Successfully assigned "${selectedRule.name}" to travel region set`);
+      toast(`Successfully assigned "${selectedRule.name}" to travel region set`, 'success');
       
       // Close modal and refresh data
       setIsAssignModalVisible(false);
@@ -204,7 +228,7 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
       
     } catch (error) {
       console.error('Error assigning rule to set:', error);
-      message.error('Failed to assign rule to travel region set');
+      toast('Failed to assign rule to travel region set', 'error');
     } finally {
       setIsAssigning(false);
     }
@@ -216,94 +240,73 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
     setSelectedTravelRegionSet(null);
   };
 
-  const columns: ColumnsType<UnassignedAllowanceRegionRule> = [
-    {
-      title: 'Rule',
-      key: 'rule',
-      width: 250,
-      render: (_, record) => (
-        <div>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-            <Text strong>{record.name}</Text>
-            <Tag color="orange" size="small">
-              <PiWarning className="gba:mr-1" />
-              Unassigned
-            </Tag>
-          </div>
-          <Text type="secondary" className="gba:text-sm">
-            {record.code}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: 'Validity Period',
-      key: 'validity',
-      width: 200,
-      render: (_, record) => (
-        <div>
-          <Text className="gba:text-sm">
-            {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: 'Details Count',
-      dataIndex: 'detailCount',
-      key: 'detailCount',
-      width: 120,
-      align: 'center',
-      render: (count: number) => (
-        <Tag color={count > 0 ? 'blue' : 'default'}>
-          {count} details
-        </Tag>
-      )
-    },
-    {
-      title: 'Order',
-      dataIndex: 'ruleOrder',
-      key: 'ruleOrder',
-      width: 100,
-      align: 'center',
-      render: (order?: number) => order || '-'
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => handleAssignToSet(record.id)}
-            data-testid={`${prefixDataTestId}-assign-rule-${record.id}`}
-          >
-            Assign to Set
-          </Button>
-        </Space>
-      )
-    }
-  ];
+  const renderRuleCell = (record: UnassignedAllowanceRegionRule) => (
+    <div>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        <span className="gba:font-medium">{record.name}</span>
+        <Badge variant="secondary" className="gba:bg-orange-100 gba:text-orange-700">
+          <PiWarning className="gba:mr-1 gba:w-3 gba:h-3" />
+          Unassigned
+        </Badge>
+      </div>
+      <div className="gba:text-sm gba:text-gray-500">
+        {record.code}
+      </div>
+    </div>
+  );
+
+  const renderValidityCell = (record: UnassignedAllowanceRegionRule) => (
+    <div className="gba:text-sm">
+      {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
+    </div>
+  );
+
+  const renderDetailsCountCell = (record: UnassignedAllowanceRegionRule) => (
+    <Badge variant={record.detailCount > 0 ? 'default' : 'secondary'}>
+      {record.detailCount} details
+    </Badge>
+  );
+
+  const renderOrderCell = (record: UnassignedAllowanceRegionRule) => (
+    <span className="gba:text-sm">{record.ruleOrder || '-'}</span>
+  );
+
+  const renderActionsCell = (record: UnassignedAllowanceRegionRule) => (
+    <Button
+      variant="default"
+      size="sm"
+      onClick={() => handleAssignToSet(record.id)}
+      data-testid={`${prefixDataTestId}-assign-rule-${record.id}`}
+    >
+      Assign to Set
+    </Button>
+  );
+
+
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-96">
-        <Spin size="large" />
+        <div className="gba:text-gray-500">Loading unassigned rules...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Unassigned Rules"
-        description={error}
-        type="error"
-        showIcon
-        action={<Button size="small" onClick={loadUnassignedRules}>Retry</Button>}
-      />
+      <Alert className="gba:max-w-md gba:mx-auto">
+        <AlertDescription>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <div className="gba:font-medium gba:mb-1">Error Loading Unassigned Rules</div>
+              <div className="gba:text-sm">{error}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={loadUnassignedRules}>
+              Retry
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -315,109 +318,142 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <Button
-            type="text"
-            icon={<PiArrowLeft />}
+            variant="ghost"
             onClick={onBack}
             data-testid={`${prefixDataTestId}-back-button`}
           >
+            <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
             Back to Travel Region Sets
           </Button>
         </div>
         
         <Card className="gba:mb-6">
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <div>
-              <Title level={3} className="gba:mb-2">
-                {getTranslationFromI18nKeyAndLabel('expense-settings:unassigned_rules', 'Unassigned Allowance Rules')}
-              </Title>
-              <Text type="secondary">
-                {unassignedRules.length} rules not assigned to any Travel Region Set
-              </Text>
-            </div>
-            <Space>
-              <Button type="primary" icon={<PiPlus />}>
+          <CardHeader>
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <div>
+                <CardTitle className="gba:mb-2">
+                  {getTranslationFromI18nKeyAndLabel('expense-settings:unassigned_rules', 'Unassigned Allowance Rules')}
+                </CardTitle>
+                <p className="gba:text-gray-600">
+                  {unassignedRules.length} rules not assigned to any Travel Region Set
+                </p>
+              </div>
+              <Button variant="default">
+                <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
                 Create New Rule
               </Button>
-            </Space>
-          </div>
+            </div>
+          </CardHeader>
         </Card>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={unassignedRules}
-        rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} unassigned rules`,
-        }}
-        data-testid={`${prefixDataTestId}-unassigned-rules-table`}
-      />
+      <div className="gba:w-full gba:overflow-x-auto">
+        <Table className="gba:min-w-[800px] gba:table-fixed" data-testid={`${prefixDataTestId}-unassigned-rules-table`}>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[250px]">Rule</TableHead>
+              <TableHead className="gba:w-[200px]">Validity Period</TableHead>
+              <TableHead className="gba:w-[120px]">Details Count</TableHead>
+              <TableHead className="gba:w-[100px]">Order</TableHead>
+              <TableHead className="gba:w-[150px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {unassignedRules.map((record) => (
+              <TableRow key={record.id}>
+                <TableCell className="gba:w-[250px]">
+                  {renderRuleCell(record)}
+                </TableCell>
+                <TableCell className="gba:w-[200px]">
+                  {renderValidityCell(record)}
+                </TableCell>
+                <TableCell className="gba:w-[120px] gba:text-center">
+                  {renderDetailsCountCell(record)}
+                </TableCell>
+                <TableCell className="gba:w-[100px] gba:text-center">
+                  {renderOrderCell(record)}
+                </TableCell>
+                <TableCell className="gba:w-[150px]">
+                  {renderActionsCell(record)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {unassignedRules.length === 0 && (
         <div className="gba:text-center gba:py-12">
           <PiWarning className="gba:text-4xl gba:text-green-400 gba:mb-4" />
-          <Title level={4} type="secondary">
+          <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">
             All Rules Are Assigned
-          </Title>
-          <Text type="secondary">
+          </h4>
+          <p className="gba:text-gray-500">
             Great! All allowance region rules are assigned to travel region sets.
-          </Text>
+          </p>
         </div>
       )}
 
-      {/* Assignment Modal */}
-      <Modal
-        title="Assign Rule to Travel Region Set"
-        open={isAssignModalVisible}
-        onOk={handleAssignConfirm}
-        onCancel={handleAssignCancel}
-        confirmLoading={isAssigning}
-        okText="Assign"
-        cancelText="Cancel"
-        data-testid={`${prefixDataTestId}-assign-modal`}
-      >
-        {selectedRule && (
-          <div className="gba:space-y-4">
-            <div>
-              <Text strong>Rule to assign:</Text>
-              <div className="gba:mt-2 gba:p-3 gba:bg-gray-50 gba:rounded">
-                <Text strong>{selectedRule.name}</Text>
-                <br />
-                <Text type="secondary">{selectedRule.code}</Text>
+      {/* Assignment Dialog */}
+      <Dialog open={isAssignModalVisible} onOpenChange={setIsAssignModalVisible}>
+        <DialogContent data-testid={`${prefixDataTestId}-assign-modal`}>
+          <DialogHeader>
+            <DialogTitle>Assign Rule to Travel Region Set</DialogTitle>
+          </DialogHeader>
+          
+          {selectedRule && (
+            <div className="gba:space-y-4">
+              <div>
+                <div className="gba:font-medium gba:mb-2">Rule to assign:</div>
+                <div className="gba:p-3 gba:bg-gray-50 gba:rounded">
+                  <div className="gba:font-medium">{selectedRule.name}</div>
+                  <div className="gba:text-sm gba:text-gray-500">{selectedRule.code}</div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="gba:font-medium gba:mb-2">Select Travel Region Set:</div>
+                <Select
+                  value={selectedTravelRegionSet || ""}
+                  onValueChange={setSelectedTravelRegionSet}
+                  data-testid={`${prefixDataTestId}-travel-region-set-select`}
+                >
+                  <SelectTrigger className="gba:w-full">
+                    <SelectValue placeholder="Choose a travel region set" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {travelRegionSets.map((set) => (
+                      <SelectItem key={set.id} value={set.id}>
+                        {set.value} ({set.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedTravelRegionSet && (
+                <div className="gba:p-3 gba:bg-blue-50 gba:rounded">
+                  <p className="gba:text-sm gba:text-gray-600">
+                    The rule "{selectedRule.name}" will be assigned to the selected travel region set and will no longer appear in the unassigned list.
+                  </p>
+                </div>
+              )}
+              
+              <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-4">
+                <Button variant="outline" onClick={handleAssignCancel}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAssignConfirm} 
+                  disabled={isAssigning || !selectedTravelRegionSet}
+                >
+                  {isAssigning ? 'Assigning...' : 'Assign'}
+                </Button>
               </div>
             </div>
-            
-            <div>
-              <Text strong>Select Travel Region Set:</Text>
-              <Select
-                className="gba:w-full gba:mt-2"
-                placeholder="Choose a travel region set"
-                value={selectedTravelRegionSet}
-                onChange={setSelectedTravelRegionSet}
-                data-testid={`${prefixDataTestId}-travel-region-set-select`}
-              >
-                {travelRegionSets.map((set) => (
-                  <Select.Option key={set.id} value={set.id}>
-                    {set.value} ({set.code})
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-            
-            {selectedTravelRegionSet && (
-              <div className="gba:p-3 gba:bg-blue-50 gba:rounded">
-                <Text type="secondary">
-                  The rule "{selectedRule.name}" will be assigned to the selected travel region set and will no longer appear in the unassigned list.
-                </Text>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

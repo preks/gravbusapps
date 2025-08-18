@@ -1,19 +1,62 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Spin, Alert, Button, Tag, Tooltip, Typography, Space, Card } from 'antd';
-import { PiArrowLeft, PiPlus, PiCurrencyDollar, PiMapPin } from 'react-icons/pi';
+import { 
+  Button, 
+  Alert, 
+  AlertDescription,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@newwork/nw-design-system';
+import { 
+  PiArrowLeft, 
+  PiPlus, 
+  PiMapPin, 
+  PiWarning,
+  PiFloppyDisk,
+  PiDotsSixVertical
+} from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+// Removed form imports - using inline editing instead
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import dayjs from 'dayjs';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const { Title, Text } = Typography;
+// Custom toast function
+const toast = (message: string, type: 'success' | 'error' = 'success') => {
+  console.log(`[${type.toUpperCase()}] ${message}`);
+};
 
 interface TravelRegion {
   id: string;
   code: string;
   value: string;
-  description?: string;
 }
 
 interface AllowanceRegionRule {
@@ -22,6 +65,7 @@ interface AllowanceRegionRule {
   name: string;
   activeFrom: string;
   activeTo?: string;
+  ruleOrder?: number;
   details: AllowanceRegionRuleDetail[];
 }
 
@@ -47,10 +91,43 @@ interface AllowanceRegionRuleDetail {
   };
 }
 
-interface MatrixCell {
+interface EditableCell {
+  id?: string; // detail ID for existing, undefined for new
   travelRegionId: string;
   allowanceRegionRuleId: string;
-  details: AllowanceRegionRuleDetail[];
+  amount: number;
+  currencyCode: string;
+  activeFrom: string;
+  activeTo?: string;
+  isNew: boolean;
+  isModified: boolean;
+  hasError?: boolean;
+  errorMessage?: string;
+  // Additional fields for validation
+  validityPeriodId?: string; // To group cells with same validity period
+}
+
+interface EditableTravelRegion extends TravelRegion {
+  isEditing: boolean;
+  editingCode: string;
+  editingValue: string;
+  isModified: boolean;
+  isNew: boolean;
+  validityPeriods: ValidityPeriod[];
+}
+
+interface ValidityPeriod {
+  id: string;
+  activeFrom: string;
+  activeTo?: string;
+  currencyCode: string;
+  hasConflict: boolean;
+}
+
+interface CurrencyOption {
+  id: string;
+  code: string;
+  value: string;
 }
 
 interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
@@ -60,74 +137,151 @@ interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
   onBack: () => void;
 }
 
+// Sortable column header component for drag-and-drop
+const SortableColumnHeader: React.FC<{
+  rule: AllowanceRegionRule;
+  onAddRule: () => void;
+  children: React.ReactNode;
+}> = ({ rule, onAddRule, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: rule.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableHead 
+      ref={setNodeRef} 
+      style={style} 
+      className="gba:w-48 gba:min-w-48 gba:relative gba:border gba:p-0"
+    >
+      <div className="gba:p-3">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+          <div 
+            {...attributes} 
+            {...listeners}
+            className="gba:cursor-grab gba:text-gray-400 hover:gba:text-gray-600"
+          >
+            <PiDotsSixVertical className="gba:w-4 gba:h-4" />
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onAddRule}
+            className="gba:h-6 gba:w-6 gba:p-0"
+          >
+            <PiPlus className="gba:w-3 gba:h-3" />
+          </Button>
+        </div>
+        {children}
+      </div>
+    </TableHead>
+  );
+};
+
 const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   accessToken,
   prefixDataTestId = '',
   travelRegionSetId,
   travelRegionSetName,
   onBack,
-  ...context
 }) => {
-  const [travelRegions, setTravelRegions] = useState<TravelRegion[]>([]);
+  const [editableTravelRegions, setEditableTravelRegions] = useState<EditableTravelRegion[]>([]);
   const [allowanceRegionRules, setAllowanceRegionRules] = useState<AllowanceRegionRule[]>([]);
-  const [matrixData, setMatrixData] = useState<MatrixCell[][]>([]);
+  const [editableCells, setEditableCells] = useState<EditableCell[]>([]);
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ ruleId: string; regionId: string; field?: string } | null>(null);
+  const [newRegionName, setNewRegionName] = useState('');
+  const [newRuleName, setNewRuleName] = useState('');
 
-  const catalogClient = useCatalogManagerClient(accessToken);
   const graphqlClient = useGraphQLClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken);
+  const expenseSettingsClient = new ExpenseSettingsClient();
 
-  const loadTravelRegions = useCallback(async () => {
+  // Initialize client
+  useEffect(() => {
+    if (accessToken) {
+      expenseSettingsClient.setAccessToken(accessToken);
+    }
+  }, [accessToken]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+
+
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return '';
+    return dayjs(dateString).format('DD/MM/YYYY');
+  };
+
+  // Load currencies from catalog
+  const loadCurrencies = useCallback(async () => {
     try {
-      // Get ONLY travel regions that belong to this travel region set
-      // No fallback - if no parent relationship exists, show empty matrix
-      const query = `
-        query GetTravelRegionsByParent($parentId: String!) {
-          CatalogEntry(
-            where: {
-              parentEntryId: { _eq: $parentId },
-              isDeleted: { _eq: false }
-            }
-            orderBy: { code: ASC }
-          ) {
-            id
-            code
-            value
-            description
-            parentEntryId
-          }
-        }
-      `;
-
-      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(
-        query,
-        { parentId: travelRegionSetId }
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'Currency', version: 'v1' },
+        { limit: 100, offset: 0, returnTotalRecords: true }
       );
-      
-      const regions: TravelRegion[] = result.CatalogEntry.map((item: any) => ({
+      setCurrencies(response.data.map((item: any) => ({
         id: item.id,
         code: item.code,
-        value: item.value,
-        description: item.description
-      }));
+        value: item.value
+      })));
+    } catch (err) {
+      console.error('Error loading currencies:', err);
+    }
+  }, [catalogClient]);
+
+  // Load travel regions
+  const loadTravelRegions = useCallback(async () => {
+    try {
+      // Use the catalog client to get travel regions by parent
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'TravelRegion', version: 'v1' },
+        { 
+          limit: 100, 
+          offset: 0, 
+          returnTotalRecords: true,
+          includeChildCatalogEntries: true
+        }
+      );
       
-      console.log(`Loaded ${regions.length} travel regions assigned to set ${travelRegionSetId}:`, regions);
-      
-      if (regions.length === 0) {
-        console.info(`No travel regions are assigned to travel region set ${travelRegionSetId}. Matrix will be empty.`);
-      }
-      
-      setTravelRegions(regions);
-      return regions;
+      // Filter by parent ID on the client side since catalog API doesn't support it directly
+      return response.data
+        .filter((item: any) => item.parentEntryId === travelRegionSetId)
+        .map((item: any) => ({
+          id: item.id,
+          code: item.code,
+          value: item.value
+        }));
     } catch (err) {
       console.error('Error loading travel regions:', err);
-      throw err;
+      return [];
     }
-  }, [graphqlClient, travelRegionSetId]);
+  }, [catalogClient, travelRegionSetId]);
 
+  // Load allowance region rules
   const loadAllowanceRegionRules = useCallback(async () => {
     try {
-      // Query for rules associated with the travel region set
+      // Use the exact same query structure as the working TravelRegionMatrixView
       const query = `
         query GetAllowanceRegionRulesWithTravelRegionSet($travelRegionSetId: String!) {
           AllowanceRegionRule(
@@ -135,13 +289,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               isDeleted: { _eq: false },
               travelRegionSetRef: { _eq: $travelRegionSetId }
             }
-            orderBy: { code: ASC }
+            orderBy: [{ ruleOrder: ASC }, { code: ASC }]
           ) {
             id
             code
             name
             activeFrom
             activeTo
+            ruleOrder
             allowanceRegionRuleDetail(where: { isDeleted: { _eq: false } }) {
               id
               amount
@@ -174,48 +329,98 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         name: rule.name,
         activeFrom: rule.activeFrom,
         activeTo: rule.activeTo,
+        ruleOrder: rule.ruleOrder,
         details: rule.allowanceRegionRuleDetail.map((detail: any) => ({
           ...detail,
-          // Extract travel region info from the reference string
+          // Extract travel region info from the reference string if needed
           travelRegion: detail.travelRegionRef ? {
             id: detail.travelRegionRef,
-            code: detail.travelRegionRef.split(':')[2] || '', // Extract code from "TravelRegion:v1:CODE"
-            value: detail.travelRegionRef.split(':')[2] || '' // We'll enhance this with actual catalog data
-          } : null
+            code: '',
+            value: ''
+          } : undefined
         }))
       }));
       
-      setAllowanceRegionRules(rules);
       return rules;
     } catch (err) {
       console.error('Error loading allowance region rules:', err);
-      throw err;
+      return [];
     }
   }, [graphqlClient, travelRegionSetId]);
 
-  const calculateMatrix = useCallback((regions: TravelRegion[], rules: AllowanceRegionRule[]) => {
-    const matrix: MatrixCell[][] = [];
+  // Convert rule details to editable cells
+  const convertToEditableCells = useCallback((rules: AllowanceRegionRule[], regions: TravelRegion[]): EditableCell[] => {
+    const cells: EditableCell[] = [];
     
-    regions.forEach((region, rowIndex) => {
-      matrix[rowIndex] = [];
-      rules.forEach((rule, colIndex) => {
-        // Match travel region by creating the expected reference format
-        const expectedTravelRegionRef = `TravelRegion:v1:${region.code}`;
-        const matchingDetails = rule.details.filter(
-          detail => detail.travelRegionRef === expectedTravelRegionRef
-        );
+    rules.forEach(rule => {
+      regions.forEach(region => {
+        // Find existing details for this rule-region combination
+        const existingDetails = rule.details?.filter(detail => 
+          detail.travelRegion?.id === region.id
+        ) || [];
         
-        matrix[rowIndex][colIndex] = {
-          travelRegionId: region.id,
-          allowanceRegionRuleId: rule.id,
-          details: matchingDetails
-        };
+        if (existingDetails.length > 0) {
+          // Create cells for existing details
+          existingDetails.forEach(detail => {
+            cells.push({
+              id: detail.id,
+              travelRegionId: region.id,
+              allowanceRegionRuleId: rule.id,
+              amount: detail.amount,
+              currencyCode: detail.currency?.code || 'EUR',
+              activeFrom: detail.activeFrom,
+              activeTo: detail.activeTo,
+              isNew: false,
+              isModified: false
+            });
+          });
+        } else {
+          // Create empty cell placeholder
+          cells.push({
+            travelRegionId: region.id,
+            allowanceRegionRuleId: rule.id,
+            amount: 0,
+            currencyCode: 'EUR',
+            activeFrom: dayjs().format('YYYY-MM-DD'),
+            activeTo: undefined,
+            isNew: true,
+            isModified: false
+          });
+        }
       });
     });
     
-    setMatrixData(matrix);
+    return cells;
   }, []);
 
+  // Validate currency consistency for each region
+  const validateCurrencies = useCallback((cells: EditableCell[]): EditableCell[] => {
+    const regionCurrencies: { [regionId: string]: Set<string> } = {};
+    
+    // Group currencies by region
+    cells.forEach(cell => {
+      if (cell.amount > 0) {
+        if (!regionCurrencies[cell.travelRegionId]) {
+          regionCurrencies[cell.travelRegionId] = new Set();
+        }
+        regionCurrencies[cell.travelRegionId].add(cell.currencyCode);
+      }
+    });
+    
+    // Mark cells with currency conflicts
+    return cells.map(cell => {
+      const regionCurrenciesSet = regionCurrencies[cell.travelRegionId];
+      const hasConflict = regionCurrenciesSet && regionCurrenciesSet.size > 1;
+      
+      return {
+        ...cell,
+        hasError: hasConflict,
+        errorMessage: hasConflict ? 'Currency mismatch in this region' : undefined
+      };
+    });
+  }, []);
+
+  // Load all data
   const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -223,17 +428,77 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     try {
       const [regions, rules] = await Promise.all([
         loadTravelRegions(),
-        loadAllowanceRegionRules()
+        loadAllowanceRegionRules(),
+        loadCurrencies()
       ]);
       
-      calculateMatrix(regions, rules);
+      setAllowanceRegionRules(rules);
+      
+      const cells = convertToEditableCells(rules, regions);
+      const validatedCells = validateCurrencies(cells);
+      setEditableCells(validatedCells);
+      
+      // Store regions temporarily to convert after convertToEditableRegions is available
+      setEditableTravelRegions(regions.map(region => ({
+        ...region,
+        isEditing: false,
+        editingCode: region.code,
+        editingValue: region.value,
+        isModified: false,
+        isNew: false,
+        validityPeriods: []
+      })));
+      
     } catch (err) {
       console.error('Error loading matrix data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load matrix data');
     } finally {
       setIsLoading(false);
     }
-  }, [loadTravelRegions, loadAllowanceRegionRules, calculateMatrix]);
+  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, convertToEditableCells, validateCurrencies]);
+
+  // Convert regular travel regions to editable ones
+  const convertToEditableRegions = useCallback((regions: TravelRegion[], cells: EditableCell[]): EditableTravelRegion[] => {
+    return regions.map(region => {
+      // Group cells by validity periods for this region
+      const regionCells = cells.filter(cell => cell.travelRegionId === region.id);
+      const validityPeriods: ValidityPeriod[] = [];
+      
+      // Create validity periods based on unique activeFrom/activeTo combinations
+      const periodMap = new Map<string, ValidityPeriod>();
+      
+      regionCells.forEach(cell => {
+        const periodKey = `${cell.activeFrom}-${cell.activeTo || 'null'}`;
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, {
+            id: periodKey,
+            activeFrom: cell.activeFrom,
+            activeTo: cell.activeTo,
+            currencyCode: cell.currencyCode,
+            hasConflict: false
+          });
+        } else {
+          // Check for currency conflicts
+          const existing = periodMap.get(periodKey)!;
+          if (existing.currencyCode !== cell.currencyCode) {
+            existing.hasConflict = true;
+          }
+        }
+      });
+      
+      validityPeriods.push(...periodMap.values());
+      
+      return {
+        ...region,
+        isEditing: false,
+        editingCode: region.code,
+        editingValue: region.value,
+        isModified: false,
+        isNew: false,
+        validityPeriods
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (accessToken && travelRegionSetId) {
@@ -241,124 +506,323 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [accessToken, travelRegionSetId, loadData]);
 
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY');
-  };
-
-  const formatCurrency = (amount: number, currencyCode?: string): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode || 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
-
-  const renderMatrixCell = (cell: MatrixCell, travelRegion: TravelRegion, allowanceRule: AllowanceRegionRule) => {
-    if (cell.details.length === 0) {
-      return (
-        <div className="gba:p-2 gba:text-center gba:text-gray-400">
-          <Button
-            type="dashed"
-            size="small"
-            icon={<PiPlus />}
-            className="gba:text-xs"
-            data-testid={`${prefixDataTestId}-add-detail-${travelRegion.id}-${allowanceRule.id}`}
-          >
-            Add
-          </Button>
-        </div>
+  // Update editable regions with validity periods after cells are loaded
+  useEffect(() => {
+    if (editableTravelRegions.length > 0 && editableCells.length > 0) {
+      const updatedRegions = convertToEditableRegions(
+        editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value })),
+        editableCells
       );
+      setEditableTravelRegions(updatedRegions);
+    }
+  }, [editableCells, convertToEditableRegions]);
+
+  // Handle region field editing
+  const handleRegionEdit = (regionId: string, field: 'code' | 'value') => {
+    setEditableTravelRegions(prev => prev.map(region => 
+      region.id === regionId ? { ...region, isEditing: true } : region
+    ));
+    setEditingCell({ ruleId: '', regionId, field });
+  };
+
+  const handleRegionChange = (regionId: string, field: 'code' | 'value', value: string) => {
+    setEditableTravelRegions(prev => prev.map(region => 
+      region.id === regionId 
+        ? { 
+            ...region, 
+            [`editing${field.charAt(0).toUpperCase() + field.slice(1)}`]: value,
+            isModified: true 
+          }
+        : region
+    ));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleRegionBlur = (regionId: string) => {
+    setEditableTravelRegions(prev => prev.map(region => 
+      region.id === regionId ? { ...region, isEditing: false } : region
+    ));
+    setEditingCell(null);
+  };
+
+  // Handle validity period editing
+  const handlePeriodEdit = (regionId: string, _periodId: string, field: 'currency' | 'activeFrom' | 'activeTo') => {
+    setEditingCell({ ruleId: '', regionId, field });
+  };
+
+  const handlePeriodChange = (regionId: string, periodId: string, field: 'currencyCode' | 'activeFrom' | 'activeTo', value: string) => {
+    // Update the validity period in the region
+    setEditableTravelRegions(prev => prev.map(region => 
+      region.id === regionId 
+        ? {
+            ...region,
+            validityPeriods: region.validityPeriods.map(period =>
+              period.id === periodId
+                ? { ...period, [field]: value }
+                : period
+            ),
+            isModified: true
+          }
+        : region
+    ));
+
+    // Also update all cells that match this period
+    setEditableCells(prev => prev.map(cell => {
+      if (cell.travelRegionId === regionId) {
+        const currentPeriod = editableTravelRegions
+          .find(r => r.id === regionId)
+          ?.validityPeriods.find(p => p.id === periodId);
+        
+        if (currentPeriod && 
+            cell.activeFrom === currentPeriod.activeFrom &&
+            (cell.activeTo || undefined) === currentPeriod.activeTo) {
+          return { ...cell, [field]: value, isModified: true };
+        }
+      }
+      return cell;
+    }));
+
+    setHasUnsavedChanges(true);
+  };
+
+  // Add new validity period to a region
+  const handleAddValidityPeriod = (regionId: string) => {
+    const newPeriodId = `${regionId}-period-${Date.now()}`;
+    const newPeriod: ValidityPeriod = {
+      id: newPeriodId,
+      activeFrom: dayjs().format('YYYY-MM-DD'),
+      activeTo: undefined,
+      currencyCode: 'EUR',
+      hasConflict: false
+    };
+
+    setEditableTravelRegions(prev => prev.map(region => 
+      region.id === regionId 
+        ? {
+            ...region,
+            validityPeriods: [...region.validityPeriods, newPeriod],
+            isModified: true
+          }
+        : region
+    ));
+
+    setHasUnsavedChanges(true);
+  };
+
+  // Handle drag end for column reordering
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      setAllowanceRegionRules((rules) => {
+        const oldIndex = rules.findIndex(rule => rule.id === active.id);
+        const newIndex = rules.findIndex(rule => rule.id === over?.id);
+
+        const newRules = arrayMove(rules, oldIndex, newIndex);
+        
+        // Update rule order
+        const updatedRules = newRules.map((rule, index) => ({
+          ...rule,
+          ruleOrder: index + 1
+        }));
+
+        // Regenerate editable cells with new order
+        const currentRegions = editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value }));
+        const newCells = convertToEditableCells(updatedRules, currentRegions);
+        const validatedCells = validateCurrencies(newCells);
+        setEditableCells(validatedCells);
+        setHasUnsavedChanges(true);
+
+        return updatedRules;
+      });
+    }
+  }, [convertToEditableCells, editableTravelRegions, validateCurrencies]);
+
+  // Add new region directly
+  const handleAddRegion = async () => {
+    const regionName = newRegionName || prompt('Enter region name:');
+    if (!regionName?.trim()) {
+      toast('Please enter a region name', 'error');
+      return;
     }
 
-    return (
-      <div className="gba:p-2 gba:space-y-1">
-        {cell.details.map((detail, index) => (
-          <Tooltip
-            key={detail.id}
-            title={
-              <div>
-                <div><strong>Amount:</strong> {formatCurrency(detail.amount, detail.currency?.code)}</div>
-                <div><strong>Valid:</strong> {formatDate(detail.activeFrom)} - {detail.activeTo ? formatDate(detail.activeTo) : '∞'}</div>
-                {detail.country && <div><strong>Country:</strong> {detail.country.value}</div>}
-              </div>
-            }
-          >
-            <Tag
-              color="blue"
-              className="gba:cursor-pointer gba:mb-1 gba:text-xs"
-              data-testid={`${prefixDataTestId}-detail-tag-${detail.id}`}
-            >
-              <PiCurrencyDollar className="gba:mr-1" />
-              {formatCurrency(detail.amount, detail.currency?.code)}
-            </Tag>
-          </Tooltip>
-        ))}
-      </div>
-    );
+    try {
+      // TODO: Implement region creation via proper API
+      // For now, we'll simulate the creation
+      console.log('Creating region:', {
+        code: regionName.trim().toUpperCase().replace(/\s+/g, '_'),
+        value: regionName.trim(),
+        description: `Travel region: ${regionName.trim()}`,
+        parentEntryId: travelRegionSetId
+      });
+      
+      setNewRegionName('');
+      // loadData(); // Uncomment when API is available
+      toast('Travel region creation requested (implement API)', 'success');
+    } catch (err) {
+      console.error('Error creating region:', err);
+      toast('Failed to create region', 'error');
+    }
   };
 
-  const columns = [
-    {
-      title: 'Travel Region',
-      dataIndex: 'region',
-      key: 'region',
-      width: 200,
-      fixed: 'left' as const,
-      render: (region: TravelRegion) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiMapPin className="gba:text-blue-600" />
-          <div>
-            <Text strong>{region.value}</Text>
-            <br />
-            <Text type="secondary" className="gba:text-xs">
-              {region.code}
-            </Text>
-          </div>
-        </div>
-      )
-    },
-    ...allowanceRegionRules.map((rule, colIndex) => ({
-      title: (
-        <div className="gba:text-center">
-          <Text strong className="gba:block">{rule.name}</Text>
-          <Text type="secondary" className="gba:text-xs">{rule.code}</Text>
-          <br />
-          <Text type="secondary" className="gba:text-xs">
-            {formatDate(rule.activeFrom)} - {rule.activeTo ? formatDate(rule.activeTo) : '∞'}
-          </Text>
-        </div>
-      ),
-      key: `rule-${rule.id}`,
-      width: 180,
-      render: (_: any, record: any, rowIndex: number) => {
-        const cell = matrixData[rowIndex]?.[colIndex];
-        return cell ? renderMatrixCell(cell, record.region, rule) : null;
-      }
-    }))
-  ];
+  // Add new rule column directly
+  const handleAddRule = async () => {
+    const ruleName = newRuleName || prompt('Enter rule name:');
+    if (!ruleName?.trim()) {
+      toast('Please enter a rule name', 'error');
+      return;
+    }
 
-  const dataSource = travelRegions.map((region) => ({
-    key: region.id,
-    region
-  }));
+    try {
+      const ruleData = {
+        code: ruleName.trim().toUpperCase().replace(/\s+/g, '_'),
+        name: ruleName.trim(),
+        description: `Allowance rule: ${ruleName.trim()}`,
+        activeFrom: dayjs().format('YYYY-MM-DD'),
+        activeTo: null,
+        travelRegionSetRef: travelRegionSetId,
+        ruleOrder: allowanceRegionRules.length + 1,
+        additionalProperties: {},
+        businessKey: ruleName.trim().toUpperCase().replace(/\s+/g, '_')
+      };
+
+      await expenseSettingsClient.saveAllowanceRegionRule(ruleData);
+      setNewRuleName('');
+      loadData();
+      toast('Allowance rule added successfully', 'success');
+    } catch (err) {
+      console.error('Error creating rule:', err);
+      toast('Failed to create rule', 'error');
+    }
+  };
+
+  // Handle inline cell editing
+  const handleCellClick = (ruleId: string, regionId: string, periodId: string) => {
+    setEditingCell({ ruleId, regionId, field: undefined });
+    
+    // If cell doesn't exist in state yet, add it
+    const existingCell = editableCells.find(c => 
+      c.allowanceRegionRuleId === ruleId && 
+      c.travelRegionId === regionId &&
+      c.validityPeriodId === periodId
+    );
+    
+    if (!existingCell) {
+      const region = editableTravelRegions.find(r => r.id === regionId);
+      const period = region?.validityPeriods.find(p => p.id === periodId);
+      
+      if (region && period) {
+        const newCell: EditableCell = {
+          id: undefined,
+          allowanceRegionRuleId: ruleId,
+          travelRegionId: regionId,
+          amount: 0,
+          currencyCode: period.currencyCode,
+          activeFrom: period.activeFrom,
+          activeTo: period.activeTo,
+          isNew: true,
+          isModified: false,
+          hasError: false,
+          validityPeriodId: periodId
+        };
+        
+        setEditableCells(prev => [...prev, newCell]);
+      }
+    }
+  };
+
+  const handleCellChange = (ruleId: string, regionId: string, field: 'amount', value: number) => {
+    const currentEditingCell = editingCell;
+    
+    setEditableCells(prev => prev.map(cell => {
+      // Match by rule, region, and validity period
+      if (cell.allowanceRegionRuleId === ruleId && 
+          cell.travelRegionId === regionId &&
+          currentEditingCell) {
+        
+        // Find the correct period for this editing session
+        const region = editableTravelRegions.find(r => r.id === regionId);
+        const matchingPeriod = region?.validityPeriods.find(p => 
+          cell.activeFrom === p.activeFrom && 
+          (cell.activeTo || undefined) === (p.activeTo || undefined)
+        );
+        
+        if (matchingPeriod) {
+          return { ...cell, [field]: value, isModified: true };
+        }
+      }
+      return cell;
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const handleCellBlur = () => {
+    setEditingCell(null);
+  };
+
+  // Save all changes
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    try {
+      const modifiedCells = editableCells.filter(cell => 
+        (cell.isModified && !cell.isNew && cell.amount > 0) || 
+        (cell.isNew && cell.amount > 0)
+      );
+
+      // Group by rule and save
+      const savePromises = modifiedCells.map(async (cell) => {
+        const saveData = {
+          id: cell.id,
+          amount: cell.amount,
+          currencyRef: currencies.find(c => c.code === cell.currencyCode)?.id,
+          activeFrom: cell.activeFrom,
+          activeTo: cell.activeTo,
+          travelRegionRef: cell.travelRegionId,
+          allowanceRegionRuleRef: cell.allowanceRegionRuleId
+        };
+
+        return expenseSettingsClient.saveAllowanceRegionRuleDetail(saveData);
+      });
+
+      await Promise.all(savePromises);
+      
+      toast('All changes saved successfully', 'success');
+      setHasUnsavedChanges(false);
+      loadData(); // Refresh data
+      
+    } catch (err) {
+      console.error('Error saving changes:', err);
+      toast('Failed to save changes', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Removed unused getCell and getCellIndex functions
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-96">
-        <Spin size="large" />
+        <div className="gba:text-gray-500">Loading enhanced matrix data...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Matrix Data"
-        description={error}
-        type="error"
-        showIcon
-        action={<Button size="small" onClick={loadData}>Retry</Button>}
-      />
+      <Alert className="gba:max-w-md gba:mx-auto">
+        <AlertDescription>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <div className="gba:font-medium gba:mb-1">Error Loading Matrix Data</div>
+              <div className="gba:text-sm">{error}</div>
+            </div>
+            <Button size="sm" variant="outline" onClick={loadData}>
+              Retry
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -367,70 +831,435 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       data-testid={`${prefixDataTestId}-travel-region-matrix-view`}
       className="gba:p-6"
     >
+      {/* Header */}
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
           <Button
-            type="text"
-            icon={<PiArrowLeft />}
+            variant="ghost"
             onClick={onBack}
             data-testid={`${prefixDataTestId}-back-button`}
           >
+            <PiArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
             Back to Travel Region Sets
           </Button>
         </div>
-        
-        <Card className="gba:mb-6">
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <div>
-              <Title level={3} className="gba:mb-2">
-                {travelRegionSetName}
-              </Title>
-              <Text type="secondary">
-                Travel Region Matrix - {travelRegions.length} regions × {allowanceRegionRules.length} rules
-              </Text>
-            </div>
-            <Space>
-              <Button type="primary" icon={<PiPlus />}>
-                Add Region
-              </Button>
-              <Button type="primary" icon={<PiPlus />}>
-                Add Rule
-              </Button>
-            </Space>
+
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div>
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              Travel Region Matrix: {travelRegionSetName}
+            </h2>
+            <p className="gba:text-gray-600">
+                              Excel-like editing - {editableTravelRegions.length} regions × {allowanceRegionRules.length} rules
+            </p>
           </div>
-        </Card>
+          <div className="gba:flex gba:gap-3">
+            {hasUnsavedChanges && (
+              <Button 
+                onClick={handleSaveAll} 
+                disabled={isSaving}
+                className="gba:bg-green-600 hover:gba:bg-green-700"
+              >
+                <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
+                {isSaving ? 'Saving...' : 'Save All Changes'}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="gba:overflow-auto">
-        <Table
-          columns={columns}
-          dataSource={dataSource}
-          pagination={false}
-          scroll={{ x: 'max-content', y: 600 }}
-          size="small"
-          bordered
-          data-testid={`${prefixDataTestId}-matrix-table`}
-        />
-      </div>
+      {/* Excel-like Matrix Table */}
+      {editableTravelRegions.length > 0 && allowanceRegionRules.length > 0 ? (
+        <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+          <div className="gba:overflow-x-auto">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <Table className="gba:min-w-full">
+                <TableHeader>
+                  {/* Main Header Row */}
+                  <TableRow>
+                    <TableHead className="gba:w-48 gba:min-w-48 gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r">
+                      <span className="gba:font-semibold">Travel Regions</span>
+                    </TableHead>
+                    <SortableContext 
+                      items={allowanceRegionRules.map(r => r.id)} 
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      {allowanceRegionRules.map((rule) => (
+                        <SortableColumnHeader
+                          key={rule.id}
+                          rule={rule}
+                          onAddRule={handleAddRule}
+                        >
+                          <div className="gba:text-center">
+                            <div className="gba:font-medium gba:text-sm">{rule.name}</div>
+                            <div className="gba:text-xs gba:text-gray-500 gba:mb-1">{rule.code}</div>
+                            <div className="gba:text-xs gba:text-gray-500">
+                              {formatDate(rule.activeFrom)} - {rule.activeTo ? formatDate(rule.activeTo) : '∞'}
+                            </div>
+                          </div>
+                        </SortableColumnHeader>
+                      ))}
+                    </SortableContext>
+                    {/* Simple Add Column Header */}
+                    <TableHead className="gba:w-16 gba:text-center gba:bg-gray-50">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const name = prompt('Enter rule name:');
+                          if (name?.trim()) {
+                            setNewRuleName(name.trim());
+                            handleAddRule();
+                          }
+                        }}
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        title="Add Column"
+                      >
+                        <PiPlus className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Add Row - Simple plus button row */}
+                  <TableRow className="gba:bg-gray-50 gba:border-b-2">
+                    <TableCell className="gba:sticky gba:left-0 gba:bg-gray-50 gba:z-10 gba:border-r gba:text-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const name = prompt('Enter region name:');
+                          if (name?.trim()) {
+                            setNewRegionName(name.trim());
+                            handleAddRegion();
+                          }
+                        }}
+                        className="gba:h-8 gba:w-8 gba:p-0"
+                        title="Add Region"
+                      >
+                        <PiPlus className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </TableCell>
+                    {allowanceRegionRules.map((rule) => (
+                      <TableCell key={`add-row-${rule.id}`} className="gba:bg-gray-50 gba:text-center gba:text-gray-400">
+                        —
+                      </TableCell>
+                    ))}
+                    {/* Empty cell for add column */}
+                    <TableCell className="gba:bg-gray-50">
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Data Rows - Now supporting multiple validity periods per region */}
+                  {editableTravelRegions.flatMap((region) => {
+                    // Create rows for each validity period + at least one row per region
+                    const validityPeriods = region.validityPeriods.length > 0 ? region.validityPeriods : [
+                      { id: 'new', activeFrom: dayjs().format('YYYY-MM-DD'), activeTo: undefined, currencyCode: 'EUR', hasConflict: false }
+                    ];
+                    
+                    return validityPeriods.map((period, periodIndex) => (
+                    <TableRow key={`${region.id}-${period.id}`}>
+                      <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-64">
+                        <div className="gba:p-2 gba:space-y-2">
+                          {/* Region Info - Only show on first row of each region */}
+                          {periodIndex === 0 && (
+                            <div className="gba:border-b gba:pb-2 gba:mb-2">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <PiMapPin className="gba:text-blue-600" />
+                                <div className="gba:flex-1">
+                                  {/* Editable Code */}
+                                  <div className="gba:mb-1">
+                                    {region.isEditing && editingCell?.field === 'code' && editingCell?.regionId === region.id ? (
+                                      <Input
+                                        value={region.editingCode}
+                                        onChange={(e) => handleRegionChange(region.id, 'code', e.target.value)}
+                                        onBlur={() => handleRegionBlur(region.id)}
+                                        className="gba:h-6 gba:text-xs gba:font-medium"
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <div 
+                                        className="gba:text-xs gba:text-gray-500 gba:cursor-pointer gba:hover:bg-gray-100 gba:px-1 gba:py-0.5 gba:rounded"
+                                        onClick={() => handleRegionEdit(region.id, 'code')}
+                                        title="Click to edit code"
+                                      >
+                                        {region.code}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Editable Name */}
+                                  <div>
+                                    {region.isEditing && editingCell?.field === 'value' && editingCell?.regionId === region.id ? (
+                                      <Input
+                                        value={region.editingValue}
+                                        onChange={(e) => handleRegionChange(region.id, 'value', e.target.value)}
+                                        onBlur={() => handleRegionBlur(region.id)}
+                                        className="gba:h-6 gba:text-xs gba:font-medium"
+                                        autoFocus
+                                      />
+                                    ) : (
+                                      <div 
+                                        className="gba:font-medium gba:text-sm gba:cursor-pointer gba:hover:bg-gray-100 gba:px-1 gba:py-0.5 gba:rounded"
+                                        onClick={() => handleRegionEdit(region.id, 'value')}
+                                        title="Click to edit name"
+                                      >
+                                        {region.value}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Validity Period & Currency - Editable for this specific row */}
+                          <div className="gba:space-y-2 gba:bg-gray-50 gba:p-2 gba:rounded">
+                            {/* Currency Selection */}
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">Currency:</span>
+                              {editingCell?.regionId === region.id && editingCell?.field === 'currency' ? (
+                                <Select
+                                  value={period.currencyCode}
+                                  onValueChange={(value) => handlePeriodChange(region.id, period.id, 'currencyCode', value)}
+                                >
+                                  <SelectTrigger className="gba:h-6 gba:text-xs gba:flex-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {currencies.map((currency) => (
+                                      <SelectItem key={currency.id} value={currency.code}>
+                                        {currency.code}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <div 
+                                  className="gba:text-sm gba:font-medium gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
+                                  onClick={() => handlePeriodEdit(region.id, period.id, 'currency')}
+                                  title="Click to edit currency"
+                                >
+                                  {period.currencyCode}
+                                  {period.hasConflict && <PiWarning className="gba:w-3 gba:h-3 gba:text-red-500 gba:ml-1" />}
+                                </div>
+                              )}
+                            </div>
 
-      {travelRegions.length === 0 && (
-        <div className="gba:text-center gba:py-12">
-          <PiMapPin className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-          <Title level={4} type="secondary">
-            No Travel Regions Assigned to This Set
-          </Title>
-          <Text type="secondary">
-            This travel region set has no travel regions assigned to it yet.
-            <br />
-            Assign travel regions to this set in the catalog management to build the matrix.
-          </Text>
-          <div className="gba:mt-4">
-            <Text type="secondary" className="gba:text-sm gba:italic">
-              Note: Travel regions must have their parentEntryId set to "{travelRegionSetId}" in the catalog.
-            </Text>
+                            {/* Valid From */}
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">From:</span>
+                              {editingCell?.regionId === region.id && editingCell?.field === 'activeFrom' ? (
+                                <Input
+                                  type="date"
+                                  value={period.activeFrom}
+                                  onChange={(e) => handlePeriodChange(region.id, period.id, 'activeFrom', e.target.value)}
+                                  onBlur={() => handleRegionBlur(region.id)}
+                                  className="gba:h-6 gba:text-xs gba:flex-1"
+                                  autoFocus
+                                />
+                              ) : (
+                                <div 
+                                  className="gba:text-sm gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
+                                  onClick={() => handlePeriodEdit(region.id, period.id, 'activeFrom')}
+                                  title="Click to edit start date"
+                                >
+                                  {period.activeFrom}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Valid To */}
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">To:</span>
+                              {editingCell?.regionId === region.id && editingCell?.field === 'activeTo' ? (
+                                <Input
+                                  type="date"
+                                  value={period.activeTo || ''}
+                                  onChange={(e) => handlePeriodChange(region.id, period.id, 'activeTo', e.target.value)}
+                                  onBlur={() => handleRegionBlur(region.id)}
+                                  className="gba:h-6 gba:text-xs gba:flex-1"
+                                  placeholder="Leave empty for unlimited"
+                                />
+                              ) : (
+                                <div 
+                                  className="gba:text-sm gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
+                                  onClick={() => handlePeriodEdit(region.id, period.id, 'activeTo')}
+                                  title="Click to edit end date"
+                                >
+                                  {period.activeTo || '∞'}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Add new validity period button */}
+                            <div className="gba:mt-2 gba:pt-2 gba:border-t">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAddValidityPeriod(region.id)}
+                                className="gba:w-full gba:h-6 gba:text-xs"
+                              >
+                                <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+                                Add Period
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      {allowanceRegionRules.map((rule) => {
+                        // Find or create cell for this specific region row + rule combination
+                        let cell = editableCells.find(c => 
+                          c.allowanceRegionRuleId === rule.id && 
+                          c.travelRegionId === region.id &&
+                          c.activeFrom === period.activeFrom &&
+                          (c.activeTo || undefined) === period.activeTo
+                        );
+                        
+                        // If no cell exists for this row/rule combination, create a placeholder
+                        if (!cell) {
+                          cell = {
+                            id: undefined,
+                            allowanceRegionRuleId: rule.id,
+                            travelRegionId: region.id,
+                            amount: 0,
+                            currencyCode: period.currencyCode,
+                            activeFrom: period.activeFrom,
+                            activeTo: period.activeTo,
+                            isNew: true,
+                            isModified: false,
+                            hasError: false,
+                            validityPeriodId: period.id
+                          };
+                        }
+                        
+                        const isEditing = editingCell?.ruleId === rule.id && 
+                                        editingCell?.regionId === region.id &&
+                                        editingCell?.field === undefined && // Only for amount editing
+                                        cell?.validityPeriodId === period.id;
+                        
+                        return (
+                          <TableCell 
+                            key={`${rule.id}-${region.id}-${period.id}`}
+                            className={`gba:text-center gba:relative gba:cursor-pointer gba:hover:bg-gray-50 gba:h-16 ${
+                              cell?.hasError ? 'gba:bg-red-50' : 
+                              cell?.isModified ? 'gba:bg-blue-50' : 
+                              cell?.isNew ? 'gba:bg-green-50' : ''
+                            }`}
+                            onClick={() => handleCellClick(rule.id, region.id, period.id)}
+                          >
+                            {cell ? (
+                              <div className="gba:text-center gba:p-2">
+                                {isEditing ? (
+                                  /* Simple Amount Editing */
+                                  <div className="gba:space-y-2">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={cell.amount || ''}
+                                      onChange={(e) => handleCellChange(rule.id, region.id, 'amount', parseFloat(e.target.value) || 0)}
+                                      onBlur={handleCellBlur}
+                                      className="gba:w-20 gba:h-8 gba:text-center gba:mx-auto"
+                                      placeholder="0.00"
+                                      autoFocus
+                                    />
+                                    <div className="gba:text-xs gba:text-gray-500">
+                                      {period.currencyCode}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Display Mode - Amount Only */
+                                  <div>
+                                    <div className="gba:text-lg gba:font-medium">
+                                      {cell.amount > 0 ? (
+                                        cell.amount.toFixed(2)
+                                      ) : (
+                                        <span className="gba:text-gray-400">—</span>
+                                      )}
+                                    </div>
+                                    <div className="gba:text-xs gba:text-gray-500">
+                                      {period.currencyCode}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Modification Indicator */}
+                                {cell.isModified && (
+                                  <div className="gba:absolute gba:top-1 gba:right-1">
+                                    <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              /* Empty Cell */
+                              <div className="gba:text-center gba:py-4 gba:text-gray-400 gba:cursor-pointer" 
+                                   onClick={() => handleCellClick(rule.id, region.id, period.id)}>
+                                <div className="gba:text-2xl">+</div>
+                                <div className="gba:text-xs">Add</div>
+                              </div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                      {/* Empty add column cell */}
+                      <TableCell className="gba:w-16 gba:text-center gba:text-gray-300 gba:h-16">
+                      </TableCell>
+                    </TableRow>
+                    ));
+                  })}
+                </TableBody>
+              </Table>
+            </DndContext>
+          </div>
+        </div>
+      ) : (
+        <div className="gba:text-center gba:py-12 gba:bg-gray-50 gba:rounded-lg">
+          <PiMapPin className="gba:w-12 gba:h-12 gba:text-gray-400 gba:mx-auto gba:mb-4" />
+          <h4 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
+            No Matrix Data Available
+          </h4>
+          <p className="gba:text-gray-500 gba:mb-4">
+            Create travel regions and allowance rules to build your matrix.
+          </p>
+          <div className="gba:flex gba:justify-center gba:gap-3">
+            <Input
+              value={newRegionName}
+              onChange={(e) => setNewRegionName(e.target.value)}
+              placeholder="Enter region name..."
+              className="gba:w-48"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newRegionName.trim()) {
+                  handleAddRegion();
+                }
+              }}
+            />
+            <Button variant="default" onClick={handleAddRegion} disabled={!newRegionName.trim()}>
+              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Travel Region
+            </Button>
+            <Input
+              value={newRuleName}
+              onChange={(e) => setNewRuleName(e.target.value)}
+              placeholder="Enter rule name..."
+              className="gba:w-48"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newRuleName.trim()) {
+                  handleAddRule();
+                }
+              }}
+            />
+            <Button variant="outline" onClick={handleAddRule} disabled={!newRuleName.trim()}>
+              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Rule
+            </Button>
           </div>
         </div>
       )}
+
+      {/* All forms removed - using inline editing */}
     </div>
   );
 };

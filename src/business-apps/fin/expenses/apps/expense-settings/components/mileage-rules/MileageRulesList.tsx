@@ -7,18 +7,25 @@ import localeData from 'dayjs/plugin/localeData';
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 import { 
-  Table, 
-  Spin, 
-  Alert, 
-  Button, 
-  Input, 
-  Tag, 
-  Typography,
-  Space,
+  Badge,
+  Button,
+  Alert,
+  AlertDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
   Tooltip,
-  message
-} from 'antd';
-import { Badge, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
@@ -38,8 +45,12 @@ import {
 } from 'react-icons/pi';
 import { ContextMenu, createEditAction, createViewAction } from '../ContextMenu';
 
-const { Title } = Typography;
-const { Search } = Input;
+// Custom toast implementation until design system provides one
+const toast = ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
+  const style = variant === 'destructive' ? 'color: red' : 'color: green';
+  console.log(`%c${title}: ${description}`, style);
+  // TODO: Replace with proper toast implementation when available in design system
+};
 
 // Re-export the enhanced interface for external use
 export type { EnhancedMileageRule as MileageRule };
@@ -102,12 +113,19 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
   const handleCreateSubmit = async (formData: MileageRuleFormData) => {
     try {
       await createMileageRule(formData);
-      message.success('Mileage rule created successfully');
+      toast({
+        title: "Success",
+        description: "Mileage rule created successfully"
+      });
       setIsCreateModalVisible(false);
       refetch();
     } catch (error) {
       console.error('Error creating rule:', error);
-      message.error('Failed to create mileage rule');
+      toast({
+        title: "Error",
+        description: "Failed to create mileage rule",
+        variant: "destructive"
+      });
     }
   };
 
@@ -115,13 +133,20 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
     try {
       if (!editingRule) return;
       await updateMileageRule(editingRule.id, formData);
-      message.success('Mileage rule updated successfully');
+      toast({
+        title: "Success",
+        description: "Mileage rule updated successfully"
+      });
       setIsEditModalVisible(false);
       setEditingRule(null);
       refetch();
     } catch (error) {
       console.error('Error updating rule:', error);
-      message.error('Failed to update mileage rule');
+      toast({
+        title: "Error",
+        description: "Failed to update mileage rule",
+        variant: "destructive"
+      });
     }
   };
 
@@ -210,9 +235,9 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       dataIndex: 'rulePeriodLabel',
       key: 'rulePeriod',
       render: (periodLabel: string) => (
-        <Tag color="blue">
+        <Badge variant="default">
           {periodLabel}
-        </Tag>
+        </Badge>
       )
     },
     {
@@ -235,9 +260,9 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       render: (usageCount: number) => (
         <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
           <PiUsers className="gba:text-blue-500" size={14} />
-          <Tag color={usageCount > 0 ? 'green' : 'default'}>
+          <Badge variant={usageCount > 0 ? 'default' : 'secondary'}>
             {usageCount}
-          </Tag>
+          </Badge>
         </div>
       )
     },
@@ -266,17 +291,20 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Mileage Rules"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={handleRefresh}>
-            Retry
-          </Button>
-        }
-      />
+      <Alert className="gba:mb-4">
+        <AlertDescription>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <strong>Error Loading Mileage Rules</strong>
+              <br />
+              {error}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              Retry
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -285,29 +313,29 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <Title level={4} className="gba:m-0 gba:text-gray-900">
+          <h4 className="gba:text-lg gba:font-semibold gba:m-0 gba:text-gray-900">
             {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.rates.title', 'Mileage Rates')}
-          </Title>
-          <Tag color="blue">{filteredData.length} items</Tag>
+          </h4>
+          <Badge variant="default">{filteredData.length} items</Badge>
         </div>
-        <Space>
+        <div className="gba:flex gba:gap-2">
           <Button 
-            icon={<PiArrowClockwise />} 
+            variant="outline"
             onClick={handleRefresh}
-            loading={isLoading}
+            disabled={isLoading}
             data-testid={`${prefixDataTestId}-refresh-button`}
           >
+            <PiArrowClockwise className="gba:mr-2 gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
           </Button>
           <Button 
-            type="primary" 
-            icon={<PiPlus />} 
-            onClick={handleAdd}
+            onClick={handleCreateRule}
             data-testid={`${prefixDataTestId}-add-button`}
           >
+            <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.addRate', 'Add Rate')}
           </Button>
-        </Space>
+        </div>
       </div>
 
       {/* Search */}
@@ -322,26 +350,85 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       </div>
 
       {/* Table */}
-      <Table
-        columns={columns}
-        dataSource={filteredData}
-        rowKey="id"
-        loading={isLoading}
-        onRow={(record) => ({
-          onClick: () => handleViewRuleDetails(record),
-          style: { cursor: 'pointer' },
-          'data-testid': `${prefixDataTestId}-mileage-rule-row-${record.id}`
-        })}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} items`,
-        }}
-        scroll={{ x: 'max-content' }}
-        data-testid={`${prefixDataTestId}-table`}
-      />
+      {isLoading ? (
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+          <div className="gba:text-gray-500">Loading mileage rules...</div>
+        </div>
+      ) : (
+        <div className="gba:w-full gba:overflow-x-auto">
+          <Table className="gba:min-w-[800px] gba:table-fixed gba:text-sm" data-testid={`${prefixDataTestId}-table`}>
+            <TableHeader>
+              <TableRow className="gba:h-10">
+                <TableHead className="gba:w-[250px] gba:py-2 gba:px-3 gba:text-xs">MILEAGE RULE</TableHead>
+                <TableHead className="gba:w-[120px] gba:py-2 gba:px-3 gba:text-xs">PERIOD</TableHead>
+                <TableHead className="gba:w-[180px] gba:py-2 gba:px-3 gba:text-xs">VALID PERIOD</TableHead>
+                <TableHead className="gba:w-[120px] gba:py-2 gba:px-3 gba:text-xs">USED IN RULES</TableHead>
+                <TableHead className="gba:w-[100px] gba:py-2 gba:px-3 gba:text-xs">STATUS</TableHead>
+                <TableHead className="gba:w-[60px] gba:py-2 gba:px-3 gba:text-xs">ACTIONS</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((record) => (
+                <TableRow 
+                  key={record.id}
+                  className="gba:cursor-pointer hover:gba:bg-gray-50 gba:h-12"
+                  onClick={() => handleViewRuleDetails(record)}
+                  data-testid={`${prefixDataTestId}-mileage-rule-row-${record.id}`}
+                >
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[250px]">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <PiCar className="gba:text-gray-400" />
+                      <div>
+                        <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600 gba:truncate" title={record.code}>
+                          {record.code}
+                        </div>
+                        <div className="gba:text-gray-600 gba:text-xs gba:truncate" title={record.name}>
+                          {record.name}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[120px]">
+                    <Badge variant="default">
+                      {record.rulePeriodLabel}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[180px]">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <PiCalendar className="gba:text-purple-500" />
+                      <span className="gba:text-sm gba:truncate" title={record.validityPeriod}>{record.validityPeriod}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[120px]">
+                    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+                      <PiUsers className="gba:text-blue-500" size={14} />
+                      <Badge variant={record.usageCount > 0 ? 'default' : 'secondary'}>
+                        {record.usageCount}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[100px]">
+                    <Badge variant={record.isActive ? 'default' : 'secondary'}>
+                      {record.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:py-2 gba:px-3 gba:w-[60px]">
+                    <div className="gba:flex gba:justify-center">
+                      <ContextMenu
+                        actions={[
+                          createViewAction(() => handleViewRuleDetails(record)),
+                          createEditAction(() => handleEditRule(record))
+                        ]}
+                        triggerTestId={`${prefixDataTestId}-mileage-rule-actions-${record.id}`}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Details Drawer */}
       <DataDetailsDrawer

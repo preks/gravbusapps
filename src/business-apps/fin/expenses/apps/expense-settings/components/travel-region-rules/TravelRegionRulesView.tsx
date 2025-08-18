@@ -3,13 +3,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import TravelRegionSetCardView from './TravelRegionSetCardView';
 import TravelRegionMatrixView from './TravelRegionMatrixView';
 import UnassignedRulesView from './UnassignedRulesView';
-import TravelRegionRulesList from './TravelRegionRulesList';
 
 export interface TravelRegionRulesViewProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-type ViewMode = 'sets' | 'matrix' | 'unassigned' | 'legacy';
+type ViewMode = 'sets' | 'matrix' | 'unassigned';
 
 interface SelectedSet {
   id: string;
@@ -36,10 +35,6 @@ const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = (context) =>
     setViewMode('sets');
   };
 
-  const handleViewLegacy = () => {
-    setViewMode('legacy');
-  };
-
   // Render based on current view mode
   switch (viewMode) {
     case 'matrix':
@@ -62,19 +57,7 @@ const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = (context) =>
         />
       );
 
-    case 'legacy':
-      return (
-        <div 
-          data-testid={`${prefixDataTestId}-allowance-region-rules-view`}
-          className="gba:p-6"
-        >
-          <TravelRegionRulesList
-            {...context}
-            prefixDataTestId={prefixDataTestId}
-            onBackToNew={handleBackToSets}
-          />
-        </div>
-      );
+
 
     case 'sets':
     default:
