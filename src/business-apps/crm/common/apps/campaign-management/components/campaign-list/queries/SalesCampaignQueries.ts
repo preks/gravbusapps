@@ -1,4 +1,5 @@
 import { SalesCampaignQueryVariables } from '../types/SalesCampaignTypes';
+import dayjs from 'dayjs';
 
 export const GET_SALES_CAMPAIGNS = (variables: SalesCampaignQueryVariables): { query: string; variables: any } => {
   const { limit = 20, offset = 0, search, orderBy } = variables;
@@ -6,6 +7,15 @@ export const GET_SALES_CAMPAIGNS = (variables: SalesCampaignQueryVariables): { q
   let whereCondition: any = { isDeleted: { _eq: false } };
   if (search?.trim()) {
     const searchPattern = { _ilike: `%${search.trim()}%` };
+    const possibleDate = dayjs(search.trim());
+    const dateFilters: any[] = [];
+    if (possibleDate.isValid()) {
+      const startIso = possibleDate.startOf('day').toISOString();
+      const endIso = possibleDate.endOf('day').toISOString();
+      dateFilters.push({ startDate: { _gte: startIso, _lte: endIso } });
+      dateFilters.push({ endDate: { _gte: startIso, _lte: endIso } });
+      dateFilters.push({ createdAt: { _gte: startIso, _lte: endIso } });
+    }
     whereCondition = {
       _and: [
         { isDeleted: { _eq: false } },
@@ -20,10 +30,8 @@ export const GET_SALES_CAMPAIGNS = (variables: SalesCampaignQueryVariables): { q
             { type: { value: searchPattern } },
             { type: { code: searchPattern } },
             
-            // Date-based searches (for partial date matching)
-            { startDate: { _ilike: `%${search.trim()}%` } },
-            { endDate: { _ilike: `%${search.trim()}%` } },
-            { createdAt: { _ilike: `%${search.trim()}%` } },
+            // Date-based searches (range if input parses as a date)
+            ...dateFilters,
             
             // Type reference for direct ID matching
             { typeRef: searchPattern }
@@ -85,6 +93,15 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (variables: SalesCampaignQueryVari
   // Search condition - comprehensive search across all displayed fields
   if (search?.trim()) {
     const searchPattern = { _ilike: `%${search.trim()}%` };
+    const possibleDate = dayjs(search.trim());
+    const dateFilters: any[] = [];
+    if (possibleDate.isValid()) {
+      const startIso = possibleDate.startOf('day').toISOString();
+      const endIso = possibleDate.endOf('day').toISOString();
+      dateFilters.push({ startDate: { _gte: startIso, _lte: endIso } });
+      dateFilters.push({ endDate: { _gte: startIso, _lte: endIso } });
+      dateFilters.push({ createdAt: { _gte: startIso, _lte: endIso } });
+    }
     conditions.push({
       _or: [
         // Basic campaign fields
@@ -96,10 +113,8 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (variables: SalesCampaignQueryVari
         { type: { value: searchPattern } },
         { type: { code: searchPattern } },
         
-        // Date-based searches (for partial date matching)
-        { startDate: { _ilike: `%${search.trim()}%` } },
-        { endDate: { _ilike: `%${search.trim()}%` } },
-        { createdAt: { _ilike: `%${search.trim()}%` } },
+        // Date-based searches (range if input parses as a date)
+        ...dateFilters,
         
         // Type reference for direct ID matching
         { typeRef: searchPattern }

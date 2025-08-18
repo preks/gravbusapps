@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Spinner, Alert, AlertDescription, Button } from '@newwork/nw-design-system';
+import { Alert, AlertDescription, Button } from '@newwork/nw-design-system';
+import { UserOutlined, DollarOutlined, ContactsOutlined, BankOutlined, TrophyOutlined, BarChartOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
-import { TrophyOutlined, UserOutlined, DollarOutlined, StarOutlined, BarChartOutlined } from '@ant-design/icons';
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -12,7 +12,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
   error = null,
   onRetry
 }) => {
-  const [activeTab, setActiveTab] = useState('campaigns');
+  const [activeTab, setActiveTab] = useState('employees');
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -24,13 +24,16 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
     }).format(amount);
   };
 
-  // Format percentage
+  const getPercentage = (converted: number, total: number): number => {
+    return total > 0 ? Math.round((converted / total) * 100) : 0;
+  };
   const formatPercentage = (value: number): string => {
-    return `${value.toFixed(1)}%`;
+    const v = Number.isFinite(value) ? value : 0;
+    return `${Math.round(v)}%`;
   };
 
   // Get rank icon and color
-  const getRankDisplay = (rank: number) => {
+  /* const getRankDisplay = (rank: number) => {
     if (rank === 1) {
       return { icon: <TrophyOutlined />, color: '#FFD700', bgColor: '#FFF7E6' };
     } else if (rank === 2) {
@@ -40,9 +43,20 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
     } else {
       return { icon: <span className="gba:font-bold">#{rank}</span>, color: 'var(--color-text-secondary)', bgColor: 'var(--color-surface-secondary)' };
     }
-  };
+  }; */
 
-  // Campaign performer card component
+  // Map employee analytics item into the performer UI model used in record view
+  const mapEmployeeToPerformer = (e: any) => ({
+    employeeId: e.employeeId,
+    employeeName: e.employeeName,
+    leads: { total: e.leadsCount || 0, converted: e.convertedLeadsCount || 0 },
+    opportunities: { total: e.opportunitiesCount || 0, won: e.wonOpportunitiesCount || 0 },
+    contacts: { total: e.contactsCount || 0 },
+    accounts: { total: e.accountsCount || 0 },
+    revenue: e.totalRevenue || 0,
+  });
+  // NOTE: Advanced cards kept for future use (commented out to avoid linter warnings)
+  /*
   const CampaignPerformerCard = ({ campaign, index }: { campaign: any; index: number }) => {
     const rankDisplay = getRankDisplay(campaign.rank);
     
@@ -197,51 +211,52 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
       </div>
     );
   };
+  */
 
   if (isLoading) {
     return (
-      <Card data-testid="campaigns-top-performers-loading">
-        <CardContent className="gba:p-6">
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-            <Spinner size="lg" />
+      <div className="gba:p-8 gba:text-center" data-testid="campaigns-top-performers-loading">
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:mx-auto gba:mb-4" 
+             style={{ borderColor: 'var(--color-primary-500)' }} />
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.loading', 'Loading top performers...')}
+        </p>
           </div>
-        </CardContent>
-      </Card>
     );
   }
 
   if (error) {
     return (
-      <Card data-testid="campaigns-top-performers-error">
-        <CardContent className="gba:p-6">
+      <div 
+        className="gba:p-6 gba:rounded-lg gba:shadow-md" 
+        style={{ backgroundColor: 'var(--color-surface-primary)' }}
+        data-testid="campaigns-top-performers-error"
+      >
           <Alert variant="destructive">
             <AlertDescription>
-              {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.error', 'Error loading top performers data')}
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div>
+                <div className="gba:font-semibold gba:mb-1">{getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.errorTitle', 'Error Loading Top Performers')}</div>
+                <div>{error}</div>
+              </div>
               {onRetry && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRetry}
-                  className="gba:ml-2"
-                >
+                <Button variant="outline" size="sm" onClick={onRetry}>
                   {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
                 </Button>
               )}
+            </div>
             </AlertDescription>
           </Alert>
-        </CardContent>
-      </Card>
+      </div>
     );
   }
 
+  // UI matching record view with tabs
+  const performers = (topEmployees || []).map(mapEmployeeToPerformer);
+
+  // Build tabs for Top Campaigns and Top Employees
   return (
-    <Card data-testid="campaigns-top-performers">
-      <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.title', 'Top Performers')}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="gba:p-6">
+    <div data-testid="campaigns-top-performers-tabs">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -255,20 +270,59 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
               ),
               key: 'campaigns',
               children: (
-                <div data-testid="top-campaigns-list">
-                  {topCampaigns.length === 0 ? (
-                    <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
-                      {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.noCampaigns', 'No campaign performance data available')}
+              <div
+                className="gba:space-y-6 gba:bg-white gba:pb-6"
+                style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
+                data-testid="top-campaigns-list"
+              >
+                {topCampaigns && topCampaigns.length > 0 ? (
+                  topCampaigns.slice(0, 5).map((c, index) => (
+                    <div
+                      key={c.campaignId}
+                      className="gba:p-4 gba:rounded-lg"
+                      style={{ backgroundColor: 'var(--color-surface-primary)', boxShadow: 'var(--shadow-md)', border: 'var(--border-width-thin) solid var(--color-border-default)' }}
+                      data-testid={`analytics-top-campaign-${index}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          {index === 0 && (<TrophyOutlined className="gba:text-lg" style={{ color: 'var(--color-warning-500)' }} />)}
+                          <div>
+                            <h4 className="gba:text-sm gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>{c.campaignName}</h4>
+                            <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:font-medium" style={{ backgroundColor: 'var(--color-surface-secondary)', color: 'var(--color-text-primary)' }}>#{index + 1}</span>
+                            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.campaignType} • {c.status}</div>
+                          </div>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-6">
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><UserOutlined className="gba:text-xs" style={{ color: 'var(--color-primary-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Leads</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{c.leadsCount || 0}</div>
+                            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>Conv: {formatPercentage(c.conversionRate || 0)}</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><DollarOutlined className="gba:text-xs" style={{ color: 'var(--color-success-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Opps</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{c.opportunitiesCount || 0}</div>
+                            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.wonOpportunitiesCount || 0}/{c.opportunitiesCount || 0} ({getPercentage(c.wonOpportunitiesCount || 0, c.opportunitiesCount || 0)}%)</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><ContactsOutlined className="gba:text-xs" style={{ color: 'var(--color-warning-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Contacts</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{c.contactsCount || 0}</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><BankOutlined className="gba:text-xs" style={{ color: 'var(--color-info-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Accounts</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{c.accountsCount || 0}</div>
+                          </div>
+                          <div className="gba:text-center gba:pl-4 gba:border-l" style={{ borderColor: 'var(--color-border-default)' }}>
+                            <div className="gba:text-xs gba:mb-1" style={{ color: 'var(--color-text-secondary)' }}>Revenue</div>
+                            <div className="gba:text-lg gba:font-bold" style={{ color: 'var(--color-success-600)' }}>{formatCurrency(c.totalRevenue || 0)}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="gba:max-h-80 gba:overflow-y-auto">
-                      {topCampaigns.slice(0, 5).map((campaign, index) => (
-                        <CampaignPerformerCard 
-                          key={campaign.campaignId} 
-                          campaign={campaign} 
-                          index={index} 
-                        />
-                      ))}
+                  ))
+                ) : (
+                  <div className="gba:p-8 gba:text-center gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+                    <BarChartOutlined className="gba:text-3xl gba:mb-2" />
+                    <div style={{ color: 'var(--color-text-secondary)' }}>{getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.noCampaigns', 'No campaign performance data available')}</div>
                     </div>
                   )}
                 </div>
@@ -283,29 +337,66 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
               ),
               key: 'employees',
               children: (
-                <div data-testid="top-employees-list">
-                  {topEmployees.length === 0 ? (
-                    <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
-                      {getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.noEmployees', 'No employee performance data available')}
+              <div
+                className="gba:space-y-6"
+                style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
+                data-testid="top-employees-list"
+              >
+                {performers && performers.length > 0 ? (
+                  performers.map((performer: any, index: number) => (
+                    <div
+                      key={performer.employeeId}
+                      className="gba:p-4 gba:rounded-lg"
+                      style={{ backgroundColor: '#fff', boxShadow: 'var(--shadow-md)', border: 'var(--border-width-thin) solid var(--color-border-default)' }}
+                      data-testid={`analytics-top-performer-${index}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          {index === 0 && (<TrophyOutlined className="gba:text-lg" style={{ color: 'var(--color-warning-500)' }} />)}
+                          <div>
+                            <h4 className="gba:text-sm gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>{performer.employeeName}</h4>
+                            <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:font-medium" style={{ backgroundColor: 'var(--color-surface-secondary)', color: 'var(--color-text-primary)' }}>#{index + 1}</span>
+                          </div>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-6">
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><UserOutlined className="gba:text-xs" style={{ color: 'var(--color-primary-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Leads</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{performer.leads.total}</div>
+                            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>{performer.leads.converted}/{performer.leads.total} ({getPercentage(performer.leads.converted, performer.leads.total)}%)</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><DollarOutlined className="gba:text-xs" style={{ color: 'var(--color-success-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Opps</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{performer.opportunities.total}</div>
+                            <div className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>{performer.opportunities.won}/{performer.opportunities.total} ({getPercentage(performer.opportunities.won, performer.opportunities.total)}%)</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><ContactsOutlined className="gba:text-xs" style={{ color: 'var(--color-warning-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Contacts</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{performer.contacts.total}</div>
+                          </div>
+                          <div className="gba:text-center">
+                            <div className="gba:flex gba:items-center gba:justify-center gba:gap-1 gba:mb-1"><BankOutlined className="gba:text-xs" style={{ color: 'var(--color-info-500)' }} /><span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>Accounts</span></div>
+                            <div className="gba:text-sm gba:font-bold" style={{ color: 'var(--color-text-primary)' }}>{performer.accounts.total}</div>
+                          </div>
+                          <div className="gba:text-center gba:pl-4 gba:border-l" style={{ borderColor: 'var(--color-border-default)' }}>
+                            <div className="gba:text-xs gba:mb-1" style={{ color: 'var(--color-text-secondary)' }}>Won Revenue</div>
+                            <div className="gba:text-lg gba:font-bold" style={{ color: 'var(--color-success-600)' }}>{formatCurrency(performer.revenue)}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="gba:max-h-80 gba:overflow-y-auto">
-                      {topEmployees.slice(0, 5).map((employee, index) => (
-                        <EmployeePerformerCard 
-                          key={employee.employeeId} 
-                          employee={employee} 
-                          index={index} 
-                        />
-                      ))}
+                  ))
+                ) : (
+                  <div className="gba:p-8 gba:text-center gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+                    <UserOutlined className="gba:text-3xl gba:mb-2" />
+                    <div style={{ color: 'var(--color-text-secondary)' }}>{getTranslationFromI18nKeyAndLabel('campaigns.analytics.topPerformers.noEmployees', 'No employee performance data available')}</div>
                     </div>
                   )}
                 </div>
               )
-            },
+          }
           ]}
         />
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 

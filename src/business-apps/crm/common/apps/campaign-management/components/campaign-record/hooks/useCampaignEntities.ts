@@ -88,6 +88,7 @@ export const useCampaignEntities = (
           name: opportunity.name,
           type: 'opportunity',
           creationDate: opportunity.createdAt,
+          status: opportunity.opportunityStatus,
           owner: opportunity.ownerEmployee || {
             id: '',
             firstName: '',
@@ -113,10 +114,18 @@ export const useCampaignEntities = (
             valueA = new Date(a.creationDate).getTime();
             valueB = new Date(b.creationDate).getTime();
             break;
+          case 'type':
+            valueA = a.type || '';
+            valueB = b.type || '';
+            break;
           case 'ownerEmployeeId':
           case 'owner':
             valueA = a.owner?.displayName?.toLowerCase() || '';
             valueB = b.owner?.displayName?.toLowerCase() || '';
+            break;
+          case 'status':
+            valueA = (a as any).status?.value?.toLowerCase?.() || '';
+            valueB = (b as any).status?.value?.toLowerCase?.() || '';
             break;
           default:
             valueA = new Date(a.creationDate).getTime();

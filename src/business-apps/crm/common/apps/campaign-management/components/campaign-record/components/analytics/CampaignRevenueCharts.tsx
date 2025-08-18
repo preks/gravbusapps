@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card } from '@newwork/nw-design-system';
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import { CampaignAnalyticsMetrics, CampaignTimelineAnalysis } from '../../queries/CampaignAnalyticsQueries';
 
 interface CampaignRevenueChartsProps {
@@ -127,7 +127,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({
   };
 
   // Custom tooltip for line chart
-  const renderLineTooltip = (value: any, name: any, props: any) => {
+  const renderLineTooltip = (value: any, name: any) => {
     const nameMap: Record<string, string> = {
       'cumulativeLeads': 'Cumulative Leads',
       'cumulativeAccounts': 'Cumulative Accounts',
@@ -273,9 +273,9 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({
         </Card>
       </div>
 
-      {/* Second row for timeline and additional chart */}
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6">
-                       {/* Chart 3: Cumulative Growth Timeline */}
+      {/* Second row for timeline and revenue performance - place cumulative growth on left */}
+      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
+        {/* Chart 3: Cumulative Growth Timeline (left) */}
                {timelineChartData.length > 0 ? (
                  <Card className="gba:p-6" data-testid="cumulative-growth-chart">
                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
@@ -406,46 +406,20 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({
           </Card>
         )}
 
-        {/* Chart 4: Revenue Performance Timeline */}
+        {/* Chart 4: Revenue Performance Timeline (right) */}
         <Card className="gba:p-6" data-testid="revenue-performance-chart">
           <h4 className="gba:text-md gba:font-semibold gba:mb-4" style={{ color: 'var(--color-text-primary)' }}>
             Revenue Performance Over Time
           </h4>
-          
           {timelineChartData.length > 0 ? (
             <div className="gba:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timelineChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    stroke="var(--color-text-secondary)"
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    stroke="var(--color-text-secondary)"
-                    tickFormatter={(value) => formatCurrency(value)}
-                    domain={[0, 'dataMax']}
-                  />
-                  <Tooltip
-                    formatter={(value: any, name: any) => [formatCurrency(Number(value)), 'Revenue']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                    contentStyle={{
-                      backgroundColor: 'var(--color-surface-primary)',
-                      border: '1px solid var(--color-border-default)',
-                      borderRadius: 'var(--border-radius-sm)',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="cumulativeRevenue" 
-                    stroke="#52c41a" 
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: '#52c41a' }}
-                    name="Revenue"
-                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="var(--color-text-secondary)" tickFormatter={(value) => formatCurrency(value)} domain={[0, 'dataMax']} />
+                  <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), 'Revenue']} labelFormatter={(label) => `Date: ${label}`} contentStyle={{ backgroundColor: 'var(--color-surface-primary)', border: '1px solid var(--color-border-default)', borderRadius: 'var(--border-radius-sm)', fontSize: '12px' }} />
+                  <Line type="monotone" dataKey="cumulativeRevenue" stroke="#52c41a" strokeWidth={3} dot={{ r: 4, fill: '#52c41a' }} name="Revenue" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

@@ -1,20 +1,14 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Spinner } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined, CalendarOutlined, TagOutlined } from '@ant-design/icons';
+import { Spinner } from '@newwork/nw-design-system';
+import { CalendarOutlined, TagOutlined } from '@ant-design/icons';
+import { Badge } from '@newwork/nw-design-system';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { CampaignHeaderProps } from '../types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
 
-const CampaignHeader: React.FC<CampaignHeaderProps> = ({
-  campaign,
-  isLoading,
-  onBack
-}) => {
-  // Helper function to format date
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return '-';
-    return dayjs(dateString).format('DD MMM YYYY');
-  };
+const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, accessToken }) => {
+  // (no single-date display in header)
 
   // Helper function to calculate campaign duration
   const calculateDuration = (startDate?: string, endDate?: string): string => {
@@ -23,6 +17,16 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({
     const end = dayjs(endDate);
     const duration = end.diff(start, 'day');
     return `${duration} days`;
+  };
+
+  // Helper to format date range
+  const formatDateRange = (startDate?: string, endDate?: string): string => {
+    if (!startDate || !endDate) return '-';
+    const start = dayjs(startDate);
+    const end = dayjs(endDate);
+    const left = start.format('DD MMM');
+    const right = end.format('DD MMM YYYY');
+    return `${left} – ${right}`;
   };
 
   // Helper function to get campaign status
@@ -44,128 +48,75 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({
 
   if (isLoading) {
     return (
-      <Card data-testid="campaign-header-loading">
-        <CardContent className="gba:p-6">
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
-            <Spinner size="lg" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="gba:p-6" data-testid="campaign-header-loading" style={{ backgroundColor: 'white', borderRadius: '8px' }}>
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
+          <Spinner size="lg" />
+        </div>
+      </div>
     );
   }
 
   if (!campaign) {
     return (
-      <Card data-testid="campaign-header-error">
-        <CardContent className="gba:p-6">
-          <div className="gba:text-center" style={{ color: 'var(--color-text-secondary)' }}>
-            {getTranslationFromI18nKeyAndLabel('campaign.header.notFound', 'Campaign not found')}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="gba:p-6" data-testid="campaign-header-error" style={{ backgroundColor: 'white', borderRadius: '8px' }}>
+        <div className="gba:text-center" style={{ color: 'var(--color-text-secondary)' }}>
+          {getTranslationFromI18nKeyAndLabel('campaign.header.notFound', 'Campaign not found')}
+        </div>
+      </div>
     );
   }
 
-  const { status, color } = getCampaignStatus(campaign.startDate, campaign.endDate);
+  const statusInfo = getCampaignStatus(campaign.startDate, campaign.endDate);
 
   return (
-    <Card data-testid="campaign-header">
-      <CardHeader className="gba:pb-0">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-4">
-            {onBack && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                data-testid="campaign-header-back-button"
-                className="gba:p-2"
+    <div className="gba:account-header" style={{ marginBottom: '24px', backgroundColor: 'white', borderRadius: '8px', padding: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }} data-testid="campaign-header-title">
+              {campaign.name}
+            </div>
+            <div style={{ color: '#8c8c8c', fontSize: '14px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <TagOutlined />
+                {campaign.type?.value || 'Unknown Type'}
+              </span>
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <CalendarOutlined />
+                {calculateDuration(campaign.startDate, campaign.endDate)}
+              </span>
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <CalendarOutlined />
+                {formatDateRange(campaign.startDate, campaign.endDate)}
+              </span>
+              <Badge
+                variant={statusInfo.status === 'Active' ? 'success' : statusInfo.status === 'Upcoming' ? 'pending' : statusInfo.status === 'Completed' ? 'default' : 'secondary'}
+                data-testid="campaign-header-status-badge"
               >
-                <ArrowLeftOutlined />
-              </Button>
-            )}
-            <div>
-              <CardTitle className="gba:text-2xl gba:font-bold gba:mb-2" data-testid="campaign-header-title">
-                {campaign.name}
-              </CardTitle>
-              <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                <div className="gba:flex gba:items-center gba:gap-1" data-testid="campaign-header-type">
-                  <TagOutlined />
-                  <span>{campaign.type?.value || 'Unknown Type'}</span>
-                </div>
-                <div className="gba:flex gba:items-center gba:gap-1" data-testid="campaign-header-duration">
-                  <CalendarOutlined />
-                  <span>{calculateDuration(campaign.startDate, campaign.endDate)}</span>
-                </div>
-                <div 
-                  className="gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:shadow-sm"
-                  style={{ 
-                    backgroundColor: color, 
-                    color: 'white',
-                    border: `1px solid ${color}`,
-                    minWidth: '60px',
-                    textAlign: 'center'
-                  }}
-                  data-testid="campaign-header-status"
-                >
-                  {status}
-                </div>
-              </div>
+                {statusInfo.status}
+              </Badge>
             </div>
           </div>
         </div>
-      </CardHeader>
-      
-      <CardContent className="gba:pt-4">
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6">
-          {/* Start Date */}
-          <div data-testid="campaign-header-start-date">
-            <div className="gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              {getTranslationFromI18nKeyAndLabel('campaign.header.startDate', 'Start Date')}
-            </div>
-            <div className="gba:text-lg gba:font-semibold gba:mt-1">
-              {formatDate(campaign.startDate)}
-            </div>
-          </div>
-
-          {/* End Date */}
-          <div data-testid="campaign-header-end-date">
-            <div className="gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              {getTranslationFromI18nKeyAndLabel('campaign.header.endDate', 'End Date')}
-            </div>
-            <div className="gba:text-lg gba:font-semibold gba:mt-1">
-              {formatDate(campaign.endDate)}
-            </div>
-          </div>
-
-          {/* Duration */}
-          <div data-testid="campaign-header-duration-detail">
-            <div className="gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              {getTranslationFromI18nKeyAndLabel('campaign.header.duration', 'Duration')}
-            </div>
-            <div className="gba:text-lg gba:font-semibold gba:mt-1">
-              {calculateDuration(campaign.startDate, campaign.endDate)}
-            </div>
-          </div>
-        </div>
-
-        {/* Description */}
-        {campaign.description && (
-          <div className="gba:mt-6 gba:pt-4" style={{ borderTop: '1px solid var(--color-border-default)' }}>
-            <div className="gba:text-sm gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
-              {getTranslationFromI18nKeyAndLabel('campaign.header.description', 'Description')}
-            </div>
-            <div 
-              className="gba:text-base gba:leading-relaxed" 
-              style={{ color: 'var(--color-text-secondary)' }}
-              data-testid="campaign-header-description"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {accessToken && (
+            <AppActionButton
+              data-testid="campaign-record-action-button"
+              variant="primary"
+              size="md"
+              contextsArray={[]}
+              staticFlowData={[]}
+              prefixDataTestId="campaign-record-action"
+              accessToken={accessToken}
+              emptyStateBehavior="enabled"
+              deferMainContextRequestsUntilClick
             >
-              {campaign.description}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              Actions
+            </AppActionButton>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

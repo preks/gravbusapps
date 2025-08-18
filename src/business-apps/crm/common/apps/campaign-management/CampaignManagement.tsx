@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -7,9 +7,11 @@ import { useCampaignFilters } from './components/campaign-list/hooks/useCampaign
 import { CampaignStatistics, CampaignsTable, AddCampaignModal, CampaignRecord } from './components';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BarChartOutlined, LineChartOutlined } from '@ant-design/icons';
+import { ColumnVisibilityDropdown, ColumnConfig } from '@/business-apps/crm/common/components/lead-list/components/ColumnVisibilityDropdown';
 import { Tabs } from 'antd';
 import type { NewCampaignData } from './components/campaign-list/AddCampaignModal';
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes';
+import { startProcess } from '@/common/utils/start-process';
 
 // Import campaigns analytics components
 import { useCampaignsAnalytics } from './components/campaigns-analytics';
@@ -147,6 +149,19 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
   const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
+    { id: 'actions', label: 'Actions', visible: true, disabled: true },
+    { id: 'name', label: 'Name', visible: true },
+    { id: 'type', label: 'Type', visible: true },
+    { id: 'startDate', label: 'Start Date', visible: true },
+    { id: 'endDate', label: 'End Date', visible: true },
+    { id: 'status', label: 'Status', visible: true },
+    { id: 'createdAt', label: 'Created', visible: true },
+  ]);
+  const visibleColumns = useMemo(() => columnConfig.filter(c => c.visible).map(c => c.id), [columnConfig]);
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig(prev => prev.map(col => col.id === columnId ? { ...col, visible } : col));
+  }, []);
 
   // Handle pagination changes
   const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
@@ -286,10 +301,47 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     processFiltersAndFetch
   ]);
 
-  // Modal handlers
+  // Add button -> start native screen process for Campaign form
   const handleAddCampaign = useCallback(() => {
-    setIsAddModalOpen(true);
+    const currentUrl = new URL(window.location.href);
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveSalesCampaign',
+      payload: {
+        returnUrl: currentUrl.toString(),
+      },
+      builderType: 'NATIVE_SCREEN',
+    });
   }, []);
+
+  // Refresh list after process completion from native screen
+  useEffect(() => {
+    const handleProcessEvents = (event: any) => {
+      try {
+        const type = event?.type || '';
+        const detail = (event as CustomEvent)?.detail || {};
+        if (
+          type === 'com.newwork.process.taskCompletion' ||
+          type === 'process-completion' ||
+          type === 'task-completion' ||
+          (detail?.payload && detail?.event === 'pse_submit')
+        ) {
+          refetch();
+          refetchStatistics();
+        }
+      } catch (_) {}
+    };
+    window.addEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
+    window.addEventListener('process-completion', handleProcessEvents as EventListener);
+    window.addEventListener('task-completion', handleProcessEvents as EventListener);
+    window.addEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
+    return () => {
+      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
+      window.removeEventListener('process-completion', handleProcessEvents as EventListener);
+      window.removeEventListener('task-completion', handleProcessEvents as EventListener);
+      window.removeEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
+    };
+  }, [refetch, refetchStatistics]);
 
   const handleCloseModal = useCallback(() => {
     setIsAddModalOpen(false);
@@ -419,6 +471,14 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
               </div>
             </div>
           ),
+          actions: [
+            <ColumnVisibilityDropdown
+              key="column-visibility"
+              columns={columnConfig}
+              onColumnVisibilityChange={handleColumnVisibilityChange}
+              data-testid="campaigns-column-visibility"
+            />
+          ],
           addButton: {
             onClick: handleAddCampaign,
             label: "Add",
@@ -445,6 +505,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
               onSortingChange={handleSortingChange}
               onRowClick={handleCampaignRowClick}
               accessToken={props.accessToken}
+              visibleColumns={visibleColumns}
             />
           </div>
         }
@@ -464,35 +525,43 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
       />
 
       {/* Performance Comparison & Timeline Analysis */}
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <CampaignsPerformanceComparison
-          campaignComparisons={analyticsData.campaignComparisons}
-          isLoading={analyticsLoading}
-          error={analyticsError}
-          onRetry={refetchAnalytics}
-        />
-        <CampaignsTimelineAnalysis
-          timelineAnalysis={analyticsData.timelineAnalysis}
-          isLoading={analyticsLoading}
-          error={analyticsError}
-          onRetry={refetchAnalytics}
-        />
+      <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-3 gba:gap-6">
+        <div className="gba:col-span-2">
+          <CampaignsTimelineAnalysis
+            timelineAnalysis={analyticsData.timelineAnalysis}
+            isLoading={analyticsLoading}
+            error={analyticsError}
+            onRetry={refetchAnalytics}
+          />
+        </div>
+        <div className="gba:col-span-1">
+          <CampaignsPerformanceComparison
+            campaignComparisons={analyticsData.campaignComparisons}
+            isLoading={analyticsLoading}
+            error={analyticsError}
+            onRetry={refetchAnalytics}
+          />
+        </div>
       </div>
 
       {/* Revenue Analysis Charts */}
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <CampaignsRevenueAnalysis
-          campaignComparisons={analyticsData.campaignComparisons}
-          isLoading={analyticsLoading}
-          error={analyticsError}
-          onRetry={refetchAnalytics}
-        />
-        <CampaignsRevenueEfficiency
-          campaignComparisons={analyticsData.campaignComparisons}
-          isLoading={analyticsLoading}
-          error={analyticsError}
-          onRetry={refetchAnalytics}
-        />
+      <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-3 gba:gap-6">
+        <div className="gba:col-span-2">
+          <CampaignsRevenueAnalysis
+            campaignComparisons={analyticsData.campaignComparisons}
+            isLoading={analyticsLoading}
+            error={analyticsError}
+            onRetry={refetchAnalytics}
+          />
+        </div>
+        <div className="gba:col-span-1">
+          <CampaignsRevenueEfficiency
+            campaignComparisons={analyticsData.campaignComparisons}
+            isLoading={analyticsLoading}
+            error={analyticsError}
+            onRetry={refetchAnalytics}
+          />
+        </div>
       </div>
 
       {/* Top Performers */}
@@ -509,6 +578,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
   return (
     <>
       <PageLayout
+        className="gba:!bg-gray-50 gba:rounded-none gba:shadow-none"
         headerIcon={<BarChartOutlined />}
         headerLabel={getTranslationFromI18nKeyAndLabel('campaigns.page.title', 'Campaign Management')}
         contentContainer={

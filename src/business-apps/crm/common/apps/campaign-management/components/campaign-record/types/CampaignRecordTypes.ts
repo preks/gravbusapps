@@ -74,6 +74,7 @@ export interface CampaignEntity {
   type: 'lead' | 'account' | 'contact' | 'opportunity';
   creationDate: string;
   owner: CampaignEntityOwner;
+  status?: { value: string };
   
   // Essential fields for table display only
   firstName?: string; // For leads and contacts
@@ -149,7 +150,7 @@ export interface CampaignRecordProps extends BusinessAppContextProps {
 export interface CampaignHeaderProps {
   campaign: CampaignRecord | null;
   isLoading: boolean;
-  onBack?: () => void;
+  accessToken?: string;
 }
 
 export interface CampaignKPIsProps {

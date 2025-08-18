@@ -64,6 +64,14 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
           orderBy = [{ startDate: sortDirection }];
         } else if (variables.sortField === 'endDate') {
           orderBy = [{ endDate: sortDirection }];
+        } else if (variables.sortField === 'status') {
+          // Status is computed (Planned/Active/Completed). Approximate sorting by endDate descending for 'Active' vs 'Completed',
+          // and then by startDate for 'Planned'. This uses a deterministic order without custom DB functions.
+          // We simulate by primary endDate then startDate which groups statuses reasonably.
+          orderBy = [
+            { endDate: sortDirection },
+            { startDate: sortDirection },
+          ];
         } else if (variables.sortField === 'createdAt') {
           orderBy = [{ createdAt: sortDirection }];
         } else {

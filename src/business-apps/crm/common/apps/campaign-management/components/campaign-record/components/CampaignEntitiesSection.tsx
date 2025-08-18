@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCampaignEntities } from '../hooks/useCampaignEntities';
 import CampaignEntitiesTable from './CampaignEntitiesTable';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { DateRangeFilter } from '@/business-apps/crm/common/components/lead-list/components/DateRangeFilter';
 
 export interface CampaignEntitiesSectionProps extends BusinessAppContextProps {
   campaignId: string;
@@ -32,57 +33,103 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
     refetch
   } = useCampaignEntities(props, campaignId);
 
-  // Local state for features not yet implemented in the hook
+  // Local filter state
   const [selectedEntityTypes, setSelectedEntityTypes] = useState<string[]>([]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
 
-  // Create filter groups for entity types
-  const entityTypeFilterGroups = [
+  // Build dynamic owner and status options from data
+  const uniqueOwners = Array.from(
+    new Map(
+      (entities || []).map((e) => [e.owner?.id || e.owner?.displayName || '', e.owner?.displayName || 'Unassigned'])
+    ).entries()
+  ).filter(([id]) => Boolean(id)) as [string, string][];
+
+  const uniqueStatuses = Array.from(
+    new Set((entities || []).map((e: any) => (e.status?.value as string) || 'Unknown'))
+  );
+
+  const filterGroups = [
     {
       id: 'entityTypes',
-      label: getTranslationFromI18nKeyAndLabel('campaign.entities.filters.entityType', 'Entity Type'),
-      options: [
-        { id: 'lead', label: 'Leads', selected: selectedEntityTypes.includes('lead') },
-        { id: 'account', label: 'Accounts', selected: selectedEntityTypes.includes('account') },
-        { id: 'contact', label: 'Contacts', selected: selectedEntityTypes.includes('contact') },
-        { id: 'opportunity', label: 'Opportunities', selected: selectedEntityTypes.includes('opportunity') }
+      title: getTranslationFromI18nKeyAndLabel('campaign.entities.filters.entityType', 'Entity Type'),
+      filters: [
+        { id: 'type:lead', label: 'Leads', selected: selectedEntityTypes.includes('lead') },
+        { id: 'type:account', label: 'Accounts', selected: selectedEntityTypes.includes('account') },
+        { id: 'type:contact', label: 'Contacts', selected: selectedEntityTypes.includes('contact') },
+        { id: 'type:opportunity', label: 'Opportunities', selected: selectedEntityTypes.includes('opportunity') }
       ]
+    },
+    {
+      id: 'owners',
+      title: getTranslationFromI18nKeyAndLabel('campaign.entities.filters.owner', 'Owner'),
+      filters: uniqueOwners.map(([id, label]) => ({ id: `owner:${id}`, label, selected: selectedOwnerIds.includes(id) }))
+    },
+    {
+      id: 'status',
+      title: getTranslationFromI18nKeyAndLabel('campaign.entities.filters.status', 'Status'),
+      filters: uniqueStatuses.map((s) => ({ id: `status:${s}`, label: s, selected: selectedStatuses.includes(s) }))
+    },
+    {
+      id: 'creationDate',
+      title: getTranslationFromI18nKeyAndLabel('campaign.entities.filters.creationDate', 'Creation Date'),
+      filters: [],
+      hideSearch: true,
+      customComponent: (
+        <DateRangeFilter
+          createdAfter={createdAfter}
+          createdBefore={createdBefore}
+          onDateRangeChange={(after?: string, before?: string) => {
+            setCreatedAfter(after);
+            setCreatedBefore(before);
+          }}
+        />
+      )
     }
   ];
 
   // Create filter label map
   const filterLabelMap: Record<string, string> = {
-    'lead': 'Leads',
-    'account': 'Accounts', 
-    'contact': 'Contacts',
-    'opportunity': 'Opportunities'
+    'type:lead': 'Leads',
+    'type:account': 'Accounts', 
+    'type:contact': 'Contacts',
+    'type:opportunity': 'Opportunities',
+    ...Object.fromEntries(uniqueOwners.map(([id, label]) => [`owner:${id}`, label])),
+    ...Object.fromEntries(uniqueStatuses.map((s) => [`status:${s}`, s]))
   };
 
   // Get selected filters
-  const selectedFilters = selectedEntityTypes;
+  const selectedFilters = [
+    ...selectedEntityTypes.map((t) => `type:${t}`),
+    ...selectedOwnerIds.map((id) => `owner:${id}`),
+    ...selectedStatuses.map((s) => `status:${s}`)
+  ];
 
   // Handle filter change
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      let newTypes = [...selectedEntityTypes];
-      if (selected) {
-        if (!newTypes.includes(filterId)) {
-          newTypes.push(filterId);
-        }
-      } else {
-        newTypes = newTypes.filter(type => type !== filterId);
+      if (filterId.startsWith('type:')) {
+        const typeId = filterId.replace('type:', '');
+        setSelectedEntityTypes((prev) => selected ? Array.from(new Set([...prev, typeId])) : prev.filter((t) => t !== typeId));
+      } else if (filterId.startsWith('owner:')) {
+        const ownerId = filterId.replace('owner:', '');
+        setSelectedOwnerIds((prev) => selected ? Array.from(new Set([...prev, ownerId])) : prev.filter((o) => o !== ownerId));
+      } else if (filterId.startsWith('status:')) {
+        const status = filterId.replace('status:', '');
+        setSelectedStatuses((prev) => selected ? Array.from(new Set([...prev, status])) : prev.filter((s) => s !== status));
       }
-      setSelectedEntityTypes(newTypes);
     },
-    [selectedEntityTypes]
+    []
   );
 
   // Handle set filter (for clear all)
   const handleSetFilter = useCallback(
     (filters: string[]) => {
-      setSelectedEntityTypes(filters);
+      setSelectedEntityTypes(filters.filter((f) => f.startsWith('type:')).map((f) => f.replace('type:', '')));
+      setSelectedOwnerIds(filters.filter((f) => f.startsWith('owner:')).map((f) => f.replace('owner:', '')));
+      setSelectedStatuses(filters.filter((f) => f.startsWith('status:')).map((f) => f.replace('status:', '')));
     },
     []
   );
@@ -107,6 +154,32 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
     // This is called by the table for various changes
   }, []);
 
+  // Apply client-side filtering for now
+  const visibleEntities = entities.filter((e: any) => {
+    const q = (search || '').trim().toLowerCase();
+    if (q) {
+      const typeLabel = (e.type || '').toString().toLowerCase();
+      const statusLabel = (e.status?.value || '').toString().toLowerCase();
+      const ownerLabel = (e.owner?.displayName || '').toString().toLowerCase();
+      const nameLabel = (e.name || '').toString().toLowerCase();
+      const matches =
+        nameLabel.includes(q) ||
+        ownerLabel.includes(q) ||
+        typeLabel.includes(q) ||
+        statusLabel.includes(q);
+      if (!matches) return false;
+    }
+    if (selectedEntityTypes.length > 0 && !selectedEntityTypes.includes(e.type)) return false;
+    if (selectedOwnerIds.length > 0 && !selectedOwnerIds.includes(e.owner?.id || '')) return false;
+    if (selectedStatuses.length > 0) {
+      const val = e.status?.value || 'Unknown';
+      if (!selectedStatuses.includes(val)) return false;
+    }
+    if (createdAfter && new Date(e.creationDate) < new Date(createdAfter)) return false;
+    if (createdBefore && new Date(e.creationDate) > new Date(createdBefore)) return false;
+    return true;
+  });
+
   return (
     <div data-testid="campaign-entities-section-content">
       <DataContainer
@@ -117,13 +190,21 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
           filter: selectedFilters,
           setFilter: handleSetFilter,
           filterLabelMap,
+          dateRange: {
+            createdAfter,
+            createdBefore,
+            onClear: () => {
+              setCreatedAfter(undefined);
+              setCreatedBefore(undefined);
+            }
+          },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>
                   {getTranslationFromI18nKeyAndLabel('campaign.entities.title', 'Campaign Entities')}
                 </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
+                <span className="gba:text-gray-500">({visibleEntities.length})</span>
               </div>
             </div>
           ),
@@ -135,15 +216,15 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = (
           "data-testid": "campaign-entities-data-controller",
         }}
         dataFilterProps={{
-          filterGroups: entityTypeFilterGroups,
+          filterGroups,
           onFilterChange: handleFilterChange,
         }}
         dataBody={
           <CampaignEntitiesTable
-            entities={entities}
+            entities={visibleEntities}
             isLoading={isLoading}
             error={error}
-            totalCount={totalCount}
+            totalCount={visibleEntities.length}
             currentPage={currentPage}
             pageSize={pageSize}
             sortField={sortField || ''}

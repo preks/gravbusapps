@@ -1,6 +1,6 @@
 import React from 'react';
-import { TrophyOutlined, UserOutlined, DollarOutlined, StarOutlined, ContactsOutlined, BankOutlined } from '@ant-design/icons';
-import { Alert } from '@newwork/nw-design-system';
+import { TrophyOutlined, UserOutlined, DollarOutlined, ContactsOutlined, BankOutlined } from '@ant-design/icons';
+import { Alert, AlertDescription, Button } from '@newwork/nw-design-system';
 
 interface TopPerformer {
   employeeId: string;
@@ -38,27 +38,32 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
 
   if (error) {
     return (
-      <Alert
-        variant="destructive"
-        title="Error Loading Top Performers"
-        description={error}
-        action={
-          onRetry && (
-            <button 
-              onClick={onRetry}
-              className="gba:px-3 gba:py-1 gba:text-sm gba:rounded"
-              style={{ 
-                backgroundColor: 'var(--color-primary-500)', 
-                color: 'var(--color-on-primary)' 
-              }}
-              data-testid="top-performers-retry-button"
-            >
-              Retry
-            </button>
-          )
-        }
-        data-testid="top-performers-error-alert"
-      />
+      <div 
+        className="gba:p-6 gba:rounded-lg gba:shadow-md" 
+        style={{ backgroundColor: '#ffffff' }}
+        data-testid="top-performers-error-container"
+      >
+        <Alert variant="destructive" data-testid="top-performers-error-alert">
+          <AlertDescription>
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div>
+                <div className="gba:font-semibold gba:mb-1">Error Loading Top Performers</div>
+                <div>{error}</div>
+              </div>
+              {onRetry && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
+                  data-testid="top-performers-retry-button"
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -90,8 +95,8 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
         </div>
         
         <div 
-          className="gba:p-8 gba:text-center" 
-          style={{ backgroundColor: 'var(--color-surface-secondary)', borderRadius: 'var(--border-radius-md)' }}
+          className="gba:p-8 gba:text-center gba:rounded-lg" 
+          style={{ backgroundColor: 'var(--color-surface-secondary)' }}
         >
           <UserOutlined className="gba:text-3xl gba:mb-4" style={{ color: 'var(--color-text-secondary)' }} />
           <p style={{ color: 'var(--color-text-secondary)' }}>
@@ -119,10 +124,10 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
         {performers.map((performer, index) => (
           <div
             key={performer.employeeId}
-            className="gba:p-4 gba:rounded-lg gba:border gba:transition-all gba:duration-200"
+            className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200"
             style={{ 
-              backgroundColor: 'var(--color-surface-primary)',
-              borderColor: 'var(--color-border-default)'
+              backgroundColor: '#fff',
+              boxShadow: 'var(--shadow-md)',
             }}
             data-testid={`top-performer-${index}`}
           >
@@ -132,7 +137,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
                 {index === 0 && (
                   <TrophyOutlined 
                     className="gba:text-lg" 
-                    style={{ color: '#FFD700' }} 
+                    style={{ color: 'var(--color-warning-500)' }} 
                     data-testid="first-place-trophy"
                   />
                 )}

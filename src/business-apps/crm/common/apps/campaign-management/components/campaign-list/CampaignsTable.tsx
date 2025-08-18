@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -7,8 +7,6 @@ import {
   TableHeader, 
   TableRow,
   Spinner,
-  Alert,
-  AlertDescription,
   Button,
   Badge,
   Card,
@@ -22,10 +20,11 @@ import {
   PiMegaphone
 } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { SalesCampaign } from './types/SalesCampaignTypes';
+// Column visibility is managed in parent to match Lead List pattern
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
+import { startProcess } from '@/common/utils/start-process';
 
 interface CampaignsTableProps {
   campaigns: SalesCampaign[];
@@ -41,6 +40,7 @@ interface CampaignsTableProps {
   onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
   onRowClick?: (campaign: SalesCampaign) => void;
   accessToken: string;
+  visibleColumns?: string[]; // managed by parent like LeadList
 }
 
 const CampaignsTable: React.FC<CampaignsTableProps> = ({
@@ -56,9 +56,12 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
   onPaginationChange,
   onSortingChange,
   onRowClick,
-  accessToken
+  accessToken,
+  visibleColumns: visibleColumnsProp
 }) => {
   const DATA_TEST_ID_PREFIX = "CampaignsTable";
+  const allColumns = ['actions','name','type','startDate','endDate','status','createdAt'];
+  const visibleColumns = useMemo(() => new Set(visibleColumnsProp ?? allColumns), [visibleColumnsProp]);
 
   // Helper function to format date
   const formatDate = (dateString?: string): string => {
@@ -153,17 +156,18 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
             style={{ minWidth: '1000px' }}
           >
             <TableHeader>
-              <TableRow style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+              <TableRow className="gba:border-b gba:bg-gray-50">
+                {visibleColumns.has('actions') && (
                 <TableHead
-                  className="gba:w-[60px] gba:font-semibold gba:py-4 gba:px-6"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 >
                   {getTranslationFromI18nKeyAndLabel('campaigns.table.actions', 'ACTIONS')}
                 </TableHead>
+                )}
+                {visibleColumns.has('name') && (
                 <TableHead
-                  className="gba:w-[300px] gba:font-semibold gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[300px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort("name")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-name-header`}
                 >
@@ -172,9 +176,10 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     {renderSortIcon("name")}
                   </div>
                 </TableHead>
+                )}
+                {visibleColumns.has('type') && (
                 <TableHead
-                  className="gba:w-[180px] gba:font-semibold gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort("typeRef")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
                 >
@@ -183,9 +188,10 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     {renderSortIcon("typeRef")}
                   </div>
                 </TableHead>
+                )}
+                {visibleColumns.has('startDate') && (
                 <TableHead
-                  className="gba:w-[144px] gba:font-semibold gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort("startDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
@@ -194,9 +200,10 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     {renderSortIcon("startDate")}
                   </div>
                 </TableHead>
+                )}
+                {visibleColumns.has('endDate') && (
                 <TableHead
-                  className="gba:w-[144px] gba:font-semibold gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort("endDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
@@ -205,13 +212,20 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     {renderSortIcon("endDate")}
                   </div>
                 </TableHead>
+                )}
+                {visibleColumns.has('status') && (
                 <TableHead
-                  className="gba:w-[144px] gba:font-semibold gba:py-4 gba:px-6"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  onClick={() => handleSort("status")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
-                  {getTranslationFromI18nKeyAndLabel('campaigns.table.status', 'Status')}
+                  <div className="gba:flex gba:items-center">
+                    {getTranslationFromI18nKeyAndLabel('campaigns.table.status', 'Status')}
+                    {renderSortIcon("status")}
+                  </div>
                 </TableHead>
+                )}
+                {visibleColumns.has('createdAt') && (
                 <TableHead
                   className="gba:w-[144px] gba:font-semibold gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none"
                   style={{ color: 'var(--color-text-primary)' }}
@@ -223,6 +237,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     {renderSortIcon("createdAt")}
                   </div>
                 </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,9 +247,6 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                   className={`gba:border-b gba:transition-colors ${
                     onRowClick ? "gba:cursor-pointer" : ""
                   }`}
-                  style={{
-                    borderColor: 'var(--color-border-default)'
-                  }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${campaign.id}`}
                   onClick={() => handleRowClick(campaign)}
                   onMouseEnter={(e) => {
@@ -248,6 +260,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                     }
                   }}
                 >
+                  {visibleColumns.has('actions') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${campaign.id}`}
@@ -256,16 +269,46 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-campaign-button-${campaign.id}`}
                         variant="secondary"
-                        contextsArray={[FlowContextName.flow]}
-                        externalContextData={{ entityId: campaign.id }}
-                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-campaign`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        contextsArray={[]}
                         deferMainContextRequestsUntilClick
+                        staticFlowData={[
+                          {
+                            category: 'Actions',
+                            key: 'update-campaign',
+                            label: getTranslationFromI18nKeyAndLabel('crm:campaign.update', 'Update Campaign'),
+                            onClick: () => {
+                              const currentUrl = new URL(window.location.href);
+                              startProcess({
+                                domain: 'customer-relations',
+                                processName: 'saveSalesCampaign',
+                                payload: {
+                                  // broad payload so native screen can detect update
+                                  changeMode: 'UPDATE',
+                                  salesCampaign: { id: campaign.id },
+                                  salesCampaignId: campaign.id,
+                                  id: campaign.id,
+                                  entityId: campaign.id,
+                                  campaignId: campaign.id,
+                                  returnUrl: currentUrl.toString(),
+                                  saveSalesCampaignModelInput: {
+                                    changeMode: 'UPDATE',
+                                    salesCampaign: { id: campaign.id },
+                                    returnUrl: currentUrl.toString(),
+                                  },
+                                },
+                                builderType: 'NATIVE_SCREEN',
+                              });
+                            }
+                          }
+                        ]}
+                        accessToken={accessToken}
+                        emptyStateBehavior="enabled"
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
                   </TableCell>
+                  )}
+                  {visibleColumns.has('name') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-name-cell-${campaign.id}`}
@@ -288,6 +331,8 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
+                  )}
+                  {visibleColumns.has('type') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${campaign.id}`}
@@ -299,6 +344,8 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       </span>
                     </div>
                   </TableCell>
+                  )}
+                  {visibleColumns.has('startDate') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-start-date-cell-${campaign.id}`}
@@ -310,6 +357,8 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       </span>
                     </div>
                   </TableCell>
+                  )}
+                  {visibleColumns.has('endDate') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-end-date-cell-${campaign.id}`}
@@ -321,6 +370,8 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       </span>
                     </div>
                   </TableCell>
+                  )}
+                  {visibleColumns.has('status') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${campaign.id}`}
@@ -340,6 +391,8 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       );
                     })()}
                   </TableCell>
+                  )}
+                  {visibleColumns.has('createdAt') && (
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${campaign.id}`}
@@ -351,6 +404,7 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                       </span>
                     </div>
                   </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

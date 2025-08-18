@@ -159,15 +159,16 @@ export const GET_CAMPAIGN_KPIS = (variables: { campaignId: string }): string => 
 // Get Campaign Entities Query - Only essential fields for table display
 export const GET_CAMPAIGN_ENTITIES = (): string => {
   return `
-    query GetCampaignEntities($campaignId: uuid!, $offset: Int, $limit: Int) {
+    query GetCampaignEntities($campaignId: uuid!, $offset: Int, $limit: Int, $orderByLeads: [LeadOrderBy!], $orderByAccounts: [AccountOrderBy!], $orderByContacts: [ContactOrderBy!], $orderByOpportunities: [OpportunityOrderBy!], $whereOwner: EmployeeBoolExp, $whereStatus: CatalogEntryBoolExp) {
       leads: Lead(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
+          ownerEmployee: $whereOwner
         }
         offset: $offset
         limit: $limit
-        orderBy: { createdAt: DESC }
+        orderBy: $orderByLeads
       ) {
         id
         firstName
@@ -182,10 +183,11 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
+          ownerEmployee: $whereOwner
         }
         offset: $offset
         limit: $limit
-        orderBy: { createdAt: DESC }
+        orderBy: $orderByAccounts
       ) {
         id
         name
@@ -199,10 +201,11 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
+          ownerEmployee: $whereOwner
         }
         offset: $offset
         limit: $limit
-        orderBy: { createdAt: DESC }
+        orderBy: $orderByContacts
       ) {
         id
         firstName
@@ -217,10 +220,12 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
+          ownerEmployee: $whereOwner
+          opportunityStatus: $whereStatus
         }
         offset: $offset
         limit: $limit
-        orderBy: { createdAt: DESC }
+        orderBy: $orderByOpportunities
       ) {
         id
         name
@@ -229,6 +234,7 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
           id
           displayName
         }
+        opportunityStatus { value }
       }
     }
   `;
@@ -252,10 +258,19 @@ export const useCampaignRecordQueries = (context: BusinessAppContextProps) => {
 
   const fetchCampaignEntities = useCallback(async (variables: CampaignRecordQueryVariables) => {
     const query = GET_CAMPAIGN_ENTITIES();
+    const orderField = (variables.orderBy && variables.orderBy[0]) ? Object.keys(variables.orderBy[0])[0] : 'createdAt';
+    const orderDir = (variables.orderBy && variables.orderBy[0]) ? (variables.orderBy[0] as any)[orderField] : 'DESC';
+    const orderByClause = [{ [orderField]: orderDir }];
     const result = await graphqlClient.request<CampaignEntitiesQueryResponse>(query, {
       campaignId: variables.campaignId,
       offset: variables.offset || 0,
-      limit: variables.limit || 20
+      limit: variables.limit || 20,
+      orderByLeads: orderByClause,
+      orderByAccounts: orderByClause,
+      orderByContacts: orderByClause,
+      orderByOpportunities: orderByClause,
+      whereOwner: variables.search && variables.search.startsWith('owner:') ? { id: { _eq: variables.search.split(':')[1] } } : {},
+      whereStatus: variables.search && variables.search.startsWith('status:') ? { value: { _eq: variables.search.split(':')[1] } } : {},
     });
     return result;
   }, [graphqlClient]);

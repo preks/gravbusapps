@@ -211,13 +211,17 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                   </div>
               </TableHead>
 
-                {/* Type Column */}
+                {/* Type Column - Sortable */}
                 <TableHead
-                  className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer hover:gba:bg-gray-100"
+                  onClick={() => handleSort('type')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
                 >
-                  Type
-              </TableHead>
+                  <div className="gba:flex gba:items-center">
+                    Type
+                    {renderSortIcon('type')}
+                  </div>
+                </TableHead>
 
                 {/* Creation Date Column - Sortable */}
                 <TableHead
@@ -243,13 +247,17 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                   </div>
               </TableHead>
 
-                {/* Status Column */}
+                {/* Status Column - Sortable */}
                 <TableHead
-                  className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer hover:gba:bg-gray-100"
+                  onClick={() => handleSort('status')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
-                  Status
-              </TableHead>
+                  <div className="gba:flex gba:items-center">
+                    Status
+                    {renderSortIcon('status')}
+                  </div>
+                </TableHead>
             </TableRow>
           </TableHeader>
 

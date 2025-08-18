@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   Button,
   Form,
@@ -98,21 +99,22 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        style={{ 
-          maxWidth: 'var(--spacing-96)', 
-          width: '100%' 
-        }}
+        style={{ maxWidth: 'var(--spacing-128)', width: '100%' }}
+        className="gba:p-0"
         data-testid="add-campaign-modal"
       >
-        <DialogHeader>
+        <DialogHeader className="gba:p-6 gba:pb-0">
           <DialogTitle data-testid="add-campaign-modal-title">
-            {getTranslationFromI18nKeyAndLabel('campaigns.modal.title', 'New Campaign')}
+            {getTranslationFromI18nKeyAndLabel('campaigns.modal.title', 'Create Campaign')}
           </DialogTitle>
+          <DialogDescription className="gba:mt-1">
+            {getTranslationFromI18nKeyAndLabel('campaigns.modal.subtitle', 'Provide basic details to create a new campaign.')}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="add-campaign-form">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            <div className="gba:p-6 gba:space-y-4">
               {/* Name Field */}
               <FormField
                 control={form.control}
@@ -121,6 +123,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                   <FormItem>
                     <FormLabel data-testid="add-campaign-name-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.name.label', 'Name')}
+                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -142,6 +145,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                   <FormItem>
                     <FormLabel data-testid="add-campaign-type-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.type.label', 'Type')}
+                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
@@ -170,6 +174,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                   <FormItem>
                     <FormLabel data-testid="add-campaign-start-date-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.startDate.label', 'Start Date')}
+                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -191,6 +196,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                   <FormItem>
                     <FormLabel data-testid="add-campaign-end-date-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.endDate.label', 'End Date')}
+                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -227,7 +233,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
               />
             </div>
 
-            <DialogFooter style={{ marginTop: 'var(--spacing-lg)' }}>
+            <DialogFooter className="gba:p-6 gba:pt-0">
               <Button
                 type="button"
                 variant="outline"

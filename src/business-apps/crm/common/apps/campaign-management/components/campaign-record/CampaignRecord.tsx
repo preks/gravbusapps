@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PageLayout } from '@/components/layout/pageLayout';
+// Removed PageLayout usage for this screen per requirement
 import { Tabs } from 'antd';
 import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks';
 import { 
-  CampaignHeader, 
   CampaignKPIs, 
   CampaignChart, 
-  CampaignEntitiesSection
+  CampaignEntitiesSection,
+  CampaignHeader
 } from './components';
 import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics';
 import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel';
@@ -14,7 +14,8 @@ import CampaignRevenueAnalysis from './components/analytics/CampaignRevenueAnaly
 import CampaignTopPerformers from './components/analytics/CampaignTopPerformers';
 import { CampaignRecordProps } from './types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BarChartOutlined, EyeOutlined, LineChartOutlined } from '@ant-design/icons';
+import { EyeOutlined, LineChartOutlined } from '@ant-design/icons';
+// dayjs no longer needed in this file after removing PageLayout inline info
 
 interface CampaignRecordComponentProps extends CampaignRecordProps {}
 
@@ -44,8 +45,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   const {
     campaign,
     isLoading: campaignLoading,
-    error: campaignError,
-    refetch: refetchCampaign
+    error: campaignError
   } = useCampaignRecord(props, campaignId);
 
   // Fetch campaign KPIs data
@@ -80,15 +80,6 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   // Overview Tab Content
   const OverviewTab = () => (
     <div className="gba:space-y-6" data-testid="campaign-overview-container">
-      {/* Campaign Header */}
-      <div data-testid="campaign-header-section">
-        <CampaignHeader
-          campaign={campaign}
-          isLoading={campaignLoading}
-          onBack={onBack}
-        />
-      </div>
-
       {/* Campaign KPIs */}
       <div data-testid="campaign-kpis-section">
         <CampaignKPIs
@@ -110,7 +101,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       </div>
 
       {/* Campaign Entities Section */}
-      <div data-testid="campaign-entities-section">
+      <div className="gba:pb-6" data-testid="campaign-entities-section">
         <CampaignEntitiesSection
           campaignId={campaignId}
           {...props}
@@ -132,28 +123,21 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         />
       </div>
 
-      {/* Two-column layout for charts */}
-      <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-8">
-        {/* Conversion Funnel */}
-        <div data-testid="campaign-conversion-funnel-section">
-          <CampaignConversionFunnel
-            funnelData={analyticsData.conversionFunnel}
-            isLoading={analyticsLoading}
-            error={analyticsError}
-            onRetry={refetchAnalytics}
-          />
-        </div>
-
-        {/* Revenue Analysis */}
-        <div data-testid="campaign-revenue-analysis-section">
-          <CampaignRevenueAnalysis
-            metrics={analyticsData.metrics}
-            timelineData={analyticsData.timelineAnalysis}
-            isLoading={analyticsLoading}
-            error={analyticsError}
-            onRetry={refetchAnalytics}
-          />
-        </div>
+      {/* Full-width layout: stack charts to use page width */}
+      <div className="gba:flex gba:flex-col gba:gap-8" data-testid="campaign-analytics-fullwidth">
+        <CampaignConversionFunnel
+          funnelData={analyticsData.conversionFunnel}
+          isLoading={analyticsLoading}
+          error={analyticsError}
+          onRetry={refetchAnalytics}
+        />
+        <CampaignRevenueAnalysis
+          metrics={analyticsData.metrics}
+          timelineData={analyticsData.timelineAnalysis}
+          isLoading={analyticsLoading}
+          error={analyticsError}
+          onRetry={refetchAnalytics}
+        />
       </div>
 
       {/* Top Performers */}
@@ -169,54 +153,64 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   );
 
   return (
-    <PageLayout
-      headerIcon={<BarChartOutlined />}
-      headerLabel={
-        campaign?.name || 
-        getTranslationFromI18nKeyAndLabel('campaign.record.title', 'Campaign Details')
-      }
-      contentContainer={
-        <div data-testid="campaign-record-container">
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            className="gba:mb-6"
-            data-testid="campaign-record-tabs"
-            items={[
-              {
-                key: 'overview',
-                label: (
-                  <span className="gba:flex gba:items-center gba:gap-2" data-testid="campaign-overview-tab">
-                    <EyeOutlined />
-                    {getTranslationFromI18nKeyAndLabel('campaign.tabs.overview', 'Overview')}
-                  </span>
-                ),
-                children: (
-                  <div data-testid="campaign-overview-content">
-                    <OverviewTab />
-                  </div>
-                )
-              },
-              {
-                key: 'analytics',
-                label: (
-                  <span className="gba:flex gba:items-center gba:gap-2" data-testid="campaign-analytics-tab">
-                    <LineChartOutlined />
-                    {getTranslationFromI18nKeyAndLabel('campaign.tabs.analytics', 'Analytics')}
-                  </span>
-                ),
-                children: (
-                  <div data-testid="campaign-analytics-content">
-                    <AnalyticsTab />
-                  </div>
-                )
-              }
-            ]}
-          />
-        </div>
-      }
-      data-testid="campaign-record-page"
-    />
+    <div className="gba:w-full">
+      <div className="gba:px-6 gba:pt-4 gba:pb-2">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="gba:flex gba:items-center gba:gap-2"
+            style={{ color: 'var(--color-primary-600)' }}
+            data-testid="campaign-record-back-link"
+          >
+            ← {getTranslationFromI18nKeyAndLabel('campaigns.header.back', 'Back to Campaigns')}
+          </button>
+        )}
+      </div>
+
+      {/* Header above tabs */}
+      <div className="gba:px-6" data-testid="campaign-header-section">
+        <CampaignHeader campaign={campaign} isLoading={campaignLoading} accessToken={props.accessToken} />
+      </div>
+
+      <div className="gba:px-6 gba:py-2" data-testid="campaign-record-container">
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          className="gba:mb-6"
+          data-testid="campaign-record-tabs"
+          items={[
+            {
+              key: 'overview',
+              label: (
+                <span className="gba:flex gba:items-center gba:gap-2" data-testid="campaign-overview-tab">
+                  <EyeOutlined />
+                  {getTranslationFromI18nKeyAndLabel('campaign.tabs.overview', 'Overview')}
+                </span>
+              ),
+              children: (
+                <div data-testid="campaign-overview-content">
+                  <OverviewTab />
+                </div>
+              )
+            },
+            {
+              key: 'analytics',
+              label: (
+                <span className="gba:flex gba:items-center gba:gap-2" data-testid="campaign-analytics-tab">
+                  <LineChartOutlined />
+                  {getTranslationFromI18nKeyAndLabel('campaign.tabs.analytics', 'Analytics')}
+                </span>
+              ),
+              children: (
+                <div data-testid="campaign-analytics-content">
+                  <AnalyticsTab />
+                </div>
+              )
+            }
+          ]}
+        />
+      </div>
+    </div>
   );
 };
 
