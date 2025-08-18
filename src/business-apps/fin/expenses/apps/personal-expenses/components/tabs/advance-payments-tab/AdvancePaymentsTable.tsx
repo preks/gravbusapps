@@ -28,6 +28,8 @@ import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable';
 
@@ -193,17 +195,21 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   // Handle viewing expense plan details
   const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
-    if (record.expensePlan) {
-      setSelectedExpensePlan(record.expensePlan);
-    }
+    console.log('intra aici')
+    console.log('record', record)
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { 
+      expensePlanId: record.expensePlan && record.expensePlan.id ? record.expensePlan.id : ''
+    });
+    navigateTo(url);
   }, []);
 
   // Handle viewing expense request details
   const handleViewExpenseRequestDetails = useCallback((record: AdvancePayment) => {
     // For advance payments, we need to get the expense request from the expense plan
-    if (record.expensePlan && record.expensePlan.expenseRequest) {
-      setSelectedExpenseRequest(record.expensePlan.expenseRequest[0]);
-    }
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
+      expenseRequestId: record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : ''
+    });
+    navigateTo(url);
   }, []);
 
   // Enhanced server-side sorting handler
@@ -334,10 +340,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                           className="gba:py-4 gba:px-3"
                           data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                         >
-                          <div className="gba:flex gba:justify-start gba:gap-2">
+                          <div 
+                            className="gba:flex gba:justify-start gba:gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <AppActionButton
                               data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
-                              variant="secondary"
+                              size="icon"
                               staticFlowData={[
                                 {
                                   category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
@@ -369,8 +378,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                               ]}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick
-                              onClick={(e) => e.stopPropagation()}
+                              deferMainContextRequestsUntilClick={true}
                             />
                           </div>
                         </TableCell>
