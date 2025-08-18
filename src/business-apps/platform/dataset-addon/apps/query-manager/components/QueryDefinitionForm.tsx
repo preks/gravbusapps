@@ -35,7 +35,9 @@ import {
   QueryStatus, 
   ParameterType, 
   QueryParameter,
-  AdditionalColumn
+  AdditionalColumn,
+  Services,
+  getServiceLabel
 } from '@/common/network/dataset';
 
 // Environment detection utility
@@ -77,6 +79,7 @@ interface QueryDefinitionFormProps {
   onCancel: () => void;
   isLoading: boolean;
   defaultQueryType?: QueryType;
+  currentService: Services;
 }
 
 export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
@@ -85,7 +88,8 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   onSave,
   onCancel,
   isLoading,
-  defaultQueryType
+  defaultQueryType,
+  currentService
 }) => {
   const [formValues, setFormValues] = useState({
     name: '',
@@ -326,7 +330,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
     <Dialog open={visible} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent {...getDialogContentProps()}>
         <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+          <DialogTitle className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
             <FloppyDiskIcon />
             <span>{isEditing ? 'Edit Query Definition' : 'Create Query Definition'}</span>
           </DialogTitle>
@@ -337,25 +341,25 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
           style={{ 
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--spacing-6)',
+            gap: 'var(--nw-spacing-6)',
             maxHeight: '60vh',
             overflowY: 'auto'
           }}
         >
           {/* Mode Toggle */}
           <Card>
-            <CardHeader style={{ paddingBottom: 'var(--spacing-3)' }}>
-              <CardTitle className="gba:text-base gba:flex gba:items-center" style={{ gap: 'var(--spacing-2)' }}>
+            <CardHeader style={{ paddingBottom: 'var(--nw-spacing-3)' }}>
+              <CardTitle className="gba:text-base gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                 Mode Settings
               </CardTitle>
             </CardHeader>
             <CardContent style={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--spacing-4)'
+              gap: 'var(--nw-spacing-4)'
             }}>
-              <div className="gba:flex gba:flex-col" style={{ gap: 'var(--spacing-3)' }}>
-                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+              <div className="gba:flex gba:flex-col" style={{ gap: 'var(--nw-spacing-3)' }}>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--nw-spacing-2)' }}>
                   <Label htmlFor="json-mode-switch" style={{ fontWeight: '500' }}>JSON Mode</Label>
                   <Switch 
                     id="json-mode-switch"
@@ -364,7 +368,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                     data-testid="json-mode-switch"
                   />
                 </div>
-                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--spacing-2)' }}>
+                <div className="gba:flex gba:items-center gba:justify-between" style={{ gap: 'var(--nw-spacing-2)' }}>
                   <Label htmlFor="validate-query-switch" style={{ fontWeight: '500' }}>Validate Query</Label>
                   <Switch 
                     id="validate-query-switch"
@@ -382,15 +386,15 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
             <div style={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--spacing-4)'
+              gap: 'var(--nw-spacing-4)'
             }}>
               {jsonError && (
                 <Alert>
                   <h4 style={{ 
-                    color: 'var(--color-destructive)',
-                    margin: 'var(--spacing-0)'
+                    color: 'var(--nw-color-destructive)',
+                    margin: 'var(--nw-spacing-0)'
                   }}>JSON Validation Error</h4>
-                  <p style={{ margin: 'var(--spacing-0)' }}>{jsonError}</p>
+                  <p style={{ margin: 'var(--nw-spacing-0)' }}>{jsonError}</p>
                 </Alert>
               )}
               <Card>
@@ -408,9 +412,9 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                 </CardContent>
               </Card>
               <div style={{ 
-                padding: 'var(--spacing-4)', 
-                backgroundColor: 'var(--color-muted)',
-                borderRadius: 'var(--border-radius-md)',
+                padding: 'var(--nw-spacing-4)', 
+                backgroundColor: 'var(--nw-color-muted)',
+                borderRadius: 'var(--nw-border-radius-md)',
                 fontSize: '0.875rem'
               }}>
                 <strong>Required fields:</strong> name, description, query<br/>
@@ -422,7 +426,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
             <div style={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--spacing-6)'
+              gap: 'var(--nw-spacing-6)'
             }}>
               {/* Basic Information */}
               <Card>
@@ -432,25 +436,25 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                 <CardContent style={{ 
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 'var(--spacing-4)'
+                  gap: 'var(--nw-spacing-4)'
                 }}>
-                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--nw-spacing-4)' }}>
                     <div style={{ 
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 'var(--spacing-2)'
+                      gap: 'var(--nw-spacing-2)'
                     }}>
                       <Label>Query Name *</Label>
                       <Input
                         value={formValues.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
                         placeholder="Enter unique query name"
-                        style={errors.name ? { borderColor: 'var(--color-destructive)' } : {}}
+                        style={errors.name ? { borderColor: 'var(--nw-color-destructive)' } : {}}
                       />
                       {errors.name && (
                         <p className="gba:text-sm" style={{ 
-                          color: 'var(--color-destructive)',
-                          margin: 'var(--spacing-0)'
+                          color: 'var(--nw-color-destructive)',
+                          margin: 'var(--nw-spacing-0)'
                         }}>
                           {errors.name}
                         </p>
@@ -460,7 +464,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                     <div style={{ 
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 'var(--spacing-2)'
+                      gap: 'var(--nw-spacing-2)'
                     }}>
                       <Label>Query Type *</Label>
                       <Select value={formValues.queryType} onValueChange={(value) => handleInputChange('queryType', value)}>
@@ -475,11 +479,11 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                     </div>
                   </div>
 
-                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--nw-spacing-4)' }}>
                     <div style={{ 
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 'var(--spacing-2)'
+                      gap: 'var(--nw-spacing-2)'
                     }}>
                       <Label>Status *</Label>
                       <Select value={formValues.status} onValueChange={(value) => handleInputChange('status', value)}>
@@ -497,7 +501,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                   <div style={{ 
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 'var(--spacing-2)'
+                    gap: 'var(--nw-spacing-2)'
                   }}>
                     <Label>Description *</Label>
                     <Textarea
@@ -505,12 +509,12 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                       onChange={(e) => handleInputChange('description', e.target.value)}
                       placeholder="Describe what this query does..."
                       rows={3}
-                      style={errors.description ? { borderColor: 'var(--color-destructive)' } : {}}
+                      style={errors.description ? { borderColor: 'var(--nw-color-destructive)' } : {}}
                     />
                     {errors.description && (
                       <p className="gba:text-sm" style={{ 
-                        color: 'var(--color-destructive)',
-                        margin: 'var(--spacing-0)'
+                        color: 'var(--nw-color-destructive)',
+                        margin: 'var(--nw-spacing-0)'
                       }}>
                         {errors.description}
                       </p>
@@ -528,7 +532,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                     size="sm"
                     onClick={handleFormatSQL}
                     className="gba:flex gba:items-center"
-                    style={{ gap: 'var(--spacing-2)' }}
+                    style={{ gap: 'var(--nw-spacing-2)' }}
                   >
                     <PaintBrushIcon />
                     Format SQL
@@ -538,19 +542,19 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                   <div style={{ 
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 'var(--spacing-2)'
+                    gap: 'var(--nw-spacing-2)'
                   }}>
                     <Textarea
                       value={formValues.query}
                       onChange={(e) => handleInputChange('query', e.target.value)}
                       placeholder="Enter your SQL query..."
                       rows={12}
-                      style={errors.query ? { borderColor: 'var(--color-destructive)' } : {}}
+                      style={errors.query ? { borderColor: 'var(--nw-color-destructive)' } : {}}
                     />
                     {errors.query && (
                       <p className="gba:text-sm" style={{ 
-                        color: 'var(--color-destructive)',
-                        margin: 'var(--spacing-0)'
+                        color: 'var(--nw-color-destructive)',
+                        margin: 'var(--nw-spacing-0)'
                       }}>
                         {errors.query}
                       </p>
@@ -568,7 +572,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                     size="sm"
                     onClick={addParameter}
                     className="gba:flex gba:items-center"
-                    style={{ gap: 'var(--spacing-2)' }}
+                    style={{ gap: 'var(--nw-spacing-2)' }}
                   >
                     <PlusIcon />
                     Add Parameter
@@ -578,13 +582,13 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                   <div style={{ 
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 'var(--spacing-4)'
+                    gap: 'var(--nw-spacing-4)'
                   }}>
-                    <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--spacing-4)' }}>
+                    <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--nw-spacing-4)' }}>
                       <p style={{ 
-                        color: 'var(--color-muted-foreground)',
+                        color: 'var(--nw-color-muted-foreground)',
                         fontSize: '0.875rem',
-                        margin: 'var(--spacing-0)'
+                        margin: 'var(--nw-spacing-0)'
                       }}>
                         Define parameters that can be passed to your query at execution time.
                       </p>
@@ -592,8 +596,8 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
 
                     {parameters.length === 0 ? (
                       <p className="gba:text-center" style={{ 
-                        color: 'var(--color-muted-foreground)',
-                        margin: 'var(--spacing-0)'
+                        color: 'var(--nw-color-muted-foreground)',
+                        margin: 'var(--nw-spacing-0)'
                       }}>
                         No parameters defined. Click "Add Parameter" to create one.
                       </p>
@@ -601,12 +605,12 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                       <div style={{ 
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 'var(--spacing-4)'
+                        gap: 'var(--nw-spacing-4)'
                       }}>
                         {parameters.map((param, index) => (
-                          <div key={index} className="gba:border gba:rounded-md" style={{ padding: 'var(--spacing-4)' }}>
-                            <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--spacing-4)' }}>
-                              <h4 className="gba:font-medium" style={{ margin: 'var(--spacing-0)' }}>
+                          <div key={index} className="gba:border gba:rounded-md" style={{ padding: 'var(--nw-spacing-4)' }}>
+                            <div className="gba:flex gba:items-center gba:justify-between" style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+                              <h4 className="gba:font-medium" style={{ margin: 'var(--nw-spacing-0)' }}>
                                 Parameter {index + 1}
                               </h4>
                               <Button
@@ -614,18 +618,18 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                                 size="sm"
                                 onClick={() => removeParameter(index)}
                                 className="gba:flex gba:items-center"
-                                style={{ gap: 'var(--spacing-1)' }}
+                                style={{ gap: 'var(--nw-spacing-1)' }}
                               >
                                 <TrashIcon />
                                 Remove
                               </Button>
                             </div>
                             
-                            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--spacing-4)' }}>
+                            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2" style={{ gap: 'var(--nw-spacing-4)' }}>
                               <div style={{ 
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: 'var(--spacing-2)'
+                                gap: 'var(--nw-spacing-2)'
                               }}>
                                 <Label>Name *</Label>
                                 <Input
@@ -637,7 +641,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                               <div style={{ 
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: 'var(--spacing-2)'
+                                gap: 'var(--nw-spacing-2)'
                               }}>
                                 <Label>Type *</Label>
                                 <Select value={param.type} onValueChange={(value) => updateParameter(index, 'type', value)}>
@@ -657,8 +661,8 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
                             <div style={{ 
                               display: 'flex',
                               flexDirection: 'column',
-                              gap: 'var(--spacing-2)',
-                              marginTop: 'var(--spacing-4)'
+                              gap: 'var(--nw-spacing-2)',
+                              marginTop: 'var(--nw-spacing-4)'
                             }}>
                               <Label>Description</Label>
                               <Input
@@ -679,13 +683,13 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
         </div>
 
         <DialogFooter>
-          <div className="gba:flex gba:justify-end" style={{ gap: 'var(--spacing-2)' }}>
+          <div className="gba:flex gba:justify-end" style={{ gap: 'var(--nw-spacing-2)' }}>
             <Button variant="outline" onClick={onCancel}>
-              <XIcon style={{ marginRight: 'var(--spacing-2)' }} />
+              <XIcon style={{ marginRight: 'var(--nw-spacing-2)' }} />
               Cancel
             </Button>
             <Button variant="default" onClick={handleSave} disabled={isLoading}>
-              <FloppyDiskIcon style={{ marginRight: 'var(--spacing-2)' }} />
+              <FloppyDiskIcon style={{ marginRight: 'var(--nw-spacing-2)' }} />
               {isLoading ? 'Saving...' : (isEditing ? 'Update Query' : 'Create Query')}
             </Button>
           </div>

@@ -73,7 +73,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       customComponent: React.createElement(ExpenseDateRangeFilter, {
         expenseDateRange: expenseDateRange,
         onDateRangeChange: setExpenseDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -104,16 +104,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         { id: 'pending', label: formatStatusName('PENDING'), selected: selectedFilters.includes('pending') }
       ]
     },
-    {
-      id: 'amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
-      filters: [
-        { id: 'under100', label: 'Under €100', selected: selectedFilters.includes('under100') },
-        { id: '100to500', label: '€100 - €500', selected: selectedFilters.includes('100to500') },
-        { id: '500to1000', label: '€500 - €1000', selected: selectedFilters.includes('500to1000') },
-        { id: 'over1000', label: 'Over €1000', selected: selectedFilters.includes('over1000') }
-      ]
-    }
   ], [selectedFilters, expenseDateRange]);
 
   // Create filter label map including date range
@@ -132,7 +122,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     // Add date range label if active
     const dateRangeLabel = formatDateRangeLabel(expenseDateRange);
     if (dateRangeLabel) {
-      map['expenseDateRange'] = `Expense Date: ${dateRangeLabel}`;
+      map['expenseDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label','Expense Date')}: ${dateRangeLabel}`;
     }
     
     return map;

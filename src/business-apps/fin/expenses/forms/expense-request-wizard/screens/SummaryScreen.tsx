@@ -11,7 +11,7 @@ import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/it
 import { getDayName } from '../utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 /**
  * SummaryScreen component props
@@ -30,11 +30,12 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  * @param props - Component props
  * @returns SummaryScreen component
  */
-const SummaryScreen: React.FC<SummaryScreenProps> = () => {
+const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
   const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext();
   const { hasFutureDates } = useExpenseRequestDateValidation();
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData);
   const requestData = expenseRequestData?.ExpenseRequestByPk;
-  const requestItemData = expenseRequestData.ExpenseItem;
+  const requestItemData = expenseRequestData?.ExpenseItem;
   const expenseItems = noAllowanceItemsFunction(requestItemData);
   
   const handleSave = useCallback(() => {
@@ -46,7 +47,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SAVE
       );
-      dispatchProcessContinueEvent(EVENTS.SAVE, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -59,7 +60,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
         expenseRequestData,
         EVENTS.SUBMIT
       );
-      dispatchProcessContinueEvent(EVENTS.SUBMIT, logObject);
+      dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject);
     }
   }, [expenseRequestData, employeeRuleId, currentTitle]);
   
@@ -107,12 +108,12 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
   };
   
   // Get paginated data
-  const paginatedAllowanceItems = allowanceItems.slice(
+  const paginatedAllowanceItems = allowanceItems?.slice(
     (allowanceCurrentPage - 1) * itemListLimit,
     allowanceCurrentPage * itemListLimit
   );
   
-  const paginatedExpenseItems = positionsArray.slice(
+  const paginatedExpenseItems = positionsArray?.slice(
     (expenseCurrentPage - 1) * itemListLimit,
     expenseCurrentPage * itemListLimit
   );
@@ -157,7 +158,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
             </Col>
           </Row>
         </div>
-        
+        {requestData?.expensePlan && (
         <div className="gba:mt-6" data-testid="expense-request-plan-section">
           <span 
             className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
@@ -165,7 +166,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan')}
           </span>
-          {requestData?.expensePlan && (
+          
             <div className="gba:mb-4" data-testid="expense-request-plan-card-container">
               <div className="gba:summary-plan-card-container" data-testid="summary-plan-card-custom-container">
                 <PlanCard 
@@ -188,9 +189,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
                 />
               </div>
             </div>
-          )}
+          
         </div>
-        
+        )}
         <div className="gba:mt-6" data-testid="expense-request-allowances-section">
           <span 
             className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
@@ -198,7 +199,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder', 'Allowances') + " ("+allowanceItems?.length + ")"}
           </span>
-          
+          <div style={{flexGrow:1}}>
           {allowanceItems && allowanceItems.length > 0 ? (
             <>
               <div className="gba:allowances-list" data-testid="expense-request-allowances-list">
@@ -273,7 +274,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = () => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_expense_items', 'No expense items created')}
             </div>
           )}
-        </div>
+        </div></div>
         <ExpenseSummary requestData={requestData} />
         {hasFutureDates && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">

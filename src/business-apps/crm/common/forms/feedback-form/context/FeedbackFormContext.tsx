@@ -1,0 +1,220 @@
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { FeedbackFormValues, EmployeeOption } from '../types';
+import { useTextTransformation } from '../hooks/useTextTransformation';
+import { useStructureEmployees } from '../hooks/useStructureEmployees';
+import { useEmployeeDetails } from '../hooks/useEmployeeDetails';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+
+interface FeedbackFormContextType {
+  formValues: FeedbackFormValues;
+  setFormValues: (values: Partial<FeedbackFormValues>) => void;
+  transformText: (type: 'formalize' | 'translate' | 'shorten', targetLanguage?: string) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
+  onSubmit: () => Promise<void>;
+  onCancel: () => Promise<void>;
+  businessAppContext: BusinessAppContextProps;
+  employees: EmployeeOption[];
+  employeesLoading: boolean;
+  employeesError: string | null;
+  searchEmployees: (search: string) => Promise<void>;
+  getEmployeeById: (employeeId: string) => EmployeeOption | undefined;
+  preSelectedEmployee: EmployeeOption | null;
+  preSelectedEmployeeLoading: boolean;
+  preSelectedEmployeeError: string | null;
+  hasPreSelectedEmployee: boolean;
+}
+
+const FeedbackFormContext = createContext<FeedbackFormContextType | undefined>(undefined);
+
+interface FeedbackFormProviderProps {
+  children: ReactNode;
+  businessAppContext: BusinessAppContextProps;
+  initialValues?: Partial<FeedbackFormValues>;
+  onSubmit?: (values: FeedbackFormValues) => Promise<void>;
+  onCancel?: () => Promise<void>;
+  preSelectedEmployeeId?: string;
+}
+
+export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
+  children,
+  businessAppContext,
+  initialValues = {},
+  onSubmit = async () => {},
+  onCancel = async () => {},
+  preSelectedEmployeeId,
+  ...props
+}) => {
+  const [formValues, setFormValues] = useState<FeedbackFormValues>({
+    feedbackText: '',
+    transformedText: undefined,
+    transformationType: undefined,
+    targetLanguage: undefined,
+    employeeId: undefined,
+    employeeName: undefined,
+    ...initialValues
+  });
+
+  const { transformText: apiTransformText, isLoading, error, setError } = useTextTransformation(
+    businessAppContext.accessToken
+  );
+
+  // Use the existing useEmployeeById hook for pre-selected employee
+  const { 
+    employee: preSelectedEmployee, 
+    loading: preSelectedEmployeeLoading, 
+    error: preSelectedEmployeeError 
+  } = useEmployeeDetails(businessAppContext.accessToken, preSelectedEmployeeId);
+
+  // Only fetch all employees if no pre-selected employee is provided
+  const hasPreSelectedEmployee = !!preSelectedEmployeeId;
+  const { 
+    employees, 
+    isLoading: employeesLoading, 
+    error: employeesError, 
+    fetchStructureEmployees, 
+    getEmployeeById 
+  } = useStructureEmployees(businessAppContext.accessToken, !hasPreSelectedEmployee);
+
+  const updateFormValues = useCallback((values: Partial<FeedbackFormValues>) => {
+    setFormValues(prev => ({ ...prev, ...values }));
+  }, []);
+
+  // Handle pre-selected employee
+  useEffect(() => {
+    if (preSelectedEmployee && !formValues.employeeId) {
+      updateFormValues({
+        employeeId: preSelectedEmployee.id,
+        employeeName: preSelectedEmployee.name
+      });
+    }
+  }, [preSelectedEmployee, formValues.employeeId, updateFormValues]);
+
+  const transformText = useCallback(async (type: 'formalize' | 'translate' | 'shorten', targetLanguage?: string) => {
+    if (!formValues.feedbackText.trim()) {
+      setError('Please enter some text to transform');
+      return;
+    }
+
+    try {
+      const result = await apiTransformText({
+        text: formValues.feedbackText,
+        transformationType: type,
+        targetLanguage
+      });
+
+      if (result) {
+        // Replace the original text with the transformed text
+        updateFormValues({
+          feedbackText: result.transformedText,
+          transformedText: undefined,
+          transformationType: undefined
+        });
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Text transformation error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to transform text');
+    }
+  }, [formValues.feedbackText, apiTransformText, updateFormValues, setError]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, [setError]);
+
+  const searchEmployees = useCallback(async (search: string) => {
+    if (!hasPreSelectedEmployee) {
+      await fetchStructureEmployees(search);
+    }
+  }, [hasPreSelectedEmployee, fetchStructureEmployees]);
+
+  const handleSubmit = useCallback(async () => {
+    try {
+      // Create payload for Kogito process with correct structure
+      const payload = {
+        feedback: {
+          id: undefined, // Will be generated by the process
+          version: 0,
+          businessKey: undefined, // Will be generated by the process
+          additionalProperties: {
+            transformationType: formValues.transformationType,
+            targetLanguage: formValues.targetLanguage
+          },
+          feedback: formValues.feedbackText,
+          feedbackDate: new Date().toISOString(),
+          typeRef: "feedback", // Default feedback type
+          rating: 0, // Default rating
+          employeeId: formValues.employeeId,
+          senderEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId, // Current user
+          public: true // Default to public
+        },
+        receiverId: formValues.employeeId, // The employee receiving the feedback
+        event: "submit_feedback"
+      };
+
+      console.log('Submitting payload:', payload);
+      
+      // Dispatch the process continue event
+      dispatchProcessContinueEvent("pse_submit", payload);
+      
+      // Also call the original onSubmit if provided (for backward compatibility)
+      if (onSubmit) {
+        await onSubmit(formValues);
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to submit feedback');
+    }
+  }, [formValues, onSubmit, setError, businessAppContext.userInfo]);
+
+  const handleCancel = useCallback(async () => {
+    try {
+      // Dispatch the process pause event
+      dispatchProcessContinueEvent("pse_pause", {});
+      
+      // Also call the original onCancel if provided (for backward compatibility)
+      if (onCancel) {
+        await onCancel();
+      }
+    } catch (err) {
+      console.error('Form cancellation error:', err);
+    }
+  }, [onCancel]);
+
+  const contextValue: FeedbackFormContextType = {
+    formValues,
+    setFormValues: updateFormValues,
+    transformText,
+    isLoading,
+    error,
+    clearError,
+    onSubmit: handleSubmit,
+    onCancel: handleCancel,
+    businessAppContext,
+    employees,
+    employeesLoading,
+    employeesError,
+    searchEmployees,
+    getEmployeeById,
+    preSelectedEmployee,
+    preSelectedEmployeeLoading,
+    preSelectedEmployeeError,
+    hasPreSelectedEmployee
+  };
+
+  return (
+    <FeedbackFormContext.Provider value={contextValue}>
+      {children}
+    </FeedbackFormContext.Provider>
+  );
+};
+
+export const useFeedbackForm = (): FeedbackFormContextType => {
+  const context = useContext(FeedbackFormContext);
+  if (!context) {
+    throw new Error('useFeedbackForm must be used within a FeedbackFormProvider');
+  }
+  return context;
+};

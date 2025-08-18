@@ -294,7 +294,8 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         planDate: {_gte: $startDate, _lte: $endDate},
-        status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]}
+        status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]},
+        currencyRef: {_eq: "Currency:v1:EUR"}
       }
     ) {
       aggregate {

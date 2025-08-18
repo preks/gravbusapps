@@ -112,7 +112,7 @@ export interface ExpensePlansDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (filters: ExpensePlanFilter, page?: number, pageSize?: number) => Promise<void>;
+  fetchItems: (filters: ExpensePlanFilter, page?: number, pageSize?: number, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
 }
 
 export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePlansDataView => {
@@ -123,11 +123,13 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
   const [error, setError] = useState<Error | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  // Function to fetch items with search and pagination (client-side sorting)
+  // Function to fetch items with search, pagination, and server-side sorting
   const fetchItems = useCallback(async (
     filters: ExpensePlanFilter = {}, 
     page: number = 1, 
-    pageSize: number = 20
+    pageSize: number = 20,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
   ) => {
     if (!employeeId) {
       setError(new Error('Employee ID not found. Cannot fetch expense plans.'));
@@ -151,8 +153,41 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
     try {
       const offset = (page - 1) * pageSize;
       
-      // Use default sorting by creation date (newest first) on server
-      const orderBy = [{ createdAt: 'DESC' }];
+      // Build variables object
+      const variables: Record<string, any> = {
+        employeeId,
+        filters,
+        limit: pageSize,
+        offset: offset,
+      };
+
+      // Add orderBy for server-side sorting
+      if (sortField && sortOrder) {
+        // Map UI sort field to GraphQL field names - only include fields that exist in the schema
+        const fieldMap: Record<string, string> = {
+          code: 'code',
+          title: 'title',
+          planDate: 'planDate',
+          startDate: 'startDate',
+          endDate: 'endDate',
+          status: 'status',
+          reimbursableAmount: 'reimbursableAmount',
+          advancePaymentPaidAmount: 'advancePaymentPaidAmount',
+          totalAmount: 'totalAmount',
+          createdAt: 'createdAt',
+          updatedAt: 'updatedAt',
+          description: 'description',
+          currencyRef: 'currencyRef',
+          requestTypeRef: 'requestTypeRef'
+        };
+        const gqlField = fieldMap[sortField] || sortField;
+        // Use proper null handling for better sorting, especially for numeric fields that can be null
+        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+        variables.orderBy = [{ [gqlField]: direction }];
+      } else {
+        // Default sorting by creation date descending
+        variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }];
+      }
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -162,13 +197,7 @@ export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePl
         },
         body: JSON.stringify({
           query: GET_EXPENSE_PLANS_BY_EMPLOYEE,
-          variables: { 
-            employeeId,
-            filters,
-            limit: pageSize,
-            offset: offset,
-            orderBy: orderBy
-          },
+          variables: variables,
         }),
       });
 

@@ -34,6 +34,11 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
     return employee.skills || [];
   }, [employee.skills]);
 
+  // Get non-deleted skills for display
+  const validSkills = useMemo(() => {
+    return employeeSkills.filter(skill => !skill.isDeleted);
+  }, [employeeSkills]);
+
   // Calculate skill statistics
   const skillStats = useMemo(() => {
     return calculateSkillStats(employeeSkills);
@@ -65,12 +70,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
         {isSelfView && (
         <AppActionButton
           variant="ghost"
-          data-testid="update-skills-button"
+          data-testid="employee-skills-edit-button"
           contextsArray={[FlowContextName.updateEmployeeSkill]}
           externalContextData={{
             employeeId: employee?.id
           }}
-          prefixDataTestId="update-skills"
+          prefixDataTestId="employee-skills-edit"
           accessToken={accessToken}
           autoExecuteSingleAction={true}
           icon={<PiPencilSimple />}
@@ -78,7 +83,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
         )}
       </div>
 
-      {employeeSkills.length === 0 ? (
+      {validSkills.length === 0 ? (
         <Empty 
           description={getTranslationFromI18nKeyAndLabel(
             "lowcoder:employee_record.no_skills",
@@ -93,12 +98,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
             <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--color-purple-500)' }}>
+                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-purple-500)' }}>
                     {skillStats.total}
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Total Skills</div>
                 </div>
-                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--color-purple-500)' }} />
+                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
             
@@ -112,17 +117,17 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Highest Skills</div>
                 </div>
-                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--color-purple-500)' }} />
+                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
           </div>
 
           {/* Skills Grid */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6" data-testid="skills-grid">
-            {employeeSkills
-              .filter(skill => skill.level && !skill.isDeleted)
+            {validSkills
               .map((skillItem) => {
-                const levelInfo = getLevelInfo(Number(skillItem.level));
+                const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== '';
+                const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0);
                 const category = getSkillCategory(skillItem.skill.additionalProperties);
                 const timeSinceCreated = getTimeSince(skillItem.skill.createdAt);
                 const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt);
@@ -133,8 +138,8 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                     className="gba:h-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
                     data-testid={`skill-card-${skillItem.skill.id}`}
                     style={{
-                      background: 'var(--color-white)',
-                      borderRadius: 'var(--spacing-3)'
+                      background: 'var(--nw-color-white)',
+                      borderRadius: 'var(--nw-spacing-3)'
                     }}
                   >
                     <div className="gba:relative">
@@ -157,22 +162,24 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                               className="gba:font-bold gba:text-xl"
                               style={{ color: levelInfo.color }}
                             >
-                              {skillItem.level}
+                              {hasLevel ? skillItem.level : 'N/A'}
                             </div>
                             <div className="gba:text-xs gba:text-gray-500">Level</div>
                           </div>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="gba:mb-4">
-                          <Progress 
-                            percent={(Number(skillItem.level) / 5) * 100} 
-                            showInfo={false}
-                            strokeColor={levelInfo.color}
-                            trailColor="var(--color-gray-200)"
-                            strokeWidth={8}
-                          />
-                        </div>
+                        {/* Progress Bar - Only show if skill has a level */}
+                        {hasLevel && (
+                          <div className="gba:mb-4">
+                            <Progress 
+                              percent={(Number(skillItem.level) / 5) * 100} 
+                              showInfo={false}
+                              strokeColor={levelInfo.color}
+                              trailColor="var(--color-gray-200)"
+                              strokeWidth={8}
+                            />
+                          </div>
+                        )}
 
                         {/* Level Description */}
                         <div className="gba:mb-4">
@@ -185,14 +192,14 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                         <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
                           <div className="gba:flex gba:justify-between gba:items-center">
                             <span className="gba:text-xs gba:text-gray-500">Category</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                               {category}
                             </span>
                           </div>
                           
                           <div className="gba:flex gba:justify-between gba:items-center">
                             <span className="gba:text-xs gba:text-gray-500">Added</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                               {timeSinceCreated}
                             </span>
                           </div>
@@ -200,7 +207,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
                           {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
                             <div className="gba:flex gba:justify-between gba:items-center">
                               <span className="gba:text-xs gba:text-gray-500">Updated</span>
-                              <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-gray-700)' }}>
+                              <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                                 {timeSinceUpdated}
                               </span>
                             </div>

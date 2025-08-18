@@ -67,8 +67,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [search, setSearch] = useState('');
 
-  // Get all selected filters (including date range) - use props instead of hook
+  // Get all selected filters (including date range and amount range) - use props instead of hook
   const allSelectedFilters = selectedFilters;
+
+  // Track if any filters are active to show conditional messages
+  const hasActiveFilters = useMemo(() => {
+    return search || allSelectedFilters.length > 0;
+  }, [search, allSelectedFilters]);
 
   // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate');
@@ -89,6 +94,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
       const apiFilters = getFilters(allSelectedFilters);
       fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+      // Clear selection when table is refreshed (process finished)
+      setSelectedRowKeys([]);
     }
   }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, allSelectedFilters, getFilters, sortField, sortOrder]);
 
@@ -197,11 +204,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
+    
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
       payload,
+      builderType: 'NATIVE_SCREEN'
     });
   }, [selectedRowKeys, items, contextProps.userInfo]);
 
@@ -231,6 +240,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItemsIds: targetIds
     };
+    
     startProcess({
       domain: 'employee-expense',
       processName: 'discardExpenseItems',
@@ -311,7 +321,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         setSearch: handleSearchChange,
         placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
         filter: allSelectedFilters,
-        setFilter: setFilters,
+        setFilter: (filters: string[]) => {
+          // This is called by DataController's "Clear all filters" button or individual filter removal
+          if (filters.length === 0) {
+            // Clear all filters including amount range
+            clearFilters();
+          } else {
+            // Handle individual filter removal - find which filters were removed and remove them
+            const removedFilters = allSelectedFilters.filter(f => !filters.includes(f));
+            removedFilters.forEach(filterId => removeFilter(filterId));
+          }
+        },
         filterLabelMap: filterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
@@ -427,15 +447,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {!isLoading && (!items || items.length === 0) ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="gba:py-8 gba:text-center">
-                          <div className="gba:text-gray-500">
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
+                                         {!isLoading && (!items || items.length === 0) ? (
+                       <TableRow>
+                         <TableCell colSpan={7} className="gba:py-8 gba:text-center">
+                           <div className="gba:text-gray-500">
+                             {hasActiveFilters 
+                               ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
+                               : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')
+                             }
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     ) : (
                       items?.map((record) => (
                         <TableRow
                           key={record.id}
@@ -465,7 +488,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'update-expense-item',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.update_title_module','Update Expense Item'),
                                   onClick: () => {
@@ -486,7 +509,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 }]: [],
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
-                                  category: 'Actions',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
                                   key: 'delete-expense-item',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:discard_expense_items.discard_expense_items','Delete Expense Item'),
                                   onClick: () => {
@@ -501,7 +524,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                   }
                                 }]: [],
                                 {
-                                  category: 'Navigations',
+                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
                                   key: 'view-expense-item-details',
                                   label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.view_item_details','View Item Details'),
                                   onClick: (e?: React.MouseEvent) => {

@@ -52,7 +52,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
       {/* Details Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="gba:text-base">Payment Details</CardTitle>
+          <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:advance_lists.advance_payment_details.payment_details','Payment Details')}</CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">

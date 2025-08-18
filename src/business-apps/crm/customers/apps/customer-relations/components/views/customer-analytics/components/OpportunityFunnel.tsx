@@ -73,7 +73,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
         <div className="gba:space-y-5">
           {funnelData.map((stage, index) => {
             const progressPercent = maxCount > 0 ? (stage.count / maxCount) * 100 : 0;
-            const stageColor = stage.stage.color || 'var(--info)';
+            const stageColor = stage.stage.color || 'var(--nw-info)';
             const avgDealSize = stage.count > 0 ? stage.value / stage.count : 0;
 
             return (
@@ -114,7 +114,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
                         '0%': stageColor,
                         '100%': `${stageColor}80`,
                       }}
-                      trailColor="var(--accent)"
+                      trailColor="var(--nw-accent)"
                       size="small"
                       showInfo={false}
                       className="gba:transition-all gba:duration-300 group-hover:gba:shadow-sm"

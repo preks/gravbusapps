@@ -86,44 +86,44 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      paddingTop: 'var(--spacing-4)',
-      paddingBottom: 'var(--spacing-4)',
-      paddingLeft: 'var(--spacing-6)',
-      paddingRight: 'var(--spacing-6)',
+      paddingTop: 'var(--nw-spacing-4)',
+      paddingBottom: 'var(--nw-spacing-4)',
+      paddingLeft: 'var(--nw-spacing-6)',
+      paddingRight: 'var(--nw-spacing-6)',
       width: '100%'
     }}>
       {/* Error Display */}
       {error && (
         <Alert
           className="gba:border-destructive gba:bg-destructive/10"
-          style={{ marginBottom: 'var(--spacing-4)' }}
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
           data-testid="queries-error-alert"
         >
-          <div className="gba:flex gba:items-start" style={{ gap: 'var(--spacing-3)' }}>
+          <div className="gba:flex gba:items-start" style={{ gap: 'var(--nw-spacing-3)' }}>
             <WarningCircleIcon 
               className="gba:shrink-0" 
               style={{ 
-                color: 'var(--color-destructive)',
-                marginTop: 'var(--spacing-1)' 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
               }}
               size={20}
             />
             <div className="gba:flex-1">
               <h4 className="gba:font-semibold gba:text-lg" style={{ 
-                color: 'var(--color-destructive)',
-                margin: 'var(--spacing-0)'
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
               }}>
                 Unable to Load Queries
               </h4>
               <p className="gba:text-sm" style={{ 
-                color: 'var(--color-muted-foreground)',
-                margin: 'var(--spacing-0)',
-                marginTop: 'var(--spacing-1)'
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
               }}>
                 {formatErrorMessage(error)}
               </p>
             </div>
-            <Button size="sm" onClick={refetch} className="gba:shrink-0 gba:min-w-[70px] gba:h-8" style={{ fontSize: '12px', padding: 'var(--spacing-1) var(--spacing-3)' }}>
+            <Button size="sm" onClick={refetch} className="gba:shrink-0 gba:min-w-[70px] gba:h-8" style={{ fontSize: '12px', padding: 'var(--nw-spacing-1) var(--nw-spacing-3)' }}>
               Retry
             </Button>
           </div>
@@ -134,29 +134,29 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
       {executionError && (
         <Alert
           className="gba:border-destructive gba:bg-destructive/10"
-          style={{ marginBottom: 'var(--spacing-4)' }}
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
           data-testid="execution-error-alert"
         >
-          <div className="gba:flex gba:items-start" style={{ gap: 'var(--spacing-3)' }}>
+          <div className="gba:flex gba:items-start" style={{ gap: 'var(--nw-spacing-3)' }}>
             <WarningCircleIcon 
               className="gba:shrink-0" 
               style={{ 
-                color: 'var(--color-destructive)',
-                marginTop: 'var(--spacing-1)' 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
               }}
               size={20}
             />
             <div className="gba:flex-1">
               <h4 className="gba:font-semibold gba:text-lg" style={{ 
-                color: 'var(--color-destructive)',
-                margin: 'var(--spacing-0)'
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
               }}>
                 Query Execution Failed
               </h4>
               <p className="gba:text-sm" style={{ 
-                color: 'var(--color-muted-foreground)',
-                margin: 'var(--spacing-0)',
-                marginTop: 'var(--spacing-1)'
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
               }}>
                 {formatErrorMessage(executionError)}
               </p>
@@ -168,11 +168,11 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
       {/* Loading State */}
       {isLoading ? (
         <div className="gba:flex gba:justify-center gba:items-center" style={{ 
-          paddingTop: 'var(--spacing-12)', 
-          paddingBottom: 'var(--spacing-12)' 
+          paddingTop: 'var(--nw-spacing-12)', 
+          paddingBottom: 'var(--nw-spacing-12)' 
         }}>
           <Spinner />
-          <span style={{ marginLeft: 'var(--spacing-3)' }}>Loading available queries...</span>
+          <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading available queries...</span>
         </div>
       ) : (
         <div style={{ 
@@ -250,9 +250,9 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
             data-testid="refresh-queries-button"
             className="gba:flex gba:items-center gba:min-w-[100px] gba:h-9"
             style={{ 
-              gap: 'var(--spacing-2)',
+              gap: 'var(--nw-spacing-2)',
               fontSize: '14px',
-              padding: 'var(--spacing-2) var(--spacing-4)'
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
             }}
           >
             <ArrowClockwiseIcon size={16} />
@@ -272,10 +272,10 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
                   value={service} 
                   className="gba:flex gba:items-center gba:justify-center" 
                   style={{ 
-                    gap: 'var(--spacing-2)',
+                    gap: 'var(--nw-spacing-2)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
-                    padding: 'var(--spacing-2) var(--spacing-4)',
+                    padding: 'var(--nw-spacing-2) var(--nw-spacing-4)',
                     minWidth: 'auto'
                   }}
                 >

@@ -3,7 +3,6 @@ import { DataContainer } from "@/components/layout/dataContainer";
 import { useLeadFilters } from "@/business-apps/crm/common/components/lead-list/hooks/useLeadFilters";
 import { useEmployeeLeadsData } from "../../hooks/useEmployeeLeadsData";
 import { LeadsTable } from "./LeadsTable";
-import { Lead } from "@/business-apps/crm/common/components/lead-list/types";
 
 interface EmployeeLeadsTabProps {
   employeeId: string;
@@ -26,7 +25,6 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({
     addFilter,
     removeFilter,
     resetFilters,
-    getFilters,
     createdAfter,
     createdBefore,
     handleDateRangeChange,
@@ -39,7 +37,68 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
 
   // Map filter state to GraphQL where clause
-  const filters = getFilters();
+  // Instead of using getFilters(), we'll build the filters object from the current state
+  const filters = useMemo(() => {
+    const result: any = {};
+
+    // Parse selected filters to extract filter types and values
+    selectedFilters.forEach((filterId) => {
+      // Lead statuses (direct enum values)
+      if (
+        [
+          "LEAD_NEW",
+          "LEAD_OPEN",
+          "LEAD_QUALIFIED",
+          "LEAD_CONVERTED",
+          "LEAD_LOST",
+          "UNKNOWN_LEAD_STATUS",
+        ].includes(filterId)
+      ) {
+        if (!result.leadStatuses) result.leadStatuses = [];
+        result.leadStatuses.push(filterId);
+      }
+      // Lead ratings (direct enum values)
+      else if (
+        ["HOT_LEAD", "WARM_LEAD", "COLD_LEAD", "UNKNOWN_LEAD_RATING"].includes(
+          filterId
+        )
+      ) {
+        if (!result.leadRatings) result.leadRatings = [];
+        result.leadRatings.push(filterId);
+      }
+      // Other filters with prefixes (from catalog data)
+      else if (filterId.startsWith("source-")) {
+        if (!result.leadSources) result.leadSources = [];
+        result.leadSources.push(filterId.replace("source-", ""));
+      } else if (filterId.startsWith("industry-")) {
+        if (!result.industries) result.industries = [];
+        result.industries.push(filterId.replace("industry-", ""));
+      } else if (filterId.startsWith("size-")) {
+        if (!result.companySizes) result.companySizes = [];
+        result.companySizes.push(filterId.replace("size-", ""));
+      } else if (filterId.startsWith("owner-")) {
+        if (!result.owners) result.owners = [];
+        result.owners.push(filterId.replace("owner-", ""));
+      }
+      // Direct IDs (for backward compatibility)
+      else {
+        // This handles any remaining filter IDs that don't match the above patterns
+        // You might need to adjust this based on your actual filter ID structure
+        if (!result.other) result.other = [];
+        result.other.push(filterId);
+      }
+    });
+
+    // Add date range filters
+    if (createdAfter) {
+      result.createdAfter = createdAfter;
+    }
+    if (createdBefore) {
+      result.createdBefore = createdBefore;
+    }
+
+    return result;
+  }, [selectedFilters, createdAfter, createdBefore]);
   const additionalFilters = useMemo(() => {
     const andConditions: any[] = [];
     if (filters.leadStatuses && filters.leadStatuses.length > 0) {
@@ -66,7 +125,7 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({
   }, [filters]);
 
   // Data fetching
-  const { leads, total, loading, error, hasMore, loadPage, retry } =
+  const { leads, total, loading, error, hasMore, loadPage } =
     useEmployeeLeadsData({
       employeeId,
       search,

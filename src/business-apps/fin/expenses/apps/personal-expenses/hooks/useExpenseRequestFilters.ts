@@ -77,6 +77,8 @@ export interface UseExpenseRequestFiltersReturn {
   setEndDateRange: (dateRange: [Date | null, Date | null] | null) => void;
   setRequestDateRange: (dateRange: [Date | null, Date | null] | null) => void;
   filterLabelMap: Record<string, string>;
+  addFilter: (filterId: string) => void;
+  removeFilter: (filterId: string) => void;
 }
 
 /**
@@ -92,7 +94,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Define these as constants for stable references
   // const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-  const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
   // Helper function to get status display name with backend status in parentheses only when different
   const getStatusDisplayName = (status: string): string => {
@@ -117,7 +118,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       customComponent: React.createElement(RequestDateRangeFilter, {
         requestDateRange: requestDateRange,
         onDateRangeChange: setRequestDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -128,7 +129,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       customComponent: React.createElement(StartDateRangeFilter, {
         startDateRange: startDateRange,
         onDateRangeChange: setStartDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [ getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -139,7 +140,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       customComponent: React.createElement(EndDateRangeFilter, {
         endDateRange: endDateRange,
         onDateRangeChange: setEndDateRange,
-        placeholder: ['Start date', 'End date']
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
       }),
       hideSearch: true,
     },
@@ -211,22 +212,40 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     // Add date range labels if active
     const requestDateLabel = formatDateRangeLabel(requestDateRange);
     if (requestDateLabel) {
-      labelMap['requestDateRange'] = `Request Date: ${requestDateLabel}`;
+      labelMap['requestDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_date','Request Date')}: ${requestDateLabel}`;
     }
     
     const startDateLabel = formatDateRangeLabel(startDateRange);
     if (startDateLabel) {
-      labelMap['startDateRange'] = `Start Date: ${startDateLabel}`;
+      labelMap['startDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start Date')}: ${startDateLabel}`;
     }
     
     const endDateLabel = formatDateRangeLabel(endDateRange);
     if (endDateLabel) {
-      labelMap['endDateRange'] = `End Date: ${endDateLabel}`;
+      labelMap['endDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date')}: ${endDateLabel}`;
     }
     
     return labelMap;
   }, [getStatusDisplayName, formatDateRangeLabel, requestDateRange, startDateRange, endDateRange]);
   
+  // Get all selected filters including active date ranges
+  const getAllSelectedFilters = useMemo(() => {
+    const filters = [...selectedFilters]; // Use the original state
+    
+    // Add date ranges as filters if they're active
+    if (requestDateRange && (requestDateRange[0] || requestDateRange[1])) {
+      filters.push('requestDateRange');
+    }
+    if (startDateRange && (startDateRange[0] || startDateRange[1])) {
+      filters.push('startDateRange');
+    }
+    if (endDateRange && (endDateRange[0] || endDateRange[1])) {
+      filters.push('endDateRange');
+    }
+    
+    return filters;
+  }, [selectedFilters, requestDateRange, startDateRange, endDateRange]);
+
   // Add filter with proper dependency handling - returns the new filters array for immediate use
   const addFilter = useCallback((filterId: string): string[] => {
     let newFilters: string[] = [];
@@ -252,38 +271,60 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     return newFilters;
   }, []);
   
-  // Remove filter with proper dependency handling - returns the new filters array for immediate use
-  const removeFilter = useCallback((filterId: string): string[] => {
-    let newFilters: string[] = [];
-    
+  // Remove filter function that handles all date ranges
+  const removeFilter = useCallback((filterId: string) => {
     if (filterId === 'requestDateRange') {
       setRequestDateRange(null);
-      setSelectedFilters(prev => {
-        newFilters = prev.filter(f => f !== filterId);
-        return newFilters;
-      });
     } else if (filterId === 'startDateRange') {
       setStartDateRange(null);
-      setSelectedFilters(prev => {
-        newFilters = prev.filter(f => f !== filterId);
-        return newFilters;
-      });
     } else if (filterId === 'endDateRange') {
       setEndDateRange(null);
-      setSelectedFilters(prev => {
-        newFilters = prev.filter(f => f !== filterId);
-        return newFilters;
-      });
     } else {
-      setSelectedFilters(prev => {
-        newFilters = prev.filter(f => f !== filterId);
-        return newFilters;
-      });
+      setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    }
+  }, []);
+
+  // Enhanced setFilters function that properly handles clearing all filters
+  const setFilters = useCallback((filters: string[]) => {
+    // If the filters array is empty or contains only date range IDs, clear everything
+    if (filters.length === 0) {
+      setSelectedFilters([]);
+      setRequestDateRange(null);
+      setStartDateRange(null);
+      setEndDateRange(null);
+      setSearch('');
+      return;
     }
     
-    return newFilters;
+    // Separate date range filters from regular filters
+    const dateRangeFilters = ['requestDateRange', 'startDateRange', 'endDateRange'];
+    const regularFilters = filters.filter(f => !dateRangeFilters.includes(f));
+    const newDateRangeFilters = filters.filter(f => dateRangeFilters.includes(f));
+    
+    // Set regular filters
+    setSelectedFilters(regularFilters);
+    
+    // Clear date ranges that are not in the new filter list
+    if (!newDateRangeFilters.includes('requestDateRange')) {
+      setRequestDateRange(null);
+    }
+    if (!newDateRangeFilters.includes('startDateRange')) {
+      setStartDateRange(null);
+    }
+    if (!newDateRangeFilters.includes('endDateRange')) {
+      setEndDateRange(null);
+    }
   }, []);
-  
+
+  // Clear all filters including all date ranges
+  const clearAllFilters = useCallback(() => {
+    setSelectedFilters([]);
+    setRequestDateRange(null);
+    setStartDateRange(null);
+    setEndDateRange(null);
+    setSearch('');
+  }, []);
+
   // Convert UI filters to API filter format
   const getFilters = useCallback((): ExpenseRequestWhereClause => {
     const conditions: any[] = [];
@@ -349,14 +390,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   }, [search, selectedFilters, startDateRange, endDateRange, requestDateRange]);
 
-  const clearFilters = useCallback(() => {
-    setSelectedFilters([]);
-    setStartDateRange(null);
-    setEndDateRange(null);
-    setRequestDateRange(null);
-    setSearch('');
-  }, []);
-
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => {
       // Handle radio button behavior for request type filters
@@ -379,15 +412,17 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
   return {
     search,
     setSearch,
-    selectedFilters,
-    setFilters: setSelectedFilters,
+    selectedFilters: getAllSelectedFilters,
+    setFilters,
     filterGroups,
     handleFilterChange,
-    clearFilters,
+    clearFilters: clearAllFilters,
     getFilters,
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
-    filterLabelMap
+    filterLabelMap,
+    addFilter,
+    removeFilter
   };
 };

@@ -316,7 +316,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
-                        variant="secondary"
                         contextsArray={[FlowContextName.taskInstance]}
                         externalContextData={{
                           taskId: record.id,
@@ -333,7 +332,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                         ]}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
                         accessToken={accessToken}
-                        emptyStateBehavior="enabled"
+                        emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}
                       />

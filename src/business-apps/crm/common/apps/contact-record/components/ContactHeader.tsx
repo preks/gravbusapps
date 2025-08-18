@@ -69,15 +69,14 @@ export const ContactHeader: React.FC<ContactHeaderProps> = ({ contact, contactId
           {accessToken && (
             <AppActionButton
               data-testid="contact-record-action-button"
-              variant="primary"
-              size="md"
+              size="default"
               contextsArray={[FlowContextName.contactEntity]}
               externalContextData={{
                 contactId: contactId
               }}
               prefixDataTestId="contact-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enabled"
+              emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick
             >
               Actions

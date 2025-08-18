@@ -24,6 +24,7 @@ import {
   REVENUE_SIZE_CATALOG,
 } from "../hooks/useLeadCatalogs";
 import { useAccountsData } from "../hooks/useAccountsData";
+import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
 interface LeadFormContextValue extends LeadContextState {
   formValues: LeadFormValues;
@@ -129,6 +130,18 @@ interface LeadFormContextValue extends LeadContextState {
   addressLineCount: number;
   addAddressLine: () => void;
   removeAddressLine: () => void;
+
+  // Sales Campaigns
+  salesCampaigns: SelectOption[];
+  salesCampaignsLoading: boolean;
+  salesCampaignsError: string | null;
+  salesCampaignsHasMore: boolean;
+  salesCampaignsNeedsMoreData: boolean;
+  salesCampaignsDisplayCount: number;
+  salesCampaignsTotalFetched: number;
+  searchSalesCampaigns: (search: string) => void;
+  loadMoreSalesCampaigns: () => void;
+  showMoreSalesCampaigns: () => void;
 }
 
 const LeadFormContext = createContext<LeadFormContextValue | null>(null);
@@ -174,6 +187,9 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     timeZone: "",
     numberOfEmployees: "",
     annualRevenue: "",
+
+    // Campaign Information
+    salesCampaignId: "",
 
     // Address Information
     country: "",
@@ -232,6 +248,32 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     },
     [searchAccounts]
   );
+
+  // Sales Campaigns hook for campaign selection
+  const {
+    options: salesCampaignsOptions,
+    loading: salesCampaignsLoading,
+    error: salesCampaignsError,
+    hasMore: salesCampaignsHasMore,
+    search: searchSalesCampaigns,
+    loadMore: loadMoreSalesCampaigns,
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+
+  // Create search wrapper for campaign autocomplete
+  const searchSalesCampaignsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all campaigns, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchSalesCampaigns(searchTerm);
+      }
+    },
+    [searchSalesCampaigns]
+  );
+
+  // Create wrapper function for campaigns to match interface
+  const loadMoreSalesCampaignsWrapper = useCallback((): void => {
+    loadMoreSalesCampaigns();
+  }, [loadMoreSalesCampaigns]);
 
   // Ref to track if auto-selection has been done
   const autoSelectionDone = useRef(false);
@@ -616,6 +658,18 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+
+    // Sales Campaigns
+    salesCampaigns: salesCampaignsOptions,
+    salesCampaignsLoading: salesCampaignsLoading,
+    salesCampaignsError: salesCampaignsError,
+    salesCampaignsHasMore: salesCampaignsHasMore,
+    salesCampaignsNeedsMoreData: salesCampaignsHasMore, // Assuming needsMoreData is the same as hasMore for now
+    salesCampaignsDisplayCount: salesCampaignsOptions.length,
+    salesCampaignsTotalFetched: salesCampaignsOptions.length,
+    searchSalesCampaigns: searchSalesCampaignsWrapper,
+    loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
+    showMoreSalesCampaigns: () => {}, // No showMore for this hook
   };
 
   return (

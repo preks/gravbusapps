@@ -10,8 +10,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useDepartmentMonthlySalaryStack } from '../../hooks/useDepartmentMonthlySalaryStack';
-import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext';
+import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface SalaryChangesChartProps extends BusinessAppContextProps {}
 

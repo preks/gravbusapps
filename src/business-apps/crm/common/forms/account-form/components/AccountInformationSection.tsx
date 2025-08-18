@@ -10,6 +10,7 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useAccountFormContext } from "../context/AccountFormContext";
 import OwnerSelector from "./OwnerSelector";
+import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
 
 const prefixDataTestId = "AccountForm";
 
@@ -24,6 +25,12 @@ const AccountInformationSection: React.FC = () => {
     employeePositionsHasMore,
     searchEmployeePositions,
     loadMoreEmployeePositions,
+    salesCampaigns,
+    salesCampaignsLoading,
+    salesCampaignsError,
+    salesCampaignsHasMore,
+    searchSalesCampaigns,
+    loadMoreSalesCampaigns,
   } = useAccountFormContext();
 
   return (
@@ -87,6 +94,29 @@ const AccountInformationSection: React.FC = () => {
             placeholder="Please Enter..."
             className="gba:border-gray-300 gba:bg-white"
             data-testid={formatDataTestId(prefixDataTestId, "AccountNameInput")}
+          />
+        </div>
+
+        {/* Sales Campaign Section */}
+        <div>
+          <SearchableSelect
+            label="Sales Campaign"
+            name="salesCampaignId"
+            value={formValues.salesCampaignId}
+            placeholder="Please Select Campaign..."
+            options={salesCampaigns as any}
+            loading={salesCampaignsLoading}
+            hasMore={salesCampaignsHasMore}
+            onSearch={searchSalesCampaigns}
+            onLoadMore={loadMoreSalesCampaigns}
+            onChange={(value) => {
+              setFormValues({
+                salesCampaignId: value, // Store only ID for backend
+              });
+            }}
+            error={salesCampaignsError}
+            className="gba:w-full gba:min-w-[300px]"
+            data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
           />
         </div>
       </CardContent>

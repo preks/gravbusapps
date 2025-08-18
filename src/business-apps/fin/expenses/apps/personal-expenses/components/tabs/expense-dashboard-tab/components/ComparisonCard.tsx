@@ -95,7 +95,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
               />
               <Bar 
                 dataKey="value" 
-                fill="var(--color-value)"
+                fill="var(--nw-color-value)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
