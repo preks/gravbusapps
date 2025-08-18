@@ -149,8 +149,60 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   }, [addFilter, clearFilters, selectedFilters]);
 
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    setActiveCard(prev => (prev === widgetKey ? null : widgetKey));
-  }, []);
+    const isDeactivating = activeCard === widgetKey;
+    const newActiveCard = isDeactivating ? null : widgetKey;
+    setActiveCard(newActiveCard);
+    
+    // If deactivating (clicking the same widget again), clear all filters
+    if (isDeactivating) {
+      clearFilters();
+      // Clear expense date range
+      setExpenseDateRange(null);
+      return;
+    }
+    
+    // Clear existing filters when switching to a different widget
+    clearFilters();
+    
+    // Apply widget-specific filter logic
+    switch (newActiveCard) {
+      case 'total-expenses':
+        const today = dayjs();
+        const currentMonthStart = today.startOf('month').toDate();
+        const currentMonthEnd = today.endOf('month').toDate();
+        
+        // Set expense date range to current month
+        setExpenseDateRange([currentMonthStart, currentMonthEnd]);
+        
+        // Set status filters to only show PAID and CLOSED items
+        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        onStatusFilterChange('PAID', true);
+        onStatusFilterChange('CLOSED', true);
+        break;
+        
+      case 'pending-reimbursement':
+        const currentMonthRange = dayjs().startOf('month').toDate();
+        const currentMonthEndRange = dayjs().endOf('month').toDate();
+        
+        // Set expense date range to current month
+        setExpenseDateRange([currentMonthRange, currentMonthEndRange]);
+        
+        // Set status filter to only show PENDING items
+        const allStatusesForPending = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForPending.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        onStatusFilterChange('PENDING', true);
+        break;
+        
+      case null:
+        // Widget deactivated - filters already cleared above
+        break;
+    }
+  }, [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange]);
 
 
 
@@ -410,12 +462,10 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           fetchItemStatistics={fetchItemStatistics}
           onWidgetClick={handleWidgetClick}
           activeWidgetKey={activeCard ?? undefined}
-          onExpenseDateRangeFilterChange={setExpenseDateRange}
-          onStatusFilterChange={handleStatusFilterChange}
         />
       </div>
     );
-  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, previousMonthPendingReimbursementTotal, expenseDateRange, handleStatusFilterChange]);
+  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, previousMonthPendingReimbursementTotal]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;

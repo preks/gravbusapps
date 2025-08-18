@@ -161,7 +161,7 @@ export interface AdvancePaymentsDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null) => Promise<void>;
+  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
 }
 
 export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
@@ -176,7 +176,9 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     pageSize: number = 20,
     statusFilter: string[] = [],
     amountRange: { min?: number; max?: number } | null = null,
-    advanceRange: { min?: number; max?: number } | null = null
+    advanceRange: { min?: number; max?: number } | null = null,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
   ) => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
@@ -213,6 +215,27 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         limit: pageSize,
         offset: offset,
       };
+
+      // Add orderBy for server-side sorting
+      if (sortField && sortOrder) {
+        // Map UI sort field to GraphQL field names - only include fields that exist directly on AdvancePayment
+        const fieldMap: Record<string, string> = {
+          status: 'status',
+          amount: 'amount',
+          paymentMethod: 'paymentMethod',
+          createdAt: 'createdAt',
+          updatedAt: 'updatedAt',
+          description: 'description',
+          currencyRef: 'currencyRef'
+        };
+        const gqlField = fieldMap[sortField] || sortField;
+        // Use proper null handling for better sorting, especially for numeric fields that can be null
+        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
+        variables.orderBy = [{ [gqlField]: direction }];
+      } else {
+        // Default sorting by creation date descending
+        variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }];
+      }
 
       // Add filter variables only if they exist
       if (filterState.hasStatusFilter && filters.statusFilter) {

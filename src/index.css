@@ -107,4 +107,18 @@
   .gba\:overflow-y-auto::-webkit-scrollbar-thumb:hover {
     background: rgba(156, 163, 175, 0.8);
   }
+
+  /* Filter pill specific styling for DataController */
+  .gba\:filter-pill {
+    max-width: 320px !important;
+    min-width: 115px !important;
+    word-wrap: break-word !important;
+    overflow: hidden !important;
+  }
+
+  .gba\:filter-pill-text {
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
 }

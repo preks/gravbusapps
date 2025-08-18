@@ -179,7 +179,6 @@ const transformWidgetToKpiCard = (widget: WidgetItem, onWidgetClick?: (widgetKey
     decimalPlaces: widget.precision,
     footer: widget.description,
     icon: mapAntIconToSupported(widget.prefix),
-    iconColor: widget.color,
     trend: widget.trend,
     // Note: SectionKpiCards doesn't support onClick directly, 
     // but we'll handle it in the component if needed
