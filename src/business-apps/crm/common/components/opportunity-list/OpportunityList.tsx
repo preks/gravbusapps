@@ -122,7 +122,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1); // Reset to first page when filters change
       // Pass current sorting state when filters change
-      opportunityListData.loadPage(1, pageSize, appliedFilters, sortField, sortOrder);
+      opportunityListData.loadPage(1, pageSize, appliedFilters, sortField, sortOrder, false); // Don't show loading for filtering
     }
   }, [
     appliedFilters.search,
@@ -143,7 +143,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   // Effect to reload data when sort changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      opportunityListData.loadPage(currentPage, pageSize, appliedFilters, sortField, sortOrder);
+      opportunityListData.loadPage(currentPage, pageSize, appliedFilters, sortField, sortOrder, false); // Don't show loading for sorting
     }
   }, [sortField, sortOrder, currentPage, pageSize, filtersInitialized]); // Removed opportunityListData from dependencies
 
@@ -166,13 +166,13 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
         setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
         setCurrentPage(1);
         // Pass empty field to loadPage immediately
-        opportunityListData.loadPage(1, pageSize, appliedFilters, "", "DESC");
+        opportunityListData.loadPage(1, pageSize, appliedFilters, "", "DESC", false); // Don't show loading for sorting
       } else {
         setSortField(field);
         setSortOrder(order);
         setCurrentPage(1);
         // Pass new sorting values to loadPage immediately
-        opportunityListData.loadPage(1, pageSize, appliedFilters, field, order);
+        opportunityListData.loadPage(1, pageSize, appliedFilters, field, order, false); // Don't show loading for sorting
       }
     },
     [opportunityListData, pageSize]
