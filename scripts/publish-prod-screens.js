@@ -1139,14 +1139,35 @@ async function main() {
   }
 
   // Read the screens to publish
-  const changedScreens = fs.readFileSync(screensFile, "utf8")
+  const detectedScreens = fs.readFileSync(screensFile, "utf8")
     .split("\n")
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .map(line => line.replace(/^src\/business-apps\//, ""));
 
-  console.log(`📋 Found ${changedScreens.length} screen(s) to publish:`);
-  changedScreens.forEach(screen => console.log(`   - ${screen}`));
+  console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`);
+  detectedScreens.forEach(screen => console.log(`   - ${screen}`));
+
+  // Filter out screens that don't exist (were removed)
+  const projectRootDir = path.resolve(__dirname, "..");
+  const existingScreens = detectedScreens.filter(screen => {
+    const sourceEntryFile = path.join(projectRootDir, "src", "business-apps", screen, "index.ts");
+    const exists = fs.existsSync(sourceEntryFile);
+    if (!exists) {
+      console.log(`   ⚠️  Skipping removed screen: ${screen} (${sourceEntryFile} not found)`);
+    }
+    return exists;
+  });
+
+  const removedCount = detectedScreens.length - existingScreens.length;
+  if (removedCount > 0) {
+    console.log(`📋 Filtered out ${removedCount} removed screen(s).`);
+  }
+
+  console.log(`📋 Found ${existingScreens.length} existing screen(s) to publish:`);
+  existingScreens.forEach(screen => console.log(`   - ${screen}`));
+
+  const changedScreens = existingScreens;
 
   // NEW: Comprehensive Screen Synchronization Step
   console.log(`\n${'='.repeat(80)}`);
