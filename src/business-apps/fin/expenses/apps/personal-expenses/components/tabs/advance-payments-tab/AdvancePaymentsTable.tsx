@@ -195,8 +195,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   // Handle viewing expense plan details
   const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
-    console.log('intra aici')
-    console.log('record', record)
     const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { 
       expensePlanId: record.expensePlan && record.expensePlan.id ? record.expensePlan.id : ''
     });
