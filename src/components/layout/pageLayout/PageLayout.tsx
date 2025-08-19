@@ -28,8 +28,12 @@ export interface PageLayoutProps {
   headerIcon: React.ReactNode;
   headerLabel: string;
   headerLabelClassName?: string;
+  pageHeaderLeftExtra?: React.ReactNode;
+  headerTopLeft?: React.ReactNode;
   pageHeaderCenter?: React.ReactNode;
   pageHeaderRight?: React.ReactNode;
+  headerHeightClassName?: string; // allows compact header heights per screen
+  pageControllerClassName?: string; // allows tuning spacing under header
   pageController?: React.ReactNode;
   contentHeader?: React.ReactNode;
   contentContainer?: React.ReactNode;
@@ -42,8 +46,12 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   headerIcon,
   headerLabel,
   headerLabelClassName = "",
+  pageHeaderLeftExtra,
+  headerTopLeft,
   pageHeaderCenter,
   pageHeaderRight,
+  headerHeightClassName = "gba:h-24",
+  pageControllerClassName = "gba:py-2",
   pageController,
   contentHeader,
   contentContainer,
@@ -64,7 +72,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   const labelClasses = cn(
     "gba:text-xl gba:font-semibold gba:tracking-tight gba:truncate",
     headerLabelClassName,
-    isDisplay ? "gba:text-4xl gba:font-secondary gba:mb-2" : "gba:text-2xl font-secondary gba:mb-1"
+    isDisplay ? "gba:text-4xl gba:font-secondary" : "gba:text-2xl font-secondary"
   );
 
   const backgroundStyle = backgroundImage
@@ -89,9 +97,19 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
       data-testid="page-layout-container"
     >
       <header className="gba:flex gba:flex-col gba:box-border gba:border-b gba:border-gray-200 gba:relative" data-testid="page-layout-header">
-        <div className="gba:h-24 gba:grid gba:grid-cols-3 gba:items-center gba:w-full" data-testid="page-layout-header-main">
+        {headerTopLeft && (
+          <div className="gba:flex gba:items-center gba:py-2" data-testid="page-layout-header-top">
+            <div className="gba:flex gba:items-center gba:justify-start gba:w-full">
+              {headerTopLeft}
+            </div>
+          </div>
+        )}
+        <div className={`${headerHeightClassName} gba:grid gba:grid-cols-3 gba:items-center gba:w-full`} data-testid="page-layout-header-main">
           {/* Left section: Icon + Label */}
           <div className="gba:flex gba:items-center gba:h-full gba:gap-4 gba:justify-start" data-testid="page-layout-header-left">
+            {pageHeaderLeftExtra && (
+              <div className="gba:flex gba:items-center gba:h-full" data-testid="page-layout-header-left-extra">{pageHeaderLeftExtra}</div>
+            )}
             <div className="gba:flex gba:items-center gba:h-full">
               <span className={iconClasses} data-testid="page-layout-header-icon">
                 {React.isValidElement(headerIcon)
@@ -117,18 +135,18 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
           </div>
         </div>
         {pageController && (
-          <div className="gba:flex gba:justify-start gba:py-2" data-testid="page-layout-page-controller">
+          <div className={`gba:flex gba:justify-start ${pageControllerClassName}`} data-testid="page-layout-page-controller">
             {pageController}
           </div>
         )}
       </header>
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="page-layout-content">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid="page-layout-content">
         {contentHeader && (
           <div className="gba:py-2 gba:border-b gba:border-gray-200" data-testid="page-layout-content-header">
             {contentHeader}
           </div>
         )}
-        <div className="gba:flex-1 gba:min-h-0" data-testid="page-layout-content-container">{contentContainer}</div>
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto" data-testid="page-layout-content-container">{contentContainer}</div>
       </div>
     </div>
   );

@@ -126,7 +126,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
       setCurrentPage(1);
-      contactListData.loadPage(1, pageSize);
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for filtering
     }
   }, [
     JSON.stringify(appliedFilters.contactTypes),
@@ -146,7 +146,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
       setCurrentPage(1);
-      contactListData.loadPage(1, pageSize);
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
     }
   }, [
     appliedFilters.search,
@@ -158,7 +158,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   // Auto-reload when sort changes
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
-      contactListData.loadPage(currentPage, pageSize);
+      contactListData.loadPage(currentPage, pageSize, {}, sortField, sortOrder, false); // Don't show loading for sorting
     }
   }, [
     sortField,
@@ -190,13 +190,13 @@ const ContactList: React.FC<ContactListProps> = (context) => {
         setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
         setCurrentPage(1);
         // Pass empty field to loadPage immediately
-        contactListData.loadPage(1, pageSize, {}, "", "DESC");
+        contactListData.loadPage(1, pageSize, {}, "", "DESC", false); // Don't show loading for sorting
       } else {
         setSortField(field);
         setSortOrder(order);
         setCurrentPage(1);
         // Pass new sorting values to loadPage immediately
-        contactListData.loadPage(1, pageSize, {}, field, order);
+        contactListData.loadPage(1, pageSize, {}, field, order, false); // Don't show loading for sorting
       }
     },
     [contactListData, pageSize]
@@ -216,7 +216,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     (searchTerm: string) => {
       contactFilters.setSearch(searchTerm);
       setCurrentPage(1);
-      contactListData.loadPage(1, pageSize);
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
     },
     [contactFilters, contactListData, pageSize]
   );

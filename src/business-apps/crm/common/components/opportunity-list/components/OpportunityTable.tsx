@@ -171,14 +171,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                {isColumnVisible('actions') && (
-                  <TableHead
-                    className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                  >
-                    ACTIONS
-                  </TableHead>
-                )}
                 {isColumnVisible('opportunity') && (
                   <TableHead
                     className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -287,6 +279,14 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
+                {isColumnVisible('actions') && (
+                  <TableHead
+                    className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                  >
+                    ACTIONS
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -298,28 +298,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  {isColumnVisible('actions') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
-                          variant="secondary"
-                          contextsArray={[FlowContextName.opportunityEntity]}
-                          externalContextData={{
-                            opportunityId: record.id,
-                          }}
-                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
-                          accessToken={accessToken}
-                          emptyStateBehavior="disable"
-                          deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </TableCell>
-                  )}
                   {isColumnVisible('opportunity') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
@@ -471,6 +449,28 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                         <Badge variant="default">
                           {record.salesOpportunityStatus?.value || "-"}
                         </Badge>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('actions') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.opportunityEntity]}
+                          externalContextData={{
+                            opportunityId: record.id,
+                          }}
+                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </div>
                     </TableCell>
                   )}

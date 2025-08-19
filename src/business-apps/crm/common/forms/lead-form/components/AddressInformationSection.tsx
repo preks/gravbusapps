@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -10,6 +10,7 @@ import { PiPlus, PiMinus, PiCaretDown, PiCaretUp } from "react-icons/pi";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import SearchableSelect from "./SearchableSelect";
+import { useCountriesRegions } from "../hooks/useCountriesRegions";
 
 const prefixDataTestId = "LeadForm";
 
@@ -19,19 +20,86 @@ const AddressInformationSection: React.FC = () => {
   const {
     formValues,
     setFormValues,
+    addressLineCount,
+    addAddressLine,
+    removeAddressLine,
+    updateAddress,
+    businessAppContext,
+  } = useLeadFormContext();
+
+  // Use the new countries and regions hook with business app context (same as account form)
+  const {
     countries,
     countriesLoading,
     countriesError,
     countriesHasMore,
     searchCountries,
     loadMoreCountries,
-    addressLineCount,
-    addAddressLine,
-    removeAddressLine,
-  } = useLeadFormContext();
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+  } = useCountriesRegions(businessAppContext);
 
-  // Only allow countries with string labels
-  const stringCountries = countries.filter((c) => typeof c.label === "string");
+  // Handle country selection change
+  const handleCountryChange = (countryId: string) => {
+    setFormValues({ country: countryId });
+    setSelectedCountry(countryId);
+    setFormValues({ region: "" }); // Clear region when country changes
+  };
+
+  // Handle region selection change
+  const handleRegionChange = (regionId: string) => {
+    setFormValues({ region: regionId });
+  };
+
+  // Sync selected country when form values change
+  useEffect(() => {
+    if (formValues.country && formValues.country !== selectedCountryCode) {
+      setSelectedCountry(formValues.country);
+    }
+  }, [formValues.country, selectedCountryCode, setSelectedCountry]);
+
+  // Helper function to sync legacy fields with dynamic addresses
+  const syncLegacyFieldsToAddresses = () => {
+    // Get all current address lines
+    const currentAddressLines = [
+      formValues.addressLine1,
+      formValues.addressLine2,
+      formValues.addressLine3,
+      formValues.addressLine4,
+    ]
+      .filter((line) => line && line.trim())
+      .map((line) => line.trim());
+
+    // Update the first address in the dynamic addresses array
+    if (formValues.addresses && formValues.addresses.length > 0) {
+      const firstAddress = formValues.addresses[0];
+      updateAddress(firstAddress.id, {
+        addressLines: currentAddressLines,
+        city: formValues.city || "",
+        postalCode: formValues.postalCode || "",
+        region: formValues.region || "",
+        country: formValues.country || "",
+      });
+    }
+  };
+
+  // Sync legacy fields to dynamic addresses whenever they change
+  useEffect(() => {
+    syncLegacyFieldsToAddresses();
+  }, [
+    formValues.addressLine1,
+    formValues.addressLine2,
+    formValues.addressLine3,
+    formValues.addressLine4,
+    formValues.city,
+    formValues.postalCode,
+    formValues.region,
+    formValues.country,
+  ]);
 
   const renderAddressLine = (lineNumber: number) => {
     const fieldName = `addressLine${lineNumber}` as keyof typeof formValues;
@@ -132,14 +200,12 @@ const AddressInformationSection: React.FC = () => {
                 name="country"
                 value={formValues.country}
                 placeholder="Please Select..."
-                options={stringCountries}
+                options={countries}
                 loading={countriesLoading}
                 hasMore={countriesHasMore}
                 onSearch={searchCountries}
                 onLoadMore={loadMoreCountries}
-                onChange={(value) => {
-                  setFormValues({ country: value });
-                }}
+                onChange={handleCountryChange}
                 error={countriesError}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
@@ -149,17 +215,30 @@ const AddressInformationSection: React.FC = () => {
             </div>
 
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Region/State
-              </Label>
-              <Input
+              <SearchableSelect
+                label="Region/State"
                 name="region"
-                value={formValues.region || ""}
-                onChange={(e) => setFormValues({ region: e.target.value })}
-                placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(prefixDataTestId, "RegionInput")}
+                value={formValues.region}
+                placeholder={
+                  selectedCountryCode
+                    ? "Please Select..."
+                    : "Select country first..."
+                }
+                options={regions}
+                loading={regionsLoading}
+                hasMore={false} // We load all regions at once
+                onSearch={searchRegions}
+                onLoadMore={() => {}} // No pagination needed
+                onChange={handleRegionChange}
+                error={regionsError}
+                disabled={!selectedCountryCode || regions.length === 0}
+                data-testid={formatDataTestId(prefixDataTestId, "RegionSelect")}
               />
+              {selectedCountryCode && regions.length === 0 && (
+                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                  No regions available for selected country
+                </p>
+              )}
             </div>
           </div>
 

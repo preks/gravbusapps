@@ -1,3 +1,13 @@
+export interface Address {
+  id: string; // Unique identifier for the address
+  addressType: string; // "BILLING", "SHIPPING", "OFFICE", "UNKNOWN_ADDRESS", etc.
+  addressLines: string[]; // Dynamic array of address lines
+  postalCode: string;
+  city: string;
+  region: string;
+  country: string;
+}
+
 export interface LeadFormValues {
   // Lead Information
   owner: string;
@@ -27,7 +37,10 @@ export interface LeadFormValues {
   // Campaign Information
   salesCampaignId: string; // Campaign ID for backend
 
-  // Address Information
+  // Address Information (New dynamic structure)
+  addresses: Address[];
+
+  // Address Information (Legacy fields for backward compatibility)
   country: string;
   region: string;
   addressLine1: string;

@@ -318,10 +318,10 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           {/* Date range filter pill */}
           {hasDateRangeFilter && (
             <div
-              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100"
+              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100 gba:max-w-80 gba:break-words gba:filter-pill"
               data-testid="data-controller-date-range-filter"
             >
-              <span className="gba:text-blue-800">
+              <span className="gba:text-blue-800 gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">
                 {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
               </span>
               <button
@@ -341,12 +341,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           {filter && filter.length > 0 && setFilter && filter.map((val) => (
             <div
               key={val}
-              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
+              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100 gba:max-w-80 gba:break-words gba:filter-pill"
               data-testid={`data-controller-filter-pill-${val}`}
             >
-              <span>{filterLabelMap?.[val] ?? val}</span>
+              <span className="gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">{filterLabelMap?.[val] ?? val}</span>
               <button
-                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
+                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors gba:flex-shrink-0"
                 onClick={() => setFilter(filter.filter((f) => f !== val))}
                 aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
                 tabIndex={0}

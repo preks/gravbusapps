@@ -172,12 +172,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead
-                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                >
-                  ACTIONS
-                </TableHead>
                 {isColumnVisible('name') && (
                   <TableHead
                     className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -346,6 +340,12 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     </div>
                   </TableHead>
                 )}
+                <TableHead
+                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                >
+                  ACTIONS
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -357,26 +357,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
-                        variant="secondary"
-                        contextsArray={[FlowContextName.contactEntity]}
-                        externalContextData={{
-                          contactId: record.id,
-                        }}
-                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="disable"
-                        deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
                   {isColumnVisible('name') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
@@ -686,6 +666,26 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </div>
                     </TableCell>
                   )}
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                  >
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
+                        size="icon"
+                        contextsArray={[FlowContextName.contactEntity]}
+                        externalContextData={{
+                          contactId: record.id,
+                        }}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="disable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
