@@ -7,7 +7,7 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
-import '../expense-request-wizard/ExpenseRequestWizard.css';
+
 
 import { SCREEN_NAMES_ENUM } from './constants/constants';
 
@@ -259,7 +259,8 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   if (loading) {
     return (
       <div 
-        className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" 
+        className="gba:flex gba:items-center gba:justify-center" 
+        style={{ width: '100%', height: '100%' }}
         data-testid="expense-plan-wizard-loading"
       >
         <img 
@@ -284,20 +285,20 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   }
   
   return (
-    <div className="gba:mainContainer" data-testid="expense-plan-wizard-content">
-      <div className="gba:headerContainer" data-testid="expense-plan-wizard-header">
-        <div className="gba:backButtonContainer" data-testid="expense-plan-wizard-back-button-container">
+    <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-plan-wizard-content">
+      <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-plan-wizard-header">
+        <div style={{ position: 'absolute', left: 0, zIndex: 1 }} data-testid="expense-plan-wizard-back-button-container">
           {shouldShowBackButton() && (
             <Button
               variant="text"
-              className="gba:backButton"
+              style={{ padding: '0', height: 'auto', minWidth: 'auto' }}
               data-testid="expense-plan-wizard-back-button"
               onClick={navigateToPreviousScreen}
             >
               <img 
                 src={ICONS.BACK_ARROW} 
                 alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.back_text', 'Back')}
-                className="gba:backIcon"
+                style={{ width: '24px', height: '24px' }}
                 width="24"
                 height="24"
                 data-testid="back-button-icon"
@@ -305,13 +306,13 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
             </Button>
           )}
         </div>
-        <div className="gba:headerTitleWrapper" data-testid="expense-plan-wizard-header-title-wrapper">
-          <div className="gba:titleContainer" data-testid="expense-plan-wizard-title-container">
+        <div className="gba:flex gba:flex-row gba:items-center gba:justify-center" style={{ width: '100%', pointerEvents: 'none' }} data-testid="expense-plan-wizard-header-title-wrapper">
+          <div className="gba:flex gba:flex-col gba:items-center" style={{ marginTop: '16px', width: '100%', pointerEvents: 'none' }} data-testid="expense-plan-wizard-title-container">
             {isEditingTitle ? (
-              <div className="gba:editingTitleContainer" data-testid="expense-plan-wizard-editing-title-container">
-                <div className="gba:titleInputWrapper" data-testid="expense-plan-wizard-title-input-wrapper">
+              <div className="gba:flex gba:flex-col gba:items-center" style={{ width: '100%', maxWidth: '400px', margin: '0 auto', pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-plan-wizard-editing-title-container">
+                <div style={{ width: '100%', pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-plan-wizard-title-input-wrapper">
                   <Input
-                    className="gba:titleInput"
+                    style={{ border: 'none', borderBottom: '1px solid #d9d9d9', borderRadius: 0, padding: '4px 0', textAlign: 'center', fontSize: '20px', width: '100%', backgroundColor: 'transparent', pointerEvents: 'auto', zIndex: 100, position: 'relative', boxShadow: 'none' }}
                     data-testid="expense-plan-wizard-title-input"
                     value={titleValue}
                     onChange={handleTitleChange}
@@ -320,8 +321,8 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                     autoFocus
                   />
                 </div>
-                <div className="gba:titleEditButtons" data-testid="expense-plan-wizard-title-edit-buttons">
-                  <div className="gba:buttonWrapper" data-testid="expense-plan-wizard-save-button-wrapper">
+                <div className="gba:flex gba:flex-row gba:justify-end" style={{ marginTop: '8px', pointerEvents: 'auto', zIndex: 100, position: 'relative', width: '100%' }} data-testid="expense-plan-wizard-title-edit-buttons">
+                  <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative', margin: '0 4px' }} data-testid="expense-plan-wizard-save-button-wrapper">
                     <Button
                       variant="text"
                       size="small"
@@ -338,7 +339,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                       />
                     </Button>
                   </div>
-                  <div className="gba:buttonWrapper" data-testid="expense-plan-wizard-cancel-button-wrapper">
+                  <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative', margin: '0 4px' }} data-testid="expense-plan-wizard-cancel-button-wrapper">
                     <Button
                       variant="text"
                       size="small"
@@ -357,18 +358,18 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                 </div>
               </div>
             ) : (
-              <div className="gba:displayTitleContainer" data-testid="expense-plan-wizard-display-title-container">
-                <Title level={4} className="gba:headerTitle" data-testid="expense-plan-wizard-title">
+              <div className="gba:flex gba:flex-row gba:items-center gba:justify-center" data-testid="expense-plan-wizard-display-title-container">
+                <Title level={4} style={{ margin: 0, textAlign: 'center', pointerEvents: 'auto' }} data-testid="expense-plan-wizard-title">
                   {currentTitle || ""}
                 </Title>
-                <div className="gba:editButtonWrapper" data-testid="expense-plan-wizard-edit-button-wrapper">
-                  <Button
-                    variant="text"
-                    size="small"
-                    data-testid="expense-plan-wizard-title-edit-button"
-                    onClick={startEditingTitle}
-                    className="gba:editTitleButton"
-                  >
+                <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-plan-wizard-edit-button-wrapper">
+                                      <Button
+                      variant="text"
+                      size="small"
+                      data-testid="expense-plan-wizard-title-edit-button"
+                      onClick={startEditingTitle}
+                      style={{ marginLeft: '8px', zIndex: 10, position: 'relative', cursor: 'pointer', pointerEvents: 'auto' }}
+                    >
                     <img
                       src={ICONS.EDIT_ICON}
                       alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.back_text', 'Edit')}
@@ -380,7 +381,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                 </div>
               </div>
             )}
-            <div className="gba:headerSubtitle" data-testid="expense-plan-wizard-subtitle">
+            <div style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center', marginTop: '4px' }} data-testid="expense-plan-wizard-subtitle">
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && 
                 getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.subtitle', 'Expenses')}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && 
@@ -406,23 +407,24 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         }}
       >
         {loading ? (
-          <div className="gba:loadingContainer" data-testid="expense-plan-wizard-loading">
+          <div className="gba:flex gba:justify-center gba:items-center" style={{ height: '100%' }} data-testid="expense-plan-wizard-loading">
             {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
           </div>
         ) : expenseRuleError ? (
-          <div className="gba:validationContainer" data-testid="expense-plan-wizard-error-container">
-            <h3 className="gba:validationTitle" data-testid="expense-plan-wizard-error-title">
+          <div style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }} data-testid="expense-plan-wizard-error-container">
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }} data-testid="expense-plan-wizard-error-title">
               {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_plan.invalid_profile_title', 'Validation Issue')}
             </h3>
-            <p className="gba:validationMessage" data-testid="expense-plan-wizard-error-message">
+            <p style={{ fontSize: '14px', color: '#595959', margin: 0 }} data-testid="expense-plan-wizard-error-message">
               {expenseRuleError}
             </p>
           </div>
         ) : (
           <div 
-            className="gba:screenContainer" 
+            className="gba:flex gba:flex-col" 
             data-testid="expense-plan-wizard-screen-container"
             style={{ 
+              height: '100%',
               display: 'flex', 
               flexDirection: 'column', 
               flex: '1 1 auto',
@@ -434,14 +436,14 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         )}
       </div>
       
-      <div className="gba:footerContainer" data-testid="expense-plan-wizard-footer">
-        <hr className="gba:divider" data-testid="expense-plan-wizard-bottom-divider" />
-        <div className="gba:actionButtonsContainer" data-testid="expense-plan-wizard-actions">
+      <div style={{ marginTop: 'auto', width: '100%' }} data-testid="expense-plan-wizard-footer">
+        <hr style={{ margin: '16px 0' }} data-testid="expense-plan-wizard-bottom-divider" />
+        <div className="gba:flex gba:justify-between" style={{ padding: '16px 0' }} data-testid="expense-plan-wizard-actions">
           {showCustomFooter ? (
             <>
               <Button 
                 variant="outline" 
-                className="gba:cancelButton" 
+                style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                 data-testid="expense-plan-wizard-cancel-selection-button"
                 onClick={() => {
                   const cancelEvent = new CustomEvent('expense-plan-items-cancel-selection');
@@ -450,10 +452,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.btn_cancel', 'Cancel')}
               </Button>
-              <div className="gba:rightButtonsContainer">
+              <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button 
                   variant="primary" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                   data-testid="expense-plan-wizard-confirm-selection-button"
                   disabled={selectedItemCount === 0}
                   onClick={() => {
@@ -469,16 +471,16 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
             <>
               <Button 
                 variant="outline" 
-                className="gba:cancelButton" 
+                style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                 data-testid="expense-plan-wizard-cancel-button"
                 onClick={onCancel}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
               </Button>
-              <div className="gba:rightButtonsContainer">
+              <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button 
                   variant="outline" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-plan-wizard-save-button"
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
@@ -502,7 +504,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                 </Button>
                 <Button 
                   variant="primary" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-plan-wizard-next-button"
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
@@ -577,7 +579,7 @@ const ExpensePlanWizard: React.FC<BusinessAppContextProps> = (props) => {
       userInfo={userInfo}
       additionalData={additionalData}
     >
-      <div className="gba:expenseRequestWizardWrapper" data-testid="expense-plan-wizard-wrapper">
+      <div className="gba:flex gba:flex-col gba:h-[100%]" data-testid="expense-plan-wizard-wrapper">
         <ExpensePlanWizardContent 
           onCancel={handleCancel} 
           accessToken={accessToken} 

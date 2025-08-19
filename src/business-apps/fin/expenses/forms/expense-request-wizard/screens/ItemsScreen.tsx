@@ -471,8 +471,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   if (showSelectItems) {
     return (
-      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
-        <div className="gba:screenHeader gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
+      <div data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
           <SearchBarWithLabel 
             onSearch={handleSearch} 
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_header_title', 'My Expense Items')}
@@ -481,7 +481,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           />
         </div>
         
-        <div className="gba:itemsContent gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
+        <div className="gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
           {isLoading ? (
             <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
@@ -517,7 +517,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                 })}
               </div>
               {totalItems > itemListLimit &&
-              <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
+              <div className="gba:flex gba:justify-center gba:py-2 gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
                 <Pagination
                   current={currentPage}
                   onChange={handlePageChange}
@@ -539,7 +539,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" style={{flexGrow:1}} data-testid="expense-request-wizard-items-screen">
+    <div className="gba:flex gba:flex-col" style={{flexGrow:1, height:"100%"}} data-testid="expense-request-wizard-items-screen">
       {!isTrip && latestRejectComment && (
        <div className="gba:mb-4">
         <RejectionComment isRequest={true} comment={latestRejectComment} />
@@ -547,7 +547,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
-          <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
+          <div className="gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
@@ -602,7 +602,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             </div>
             
             {expenseItems.length > itemListLimit && (
-              <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
+              <div className="gba:flex gba:justify-center gba:py-2 gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
                 <Pagination
                   current={initialCurrentPage}
                   onChange={handleInitialPageChange}
@@ -615,9 +615,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             )}
           </div>
         ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
                data-testid="empty-items-container"
-               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',  height:"100%" }}>
             <Button 
               variant="ghost" 
               icon={<img src={ICONS.ADD_CIRCLE} alt="Add" style={{ width: '50px', height: '50px' }} />}

@@ -8,7 +8,7 @@ import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
 import { useExpenseRequestDateValidation } from './utils/dateValidationUtils';
-import './ExpenseRequestWizard.css';
+
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext';
 import { SCREEN_NAMES_ENUM } from './constants/constants';
@@ -236,7 +236,8 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   if (loading) {
     return (
       <div 
-        className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" 
+        className="gba:flex gba:items-center gba:justify-center" 
+        style={{ width: '100%', height: '100%' }}
         data-testid="expense-request-wizard-loading"
       >
         <img 
@@ -261,34 +262,34 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   }
   
   return (
-    <div className="gba:mainContainer" data-testid="expense-request-wizard-content">
-      <div className="gba:headerContainer" data-testid="expense-request-wizard-header">
-        <div className="gba:backButtonContainer" data-testid="expense-request-wizard-back-button-container">
+    <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-request-wizard-content">
+      <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-request-wizard-header">
+        <div style={{ position: 'absolute', left: 0, zIndex: 1 }} data-testid="expense-request-wizard-back-button-container">
           {shouldShowBackButton() && (
-            <Button
-              variant="text"
-              className="gba:backButton"
-              data-testid="expense-request-wizard-back-button"
-              onClick={navigateToPreviousScreen}
-            >
-              <img 
-                src={ICONS.BACK_ARROW} 
-                alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')}
-                className="gba:backIcon"
-                width="24"
-                height="24"
-                data-testid="back-button-icon"
-              />
+                          <Button
+                variant="text"
+                style={{ padding: '0', height: 'auto', minWidth: 'auto' }}
+                data-testid="expense-request-wizard-back-button"
+                onClick={navigateToPreviousScreen}
+              >
+                              <img 
+                  src={ICONS.BACK_ARROW} 
+                  alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')}
+                  style={{ width: '24px', height: '24px' }}
+                  width="24"
+                  height="24"
+                  data-testid="back-button-icon"
+                />
             </Button>
           )}
         </div>
-        <div className="gba:headerTitleWrapper" data-testid="expense-request-wizard-header-title-wrapper">
-          <div className="gba:titleContainer" data-testid="expense-request-wizard-title-container">
+        <div className="gba:flex gba:flex-row gba:items-center gba:justify-center" style={{ width: '100%', pointerEvents: 'none' }} data-testid="expense-request-wizard-header-title-wrapper">
+          <div className="gba:flex gba:flex-col gba:items-center" style={{ marginTop: '16px', width: '100%', pointerEvents: 'none' }} data-testid="expense-request-wizard-title-container">
             {isEditingTitle ? (
-              <div className="gba:editingTitleContainer" data-testid="expense-request-wizard-editing-title-container">
-                <div className="gba:titleInputWrapper" data-testid="expense-request-wizard-title-input-wrapper">
+              <div className="gba:flex gba:flex-col gba:items-center" style={{ width: '100%', maxWidth: '400px', margin: '0 auto', pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-request-wizard-editing-title-container">
+                <div style={{ width: '100%', pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-request-wizard-title-input-wrapper">
                   <Input
-                    className="gba:titleInput"
+                    style={{ border: 'none', borderBottom: '1px solid #d9d9d9', borderRadius: 0, padding: '4px 0', textAlign: 'center', fontSize: '20px', width: '100%', backgroundColor: 'transparent', pointerEvents: 'auto', zIndex: 100, position: 'relative', boxShadow: 'none' }}
                     data-testid="expense-request-wizard-title-input"
                     value={titleValue}
                     onChange={handleTitleChange}
@@ -297,8 +298,8 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                     autoFocus
                   />
                 </div>
-                <div className="gba:titleEditButtons" data-testid="expense-request-wizard-title-edit-buttons">
-                  <div className="gba:buttonWrapper" data-testid="expense-request-wizard-save-button-wrapper">
+                <div className="gba:flex gba:flex-row gba:justify-end" style={{ marginTop: '8px', pointerEvents: 'auto', zIndex: 100, position: 'relative', width: '100%' }} data-testid="expense-request-wizard-title-edit-buttons">
+                  <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative', margin: '0 4px' }} data-testid="expense-request-wizard-save-button-wrapper">
                     <Button
                       variant="text"
                       size="small"
@@ -315,7 +316,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                       />
                     </Button>
                   </div>
-                  <div className="gba:buttonWrapper" data-testid="expense-request-wizard-cancel-button-wrapper">
+                  <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative', margin: '0 4px' }} data-testid="expense-request-wizard-cancel-button-wrapper">
                     <Button
                       variant="text"
                       size="small"
@@ -335,18 +336,18 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                 {/* Error message hidden as requested, using disabled button state instead */}
               </div>
             ) : (
-              <div className="gba:displayTitleContainer" data-testid="expense-request-wizard-display-title-container">
-                <Title level={4} className="gba:headerTitle" data-testid="expense-request-wizard-title">
+              <div className="gba:flex gba:flex-row gba:items-center gba:justify-center" data-testid="expense-request-wizard-display-title-container">
+                <Title level={4} style={{ margin: 0, textAlign: 'center', pointerEvents: 'auto' }} data-testid="expense-request-wizard-title">
                   {currentTitle || ""}
                 </Title>
-                <div className="gba:editButtonWrapper" data-testid="expense-request-wizard-edit-button-wrapper">
-                  <Button
-                    variant="text"
-                    size="small"
-                    data-testid="expense-request-wizard-title-edit-button"
-                    onClick={startEditingTitle}
-                    className="gba:editTitleButton"
-                  >
+                <div style={{ pointerEvents: 'auto', zIndex: 100, position: 'relative' }} data-testid="expense-request-wizard-edit-button-wrapper">
+                                      <Button
+                      variant="text"
+                      size="small"
+                      data-testid="expense-request-wizard-title-edit-button"
+                      onClick={startEditingTitle}
+                      style={{ marginLeft: '8px', zIndex: 10, position: 'relative', cursor: 'pointer', pointerEvents: 'auto' }}
+                    >
                     <img
                       src={ICONS.EDIT_ICON}
                       alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Edit')}
@@ -358,7 +359,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                 </div>
               </div>
             )}
-            <div className="gba:headerSubtitle" data-testid="expense-request-wizard-subtitle">
+            <div style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center', marginTop: '4px' }} data-testid="expense-request-wizard-subtitle">
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && 
                 getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && 
@@ -384,23 +385,24 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         }}
       >
         {loading ? (
-          <div className="gba:loadingContainer" data-testid="expense-request-wizard-loading">
+          <div className="gba:flex gba:justify-center gba:items-center" style={{ height: '100%' }} data-testid="expense-request-wizard-loading">
             {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
           </div>
         ) : expenseRuleError ? (
-          <div className="gba:validationContainer" data-testid="expense-request-wizard-error-container">
-            <h3 className="gba:validationTitle" data-testid="expense-request-wizard-error-title">
+          <div style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }} data-testid="expense-request-wizard-error-container">
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }} data-testid="expense-request-wizard-error-title">
               {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.invalid_profile_title', 'Validation Issue')}
             </h3>
-            <p className="gba:validationMessage" data-testid="expense-request-wizard-error-message">
+            <p style={{ fontSize: '14px', color: '#595959', margin: 0 }} data-testid="expense-request-wizard-error-message">
               {expenseRuleError}
             </p>
           </div>
         ) : (
           <div 
-            className="gba:screenContainer" 
+            className="gba:flex gba:flex-col" 
             data-testid="expense-request-wizard-screen-container"
             style={{ 
+              height: '100%',
               display: 'flex', 
               flexDirection: 'column', 
               flex: '1 1 auto',
@@ -412,14 +414,14 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         )}
       </div>
       
-      <div className="gba:footerContainer" data-testid="expense-request-wizard-footer">
-        <hr className="gba:divider" data-testid="expense-request-wizard-bottom-divider" />
-        <div className="gba:actionButtonsContainer" data-testid="expense-request-wizard-actions">
+      <div style={{ marginTop: 'auto', width: '100%' }} data-testid="expense-request-wizard-footer">
+        <hr style={{ margin: '16px 0' }} data-testid="expense-request-wizard-bottom-divider" />
+        <div className="gba:flex gba:justify-between" style={{ padding: '16px 0' }} data-testid="expense-request-wizard-actions">
           {showCustomFooter ? (
             <>
               <Button 
                 variant="outline" 
-                className="gba:cancelButton" 
+                style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                 data-testid="expense-request-wizard-cancel-selection-button"
                 onClick={() => {
                   const cancelEvent = new CustomEvent('expense-items-cancel-selection');
@@ -428,10 +430,10 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
               </Button>
-              <div className="gba:rightButtonsContainer">
+              <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button 
                   variant="primary" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-request-wizard-confirm-selection-button"
                   disabled={selectedItemCount === 0}
                   onClick={() => {
@@ -447,16 +449,16 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
             <>
               <Button 
                 variant="outline" 
-                className="gba:cancelButton" 
+                style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                 data-testid="expense-request-wizard-cancel-button"
                 onClick={onCancel}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
               </Button>
-              <div className="gba:rightButtonsContainer">
+              <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button 
                   variant="outline" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-request-wizard-save-button"
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
@@ -480,7 +482,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                 </Button>
                 <Button 
                   variant="primary" 
-                  className="gba:submitButton" 
+                  style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-request-wizard-next-button"
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
@@ -558,7 +560,7 @@ const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = (props) => {
       userInfo={userInfo}
       additionalData={additionalData}
     >
-      <div className="gba:expenseRequestWizardWrapper" data-testid="expense-request-wizard-wrapper">
+      <div className="gba:flex gba:flex-col" style={{ height: '100%' }} data-testid="expense-request-wizard-wrapper">
         <ExpenseRequestWizardContent 
           onCancel={handleCancel} 
           accessToken={accessToken} 
