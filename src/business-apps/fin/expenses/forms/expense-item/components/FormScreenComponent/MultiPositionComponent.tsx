@@ -57,14 +57,14 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
         <Card
           key={index}
           title={`Position ${index + 1}`}
-          className={`gba:marginBottom16 gba:borderedCard`}
+          className="gba:mb-4 gba:border-[3px] gba:border-[#EFEFEF]"
           data-testid={`position-card-${index}`}
           extra={
             positions.length > 1 && (
               <Button
                 variant="ghost"
                 onClick={() => handleRemovePosition(position.id)}
-                className={`gba:deleteButton`}
+                className="gba:text-[#f5222d] hover:gba:text-[#cf1322] hover:gba:bg-[rgba(245,34,45,0.1)]"
                 disabled={isProcessingFiles}
                 data-testid={`delete-position-button-${index}`}
               >
@@ -80,8 +80,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           }
           headStyle={{ borderBottom: "none" }}
         >
-          <div className={`gba:marginBottom16`} data-testid={`expense-group-container-${index}`}>
-            <div className={`gba:relativePosition`}>
+          <div className="gba:mb-4" data-testid={`expense-group-container-${index}`}>
+            <div className="gba:relative">
               <Form.Item
                 name={`expenseGroup-${index}`}
                 rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_group_custom_rule', 'Please select an expense group') }]}
@@ -114,8 +114,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`} data-testid={`expense-type-container-${index}`}>
-            <div className={`gba:relativePosition`}>
+          <div className="gba:mb-4" data-testid={`expense-type-container-${index}`}>
+            <div className="gba:relative">
               <Form.Item
                 name={`expenseType-${index}`}
                 rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
@@ -154,9 +154,9 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           {position.expenseType &&
             customFields[position.expenseType] &&
             customFields[position.expenseType].length > 0 && (
-              <div className={`gba:marginBottom16`} data-testid={`custom-field-container-${index}`}>
+              <div className="gba:mb-4" data-testid={`custom-field-container-${index}`}>
                 <div
-                  className={`gba:relativePosition`}
+                  className="gba:relative"
                 >
                   <Form.Item
                     name={`customField-${index}`}
@@ -196,8 +196,9 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                 </div>
               </div>
             )}
-          <div className={`gba:marginBottom16`} data-testid={`amount-container-${index}`}>
-            <div className={`gba:relativePosition`}>
+
+          <div className="gba:mb-4" data-testid={`amount-container-${index}`}>
+            <div className="gba:relative">
               <Form.Item
                 name={`amount-${index}`}
                 rules={[{ required: true, message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount') }]}
@@ -238,8 +239,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`} data-testid={`cost-center-container-${index}`}>
-            <div className={`gba:relativePosition`}>
+          <div className="gba:mb-4" data-testid={`cost-center-container-${index}`}>
+            <div className="gba:relative">
               <Form.Item
                 name={`costCenter-${index}`}
                 rules={[{ required: true, message: t('lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule', 'Please select a cost center') }]}
@@ -274,7 +275,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
             </div>
           </div>
 
-          <div className={`gba:marginBottom16`} data-testid={`reimbursable-container-${index}`}>
+          <div className="gba:mb-4" data-testid={`reimbursable-container-${index}`}>
             <div style={{ marginBottom: "16px" }}>
               <Switch
                 label={t(

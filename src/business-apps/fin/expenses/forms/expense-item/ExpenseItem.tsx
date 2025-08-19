@@ -130,8 +130,8 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
     };
 
     return (
-      <div className={`gba:mainContainer`} data-testid="expense-item-main-container">
-        <div className={`gba:headerContainer`} data-testid="expense-item-header-container">
+              <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }} data-testid="expense-item-main-container">
+        <div className="gba:flex gba:items-center gba:pt-10 gba:font-primary gba:relative gba:pb-[30px] gba:box-content" style={{ height: '32px' }} data-testid="expense-item-header-container">
           {currentStep === FORM_STEPS.FORM && (
             <Button
               variant="ghost"
@@ -139,20 +139,20 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
                 setCurrentStep(FORM_STEPS.START);
                 setFileList([]);
               }}
-              className={`gba:backButton`}
+              className="gba:z-[1] gba:relative"
               data-testid="back-button"
             >
               <img 
                 src={ICONS.BACK_ARROW} 
                 alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
-                className={`gba:backIcon`}
+                className="gba:w-6 gba:h-6"
                 width="24"
                 height="24"
               />
             </Button>
           )}
-          <div className={`gba:titleContainer`} data-testid="expense-item-title-container">
-            <Title level={4} className={`gba:headerTitle`} data-testid="expense-item-header-title">
+          <div className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none" data-testid="expense-item-title-container">
+                                  <Title level={4} className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto" data-testid="expense-item-header-title">
               {isEditMode 
                 ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
                 : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
@@ -160,7 +160,7 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
             </Title>
           </div>
         </div>
-        <Divider className={`gba:headerDivider`} data-testid="expense-item-header-divider" />
+        <Divider className="gba:m-0 gba:ml-0 gba:mb-[30px]" data-testid="expense-item-header-divider" />
 
         {currentStep === FORM_STEPS.START ? (
           <StartScreenComponent 
