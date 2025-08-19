@@ -7,18 +7,19 @@ import { EmployeeDetailsData } from '../types';
 export interface UseEmployeeDetailsDataProps {
   employeeId: string;
   context: BusinessAppContextProps;
+  skipFetch?: boolean; // Skip data fetching if true
 }
 
-export const useEmployeeDetailsData = ({ employeeId, context }: UseEmployeeDetailsDataProps) => {
+export const useEmployeeDetailsData = ({ employeeId, context, skipFetch }: UseEmployeeDetailsDataProps) => {
   const [employeeData, setEmployeeData] = useState<EmployeeDetailsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!skipFetch); // Don't start loading if skipping fetch
   const [error, setError] = useState<string | null>(null);
 
   const { fetchEmployeeDetails } = useGetEmployeeDetails(context);
 
   useEffect(() => {
     const loadEmployeeData = async () => {
-      if (!employeeId || !context.accessToken) {
+      if (skipFetch || !employeeId || !context.accessToken) {
         setIsLoading(false);
         return;
       }
@@ -80,7 +81,7 @@ export const useEmployeeDetailsData = ({ employeeId, context }: UseEmployeeDetai
     };
 
     loadEmployeeData();
-  }, [employeeId, context.accessToken]); // Only depend on the stable values
+  }, [employeeId, context.accessToken, skipFetch]); // Only depend on the stable values
 
   // Keep the refetch function for manual retries
   const refetch = useCallback(async () => {
