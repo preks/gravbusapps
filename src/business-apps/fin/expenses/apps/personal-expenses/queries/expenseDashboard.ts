@@ -200,7 +200,8 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
         currencyRef: {_eq: $currency},
-        expenseDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd}
+        expenseDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+        status: {_nin: ["DISCARDED"]}
       },
       orderBy: {updatedAt: DESC}
     ) {
