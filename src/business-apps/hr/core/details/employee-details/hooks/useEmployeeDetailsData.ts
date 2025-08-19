@@ -47,7 +47,7 @@ export const useEmployeeDetailsData = ({ employeeId, context, skipFetch }: UseEm
             displayName: employee.displayName,
             pictureThumbnail: employee.pictureThumbnail,
             additionalProperties: employee.additionalProperties || {},
-            skills: (employee.skills || []).filter(skill => skill && skill.skill),
+            skills: (employee.skills || []).filter(skill => skill?.skill),
             communication: (employee.communication || []).filter(comm => comm && !comm.isDeleted),
             workingCondition: (employee.workingCondition || []).filter(wc => wc),
             employeePosition: {
@@ -63,8 +63,8 @@ export const useEmployeeDetailsData = ({ employeeId, context, skipFetch }: UseEm
               siteLocationId: position.siteLocationId,
               costCenterId: position.costCenterId,
               costCenter: position.costCenter,
-                          matrixUnitEmployees: (position.matrixUnitEmployees || []).filter(item => item && item.matrixUnit),
-            employeeCapabilities: (position.employeeCapabilities || []).filter(item => item && item.capability)
+              matrixUnitEmployees: (position.matrixUnitEmployees || []).filter(item => item?.matrixUnit),
+              employeeCapabilities: (position.employeeCapabilities || []).filter(item => item?.capability)
             }
           };
 

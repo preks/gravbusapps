@@ -61,17 +61,25 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/`
       }
       employee {
         id
-        firstName
-        lastName
+        code
+        fullName
         displayName
+        workspace
+        version
         pictureThumbnail
         additionalProperties
+        firstName
+        lastName
         # Skills data
         skills(where: {isDeleted: {_eq: false}}) {
           level
+          isDeleted
+          synchronizedAt
           skill {
-            id
+            updatedAt
+            createdAt
             name
+            id
           }
         }
         communication(where: {isDeleted: {_eq: false}}) {

@@ -1,3 +1,7 @@
+---
+description: When navigating to different URLs. Whenever the code is changing the URL.
+alwaysApply: false
+---
 # Navigation Utility Rules for NEWWORK Gravity Business Apps
 
 ## ALWAYS Use Navigation Utility - Never use window.location.href directly
@@ -40,6 +44,7 @@ const url = buildPlatformUrl('/platform/employee-record', {
 navigateTo(url);
 
 ## URL Mapping (when adding new platform URLs)
+You MUST ALWAYS check this object for the URL mappings.
 
 Add to src/common/utils/navigationUtils.ts:
 const PLATFORM_URL_TO_APP_MAPPING = {

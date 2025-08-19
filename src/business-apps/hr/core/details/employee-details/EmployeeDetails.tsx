@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
-import { Button, Avatar, Spinner, Alert } from '@newwork/gravity-ui-catalog';
+import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog';
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -160,22 +160,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
     return result;
   };
 
-  // Loading state (only when fetching data, not when using prop data)
-  if (!propEmployeeData && isLoading) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:p-6 gba:flex gba:items-center gba:justify-center">
-        <Spinner size="large" />
-      </div>
-    );
-  }
-
-  // Error state (only when not loading and not using prop data)
-  if (!propEmployeeData && (error || !employeeData)) {
+  // Error state (only when there's an actual error and not loading)
+  if (!propEmployeeData && error && !isLoading) {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
         <Alert
           message="Error Loading Employee Details"
-          description={error || "Employee data could not be loaded"}
+          description={error}
           type="error"
           showIcon
           action={
@@ -186,6 +177,11 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
         />
       </div>
     );
+  }
+
+  // Don't render anything if we're still loading or don't have data yet
+  if (!propEmployeeData && (isLoading || !employeeData)) {
+    return null;
   }
 
   // If using prop data but it's missing, show minimal error

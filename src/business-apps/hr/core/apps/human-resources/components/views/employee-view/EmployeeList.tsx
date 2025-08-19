@@ -202,7 +202,7 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
               selectedEmployee ? {
                 title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
                 icon: <PiUser size={20} />,
-                content: <EmployeeDetails employeeId={selectedEmployee.id} employeeData={selectedEmployee} accessToken={accessToken} userInfo={props.userInfo} />,
+                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
                 onClose: handleDetailsPanelClose,
                              } : undefined
              }
