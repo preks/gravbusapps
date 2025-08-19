@@ -170,6 +170,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const [error, setError] = useState<Error | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [shouldClearData, setShouldClearData] = useState(false);
   const { alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, sortField, sortOrder } = filters;
   const alphaFilter = alpha ? `${alpha}%` : `%`;
   const searchFilter = search ? `%${search}%` : `%`;
@@ -183,12 +185,14 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     } 
   } : undefined;
 
-  // Reset pagination state on filter change (but keep data visible)
+  // Reset pagination state on filter change
   useEffect(() => {
     setOffset(0);
     setHasMore(true);
-    // Note: We intentionally DON'T clear employees to avoid loading flicker
-    // The data will be replaced when the new query completes
+    // Mark that data should be cleared on next load (for infinite scroll)
+    setShouldClearData(true);
+    // Don't show loading for filter changes - only for true initial load
+    setIsInitialLoad(false);
   }, [alpha, search, JSON.stringify(organizationalUnits), JSON.stringify(employmentTypes), JSON.stringify(contractTypes), JSON.stringify(matrixTeams), sortField, sortOrder]);
 
   /**
@@ -203,11 +207,11 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     }
     if (loading || !hasMore) return;
     
-    // Only show loading for initial load (no existing data)
-    if (employees.length === 0) {
-      setLoading(true); // Full loading for initial load only
+    // Only show loading for true initial load (when component first mounts)
+    if (isInitialLoad && employees.length === 0) {
+      setLoading(true);
     }
-    // For existing data: no loading indicator - seamless like pagination
+    // For filter changes and infinite scroll: no loading indicator - seamless UX
     // Dynamically build the where filter
     const where = {
       ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
@@ -261,18 +265,29 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             profilePicture: ep.employee?.pictureThumbnail ?? '',
           };
         });
-        setEmployees((prev: Employee[]) => [...prev, ...newEmployees]);
+        // For infinite scroll: Clear data if filters changed, otherwise append
+        if (shouldClearData || employees.length === 0) {
+          setEmployees(newEmployees); // Replace data for filter changes or initial load
+          setShouldClearData(false); // Reset the flag
+        } else {
+          setEmployees((prev: Employee[]) => [...prev, ...newEmployees]); // Append for infinite scroll
+        }
+        
         setTotal(res.EmployeePositionAggregate.aggregate.count);
         setOffset(prev => prev + EMPLOYEES_PER_PAGE);
         setHasMore(newEmployees.length === EMPLOYEES_PER_PAGE);
         setLoading(false);
+        // Mark initial load as complete after first successful load
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       })
       .catch((err: any) => {
         setError(err);
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, hasMore, client, offset, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder]);
+  }, [loading, hasMore, client, offset, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder, isInitialLoad, shouldClearData, employees.length]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -296,11 +311,11 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     
     const pageOffset = (page - 1) * pageSize;
     
-    // Only show loading for initial load (no existing data)
-    if (employees.length === 0) {
-      setLoading(true); // Full loading for initial load only
+    // Only show loading for true initial load (when component first mounts)
+    if (isInitialLoad && employees.length === 0) {
+      setLoading(true);
     }
-    // For existing data: no loading indicator - seamless like pagination
+    // For pagination and filter changes: no loading indicator - seamless UX
     
     // Dynamically build the where filter
     const where = {
@@ -363,13 +378,24 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         setOffset(pageOffset);
         setHasMore(newEmployees.length === pageSize);
         setLoading(false);
+        // Mark initial load as complete after first successful load
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       })
       .catch((err: any) => {
         setError(err);
         setHasMore(false);
         setLoading(false);
       });
-  }, [loading, client, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder]);
+  }, [loading, client, alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, alphaFilter, searchFilter, sortField, sortOrder, isInitialLoad]);
+
+  // Initial load effect - trigger loadMore when filters change or on mount
+  useEffect(() => {
+    if (client && (employees.length === 0 || shouldClearData) && !loading) {
+      loadMore();
+    }
+  }, [client, shouldClearData, loadMore]);
 
   return { employees, total, loading, error, hasMore, loadMore, loadPage, retry };
 }

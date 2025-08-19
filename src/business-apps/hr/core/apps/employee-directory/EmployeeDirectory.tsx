@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
 import { PageLayout, IconAvatar } from '@newwork/nw-design-system';
@@ -45,6 +45,12 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   //const { t } = useTranslation('employee_directory', { keyPrefix: 'employee_directory' });
   
+  // Memoize filters to prevent unnecessary re-renders
+  const memoizedFilters = useMemo(() => ({
+    ...getFilters(),
+    accessToken
+  }), [getFilters, accessToken]);
+  
   const {
     employees,
     total,
@@ -53,7 +59,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
     hasMore,
     loadMore,
     retry
-  } = useGetEmployees({ ...getFilters(), accessToken });
+  } = useGetEmployees(memoizedFilters);
   const loaderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
 
