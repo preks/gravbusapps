@@ -160,12 +160,12 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
     opportunityEmployeePositionsData.map((emp) => ({
       id: emp.employeeId,
       value: emp.employeeId,
-      label: `${emp.firstName} ${emp.lastName}`,
-      name: `${emp.firstName} ${emp.lastName}`,
+      label: `${emp?.firstName} ${emp?.lastName}`,
+      name: `${emp?.firstName} ${emp?.lastName}`,
       extraInfo: {
         pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-        jobPosition: emp.jobPosition.name,
-        organizationalUnit: emp.organizationalUnit.name,
+        jobPosition: emp.jobPosition?.name || "No Position",
+        organizationalUnit: emp.organizationalUnit?.name || "No Unit",
       },
     }));
 

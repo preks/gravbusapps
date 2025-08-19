@@ -113,9 +113,9 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
       // Try to find "standard" pipeline first, otherwise use the first one
       const standardPipeline = pipelines.find(
         (p) =>
-          p.label.toLowerCase().includes("standard") ||
-          p.value.toLowerCase().includes("standard") ||
-          p.name.toLowerCase().includes("standard")
+          p?.label?.toLowerCase().includes("standard") ||
+          p?.value?.toLowerCase().includes("standard") ||
+          p?.name?.toLowerCase().includes("standard")
       );
 
       console.log("Found standard pipeline:", standardPipeline);
@@ -203,8 +203,8 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                 options={simpleAccounts.map((account: any) => ({
                   id: account.id,
                   value: account.id,
-                  label: account.name,
-                  name: account.name,
+                  label: account?.name,
+                  name: account?.name,
                 }))}
                 onSearch={searchSimpleAccounts}
                 loading={simpleAccountsLoading}
