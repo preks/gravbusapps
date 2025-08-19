@@ -261,16 +261,12 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     setIsSubmitting(true);
     try {
       // TODO: Implement campaign creation API call
-      console.log('Creating campaign:', campaignData);
-      
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Close modal and refresh data
       setIsAddModalOpen(false);
       refetch();
     } catch (error) {
-      console.error('Error creating campaign:', error);
     } finally {
       setIsSubmitting(false);
     }

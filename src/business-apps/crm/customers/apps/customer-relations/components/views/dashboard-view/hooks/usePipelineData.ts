@@ -179,7 +179,7 @@ export const usePipelineData = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load pipeline data';
       setError(errorMessage);
-      console.error('Pipeline data loading error:', err);
+      // Error handled by state management
     } finally {
       setIsLoading(false);
     }
@@ -213,4 +213,4 @@ export const usePipelineData = (
     error,
     refetch
   };
-}; 
+};

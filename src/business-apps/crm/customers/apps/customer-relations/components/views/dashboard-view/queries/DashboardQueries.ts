@@ -462,7 +462,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_PIPELINES);
       return result.pipelines;
     } catch (error) {
-      console.error('Error fetching pipelines:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -474,7 +474,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_PIPELINE_STAGES, { pipelineRef });
       return result.stages;
     } catch (error) {
-      console.error('Error fetching pipeline stages:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -490,7 +490,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_PIPELINE_OPPORTUNITIES, safeVariables);
       return result.opportunities;
     } catch (error) {
-      console.error('Error fetching opportunities:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -503,7 +503,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_RECENT_LEADS, { startDate, limit: safeLimit });
       return result.leads;
     } catch (error) {
-      console.error('Error fetching recent leads:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -519,7 +519,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_SALES_ACTIVITIES, variables);
       return result.activities;
     } catch (error) {
-      console.error('Error fetching sales activities:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -537,7 +537,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_WIN_RATE_DATA, variables);
       return result;
     } catch (error) {
-      console.error('Error fetching win rate data:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -556,7 +556,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_SALES_REP_PERFORMANCE, variables);
       return result;
     } catch (error) {
-      console.error('Error fetching sales rep performance:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -582,7 +582,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       
       return result.SalesActivity || [];
     } catch (error) {
-      console.error('Error fetching today\'s activities:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient, context.accessToken]);
@@ -598,7 +598,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       
       return result.SalesTask || [];
     } catch (error) {
-      console.error('Error fetching active tasks:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient, context.accessToken]);
@@ -618,7 +618,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, safeVariables);
       return result.leads;
     } catch (error) {
-      console.error('Error fetching open leads for revenue source:', error);
+      // Error handled by caller
       throw error;
     }
   }, [graphqlClient]);
@@ -635,4 +635,4 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
     fetchTodaysTasks,
     fetchOpenLeadsForRevenueSource
   };
-}; 
+};

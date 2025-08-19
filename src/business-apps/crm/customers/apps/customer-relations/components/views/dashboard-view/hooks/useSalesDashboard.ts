@@ -51,7 +51,7 @@ export const useSalesDashboard = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
       setError(errorMessage);
-      console.error('Dashboard data loading error:', err);
+      // Error handled by state management
     } finally {
       setIsLoading(false);
     }
@@ -72,4 +72,4 @@ export const useSalesDashboard = (
     refetch,
     lastUpdated
   };
-}; 
+};

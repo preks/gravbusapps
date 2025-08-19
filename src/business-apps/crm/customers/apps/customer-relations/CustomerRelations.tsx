@@ -31,7 +31,7 @@ import { OpportunityList } from "@/business-apps/crm/common/components/opportuni
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
 import { DashboardView } from "./components/views/dashboard-view";
 import { SalesDashboard } from "./components/views/analytics-view";
-import { useSalesDashboard } from "./components/views/analytics-view/hooks/useSalesDashboard";
+import { useSalesDashboard } from "./components/views/dashboard-view/hooks/useSalesDashboard";
 import { DateRange } from "./components/views/dashboard-view/types/dashboardTypes";
 import CampaignManagement from "./components/views/campaign-view/CampaignManagement";
 

@@ -1,11 +1,9 @@
 import React from 'react';
-import { Card, Typography, Progress, Space, Tooltip } from 'antd';
-import { FunnelPlotOutlined, BarChartOutlined } from '@ant-design/icons';
+import { Card, CardContent, CardHeader, CardTitle, Progress, Badge } from '@newwork/nw-design-system';
+import { TrendingDown, BarChart3 } from 'lucide-react';
 import { OpportunityFunnelData } from '../types/dashboardTypes';
 import { formatCurrency, formatPercentage } from '../utils/dashboardUtils';
 import { EmptyState } from './EmptyState';
-
-const { Title, Text } = Typography;
 
 export interface OpportunityFunnelProps {
   funnelData: OpportunityFunnelData[];
@@ -18,24 +16,22 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
 }) => {
   if (!funnelData || funnelData.length === 0) {
     return (
-      <div className="gba:bg-white gba:rounded-xl gba:shadow-lg gba:border gba:border-gray-200 gba:overflow-hidden">
-        <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:px-6 gba:py-4 gba:border-b gba:border-gray-200">
+      <Card>
+        <CardHeader>
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
-              <FunnelPlotOutlined className="gba:text-blue-600 gba:text-lg" />
+              <TrendingDown className="gba:h-5 gba:w-5 gba:text-blue-600" />
             </div>
-            <Title level={4} className="gba:mb-0 gba:text-gray-900">
-              Opportunity Funnel
-            </Title>
+            <CardTitle>Opportunity Funnel</CardTitle>
           </div>
-        </div>
-        <div className="gba:p-6">
+        </CardHeader>
+        <CardContent>
           <EmptyState
             title="No Funnel Data"
             description="No opportunities found for this pipeline"
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -44,36 +40,28 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
   const totalValue = funnelData.reduce((sum, stage) => sum + stage.value, 0);
 
   return (
-    <div
-      data-testid={`opportunity-funnel-${pipelineId}`}
-      className="gba:bg-white gba:rounded-xl gba:shadow-lg gba:border gba:border-gray-200 gba:overflow-hidden"
-    >
-      {/* Enhanced Header */}
-      <div className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:px-6 gba:py-4 gba:border-b gba:border-gray-200">
+    <Card data-testid={`opportunity-funnel-${pipelineId}`}>
+      <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
-              <FunnelPlotOutlined className="gba:text-blue-600 gba:text-lg" />
+              <TrendingDown className="gba:h-5 gba:w-5 gba:text-blue-600" />
             </div>
-            <Title level={4} className="gba:mb-0 gba:text-gray-900">
-              Opportunity Funnel
-            </Title>
+            <CardTitle>Opportunity Funnel</CardTitle>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <BarChartOutlined className="gba:text-blue-500" />
-            <Text className="gba:text-sm gba:text-gray-600 gba:font-medium">
+            <BarChart3 className="gba:h-4 gba:w-4 gba:text-blue-500" />
+            <span className="gba:text-sm gba:text-gray-600 gba:font-medium">
               {totalOpportunities} total
-            </Text>
+            </span>
           </div>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Enhanced Funnel Content */}
-      <div className="gba:p-6">
+      <CardContent>
         <div className="gba:space-y-5">
           {funnelData.map((stage, index) => {
             const progressPercent = maxCount > 0 ? (stage.count / maxCount) * 100 : 0;
-            const stageColor = stage.stage.color || 'var(--nw-info)';
             const avgDealSize = stage.count > 0 ? stage.value / stage.count : 0;
 
             return (
@@ -86,12 +74,11 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
                 <div className="gba:flex gba:justify-between gba:items-center gba:mb-3">
                   <div className="gba:flex gba:items-center gba:gap-3">
                     <div 
-                      className="gba:w-3 gba:h-3 gba:rounded-full gba:shadow-sm"
-                      style={{ backgroundColor: stageColor }}
+                      className="gba:w-3 gba:h-3 gba:rounded-full gba:shadow-sm gba:bg-blue-500"
                     />
-                    <Text className="gba:font-semibold gba:text-gray-900 gba:text-base">
+                    <span className="gba:font-semibold gba:text-gray-900 gba:text-base">
                       {stage.stage.name}
-                    </Text>
+                    </span>
                   </div>
                   <div className="gba:text-right">
                     <div className="gba:text-sm gba:text-gray-600">
@@ -103,23 +90,12 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
                   </div>
                 </div>
                 
-                {/* Enhanced Progress Bar */}
+                {/* Progress Bar */}
                 <div className="gba:mb-3">
-                  <Tooltip 
-                    title={`${stage.count} opportunities (${formatPercentage(stage.percentage)}) • ${formatCurrency(stage.value)}`}
-                  >
-                    <Progress
-                      percent={progressPercent}
-                      strokeColor={{
-                        '0%': stageColor,
-                        '100%': `${stageColor}80`,
-                      }}
-                      trailColor="var(--nw-accent)"
-                      size="small"
-                      showInfo={false}
-                      className="gba:transition-all gba:duration-300 group-hover:gba:shadow-sm"
-                    />
-                  </Tooltip>
+                  <Progress 
+                    value={progressPercent} 
+                    className="gba:h-2 gba:transition-all gba:duration-300 group-hover:gba:shadow-sm"
+                  />
                 </div>
                 
                 {/* Stage Metrics */}
@@ -143,14 +119,14 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
           })}
         </div>
 
-        {/* Enhanced Funnel Summary */}
+        {/* Funnel Summary */}
         <div className="gba:mt-6 gba:bg-gradient-to-r gba:from-gray-50 gba:to-blue-50 gba:rounded-xl gba:p-5 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-            <Text className="gba:text-gray-700 gba:font-semibold gba:text-base">
+            <span className="gba:text-gray-700 gba:font-semibold gba:text-base">
               Funnel Summary
-            </Text>
+            </span>
             <div className="gba:p-1 gba:bg-blue-100 gba:rounded-md">
-              <BarChartOutlined className="gba:text-blue-600 gba:text-sm" />
+              <BarChart3 className="gba:h-4 gba:w-4 gba:text-blue-600" />
             </div>
           </div>
           
@@ -173,7 +149,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
-}; 
+};
