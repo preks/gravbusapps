@@ -168,7 +168,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
   };
 
      return (
-     <div className="gba:max-w-[800px] gba:mx-auto" data-testid="approve-expense-plan-container">
+     <div className="gba:border-0" data-testid="approve-expense-plan-container">
        <Card className="gba:border-0 gba:shadow-none">
          <CardContent className="gba:p-0">
           
