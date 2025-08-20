@@ -122,14 +122,17 @@ export const useOpportunityListData = (
       pageSize = 20,
       additionalFilters?: any,
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
       if (!params.context.accessToken) {
         console.warn("No access token provided for opportunity data loading");
         return;
       }
 
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -303,8 +306,6 @@ export const useOpportunityListData = (
             : whereConditions[0] || {};
 
         // Build order by condition - handle both override and regular sorting
-        console.log("overrideSortField", overrideSortField);
-        console.log("overrideSortOrder", overrideSortOrder);
         let orderBy: any[] = [];
         if (overrideSortField && overrideSortField !== "") {
           const sortCondition: any = {};

@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react';
 import dayjs from 'dayjs';
-import { Button, Avatar, Spinner, Alert } from '@newwork/gravity-ui-catalog';
+import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog';
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -24,6 +24,7 @@ import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types';
 
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
   employeeId: string;
+  employeeData?: any; // Optional - if provided, skip data fetching
 }
 
 interface ProfileInfoItemProps {
@@ -75,11 +76,17 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
  * @returns {JSX.Element}
  */
 export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
-  const { employeeId, accessToken } = context;
-  const { employeeData, isLoading, error, refetch } = useEmployeeDetailsData({ 
+  const { employeeId, accessToken, employeeData: propEmployeeData } = context;
+  
+  // Only fetch data if not provided as prop
+  const { employeeData: fetchedData, isLoading, error, refetch } = useEmployeeDetailsData({ 
     employeeId, 
-    context 
+    context,
+    skipFetch: !!propEmployeeData // Skip fetching if data provided as prop
   });
+  
+  // Use prop data if available, otherwise use fetched data
+  const employeeData = propEmployeeData || fetchedData;
   
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
 
@@ -110,14 +117,14 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
   };
 
   const getBusinessEmail = () => {
-    const email = employeeData?.communication?.find(c => 
+    const email = employeeData?.communication?.find((c: any) => 
       c?.channel?.code === 'e-mail' && !c?.isDeleted && c?.value
     )?.value;
     return email || employeeData?.additionalProperties?.email || '';
   };
 
   const getBusinessPhone = () => {
-    const phone = employeeData?.communication?.find(c => 
+    const phone = employeeData?.communication?.find((c: any) => 
       (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
     )?.value;
     return phone || employeeData?.additionalProperties?.phone || '';
@@ -153,22 +160,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
     return result;
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:flex gba:items-center gba:justify-center">
-        <Spinner size="large" />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error || !employeeData) {
+  // Error state (only when there's an actual error and not loading)
+  if (!propEmployeeData && error && !isLoading) {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
         <Alert
           message="Error Loading Employee Details"
-          description={error || "Employee data could not be loaded"}
+          description={error}
           type="error"
           showIcon
           action={
@@ -177,6 +175,22 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
             </Button>
           }
         />
+      </div>
+    );
+  }
+
+  // Don't render anything if we're still loading or don't have data yet
+  if (!propEmployeeData && (isLoading || !employeeData)) {
+    return null;
+  }
+
+  // If using prop data but it's missing, show minimal error
+  if (propEmployeeData && !employeeData) {
+    return (
+      <div className="gba:bg-white gba:h-full gba:p-6">
+        <div className="gba:text-center gba:text-gray-500">
+          Employee data not available
+        </div>
       </div>
     );
   }
@@ -191,11 +205,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
       <div className="gba:p-6 gba:relative">
         {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
-          <div className="gba:absolute gba:top-4 gba:right-2">
+          <div className="gba:absolute gba:top-4 gba:right-2" onClick={(e) => e.stopPropagation()}>
             <AppActionButton
               data-testid="employee-details-action-button"
-              variant="primary"
-              size="md"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
                 employeeId: employeeData.id,
@@ -386,9 +398,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.matrixUnitEmployees && Array.isArray(employeeData.employeePosition.matrixUnitEmployees) && employeeData.employeePosition.matrixUnitEmployees.length > 0 ? (
                   employeeData.employeePosition.matrixUnitEmployees
-                    .filter((teamItem): teamItem is MatrixUnitEmployee & { matrixUnit: { id: string; name: string } } => 
+                    .filter((teamItem: any): teamItem is MatrixUnitEmployee & { matrixUnit: { id: string; name: string } } => 
                       !!(teamItem?.matrixUnit?.id && teamItem?.matrixUnit?.name))
-                    .map((teamItem) => (
+                    .map((teamItem: any) => (
                       <span 
                         key={teamItem.matrixUnit.id} 
                         className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-blue-100 gba:text-blue-800"
@@ -408,9 +420,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.employeeCapabilities && Array.isArray(employeeData.employeePosition.employeeCapabilities) && employeeData.employeePosition.employeeCapabilities.length > 0 ? (
                   employeeData.employeePosition.employeeCapabilities
-                    .filter((capItem): capItem is EmployeeCapability & { capability: { id: string; name: string } } => 
+                    .filter((capItem: any): capItem is EmployeeCapability & { capability: { id: string; name: string } } => 
                       !!(capItem?.capability?.id && capItem?.capability?.name))
-                    .map((capItem) => (
+                    .map((capItem: any) => (
                       <span 
                         key={capItem.capability.id} 
                         className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-green-100 gba:text-green-800"
@@ -430,9 +442,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.skills && Array.isArray(employeeData.skills) && employeeData.skills.length > 0 ? (
                   employeeData.skills
-                    .filter((skillItem): skillItem is EmployeeSkill & { skill: { id: string; name: string } } => 
+                    .filter((skillItem: any): skillItem is EmployeeSkill & { skill: { id: string; name: string } } => 
                       !!(skillItem?.skill?.id && skillItem?.skill?.name))
-                    .map((skillItem) => (
+                    .map((skillItem: any) => (
                       <span 
                         key={skillItem.skill.id} 
                         className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${

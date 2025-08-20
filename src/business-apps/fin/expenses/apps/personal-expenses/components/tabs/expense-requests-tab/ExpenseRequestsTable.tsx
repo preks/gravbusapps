@@ -409,10 +409,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         data-testid={`expense-request-row-${record.id}`}
                       >
                         <TableCell className="gba:py-4 gba:px-3">
-                          <div className="gba:flex gba:justify-start gba:gap-2">
+                          <div 
+                            className="gba:flex gba:justify-start gba:gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <AppActionButton
                               data-testid={`expense-request-update-button-${record.id}`}
-                              variant="secondary"
+                              size="icon"
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                 {
@@ -446,7 +449,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                               ]}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick
+                              deferMainContextRequestsUntilClick={true}
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>

@@ -481,11 +481,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                             className="gba:py-4 gba:px-3"
                             data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                           >
-                            <div className="gba:flex gba:justify-start gba:gap-2">
-                             <AppActionButton
-                              data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-                              variant="secondary"
-                              staticFlowData={[
+                            <div 
+                              className="gba:flex gba:justify-start gba:gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <AppActionButton
+                                data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+                                size="icon"
+                                staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
                                   category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
@@ -536,8 +539,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick
-                              onClick={(e) => e.stopPropagation()}
+                              deferMainContextRequestsUntilClick={true}
                             />
                             </div>
                           </TableCell>

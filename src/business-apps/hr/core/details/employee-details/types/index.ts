@@ -19,8 +19,12 @@ export interface EmployeeSkill {
   skill: {
     id: string;
     name: string;
+    updatedAt: string | null;
+    createdAt: string | null;
   } | null;
   level: string | null;
+  isDeleted: boolean;
+  synchronizedAt: string | null;
 }
 
 // Communication channel
@@ -167,9 +171,13 @@ export interface EmployeeDetailsResponse {
     employeeCapabilities: EmployeeCapability[];
     employee: {
       id: string;
+      code: string;
+      fullName: string;
       firstName: string;
       lastName: string;
       displayName: string;
+      workspace: string;
+      version: number;
       pictureThumbnail: string;
       additionalProperties: {
         email?: string;

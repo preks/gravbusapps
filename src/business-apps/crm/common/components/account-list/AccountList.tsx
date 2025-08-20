@@ -309,7 +309,7 @@ export const AccountList: React.FC<AccountListProps> = (
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
-      loadPage(1, pageSize); // Reset to first page when search changes
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
     }
   }, [search, pageSize, filtersInitialized]);
 
@@ -317,7 +317,7 @@ export const AccountList: React.FC<AccountListProps> = (
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
-      loadPage(1, pageSize);
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for filtering
     }
   }, [
     JSON.stringify(selectedFilters),
@@ -371,7 +371,7 @@ export const AccountList: React.FC<AccountListProps> = (
           page: 1,
         });
         // Pass empty field to loadPage immediately
-        loadPage(1, pageSize, {}, "", "DESC");
+        loadPage(1, pageSize, {}, "", "DESC", false); // Don't show loading for sorting
       } else {
         setSortField(field);
         setSortOrder(order);
@@ -382,7 +382,7 @@ export const AccountList: React.FC<AccountListProps> = (
           page: 1,
         });
         // Pass new sorting values to loadPage immediately
-        loadPage(1, pageSize, {}, field, order);
+        loadPage(1, pageSize, {}, field, order, false); // Don't show loading for sorting
       }
     },
     [pageSize, updateURLParams, loadPage]

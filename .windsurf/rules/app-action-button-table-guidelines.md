@@ -1,7 +1,6 @@
 ---
-trigger: always_on
+alwaysApply: true
 ---
-
 # AppActionButton Table Integration Guidelines (Concise)
 
 ## Core Rule

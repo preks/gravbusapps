@@ -373,7 +373,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
-      loadPage(1, pageSize); // Reset to first page when search changes
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
     }
   }, [search, pageSize, filtersInitialized, updateURLParams]);
 
@@ -381,7 +381,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
-      loadPage(1, pageSize);
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for filtering
     }
   }, [
     selectedFilters.join(','), // Use string join instead of JSON.stringify
@@ -452,7 +452,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
         });
       }
 
-      loadPage(1, pageSize);
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for sorting
     },
     [pageSize, updateURLParams, loadPage, VALID_SORT_FIELDS]
   );
