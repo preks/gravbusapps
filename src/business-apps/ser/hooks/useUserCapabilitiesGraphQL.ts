@@ -35,6 +35,17 @@ const GET_USER_CAPABILITIES_QUERY = `
           description
         }
       }
+      organizationalUnit {
+        id
+        name
+        code
+        type
+        tag
+      }
+      jobPosition {
+        id
+        name
+      }
     }
   }
 `;
@@ -161,14 +172,21 @@ export const useUserCapabilitiesGraphQL = ({
               }
             });
           }
+
+          // Add organizational unit
+          if (position.organizationalUnit) {
+            orgUnitsMap.set(position.organizationalUnit.id, position.organizationalUnit);
+          }
         });
 
         const capabilitiesArray = Array.from(capabilitiesMap.values());
+        const orgUnitsArray = Array.from(orgUnitsMap.values());
         setCapabilities(capabilitiesArray);
-        setOrganizationalUnits([]); // Remove organizational units for now
+        setOrganizationalUnits(orgUnitsArray);
 
         console.log('useUserCapabilitiesGraphQL: Processed data', {
           capabilities: capabilitiesArray,
+          organizationalUnits: orgUnitsArray,
           totalPositions: positionsData.length,
           samplePosition: positionsData[0],
         });
