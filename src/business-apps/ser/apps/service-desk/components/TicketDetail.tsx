@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Button, Tag, Timeline, Input, Alert, Space, Typography, Divider, 
-  Select, Row, Col, Steps, Badge, message, Tooltip, Switch 
+  Select, Row, Col, Steps, Badge, message, Tooltip, Modal, Drawer 
 } from 'antd';
 import { 
   User, Clock, AlertCircle, ArrowRight, CheckCircle, PlayCircle,
-  Edit3, Send, Users, Calendar, Eye, EyeOff, MessageSquare, UserPlus,
-  UserMinus, RotateCw, FastForward
+  Send, Users, Calendar, Eye, EyeOff, MessageSquare, UserPlus,
+  UserMinus, RotateCw, FastForward, FileText, Info
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, Comment, TicketStatus, SubmittedRequest } from 'packages/services-plus-core';
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
-import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { getWorkflowEngine, setWorkflowEngineCurrentUser } from '../../../services/workflowEngineProvider';
+import { getUserDisplayName } from '../../../utils/userUtils';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -71,9 +72,12 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   const [commentText, setCommentText] = useState<string>('');
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [assigneeId, setAssigneeId] = useState<string>('');
-  const [isMarkdownMode, setIsMarkdownMode] = useState<boolean>(false);
+
   const [overallRequest, setOverallRequest] = useState<SubmittedRequest | null>(null);
   const [isLoadingRequest, setIsLoadingRequest] = useState<boolean>(false);
+  const [showOverallRequest, setShowOverallRequest] = useState<boolean>(false);
+  const [showCommentModal, setShowCommentModal] = useState<boolean>(false);
+  const [localComments, setLocalComments] = useState<Comment[]>([]);
 
   // Optimistic update states
   const [optimisticTicket, setOptimisticTicket] = useState<StepInstance | null>(null);
@@ -87,6 +91,9 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
   // Use optimistic ticket if available, otherwise use real ticket
   const displayTicket = optimisticTicket || ticket;
+  
+  // Combine real comments with local comments
+  const allComments = displayTicket ? [...displayTicket.comments, ...localComments] : [];
 
   // Ticket actions (claim, assign, advance, comment)
   const { 
@@ -106,6 +113,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   });
 
   const currentUserId = userInfo?.employeeDetails?.employeeId;
+  const currentUserDisplayName = getUserDisplayName(userInfo, 'Current User');
 
   // Fetch overall request details
   useEffect(() => {
@@ -126,6 +134,13 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
     fetchOverallRequest();
   }, [ticket?.requestId, currentUserId]);
+
+  // Ensure mock engine uses the logged-in user's ID for actions
+  useEffect(() => {
+    if (currentUserId) {
+      setWorkflowEngineCurrentUser(currentUserId);
+    }
+  }, [currentUserId]);
 
   // Handle claim ticket with optimistic update
   const handleClaim = async () => {
@@ -225,40 +240,26 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
-  // Handle add comment with optimistic update
-  const handleAddComment = async () => {
-    if (!ticket || !commentText.trim()) return;
+  // Handle add comment locally (no backend)
+  const handleAddComment = () => {
+    if (!displayTicket || !commentText.trim()) return;
     
-    setIsSubmittingComment(true);
-    
-    // Optimistic update
+    // Create new local comment
     const newComment: Comment = {
-      id: `temp-${Date.now()}`,
-      stepId: ticket.id,
-      authorId: currentUserId || 'current-user',
+      id: `local-${Date.now()}`,
+      stepId: displayTicket.id,
+      authorId: currentUserDisplayName,
       body: commentText.trim(),
       createdAt: new Date().toISOString(),
       visibleToDownstream: true
     };
     
-    setOptimisticTicket({
-      ...ticket,
-      comments: [...ticket.comments, newComment]
-    });
+    // Add to local comments
+    setLocalComments(prev => [...prev, newComment]);
     setCommentText('');
+    setShowCommentModal(false);
     
-    message.loading(getTranslationFromI18nKeyAndLabel('services.ticket.adding_comment', 'Adding comment...'), 0.5);
-    
-    try {
-      await addComment(ticket.id, commentText.trim());
-      message.success(getTranslationFromI18nKeyAndLabel('services.ticket.comment.success', 'Comment added successfully'));
-    } catch (err) {
-      setOptimisticTicket(null);
-      setCommentText(commentText); // Restore comment text on error
-      message.error(getTranslationFromI18nKeyAndLabel('services.ticket.comment.error', 'Failed to add comment'));
-    } finally {
-      setIsSubmittingComment(false);
-    }
+    message.success(getTranslationFromI18nKeyAndLabel('services.ticket.comment.added', 'Comment added'));
   };
 
   // Get status color
@@ -315,12 +316,9 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                           displayTicket.claimedByUserId === currentUserId;
 
   return (
-    <Row gutter={24} className="gba:h-full">
-      {/* Main Content */}
-      <Col span={16} className="gba:space-y-6">
-        <div data-testid={`ticket-detail-${ticketId}`}>
-          {/* Enhanced Header */}
-          <Card className="gba:mb-6">
+    <div className="gba:w-full gba:space-y-6" data-testid={`ticket-detail-${ticketId}`}>
+      {/* Enhanced Header */}
+      <Card className="gba:mb-6">
             <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
               <div className="gba:flex-1">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
@@ -479,6 +477,15 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                     {getTranslationFromI18nKeyAndLabel('services.ticket.actions.complete', 'Complete Step')}
                   </Button>
                 )}
+
+                {/* Overall Request Button */}
+                <Button
+                  icon={<FileText className="gba:w-4 gba:h-4" />}
+                  onClick={() => setShowOverallRequest(true)}
+                  data-testid="show-overall-request-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('services.ticket.actions.viewRequest', 'View Request')}
+                </Button>
               </Space>
             </div>
           </Card>
@@ -490,86 +497,24 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <MessageSquare className="gba:w-4 gba:h-4" />
                   {getTranslationFromI18nKeyAndLabel('services.ticket.comments.title', 'Comments')}
-                  <Badge count={displayTicket.comments.length} showZero style={{ backgroundColor: '#1890ff' }} />
+                  <Badge count={allComments.length} showZero style={{ backgroundColor: '#1890ff' }} />
                 </div>
-                {/* Markdown Mode Toggle */}
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Text className="gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('services.ticket.comments.markdown', 'Markdown')}
-                  </Text>
-                  <Switch
-                    size="small"
-                    checked={isMarkdownMode}
-                    onChange={setIsMarkdownMode}
-                    checkedChildren={<Edit3 className="gba:w-3 gba:h-3" />}
-                    unCheckedChildren={<Edit3 className="gba:w-3 gba:h-3" />}
-                  />
-                </div>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<MessageSquare className="gba:w-4 gba:h-4" />}
+                  onClick={() => setShowCommentModal(true)}
+                  data-testid="add-comment-modal-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('services.ticket.comments.add', 'Add Comment')}
+                </Button>
               </div>
             }
           >
-            {/* Add Comment */}
-            {isAssignedToUser && (
-              <div className="gba:mb-6">
-                <div className="gba:mb-3">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                    <Eye className="gba:w-4 gba:h-4 gba:text-green-500" />
-                    <Text className="gba:text-sm gba:text-green-600">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'services.ticket.comments.visibility.downstream',
-                        'This comment will be visible to all downstream steps'
-                      )}
-                    </Text>
-                  </div>
-                </div>
-                
-                <TextArea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder={
-                    isMarkdownMode 
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'services.ticket.comments.placeholder.markdown',
-                          'Add a comment with **markdown** support...'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'services.ticket.comments.placeholder',
-                          'Add a comment visible to downstream steps...'
-                        )
-                  }
-                  rows={4}
-                  className="gba:mb-3"
-                  data-testid="comment-input"
-                />
-                
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <Text className="gba:text-xs gba:text-gray-500">
-                    {isMarkdownMode 
-                      ? getTranslationFromI18nKeyAndLabel('services.ticket.comments.markdown.help', 'Use **bold**, *italic*, `code` and more')
-                      : getTranslationFromI18nKeyAndLabel('services.ticket.comments.plain.help', 'Plain text formatting')
-                    }
-                  </Text>
-                  
-                  <Button
-                    type="primary"
-                    icon={<Send className="gba:w-4 gba:h-4" />}
-                    onClick={handleAddComment}
-                    loading={isSubmittingComment}
-                    disabled={!commentText.trim()}
-                    data-testid="add-comment-button"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('services.ticket.comments.add', 'Add Comment')}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <Divider />
-
             {/* Comments Timeline */}
-            {displayTicket.comments.length > 0 ? (
+            {allComments.length > 0 ? (
               <Timeline className="gba:mt-4">
-                {displayTicket.comments.map((comment: Comment) => (
+                {allComments.map((comment: Comment) => (
                   <Timeline.Item 
                     key={comment.id} 
                     data-testid={`comment-${comment.id}`}
@@ -590,7 +535,6 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       </div>
                       
                       <div className="gba:bg-gray-50 gba:p-3 gba:rounded-lg">
-                        {/* Render markdown or plain text */}
                         <Paragraph className="gba:mb-0 gba:text-sm">
                           {comment.body}
                         </Paragraph>
@@ -604,6 +548,11 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                             'Visible downstream'
                           )}
                         </Tag>
+                        {comment.id.startsWith('local-') && (
+                          <Tag size="small" color="blue" className="gba:text-xs">
+                            {getTranslationFromI18nKeyAndLabel('services.ticket.comments.local', 'Local')}
+                          </Tag>
+                        )}
                       </div>
                     </div>
                   </Timeline.Item>
@@ -621,132 +570,240 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
               </div>
             )}
           </Card>
-        </div>
-      </Col>
 
-      {/* Side Panel - Overall Request */}
-      <Col span={8}>
-        <Card 
-          title={
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <ArrowRight className="gba:w-4 gba:h-4" />
-              {getTranslationFromI18nKeyAndLabel('services.ticket.overall.title', 'Overall Request')}
-            </div>
-          }
-          className="gba:h-full"
-          loading={isLoadingRequest}
-        >
-          {overallRequest ? (
-            <div className="gba:space-y-4">
-              {/* Request Info */}
-              <div>
-                <Text strong className="gba:block gba:mb-2">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.request', 'Request')}: {overallRequest.requestKey}
-                </Text>
-                <Text type="secondary" className="gba:text-sm">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.submitted', 'Submitted by')}: {overallRequest.submittedByUserId}
-                </Text>
-                <Text type="secondary" className="gba:block gba:text-sm">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.date', 'Date')}: {new Date(overallRequest.submittedAt).toLocaleString()}
-                </Text>
+      {/* Overall Request Modal */}
+      <Modal
+        title={
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <FileText className="gba:w-5 gba:h-5" />
+            {getTranslationFromI18nKeyAndLabel('services.ticket.overall.title', 'Overall Request')}
+          </div>
+        }
+        open={showOverallRequest}
+        onCancel={() => setShowOverallRequest(false)}
+        footer={[
+          <Button key="close" onClick={() => setShowOverallRequest(false)}>
+            {getTranslationFromI18nKeyAndLabel('services.modal.close', 'Close')}
+          </Button>
+        ]}
+        width={800}
+        data-testid="overall-request-modal"
+      >
+        {isLoadingRequest ? (
+          <div className="gba:text-center gba:py-8">
+            <RotateCw className="gba:w-8 gba:h-8 gba:text-gray-300 gba:mx-auto gba:mb-2 gba:animate-spin" />
+            <Text type="secondary">
+              {getTranslationFromI18nKeyAndLabel(
+                'services.ticket.overall.loading',
+                'Loading request details...'
+              )}
+            </Text>
+          </div>
+        ) : overallRequest ? (
+          <div className="gba:space-y-6">
+            {/* Request Info */}
+            <Card size="small">
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Info className="gba:w-4 gba:h-4 gba:text-blue-500" />
+                  <Text strong>
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.overall.request', 'Request')}: {overallRequest.requestKey}
+                  </Text>
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <User className="gba:w-4 gba:h-4 gba:text-gray-400" />
+                  <Text type="secondary">
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.overall.submitted', 'Submitted by')}: {overallRequest.submittedByUserId}
+                  </Text>
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Calendar className="gba:w-4 gba:h-4 gba:text-gray-400" />
+                  <Text type="secondary">
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.overall.date', 'Date')}: {new Date(overallRequest.submittedAt).toLocaleString()}
+                  </Text>
+                </div>
               </div>
+            </Card>
 
-              <Divider />
-
-              {/* Steps Progress */}
-              <div>
-                <Text strong className="gba:block gba:mb-3">
+            {/* Workflow Steps Progress */}
+            <Card 
+              size="small"
+              title={
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <ArrowRight className="gba:w-4 gba:h-4" />
                   {getTranslationFromI18nKeyAndLabel('services.ticket.overall.steps', 'Workflow Steps')}
-                </Text>
-                
-                <Steps
-                  direction="vertical"
-                  size="small"
-                  current={overallRequest.steps.findIndex(step => step.id === displayTicket.id)}
-                >
-                  {overallRequest.steps.map((step, index) => {
-                    const isCurrentStep = step.id === displayTicket.id;
-                    const stepStatus = step.status === 'done' ? 'finish' : 
-                                     step.status === 'in_progress' || step.status === 'claimed' ? 'process' :
-                                     step.status === 'canceled' ? 'error' : 'wait';
-                    
-                    return (
-                      <Steps.Step
-                        key={step.id}
-                        title={
+                </div>
+              }
+            >
+              <Steps
+                direction="vertical"
+                size="small"
+                current={overallRequest.steps.findIndex(step => step.id === displayTicket.id)}
+              >
+                {overallRequest.steps.map((step, index) => {
+                  const isCurrentStep = step.id === displayTicket.id;
+                  const stepStatus = step.status === 'done' ? 'finish' : 
+                                   step.status === 'in_progress' || step.status === 'claimed' ? 'process' :
+                                   step.status === 'canceled' ? 'error' : 'wait';
+                  
+                  return (
+                    <Steps.Step
+                      key={step.id}
+                      title={
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Text strong={isCurrentStep} className="gba:text-sm">
+                            {step.name}
+                          </Text>
+                          {isCurrentStep && (
+                            <Badge status="processing" />
+                          )}
+                        </div>
+                      }
+                      description={
+                        <div className="gba:space-y-2">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <Text strong={isCurrentStep} className="gba:text-sm">
-                              {step.name}
-                            </Text>
-                            {isCurrentStep && (
-                              <Badge status="processing" />
+                            <Tag size="small" color={getStatusColor(step.status as TicketStatus)}>
+                              {step.status.toUpperCase()}
+                            </Tag>
+                            {step.desk && (
+                              <Text className="gba:text-xs gba:text-gray-500">
+                                {step.desk}
+                              </Text>
                             )}
                           </div>
-                        }
-                        description={
+                          
+                          {/* Step Timestamps */}
                           <div className="gba:space-y-1">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <Tag size="small" color={getStatusColor(step.status as TicketStatus)}>
-                                {step.status.toUpperCase()}
-                              </Tag>
-                              {step.desk && (
+                            {step.startedAt && (
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                <PlayCircle className="gba:w-3 gba:h-3 gba:text-gray-400" />
                                 <Text className="gba:text-xs gba:text-gray-500">
-                                  {step.desk}
+                                  Started: {new Date(step.startedAt).toLocaleString()}
                                 </Text>
-                              )}
-                            </div>
+                              </div>
+                            )}
                             
-                            {/* Step Timestamps */}
-                            <div className="gba:space-y-1">
-                              {step.startedAt && (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <PlayCircle className="gba:w-3 gba:h-3 gba:text-gray-400" />
-                                  <Text className="gba:text-xs gba:text-gray-500">
-                                    Started: {new Date(step.startedAt).toLocaleString()}
-                                  </Text>
-                                </div>
-                              )}
-                              
-                              {step.completedAt && (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <CheckCircle className="gba:w-3 gba:h-3 gba:text-green-500" />
-                                  <Text className="gba:text-xs gba:text-gray-500">
-                                    Completed: {new Date(step.completedAt).toLocaleString()}
-                                  </Text>
-                                </div>
-                              )}
-                              
-                              {(step.assignedToUserId || step.claimedByUserId) && (
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  <User className="gba:w-3 gba:h-3 gba:text-blue-500" />
-                                  <Text className="gba:text-xs gba:text-gray-500">
-                                    {step.assignedToUserId ? `Assigned: ${step.assignedToUserId}` : `Claimed: ${step.claimedByUserId}`}
-                                  </Text>
-                                </div>
-                              )}
-                            </div>
+                            {step.completedAt && (
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                <CheckCircle className="gba:w-3 gba:h-3 gba:text-green-500" />
+                                <Text className="gba:text-xs gba:text-gray-500">
+                                  Completed: {new Date(step.completedAt).toLocaleString()}
+                                </Text>
+                              </div>
+                            )}
+                            
+                            {(step.assignedToUserId || step.claimedByUserId) && (
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                <User className="gba:w-3 gba:h-3 gba:text-blue-500" />
+                                <Text className="gba:text-xs gba:text-gray-500">
+                                  {step.assignedToUserId ? `Assigned: ${step.assignedToUserId}` : `Claimed: ${step.claimedByUserId}`}
+                                </Text>
+                              </div>
+                            )}
                           </div>
-                        }
-                        status={stepStatus}
-                      />
-                    );
-                  })}
-                </Steps>
-              </div>
-            </div>
-          ) : (
-            <div className="gba:text-center gba:py-8">
-              <RotateCw className="gba:w-8 gba:h-8 gba:text-gray-300 gba:mx-auto gba:mb-2" />
-              <Text type="secondary">
-                {getTranslationFromI18nKeyAndLabel(
-                  'services.ticket.overall.loading',
-                  'Loading request details...'
-                )}
-              </Text>
-            </div>
-          )}
-        </Card>
-      </Col>
-    </Row>
+                        </div>
+                      }
+                      status={stepStatus}
+                    />
+                  );
+                })}
+              </Steps>
+            </Card>
+          </div>
+        ) : (
+          <div className="gba:text-center gba:py-8">
+            <FileText className="gba:w-8 gba:h-8 gba:text-gray-300 gba:mx-auto gba:mb-2" />
+            <Text type="secondary">
+              {getTranslationFromI18nKeyAndLabel(
+                'services.ticket.overall.notFound',
+                'Request details not available'
+              )}
+            </Text>
+          </div>
+        )}
+      </Modal>
+
+      {/* Add Comment Modal */}
+      <Modal
+        title={
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <MessageSquare className="gba:w-5 gba:h-5" />
+            {getTranslationFromI18nKeyAndLabel('services.ticket.comments.add.title', 'Add Comment')}
+          </div>
+        }
+        open={showCommentModal}
+        onCancel={() => {
+          setShowCommentModal(false);
+          setCommentText('');
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setShowCommentModal(false);
+              setCommentText('');
+            }}
+          >
+            {getTranslationFromI18nKeyAndLabel('services.modal.cancel', 'Cancel')}
+          </Button>,
+          <Button
+            key="add"
+            type="primary"
+            icon={<Send className="gba:w-4 gba:h-4" />}
+            onClick={handleAddComment}
+            disabled={!commentText.trim()}
+            data-testid="modal-add-comment-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('services.ticket.comments.add', 'Add Comment')}
+          </Button>
+        ]}
+        width={600}
+        data-testid="add-comment-modal"
+      >
+        <div className="gba:space-y-4">
+          {/* Visibility Info */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
+            <Eye className="gba:w-4 gba:h-4 gba:text-green-500" />
+            <Text className="gba:text-sm gba:text-green-700">
+              {getTranslationFromI18nKeyAndLabel(
+                'services.ticket.comments.visibility.downstream',
+                'This comment will be visible to all downstream steps and team members'
+              )}
+            </Text>
+          </div>
+
+          {/* Comment Input */}
+          <div>
+            <Text className="gba:block gba:mb-2 gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('services.ticket.comments.input.label', 'Comment')}
+            </Text>
+            <TextArea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'services.ticket.comments.placeholder',
+                'Add a comment visible to downstream steps...'
+              )}
+              rows={6}
+              data-testid="modal-comment-input"
+              className="gba:w-full"
+              autoFocus
+            />
+            <Text className="gba:text-xs gba:text-gray-500 gba:mt-1">
+              {getTranslationFromI18nKeyAndLabel('services.ticket.comments.plain.help', 'Plain text formatting')}
+            </Text>
+          </div>
+
+          {/* Current User Info */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
+            <User className="gba:w-4 gba:h-4" />
+            <Text>
+              {getTranslationFromI18nKeyAndLabel('services.ticket.comments.posting.as', 'Posting as')}: {' '}
+              <strong>{currentUserDisplayName}</strong>
+            </Text>
+          </div>
+        </div>
+      </Modal>
+    </div>
   );
 };
