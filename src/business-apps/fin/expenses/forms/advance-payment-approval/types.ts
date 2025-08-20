@@ -44,11 +44,11 @@ export interface AdvancePaymentData {
 }
 
 export interface AdvancePaymentApprovalProps {
-  isOpen?: boolean; // Made optional with default value
-  onClose?: () => void; // Made optional with default value
-  onApprove?: (message?: string) => void; // Made optional with default value
-  onReject?: (message?: string) => void; // Made optional with default value
-  paymentId?: string; // Made optional since we can get it from additionalData
+  isOpen?: boolean;
+  onClose?: () => void;
+  onApprove?: (message?: string) => void;
+  onReject?: (message?: string) => void;
+  paymentId?: string;
   accessToken: string;
   additionalData?: {
     psi_taskPayload?: {
