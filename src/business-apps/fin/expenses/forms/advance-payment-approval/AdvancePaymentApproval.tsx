@@ -8,24 +8,22 @@ import {
   Card,
   CardContent,
   Avatar,
-  Separator,
   Textarea,
-  Badge,
   Spinner
 } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { startProcess } from '@/common/utils/start-process';
 import { AdvancePaymentApprovalProps, AdvancePaymentData } from './types';
 import { useGetAdvancePaymentForApproval } from './queries';
 
 const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessAppContextProps> = ({
-  isOpen,
-  onClose,
-  onApprove,
-  onReject,
+  isOpen = true,
+  onClose = () => {}, 
+  onApprove = () => {},
+  onReject = () => {}, 
   paymentId,
   accessToken,
+  additionalData,
   ...contextProps
 }) => {
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null);
@@ -33,23 +31,39 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [extractedPaymentId, setExtractedPaymentId] = useState<string | null>(null);
 
   const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken);
 
-  // Fetch payment data when modal opens
   useEffect(() => {
-    if (isOpen && paymentId) {
+    if (!extractedPaymentId) {
+      if (paymentId) {
+        setExtractedPaymentId(paymentId);
+      }
+      else if (additionalData?.psi_taskPayload?.advancePayment?.id) {
+        setExtractedPaymentId(additionalData.psi_taskPayload.advancePayment.id);
+      }
+    }
+  }, [extractedPaymentId, paymentId, additionalData]);
+
+
+  useEffect(() => {
+    if (isOpen && extractedPaymentId) {
       fetchPaymentData();
     }
-  }, [isOpen, paymentId]);
+  }, [isOpen, extractedPaymentId]);
 
 
 
   const fetchPaymentData = async () => {
+    if (!extractedPaymentId) {
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchAdvancePaymentData(paymentId);
+      const data = await fetchAdvancePaymentData(extractedPaymentId);
       setPaymentData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch payment data');
@@ -59,31 +73,32 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   };
 
   const handleApprove = async () => {
+    if (!extractedPaymentId) {
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      // Get current date in ISO format (YYYY-MM-DD)
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString();
       
-      // Start the approval process using startProcess utility
-      startProcess({
-        domain: 'employee-expenses',
-        processName: 'approveAdvancePayment',
-        payload: {
-          event: 'pse_approve',
-          changeMode: 'INSERT',
-          advancePaymentComment: {
-            commentDate: today,
-            comment: message || '',
-            commentType: 'APPROVE_COMMENT',
-            authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
-            advancePayment: paymentId
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.process.continue', {
+          detail: {
+            event: 'pse_approve',
+            payload: {
+              changeMode: 'INSERT',
+              advancePaymentComment: {
+                commentDate: today,
+                comment: message || '',
+                commentType: 'APPROVE_COMMENT',
+                authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
+                advancePayment: extractedPaymentId
+              }
+            }
           }
-        },
-        builderType: 'NATIVE_SCREEN'
-      });
+        })
+      );
       
-      // Call the onApprove callback with success message
-      await onApprove(message);
       onClose();
     } catch (err) {
       console.error('Error approving payment:', err);
@@ -93,31 +108,32 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   };
 
   const handleReject = async () => {
+    if (!extractedPaymentId) {
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      // Get current date in ISO format (YYYY-MM-DD)
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Start the rejection process using startProcess utility
-      startProcess({
-        domain: 'employee-expenses',
-        processName: 'rejectAdvancePayment',
-        payload: {
-          event: 'pse_reject',
-          changeMode: 'INSERT',
-          advancePaymentComment: {
-            commentDate: today,
-            comment: message || '',
-            commentType: 'REJECT_COMMENT',
-            authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
-            advancePayment: paymentId
+      const today = new Date().toISOString();
+
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.process.continue', {
+          detail: {
+            event: 'pse_reject',
+            payload: {
+              changeMode: 'INSERT',
+              advancePaymentComment: {
+                commentDate: today,
+                comment: message || '',
+                commentType: 'REJECT_COMMENT',
+                authorEmployee: contextProps.userInfo?.employeeDetails?.employeeId,
+                advancePayment: extractedPaymentId
+              }
+            }
           }
-        },
-        builderType: 'NATIVE_SCREEN'
-      });
-      
-      // Call the onReject callback with success message
-      await onReject(message);
+        })
+      );
+
       onClose();
     } catch (err) {
       console.error('Error rejecting payment:', err);
@@ -133,9 +149,10 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     }).format(amount);
   };
 
-  if (isLoading) {
+
+  if (!extractedPaymentId || !accessToken) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent
           style={{
             maxWidth: '600px',
@@ -143,6 +160,48 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
           }}
           data-testid="advance-payment-approval-modal"
         >
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:common.error',
+                'Configuration Error'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div style={{
+            padding: 'var(--nw-spacing-6)',
+            textAlign: 'center'
+          }}>
+            <p style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              Missing payment ID. Please check the platform configuration.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent
+          style={{
+            maxWidth: '600px',
+            width: '90vw'
+          }}
+          data-testid="advance-payment-approval-modal"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:common.loading',
+                'Loading...'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
           <div style={{
             display: 'flex',
             justifyContent: 'center',
@@ -157,9 +216,10 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     );
   }
 
+
   if (error) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent
           style={{
             maxWidth: '600px',
@@ -167,33 +227,26 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
           }}
           data-testid="advance-payment-approval-modal"
         >
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:common.error',
+                'Error Loading Data'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
           <div style={{
             padding: 'var(--nw-spacing-6)',
             textAlign: 'center'
           }}>
-            <div style={{
-              color: 'var(--nw-color-destructive)',
-              marginBottom: 'var(--nw-spacing-4)'
-            }}>
+            <p style={{ marginBottom: 'var(--nw-spacing-4)' }}>
+              Failed to load payment data: {error}
+            </p>
+            <Button onClick={fetchPaymentData}>
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:common.error',
-                'Error'
-              )}
-            </div>
-            <div style={{
-              color: 'var(--nw-color-muted-foreground)',
-              marginBottom: 'var(--nw-spacing-4)'
-            }}>
-              {error}
-            </div>
-            <Button
-              variant="outline"
-              onClick={onClose}
-              data-testid="advance-payment-error-close-button"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:common.close',
-                'Close'
+                'lowcoder:common.retry',
+                'Retry'
               )}
             </Button>
           </div>
@@ -202,8 +255,35 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     );
   }
 
+
   if (!paymentData) {
-    return null;
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent
+          style={{
+            maxWidth: '600px',
+            width: '90vw'
+          }}
+          data-testid="advance-payment-approval-modal"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:common.error',
+                'No Data Available'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div style={{
+            padding: 'var(--nw-spacing-6)',
+            textAlign: 'center'
+          }}>
+            <p>No payment data available for ID: {extractedPaymentId}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   const { expensePlan, amount, description, currency, paymentMethod, costCenter } = paymentData;
@@ -234,9 +314,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
         </DialogHeader>
 
         <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-          {/* Expense Plan and Employee Info Section */}
           <div className="gba:flex gba:flex-row gba:gap-6 gba:mb-6">
-            {/* Expense Plan Details - Left Side */}
             <Card className="gba:flex-1">
               <CardContent className="gba:p-4">
                 <h3 className="gba:text-base gba:font-medium gba:mb-3 gba:text-gray-900">
@@ -282,7 +360,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
               </CardContent>
             </Card>
 
-            {/* Employee Information - Right Side */}
             <Card className="gba:flex-1">
               <CardContent className="gba:p-4">
                 <h3 className="gba:text-base gba:font-medium gba:mb-3 gba:text-gray-900">
@@ -295,14 +372,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
                       alt={`${employee.firstName} ${employee.lastName}`}
                       className="gba:w-12 gba:h-12 gba:rounded-full gba:object-cover gba:flex-shrink-0"
                       data-testid="employee-avatar"
-                      onError={(e) => {
-                        console.error('❌ Image failed to load:', employee.pictureThumbnail);
-                        console.error('❌ Error event:', e);
-                        console.error('❌ Target element:', e.currentTarget);
-                      }}
-                      onLoad={() => {
-                        console.log('✅ Image loaded successfully:', employee.pictureThumbnail);
-                      }}
                     />
                   ) : (
                     <Avatar
@@ -327,7 +396,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </Card>
           </div>
 
-          {/* Notes Section */}
           <Card>
             <CardContent className="gba:p-4">
               <h3 className="gba:text-base gba:font-medium gba:mb-3 gba:text-gray-900">
@@ -342,7 +410,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </CardContent>
           </Card>
 
-          {/* Advance Payment Details */}
           <Card style={{ marginBottom: 'var(--nw-spacing-6)' }}>
             <CardContent style={{ padding: 'var(--nw-spacing-4)' }}>
               <h3 style={{
@@ -383,7 +450,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </CardContent>
           </Card>
 
-          {/* Advance Payment Summary */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -412,7 +478,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </div>
           </div>
 
-          {/* Message Input */}
           <div style={{ marginBottom: 'var(--nw-spacing-6)' }}>
             <h3 style={{
               margin: '0 0 var(--nw-spacing-3) 0',
@@ -440,7 +505,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             />
           </div>
 
-          {/* Action Buttons */}
           <div style={{
             display: 'flex',
             justifyContent: 'flex-end',
