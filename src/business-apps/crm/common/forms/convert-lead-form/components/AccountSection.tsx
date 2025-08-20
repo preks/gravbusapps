@@ -196,8 +196,8 @@ const AccountSection: React.FC<AccountSectionProps> = ({
       name: `${emp.firstName} ${emp.lastName}`,
       extraInfo: {
         pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-        jobPosition: emp.jobPosition.name,
-        organizationalUnit: emp.organizationalUnit.name,
+        jobPosition: emp.jobPosition?.name,
+        organizationalUnit: emp.organizationalUnit?.name,
       },
     }));
 
@@ -341,7 +341,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   useEffect(() => {
     console.log("📊 Accounts state changed:", {
       length: accounts.length,
-      names: accounts.map((acc: any) => acc.name).slice(0, 3),
+      names: accounts.map((acc: any) => acc?.name).slice(0, 3),
       timestamp: new Date().toLocaleTimeString(),
     });
   }, [accounts]);
@@ -669,13 +669,15 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                     accountsLoading,
                     isInitialLoadComplete,
                     currentAccountSearch: `"${currentAccountSearch}"`,
-                    accounts: accounts.map((acc: any) => acc.name).slice(0, 5), // First 5 names only
+                    accounts: accounts.map((acc: any) => acc?.name).slice(0, 5), // First 5 names only
                   });
                   return accounts.map((acc: any) => ({
                     id: acc.id,
                     value: acc.id,
-                    label: `${acc.name} ${acc.email ? `(${acc.email})` : ""}`,
-                    name: acc.name,
+                    label: `${acc?.name} ${
+                      acc?.email ? `(${acc?.email})` : ""
+                    }`,
+                    name: acc?.name,
                   }));
                 })()}
                 loading={accountsLoading}

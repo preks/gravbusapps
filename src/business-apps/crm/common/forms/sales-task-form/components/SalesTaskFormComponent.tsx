@@ -65,9 +65,6 @@ const SalesTaskFormComponent: React.FC = () => {
     formValues.taskTypeRef === 'SalesTaskType:v1:APPROVAL' ||
     formValues.taskTypeRef?.includes('APPROVAL') ||
     false;
-  
-  // Debug log to verify approval request mode (cleaned up)
-  // console.log('🔍 SalesTaskForm - isApprovalRequest:', isApprovalRequest, 'processTypeRef:', processTypeRef);
 
   // Entity search state
   const [entitySearchTerm, setEntitySearchTerm] = useState('');

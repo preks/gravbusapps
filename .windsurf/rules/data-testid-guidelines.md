@@ -1,7 +1,6 @@
 ---
-trigger: always_on
+alwaysApply: true
 ---
-
 # Data-TestID Implementation Guidelines for AI Agents
 
 ## Core Principle

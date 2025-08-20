@@ -220,7 +220,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
   // Create display value for selected employee
   const getDisplayValue = () => {
     if (!displayOption) return placeholder;
-    return displayOption.name || "Unknown Employee";
+    return displayOption?.name || "Unknown Employee";
   };
 
   // Custom employee option renderer
@@ -233,11 +233,11 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
         {employee.extraInfo?.pictureThumbnail ? (
           <AvatarImage
             src={`data:image/jpeg;base64,${employee.extraInfo.pictureThumbnail}`}
-            alt={employee.name || "Employee"}
+            alt={employee?.name || "Employee"}
           />
         ) : null}
         <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
-          {employee.name
+          {employee?.name
             ?.split(" ")
             .map((n: string) => n[0])
             .join("")
@@ -249,7 +249,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
       {/* Employee Information */}
       <div className="gba:flex-1 gba:min-w-0">
         <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
-          {employee.name}
+          {employee?.name}
         </div>
         <div className="gba:text-xs gba:text-gray-600 gba:truncate">
           {employee.extraInfo?.jobPosition || "No Position"}
@@ -300,11 +300,11 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                     {displayOption.extraInfo?.pictureThumbnail ? (
                       <AvatarImage
                         src={`data:image/jpeg;base64,${displayOption.extraInfo.pictureThumbnail}`}
-                        alt={displayOption.name || "Employee"}
+                        alt={displayOption?.name || "Employee"}
                       />
                     ) : null}
                     <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
-                      {displayOption.name
+                      {displayOption?.name
                         ?.split(" ")
                         .map((n: string) => n[0])
                         .join("")
@@ -316,7 +316,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                   {/* Selected Employee Info */}
                   <div className="gba:flex-1 gba:min-w-0 gba:text-left">
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
-                      {displayOption.name}
+                      {displayOption?.name}
                     </div>
                     <div className="gba:text-xs gba:text-gray-600 gba:truncate">
                       {displayOption.extraInfo?.jobPosition || "No Position"}

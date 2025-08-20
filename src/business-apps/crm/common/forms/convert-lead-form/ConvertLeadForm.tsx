@@ -160,12 +160,12 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
     opportunityEmployeePositionsData.map((emp) => ({
       id: emp.employeeId,
       value: emp.employeeId,
-      label: `${emp.firstName} ${emp.lastName}`,
-      name: `${emp.firstName} ${emp.lastName}`,
+      label: `${emp?.firstName} ${emp?.lastName}`,
+      name: `${emp?.firstName} ${emp?.lastName}`,
       extraInfo: {
         pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-        jobPosition: emp.jobPosition.name,
-        organizationalUnit: emp.organizationalUnit.name,
+        jobPosition: emp.jobPosition?.name || "No Position",
+        organizationalUnit: emp.organizationalUnit?.name || "No Unit",
       },
     }));
 
@@ -311,22 +311,32 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
   }, [accessToken]);
 
   useEffect(() => {
+    let leadId =
+      additionalData?.leadId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.leadId;
     async function fetchLead() {
       setLoading(true);
       try {
         const data = await graphQLClient.request(LEAD_QUERY, {
-          leadId: additionalData?.leadId,
+          leadId: leadId,
         });
         setLeadData(data?.Lead?.[0] || null);
       } catch (e) {
-        console.error("Error fetching lead:", e);
         setLeadData(null);
       } finally {
         setLoading(false);
       }
     }
-    if (additionalData?.leadId) fetchLead();
-  }, [additionalData?.leadId, graphQLClient]);
+    if (
+      additionalData?.leadId ||
+      additionalData?.psi_taskPayload.psi_initialParameters.leadId
+    )
+      fetchLead();
+  }, [
+    additionalData?.leadId,
+    additionalData?.psi_taskPayload?.psi_initialParameters?.leadId,
+    graphQLClient,
+  ]);
 
   // Note: Employee data is now loaded via useEmployeePositions hook
   // Contacts moved to ContactSection component

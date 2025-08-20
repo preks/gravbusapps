@@ -11,28 +11,29 @@ import {
 } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
 import { PageLayout } from "@newwork/nw-design-system";
-import {
-  DashboardOutlined,
-  BarChartOutlined,
-  PieChartOutlined,
-  TeamOutlined,
-  BankOutlined,
-  ContactsOutlined,
-  DollarCircleOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined
-} from "@ant-design/icons";
-import { Handshake } from "@phosphor-icons/react";
+import { 
+  Handshake, 
+  ChartBar, 
+  UsersThree, 
+  Buildings, 
+  Users, 
+  CurrencyDollar,
+  GridFour,
+  List,
+  Megaphone,
+  House
+} from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { LeadList } from "@/business-apps/crm/common/components/lead-list";
 import { AccountList } from "@/business-apps/crm/common/components/account-list";
 import { ContactList } from "@/business-apps/crm/common/components/contact-list";
 import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
 import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
-import { OverviewTab } from "./components/views/customer-analytics/components/OverviewTab";
-import { PipelineDetailsTab } from "./components/views/customer-analytics/components/PipelineDetailsTab";
-import { useSalesDashboard } from "./components/views/customer-analytics/hooks/useSalesDashboard";
-import { DateRange } from "./components/views/customer-analytics/types/dashboardTypes";
+import { DashboardView } from "./components/views/dashboard-view";
+import { SalesDashboard } from "./components/views/analytics-view";
+import { useSalesDashboard } from "./components/views/dashboard-view/hooks/useSalesDashboard";
+import { DateRange } from "./components/views/dashboard-view/types/dashboardTypes";
+import CampaignManagement from "./components/views/campaign-view/CampaignManagement";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
@@ -42,32 +43,37 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <House />,
       label: "Dashboard"
     },
     {
       key: "leads",
-      icon: <TeamOutlined />,
+      icon: <UsersThree />,
       label: "Leads"
     },
     {
       key: "accounts",
-      icon: <BankOutlined />,
+      icon: <Buildings />,
       label: "Accounts"
     },
     {
       key: "contacts",
-      icon: <ContactsOutlined />,
+      icon: <Users />,
       label: "Contacts"
     },
     {
+      key: "campaigns",
+      icon: <Megaphone />,
+      label: "Campaigns"
+    },
+    {
       key: "opportunities",
-      icon: <DollarCircleOutlined />,
+      icon: <CurrencyDollar />,
       label: "Opportunities"
     },
     {
       key: "analytics",
-      icon: <DashboardOutlined />,
+      icon: <ChartBar />,
       label: "Analytics"
     }
   ];
@@ -106,7 +112,6 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [dashboardSubTab, setDashboardSubTab] = useState<string>("overview");
   const [opportunitiesSubTab, setOpportunitiesSubTab] =
     useState<string>(getInitialSubView());
   const [dateRange] = useState<DateRange>({
@@ -143,6 +148,13 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     // Clear leadStatus parameter when switching away from leads view
     if (view !== "leads" && urlParams.has("leadStatus")) {
       urlParams.delete("leadStatus");
+    }
+
+    // Clear campaign-specific parameters when switching away from campaigns view
+    if (view !== "campaigns" && (urlParams.has("campaignId") || urlParams.has("mainTab") || urlParams.has("recordTab"))) {
+      urlParams.delete("campaignId");
+      urlParams.delete("mainTab");  
+      urlParams.delete("recordTab");
     }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
@@ -220,32 +232,19 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     }
 
     return (
-      <Tabs value={dashboardSubTab} onValueChange={setDashboardSubTab}>
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="overview" data-testid="overview-tab">
-            <BarChartOutlined className="gba:mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="pipelines" data-testid="pipelines-tab">
-            <PieChartOutlined className="gba:mr-2" />
-            Pipeline Details
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <OverviewTab
-            pipelines={pipelines}
-            dateRange={dateRange}
-            {...context}
-          />
-        </TabsContent>
-        <TabsContent value="pipelines">
-          <PipelineDetailsTab
-            pipelines={pipelines}
-            dateRange={dateRange}
-            {...context}
-          />
-        </TabsContent>
-      </Tabs>
+      <DashboardView
+        pipelines={pipelines}
+        dateRange={dateRange}
+        {...context}
+      />
+    );
+  };
+
+  const renderAnalyticsContent = () => {
+    return (
+      <div data-testid="analytics-tab-content">
+        <SalesDashboard {...context} />
+      </div>
     );
   };
 
@@ -254,11 +253,11 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       <Tabs value={opportunitiesSubTab} onValueChange={handleOpportunitiesSubTabChange}>
         <TabsList className="gba:mb-4">
           <TabsTrigger value="list" data-testid="opportunities-list-tab">
-            <UnorderedListOutlined className="gba:mr-2" />
+            <List className="gba:mr-2" />
             List View
           </TabsTrigger>
           <TabsTrigger value="board" data-testid="opportunities-board-tab">
-            <AppstoreOutlined className="gba:mr-2" />
+            <GridFour className="gba:mr-2" />
             Board View
           </TabsTrigger>
         </TabsList>
@@ -294,10 +293,16 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
             <ContactList {...context} sourceApp="CRM" />
           </div>
         );
+      case "campaigns":
+        return (
+          <div data-testid="campaigns-tab-content">
+            <CampaignManagement {...context} />
+          </div>
+        );
       case "opportunities":
         return renderOpportunitiesContent();
       case "analytics":
-        return renderDashboardContent();
+        return renderAnalyticsContent();
       default:
         return null;
     }

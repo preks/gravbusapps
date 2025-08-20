@@ -95,14 +95,17 @@ export const useContactListData = (
       pageSize = 20,
       additionalFilters?: any,
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
       if (!params.context.accessToken) {
         console.warn("No access token provided for contact data loading");
         return;
       }
 
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {

@@ -111,9 +111,12 @@ export const useLeadListData = ({
       newPageSize: number = pageSize,
       additionalFilters: any = {},
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
