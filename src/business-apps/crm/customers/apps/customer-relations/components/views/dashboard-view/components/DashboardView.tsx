@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -9,7 +9,11 @@ import {
   AlertTitle,
   AlertDescription,
   Button,
-  Badge
+  Badge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from '@newwork/nw-design-system';
 import { Spinner } from '@newwork/nw-design-system';
 import { 
@@ -23,14 +27,17 @@ import {
   CheckSquare,
   Trophy,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Home,
+  PieChart
 } from 'lucide-react';
-import { PieChart, Pie, Cell } from 'recharts';
+import { PieChart as PieChartComponent, Pie, Cell } from 'recharts';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PipelineInfo, DateRange } from '../types/dashboardTypes';
 import { useOverviewData } from '../hooks/useOverviewData';
 import { EmptyState } from './EmptyState';
 import { formatCurrency, formatLargeNumber } from '../utils/dashboardUtils';
+import { PipelineSection } from './PipelineSection';
 
 export interface DashboardViewProps extends BusinessAppContextProps {
   pipelines: PipelineInfo[];
@@ -42,11 +49,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   dateRange,
   ...context
 }) => {
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>(
+    pipelines.length > 0 ? pipelines[0].id : ''
+  );
+
   const { overviewData, isLoading, error, refetch } = useOverviewData(
     context,
     pipelines,
     dateRange
   );
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+  };
+
+  const handlePipelineChange = (pipelineId: string) => {
+    setSelectedPipelineId(pipelineId);
+  };
+
+  const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
 
   if (isLoading) {
     return (
@@ -54,7 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="gba:text-center">
           <Spinner size="lg" />
           <div className="gba:mt-4 gba:text-gray-600">
-            Loading overview data...
+            Loading dashboard data...
           </div>
         </div>
       </div>
@@ -65,7 +87,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <div className="gba:p-6">
         <Alert variant="destructive" className="gba:shadow-sm">
-          <AlertTitle>Error Loading Overview Data</AlertTitle>
+          <AlertTitle>Error Loading Dashboard Data</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
           <Button size="sm" onClick={refetch} variant="default">
             Retry
@@ -75,19 +97,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   }
 
-  if (!overviewData) {
-    return (
-      <div className="gba:p-6">
-        <EmptyState
-          title="No Overview Data"
-          description="Unable to load overview data"
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid="dashboard-view">
+    <div className="gba:p-6" data-testid="dashboard-view">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full">
+        <TabsList className="gba:mb-6">
+          <TabsTrigger value="overview" data-testid="overview-dashboard-tab">
+            <Home className="gba:mr-2 gba:h-4 gba:w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="pipeline-details" data-testid="pipeline-details-dashboard-tab">
+            <PieChart className="gba:mr-2 gba:h-4 gba:w-4" />
+            Pipeline Details
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="gba:space-y-6">
+          {!overviewData ? (
+            <EmptyState
+              title="No Overview Data"
+              description="Unable to load overview data"
+            />
+          ) : (
+            <div className="gba:space-y-6">
       {/* Main Dashboard Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:xl:grid-cols-3 gba:gap-6">
         {/* Left Column - Pipeline Funnel */}
@@ -216,7 +247,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       }} 
                       className="gba:w-[300px] gba:h-[300px]"
                     >
-                      <PieChart width={300} height={300}>
+                      <PieChartComponent width={300} height={300}>
                         <Pie
                           data={overviewData.revenueBySource}
                           cx="50%"
@@ -234,7 +265,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           ))}
                         </Pie>
                         <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                      </PieChart>
+                      </PieChartComponent>
                     </ChartContainer>
                     
                     {/* Center content overlay */}
@@ -551,6 +582,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </CardContent>
         </Card>
       </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pipeline-details" className="gba:space-y-6">
+          {pipelines.length === 0 ? (
+            <EmptyState
+              title="No Pipelines Available"
+              description="Configure sales pipelines to see detailed analytics"
+            />
+          ) : !selectedPipeline ? (
+            <EmptyState
+              title="Select Pipeline"
+              description="Choose a pipeline to view detailed analytics"
+            />
+          ) : (
+            <PipelineSection
+              pipeline={selectedPipeline}
+              dateRange={dateRange}
+              pipelines={pipelines}
+              selectedPipelineId={selectedPipelineId}
+              onPipelineChange={handlePipelineChange}
+              {...context}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }; 

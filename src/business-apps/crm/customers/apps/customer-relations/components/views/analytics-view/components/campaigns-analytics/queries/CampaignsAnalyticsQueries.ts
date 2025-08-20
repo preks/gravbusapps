@@ -205,7 +205,7 @@ export const useCampaignsAnalyticsQueries = (context: BusinessAppContextProps) =
       const result = await graphqlClient.request<CampaignsMetricsResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching campaigns analytics metrics:', error);
+      // console.error('Error fetching campaigns analytics metrics:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -216,7 +216,7 @@ export const useCampaignsAnalyticsQueries = (context: BusinessAppContextProps) =
       const result = await graphqlClient.request<CampaignPerformanceResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching campaigns performance comparison:', error);
+      // console.error('Error fetching campaigns performance comparison:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -227,7 +227,7 @@ export const useCampaignsAnalyticsQueries = (context: BusinessAppContextProps) =
       const result = await graphqlClient.request<CampaignsTimelineAnalysisResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching campaigns timeline analysis:', error);
+      // console.error('Error fetching campaigns timeline analysis:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -238,7 +238,7 @@ export const useCampaignsAnalyticsQueries = (context: BusinessAppContextProps) =
       const result = await graphqlClient.request<TopPerformingCampaignsResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching top performing campaigns:', error);
+      // console.error('Error fetching top performing campaigns:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -249,7 +249,7 @@ export const useCampaignsAnalyticsQueries = (context: BusinessAppContextProps) =
       const result = await graphqlClient.request<TopPerformingEmployeesResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching top performing employees:', error);
+      // console.error('Error fetching top performing employees:', error);
       throw error;
     }
   }, [graphqlClient]);

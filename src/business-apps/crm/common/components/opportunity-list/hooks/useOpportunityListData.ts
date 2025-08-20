@@ -306,8 +306,6 @@ export const useOpportunityListData = (
             : whereConditions[0] || {};
 
         // Build order by condition - handle both override and regular sorting
-        console.log("overrideSortField", overrideSortField);
-        console.log("overrideSortOrder", overrideSortOrder);
         let orderBy: any[] = [];
         if (overrideSortField && overrideSortField !== "") {
           const sortCondition: any = {};

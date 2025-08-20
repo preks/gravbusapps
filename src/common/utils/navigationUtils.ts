@@ -35,6 +35,23 @@ const isPlatformUrl = (url: string): boolean => {
 };
 
 /**
+ * Extracts query parameters from a URL
+ */
+const extractQueryParams = (url: string): Record<string, string> => {
+  const queryString = url.split('?')[1];
+  if (!queryString) return {};
+  
+  const params: Record<string, string> = {};
+  const urlParams = new URLSearchParams(queryString);
+  
+  for (const [key, value] of urlParams.entries()) {
+    params[key] = value;
+  }
+  
+  return params;
+};
+
+/**
  * Converts a platform URL to development query parameters
  */
 const convertToDevQueryParams = (url: string): string => {
@@ -51,9 +68,9 @@ const convertToDevQueryParams = (url: string): string => {
 };
 
 /**
- * Handles navigation based on the environment using pushState for smoother navigation
- * In production: uses pushState for internal URLs, full navigation for external URLs
- * In development: converts platform URLs to app query parameters, uses pushState for smoother experience
+ * Handles navigation based on the environment
+ * In production: uses the original URL
+ * In development: converts platform URLs to app query parameters, keeps others unchanged
  */
 export const navigateTo = (url: string): void => {
   if (typeof window === 'undefined') {
@@ -63,38 +80,19 @@ export const navigateTo = (url: string): void => {
 
   const isProduction = process.env.NODE_ENV === 'production';
   
-  // Check if URL is external (different origin) or absolute URL
-  const isExternal = url.startsWith('http') && !url.startsWith(window.location.origin);
-  
-  if (isExternal) {
-    // External URLs should use full page navigation
-    window.location.href = url;
-    return;
-  }
-  
   if (isProduction) {
-    // Production: use pushState for smoother internal navigation
-    window.history.pushState(null, '', url);
-    
-    // Dispatch a custom event to notify the application of the navigation
-    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    // Production: use original URL behavior
+    window.location.href = url;
   } else {
     // Development: check if it's a platform URL
     if (isPlatformUrl(url)) {
-      // Convert to app query parameter and stay on localhost
+      // Convert to app query parameter and stay on localhost:3000
       const queryParams = convertToDevQueryParams(url);
       const currentOrigin = window.location.origin;
-      const fullUrl = `${currentOrigin}${queryParams}`;
-      window.history.pushState(null, '', fullUrl);
-      
-      // Dispatch a custom event to notify the application of the navigation
-      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      window.location.href = `${currentOrigin}${queryParams}`;
     } else {
-      // Non-platform URLs use pushState for internal navigation
-      window.history.pushState(null, '', url);
-      
-      // Dispatch a custom event to notify the application of the navigation
-      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      // Non-platform URLs (like orgchart) use original behavior
+      window.location.href = url;
     }
   }
 };

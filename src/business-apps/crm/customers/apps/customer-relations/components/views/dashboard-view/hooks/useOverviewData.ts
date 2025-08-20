@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PipelineInfo, DateRange } from '../types/dashboardTypes';
-import { useDashboardQueries } from '../../analytics-view/queries/DashboardQueries';
+import { useDashboardQueries } from '../queries/DashboardQueries';
 import { formatCurrency, extractCurrencyCode } from '../utils/dashboardUtils';
 
 export interface OverviewData {
@@ -114,29 +114,19 @@ export const useOverviewData = (
       // Flatten all opportunities from all pipelines
       const allOpportunities = opportunityArrays.flat();
 
-      // Debug logging
-      console.log('Overview Data Debug:', {
-        pipelinesCount: pipelines.length,
-        opportunityArrays: opportunityArrays.map(arr => arr.length),
-        totalOpportunities: allOpportunities.length,
-        dateRange: {
-          start: dateRange.startDate.toISOString(),
-          end: dateRange.endDate.toISOString()
-        },
-        sampleOpportunity: allOpportunities[0] || 'No opportunities found'
-      });
+      // Data loaded successfully
 
       // Get all pipeline stages for funnel calculation
       const allStages = new Map<string, any>();
       for (const pipeline of pipelines) {
         try {
           const stages = await fetchPipelineStages(pipeline.ref);
-          console.log(`Stages for pipeline ${pipeline.name} (${pipeline.ref}):`, stages);
+
           stages.forEach((stage: any) => {
             allStages.set(stage.code, stage);
           });
         } catch (err) {
-          console.warn(`Failed to fetch stages for pipeline ${pipeline.ref}:`, err);
+          // Failed to fetch stages for this pipeline
         }
       }
 
@@ -199,13 +189,7 @@ export const useOverviewData = (
         };
       }).filter(stage => stage.count > 0); // Only show stages with data
 
-      console.log('Funnel Data Debug:', {
-        standardizedStageGroups: Array.from(standardizedStageGroups.entries()),
-        aggregatedFunnel,
-        totalOpportunities,
-        totalPipelineValue,
-        totalRevenue
-      });
+      // Funnel data calculated successfully
 
       // Calculate lead counts by source from open leads
       const sourceGroups = new Map<string, number>();
@@ -215,15 +199,7 @@ export const useOverviewData = (
         sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1);
       });
 
-      console.log('Lead Source Count Debug:', {
-        openLeadsCount: openLeads.length,
-        sourceGroups: Array.from(sourceGroups.entries()),
-        sampleLead: openLeads[0] || 'No open leads found',
-        dateRange: {
-          start: dateRange.startDate.toISOString(),
-          end: dateRange.endDate.toISOString()
-        }
-      });
+      // Lead source data calculated successfully
 
       const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, count) => sum + count, 0);
       
@@ -320,7 +296,7 @@ export const useOverviewData = (
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load overview data';
       setError(errorMessage);
-      console.error('Overview data loading error:', err);
+      // Error handled by state management
     } finally {
       setIsLoading(false);
     }

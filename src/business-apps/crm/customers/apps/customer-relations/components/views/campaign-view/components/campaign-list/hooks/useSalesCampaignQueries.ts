@@ -28,7 +28,7 @@ export const useSalesCampaignQueries = ({ accessToken }: UseSalesCampaignQueries
       const result = await graphqlClient.request<SalesCampaignResponse>(query, queryVariables);
       return result;
     } catch (error) {
-      console.error('Error fetching sales campaigns:', error);
+      // console.error('Error fetching sales campaigns:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -39,7 +39,7 @@ export const useSalesCampaignQueries = ({ accessToken }: UseSalesCampaignQueries
       const result = await graphqlClient.request<SalesCampaignWithCountResponse>(query, queryVariables);
       return result;
     } catch (error) {
-      console.error('Error fetching sales campaigns with count:', error);
+      // console.error('Error fetching sales campaigns with count:', error);
       throw error;
     }
   }, [graphqlClient]);
@@ -50,7 +50,7 @@ export const useSalesCampaignQueries = ({ accessToken }: UseSalesCampaignQueries
       const result = await graphqlClient.request<SalesCampaignStatisticsResponse>(query);
       return result;
     } catch (error) {
-      console.error('Error fetching sales campaign statistics:', error);
+      // console.error('Error fetching sales campaign statistics:', error);
       throw error;
     }
   }, [graphqlClient]);

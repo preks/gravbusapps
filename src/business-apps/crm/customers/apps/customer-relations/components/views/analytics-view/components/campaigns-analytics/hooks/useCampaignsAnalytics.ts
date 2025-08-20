@@ -480,7 +480,7 @@ export const useCampaignsAnalytics = (context: BusinessAppContextProps) => {
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      console.error('Error loading campaigns analytics data:', err);
+      // console.error('Error loading campaigns analytics data:', err);
     } finally {
       setIsLoading(false);
     }

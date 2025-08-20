@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Avatar,
@@ -95,9 +95,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   visibleColumns,
 }) => {
   const { t } = useTranslation();
-  
+
   // Helper function to check if a column is visible
-  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+  const isColumnVisible = (columnId: string) =>
+    visibleColumns.includes(columnId);
 
   // Get contact display name
   const getContactName = (lead: Lead) => {
@@ -204,13 +205,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         )}
 
         <div className="gba:overflow-x-auto">
-          <Table 
+          <Table
             data-testid={`${DATA_TEST_ID_PREFIX}-table`}
-            style={{ minWidth: '1200px' }}
+            style={{ minWidth: "1200px" }}
           >
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                {isColumnVisible('name') && (
+                {isColumnVisible("name") && (
                   <TableHead
                     className="gba:w-[300px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("firstName")}
@@ -222,7 +223,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('company') && (
+                {isColumnVisible("company") && (
                   <TableHead
                     className="gba:w-[240px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("companyName")}
@@ -234,7 +235,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('contact') && (
+                {isColumnVisible("contact") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("email")}
@@ -246,7 +247,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('country') && (
+                {isColumnVisible("country") && (
                   <TableHead
                     className="gba:w-[120px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("countryRef")}
@@ -258,7 +259,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('region') && (
+                {isColumnVisible("region") && (
                   <TableHead
                     className="gba:w-[130px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("regionRef")}
@@ -270,7 +271,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('city') && (
+                {isColumnVisible("city") && (
                   <TableHead
                     className="gba:w-[120px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("city")}
@@ -282,7 +283,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('status') && (
+                {isColumnVisible("status") && (
                   <TableHead
                     className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("leadStatusRef")}
@@ -294,7 +295,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('rating') && (
+                {isColumnVisible("rating") && (
                   <TableHead
                     className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("leadRatingRef")}
@@ -306,7 +307,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('source') && (
+                {isColumnVisible("source") && (
                   <TableHead
                     className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("leadSourceRef")}
@@ -318,7 +319,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('owner') && (
+                {isColumnVisible("owner") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("ownerEmployeeId")}
@@ -330,7 +331,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('created') && (
+                {isColumnVisible("created") && (
                   <TableHead
                     className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("createdAt")}
@@ -342,7 +343,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('industry') && (
+                {isColumnVisible("industry") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("industryRef")}
@@ -354,7 +355,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('companyWebsite') && (
+                {isColumnVisible("companyWebsite") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("companyWebsite")}
@@ -366,7 +367,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('companyPhone') && (
+                {isColumnVisible("companyPhone") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("companyPhone")}
@@ -378,7 +379,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('conversionStatus') && (
+                {isColumnVisible("conversionStatus") && (
                   <TableHead
                     className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("leadStatusRef")}
@@ -390,7 +391,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('actions') && (
+                {isColumnVisible("actions") && (
                   <TableHead
                     className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
@@ -409,7 +410,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  {isColumnVisible('name') && (
+                  {isColumnVisible("name") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}
@@ -443,29 +444,33 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                           <div className="gba:font-medium gba:text-sm">
                             {getContactName(record)}
                           </div>
-                          {record.companyName && !isColumnVisible('company') && (
-                            <div className="gba:text-xs gba:text-gray-500">
-                              {record.companyName}
-                            </div>
-                          )}
+                          {record.companyName &&
+                            !isColumnVisible("company") && (
+                              <div className="gba:text-xs gba:text-gray-500">
+                                {record.companyName}
+                              </div>
+                            )}
                         </div>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('company') && (
+                  {isColumnVisible("company") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiBuilding size={14} className="gba:text-blue-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.companyName}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.companyName}
+                        >
                           {record.companyName || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('contact') && (
+                  {isColumnVisible("contact") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}
@@ -473,8 +478,14 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       <div className="gba:flex gba:flex-col gba:gap-1">
                         {record.email && (
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <PiEnvelope size={12} className="gba:text-gray-400" />
-                            <span className="gba:text-xs gba:truncate" title={record.email}>
+                            <PiEnvelope
+                              size={12}
+                              className="gba:text-gray-400"
+                            />
+                            <span
+                              className="gba:text-xs gba:truncate"
+                              title={record.email}
+                            >
                               {record.email}
                             </span>
                           </div>
@@ -482,52 +493,63 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         {record.phoneNumber && (
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <PiPhone size={12} className="gba:text-gray-400" />
-                            <span className="gba:text-xs">{record.phoneNumber}</span>
+                            <span className="gba:text-xs">
+                              {record.phoneNumber}
+                            </span>
                           </div>
                         )}
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('country') && (
+                  {isColumnVisible("country") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-country-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiMapPin size={14} className="gba:text-gray-400" />
-                        <span className="gba:text-sm gba:truncate" title={record.country?.value}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.country?.value}
+                        >
                           {record.country?.value || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('region') && (
+                  {isColumnVisible("region") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-region-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiMapPin size={14} className="gba:text-gray-400" />
-                        <span className="gba:text-sm gba:truncate" title={record.region?.value}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.region?.value}
+                        >
                           {record.region?.value || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('city') && (
+                  {isColumnVisible("city") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-city-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiMapPin size={14} className="gba:text-gray-400" />
-                        <span className="gba:text-sm gba:truncate" title={record.city}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.city}
+                        >
                           {record.city || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('status') && (
+                  {isColumnVisible("status") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
@@ -539,7 +561,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </Badge>
                     </TableCell>
                   )}
-                  {isColumnVisible('rating') && (
+                  {isColumnVisible("rating") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}
@@ -551,17 +573,20 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </Badge>
                     </TableCell>
                   )}
-                  {isColumnVisible('source') && (
+                  {isColumnVisible("source") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-source-cell-${record.id}`}
                     >
-                      <div className="gba:text-sm gba:truncate" title={record.leadSource?.value}>
+                      <div
+                        className="gba:text-sm gba:truncate"
+                        title={record.leadSource?.value}
+                      >
                         {record.leadSource?.value || "-"}
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('owner') && (
+                  {isColumnVisible("owner") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
@@ -592,7 +617,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('created') && (
+                  {isColumnVisible("created") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
@@ -600,25 +625,30 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={14} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {record.createdAt ? dayjs(record.createdAt).format("MMM DD, YYYY") : "-"}
+                          {record.createdAt
+                            ? dayjs(record.createdAt).format("MMM DD, YYYY")
+                            : "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('industry') && (
+                  {isColumnVisible("industry") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-industry-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiFactory size={14} className="gba:text-purple-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.industry?.value}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.industry?.value}
+                        >
                           {record.industry?.value || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('companyWebsite') && (
+                  {isColumnVisible("companyWebsite") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-company-website-cell-${record.id}`}
@@ -634,7 +664,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                             title={record.companyWebsite}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {record.companyWebsite.replace(/^https?:\/\//, '')}
+                            {record.companyWebsite.replace(/^https?:\/\//, "")}
                           </a>
                         ) : (
                           <span className="gba:text-sm">-</span>
@@ -642,7 +672,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('companyPhone') && (
+                  {isColumnVisible("companyPhone") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-company-phone-cell-${record.id}`}
@@ -655,22 +685,28 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('conversionStatus') && (
+                  {isColumnVisible("conversionStatus") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-conversion-status-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        {record.leadStatus?.code === 'CONVERTED' ? (
+                        {record.leadStatus?.code === "CONVERTED" ? (
                           <>
-                            <PiCheckCircle size={14} className="gba:text-green-600" />
+                            <PiCheckCircle
+                              size={14}
+                              className="gba:text-green-600"
+                            />
                             <span className="gba:text-sm gba:font-medium gba:text-green-600">
                               Converted
                             </span>
                           </>
                         ) : (
                           <>
-                            <PiXCircle size={14} className="gba:text-gray-400" />
+                            <PiXCircle
+                              size={14}
+                              className="gba:text-gray-400"
+                            />
                             <span className="gba:text-sm gba:text-gray-500">
                               Not Converted
                             </span>
@@ -679,7 +715,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('actions') && (
+                  {isColumnVisible("actions") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}

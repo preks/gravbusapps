@@ -264,7 +264,7 @@ const useLeadsTrendData = (
           previousPeriodLeads: result.previousPeriodLeads.aggregate.count,
         });
       } catch (err) {
-        console.error("Error fetching leads trend data:", err);
+        // Error handled by component state
       } finally {
         setIsLoading(false);
       }
@@ -342,21 +342,7 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
     selectedTimeFilter
   );
 
-  // Debug logging for trend data
-  React.useEffect(() => {
-    if (trendData && !trendLoading) {
-      console.log("Leads Trend Data Loaded:", {
-        currentMonthLeads: trendData.currentMonthLeads,
-        previousMonthLeads: trendData.previousMonthLeads,
-        totalLeadsThisMonth: trendData.totalLeadsThisMonth,
-        totalLeadsLastMonth: trendData.totalLeadsLastMonth,
-        actualConversionRateThisMonth: trendData.actualConversionRateThisMonth,
-        actualConversionRateLastMonth: trendData.actualConversionRateLastMonth,
-        currentDataConversionRate: data?.conversionRate,
-        currentDataAvgConversionTime: data?.avgTimeToConversion,
-      });
-    }
-  }, [trendData, trendLoading, data]);
+  // Trend data loaded successfully
 
   // Custom tooltip formatter functions that include percentages
   const createPieTooltipFormatter = (
