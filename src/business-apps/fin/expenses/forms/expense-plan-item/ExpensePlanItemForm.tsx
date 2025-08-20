@@ -15,7 +15,6 @@ import { ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from "./
 import { useExpensePlanItem } from "./context/ExpensePlanItemContext";
 import { Alert } from "antd";
 import { getCurrentActiveUserLocale, getDateFormat, getCatalogValue } from "@/common/utils/windowUtils";
-import { NoSpinner } from '../expense-request-wizard/screens/components/CommonStyledComponents';
 
 interface ExpensePlanItemFormProps {
   form: any;
@@ -239,13 +238,17 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_amount_custom_rule', 'Please enter an amount') }]}
             style={{ marginBottom: 0 }}
           >
-            <NoSpinner>
               <InputField
                 label={t("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
                 name="amount"
                 type="number"
                 step="0.01"
                 min="0"
+                className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                 placeholder={t(
                   "lowcoder:created_expense_type_item.current_amount_placeholder",
                   "Enter Amount"
@@ -263,7 +266,6 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 }}
                 required={true}
               />
-            </NoSpinner>
           </Form.Item>
         </div>
 

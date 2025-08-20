@@ -337,7 +337,7 @@ export const handleTripSubmitAction = (
     return false;
   }
   const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency,event);
-  const requestItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  const requestItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
     expenseRequestData.ExpenseItem.forEach((item: any) => {
       if (item) {
@@ -347,12 +347,18 @@ export const handleTripSubmitAction = (
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
-          expenseRequest: initialRequest.id || ''
+          expenseRequest: initialRequest.id || '',
+          costCenter: item.costCenterId || '',
+          project: item.projectId || '',
+          expenseGroupRef: item.expenseGroupRef || '',
+          source: item.source || '',
+          expenseClassRef: item.expenseClassRef || '',
+          autoCalculated: item.autoCalculated || false
         });
       }
     });
   }
-  const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
       Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
     expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
@@ -362,7 +368,13 @@ export const handleTripSubmitAction = (
         code: item.code || '',
         title: item.title || '',
         ruleId: item.expenseRuleId || '',
-        expenseRequest: initialRequest.id || ''
+        expenseRequest: initialRequest.id || '',
+        costCenter: item.costCenterId || '',
+        project: item.projectId || '',
+        expenseGroupRef: item.expenseGroupRef || '',
+        source: item.source || '',
+        expenseClassRef: item.expenseClassRef || '',
+        autoCalculated: item.autoCalculated || false
       });
     });
   }

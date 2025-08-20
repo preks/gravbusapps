@@ -10,7 +10,6 @@ import {
   Currency,
 } from "../../types";
 import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
-import { NoSpinner } from '../../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Form } from "antd";
 
@@ -181,12 +180,16 @@ export const SinglePositionComponent: React.FC<
                   rules={[{ required: true, message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount') }]}
                   style={{ marginBottom: 0 }}
                 >
-                  <NoSpinner>
                     <InputField
                       label={t(
                         "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                         "Amount"
                       )}
+                      className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                       disabled={isProcessingFiles}
                       name={`amount-${index}`}
                       data-testid={`amount-input-${index}`}
@@ -212,7 +215,6 @@ export const SinglePositionComponent: React.FC<
                     }}
                     required={true}
                   />
-                </NoSpinner>
                 </Form.Item>
               </div>
               <div className="gba:w-1/2" data-testid={`currency-field-container-${index}`}>

@@ -21,7 +21,6 @@ import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 import { Alert } from "antd";
 import { getCurrentActiveUserLocale, getDateFormat } from "../../../../../../../common/utils/windowUtils";
-import { NoSpinner } from '../../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
 
 interface FormScreenComponentProps {
@@ -276,12 +275,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         >
           <Col span={12} data-testid="total-amount-col">
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
-              <NoSpinner>
                 <InputField
                   label={t(
                     "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
                     "Amount"
                   )}
+                  className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                   name="amount"
                   type="number"
                   step="0.01"
@@ -294,7 +297,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   )}
                   required={true}
                 />
-              </NoSpinner>
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">

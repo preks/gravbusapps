@@ -91,24 +91,11 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
       {/* Only show content when not collapsed */}
       {!isCollapsed && (
         <div 
-          style={{ 
-            position: 'relative', 
-            paddingLeft: '32px', 
-            paddingBottom: '10px' 
-          }} 
-          data-testid={`vertical-line-${title.toLowerCase().replace(/\s+/g, '-')}`}
-        >
-          <span 
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: 0,
-              bottom: 0,
-              width: '1px',
-              background: '#000'
-            }}
-          />
+          className="gba:relative gba:pl-8 gba:pb-[10px] 
+         gba:before:content-[''] gba:before:absolute 
+         gba:before:left-3 gba:before:top-0 gba:before:bottom-0 
+         gba:before:w-px gba:before:bg-black"
+          >
           <div className="gba:mt-2" data-testid={`location-content-${title.toLowerCase().replace(/\s+/g, '-')}`}>
             {children}
           </div>

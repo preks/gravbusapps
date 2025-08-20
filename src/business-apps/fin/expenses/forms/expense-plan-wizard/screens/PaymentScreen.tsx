@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Form, Divider } from 'antd';
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { NoSpinner } from '../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext';
 import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { BusinessAppContextProps } from '@/business-apps/types';
@@ -404,13 +403,17 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                 validateStatus={amountError ? 'error' : ''}
                 help={amountError}
               >
-                <NoSpinner>
                   <InputField
                     label={getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
                     name="amount"
                     type="number"
                     step="0.01"
                     min="0"
+                    className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:create_expense_type_item.current_amount_placeholder",
                       "Enter Amount"
@@ -423,7 +426,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                     }}
                     required={true}
                   />
-                </NoSpinner>
               </Form.Item>
             </div>
 
