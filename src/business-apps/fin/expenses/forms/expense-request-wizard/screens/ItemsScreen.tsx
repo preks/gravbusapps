@@ -663,7 +663,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       </div>
 
       {/* Expense Total Display */}
-      <div className="gba:expense-total-container gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
+      <div className="gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
         <div className="gba:flex gba:justify-between gba:items-center">
           <span className="gba:text-base gba:font-normal">
             {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_items_sum', 'Expenses')}

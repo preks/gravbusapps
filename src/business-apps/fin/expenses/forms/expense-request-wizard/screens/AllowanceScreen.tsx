@@ -308,7 +308,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
   return (
     <div className="gba:flex gba:flex-col gba:w-[100%] gba:px-4" data-testid="expense-request-wizard-allowance-screen">
       {listDataArray.length === 0 ? (
-        <Title level={4} className="gba:screenTitle gba:text-center gba:text-2xl gba:font-medium gba:pt-6" data-testid="expense-request-wizard-allowance-screen-title">
+        <Title level={4} className="gba:text-center gba:text-2xl gba:font-medium gba:pt-6" data-testid="expense-request-wizard-allowance-screen-title">
           {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.no_allowances_text', 'No allowances created')}
         </Title>
       ) : (
@@ -332,7 +332,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           </div>
           
           {totalItems > itemListLimit && (
-            <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-allowance-pagination-container">
+            <div className="gba:mt-4 gba:flex gba:justify-center" data-testid="expense-allowance-pagination-container">
               <Pagination
                 current={currentPage}
                 onChange={handlePageChange}

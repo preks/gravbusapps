@@ -119,9 +119,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
   );
   
   return (
-    <div className="gba:summaryScreenContainer gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen" style={{ minHeight: '50vh' }}>
-      <div className="gba:summaryContent gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen-content">
-        <div className="gba:summaryHeader gba:rounded-lg" data-testid="expense-request-summary-header">
+    <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen" style={{ minHeight: '50vh' }}>
+      <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen-content">
+        <div className="gba:rounded-lg" data-testid="expense-request-summary-header">
           <Row gutter={[24, 16]} className="gba:mb-2">
             <Col xs={24} md={12} className="gba:text-left">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -202,7 +202,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
           <div style={{flexGrow:1}}>
           {allowanceItems && allowanceItems.length > 0 ? (
             <>
-              <div className="gba:allowances-list" data-testid="expense-request-allowances-list">
+              <div data-testid="expense-request-allowances-list">
                 {paginatedAllowanceItems.map((item) => (
                   <ExpenseItemRow 
                     key={item.id}
@@ -215,7 +215,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               </div>
               
               {allowanceItems.length > itemListLimit && (
-                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="allowance-items-pagination-container">
+                <div className="gba:flex gba:justify-center" data-testid="allowance-items-pagination-container">
                   <Pagination
                     current={allowanceCurrentPage}
                     onChange={handleAllowancePageChange}
@@ -244,7 +244,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
           
           {positionsArray && positionsArray.length > 0 ? (
             <>
-              <div className="gba:expense-items-list" data-testid="expense-request-expense-items-list">
+              <div data-testid="expense-request-expense-items-list">
                 {paginatedExpenseItems.map((element:any) => (
                   <ExpenseItemRow 
                     key={element.id}
@@ -257,7 +257,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               </div>
               
               {positionsArray.length > itemListLimit && (
-                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
+                <div className="gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
                   <Pagination
                     current={expenseCurrentPage}
                     onChange={handleExpensePageChange}

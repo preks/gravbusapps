@@ -9,6 +9,7 @@ import LocationContainer from "../../expense-request-wizard/components/LocationC
 import LocationForm from "../../expense-request-wizard/components/LocationForm/LocationForm";
 import {
   AddDestinationContainer,
+  LocationContainerWrapper,
   SkipAdvancePaymentContainer
 } from '../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { DestinationLimit, LocationData, TripScreenProps } from "../../expense-request-wizard/utils/types";
@@ -577,9 +578,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           <RejectionComment isRequest={false} comment={latestRejectComment} />
         )}
         
-        <div className="gba:locationsContainer" data-testid="locations-container">
+        <div data-testid="locations-container">
           {/* Start Location */}
-          <div className="gba:py-4 gba:withDivider" data-testid="start-location-wrapper">
+          <LocationContainerWrapper className="gba:withDivider" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -639,11 +640,11 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
                 }}
               />
             </LocationContainer>
-          </div>
+          </LocationContainerWrapper>
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-            <div key={destination.id} className="gba:py-4 gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+             <LocationContainerWrapper key={destination.id} className="gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_collapsible_title",
@@ -677,7 +678,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                 />
               </LocationContainer>
-            </div>
+            </LocationContainerWrapper>
           ))}
 
           {/* Add Destination Button */}
