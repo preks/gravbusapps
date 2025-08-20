@@ -168,7 +168,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
           </span>
           
             <div className="gba:mb-4" data-testid="expense-request-plan-card-container">
-              <div className="gba:summary-plan-card-container" data-testid="summary-plan-card-custom-container">
+              <div className="gba:font-bold" data-testid="summary-plan-card-custom-container">
                 <PlanCard 
                   key={requestData.expensePlan.id} 
                   plan={{

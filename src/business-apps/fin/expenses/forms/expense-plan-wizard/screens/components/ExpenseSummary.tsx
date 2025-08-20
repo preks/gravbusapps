@@ -1,6 +1,7 @@
 import React from 'react';
 import { Divider } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { ExpenseSummaryContainer } from '../../../expense-request-wizard/screens/components/CommonStyledComponents';
 
 interface ExpenseSummaryProps {
   planData: any;
@@ -123,7 +124,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
   let currentSectionIndex = 0;
 
   return (
-    <div className="gba:expense-summary-container" data-testid="expense-summary-container">
+    <ExpenseSummaryContainer data-testid="expense-summary-container">
       {(displayObject.displayExpenses || displayObject.displayNonReimbursable 
       || displayObject.displayReimbursable || displayObject.displayAdvance) &&
        (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
@@ -132,7 +133,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
       {displayObject.displayExpenses && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-expenses"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -151,7 +152,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
       {displayObject.displayNonReimbursable && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-non-reimbursable"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -170,7 +171,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
       {displayObject.displayReimbursable && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-reimbursable"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -189,7 +190,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
       {displayObject.displayAdvance && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-advance"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -204,7 +205,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
         {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
         </>
       )}
-    </div>
+    </ExpenseSummaryContainer>
   );
 };
 

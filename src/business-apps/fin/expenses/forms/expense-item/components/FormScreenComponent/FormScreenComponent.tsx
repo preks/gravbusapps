@@ -21,6 +21,7 @@ import { useExpenseItem } from "../../context/ExpenseItemContext";
 
 import { Alert } from "antd";
 import { getCurrentActiveUserLocale, getDateFormat } from "../../../../../../../common/utils/windowUtils";
+import { NoSpinner } from '../../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
 
 interface FormScreenComponentProps {
@@ -275,24 +276,25 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         >
           <Col span={12} data-testid="total-amount-col">
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
-              <InputField
-                label={t(
-                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
-                  "Amount"
-                )}
-                name="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                className="gba:no-spinner"
-                data-testid="total-amount-input"
-                value={calculateTotal().toFixed(2)}
-                placeholder={t(
-                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
-                  "Enter Amount"
-                )}
-                required={true}
-              />
+              <NoSpinner>
+                <InputField
+                  label={t(
+                    "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
+                    "Amount"
+                  )}
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  data-testid="total-amount-input"
+                  value={calculateTotal().toFixed(2)}
+                  placeholder={t(
+                    "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
+                    "Enter Amount"
+                  )}
+                  required={true}
+                />
+              </NoSpinner>
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">

@@ -10,6 +10,7 @@ import {
   Currency,
 } from "../../types";
 import { getCatalogValue } from "../../../../../../../common/utils/windowUtils";
+import { NoSpinner } from '../../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Form } from "antd";
 
@@ -180,28 +181,28 @@ export const SinglePositionComponent: React.FC<
                   rules={[{ required: true, message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount') }]}
                   style={{ marginBottom: 0 }}
                 >
-                  <InputField
-                    label={t(
-                      "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
-                      "Amount"
-                    )}
-                    disabled={isProcessingFiles}
-                    name={`amount-${index}`}
-                    data-testid={`amount-input-${index}`}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className="gba:no-spinner"
-                    placeholder={t(
-                      "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
-                      "Enter Amount"
-                    )}
-                    onChange={(field) => {
-                      let value = field.value as string;
-                      if (value.includes('.')) {
-                        const parts = value.split('.');
-                        if (parts[1] && parts[1].length > 2) {
-                          value = `${parts[0]}.${parts[1].substring(0, 2)}`;
+                  <NoSpinner>
+                    <InputField
+                      label={t(
+                        "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
+                        "Amount"
+                      )}
+                      disabled={isProcessingFiles}
+                      name={`amount-${index}`}
+                      data-testid={`amount-input-${index}`}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder={t(
+                        "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
+                        "Enter Amount"
+                      )}
+                      onChange={(field) => {
+                        let value = field.value as string;
+                        if (value.includes('.')) {
+                          const parts = value.split('.');
+                          if (parts[1] && parts[1].length > 2) {
+                            value = `${parts[0]}.${parts[1].substring(0, 2)}`;
                         }
                       }
                       form.setFieldsValue({ [`amount-${index}`]: value });
@@ -211,6 +212,7 @@ export const SinglePositionComponent: React.FC<
                     }}
                     required={true}
                   />
+                </NoSpinner>
                 </Form.Item>
               </div>
               <div className="gba:w-1/2" data-testid={`currency-field-container-${index}`}>

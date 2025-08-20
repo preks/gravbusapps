@@ -1,6 +1,7 @@
 import React from 'react';
 import { Divider } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { ExpenseSummaryContainer } from './CommonStyledComponents';
 
 interface ExpenseSummaryProps {
   requestData: any;
@@ -134,14 +135,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
   let currentSectionIndex = 0;
 
   return (
-    <div className="gba:expense-summary-container" data-testid="expense-summary-container">
+    <ExpenseSummaryContainer data-testid="expense-summary-container">
       {(displayObject.displayExpenses || displayObject.displayAdvance 
       || displayObject.displayNonReimbursable || displayObject.displayRemaining) && (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
 )}
       {displayObject.displayExpenses && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-expenses"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -156,7 +157,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
           {requestData.expensePlan && (
             <div className="gba:text-right">
               {parseFloat(values.differenceRequestPlan) > 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-yellow-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#ffc61a]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned')}
                 </span>
@@ -185,7 +186,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayAdvance && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-advance"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -204,7 +205,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayNonReimbursable && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-non-reimbursable"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -223,7 +224,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayRemaining && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-remaining"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -238,7 +239,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
         {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
         </>
       )}
-    </div>
+    </ExpenseSummaryContainer>
   );
 };
 

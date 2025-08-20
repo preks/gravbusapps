@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Form, Divider } from 'antd';
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { NoSpinner } from '../../expense-request-wizard/screens/components/CommonStyledComponents';
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext';
 import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { BusinessAppContextProps } from '@/business-apps/types';
@@ -403,25 +404,26 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                 validateStatus={amountError ? 'error' : ''}
                 help={amountError}
               >
-                <InputField
-                  label={getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="gba:no-spinner"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:create_expense_type_item.current_amount_placeholder",
-                    "Enter Amount"
-                  )}
-                  data-testid="payment-amount-input"
-                  onChange={(field) => {
-                    const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
-                    form.setFieldsValue({ amount: formattedValue });
-                    handleAmountChange(field);
-                  }}
-                  required={true}
-                />
+                <NoSpinner>
+                  <InputField
+                    label={getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:create_expense_type_item.current_amount_placeholder",
+                      "Enter Amount"
+                    )}
+                    data-testid="payment-amount-input"
+                    onChange={(field) => {
+                      const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
+                      form.setFieldsValue({ amount: formattedValue });
+                      handleAmountChange(field);
+                    }}
+                    required={true}
+                  />
+                </NoSpinner>
               </Form.Item>
             </div>
 
