@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { ICONS } from '../../../../utils/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { VerticalLine } from '../../screens/components/CommonStyledComponents';
+
 
 /**
  * LocationContainer component props
@@ -90,11 +90,29 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
       
       {/* Only show content when not collapsed */}
       {!isCollapsed && (
-        <VerticalLine data-testid={`vertical-line-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+        <div 
+          style={{ 
+            position: 'relative', 
+            paddingLeft: '32px', 
+            paddingBottom: '10px' 
+          }} 
+          data-testid={`vertical-line-${title.toLowerCase().replace(/\s+/g, '-')}`}
+        >
+          <span 
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: 0,
+              bottom: 0,
+              width: '1px',
+              background: '#000'
+            }}
+          />
           <div className="gba:mt-2" data-testid={`location-content-${title.toLowerCase().replace(/\s+/g, '-')}`}>
             {children}
           </div>
-        </VerticalLine>
+        </div>
       )}
     </div>
   );

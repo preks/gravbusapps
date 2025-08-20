@@ -7,10 +7,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { ICONS } from "../../../utils/icons";
 import LocationContainer from "../components/LocationContainer/LocationContainer";
 import LocationForm from "../components/LocationForm/LocationForm";
-import {
-  AddDestinationContainer,
-  LocationContainerWrapper
-} from './components/CommonStyledComponents';
+
 import { DestinationLimit, LocationData, TripScreenProps } from "../utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../ExpenseRequestWizardQueries";
@@ -678,7 +675,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             <RejectionComment comment={latestRejectComment} />
           )}
           {/* Start Location */}
-          <LocationContainerWrapper className="gba:withDivider" data-testid="start-location-wrapper">
+          <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -738,11 +735,11 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                 }}
               />
             </LocationContainer>
-          </LocationContainerWrapper>
+          </div>
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-            <LocationContainerWrapper key={destination.id} className="gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+            <div key={destination.id} className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title",
@@ -776,14 +773,14 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                 />
               </LocationContainer>
-            </LocationContainerWrapper>
+            </div>
           ))}
 
           {/* Add Destination Button */}
-          <AddDestinationContainer
-            className="gba:withDivider"
-            data-testid="add-destination-container"
-          >
+                     <div
+             className="gba:flex gba:pl-4 gba:border-b gba:border-b-[#e8e8e8] gba:py-4 [&>button]:!gba:py-0 [&>button]:!gba:px-[10px] [&>button]:-gba:ml-[10px] [&>button]:!gba:rounded-[20px]"
+             data-testid="add-destination-container"
+           >
             <Button
               variant="ghost"
               onClick={addDestination}
@@ -797,7 +794,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
               />
               {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.add_destionation_button', 'Add Destination')}
             </Button>
-          </AddDestinationContainer>
+          </div>
 
           {/* End Location */}
           <div className="gba:py-4" data-testid="end-location-wrapper">

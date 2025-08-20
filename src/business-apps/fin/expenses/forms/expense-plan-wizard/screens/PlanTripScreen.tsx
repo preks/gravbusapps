@@ -7,11 +7,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { ICONS } from "../../../utils/icons";
 import LocationContainer from "../../expense-request-wizard/components/LocationContainer/LocationContainer";
 import LocationForm from "../../expense-request-wizard/components/LocationForm/LocationForm";
-import {
-  AddDestinationContainer,
-  LocationContainerWrapper,
-  SkipAdvancePaymentContainer
-} from '../../expense-request-wizard/screens/components/CommonStyledComponents';
+
 import { DestinationLimit, LocationData, TripScreenProps } from "../../expense-request-wizard/utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../../expense-request-wizard/utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../queries/ExpensePlanWizardQueries";
@@ -580,7 +576,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         
         <div data-testid="locations-container">
           {/* Start Location */}
-          <LocationContainerWrapper className="gba:withDivider" data-testid="start-location-wrapper">
+          <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -640,11 +636,11 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
                 }}
               />
             </LocationContainer>
-          </LocationContainerWrapper>
+          </div>
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-             <LocationContainerWrapper key={destination.id} className="gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+             <div key={destination.id} className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_collapsible_title",
@@ -678,14 +674,14 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                 />
               </LocationContainer>
-            </LocationContainerWrapper>
+            </div>
           ))}
 
           {/* Add Destination Button */}
-          <AddDestinationContainer
-            className="gba:withDivider"
-            data-testid="add-destination-container"
-          >
+                     <div
+             className="gba:flex gba:pl-4 gba:border-b gba:border-b-[#e8e8e8] gba:py-4 [&>button]:!gba:py-0 [&>button]:!gba:px-[10px] [&>button]:-gba:ml-[10px] [&>button]:!gba:rounded-[20px]"
+             data-testid="add-destination-container"
+           >
             <Button
               variant="ghost"
               onClick={addDestination}
@@ -699,7 +695,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
               />
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.add_destination_button', 'Add Destination')}
             </Button>
-          </AddDestinationContainer>
+          </div>
 
           {/* End Location */}
           <div className="gba:py-4" data-testid="end-location-wrapper">
@@ -763,7 +759,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           </div>
 
           {/* Skip Advance Payment Checkbox */}
-          <SkipAdvancePaymentContainer data-testid="skip-advance-payment-container">
+          <div className="gba:font-medium gba:py-4 [&_label]:flex [&_label]:flex-row-reverse" data-testid="skip-advance-payment-container">
             <Checkbox
               value={skipAdvancePayment}
               name={"skip-advance-payment-checkbox"}
@@ -772,7 +768,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment')}
             </Checkbox>
-          </SkipAdvancePaymentContainer>
+          </div>
         </div>
       </Form>
     </div>

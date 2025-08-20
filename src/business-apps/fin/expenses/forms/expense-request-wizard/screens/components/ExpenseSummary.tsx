@@ -1,7 +1,7 @@
 import React from 'react';
 import { Divider } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
-import { ExpenseSummaryContainer } from './CommonStyledComponents';
+
 
 interface ExpenseSummaryProps {
   requestData: any;
@@ -135,7 +135,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
   let currentSectionIndex = 0;
 
   return (
-    <ExpenseSummaryContainer data-testid="expense-summary-container">
+    <div className="gba:px-2 [&_.ant-divider-horizontal]:my-6" data-testid="expense-summary-container">
       {(displayObject.displayExpenses || displayObject.displayAdvance 
       || displayObject.displayNonReimbursable || displayObject.displayRemaining) && (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
 )}
@@ -239,7 +239,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
         {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
         </>
       )}
-    </ExpenseSummaryContainer>
+    </div>
   );
 };
 
