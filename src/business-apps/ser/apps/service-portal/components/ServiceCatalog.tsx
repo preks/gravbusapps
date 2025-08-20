@@ -9,21 +9,33 @@ import {
 // ServiceCategory type used in prop interfaces
 import { serviceCategories } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
+import { useDesksForUser } from '../../../hooks/useDesksForUser';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   ClockCounterClockwise,
   Notepad,
   ChartLine
 } from '@phosphor-icons/react';
 
-export interface ServiceCatalogProps {
+export interface ServiceCatalogProps extends BusinessAppContextProps {
   onCategorySelect: (categoryId: string) => void;
   onMyRequestsClick: () => void;
+  onServiceDeskClick?: () => void;
 }
 
 export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   onCategorySelect,
-  onMyRequestsClick
+  onMyRequestsClick,
+  onServiceDeskClick,
+  accessToken,
+  userInfo
 }) => {
+  // Check if user has access to any service desk
+  const {
+    availableDesks,
+    isLoading: deskAccessLoading,
+    error: deskAccessError,
+  } = useDesksForUser({ accessToken, userInfo });
 
   // Transform service categories into NavigationCard format
   const serviceCategoryCards: NavigationCardInput[] = useMemo(() => {
@@ -82,26 +94,34 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     ].filter(section => section.cards.length > 0); // Only show sections with cards
   }, [serviceCategoryCards]);
 
-  // Quick actions for common tasks
-  const quickActions: QuickActionData[] = useMemo(() => [
-    {
-      id: 'my-requests',
-      label: 'My Requests',
-      icon: ClockCounterClockwise,
-      onClick: onMyRequestsClick,
-      variant: 'ext1'
-    },
-    {
-      id: 'service-desk',
-      label: 'Service Desk',
-      icon: ClockCounterClockwise,
-      onClick: () => {
-        // TODO: Navigate to service desk (future feature)
-        alert('Service Desk - Coming Soon!\nThis will be the admin interface for managing requests.');
-      },
-      variant: 'ext2'
-    },
-    {
+  // Quick actions for common tasks (conditionally include Service Desk)
+  const quickActions: QuickActionData[] = useMemo(() => {
+    const actions: QuickActionData[] = [
+      {
+        id: 'my-requests',
+        label: 'My Requests',
+        icon: ClockCounterClockwise,
+        onClick: onMyRequestsClick,
+        variant: 'ext1'
+      }
+    ];
+
+    // Only show Service Desk if user has access to at least one desk
+    if (!deskAccessLoading && !deskAccessError && availableDesks.length > 0) {
+      actions.push({
+        id: 'service-desk',
+        label: 'Service Desk',
+        icon: ClockCounterClockwise,
+        onClick: onServiceDeskClick || (() => {
+          // Navigate to Service Desk app using platform navigation with proper app parameter
+          window.location.href = '/ser/apps/service-desk?app=ServiceDesk';
+        }),
+        variant: 'ext2'
+      });
+    }
+
+    // Help Center is always available
+    actions.push({
       id: 'knowledge-base',
       label: 'Help Center',
       icon: Notepad,
@@ -110,8 +130,10 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         alert('Help Center - Coming Soon!\nThis will contain service documentation and FAQs.');
       },
       variant: 'ext3'
-    }
-  ], [onMyRequestsClick]);
+    });
+
+    return actions;
+  }, [onMyRequestsClick, onServiceDeskClick, deskAccessLoading, deskAccessError, availableDesks]);
 
   // Header KPIs showing service statistics
   const headerKpis: KpiData[] = useMemo(() => [

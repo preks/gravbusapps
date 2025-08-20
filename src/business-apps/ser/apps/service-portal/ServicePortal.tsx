@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { ServiceCatalog } from './components/ServiceCatalog';
-import { ServiceDetail } from './components/ServiceDetail';
-import { RequestForm } from './components/RequestForm';
-import { MyRequests } from './components/MyRequests';
+import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests } from './components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { WorkflowEngine, ServiceRequestTemplate } from '../../types';
 import { mockWorkflowEngine } from '../../services';
@@ -11,6 +8,7 @@ import { useServicesFeatureFlag } from '../../utils/featureFlags';
 export interface ServicePortalProps extends BusinessAppContextProps {
   workflowEngine?: WorkflowEngine; // TODO: Inject from context or provider
   initialView?: ServicePortalView;
+  onServiceDeskNavigation?: () => void; // Callback to navigate to Service Desk app
 }
 
 export type ServicePortalView = 
@@ -30,6 +28,7 @@ interface ServicePortalState {
 export const ServicePortal: React.FC<ServicePortalProps> = ({
   workflowEngine = mockWorkflowEngine, // Use mock by default for development
   initialView = 'catalog',
+  onServiceDeskNavigation,
   ...contextProps
 }) => {
   const { isEnabled, checkAndRedirect } = useServicesFeatureFlag();
@@ -86,6 +85,8 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
           <ServiceCatalog
             onCategorySelect={navigateToCategory}
             onMyRequestsClick={() => navigateToMyRequests()}
+            onServiceDeskClick={onServiceDeskNavigation}
+            {...contextProps}
           />
         );
       
@@ -93,7 +94,6 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
         return (
           <ServiceDetail
             categoryId={state.selectedCategoryId!}
-            serviceId={state.selectedServiceId}
             onRequestService={navigateToRequestForm}
             onBack={navigateToCatalog}
           />
@@ -124,6 +124,8 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
           <ServiceCatalog
             onCategorySelect={navigateToCategory}
             onMyRequestsClick={() => navigateToMyRequests()}
+            onServiceDeskClick={onServiceDeskNavigation}
+            {...contextProps}
           />
         );
     }
