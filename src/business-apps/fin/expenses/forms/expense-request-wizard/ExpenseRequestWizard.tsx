@@ -46,7 +46,8 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
     setCurrentCurrency,
     showExpenseItem,
     expenseItemParams,
-    hideExpenseItem
+    hideExpenseItem,
+    updateTripFormValidation
   } = useExpenseRequestWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
@@ -176,6 +177,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
   
   const navigateToPreviousScreen = () => {
+    updateTripFormValidation(true);
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);

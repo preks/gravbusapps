@@ -20,7 +20,7 @@ import RejectionComment from "../../expense-request-wizard/components/RejectionC
 import { EVENTS } from "../../../utils/constants";
 import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils';
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils';
-import { formatDateTimeToISO } from '../../expense-request-wizard/utils/dateOverlapUtils';
+import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils';
 
 
 /**
@@ -208,8 +208,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         return;
       }
       
-      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
-      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
+      const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
       
       const variables = {
         employeeId: employeeId,

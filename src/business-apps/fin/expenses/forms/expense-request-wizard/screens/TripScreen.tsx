@@ -15,7 +15,8 @@ import { useExpenseRequestWizardContext } from "../context/ExpenseRequestWizardC
 import { showToast } from "../../../utils/notificationUtils";
 import LoadScreen from "./LoadScreen";
 import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
-import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { combineDateTimeToISOString } from '../utils/locationTimeUtils';
 import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLocation, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
@@ -291,8 +292,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return;
       }
       
-      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
-      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
+      const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      
       
       const variables = {
         employeeId: employeeId,
