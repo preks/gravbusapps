@@ -16,5 +16,11 @@ export {
   mockDataHelpers,
 } from './workflowEngineProvider';
 
+// New Conductor Integration
+export { ConductorWorkflowEngineAdapter, createConductorWorkflowEngine } from './ConductorWorkflowEngineAdapter';
+
+// Service Templates
+export { employeeOnboardingServiceTemplate, getEmployeeOnboardingTemplate, employeeOnboardingTemplateMetadata } from './templates/employeeOnboardingTemplate';
+
 // Re-export types for convenience
 export type { WorkflowEngine } from 'packages/services-plus-core';

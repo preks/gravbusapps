@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver } from 'packages/services-plus-core';
 import { useUserCapabilitiesGraphQL } from './useUserCapabilitiesGraphQL';
 import { getWorkflowEngine } from '../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../services';
 
 /**
  * Interface for desk capability mapping
@@ -90,6 +91,79 @@ const DESK_CAPABILITY_MAPPING: Record<StepReceiver, {
     ],
     organizationalUnits: ['Security', 'Physical Security', 'Risk Management'],
   },
+  'Procurement': {
+    name: 'Procurement',
+    requiredCapabilities: [
+      'Procurement_Manager',
+      'Procurement_Specialist',
+      'Purchasing_Manager',
+    ],
+    organizationalUnits: ['Procurement', 'Purchasing'],
+  },
+  'Legal': {
+    name: 'Legal',
+    requiredCapabilities: [
+      'Legal_Counsel',
+      'Legal_Specialist',
+      'General_Counsel',
+    ],
+    organizationalUnits: ['Legal', 'Legal Affairs'],
+  },
+  'AccessIdentity': {
+    name: 'Access & Identity',
+    requiredCapabilities: [
+      'Access_Admin',
+      'Identity_Manager',
+      'IT_Security',
+    ],
+    organizationalUnits: ['IT', 'Security'],
+  },
+  'Workplace': {
+    name: 'Workplace',
+    requiredCapabilities: [
+      'Workplace_Admin',
+      'Office_Manager',
+      'Facilities_Manager',
+    ],
+    organizationalUnits: ['Workplace', 'Facilities'],
+  },
+  'Fleet': {
+    name: 'Fleet Management',
+    requiredCapabilities: [
+      'Fleet_Manager',
+      'Fleet_Coordinator',
+      'Vehicle_Manager',
+    ],
+    organizationalUnits: ['Fleet', 'Transportation'],
+  },
+  'Data': {
+    name: 'Data & Analytics',
+    requiredCapabilities: [
+      'Data_Analyst',
+      'Data_Engineer',
+      'Data_Manager',
+    ],
+    organizationalUnits: ['Data', 'Analytics', 'IT'],
+  },
+  'L&D': {
+    name: 'Learning & Development',
+    requiredCapabilities: [
+      'Learning_Development_Manager',
+      'Training_Coordinator',
+      'Learning_Specialist',
+      'Training_Manager',
+    ],
+    organizationalUnits: ['Learning Development', 'Training', 'L&D', 'Human Resources'],
+  },
+  'Admin': {
+    name: 'Administration',
+    requiredCapabilities: [
+      'Admin_Support',
+      'Office_Manager',
+      'Executive_Assistant',
+    ],
+    organizationalUnits: ['Administration', 'Executive'],
+  },
 };
 
 /**
@@ -145,10 +219,19 @@ const hasRelevantOrgUnit = (
 /**
  * Helper function to get ticket count for a desk
  */
-const getTicketCountForDesk = async (desk: StepReceiver): Promise<number> => {
+const getTicketCountForDesk = async (
+  desk: StepReceiver, 
+  accessToken?: string, 
+  userInfo?: any
+): Promise<number> => {
   try {
-    const workflowEngine = getWorkflowEngine();
+    // Use real workflow engine if authenticated, otherwise fall back to mock
+    const workflowEngine = accessToken && userInfo
+      ? createConductorWorkflowEngine({ accessToken, userInfo })
+      : getWorkflowEngine();
+    
     const tickets = await workflowEngine.getDeskTickets(desk);
+    console.log(`[getTicketCountForDesk] ${desk}: ${tickets.length} tickets using ${workflowEngine.constructor.name}`);
     return tickets.length;
   } catch (error) {
     console.warn(`Failed to get ticket count for desk ${desk}:`, error);
@@ -236,7 +319,7 @@ export const useDesksForUser = ({
             (userCapabilityNames.length === 0 && userOrgUnitNames.length === 0 && ['HR', 'IT'].includes(desk));
 
           if (shouldGrantAccess) {
-            const ticketCount = await getTicketCountForDesk(desk);
+            const ticketCount = await getTicketCountForDesk(desk, accessToken, userInfo);
             
             desks.push({
               desk,
@@ -260,7 +343,7 @@ export const useDesksForUser = ({
         // This ensures users always have access to at least one desk
         if (desks.length === 0) {
           console.log('useDesksForUser: No desk access found, providing emergency HR access');
-          const ticketCount = await getTicketCountForDesk('HR');
+          const ticketCount = await getTicketCountForDesk('HR', accessToken, userInfo);
           
           desks.push({
             desk: 'HR',

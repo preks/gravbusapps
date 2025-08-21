@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import type { Comment } from 'packages/services-plus-core';
 import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../../../services';
+import type { UserInfo } from '@/common/BusinessAppContext';
 
 export interface UseTicketActionsProps {
   accessToken: string;
+  userInfo?: UserInfo;
   onSuccess?: () => void;
   onError?: (error: string) => void;
 }
@@ -22,10 +25,22 @@ export interface UseTicketActionsReturn {
  */
 export const useTicketActions = ({
   accessToken,
+  userInfo,
   onSuccess,
   onError,
 }: UseTicketActionsProps): UseTicketActionsReturn => {
   const [isPerformingAction, setIsPerformingAction] = useState<boolean>(false);
+
+  // Get the appropriate workflow engine (real or mock)
+  const getEngine = () => {
+    if (accessToken && userInfo) {
+      console.log(`🎯 [useTicketActions] Using ConductorWorkflowEngineAdapter for actions`);
+      return createConductorWorkflowEngine(accessToken, userInfo);
+    } else {
+      console.log(`🎯 [useTicketActions] Using MockWorkflowEngineAdapter for actions`);
+      return getWorkflowEngine();
+    }
+  };
 
   const handleAction = async <T>(
     actionName: string,
@@ -48,28 +63,32 @@ export const useTicketActions = ({
 
   const claimTicket = async (stepId: string): Promise<void> => {
     return handleAction('claim ticket', async () => {
-      const workflowEngine = getWorkflowEngine();
+      const workflowEngine = getEngine();
+      console.log(`🎯 [useTicketActions] *** CLAIMING TICKET: ${stepId} ***`);
       await workflowEngine.claim(stepId);
     });
   };
 
   const assignTicket = async (stepId: string, userId: string): Promise<void> => {
     return handleAction('assign ticket', async () => {
-      const workflowEngine = getWorkflowEngine();
+      const workflowEngine = getEngine();
+      console.log(`🎯 [useTicketActions] *** ASSIGNING TICKET: ${stepId} to ${userId} ***`);
       await workflowEngine.assign(stepId, userId);
     });
   };
 
   const advanceTicket = async (stepId: string, payload?: any): Promise<void> => {
     return handleAction('advance ticket', async () => {
-      const workflowEngine = getWorkflowEngine();
+      const workflowEngine = getEngine();
+      console.log(`🎯 [useTicketActions] *** ADVANCING TICKET: ${stepId} ***`, payload ? 'with form data' : 'without form data');
       await workflowEngine.advance(stepId, payload);
     });
   };
 
   const addComment = async (stepId: string, body: string): Promise<Comment> => {
     return handleAction('add comment', async () => {
-      const workflowEngine = getWorkflowEngine();
+      const workflowEngine = getEngine();
+      console.log(`🎯 [useTicketActions] *** ADDING COMMENT to: ${stepId} ***`);
       return await workflowEngine.comment(stepId, body);
     });
   };

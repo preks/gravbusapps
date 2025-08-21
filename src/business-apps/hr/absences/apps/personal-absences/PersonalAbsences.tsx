@@ -5,6 +5,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   PageLayout,
+  Card,
+  Separator,
 } from "@newwork/nw-design-system";
 import {
   Calendar,
@@ -12,6 +14,8 @@ import {
   BarChart3,
   Paperclip,
   ChevronDown,
+  TrendingUp,
+  Clock,
 } from "lucide-react";
 import { StatsCard } from "./components/StatsCard";
 import { UpcomingAbsenceCard } from "./components/UpcomingAbsenceCard";
@@ -45,6 +49,7 @@ import { startProcess } from "@/common/utils/start-process";
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
+  const year = dayjs().year();
   const [activeFilter, setActiveFilter] = useState("All");
   const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
@@ -422,59 +427,77 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
     switch (activeTab) {
       case "statistics":
-        return <StatisticsTab absences={absenceList} />;
+        return (
+          <div className="layout-content gap-md" data-testid="personal-absences-statistics-container">
+            {/* Header section */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:pb-6 gba:border-b">
+              <div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.statistics_analytics",
+                    "Statistics & Analytics"
+                  )}
+                </h2>
+                <p className="gba:text-muted-foreground gba:mt-1">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.statistics_description",
+                    "Analyze your absence patterns and usage trends"
+                  )}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={loadingAbsenceGroups || absenceGroups.length === 0}
+                    data-testid="personal-absences-create-dropdown-statistics"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      "absence.create",
+                      "Create Absence",
+                      getCurrentActiveUserLocale()
+                    )}
+                    <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {createAbsenceMenuItems().map((item) => (
+                    <DropdownMenuItem key={item.key} onClick={item.onClick}>
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Statistics content */}
+            <Card className="gba:p-6">
+              <StatisticsTab absences={absenceList} />
+            </Card>
+          </div>
+        );
 
       case "calendar":
         return (
-          <div className="gba:flex gba:gap-6 gba:w-full">
-            <div className="gba:flex-1 gba:min-w-0">
-              <div
-                className="gba:calendarContainer"
-                data-testid="personal-absences-calendar-container"
-              >
-                <div
-                  className="gba:flex gba:items-center gba:justify-between gba:mb-4"
-                  data-testid="absence-type-filter-row"
-                >
-                  <AbsenceTypeFilter
-                    filterOptions={filterOptions}
-                    activeFilter={activeFilter}
-                    onFilterChange={(filter) => {
-                      setActiveFilter(filter);
-                      setCurrentPage(1);
-                    }}
-                  />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        disabled={
-                          loadingAbsenceGroups || absenceGroups.length === 0
-                        }
-                        data-testid="personal-absences-create-dropdown-calendar"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "absence.create",
-                          "Create Absence",
-                          getCurrentActiveUserLocale()
-                        )}
-                        <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {createAbsenceMenuItems().map((item) => (
-                        <DropdownMenuItem key={item.key} onClick={item.onClick}>
-                          {item.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <AbsenceCalendar
-                  accessToken={props.accessToken}
-                  userInfo={props.userInfo}
-                  showIconTitle={false}
-                  showTabsSwitch={false}
+          <div className="layout-content gap-md" data-testid="personal-absences-calendar-container">
+            {/* Calendar header with filter and action */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:pb-6 gba:border-b">
+              <div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.calendar_view",
+                    "Calendar View"
+                  )}
+                </h2>
+                <p className="gba:text-muted-foreground gba:mt-1">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.calendar_description",
+                    "View and manage your absences in a calendar format"
+                  )}
+                </p>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <AbsenceTypeFilter
                   filterOptions={filterOptions}
                   activeFilter={activeFilter}
                   onFilterChange={(filter) => {
@@ -482,90 +505,44 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                     setCurrentPage(1);
                   }}
                 />
-              </div>
-            </div>
-
-            <div
-              className="gba:sidebar gba:w-80 gba:flex-shrink-0"
-              data-testid="personal-absences-sidebar"
-            >
-              <div
-                className="gba:cardsContainer"
-                data-testid="personal-absences-cards-container"
-              >
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-timeoff-balance-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.time_off_balance",
-                      "Time Off Balance"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:statsGrid"
-                    data-testid="personal-absences-stats-grid"
-                  >
-                    {filteredStats.map((stat, index) => (
-                      <StatsCard key={index} stat={stat} />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="default"
+                      disabled={
+                        loadingAbsenceGroups || absenceGroups.length === 0
+                      }
+                      data-testid="personal-absences-create-dropdown-calendar"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        "absence.create",
+                        "Create Absence",
+                        getCurrentActiveUserLocale()
+                      )}
+                      <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {createAbsenceMenuItems().map((item) => (
+                      <DropdownMenuItem key={item.key} onClick={item.onClick}>
+                        {item.label}
+                      </DropdownMenuItem>
                     ))}
-                  </div>
-                </div>
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-upcoming-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.upcoming_time_off",
-                      "Upcoming Time Off"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:upcomingList"
-                    data-testid="personal-absences-upcoming-list"
-                  >
-                    {filteredUpcomingAbsences.length > 0 ? (
-                      filteredUpcomingAbsences
-                        .slice(0, 5)
-                        .map((absence) => (
-                          <UpcomingAbsenceCard
-                            key={absence.id}
-                            absence={absence}
-                          />
-                        ))
-                    ) : (
-                      <div
-                        className="gba:absenceListEmpty"
-                        data-testid="upcoming-absence-empty"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_upcoming_absences",
-                          "No upcoming absences"
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-          </div>
-        );
 
-      case "absence-list":
-        return (
-          <div className="gba:flex gba:gap-6 gba:w-full">
-            <div className="gba:flex-1 gba:min-w-0">
-              <div
-                className="gba:absenceList"
-                data-testid="personal-absences-absence-list"
-              >
-                <div
-                  className="gba:flex gba:items-center gba:justify-between gba:mb-4"
-                  data-testid="absence-type-filter-row"
-                >
-                  <AbsenceTypeFilter
+            {/* Calendar and sidebar layout */}
+            <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-4 gba:gap-6">
+              {/* Main calendar */}
+              <div className="lg:gba:col-span-3">
+                <Card className="gba:p-6">
+                  <AbsenceCalendar
+                    accessToken={props.accessToken}
+                    userInfo={props.userInfo}
+                    showIconTitle={false}
+                    showTabsSwitch={false}
                     filterOptions={filterOptions}
                     activeFilter={activeFilter}
                     onFilterChange={(filter) => {
@@ -573,154 +550,41 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                       setCurrentPage(1);
                     }}
                   />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        disabled={
-                          loadingAbsenceGroups || absenceGroups.length === 0
-                        }
-                        data-testid="personal-absences-create-dropdown-list"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "absence.create",
-                          "Create Absence",
-                          getCurrentActiveUserLocale()
-                        )}
-                        <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {createAbsenceMenuItems().map((item) => (
-                        <DropdownMenuItem key={item.key} onClick={item.onClick}>
-                          {item.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <h3
-                  className="gba:absenceListTitle"
-                  data-testid="personal-absences-absence-history-title"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:absence_hub.absence_history",
-                    "Absence History"
-                  )}
-                </h3>
-                <div
-                  className="gba:absenceListCards"
-                  data-testid="personal-absences-absence-list-cards"
-                >
-                  {filteredAbsenceList.length > 0 ? (
-                    paginatedAbsenceList.map((absence, idx) => (
-                      <AbsenceListCard
-                        key={idx + (currentPage - 1) * pageSize}
-                        absence={absence}
-                      />
-                    ))
-                  ) : (
-                    <div
-                      className="gba:absenceListEmpty"
-                      data-testid="personal-absences-absence-list-empty"
-                    >
-                      {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:absence_hub.no_absences_found",
-                        "No absences found."
-                      )}
-                    </div>
-                  )}
-                </div>
-                {filteredAbsenceList.length > pageSize && (
-                  <div
-                    className="gba:absenceListPagination"
-                    data-testid="personal-absences-absence-list-pagination"
-                    style={{
-                      marginTop: 24,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-4">
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="gba:text-sm gba:text-gray-600">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.pagination",
-                          "{{range0}}-{{range1}} of {{total}}",
-                          {
-                            range0: (currentPage - 1) * pageSize + 1,
-                            range1: Math.min(
-                              currentPage * pageSize,
-                              filteredAbsenceList.length
-                            ),
-                            total: filteredAbsenceList.length,
-                          }
-                        )}
-                      </span>
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={
-                          currentPage * pageSize >= filteredAbsenceList.length
-                        }
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                </Card>
               </div>
-            </div>
 
-            <div
-              className="gba:sidebar gba:w-80 gba:flex-shrink-0"
-              data-testid="personal-absences-sidebar"
-            >
-              <div
-                className="gba:cardsContainer"
-                data-testid="personal-absences-cards-container"
-              >
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-timeoff-balance-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.time_off_balance",
-                      "Time Off Balance"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:statsGrid"
-                    data-testid="personal-absences-stats-grid"
-                  >
+              {/* Sidebar */}
+              <div className="gba:space-y-6" data-testid="personal-absences-sidebar">
+                {/* Time Off Balance */}
+                <Card className="gba:p-6">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <TrendingUp className="gba:w-5 gba:h-5 gba:text-primary" />
+                    <h3 className="gba:font-semibold gba:text-lg gba:text-foreground" data-testid="personal-absences-timeoff-balance-title">
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.time_off_balance",
+                        "Time Off Balance"
+                      )}
+                    </h3>
+                  </div>
+                  <div className="gba:space-y-3" data-testid="personal-absences-stats-grid">
                     {filteredStats.map((stat, index) => (
                       <StatsCard key={index} stat={stat} />
                     ))}
                   </div>
-                </div>
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-upcoming-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.upcoming_time_off",
-                      "Upcoming Time Off"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:upcomingList"
-                    data-testid="personal-absences-upcoming-list"
-                  >
+                </Card>
+
+                {/* Upcoming Time Off */}
+                <Card className="gba:p-6">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <Clock className="gba:w-5 gba:h-5 gba:text-primary" />
+                    <h3 className="gba:font-semibold gba:text-lg gba:text-foreground" data-testid="personal-absences-upcoming-title">
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.upcoming_time_off",
+                        "Upcoming Time Off"
+                      )}
+                    </h3>
+                  </div>
+                  <div className="gba:space-y-3" data-testid="personal-absences-upcoming-list">
                     {filteredUpcomingAbsences.length > 0 ? (
                       filteredUpcomingAbsences
                         .slice(0, 5)
@@ -731,18 +595,212 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
                           />
                         ))
                     ) : (
-                      <div
-                        className="gba:absenceListEmpty"
-                        data-testid="upcoming-absence-empty"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_upcoming_absences",
-                          "No upcoming absences"
-                        )}
+                      <div className="gba:text-center gba:py-6 gba:text-muted-foreground" data-testid="upcoming-absence-empty">
+                        <Clock className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:text-muted-foreground" />
+                        <p className="gba:text-sm">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.no_upcoming_absences",
+                            "No upcoming absences"
+                          )}
+                        </p>
                       </div>
                     )}
                   </div>
-                </div>
+                </Card>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "absence-list":
+        return (
+          <div className="layout-content gap-md" data-testid="personal-absences-absence-list-container">
+            {/* Header section */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:pb-6 gba:border-b">
+              <div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.absence_history",
+                    "Absence History"
+                  )}
+                </h2>
+                <p className="gba:text-muted-foreground gba:mt-1">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.absence_list_description",
+                    "View all your absence requests and their current status"
+                  )}
+                </p>
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <AbsenceTypeFilter
+                  filterOptions={filterOptions}
+                  activeFilter={activeFilter}
+                  onFilterChange={(filter) => {
+                    setActiveFilter(filter);
+                    setCurrentPage(1);
+                  }}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="default"
+                      disabled={
+                        loadingAbsenceGroups || absenceGroups.length === 0
+                      }
+                      data-testid="personal-absences-create-dropdown-list"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        "absence.create",
+                        "Create Absence",
+                        getCurrentActiveUserLocale()
+                      )}
+                      <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {createAbsenceMenuItems().map((item) => (
+                      <DropdownMenuItem key={item.key} onClick={item.onClick}>
+                        {item.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Main content layout */}
+            <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-4 gba:gap-6">
+              {/* Absence list */}
+              <div className="lg:gba:col-span-3">
+                <Card className="gba:p-6">
+                  {filteredAbsenceList.length > 0 ? (
+                    <div className="gba:space-y-4" data-testid="personal-absences-absence-list-cards">
+                      {paginatedAbsenceList.map((absence, idx) => (
+                        <AbsenceListCard
+                          key={idx + (currentPage - 1) * pageSize}
+                          absence={absence}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="gba:text-center gba:py-12" data-testid="personal-absences-absence-list-empty">
+                      <List className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
+                      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.no_absences_title",
+                          "No Absences Found"
+                        )}
+                      </h3>
+                      <p className="gba:text-muted-foreground gba:max-w-md gba:mx-auto">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.no_absences_found",
+                          "You haven't submitted any absence requests yet."
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Pagination */}
+                  {filteredAbsenceList.length > pageSize && (
+                    <>
+                      <Separator className="gba:my-6" />
+                      <div className="gba:flex gba:items-center gba:justify-between" data-testid="personal-absences-absence-list-pagination">
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.pagination",
+                            "{{range0}}-{{range1}} of {{total}}",
+                            {
+                              range0: (currentPage - 1) * pageSize + 1,
+                              range1: Math.min(
+                                currentPage * pageSize,
+                                filteredAbsenceList.length
+                              ),
+                              total: filteredAbsenceList.length,
+                            }
+                          )}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setCurrentPage(Math.max(1, currentPage - 1))
+                            }
+                            disabled={currentPage === 1}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(currentPage + 1)}
+                            disabled={
+                              currentPage * pageSize >= filteredAbsenceList.length
+                            }
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              </div>
+
+              {/* Sidebar - same as calendar */}
+              <div className="gba:space-y-6" data-testid="personal-absences-sidebar">
+                {/* Time Off Balance */}
+                <Card className="gba:p-6">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <TrendingUp className="gba:w-5 gba:h-5 gba:text-primary" />
+                    <h3 className="gba:font-semibold gba:text-lg gba:text-foreground" data-testid="personal-absences-timeoff-balance-title">
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.time_off_balance",
+                        "Time Off Balance"
+                      )}
+                    </h3>
+                  </div>
+                  <div className="gba:space-y-3" data-testid="personal-absences-stats-grid">
+                    {filteredStats.map((stat, index) => (
+                      <StatsCard key={index} stat={stat} />
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Upcoming Time Off */}
+                <Card className="gba:p-6">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <Clock className="gba:w-5 gba:h-5 gba:text-primary" />
+                    <h3 className="gba:font-semibold gba:text-lg gba:text-foreground" data-testid="personal-absences-upcoming-title">
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.upcoming_time_off",
+                        "Upcoming Time Off"
+                      )}
+                    </h3>
+                  </div>
+                  <div className="gba:space-y-3" data-testid="personal-absences-upcoming-list">
+                    {filteredUpcomingAbsences.length > 0 ? (
+                      filteredUpcomingAbsences
+                        .slice(0, 5)
+                        .map((absence) => (
+                          <UpcomingAbsenceCard
+                            key={absence.id}
+                            absence={absence}
+                          />
+                        ))
+                    ) : (
+                      <div className="gba:text-center gba:py-6 gba:text-muted-foreground" data-testid="upcoming-absence-empty">
+                        <Clock className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:text-muted-foreground" />
+                        <p className="gba:text-sm">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.no_upcoming_absences",
+                            "No upcoming absences"
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               </div>
             </div>
           </div>
@@ -750,13 +808,77 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
       case "entitlements":
         return (
-          <div
-            className="gba:entitlementsList"
-            data-testid="personal-absences-entitlements-list"
-          >
-            {entitlements.map((ent, idx) => (
-              <EntitlementCard key={idx} entitlement={ent} />
-            ))}
+          <div className="layout-content gap-md" data-testid="personal-absences-entitlements-container">
+            {/* Header section */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:pb-6 gba:border-b">
+              <div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.your_entitlements",
+                    "Your Entitlements"
+                  )}
+                </h2>
+                <p className="gba:text-muted-foreground gba:mt-1">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.entitlements_description",
+                    `Track your leave balances and usage for ${year}`
+                  )}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    disabled={loadingAbsenceGroups || absenceGroups.length === 0}
+                    data-testid="personal-absences-create-dropdown-entitlements"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      "absence.create",
+                      "Create Absence",
+                      getCurrentActiveUserLocale()
+                    )}
+                    <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {createAbsenceMenuItems().map((item) => (
+                    <DropdownMenuItem key={item.key} onClick={item.onClick}>
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Entitlements grid */}
+            {entitlements.length === 0 ? (
+              <div className="gba:text-center gba:py-12" data-testid="entitlements-empty-state">
+                <div className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
+                  <Paperclip className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
+                </div>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.no_entitlements_title",
+                    "No Entitlements Found"
+                  )}
+                </h3>
+                <p className="gba:text-muted-foreground gba:max-w-md gba:mx-auto">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.no_entitlements_description",
+                    "Your absence entitlements will appear here once they are configured by your HR team."
+                  )}
+                </p>
+              </div>
+            ) : (
+              <div 
+                className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6"
+                data-testid="personal-absences-entitlements-grid"
+              >
+                {entitlements.map((ent, idx) => (
+                  <EntitlementCard key={`${ent.type}-${idx}`} entitlement={ent} />
+                ))}
+              </div>
+            )}
           </div>
         );
 

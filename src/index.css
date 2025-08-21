@@ -39,11 +39,11 @@
 @import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css" layer(legacy-unlayered-override);
 @import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css" layer(legacy-unlayered-override);
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css" layer(legacy-unlayered-override);
+
+
+
+
+
 
 @source "../index.html";
 @source "./*.{ts,tsx,js,jsx}";

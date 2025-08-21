@@ -64,11 +64,10 @@ export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
         moduleGroups[app.module] = {};
       }
 
-      // Extract the first level of subModule as the actual sub-module
+      // Use the full subModule path to avoid key collisions
       let subModuleName = "default";
       if (app.subModule) {
-        const subModuleParts = app.subModule.split("/");
-        subModuleName = subModuleParts[0]; // Take the first part as the sub-module
+        subModuleName = app.subModule; // Use full path instead of just first part
       }
 
       if (!moduleGroups[app.module][subModuleName]) {
@@ -101,7 +100,7 @@ export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
 
           return {
             key: `${module}/${subModule}`,
-            label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
+            label: subModule.replace(/\//g, ' / ').charAt(0).toUpperCase() + subModule.replace(/\//g, ' / ').slice(1),
             children: apps.map(createAppMenuItem)
           };
         })

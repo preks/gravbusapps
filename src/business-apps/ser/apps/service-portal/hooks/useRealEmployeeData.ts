@@ -5,8 +5,9 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 
 // Real employee data types based on GraphQL schema
 export interface RealEmployeeData {
-  id: string;
-  employeeId: string;
+  id: string;                    // EmployeePosition.id
+  employeeId: string;           // EmployeePosition.employeeId
+  actualEmployeeId?: string;    // Employee.id - the real Employee table ID that might match requesterId
   firstName: string;
   lastName: string;
   displayName: string;
@@ -222,8 +223,9 @@ export const useRealEmployeeData = (context: BusinessAppContextProps) => {
           const emailCommunication = emp.employee?.communication?.[0];
           
           return {
-            id: emp.id,
-            employeeId: emp.employeeId,
+            id: emp.id,                    // EmployeePosition.id
+            employeeId: emp.employeeId,    // EmployeePosition.employeeId
+            actualEmployeeId: emp.employee?.id || '', // Employee.id - this is likely what requesterId matches!
             firstName: emp.firstName.trim(),
             lastName: emp.lastName.trim(),
             displayName: emp.employee?.displayName?.trim() || `${emp.firstName.trim()} ${emp.lastName.trim()}`,

@@ -578,6 +578,9 @@ export default wrapWithUiCatalog(OriginalComponent);
         "@/hooks": resolve(__dirname, "src/hooks"),
         "@/modules": resolve(__dirname, "src/modules"),
         "@/common": resolve(__dirname, "src/common"),
+        // Add package aliases
+        "packages/services-plus-core": resolve(__dirname, "packages/services-plus-core/src"),
+        "packages/services-plus-seed": resolve(__dirname, "packages/services-plus-seed/src"),
       },
     },
     build: {

@@ -32,7 +32,11 @@
       "@/assets/*": ["src/assets/*"],
       "@/hooks/*": ["src/hooks/*"],
       "@/modules/*": ["src/modules/*"],
-      "@/common/*": ["src/common/*"]
+      "@/common/*": ["src/common/*"],
+      "packages/services-plus-core": ["packages/services-plus-core/src/index.ts"],
+      "packages/services-plus-core/*": ["packages/services-plus-core/src/*"],
+      "packages/services-plus-seed": ["packages/services-plus-seed/src/index.ts"],
+      "packages/services-plus-seed/*": ["packages/services-plus-seed/src/*"]
     }
   },
   "include": ["src", "index.tsx"],

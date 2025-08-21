@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Button, Tag, Timeline, Input, Alert, Space, Typography, Divider, 
-  Select, Row, Col, Steps, Badge, message, Tooltip, Switch 
+  Select, Row, Col, Steps, Badge, message, Switch 
 } from 'antd';
 import { 
   User, Clock, AlertCircle, ArrowRight, CheckCircle, PlayCircle,
-  Edit3, Send, Users, Calendar, Eye, EyeOff, MessageSquare, UserPlus,
+  Edit3, Send, Users, Calendar, Eye, MessageSquare, UserPlus,
   UserMinus, RotateCw, FastForward
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepReceiver, StepInstance, Comment, TicketStatus, SubmittedRequest } from 'packages/services-plus-core';
+import type { StepReceiver, StepInstance, Comment, StepStatus, SubmittedRequest } from 'packages/services-plus-core';
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { TaskForm, type TaskFormField } from './TaskForm';
 
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -36,8 +37,8 @@ const MOCK_USERS = [
 ];
 
 // Calculate SLA due date
-const calculateSLADue = (ticket: StepInstance): { dueDate: Date | null; status: 'ok' | 'warning' | 'overdue'; hoursLeft: number } => {
-  if (!ticket.startedAt) return { dueDate: null, status: 'ok', hoursLeft: 0 };
+const calculateSLADue = (ticket: StepInstance | null): { dueDate: Date | null; status: 'ok' | 'warning' | 'overdue'; hoursLeft: number } => {
+  if (!ticket?.startedAt) return { dueDate: null, status: 'ok', hoursLeft: 0 };
   
   // Default to medium priority for demo
   const priority = PRIORITY_OPTIONS[2]; // medium - 24 hours
@@ -78,15 +79,18 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   // Optimistic update states
   const [optimisticTicket, setOptimisticTicket] = useState<StepInstance | null>(null);
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState<boolean>(false);
+  
+  // Task completion states
+  const [isCompletingTask, setIsCompletingTask] = useState<boolean>(false);
+
+  // ⚡ ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - NO EARLY RETURNS BEFORE THIS POINT
 
   // Fetch ticket details
   const { ticket, isLoading, error, refetch } = useTicketDetail({
     ticketId,
     accessToken,
+    userInfo,
   });
-
-  // Use optimistic ticket if available, otherwise use real ticket
-  const displayTicket = optimisticTicket || ticket;
 
   // Ticket actions (claim, assign, advance, comment)
   const { 
@@ -97,6 +101,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     isPerformingAction 
   } = useTicketActions({
     accessToken,
+    userInfo,
     onSuccess: () => {
       setOptimisticTicket(null);
       setIsOptimisticUpdate(false);
@@ -107,7 +112,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
   const currentUserId = userInfo?.employeeDetails?.employeeId;
 
-  // Fetch overall request details
+  // Fetch overall request details - MOVED TO TOP LEVEL TO AVOID HOOKS RULE VIOLATION
   useEffect(() => {
     const fetchOverallRequest = async () => {
       if (!ticket?.requestId) return;
@@ -127,7 +132,59 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     fetchOverallRequest();
   }, [ticket?.requestId, currentUserId]);
 
-  // Handle claim ticket with optimistic update
+  // ✅ ALL HOOKS CALLED - NOW SAFE FOR CONDITIONAL LOGIC AND EARLY RETURNS
+
+  // Use optimistic ticket if available, otherwise use real ticket
+  const displayTicket = optimisticTicket || ticket;
+  
+  // 🔍 DEBUG: Log the ticket data with safety checks
+  try {
+    console.log(`🎯 [TicketDetail] Rendering for ticketId: ${ticketId}`);
+    console.log(`🎯 [TicketDetail] Is loading:`, isLoading);
+    console.log(`🎯 [TicketDetail] Error:`, error);
+    console.log(`🎯 [TicketDetail] Has ticket:`, !!ticket);
+    console.log(`🎯 [TicketDetail] Has optimisticTicket:`, !!optimisticTicket);
+    console.log(`🎯 [TicketDetail] displayTicket:`, displayTicket);
+  } catch (e) {
+    console.error(`🎯 [TicketDetail] Error in debug logging:`, e);
+  }
+
+  // Early return for loading/error/no data states
+  if (isLoading) {
+    return (
+      <div className="gba:p-6 gba:text-center">
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-500 gba:mx-auto"></div>
+        <Text className="gba:mt-2">Loading ticket details...</Text>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert
+        message="Error Loading Ticket"
+        description={error}
+        type="error"
+        showIcon
+        className="gba:m-6"
+      />
+    );
+  }
+
+  if (!displayTicket) {
+    console.log(`🎯 [TicketDetail] No ticket data for ticketId: ${ticketId}`);
+    return (
+      <div className="gba:p-6 gba:text-center">
+        <AlertCircle className="gba:w-12 gba:h-12 gba:text-gray-400 gba:mx-auto gba:mb-4" />
+        <Title level={4} className="gba:text-gray-600">No Ticket Data</Title>
+        <Text className="gba:text-gray-500">
+          Unable to load details for ticket: {ticketId}
+        </Text>
+      </div>
+    );
+  }
+
+  // Event handlers - AFTER all early returns
   const handleClaim = async () => {
     if (!ticket) return;
     
@@ -135,7 +192,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     setOptimisticTicket({
       ...ticket,
       claimedByUserId: currentUserId || 'current-user',
-      status: 'claimed' as TicketStatus
+      status: 'in_progress' as StepStatus
     });
     setIsOptimisticUpdate(true);
     
@@ -151,7 +208,6 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
-  // Handle unclaim ticket
   const handleUnclaim = async () => {
     if (!ticket) return;
     
@@ -159,7 +215,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     setOptimisticTicket({
       ...ticket,
       claimedByUserId: undefined,
-      status: 'queued' as TicketStatus
+      status: 'ready' as StepStatus
     });
     setIsOptimisticUpdate(true);
     
@@ -176,7 +232,6 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
-  // Handle assign ticket
   const handleAssign = async () => {
     if (!ticket || !assigneeId) return;
     
@@ -184,7 +239,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     setOptimisticTicket({
       ...ticket,
       assignedToUserId: assigneeId,
-      status: 'in_progress' as TicketStatus
+      status: 'in_progress' as StepStatus
     });
     setIsOptimisticUpdate(true);
     
@@ -201,15 +256,14 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
-  // Handle advance ticket
   const handleAdvance = async () => {
     if (!ticket) return;
     
     // Optimistic update
     setOptimisticTicket({
       ...ticket,
-      status: 'done' as TicketStatus,
-      completedAt: new Date().toISOString()
+      status: 'done' as StepStatus,
+      finishedAt: new Date().toISOString()
     });
     setIsOptimisticUpdate(true);
     
@@ -225,7 +279,6 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
-  // Handle add comment with optimistic update
   const handleAddComment = async () => {
     if (!ticket || !commentText.trim()) return;
     
@@ -238,7 +291,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
       authorId: currentUserId || 'current-user',
       body: commentText.trim(),
       createdAt: new Date().toISOString(),
-      visibleToDownstream: true
+      visibility: 'current_and_downstream'
     };
     
     setOptimisticTicket({
@@ -261,13 +314,45 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     }
   };
 
+  // Handle task completion with form data
+  const handleCompleteTaskWithForm = async (formData: Record<string, any>) => {
+    if (!ticket) return;
+    
+    setIsCompletingTask(true);
+    
+    // Optimistic update
+    setOptimisticTicket({
+      ...ticket,
+      status: 'done' as StepStatus,
+      finishedAt: new Date().toISOString(),
+      formData: formData // Store the submitted form data
+    } as any);
+    setIsOptimisticUpdate(true);
+    
+    message.loading(getTranslationFromI18nKeyAndLabel('services.ticket.completing', 'Completing task with form data...'), 1);
+    
+    try {
+      // TODO: Update workflow engine to support form data in task completion
+      await advanceTicket(ticket.id, formData);
+      message.success(getTranslationFromI18nKeyAndLabel('services.ticket.completed.success', 'Task completed successfully'));
+      onTicketUpdate?.();
+    } catch (err) {
+      setOptimisticTicket(null);
+      setIsOptimisticUpdate(false);
+      message.error(getTranslationFromI18nKeyAndLabel('services.ticket.completed.error', 'Failed to complete task'));
+      console.error('Task completion error:', err);
+    } finally {
+      setIsCompletingTask(false);
+    }
+  };
+
   // Get status color
-  const getStatusColor = (status: TicketStatus): string => {
+  const getStatusColor = (status: StepStatus): string => {
     switch (status) {
-      case 'queued': return 'blue';
-      case 'claimed': return 'orange';
+      case 'ready': return 'blue';
+      case 'pending': return 'orange';
       case 'in_progress': return 'processing';
-      case 'waiting': return 'yellow';
+      case 'blocked': return 'yellow';
       case 'done': return 'green';
       case 'canceled': return 'red';
       default: return 'default';
@@ -277,56 +362,29 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   // Calculate SLA info
   const slaInfo = displayTicket ? calculateSLADue(displayTicket) : { dueDate: null, status: 'ok' as const, hoursLeft: 0 };
 
-  // Loading state
-  if (isLoading) {
+  // Safety checks for displayTicket before accessing properties
+  const canClaim = displayTicket?.status === 'ready' && !displayTicket?.claimedByUserId;
+  const canUnclaim = displayTicket?.claimedByUserId === currentUserId;
+  const canAssign = displayTicket?.status === 'ready' || displayTicket?.status === 'in_progress';
+  const canAdvance = displayTicket?.status === 'in_progress';
+  const isAssignedToUser = displayTicket?.assignedToUserId === currentUserId || 
+                          displayTicket?.claimedByUserId === currentUserId;
+
+  // Wrap render in try-catch to prevent React crashes
+  try {
     return (
-      <div data-testid="ticket-detail-loading" className="gba:p-4">
-        <Card loading={true} />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error || !displayTicket) {
-    return (
-      <div data-testid="ticket-detail-error" className="gba:p-4">
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel(
-            'services.ticket.error.title',
-            'Error Loading Ticket'
-          )}
-          description={getTranslationFromI18nKeyAndLabel(
-            'services.ticket.error.description',
-            'Failed to load ticket details. Please try again.'
-          )}
-          type="error"
-          showIcon
-        />
-      </div>
-    );
-  }
-
-  const canClaim = displayTicket.status === 'queued' && !displayTicket.claimedByUserId;
-  const canUnclaim = displayTicket.claimedByUserId === currentUserId;
-  const canAssign = displayTicket.status === 'queued' || displayTicket.status === 'claimed';
-  const canAdvance = displayTicket.status === 'in_progress' || 
-                    (displayTicket.status === 'claimed' && displayTicket.claimedByUserId === currentUserId);
-  const isAssignedToUser = displayTicket.assignedToUserId === currentUserId || 
-                          displayTicket.claimedByUserId === currentUserId;
-
-  return (
-    <Row gutter={24} className="gba:h-full">
-      {/* Main Content */}
-      <Col span={16} className="gba:space-y-6">
-        <div data-testid={`ticket-detail-${ticketId}`}>
-          {/* Enhanced Header */}
-          <Card className="gba:mb-6">
-            <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
-              <div className="gba:flex-1">
-                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
-                  <Title level={3} className="gba:mb-0">
-                    {displayTicket.name}
-                  </Title>
+      <Row gutter={24} className="gba:h-full">
+        {/* Main Content */}
+        <Col span={16} className="gba:space-y-6">
+          <div data-testid={`ticket-detail-${ticketId}`}>
+            {/* Enhanced Header */}
+            <Card className="gba:mb-6">
+              <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+                <div className="gba:flex-1">
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
+                    <Title level={3} className="gba:mb-0">
+                      {displayTicket?.name || 'Loading...'}
+                    </Title>
                   {isOptimisticUpdate && (
                     <Badge 
                       status="processing" 
@@ -337,12 +395,12 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 
                 <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
                   <Text code className="gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('services.ticket.id', 'ID')}: {displayTicket.id}
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.id', 'ID')}: {displayTicket?.id || 'N/A'}
                   </Text>
-                  <Tag color={getStatusColor(displayTicket.status)} className="gba:text-sm">
+                  <Tag color={getStatusColor(displayTicket?.status || 'pending')} className="gba:text-sm">
                     {getTranslationFromI18nKeyAndLabel(
-                      `services.status.${displayTicket.status}`,
-                      displayTicket.status.replace('_', ' ').toUpperCase()
+                      `services.status.${displayTicket?.status || 'pending'}`,
+                      (displayTicket?.status || 'pending').replace('_', ' ').toUpperCase()
                     )}
                   </Tag>
                   <div className="gba:flex gba:items-center gba:gap-1">
@@ -350,6 +408,25 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                     <Text className="gba:text-sm">{deskKey}</Text>
                   </div>
                 </div>
+
+                {/* Task Message */}
+                {(displayTicket as any)?.message && (
+                  <div className="gba:mb-4">
+                    <Paragraph className="gba:text-gray-700 gba:bg-blue-50 gba:p-3 gba:rounded gba:mb-0">
+                      {(displayTicket as any).message}
+                    </Paragraph>
+                  </div>
+                )}
+
+                {/* Requester Information */}
+                {(displayTicket as any)?.requester && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <User className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                    <Text>
+                      <strong>Requested by:</strong> {(displayTicket as any).requester}
+                    </Text>
+                  </div>
+                )}
 
                 {/* SLA Due Information */}
                 {slaInfo.dueDate && (
@@ -376,20 +453,20 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
                 {/* Assignment Info */}
                 <div className="gba:mb-4">
-                  {displayTicket.assignedToUserId ? (
+                  {displayTicket?.assignedToUserId ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <User className="gba:w-4 gba:h-4 gba:text-blue-500" />
                       <Text>
                         {getTranslationFromI18nKeyAndLabel('services.ticket.assignedTo', 'Assigned to')}: {' '}
-                        <strong>{displayTicket.assignedToUserId}</strong>
+                        <strong>{displayTicket?.assignedToUserId}</strong>
                       </Text>
                     </div>
-                  ) : displayTicket.claimedByUserId ? (
+                  ) : displayTicket?.claimedByUserId ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <User className="gba:w-4 gba:h-4 gba:text-orange-500" />
                       <Text>
                         {getTranslationFromI18nKeyAndLabel('services.ticket.claimedBy', 'Claimed by')}: {' '}
-                        <strong>{displayTicket.claimedByUserId}</strong>
+                        <strong>{displayTicket?.claimedByUserId}</strong>
                       </Text>
                     </div>
                   ) : (
@@ -467,8 +544,8 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                   </Space.Compact>
                 )}
                 
-                {/* Advance/Complete Action */}
-                {canAdvance && (
+                {/* Advance/Complete Action - Only show if no form or not assigned to user */}
+                {canAdvance && (!(displayTicket as any)?.form?.length || !isAssignedToUser) && (
                   <Button
                     type="primary"
                     icon={<FastForward className="gba:w-4 gba:h-4" />}
@@ -483,6 +560,79 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
             </div>
           </Card>
 
+          {/* Interactive Task Form */}
+          {(displayTicket as any)?.form && (displayTicket as any).form.length > 0 && isAssignedToUser && (
+            <TaskForm
+              fields={(displayTicket as any).form as TaskFormField[]}
+              onSubmit={handleCompleteTaskWithForm}
+              isSubmitting={isCompletingTask}
+              showCompleteButton={displayTicket?.status === 'in_progress'}
+              showSaveButton={true}
+              ticketId={displayTicket?.id}
+            />
+          )}
+          
+          {/* Read-only Form Display for non-assigned users */}
+          {(displayTicket as any)?.form && (displayTicket as any).form.length > 0 && !isAssignedToUser && (
+            <Card title={getTranslationFromI18nKeyAndLabel('services.ticket.form.readonly_title', 'Required Information (Read-only)')}>
+              <Alert
+                message={getTranslationFromI18nKeyAndLabel('services.ticket.form.readonly_info', 'Form Information')}
+                description={getTranslationFromI18nKeyAndLabel('services.ticket.form.readonly_desc', 'You must claim this task to fill out the required information.')}
+                type="info"
+                showIcon
+                className="gba:mb-4"
+              />
+              <div className="gba:space-y-3">
+                {(displayTicket as any).form.map((field: any, index: number) => (
+                  <div key={index} className="gba:border gba:border-gray-200 gba:rounded gba:p-3 gba:bg-gray-50">
+                    <div className="gba:flex gba:justify-between gba:items-start">
+                      <div>
+                        <Text strong className="gba:text-sm">{field.label}</Text>
+                        {field.required && <Text type="danger" className="gba:ml-1">*</Text>}
+                      </div>
+                      <Tag color="blue" className="gba:text-xs">{field.type}</Tag>
+                    </div>
+                    {field.options && (
+                      <div className="gba:mt-2">
+                        <Text type="secondary" className="gba:text-xs">
+                          Options: {field.options.map((opt: any) => opt.label).join(', ')}
+                        </Text>
+                      </div>
+                    )}
+                    {field.description && (
+                      <div className="gba:mt-1">
+                        <Text type="secondary" className="gba:text-xs">
+                          {field.description}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Related Documents */}
+          {(displayTicket as any)?.links && (displayTicket as any).links.length > 0 && (
+            <Card title={getTranslationFromI18nKeyAndLabel('services.ticket.links.title', 'Related Documents')}>
+              <div className="gba:space-y-2">
+                {(displayTicket as any).links.map((link: any, index: number) => (
+                  <div key={index}>
+                    <Button 
+                      type="link" 
+                      href={link.url} 
+                      target="_blank"
+                      className="gba:p-0 gba:h-auto"
+                    >
+                      {link.name}
+                    </Button>
+                    <Text type="secondary" className="gba:ml-2 gba:text-xs">({link.type})</Text>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Enhanced Comments Section */}
           <Card 
             title={
@@ -490,7 +640,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <MessageSquare className="gba:w-4 gba:h-4" />
                   {getTranslationFromI18nKeyAndLabel('services.ticket.comments.title', 'Comments')}
-                  <Badge count={displayTicket.comments.length} showZero style={{ backgroundColor: '#1890ff' }} />
+                  <Badge count={displayTicket?.comments?.length || 0} showZero style={{ backgroundColor: '#1890ff' }} />
                 </div>
                 {/* Markdown Mode Toggle */}
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -567,9 +717,9 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
             <Divider />
 
             {/* Comments Timeline */}
-            {displayTicket.comments.length > 0 ? (
+            {(displayTicket?.comments?.length || 0) > 0 ? (
               <Timeline className="gba:mt-4">
-                {displayTicket.comments.map((comment: Comment) => (
+                {(displayTicket?.comments || []).map((comment: Comment) => (
                   <Timeline.Item 
                     key={comment.id} 
                     data-testid={`comment-${comment.id}`}
@@ -598,7 +748,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Eye className="gba:w-3 gba:h-3 gba:text-green-500" />
-                        <Tag size="small" color="green" className="gba:text-xs">
+                        <Tag color="green" className="gba:text-xs">
                           {getTranslationFromI18nKeyAndLabel(
                             'services.ticket.comments.visibility',
                             'Visible downstream'
@@ -640,15 +790,15 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
             <div className="gba:space-y-4">
               {/* Request Info */}
               <div>
-                <Text strong className="gba:block gba:mb-2">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.request', 'Request')}: {overallRequest.requestKey}
-                </Text>
-                <Text type="secondary" className="gba:text-sm">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.submitted', 'Submitted by')}: {overallRequest.submittedByUserId}
-                </Text>
-                <Text type="secondary" className="gba:block gba:text-sm">
-                  {getTranslationFromI18nKeyAndLabel('services.ticket.overall.date', 'Date')}: {new Date(overallRequest.submittedAt).toLocaleString()}
-                </Text>
+                                        <Text strong className="gba:block gba:mb-2">
+                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.request', 'Request')}: {overallRequest.id}
+                        </Text>
+                        <Text type="secondary" className="gba:text-sm">
+                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.submitted', 'Submitted by')}: {overallRequest.requesterId}
+                        </Text>
+                        <Text type="secondary" className="gba:block gba:text-sm">
+                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.date', 'Date')}: {new Date(overallRequest.createdAt).toLocaleString()}
+                        </Text>
               </div>
 
               <Divider />
@@ -662,12 +812,12 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 <Steps
                   direction="vertical"
                   size="small"
-                  current={overallRequest.steps.findIndex(step => step.id === displayTicket.id)}
+                  current={overallRequest.steps.findIndex(step => step.id === displayTicket?.id)}
                 >
-                  {overallRequest.steps.map((step, index) => {
-                    const isCurrentStep = step.id === displayTicket.id;
+                  {overallRequest.steps.map((step) => {
+                    const isCurrentStep = step.id === displayTicket?.id;
                     const stepStatus = step.status === 'done' ? 'finish' : 
-                                     step.status === 'in_progress' || step.status === 'claimed' ? 'process' :
+                                     step.status === 'in_progress' ? 'process' :
                                      step.status === 'canceled' ? 'error' : 'wait';
                     
                     return (
@@ -686,7 +836,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                         description={
                           <div className="gba:space-y-1">
                             <div className="gba:flex gba:items-center gba:gap-2">
-                              <Tag size="small" color={getStatusColor(step.status as TicketStatus)}>
+                              <Tag color={getStatusColor(step.status)}>
                                 {step.status.toUpperCase()}
                               </Tag>
                               {step.desk && (
@@ -707,11 +857,11 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                                 </div>
                               )}
                               
-                              {step.completedAt && (
+                              {step.finishedAt && (
                                 <div className="gba:flex gba:items-center gba:gap-1">
                                   <CheckCircle className="gba:w-3 gba:h-3 gba:text-green-500" />
                                   <Text className="gba:text-xs gba:text-gray-500">
-                                    Completed: {new Date(step.completedAt).toLocaleString()}
+                                    Completed: {new Date(step.finishedAt).toLocaleString()}
                                   </Text>
                                 </div>
                               )}
@@ -748,5 +898,27 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
         </Card>
       </Col>
     </Row>
-  );
+    );
+  } catch (renderError) {
+    console.error(`🎯 [TicketDetail] Render error for ticketId ${ticketId}:`, renderError);
+    console.error(`🎯 [TicketDetail] displayTicket:`, displayTicket);
+    console.error(`🎯 [TicketDetail] ticket:`, ticket);
+    
+    return (
+      <div className="gba:p-6">
+        <Alert
+          message="Component Error"
+          description={`Failed to render ticket details: ${renderError instanceof Error ? renderError.message : 'Unknown error'}`}
+          type="error"
+          showIcon
+        />
+        <div className="gba:mt-4 gba:text-xs gba:bg-gray-100 gba:p-2 gba:rounded">
+          <div>Ticket ID: {ticketId}</div>
+          <div>Has ticket: {!!ticket ? 'Yes' : 'No'}</div>
+          <div>Is loading: {isLoading ? 'Yes' : 'No'}</div>
+          <div>Error: {error || 'None'}</div>
+        </div>
+      </div>
+    );
+  }
 };

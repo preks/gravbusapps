@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { StepReceiver } from 'packages/services-plus-core';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 import { getWorkflowEngine, mockDataHelpers } from '../../../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../../../services';
 import { useDesksForUser } from '../../../hooks/useDesksForUser';
 
 // Helper function to get display names for desks
@@ -113,8 +114,12 @@ export const useUserCapabilities = ({
           employeeId 
         });
 
-        // Get WorkflowEngine instance and seed with sample data if needed
-        const workflowEngine = getWorkflowEngine(employeeId);
+        // Get WorkflowEngine instance - use real engine if authenticated, otherwise mock for development
+        const workflowEngine = accessToken && userInfo
+          ? createConductorWorkflowEngine({ accessToken, userInfo })
+          : getWorkflowEngine(employeeId);
+
+        console.log(`useUserCapabilities: Using ${workflowEngine.constructor.name} for capability checking`);
         
         // Seed sample data for development (only if no requests exist)
         try {

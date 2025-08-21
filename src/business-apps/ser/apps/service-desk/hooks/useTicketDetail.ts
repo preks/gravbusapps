@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { StepInstance } from 'packages/services-plus-core';
 import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../../../services';
 
 export interface UseTicketDetailProps {
   ticketId: string;
   accessToken: string;
+  userInfo?: any;
 }
 
 export interface UseTicketDetailReturn {
@@ -21,6 +23,7 @@ export interface UseTicketDetailReturn {
 export const useTicketDetail = ({
   ticketId,
   accessToken,
+  userInfo,
 }: UseTicketDetailProps): UseTicketDetailReturn => {
   const [ticket, setTicket] = useState<StepInstance | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -31,31 +34,29 @@ export const useTicketDetail = ({
       setIsLoading(true);
       setError(null);
 
-      // Get WorkflowEngine instance (MockWorkflowEngineAdapter for now)
-      const workflowEngine = getWorkflowEngine();
-      
-      // Find the ticket by searching all desk tickets
-      // In a real implementation, there would be a direct getStep method
-      let foundTicket: StepInstance | null = null;
-      
-      // Search across all desk types to find the ticket
-      const deskTypes = ['HR', 'IT', 'Facilities', 'Finance', 'Procurement', 'Legal', 
-                        'Security', 'AccessIdentity', 'Workplace', 'Fleet', 'Data', 'L&D', 'Admin'] as const;
-      
-      for (const desk of deskTypes) {
-        const tickets = await workflowEngine.getDeskTickets(desk);
-        const ticket = tickets.find(t => t.id === ticketId);
-        if (ticket) {
-          foundTicket = ticket;
-          break;
-        }
-      }
+      console.log(`[useTicketDetail] Fetching details for ticket: ${ticketId}`, {
+        hasAccessToken: !!accessToken,
+        hasUserInfo: !!userInfo,
+      });
 
-      if (!foundTicket) {
+      // Use real workflow engine if authenticated, otherwise fall back to mock for development
+      const workflowEngine = accessToken && userInfo
+        ? createConductorWorkflowEngine({ accessToken, userInfo })
+        : getWorkflowEngine();
+
+      console.log(`🎯 [useTicketDetail] *** CALLING getTicketDetail for: ${ticketId} ***`);
+      console.log(`🎯 [useTicketDetail] Using ${workflowEngine.constructor.name} for ticket details`);
+      
+      // Get ticket details directly using the dedicated endpoint
+      console.log(`🎯 [useTicketDetail] About to call workflowEngine.getTicketDetail(${ticketId})`);
+      const ticketDetail = await workflowEngine.getTicketDetail(ticketId);
+      console.log(`🎯 [useTicketDetail] Got ticket detail:`, ticketDetail);
+      
+      if (!ticketDetail) {
         throw new Error(`Ticket not found: ${ticketId}`);
       }
 
-      setTicket(foundTicket);
+      setTicket(ticketDetail);
     } catch (err) {
       console.error('Error fetching ticket detail:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch ticket details');

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests } from './components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { WorkflowEngine, ServiceRequestTemplate } from '../../types';
-import { mockWorkflowEngine } from '../../services';
+import { mockWorkflowEngine, createConductorWorkflowEngine } from '../../services';
 import { useServicesFeatureFlag } from '../../utils/featureFlags';
 
 export interface ServicePortalProps extends BusinessAppContextProps {
@@ -26,11 +26,14 @@ interface ServicePortalState {
 }
 
 export const ServicePortal: React.FC<ServicePortalProps> = ({
-  workflowEngine = mockWorkflowEngine, // Use mock by default for development
+  workflowEngine, // Will be initialized below
   initialView = 'catalog',
   onServiceDeskNavigation,
   ...contextProps
 }) => {
+  // Initialize workflow engine - prefer passed engine, fallback to real Conductor engine, then mock for development
+  const activeWorkflowEngine: WorkflowEngine = workflowEngine || 
+    (contextProps.accessToken ? createConductorWorkflowEngine(contextProps) : mockWorkflowEngine);
   const { isEnabled, checkAndRedirect } = useServicesFeatureFlag();
   const [state, setState] = useState<ServicePortalState>({
     currentView: initialView
@@ -103,7 +106,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
         return (
           <RequestForm
             template={state.selectedTemplate!}
-            workflowEngine={workflowEngine}
+            workflowEngine={activeWorkflowEngine}
             onSuccess={navigateToMyRequests}
             onCancel={() => navigateToCategory(state.selectedCategoryId!)}
             {...contextProps}
@@ -113,7 +116,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
       case 'myRequests':
         return (
           <MyRequests
-            workflowEngine={workflowEngine}
+            workflowEngine={activeWorkflowEngine}
             onBack={navigateToCatalog}
             {...contextProps}
           />

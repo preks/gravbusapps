@@ -83,6 +83,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   const { tickets, isLoading, error, refetch } = useDeskTickets({
     deskKey,
     accessToken,
+    userInfo,
   });
 
   // Update drawer state when ticketId prop changes

@@ -64,6 +64,26 @@ export type StepInstance = {
   finishedAt?: string;
   comments: Comment[];
   requestId: string; // backlink
+  
+  // Additional rich data fields for detailed display
+  description?: string;
+  expectedStartAt?: string;
+  expectedFinishAt?: string;
+  dueDate?: string;
+  inputs?: Array<{
+    name: string;
+    type: string;
+    label: string;
+    required: boolean;
+    options?: Array<{label: string; value: string}>;
+  }>;
+  links?: Array<{
+    url: string;
+    name: string;
+    type: string;
+  }>;
+  assignmentMode?: string;
+  allowReassignment?: boolean;
 };
 
 export type SubmittedRequest = {
@@ -78,6 +98,18 @@ export type SubmittedRequest = {
   formData: any;
   steps: StepInstance[];
   timeline: Array<{ at: string; message: string }>;
+  
+  // Additional progress fields for rich display
+  progress?: {
+    currentStep: number;
+    totalSteps: number;
+    completedSteps: number;
+    percentage: number;
+  };
+  currentStep?: number;
+  totalSteps?: number;
+  completedSteps?: number;
+  progressPercentage?: number;
 };
 
 /**

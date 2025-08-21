@@ -1,8 +1,8 @@
 import React from "react";
+import { Card, Badge } from "@newwork/nw-design-system";
+import { TrendingUp, Calendar, CheckCircle } from "lucide-react";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-
 import type { AbsenceListCardAbsence } from "../types/absenceTypes";
-import { Card } from "@newwork/nw-design-system";
 
 interface KeyInsightsSectionProps {
   absences: AbsenceListCardAbsence[];
@@ -37,106 +37,112 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   ).length;
   const approvalRate = total ? Math.round((approved / total) * 100) : 0;
 
+  const getApprovalBadge = () => {
+    if (approvalRate >= 95) return <Badge variant="default" className="gba:text-xs">Excellent</Badge>;
+    if (approvalRate >= 85) return <Badge variant="secondary" className="gba:text-xs">Good</Badge>;
+    if (approvalRate >= 70) return <Badge variant="secondary" className="gba:text-xs">Fair</Badge>;
+    return <Badge variant="destructive" className="gba:text-xs">Needs Improvement</Badge>;
+  };
+
   return (
     <div
-      className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4"
+      className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6"
       data-testid="key-insights-section"
     >
       {/* Planned Absences Card */}
       <Card
-        className="gba:h-full gba:shadow-sm gba:p-6"
+        className="gba:p-6 gba:space-y-4 gba:hover:shadow-md gba:transition-shadow"
         data-testid="key-insights-section-planned-absences"
       >
-        <div className="gba:flex gba:items-center">
-          <span
-            className="gba:text-sm gba:text-gray-500 gba:font-medium"
-            data-testid="planned-absences-title"
-          >
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:bg-opacity-10 gba:flex gba:items-center gba:justify-center">
+              <Calendar className="gba:w-4 gba:h-4 gba:text-primary" />
+            </div>
+            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground" data-testid="planned-absences-title">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.planned_absences",
+                "Planned Absences"
+              )}
+            </span>
+          </div>
+          {plannedPct >= 80 && <Badge variant="default" className="gba:text-xs">Well Planned</Badge>}
+        </div>
+        <div className="gba:text-center">
+          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="planned-absences-value">
+            {plannedPct}%
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="planned-absences-sub">
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.planned_absences",
-              "Planned Absences"
+              "lowcoder:absence_hub.vs_unplanned",
+              `vs ${unplannedPct}% unplanned`,
+              { unplannedPct }
             )}
-          </span>
-        </div>
-        <div
-          className="gba:text-3xl gba:font-bold gba:text-gray-900"
-          data-testid="planned-absences-value"
-        >
-          {plannedPct}%
-        </div>
-        <div
-          className="gba:text-xs gba:text-gray-500"
-          data-testid="planned-absences-sub"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.vs_unplanned",
-            `vs ${unplannedPct}% unplanned (sick leave)`,
-            { unplannedPct }
-          )}
+          </div>
         </div>
       </Card>
+      
       {/* Avg Days Card */}
       <Card
-        className="gba:h-full gba:shadow-sm gba:p-6"
+        className="gba:p-6 gba:space-y-4 gba:hover:shadow-md gba:transition-shadow"
         data-testid="key-insights-section-avg-days-per-request"
       >
-        <div className="gba:flex gba:items-center">
-          <span
-            className="gba:text-sm gba:text-gray-500 gba:font-medium"
-            data-testid="avg-days-title"
-          >
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-success gba:bg-opacity-10 gba:flex gba:items-center gba:justify-center">
+              <TrendingUp className="gba:w-4 gba:h-4 gba:text-success" />
+            </div>
+            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground" data-testid="avg-days-title">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.avg_days_per_request",
+                "Avg Days per Request"
+              )}
+            </span>
+          </div>
+          {parseFloat(avg) <= 5 && <Badge variant="default" className="gba:text-xs">Efficient</Badge>}
+        </div>
+        <div className="gba:text-center">
+          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="avg-days-value">
+            {avg}
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="avg-days-sub">
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.avg_days_per_request",
-              "Avg Days per Request"
+              "lowcoder:absence_hub.efficient_leave_planning",
+              "Days per request"
             )}
-          </span>
-        </div>
-        <div
-          className="gba:text-3xl gba:font-bold gba:text-gray-900"
-          data-testid="avg-days-value"
-        >
-          {avg}
-        </div>
-        <div
-          className="gba:text-xs gba:text-gray-500"
-          data-testid="avg-days-sub"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.efficient_leave_planning",
-            "Efficient leave planning"
-          )}
+          </div>
         </div>
       </Card>
+      
       {/* Approval Rate Card */}
       <Card
-        className="gba:h-full gba:shadow-sm gba:p-6"
+        className="gba:p-6 gba:space-y-4 gba:hover:shadow-md gba:transition-shadow"
         data-testid="key-insights-section-approval-rate"
       >
-        <div className="gba:flex gba:items-center">
-          <span
-            className="gba:text-sm gba:text-gray-500 gba:font-medium"
-            data-testid="approval-rate-title"
-          >
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-success gba:bg-opacity-10 gba:flex gba:items-center gba:justify-center">
+              <CheckCircle className="gba:w-4 gba:h-4 gba:text-success" />
+            </div>
+            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground" data-testid="approval-rate-title">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.approval_rate",
+                "Approval Rate"
+              )}
+            </span>
+          </div>
+          {getApprovalBadge()}
+        </div>
+        <div className="gba:text-center">
+          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="approval-rate-value">
+            {approvalRate}%
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="approval-rate-sub">
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.approval_rate",
-              "Approval Rate"
+              "lowcoder:absence_hub.approval_success_rate",
+              "Approval success rate"
             )}
-          </span>
-        </div>
-        <div
-          className="gba:text-3xl gba:font-bold gba:text-gray-900"
-          data-testid="approval-rate-value"
-        >
-          {approvalRate}%
-        </div>
-        <div
-          className="gba:text-xs gba:text-gray-500"
-          data-testid="approval-rate-sub"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.excellent_planning_and_timing",
-            "Excellent planning & timing"
-          )}
+          </div>
         </div>
       </Card>
     </div>

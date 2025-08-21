@@ -1,4 +1,6 @@
 import React from "react";
+import { Card, Badge } from "@newwork/nw-design-system";
+import { BarChart3, Calendar } from "lucide-react";
 import dayjs from "dayjs";
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { filterAbsencesForEntitlements } from '../utils/absenceFilters';
@@ -64,92 +66,99 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
   const mostCommonPct = total > 0 ? Math.round((maxDay / total) * 100) : 0;
 
   return (
-    <section
-      className="gba:statisticsTrends"
-      aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.usage_trends_patterns', 'Usage Trends & Patterns')}
-      data-testid="usage-trends-section"
-    >
-      <h3 className="gba:statisticsSectionTitle" data-testid="usage-trends-section-title">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.usage_trends_patterns', 'Usage Trends & Patterns')}
-      </h3>
-      <div className="gba:statisticsSubTitle" data-testid="usage-trends-section-subtitle">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.your_absence_patterns_over_time', 'Your absence patterns over time')}
-      </div>
-      <div className="gba:statisticsSubSection" data-testid="usage-trends-section-subsection">
-        <div className="gba:statisticsSubSectionTitle" data-testid="usage-trends-section-subsection-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', 'Monthly Usage', { currentYear })}
+    <div className="gba:space-y-6" data-testid="usage-trends-section">
+      {/* Header */}
+      <div className="gba:flex gba:items-center gba:gap-3">
+        <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:bg-opacity-10 gba:flex gba:items-center gba:justify-center">
+          <BarChart3 className="gba:w-4 gba:h-4 gba:text-primary" />
         </div>
-        <div className="gba:statisticsMonthlyBarChart" data-testid="usage-trends-section-subsection-bar-chart">
+        <div>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground" data-testid="usage-trends-section-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.usage_trends_patterns', 'Usage Trends & Patterns')}
+          </h3>
+          <p className="gba:text-sm gba:text-muted-foreground" data-testid="usage-trends-section-subtitle">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.your_absence_patterns_over_time', 'Your absence patterns over time')}
+          </p>
+        </div>
+      </div>
+      {/* Monthly Usage */}
+      <div className="gba:space-y-4">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <h4 className="gba:font-medium gba:text-foreground" data-testid="usage-trends-section-subsection-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', `Monthly Usage (${currentYear})`, { currentYear })}
+          </h4>
+          <Badge variant="outline" className="gba:text-xs">
+            {monthlyUsage.reduce((sum, val) => sum + val, 0)} total
+          </Badge>
+        </div>
+        <div className="gba:grid gba:grid-cols-6 md:gba:grid-cols-12 gba:gap-2" data-testid="usage-trends-section-subsection-bar-chart">
           {monthlyUsage.map((val, i) => (
-            <div className="gba:monthlyBarCol" key={months[i]}>
+            <div className="gba:text-center gba:space-y-2" key={months[i]}>
               <div
-                className="gba:monthlyBarBg"
-                style={{
-                  height: 64,
-                  display: "flex",
-                  alignItems: "flex-end",
-                  background: "#f3f4f6",
-                  borderRadius: 6,
-                  width: "100%",
-                }}
+                className="gba:relative gba:h-16 gba:bg-muted gba:rounded-md gba:flex gba:items-end gba:justify-center gba:overflow-hidden"
+                data-testid={`month-bar-${months[i]}`}
               >
                 <div
+                  className="gba:w-full gba:bg-primary gba:transition-all gba:duration-300 gba:rounded-b-md"
                   style={{
-                    width: "100%",
-                    height: `${val > 0 ? val * 10 + 8 : 4}px`,
-                    background: "#3390ff",
-                    borderRadius: 6,
-                    transition: "height 0.18s",
+                    height: `${val > 0 ? Math.max((val / Math.max(...monthlyUsage, 1)) * 100, 8) : 4}%`,
                   }}
-                  aria-label={`month-bar-${months[i]}`}
-                  data-testid={`month-bar-${months[i]}`}
                 />
               </div>
-              <div className="gba:monthlyBarMonth" data-testid="usage-trends-section-subsection-bar-chart-month">{months[i]}</div>
-              <div
-                className="gba:monthlyBarValue" 
-                data-testid={`month-value-${months[i]}`}
-              >
+              <div className="gba:text-xs gba:text-muted-foreground" data-testid="usage-trends-section-subsection-bar-chart-month">{months[i]}</div>
+              <div className="gba:text-xs gba:font-medium gba:text-foreground" data-testid={`month-value-${months[i]}`}>
                 {val}
               </div>
             </div>
           ))}
         </div>
-        <div className="gba:statisticsSubSectionTitle" data-testid="usage-trends-section-subsection-week-bar-chart-title">
-          Day of Week Preferences
+      </div>
+
+      {/* Day of Week Preferences */}
+      <div className="gba:space-y-4">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <h4 className="gba:font-medium gba:text-foreground" data-testid="usage-trends-section-subsection-week-bar-chart-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_preferences', 'Day of Week Preferences')}
+          </h4>
+          {maxDay > 0 && (
+            <Badge variant="secondary" className="gba:text-xs">
+              Most: {days[mostCommonIdx]} ({mostCommonPct}%)
+            </Badge>
+          )}
         </div>
-        <div className="gba:statisticsWeekBarChart" data-testid="usage-trends-section-subsection-week-bar-chart">
+        <div className="gba:grid gba:grid-cols-7 gba:gap-2" data-testid="usage-trends-section-subsection-week-bar-chart">
           {dayOfWeekUsage.map((val, i) => (
             <div
-              className={`gba:weekBarCol${
-                i === mostCommonIdx && val > 0
-                  ? " gba:weekBarCol--highlight"
-                  : ""
+              className={`gba:text-center gba:space-y-2 ${
+                i === mostCommonIdx && val > 0 ? "gba:opacity-100" : "gba:opacity-75"
               }`}
               key={days[i]}
-              aria-label={`weekday-bar-${days[i]}`}
               data-testid={`weekday-bar-${days[i]}`}
             >
-              <div className="gba:weekBarBg">
+              <div className="gba:relative gba:h-12 gba:bg-muted gba:rounded-md gba:flex gba:items-end gba:justify-center gba:overflow-hidden">
                 <div
-                  className="gba:weekBarFg"
+                  className={`gba:w-full gba:transition-all gba:duration-300 gba:rounded-b-md ${
+                    i === mostCommonIdx && val > 0 ? "gba:bg-primary" : "gba:bg-secondary"
+                  }`}
                   style={{
-                    height: `${val > 0 ? val * 10 + 6 : 4}px`,
+                    height: `${val > 0 ? Math.max((val / Math.max(...dayOfWeekUsage, 1)) * 100, 8) : 4}%`,
                   }}
                 />
               </div>
-              <div className="gba:weekBarDay" data-testid="usage-trends-section-subsection-week-bar-chart-day">{days[i]}</div>
-              <div className="gba:weekBarValue" data-testid="usage-trends-section-subsection-week-bar-chart-value">{val} {getTranslationFromI18nKeyAndLabel(val === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', val === 1 ? 'day' : 'days')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground" data-testid="usage-trends-section-subsection-week-bar-chart-day">{days[i]}</div>
+              <div className="gba:text-xs gba:font-medium gba:text-foreground" data-testid="usage-trends-section-subsection-week-bar-chart-value">{val}</div>
             </div>
           ))}
         </div>
-        <div className="gba:weekBarNote" data-testid="usage-trends-section-subsection-week-bar-chart-note">
-          Most common:{" "}
-          <span className="gba:font-semibold" data-testid="usage-trends-section-subsection-week-bar-chart-note-most-common">{days[mostCommonIdx]}</span> (
-          {mostCommonPct}% of all absences)
-        </div>
+        {maxDay > 0 && (
+          <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:mt-3" data-testid="usage-trends-section-subsection-week-bar-chart-note">
+            You most commonly take time off on{" "}
+            <span className="gba:font-semibold gba:text-foreground" data-testid="usage-trends-section-subsection-week-bar-chart-note-most-common">{days[mostCommonIdx]}</span>
+            {" "}({mostCommonPct}% of all absences)
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 };
 

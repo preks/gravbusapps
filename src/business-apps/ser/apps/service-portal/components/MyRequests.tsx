@@ -14,6 +14,8 @@ import { formatRequestId } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ClockCounterClockwise, CheckCircle, XCircle, FileText, User, Calendar, CurrencyDollar, Building, Phone, Globe, X } from '@phosphor-icons/react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useRealEmployeeData } from '../hooks/useRealEmployeeData';
+import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
 
 export interface MyRequestsProps extends BusinessAppContextProps {
   workflowEngine: WorkflowEngine;
@@ -22,9 +24,42 @@ export interface MyRequestsProps extends BusinessAppContextProps {
 
 interface RequestTimelineProps {
   request: SubmittedRequest;
+  contextProps: BusinessAppContextProps;
 }
 
-const RequestTimeline: React.FC<RequestTimelineProps> = ({ request }) => {
+const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps }) => {
+  // Load real data for ID resolution
+  const { employees, departments, jobPositions, isLoading: dataLoading } = useRealEmployeeData(contextProps);
+  const { employmentTypes, isLoading: catalogLoading } = useEmploymentTypeCatalog(contextProps);
+  
+  // Get the actual employee ID for the requesting user
+  const requestingEmployeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+  
+  // Debug logging to understand User ID vs Employee ID mapping
+  React.useEffect(() => {
+    if (employees.length > 0) {
+      console.log(`[MyRequests] Employee data loaded: ${employees.length} employees`);
+      console.log(`[MyRequests] User ID (requesterId): ${request.requesterId}`);
+      console.log(`[MyRequests] Employee ID (from context): ${requestingEmployeeId}`);
+      
+      const foundEmployee = findEmployeeById(request.requesterId);
+      if (foundEmployee) {
+        console.log(`[MyRequests] ✅ Found employee: ${foundEmployee.displayName} (matched via ${foundEmployee.employeeId === requestingEmployeeId ? 'Employee ID' : 'direct lookup'})`);
+      } else {
+        console.log(`[MyRequests] ❌ Employee not found. Need to investigate ID mapping.`);
+        
+        // Show what employee IDs we have available
+        if (requestingEmployeeId) {
+          const directEmployeeMatch = employees.find(emp => emp.employeeId === requestingEmployeeId);
+          if (directEmployeeMatch) {
+            console.log(`[MyRequests] ✅ Found employee via Employee ID: ${directEmployeeMatch.displayName}`);
+          } else {
+            console.log(`[MyRequests] ❌ Employee ID ${requestingEmployeeId} also not found`);
+          }
+        }
+      }
+    }
+  }, [employees, request.requesterId, requestingEmployeeId]);
   const getStepIcon = (status: StepStatus) => {
     switch (status) {
       case 'done': return <CheckCircle className="gba:text-green-600" size={20} />;
@@ -77,18 +112,92 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request }) => {
     return FileText;
   };
 
+  // Enhanced employee lookup function that handles both User IDs and Employee IDs
+  const findEmployeeById = (targetId: string) => {
+    if (!targetId || employees.length === 0) return null;
+    
+    // Special case: if this is the requesting user's User ID, use their Employee ID instead
+    if (targetId === request.requesterId && requestingEmployeeId) {
+      const employeeByEmployeeId = employees.find(emp => emp.employeeId === requestingEmployeeId);
+      if (employeeByEmployeeId) return employeeByEmployeeId;
+    }
+    
+    // Check all possible ID fields: EmployeePosition.id, EmployeePosition.employeeId, Employee.id
+    return employees.find(emp => 
+      emp.id === targetId ||                    // EmployeePosition.id
+      emp.employeeId === targetId ||           // EmployeePosition.employeeId  
+      emp.actualEmployeeId === targetId ||     // Employee.id
+      emp.displayName?.toLowerCase().includes(targetId.toLowerCase()) // Fallback name match
+    );
+  };
+
+  // Enhanced field value formatter that resolves IDs to human-readable names
   const formatFieldValue = (key: string, value: any): string => {
     if (value === null || value === undefined) return 'Not provided';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     if (typeof value === 'object') return JSON.stringify(value, null, 2);
-    if (key.toLowerCase().includes('date') && typeof value === 'string') {
+    
+    const keyLower = key.toLowerCase();
+    const valueStr = value.toString();
+    
+    // Show loading state while data is being fetched
+    if (dataLoading || catalogLoading) return `${valueStr} (loading...)`;
+    
+    // Date formatting
+    if (keyLower.includes('date') && typeof value === 'string') {
       try {
         return new Date(value).toLocaleDateString();
       } catch {
-        return value.toString();
+        return valueStr;
       }
     }
-    return value.toString();
+    
+    // Resolve IDs to names using loaded data
+    try {
+      // Department ID resolution
+      if (keyLower.includes('department')) {
+        const department = departments.find(d => d.id === valueStr);
+        if (department) return department.name;
+      }
+      
+      // Position/Job Title ID resolution  
+      if (keyLower.includes('position') || keyLower.includes('job')) {
+        const position = jobPositions.find(p => p.id === valueStr);
+        if (position) return position.name;
+      }
+      
+      // Employee ID resolution (reporting manager, etc.)
+      if (keyLower.includes('manager') || keyLower.includes('supervisor') || keyLower.includes('employee')) {
+        const employee = findEmployeeById(valueStr);
+        if (employee) return employee.displayName;
+      }
+      
+      // Employment Type ID resolution
+      if (keyLower.includes('employment') && keyLower.includes('type')) {
+        const empType = employmentTypes.find(et => et.id === valueStr);
+        if (empType) return empType.name;
+      }
+      
+      // User ID resolution for "submitted by" and other user fields
+      if (keyLower.includes('user') || keyLower.includes('by') || keyLower.includes('created')) {
+        const user = findEmployeeById(valueStr);
+        if (user) return user.displayName;
+        
+        // Fallback: Use context employee details if this is the current user
+        if (valueStr === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
+          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
+          return `${firstName} ${lastName}`;
+        }
+        
+        // Final fallback for unresolved user IDs
+        if (valueStr.length > 30) return valueStr.slice(0, 8) + '... (User name not available)';
+      }
+    } catch (error) {
+      console.warn(`Failed to resolve ID for ${key}:`, error);
+    }
+    
+    // Return original value if no resolution found
+    return valueStr;
   };
 
   const formatFieldLabel = (key: string): string => {
@@ -96,6 +205,61 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request }) => {
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .trim();
+  };
+
+  // Resolve user names in timeline messages
+  const resolveTimelineMessage = (message: string): string => {
+    if (dataLoading) return message; // Don't resolve while loading
+    
+    try {
+      // Replace generic "User" with actual user names based on context
+      let resolvedMessage = message;
+      
+      // Pattern: "Request [Title] submitted by User"
+      if (message.includes('submitted by User')) {
+        const submittedBy = findEmployeeById(request.requesterId);
+        if (submittedBy) {
+          resolvedMessage = message.replace('User', submittedBy.displayName);
+        } else if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
+          // Use context employee details if available
+          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
+          resolvedMessage = message.replace('User', `${firstName} ${lastName}`);
+        } else {
+          // Fallback for unresolved users
+          resolvedMessage = message.replace('User', 'User');
+        }
+      }
+      
+      // Pattern: "User started the request"
+      if (message.includes('User') && message.includes('started')) {
+        const initiator = findEmployeeById(request.requesterId);
+        if (initiator) {
+          resolvedMessage = message.replace('User', initiator.displayName);
+        } else if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
+          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
+          resolvedMessage = message.replace('User', `${firstName} ${lastName}`);
+        } else {
+          resolvedMessage = message.replace('User', 'User');
+        }
+      }
+      
+      // Pattern: "User completed step X"
+      if (message.includes('User') && message.includes('completed')) {
+        // Try to find user from step assignees
+        const completedStep = request.steps.find(s => s.status === 'done');
+        if (completedStep?.assignedToUserId) {
+          const assignee = findEmployeeById(completedStep.assignedToUserId);
+          if (assignee) {
+            resolvedMessage = message.replace('User', assignee.displayName);
+          }
+        }
+      }
+      
+      return resolvedMessage;
+    } catch (error) {
+      console.warn('Failed to resolve timeline message:', error);
+      return message;
+    }
   };
 
   return (
@@ -192,7 +356,20 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request }) => {
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-xs gba:text-muted-foreground">
               <div className="gba:flex gba:flex-col">
                 <span className="gba:font-medium gba:text-gray-700">Submitted By</span>
-                <span>{request.requesterId}</span>
+                <span>{(() => {
+                  if (dataLoading) return `Loading user...`;
+                  const submitter = findEmployeeById(request.requesterId);
+                  if (submitter) return submitter.displayName;
+                  
+                  // Fallback: Use employee details from context if available
+                  if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
+                    const { firstName, lastName } = contextProps.userInfo.employeeDetails;
+                    return `${firstName} ${lastName}`;
+                  }
+                  
+                  // Final fallback for unresolved users
+                  return `${request.requesterId.slice(0, 8)}... (User name not available)`;
+                })()}</span>
               </div>
               <div className="gba:flex gba:flex-col">
                 <span className="gba:font-medium gba:text-gray-700">Template Version</span>
@@ -320,7 +497,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request }) => {
                 key={index}
                 className="gba:flex gba:justify-between gba:items-start gba:p-3 gba:bg-muted/30 gba:rounded-md gba:text-sm gba:border-l-4 gba:border-blue-400"
               >
-                <span className="gba:text-foreground">{event.message}</span>
+                <span className="gba:text-foreground">{resolveTimelineMessage(event.message)}</span>
                 <span className="gba:text-muted-foreground gba:text-xs gba:whitespace-nowrap gba:ml-4 gba:font-mono">
                   {new Date(event.at).toLocaleString()}
                 </span>
@@ -348,7 +525,8 @@ const getStatusBadgeProps = (status: string) => {
 
 export const MyRequests: React.FC<MyRequestsProps> = ({
   workflowEngine,
-  onBack
+  onBack,
+  ...contextProps
 }) => {
   const [requests, setRequests] = useState<SubmittedRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<SubmittedRequest | null>(null);
@@ -521,12 +699,12 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         </div>
         
         <PageLayout
-          headerPhosphorIcon={{
-            icon: XCircle,
-            variant: "strategy",
-            size: "lg",
-            label: "Error"
-          }}
+                  headerPhosphorIcon={{
+          icon: XCircle,
+          variant: "strategy",
+          size: "lg",
+          label: "Error"
+        }}
           headerTitle="Error Loading Requests"
           headerDescription="Failed to load your service requests"
         >
@@ -694,7 +872,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
               backgroundColor: 'white'
             }}
           >
-            {selectedRequest && isDrawerOpen && <RequestTimeline request={selectedRequest} />}
+            {selectedRequest && isDrawerOpen && <RequestTimeline request={selectedRequest} contextProps={contextProps} />}
           </div>
         </div>
       </>

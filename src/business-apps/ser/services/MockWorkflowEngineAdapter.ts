@@ -168,6 +168,30 @@ export class MockWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Get detailed information for a specific ticket
+   */
+  async getTicketDetail(ticketId: string): Promise<StepInstance | null> {
+    try {
+      console.log(`[MockAdapter] Getting ticket detail for: ${ticketId}`);
+      
+      // Find the ticket across all requests
+      for (const request of this.mockRequests) {
+        const step = request.steps.find(s => s.id === ticketId);
+        if (step) {
+          console.log(`[MockAdapter] Found ticket detail for: ${ticketId}`);
+          return step;
+        }
+      }
+      
+      console.warn(`[MockAdapter] Ticket not found: ${ticketId}`);
+      return null;
+    } catch (error) {
+      console.error(`[MockAdapter] Error getting ticket detail:`, error);
+      throw new Error(`Failed to get ticket detail: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Claim a step for the current user
    */
   async claim(stepId: string): Promise<void> {
@@ -233,11 +257,18 @@ export class MockWorkflowEngineAdapter implements WorkflowEngine {
 
     step.status = 'done';
     step.finishedAt = new Date().toISOString();
+    
+    // Store form data if provided
+    if (payload) {
+      (step as any).formData = payload;
+      console.log(`[MockAdapter] Step ${stepId} completed with form data:`, payload);
+    }
 
     // Add timeline entry
+    const formDataSummary = payload ? ' with form data' : '';
     request.timeline.push({
       at: new Date().toISOString(),
-      message: `Step "${step.name}" completed by ${step.assignedToUserId || step.claimedByUserId}`,
+      message: `Step "${step.name}" completed by ${step.assignedToUserId || step.claimedByUserId}${formDataSummary}`,
     });
 
     // Start dependent steps
