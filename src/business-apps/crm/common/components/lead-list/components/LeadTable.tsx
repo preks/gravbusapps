@@ -391,6 +391,14 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     </div>
                   </TableHead>
                 )}
+                {isColumnVisible("sensitive") && (
+                  <TableHead
+                    className="gba:w-[80px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-center"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-header`}
+                  >
+                    Sensitive
+                  </TableHead>
+                )}
                 {isColumnVisible("actions") && (
                   <TableHead
                     className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
@@ -713,6 +721,30 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                           </>
                         )}
                       </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("sensitive") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6 gba:text-center"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-cell-${record.id}`}
+                    >
+                      {record.sensitive === true ? (
+                        <span
+                          className="gba:text-green-600 gba:text-lg"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-check-${record.id}`}
+                          title="Sensitive lead"
+                        >
+                          ✓
+                        </span>
+                      ) : (
+                        <span
+                          className="gba:text-gray-500 gba:text-lg"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-x-${record.id}`}
+                          title="Not sensitive"
+                        >
+                          ✕
+                        </span>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible("actions") && (

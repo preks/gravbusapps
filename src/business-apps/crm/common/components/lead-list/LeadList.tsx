@@ -108,6 +108,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "sensitive", label: "Sensitive", visible: true },
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
     { id: "name", label: "Name", visible: true },
     { id: "company", label: "Company", visible: true },
