@@ -191,6 +191,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
   const currencyCode = expenseRequest.currency?.code || 'EUR';
   const totalAmount = expenseRequest.totalAmount || 0;
   const reimbursableAmount = expenseRequest.reimbursableAmount || 0;
+  const remainingAmount = expenseRequest.totalRemainingAmount || 0;
   const nonReimbursableAmount = expenseRequest.nonReimbursableAmount || 0;
   const advancePaymentAmount = expenseRequest.expensePlan?.advancePaymentTotalAmount || 0;
   // Transform expense request items to match expense plan format for component compatibility
@@ -271,6 +272,8 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
             currencyCode={currencyCode}
             formatCurrency={formatCurrency}
             expensePlanTotalAmount={expenseRequest.expensePlan?.totalAmount}
+            remainingAmount={remainingAmount}
+            isExpensePlan={expenseRequest.expensePlan !== null}
           />
           
           <MessageSection

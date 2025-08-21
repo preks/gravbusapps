@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestTotalsSectionProps {
   totalAmount: number;
@@ -8,6 +9,8 @@ interface ExpenseRequestTotalsSectionProps {
   currencyCode: string;
   formatCurrency: (amount: number, currencyCode: string) => string;
   expensePlanTotalAmount?: number;
+  isExpensePlan: boolean;
+  remainingAmount: number;
 }
 
 const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = ({
@@ -17,16 +20,16 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
   advancePaymentAmount,
   currencyCode,
   formatCurrency,
-  expensePlanTotalAmount
+  expensePlanTotalAmount,
+  isExpensePlan,
+  remainingAmount
 }) => {
   // Calculate plan comparison if plan data is available
   const getPlanComparison = () => {
     if (!expensePlanTotalAmount) return null;
     
     const difference = totalAmount - expensePlanTotalAmount;
-    const absDifference = (window?.lowcoder?.i18n?.formatNumber && window.lowcoder.formatNumber()) 
-      ? window?.lowcoder?.formatNumber(Math.abs(difference), "0.00[,]00") 
-      : Math.abs(difference).toFixed(2);
+    const absDifference = formatNumberFunction(String(Math.abs(difference)), "0.00[,]00");
     
     if (difference === 0) {
       return {
@@ -93,18 +96,18 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
           </div>
         )}
         
-        {reimbursableAmount !== totalAmount && (
+        {remainingAmount !== totalAmount && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
-              Reimbursable Amount
+              Remaining Amount
             </div>
             <div className="gba:text-md gba:font-semibold" style={{ color: '#0ab874' }}>
-              {formatCurrency(reimbursableAmount, currencyCode)}
+              {formatCurrency(remainingAmount, currencyCode)}
             </div>
           </div>
         )}
         
-        {advancePaymentAmount !== 0 && (
+        {isExpensePlan && advancePaymentAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
               Advance Payment
