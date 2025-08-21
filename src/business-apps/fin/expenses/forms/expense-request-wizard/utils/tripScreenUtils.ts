@@ -476,7 +476,23 @@ export const setByExternalCustomComponent = (
       .filter((trip: any) => trip.pointType === 'DESTINATION_POINT')
       .sort((a: any, b: any) => a.tripOrder - b.tripOrder);
     
-    if (destinationPoints.length > 0) {
+      if(destinationPoints.length === 1) {
+        const singleDestination = destinationPoints[0];
+        const isAbroad = checkIfAbroad(singleDestination.travelRegionRef, expenseRulesData);
+        const formattedSingleDestination = {
+            id: `destination-${0}`,
+            name: '',
+            location: singleDestination.address || '',
+            departureDate: undefined,
+            departureTime: undefined,
+            isCollapsed: false,
+            travelRegionRef: singleDestination.travelRegionRef || '',
+            isAbroad
+          };
+        setDestinations([formattedSingleDestination]);
+      }
+      else
+         if (destinationPoints.length > 0) {
       const formattedDestinations = destinationPoints.map((destination: any, index: number) => {
         const isAbroad = checkIfAbroad(destination.travelRegionRef, expenseRulesData);
         return {
@@ -492,7 +508,7 @@ export const setByExternalCustomComponent = (
       });
       
       setDestinations(formattedDestinations);
-    }
+            }
     
     // Find end point
     const endPoint = tripData.find((trip: any) => trip.pointType === 'END_POINT');

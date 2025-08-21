@@ -30,6 +30,14 @@ export const getMaxLimits = (destinations: LocationData[], endLocation: Location
   ): DateTimeLimits => {
     const indexOfCurrentDestination = destinations.findIndex((dest) => dest.id === currentDestination.id);
   
+    if (destinations.length === 1) {
+      return {
+        minDate: startLocation.departureDate,
+        minTime: startLocation.departureTime,
+        maxDate: endLocation.departureDate,
+        maxTime: endLocation.departureTime,
+      };
+    }
     const destinationsBeforeCurrent = destinations.slice(0, indexOfCurrentDestination);
     const destinationsAfterCurrent = destinations.slice(indexOfCurrentDestination + 1);
   
