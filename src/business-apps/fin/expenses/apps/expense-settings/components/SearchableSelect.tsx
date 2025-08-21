@@ -1,9 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { Select, Input } from 'antd';
-import { SearchOutlined, LoadingOutlined } from '@ant-design/icons';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Input,
+  Spinner
+} from '@newwork/nw-design-system';
+import { PiMagnifyingGlass } from 'react-icons/pi';
 import { debounce } from 'lodash';
-
-const { Option } = Select;
 
 export interface SelectOption {
   id: string;
@@ -43,7 +49,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -61,22 +66,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     debouncedSearch(searchValue);
   }, [debouncedSearch]);
 
-  // Handle scroll to load more
-  const handlePopupScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const { target } = e;
-    if (target instanceof HTMLDivElement) {
-      const { scrollTop, scrollHeight, clientHeight } = target;
-      if (
-        scrollTop + clientHeight >= scrollHeight - 10 &&
-        hasMore &&
-        !loading &&
-        onLoadMore
-      ) {
-        onLoadMore();
-      }
-    }
-  }, [hasMore, loading, onLoadMore]);
-
   // Handle selection change
   const handleChange = useCallback((selectedValue: string) => {
     if (onChange) {
@@ -87,95 +76,71 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     if (onSearch) {
       onSearch('');
     }
-    setIsOpen(false);
   }, [onChange, onSearch]);
-
-  // Handle dropdown open/close
-  const handleDropdownVisibleChange = useCallback((open: boolean) => {
-    setIsOpen(open);
-    if (!open) {
-      // Reset search when closed
-      setSearchTerm('');
-      if (onSearch) {
-        onSearch('');
-      }
-    }
-  }, [onSearch]);
 
   return (
     <Select
       value={value}
-      placeholder={placeholder}
-      allowClear={allowClear}
-      showSearch={showSearch}
-      searchValue={searchTerm}
-      onSearch={handleSearchChange}
-      onChange={handleChange}
-      onDropdownVisibleChange={handleDropdownVisibleChange}
-      onPopupScroll={handlePopupScroll}
-      loading={loading}
+      onValueChange={handleChange}
       disabled={disabled}
-      data-testid={dataTestId}
-      style={{ width: '100%' }}
-      filterOption={false} // Disable client-side filtering
-      notFoundContent={
-        loading ? (
-          <div style={{ padding: '8px', textAlign: 'center' }}>
-            <LoadingOutlined /> Loading...
-          </div>
-        ) : options.length === 0 ? (
-          <div style={{ padding: '8px', textAlign: 'center', color: '#999' }}>
-            {searchTerm ? 'No matching results' : 'No options available'}
-          </div>
-        ) : null
-      }
-      dropdownRender={(menu) => (
-        <div>
-          {showSearch && isOpen && (
-            <div style={{ padding: '8px', borderBottom: '1px solid #f0f0f0' }}>
+    >
+      <SelectTrigger data-testid={dataTestId} className="gba:w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {showSearch && (
+          <div className="gba:p-2 gba:border-b gba:border-gray-200">
+            <div className="gba:relative">
+              <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400" />
               <Input
-                prefix={<SearchOutlined />}
                 placeholder="Type to search..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+                className="gba:pl-10"
               />
             </div>
-          )}
-          {menu}
-          {hasMore && !loading && (
-            <div 
-              style={{ 
-                padding: '8px', 
-                textAlign: 'center', 
-                color: '#999',
-                borderTop: '1px solid #f0f0f0'
-              }}
-            >
-              Scroll down for more...
-            </div>
-          )}
-          {loading && (
-            <div style={{ padding: '8px', textAlign: 'center' }}>
-              <LoadingOutlined /> Loading more...
-            </div>
-          )}
-        </div>
-      )}
-    >
-      {options.map((option) => (
-        <Option key={option.id} value={option.value} title={option.label}>
-          <div>
-            <div>{option.label}</div>
-            {option.name !== option.label && (
-              <div style={{ fontSize: '12px', color: '#999' }}>
-                {option.name}
+          </div>
+        )}
+        
+        {loading ? (
+          <div className="gba:p-4 gba:text-center">
+            <Spinner size="sm" className="gba:mr-2" />
+            Loading...
+          </div>
+        ) : options.length === 0 ? (
+          <div className="gba:p-4 gba:text-center gba:text-gray-500">
+            {searchTerm ? 'No matching results' : 'No options available'}
+          </div>
+        ) : (
+          <>
+            {options.map((option) => (
+              <SelectItem key={option.id} value={option.value}>
+                <div>
+                  <div>{option.label}</div>
+                  {option.name !== option.label && (
+                    <div className="gba:text-xs gba:text-gray-500">
+                      {option.name}
+                    </div>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+            
+            {hasMore && !loading && (
+              <div className="gba:p-2 gba:text-center gba:text-gray-500 gba:border-t gba:border-gray-200 gba:text-sm">
+                Scroll down for more...
               </div>
             )}
-          </div>
-        </Option>
-      ))}
+            
+            {loading && (
+              <div className="gba:p-2 gba:text-center gba:border-t gba:border-gray-200">
+                <Spinner size="sm" className="gba:mr-2" />
+                Loading more...
+              </div>
+            )}
+          </>
+        )}
+      </SelectContent>
     </Select>
   );
 };

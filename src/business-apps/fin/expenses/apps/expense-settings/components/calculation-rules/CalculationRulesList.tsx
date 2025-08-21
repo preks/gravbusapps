@@ -387,7 +387,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
 
       {/* Create Rule Dialog */}
       <Dialog open={isCreateRuleModalVisible} onOpenChange={setIsCreateRuleModalVisible}>
-        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-create-rule-dialog">
+        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid="calculation-rules-create-rule-dialog">
           <DialogHeader>
             <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createRule.title', 'Create Calculation Rule')}</DialogTitle>
           </DialogHeader>
@@ -402,7 +402,7 @@ const CalculationRulesList: React.FC<CalculationRulesListProps> = ({
 
       {/* Edit Rule Dialog */}
       <Dialog open={isEditRuleModalVisible} onOpenChange={setIsEditRuleModalVisible}>
-        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-edit-rule-dialog">
+        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid="calculation-rules-edit-rule-dialog">
           <DialogHeader>
             <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editRule.title', 'Edit Calculation Rule')}</DialogTitle>
           </DialogHeader>

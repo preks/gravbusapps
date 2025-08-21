@@ -4,20 +4,26 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries';
 import { 
-  Form, 
-  Input, 
-  Select, 
-  DatePicker, 
-  Switch, 
-  Button, 
-  Space, 
-  Alert, 
-  Typography, 
   Card,
-  Row,
-  Col,
-  Spin
-} from 'antd';
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  Switch,
+  Alert,
+  AlertDescription,
+  Spinner,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@newwork/nw-design-system';
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
@@ -27,9 +33,7 @@ import localeData from 'dayjs/plugin/localeData';
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
+// Using nw-design-system components - no destructuring needed
 
 export interface CalculationRuleFormData {
   id?: string;
@@ -74,7 +78,23 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
-  const [form] = Form.useForm();
+  const [formData, setFormData] = useState<CalculationRuleFormData>({
+    code: '',
+    name: '',
+    description: '',
+    standard: false,
+    activeFrom: '',
+    activeTo: '',
+    deductionLimit: false,
+    useLastCountry: false,
+    useSingleCurrency: false,
+    taxesCode: '',
+    nonpayableCode: '',
+    advancePaymentCode: '',
+    calculationTypeRef: '',
+    countryRef: '',
+    currencyRef: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -156,55 +176,82 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
           const freshData = await fetchExpenseRuleById(initialData.id);
           if (freshData) {
             console.log('✅ CalculationRuleForm: Using FRESH data from API:', freshData);
-            form.setFieldsValue({
-              code: freshData.code,
-              name: freshData.name,
-              description: freshData.name, // Use name as description fallback
-              standard: freshData.standard,
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom) : null,
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : null,
-              deductionLimit: freshData.deductionLimit,
-              useLastCountry: freshData.useLastCountry,
-              useSingleCurrency: freshData.useSingleCurrency,
-              taxesCode: freshData.taxesCode,
-              nonpayableCode: freshData.nonpayableCode,
-              advancePaymentCode: freshData.advancePaymentCode,
-              calculationTypeRef: freshData.calculationType?.id,
-              countryRef: freshData.country?.id,
-              currencyRef: freshData.currency?.id,
+            setFormData({
+              code: freshData.code || '',
+              name: freshData.name || '',
+              description: freshData.name || '', // Use name as description fallback
+              standard: freshData.standard || false,
+              activeFrom: freshData.activeFrom || '',
+              activeTo: freshData.activeTo || '',
+              deductionLimit: freshData.deductionLimit || false,
+              useLastCountry: freshData.useLastCountry || false,
+              useSingleCurrency: freshData.useSingleCurrency || false,
+              taxesCode: freshData.taxesCode || '',
+              nonpayableCode: freshData.nonpayableCode || '',
+              advancePaymentCode: freshData.advancePaymentCode || '',
+              calculationTypeRef: freshData.calculationType?.id || '',
+              countryRef: freshData.country?.id || '',
+              currencyRef: freshData.currency?.id || '',
+              id: freshData.id,
+              version: freshData.version,
             });
           }
         } catch (error) {
           console.error('❌ CalculationRuleForm: Failed to load fresh calculation rule data:', error);
           console.log('⚠️ CalculationRuleForm: Falling back to STALE list data');
           // Fallback to initial data if fresh fetch fails
-          form.setFieldsValue({
-            ...initialData,
-            activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
-            activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
-          });
+          if (initialData) {
+            setFormData({
+              ...initialData,
+              code: initialData.code || '',
+              name: initialData.name || '',
+              description: initialData.description || '',
+              standard: initialData.standard || false,
+              deductionLimit: initialData.deductionLimit || false,
+              useLastCountry: initialData.useLastCountry || false,
+              useSingleCurrency: initialData.useSingleCurrency || false,
+              taxesCode: initialData.taxesCode || '',
+              nonpayableCode: initialData.nonpayableCode || '',
+              advancePaymentCode: initialData.advancePaymentCode || '',
+              calculationTypeRef: initialData.calculationTypeRef || '',
+              countryRef: initialData.countryRef || '',
+              currencyRef: initialData.currencyRef || '',
+            });
+          }
         }
       } else if (initialData) {
         // ✅ For creating new items, use the provided initial data
         console.log('📝 CalculationRuleForm: Using initial data for NEW item:', initialData);
-        form.setFieldsValue({
+        setFormData({
           ...initialData,
-          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : null,
-          activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : null,
+          code: initialData.code || '',
+          name: initialData.name || '',
+          description: initialData.description || '',
+          standard: initialData.standard || false,
+          deductionLimit: initialData.deductionLimit || false,
+          useLastCountry: initialData.useLastCountry || false,
+          useSingleCurrency: initialData.useSingleCurrency || false,
+          taxesCode: initialData.taxesCode || '',
+          nonpayableCode: initialData.nonpayableCode || '',
+          advancePaymentCode: initialData.advancePaymentCode || '',
+          calculationTypeRef: initialData.calculationTypeRef || '',
+          countryRef: initialData.countryRef || '',
+          currencyRef: initialData.currencyRef || '',
         });
       } else {
         // Set default values for new rule
-        form.setFieldsValue({
+        setFormData(prev => ({
+          ...prev,
           deductionLimit: false,
-          activeFrom: dayjs(),
-        });
+          activeFrom: dayjs().toISOString(),
+        }));
       }
     };
 
     loadData();
-  }, [initialData?.id, isEditing, form, fetchExpenseRuleById]);
+  }, [initialData?.id, isEditing, fetchExpenseRuleById]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
 
@@ -218,20 +265,20 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       });
 
       const expenseRuleData = {
-        code: values.code,
-        name: values.name,
-        standard: values.standard || false,
-        activeFrom: values.activeFrom?.toISOString(),
-        activeTo: values.activeTo?.toISOString(),
-        deductionLimit: values.deductionLimit || false,
-        useLastCountry: values.useLastCountry || false,
-        useSingleCurrency: values.useSingleCurrency || false,
-        taxesCode: values.taxesCode,
-        nonpayableCode: values.nonpayableCode,
-        advancePaymentCode: values.advancePaymentCode,
-        calculationTypeRef: values.calculationTypeRef,
-        countryRef: values.countryRef,
-        currencyRef: values.currencyRef,
+        code: formData.code,
+        name: formData.name,
+        standard: formData.standard || false,
+        activeFrom: formData.activeFrom ? dayjs(formData.activeFrom).toISOString() : undefined,
+        activeTo: formData.activeTo ? dayjs(formData.activeTo).toISOString() : undefined,
+        deductionLimit: formData.deductionLimit || false,
+        useLastCountry: formData.useLastCountry || false,
+        useSingleCurrency: formData.useSingleCurrency || false,
+        taxesCode: formData.taxesCode,
+        nonpayableCode: formData.nonpayableCode,
+        advancePaymentCode: formData.advancePaymentCode,
+        calculationTypeRef: formData.calculationTypeRef,
+        countryRef: formData.countryRef,
+        currencyRef: formData.currencyRef,
         ...(initialData?.id && { id: initialData.id }),
         ...(initialData?.version !== undefined && { version: initialData.version })
       };
@@ -242,15 +289,15 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       const result = await expenseSettingsClient.saveCalculationRule(expenseRuleData);
 
       // Prepare form data for the onSave callback (for compatibility)
-      const formData: CalculationRuleFormData = {
-        ...values,
-        activeFrom: values.activeFrom?.toISOString(),
-        activeTo: values.activeTo?.toISOString(),
+      const saveData: CalculationRuleFormData = {
+        ...formData,
+        activeFrom: formData.activeFrom ? dayjs(formData.activeFrom).toISOString() : '',
+        activeTo: formData.activeTo ? dayjs(formData.activeTo).toISOString() : '',
         id: result.expenseRule?.id || initialData?.id,
         version: result.expenseRule?.version || (initialData?.version ? initialData.version + 1 : 1)
       };
 
-      await onSave(formData);
+      await onSave(saveData);
     } catch (err) {
       console.error('Error saving calculation rule:', err);
       setError(err instanceof Error ? err.message : 'Failed to save calculation rule');
@@ -260,7 +307,23 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   };
 
   const handleCancel = () => {
-    form.resetFields();
+    setFormData({
+      code: '',
+      name: '',
+      description: '',
+      standard: false,
+      activeFrom: '',
+      activeTo: '',
+      deductionLimit: false,
+      useLastCountry: false,
+      useSingleCurrency: false,
+      taxesCode: '',
+      nonpayableCode: '',
+      advancePaymentCode: '',
+      calculationTypeRef: '',
+      countryRef: '',
+      currencyRef: '',
+    });
     onCancel();
   };
 
@@ -270,7 +333,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         data-testid="calculation-rule-form-loading"
         className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
       >
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -278,297 +341,307 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   return (
     <div data-testid="calculation-rule-form-container">
       <Card
-        title={
-          <Title level={4} style={{ margin: 0 }}>
-            {isEditing ? 'Edit Calculation Rule' : 'Create New Calculation Rule'}
-          </Title>
-        }
         data-testid="calculation-rule-form-card"
       >
-        {error && (
-          <Alert
-            message="Error"
-            description={error}
-            type="error"
-            showIcon
-            icon={<PiWarning />}
-            style={{ marginBottom: 16 }}
-            data-testid="calculation-rule-form-error"
-          />
-        )}
+        <CardHeader>
+          <CardTitle>
+            {isEditing ? 'Edit Calculation Rule' : 'Create New Calculation Rule'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert
+              data-testid="calculation-rule-form-error"
+              className="gba:mb-4"
+            >
+              <PiWarning className="gba:h-4 gba:w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          data-testid="calculation-rule-form"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="code"
-                label="Rule Code"
-                rules={[
-                  { required: true, message: 'Rule code is required' },
-                  { max: 50, message: 'Rule code cannot exceed 50 characters' }
-                ]}
-              >
-                <Input 
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            data-testid="calculation-rule-form"
+            className="gba:space-y-6"
+          >
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label htmlFor="code" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Rule Code *
+                </label>
+                <Input
+                  id="code"
+                  value={formData.code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
                   placeholder="Enter rule code (e.g., CR_001)"
                   data-testid="calculation-rule-form-code-input"
+                  required
                 />
-              </Form.Item>
-            </Col>
+              </div>
 
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="name"
-                label="Rule Name"
-                rules={[
-                  { max: 100, message: 'Rule name cannot exceed 100 characters' }
-                ]}
-              >
-                <Input 
+              <div>
+                <label htmlFor="name" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Rule Name
+                </label>
+                <Input
+                  id="name"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter rule name"
                   data-testid="calculation-rule-form-name-input"
                 />
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <TextArea 
-              rows={3}
-              placeholder="Enter rule description"
-              data-testid="calculation-rule-form-description-input"
-            />
-          </Form.Item>
+            <div>
+              <label htmlFor="description" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                Description
+              </label>
+              <textarea
+                id="description"
+                value={formData.description || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                placeholder="Enter rule description"
+                data-testid="calculation-rule-form-description-input"
+                className="gba:w-full gba:min-h-[80px] gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:shadow-sm focus:gba:ring-2 focus:gba:ring-blue-500 focus:gba:border-blue-500 gba:resize-y"
+              />
+            </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="calculationTypeRef"
-                label="Calculation Type"
-                rules={[
-                  { required: true, message: 'Calculation type is required' }
-                ]}
-              >
-                <Select
-                  placeholder="Select calculation type"
-                  showSearch
-                  optionFilterProp="children"
-                  data-testid="calculation-rule-form-calculation-type-select"
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4">
+              <div>
+                <label htmlFor="calculationType" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Calculation Type *
+                </label>
+                <Select 
+                  value={formData.calculationTypeRef}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, calculationTypeRef: value }))}
                 >
-                  {calculationTypes.map(type => (
-                    <Option key={type.id} value={type.id}>
-                      {type.value}
-                    </Option>
-                  ))}
+                  <SelectTrigger data-testid="calculation-rule-form-calculation-type-select">
+                    <SelectValue placeholder="Select calculation type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {calculationTypes.map(type => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </Form.Item>
-            </Col>
+              </div>
 
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="countryRef"
-                label="Country"
-              >
-                <Select
-                  placeholder="Select country"
-                  showSearch
-                  allowClear
-                  optionFilterProp="children"
-                  data-testid="calculation-rule-form-country-select"
+              <div>
+                <label htmlFor="country" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Country
+                </label>
+                <Select 
+                  value={formData.countryRef}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, countryRef: value }))}
                 >
-                  {countries.map(country => (
-                    <Option key={country.id} value={country.id}>
-                      {country.value} {country.code && `(${country.code})`}
-                    </Option>
-                  ))}
+                  <SelectTrigger data-testid="calculation-rule-form-country-select">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(country => (
+                      <SelectItem key={country.id} value={country.id}>
+                        {country.value} {country.code && `(${country.code})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </Form.Item>
-            </Col>
+              </div>
 
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="currencyRef"
-                label="Currency"
-              >
-                <Select
-                  placeholder="Select currency"
-                  showSearch
-                  allowClear
-                  optionFilterProp="children"
-                  data-testid="calculation-rule-form-currency-select"
+              <div>
+                <label htmlFor="currency" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Currency
+                </label>
+                <Select 
+                  value={formData.currencyRef}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, currencyRef: value }))}
                 >
-                  {currencies.map(currency => (
-                    <Option key={currency.id} value={currency.id}>
-                      {currency.value} {currency.code && `(${currency.code})`}
-                    </Option>
-                  ))}
+                  <SelectTrigger data-testid="calculation-rule-form-currency-select">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map(currency => (
+                      <SelectItem key={currency.id} value={currency.id}>
+                        {currency.value} {currency.code && `(${currency.code})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeFrom"
-                label="Active From"
-                rules={[
-                  { required: true, message: 'Active from date is required' }
-                ]}
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select start date"
-                  data-testid="calculation-rule-form-active-from-picker"
-                />
-              </Form.Item>
-            </Col>
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Active From *
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="calculation-rule-form-active-from-trigger">
+                      {formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : 'Select start date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="gba:w-auto gba:p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.activeFrom ? new Date(formData.activeFrom) : undefined}
+                      onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeFrom: date ? dayjs(date).toISOString() : '' }))}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="activeTo"
-                label="Active To"
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Select end date (optional)"
-                  data-testid="calculation-rule-form-active-to-picker"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+              <div>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Active To
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="calculation-rule-form-active-to-trigger">
+                      {formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : 'Select end date (optional)'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="gba:w-auto gba:p-0">
+                    <Calendar
+                      mode="single"
+                      selected={formData.activeTo ? new Date(formData.activeTo) : undefined}
+                      onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeTo: date ? dayjs(date).toISOString() : '' }))}
+                      disabled={(date) => {
+                        if (!formData.activeFrom) return false;
+                        return date < new Date(formData.activeFrom);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="advancePaymentCode"
-                label="Advance Payment Code"
-              >
-                <Input 
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label htmlFor="advancePaymentCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Advance Payment Code
+                </label>
+                <Input
+                  id="advancePaymentCode"
+                  value={formData.advancePaymentCode || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, advancePaymentCode: e.target.value }))}
                   placeholder="Enter advance payment code"
                   data-testid="calculation-rule-form-advance-payment-input"
                 />
-              </Form.Item>
-            </Col>
+              </div>
 
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="deductionLimit"
-                label="Deduction Limit"
-                valuePropName="checked"
-              >
-                <Switch 
-                  checkedChildren="Enabled"
-                  unCheckedChildren="Disabled"
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Switch
+                  id="deductionLimit"
+                  checked={formData.deductionLimit}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, deductionLimit: checked }))}
                   data-testid="calculation-rule-form-deduction-limit-switch"
                 />
-              </Form.Item>
-            </Col>
-          </Row>
+                <label htmlFor="deductionLimit" className="gba:text-sm gba:font-medium">
+                  Deduction Limit
+                </label>
+              </div>
+            </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="standard"
-                label="Standard Rule"
-                valuePropName="checked"
-                tooltip="Mark this rule as a standard rule"
-              >
-                <Switch 
-                  checkedChildren="Yes"
-                  unCheckedChildren="No"
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Switch
+                  id="standard"
+                  checked={formData.standard}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, standard: checked }))}
                   data-testid="calculation-rule-form-standard-switch"
                 />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="useLastCountry"
-                label="Use Last Country"
-                valuePropName="checked"
-                tooltip="Use the last country from previous expense"
-              >
-                <Switch 
-                  checkedChildren="Yes"
-                  unCheckedChildren="No"
+                <label htmlFor="standard" className="gba:text-sm gba:font-medium">
+                  Standard Rule
+                </label>
+              </div>
+
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Switch
+                  id="useLastCountry"
+                  checked={formData.useLastCountry}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, useLastCountry: checked }))}
                   data-testid="calculation-rule-form-use-last-country-switch"
                 />
-              </Form.Item>
-            </Col>
-          </Row>
+                <label htmlFor="useLastCountry" className="gba:text-sm gba:font-medium">
+                  Use Last Country
+                </label>
+              </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="useSingleCurrency"
-                label="Use Single Currency"
-                valuePropName="checked"
-                tooltip="Force single currency usage"
-              >
-                <Switch 
-                  checkedChildren="Yes"
-                  unCheckedChildren="No"
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Switch
+                  id="useSingleCurrency"
+                  checked={formData.useSingleCurrency}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, useSingleCurrency: checked }))}
                   data-testid="calculation-rule-form-use-single-currency-switch"
                 />
-              </Form.Item>
-            </Col>
-          </Row>
+                <label htmlFor="useSingleCurrency" className="gba:text-sm gba:font-medium">
+                  Use Single Currency
+                </label>
+              </div>
+            </div>
 
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="taxesCode"
-                label="Taxes Code"
-                data-testid="calculation-rule-form-taxes-code"
-              >
-                <Input 
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div>
+                <label htmlFor="taxesCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Taxes Code
+                </label>
+                <Input
+                  id="taxesCode"
+                  value={formData.taxesCode || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, taxesCode: e.target.value }))}
                   placeholder="Enter taxes code"
                   data-testid="calculation-rule-form-taxes-code-input"
                 />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="nonpayableCode"
-                label="Non-payable Code"
-                data-testid="calculation-rule-form-nonpayable-code"
-              >
-                <Input 
+              </div>
+
+              <div>
+                <label htmlFor="nonpayableCode" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                  Non-payable Code
+                </label>
+                <Input
+                  id="nonpayableCode"
+                  value={formData.nonpayableCode || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, nonpayableCode: e.target.value }))}
                   placeholder="Enter non-payable code"
                   data-testid="calculation-rule-form-nonpayable-code-input"
                 />
-              </Form.Item>
-            </Col>
-          </Row>
+              </div>
+            </div>
 
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
+            <div className="gba:flex gba:gap-4 gba:mt-6">
               <Button
-                type="primary"
-                htmlType="submit"
-                loading={isSubmitting}
-                icon={<PiFloppyDisk />}
+                type="submit"
+                disabled={isSubmitting}
                 data-testid="calculation-rule-form-save-button"
+                className="gba:flex gba:items-center gba:gap-2"
               >
+                {isSubmitting ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
+                )}
                 {isEditing ? 'Update Rule' : 'Create Rule'}
               </Button>
               <Button
+                type="button"
+                variant="outline"
                 onClick={handleCancel}
-                icon={<PiX />}
                 data-testid="calculation-rule-form-cancel-button"
+                className="gba:flex gba:items-center gba:gap-2"
               >
+                <PiX className="gba:h-4 gba:w-4" />
                 Cancel
               </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+            </div>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

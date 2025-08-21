@@ -200,7 +200,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
   const [sortedAssignments, setSortedAssignments] = useState<EnhancedExpenseRuleAssignment[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const tableRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   
   // Batch changes state
   const [pendingChanges, setPendingChanges] = useState<PendingAssignmentChange[]>([]);
@@ -341,22 +341,22 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     }, 500); // Simulate loading delay
   }, [displayedAssignments.length, sortedAssignments, hasMore, loadingMore, isEditMode]);
 
-  // Scroll event handler for infinite scroll
+  // Intersection observer for infinite scroll (avoids nested scrollbars)
   useEffect(() => {
-    const handleScroll = () => {
-      if (!tableRef.current || isEditMode) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = tableRef.current;
-      if (scrollTop + clientHeight >= scrollHeight - 100) {
-        loadMoreItems();
-      }
-    };
+    if (!sentinelRef.current || isEditMode) return;
 
-    const tableElement = tableRef.current;
-    if (tableElement) {
-      tableElement.addEventListener('scroll', handleScroll);
-      return () => tableElement.removeEventListener('scroll', handleScroll);
-    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          loadMoreItems();
+        }
+      },
+      { root: null, rootMargin: '0px', threshold: 0.1 }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
   }, [loadMoreItems, isEditMode]);
 
   // Drag and drop sensors
@@ -714,12 +714,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
       {/* Table */}
       <div 
-        ref={tableRef}
         className="gba:border gba:rounded-md"
-        style={{ 
-          maxHeight: isEditMode ? 'none' : '600px', 
-          overflowY: isEditMode ? 'visible' : 'auto'
-        }}
       >
         {isLoading ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
@@ -857,6 +852,11 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
           </DndContext>
         )}
         
+        {/* Infinite scroll sentinel */}
+        {!isEditMode && (
+          <div ref={sentinelRef} style={{ height: 1 }} />
+        )}
+
         {/* Infinite scroll loading indicator */}
         {!isEditMode && hasMore && (
           <div style={{ textAlign: 'center', padding: '16px' }}>
@@ -871,7 +871,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
       {/* Create Assignment Dialog */}
       <Dialog open={isCreateAssignmentModalVisible} onOpenChange={setIsCreateAssignmentModalVisible}>
-        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-create-assignment-dialog">
+        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid="calculation-rules-create-assignment-dialog">
           <DialogHeader>
             <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createAssignment.title', 'Create Rule Assignment')}</DialogTitle>
           </DialogHeader>
@@ -887,7 +887,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
       {/* Edit Assignment Dialog */}
       <Dialog open={isEditAssignmentModalVisible} onOpenChange={setIsEditAssignmentModalVisible}>
-        <DialogContent className="gba:max-w-4xl" data-testid="calculation-rules-edit-assignment-dialog">
+        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid="calculation-rules-edit-assignment-dialog">
           <DialogHeader>
             <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editAssignment.title', 'Edit Rule Assignment')}</DialogTitle>
           </DialogHeader>

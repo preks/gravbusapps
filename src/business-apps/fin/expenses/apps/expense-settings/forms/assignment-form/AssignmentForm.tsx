@@ -7,24 +7,27 @@ import { useOrganizationalUnitSelection } from '../../hooks/useOrganizationalUni
 import { useSiteLocationSelection } from '../../hooks/useSiteLocationSelection';
 import SearchableSelect from '../../components/SearchableSelect';
 import { 
-  Form, 
-  Input, 
-  Select, 
-  DatePicker, 
-  Switch, 
-  Button, 
-  Space, 
-  Alert, 
-  Typography, 
   Card,
-  Row,
-  Col,
-  Spin,
-  InputNumber
-} from 'antd';
-import { PiFloppyDisk, PiX, PiWarning, PiUser, PiBuilding, PiTree, PiMapPin } from 'react-icons/pi';
-import { SearchOutlined } from '@ant-design/icons';
-import dayjs, { Dayjs } from 'dayjs';
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  Switch,
+  Alert,
+  AlertDescription,
+  Spinner,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@newwork/nw-design-system';
+import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi';
+import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
 
@@ -35,8 +38,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes';
 import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries';
 
-const { Title } = Typography;
-const { Option } = Select;
+// Using nw-design-system components - no destructuring needed
 
 export interface AssignmentFormData {
   id?: string;
@@ -76,7 +78,17 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onCancel,
   loading = false
 }) => {
-  const [form] = Form.useForm();
+  const [formData, setFormData] = useState<AssignmentFormData>({
+    cascading: false,
+    applicants: false,
+    expenseRuleId: '',
+    employeeId: '',
+    companyId: '',
+    organizationalUnitId: '',
+    siteLocationId: '',
+    employmentTypeRef: '',
+    contractTypeRef: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [catalogs, setCatalogs] = useState<{
     employmentTypes: CatalogOption[];
@@ -151,18 +163,19 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           const freshData = await fetchExpenseRuleAssignmentById(initialData.id);
           if (freshData) {
             console.log('✅ AssignmentForm: Using FRESH data from API:', freshData);
-            form.setFieldsValue({
-              cascading: freshData.cascading,
-              applicants: freshData.applicants,
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom) : undefined,
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo) : undefined,
-              expenseRuleId: freshData.expenseRuleId,
-              employeeId: freshData.employeeId,
-              companyId: freshData.companyId,
-              organizationalUnitId: freshData.organizationalUnitId,
-              siteLocationId: freshData.siteLocationId,
-              employmentTypeRef: freshData.employmentType?.id,
-              contractTypeRef: freshData.contractType?.id
+            setFormData({
+              cascading: freshData.cascading || false,
+              applicants: freshData.applicants || false,
+              activeFrom: freshData.activeFrom || '',
+              activeTo: freshData.activeTo || '',
+              expenseRuleId: freshData.expenseRuleId || '',
+              employeeId: freshData.employeeId || '',
+              companyId: freshData.companyId || '',
+              organizationalUnitId: freshData.organizationalUnitId || '',
+              siteLocationId: freshData.siteLocationId || '',
+              employmentTypeRef: freshData.employmentType?.id || '',
+              contractTypeRef: freshData.contractType?.id || '',
+              id: freshData.id,
             });
             return;
           }
@@ -176,61 +189,71 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
         console.log('📝 AssignmentForm: Using initial data (could be stale list data or new item data):', initialData);
-        form.setFieldsValue({
-          cascading: initialData.cascading,
-          applicants: initialData.applicants,
-          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom) : undefined,
-          activeTo: initialData.activeTo ? dayjs(initialData.activeTo) : undefined,
-          expenseRuleId: initialData.expenseRuleId,
-          employeeId: initialData.employeeId,
-          companyId: initialData.companyId,
-          organizationalUnitId: initialData.organizationalUnitId,
-          siteLocationId: initialData.siteLocationId,
-          employmentTypeRef: initialData.employmentType?.id,
-          contractTypeRef: initialData.contractType?.id
+        setFormData({
+          cascading: initialData.cascading || false,
+          applicants: initialData.applicants || false,
+          activeFrom: initialData.activeFrom || '',
+          activeTo: initialData.activeTo || '',
+          expenseRuleId: initialData.expenseRuleId || '',
+          employeeId: initialData.employeeId || '',
+          companyId: initialData.companyId || '',
+          organizationalUnitId: initialData.organizationalUnitId || '',
+          siteLocationId: initialData.siteLocationId || '',
+          employmentTypeRef: initialData.employmentType?.id || '',
+          contractTypeRef: initialData.contractType?.id || '',
+          id: initialData.id,
         });
       } else {
         // Set defaults for new assignment
-        form.setFieldsValue({
+        setFormData(prev => ({
+          ...prev,
           cascading: false,
-          applicants: false
+          applicants: false,
           // Leave dates empty by default (eternity)
-        });
+        }));
       }
     };
 
     loadData();
-  }, [initialData?.id, isEditing, form, fetchExpenseRuleAssignmentById]);
+  }, [initialData?.id, isEditing, fetchExpenseRuleAssignmentById]);
 
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      const values = await form.validateFields();
       
+      const assignmentData: any = {
+        ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
+        ...(initialData?.version ? { version: initialData.version } : {}),
+        assignmentOrder: initialData?.assignmentOrder || 1, // Use existing order or default to 1
+        cascading: formData.cascading || false,
+        applicants: formData.applicants || false,
+        expenseRule: formData.expenseRuleId,
+      };
+
+      // Handle optional dates - use null for eternity
+      if (formData.activeFrom) {
+        assignmentData.activeFrom = dayjs(formData.activeFrom).toISOString();
+      }
+      if (formData.activeTo) {
+        assignmentData.activeTo = dayjs(formData.activeTo).toISOString();
+      }
+
+      // Handle optional relationships
+      if (formData.employeeId) assignmentData.employee = formData.employeeId;
+      if (formData.companyId) assignmentData.company = formData.companyId;
+      if (formData.organizationalUnitId) assignmentData.organizationalUnit = formData.organizationalUnitId;
+      if (formData.siteLocationId) assignmentData.siteLocation = formData.siteLocationId;
+      if (formData.employmentTypeRef) assignmentData.employmentTypeRef = formData.employmentTypeRef;
+      if (formData.contractTypeRef) assignmentData.contractTypeRef = formData.contractTypeRef;
+
       const saveData: SaveExpenseRuleAssignmentInput = {
-        expenseRuleAssignment: {
-          ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
-          ...(initialData?.version ? { version: initialData.version } : {}),
-          assignmentOrder: initialData?.assignmentOrder || 1, // Use existing order or default to 1
-          cascading: values.cascading || false,
-          applicants: values.applicants || false,
-          // Handle optional dates - use null for eternity
-          activeFrom: values.activeFrom ? values.activeFrom.toISOString() : null,
-          activeTo: values.activeTo ? values.activeTo.toISOString() : null,
-          expenseRule: values.expenseRuleId,
-          ...(values.employeeId && { employee: values.employeeId }),
-          ...(values.companyId && { company: values.companyId }),
-          ...(values.organizationalUnitId && { organizationalUnit: values.organizationalUnitId }),
-          ...(values.siteLocationId && { siteLocation: values.siteLocationId }),
-          ...(values.employmentTypeRef && { employmentTypeRef: values.employmentTypeRef }),
-          ...(values.contractTypeRef && { contractTypeRef: values.contractTypeRef })
-        },
+        expenseRuleAssignment: assignmentData,
         changeMode: isEditing ? 'UPDATE' : 'INSERT'
       };
 
       await onSave(saveData);
     } catch (error) {
-      console.error('Form validation failed:', error);
+      console.error('Form submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -239,307 +262,323 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   if (catalogsLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-96" data-testid="assignment-form-loading">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
 
   if (catalogError) {
     return (
-      <Alert
-        message="Error Loading Data"
-        description={catalogError}
-        type="error"
-        showIcon
-        icon={<PiWarning />}
-        action={
-          <Button size="small" onClick={loadCatalogs}>
+      <Alert data-testid="assignment-form-catalog-error" className="gba:mb-4">
+        <PiWarning className="gba:h-4 gba:w-4" />
+        <AlertDescription>
+          {catalogError}
+        </AlertDescription>
+        <div className="gba:mt-2">
+          <Button variant="outline" onClick={loadCatalogs}>
             Retry
           </Button>
-        }
-        data-testid="assignment-form-catalog-error"
-      />
+        </div>
+      </Alert>
     );
   }
 
   return (
     <div data-testid="assignment-form-container">
       <Card>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          autoComplete="off"
-          data-testid="assignment-form"
-        >
-          {/* Rule Selection */}
-          <Card 
-            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.ruleSelection', 'Rule Selection')}
-            size="small"
-            style={{ marginBottom: 16 }}
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            data-testid="assignment-form"
+            className="gba:space-y-6"
           >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="expenseRuleId"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.expenseRule', 'Expense Rule')}
-                  rules={[
-                    { required: true, message: 'Please select an expense rule' }
-                  ]}
-                >
-                  <Select
-                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectRule', 'Select expense rule')}
-                    showSearch
-                    optionFilterProp="children"
-                    data-testid="assignment-form-rule-select"
-                  >
-                    {availableRules.map(rule => (
-                      <Option key={rule.id} value={rule.id}>
-                        {rule.code} {rule.name && ` - ${rule.name}`}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              
-
-            </Row>
-          </Card>
-
-          {/* Assignment Targets */}
-          <Card 
-            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.targets', 'Assignment Targets')}
-            size="small"
-            style={{ marginBottom: 16 }}
-          >
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="employeeId"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employee', 'Employee')}
-                >
-                  <SearchableSelect
-                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmployee', 'Select employee')}
-                    options={employeeSelection.employees}
-                    loading={employeeSelection.isLoading}
-                    hasMore={employeeSelection.hasMore}
-                    onSearch={employeeSelection.search}
-                    onLoadMore={employeeSelection.loadMore}
-                    data-testid="assignment-form-employee-select"
-                  />
-                </Form.Item>
-              </Col>
-              
-              <Col span={12}>
-                <Form.Item
-                  name="companyId"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.company', 'Company')}
-                >
-                  <SearchableSelect
-                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectCompany', 'Select company')}
-                    options={companySelection.companies}
-                    loading={companySelection.isLoading}
-                    hasMore={companySelection.hasMore}
-                    onSearch={companySelection.search}
-                    onLoadMore={companySelection.loadMore}
-                    data-testid="assignment-form-company-select"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-            
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="organizationalUnitId"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.organizationalUnit', 'Organizational Unit')}
-                >
-                  <SearchableSelect
-                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectOrgUnit', 'Select organizational unit')}
-                    options={orgUnitSelection.organizationalUnits}
-                    loading={orgUnitSelection.isLoading}
-                    hasMore={orgUnitSelection.hasMore}
-                    onSearch={orgUnitSelection.search}
-                    onLoadMore={orgUnitSelection.loadMore}
-                    data-testid="assignment-form-org-unit-select"
-                  />
-                </Form.Item>
-              </Col>
-              
-              <Col span={12}>
-                <Form.Item
-                  name="siteLocationId"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.siteLocation', 'Site Location')}
-                >
-                  <SearchableSelect
-                    placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectLocation', 'Select site location')}
-                    options={siteLocationSelection.siteLocations}
-                    loading={siteLocationSelection.isLoading}
-                    hasMore={siteLocationSelection.hasMore}
-                    onSearch={siteLocationSelection.search}
-                    onLoadMore={siteLocationSelection.loadMore}
-                    data-testid="assignment-form-location-select"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Card>
-
-          {/* Employment Details */}
-          <Col span={24}>
-            <Card 
-              title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employmentDetails', 'Employment Details')}
-              style={{ marginBottom: 16 }}
-            >
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="employmentTypeRef"
-                    label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employmentType', 'Employment Type')}
-                  >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmploymentType', 'Select employment type')}
-                      allowClear
-                      data-testid="assignment-form-employment-type-select"
+            {/* Rule Selection */}
+            <Card className="gba:mb-4">
+              <CardHeader>
+                <CardTitle>
+                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.ruleSelection', 'Rule Selection')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  <div>
+                    <label htmlFor="expenseRuleId" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.expenseRule', 'Expense Rule')} *
+                    </label>
+                    <Select 
+                      value={formData.expenseRuleId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, expenseRuleId: value }))}
                     >
-                      {catalogs.employmentTypes.map(type => (
-                        <Option key={type.id} value={type.id}>
-                          {type.value}
-                        </Option>
-                      ))}
+                      <SelectTrigger data-testid="assignment-form-rule-select">
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectRule', 'Select expense rule')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRules.map(rule => (
+                          <SelectItem key={rule.id} value={rule.id}>
+                            {rule.code} {rule.name && ` - ${rule.name}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="contractTypeRef"
-                    label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.contractType', 'Contract Type')}
-                  >
-                    <Select
-                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectContractType', 'Select contract type')}
-                      allowClear
-                      data-testid="assignment-form-contract-type-select"
-                    >
-                      {catalogs.contractTypes.map(type => (
-                        <Option key={type.id} value={type.id}>
-                          {type.value}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-          </Col>
 
-          {/* Settings and Period */}
-          <Card 
-            title={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.settings', 'Assignment Settings')}
-            size="small"
-            style={{ marginBottom: 16 }}
-          >
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item
-                  name="cascading"
-                  valuePropName="checked"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cascading', 'Cascading')}
-                >
-                  <Switch 
-                    checkedChildren="Yes"
-                    unCheckedChildren="No"
-                    data-testid="assignment-form-cascading-switch"
-                  />
-                </Form.Item>
-              </Col>
-              
-              <Col span={8}>
-                <Form.Item
-                  name="applicants"
-                  valuePropName="checked"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.applicants', 'For Applicants')}
-                >
-                  <Switch 
-                    checkedChildren="Yes"
-                    unCheckedChildren="No"
-                    data-testid="assignment-form-applicants-switch"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-            
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="activeFrom"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeFrom', 'Active From')}
-                  tooltip="Leave empty for 'always active from the beginning'"
-                >
-                  <DatePicker
-                    style={{ width: '100%' }}
-                    format="YYYY-MM-DD"
-                    placeholder="Always active (empty = eternity)"
-                    data-testid="assignment-form-active-from-picker"
-                  />
-                </Form.Item>
-              </Col>
-              
-              <Col span={12}>
-                <Form.Item
-                  name="activeTo"
-                  label={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeTo', 'Active To')}
-                  tooltip="Leave empty for 'ongoing/never expires'"
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        const activeFrom = getFieldValue('activeFrom');
-                        if (!value || !activeFrom) {
-                          return Promise.resolve();
-                        }
-                        if (value.isAfter(activeFrom)) {
-                          return Promise.resolve();
-                        }
-                        return Promise.reject(new Error('End date must be after start date'));
-                      },
-                    }),
-                  ]}
-                >
-                  <DatePicker
-                    style={{ width: '100%' }}
-                    format="YYYY-MM-DD"
-                    placeholder="Ongoing (empty = eternity)"
-                    data-testid="assignment-form-active-to-picker"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Card>
+            {/* Assignment Targets */}
+            <Card className="gba:mb-4">
+              <CardHeader>
+                <CardTitle>
+                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.targets', 'Assignment Targets')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  <div>
+                    <label htmlFor="employee" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employee', 'Employee')}
+                    </label>
+                    <SearchableSelect
+                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmployee', 'Select employee')}
+                      value={formData.employeeId}
+                      onChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}
+                      options={employeeSelection.employees}
+                      loading={employeeSelection.isLoading}
+                      hasMore={employeeSelection.hasMore}
+                      onSearch={employeeSelection.search}
+                      onLoadMore={employeeSelection.loadMore}
+                      data-testid="assignment-form-employee-select"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="company" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.company', 'Company')}
+                    </label>
+                    <SearchableSelect
+                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectCompany', 'Select company')}
+                      value={formData.companyId}
+                      onChange={(value) => setFormData(prev => ({ ...prev, companyId: value }))}
+                      options={companySelection.companies}
+                      loading={companySelection.isLoading}
+                      hasMore={companySelection.hasMore}
+                      onSearch={companySelection.search}
+                      onLoadMore={companySelection.loadMore}
+                      data-testid="assignment-form-company-select"
+                    />
+                  </div>
+                </div>
+                
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mt-4">
+                  <div>
+                    <label htmlFor="organizationalUnit" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.organizationalUnit', 'Organizational Unit')}
+                    </label>
+                    <SearchableSelect
+                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectOrgUnit', 'Select organizational unit')}
+                      value={formData.organizationalUnitId}
+                      onChange={(value) => setFormData(prev => ({ ...prev, organizationalUnitId: value }))}
+                      options={orgUnitSelection.organizationalUnits}
+                      loading={orgUnitSelection.isLoading}
+                      hasMore={orgUnitSelection.hasMore}
+                      onSearch={orgUnitSelection.search}
+                      onLoadMore={orgUnitSelection.loadMore}
+                      data-testid="assignment-form-org-unit-select"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="siteLocation" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.siteLocation', 'Site Location')}
+                    </label>
+                    <SearchableSelect
+                      placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectLocation', 'Select site location')}
+                      value={formData.siteLocationId}
+                      onChange={(value) => setFormData(prev => ({ ...prev, siteLocationId: value }))}
+                      options={siteLocationSelection.siteLocations}
+                      loading={siteLocationSelection.isLoading}
+                      hasMore={siteLocationSelection.hasMore}
+                      onSearch={siteLocationSelection.search}
+                      onLoadMore={siteLocationSelection.loadMore}
+                      data-testid="assignment-form-location-select"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Form Actions */}
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
+            {/* Employment Details */}
+            <Card className="gba:mb-4">
+              <CardHeader>
+                <CardTitle>
+                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employmentDetails', 'Employment Details')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  <div>
+                    <label htmlFor="employmentType" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.employmentType', 'Employment Type')}
+                    </label>
+                    <Select 
+                      value={formData.employmentTypeRef}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, employmentTypeRef: value }))}
+                    >
+                      <SelectTrigger data-testid="assignment-form-employment-type-select">
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectEmploymentType', 'Select employment type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogs.employmentTypes.map(type => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="contractType" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.contractType', 'Contract Type')}
+                    </label>
+                    <Select 
+                      value={formData.contractTypeRef}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, contractTypeRef: value }))}
+                    >
+                      <SelectTrigger data-testid="assignment-form-contract-type-select">
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.selectContractType', 'Select contract type')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogs.contractTypes.map(type => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Settings and Period */}
+            <Card className="gba:mb-4">
+              <CardHeader>
+                <CardTitle>
+                  {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.settings', 'Assignment Settings')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mb-4">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Switch
+                      id="cascading"
+                      checked={formData.cascading}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, cascading: checked }))}
+                      data-testid="assignment-form-cascading-switch"
+                    />
+                    <label htmlFor="cascading" className="gba:text-sm gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cascading', 'Cascading')}
+                    </label>
+                  </div>
+                  
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Switch
+                      id="applicants"
+                      checked={formData.applicants}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, applicants: checked }))}
+                      data-testid="assignment-form-applicants-switch"
+                    />
+                    <label htmlFor="applicants" className="gba:text-sm gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.applicants', 'For Applicants')}
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeFrom', 'Active From')}
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="assignment-form-active-from-trigger">
+                          {formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : "Always active (empty = eternity)"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="gba:w-auto gba:p-0">
+                        <Calendar
+                          mode="single"
+                          selected={formData.activeFrom ? new Date(formData.activeFrom) : undefined}
+                          onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeFrom: date ? dayjs(date).toISOString() : '' }))}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Leave empty for 'always active from the beginning'</p>
+                  </div>
+                  
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
+                      {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeTo', 'Active To')}
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="assignment-form-active-to-trigger">
+                          {formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : "Ongoing (empty = eternity)"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="gba:w-auto gba:p-0">
+                        <Calendar
+                          mode="single"
+                          selected={formData.activeTo ? new Date(formData.activeTo) : undefined}
+                          onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeTo: date ? dayjs(date).toISOString() : '' }))}
+                          disabled={(date) => {
+                            if (!formData.activeFrom) return false;
+                            return date < new Date(formData.activeFrom);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Leave empty for 'ongoing/never expires'</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Form Actions */}
+            <div className="gba:flex gba:gap-4 gba:mt-6">
               <Button
-                type="primary"
-                htmlType="submit"
-                loading={isSubmitting || loading}
-                icon={<PiFloppyDisk />}
+                type="submit"
+                disabled={isSubmitting || loading}
                 data-testid="assignment-form-save-button"
+                className="gba:flex gba:items-center gba:gap-2"
               >
+                {isSubmitting || loading ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
+                )}
                 {isEditing ? 
                   getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.updateAssignment', 'Update Assignment') : 
                   getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.createAssignment', 'Create Assignment')
                 }
               </Button>
               <Button
+                type="button"
+                variant="outline"
                 onClick={onCancel}
-                icon={<PiX />}
                 data-testid="assignment-form-cancel-button"
+                className="gba:flex gba:items-center gba:gap-2"
               >
+                <PiX className="gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.cancel', 'Cancel')}
               </Button>
-            </Space>
-          </Form.Item>
-        </Form>
+            </div>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

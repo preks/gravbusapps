@@ -31,7 +31,7 @@ export class ExpenseSettingsClient extends RestClient {
     const hasId = data.expenseRuleAssignment.id;
     const payload = {
       ...data,
-      changeMode: hasId ? 'UPDATE' : 'CREATE'
+      changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
     return this.post(`/${BASE_PATH}/saveExpenseRuleAssignment`, payload);
   }
@@ -202,7 +202,7 @@ export class ExpenseSettingsClient extends RestClient {
         details: data.details,
         ...(data.version !== undefined && { version: data.version })
       },
-      changeMode: hasId ? 'UPDATE' : 'CREATE'
+      changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload);
   }
@@ -224,7 +224,7 @@ export class ExpenseSettingsClient extends RestClient {
     const hasId = data.id;
     const payload = {
       ...data,
-      changeMode: hasId ? 'UPDATE' : 'CREATE'
+      changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload);
   }
