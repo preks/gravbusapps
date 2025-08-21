@@ -1,10 +1,8 @@
 import React from 'react';
-import { Typography, Spin } from 'antd';
+import { Spin } from 'antd';
 import { User } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeeDetails, getEmployeeDisplayName } from '../hooks/useEmployeeDetails';
-
-const { Text } = Typography;
 
 export interface UserDisplayNameProps extends BusinessAppContextProps {
   /**
@@ -106,9 +104,9 @@ export const UserDisplayName: React.FC<UserDisplayNameProps> = ({
         data-testid={testId}
       >
         {showIcon && <User className={`gba:w-4 gba:h-4 ${getIconColor()}`} />}
-        <Text className={`${getTextSize()} ${getTextColor()}`}>
+        <span className={`${getTextSize()} ${getTextColor()} gba:font-normal`}>
           {fallback}
-        </Text>
+        </span>
       </div>
     );
   }
@@ -123,9 +121,9 @@ export const UserDisplayName: React.FC<UserDisplayNameProps> = ({
         {showIcon && <User className={`gba:w-4 gba:h-4 ${getIconColor()}`} />}
         <div className="gba:flex gba:items-center gba:gap-1">
           <Spin size="small" />
-          <Text className={`${getTextSize()} ${getTextColor()}`}>
+          <span className={`${getTextSize()} ${getTextColor()} gba:font-normal`}>
             Loading...
-          </Text>
+          </span>
         </div>
       </div>
     );
@@ -139,9 +137,9 @@ export const UserDisplayName: React.FC<UserDisplayNameProps> = ({
         data-testid={testId}
       >
         {showIcon && <User className={`gba:w-4 gba:h-4 ${getIconColor()}`} />}
-        <Text className={`${getTextSize()} ${getTextColor()}`}>
+        <span className={`${getTextSize()} ${getTextColor()} gba:font-normal`}>
           {userId}
-        </Text>
+        </span>
       </div>
     );
   }
@@ -153,9 +151,9 @@ export const UserDisplayName: React.FC<UserDisplayNameProps> = ({
       data-testid={testId}
     >
       {showIcon && <User className={`gba:w-4 gba:h-4 ${getIconColor()}`} />}
-      <Text className={`${getTextSize()} ${getTextColor()}`}>
+      <span className={`${getTextSize()} ${getTextColor()} gba:font-normal`}>
         {displayName}
-      </Text>
+      </span>
     </div>
   );
 };
