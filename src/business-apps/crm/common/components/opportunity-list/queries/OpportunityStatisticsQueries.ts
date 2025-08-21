@@ -69,32 +69,41 @@ export const GET_OPPORTUNITY_VALUE_WITH_TREND = `
   }
 `;
 
-// Query to get average win rate with trend (current vs last quarter)
+// Query to compute win rate with trend: won / (won + lost) for this year vs last year
 export const GET_WIN_RATE_WITH_TREND = `
-  query GetWinRateWithTrend($lastQuarter: timestamptz!, $sourceApp: String) {
-    current: OpportunityAggregate(where: {
+  query GetWinRateWithTrend(
+    $thisYearStart: timestamptz!,
+    $lastYearStart: timestamptz!,
+    $lastYearEnd: timestamptz!,
+    $sourceApp: String
+  ) {
+    currentWon: OpportunityAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
-      winningChance: {_isNull: false}
-    }) {
-      aggregate {
-        avg {
-          winningChance
-        }
-      }
-    }
-    previous: OpportunityAggregate(where: {
+      opportunityStatus: {code: {_eq: "WON"}}
+    }) { aggregate { count } }
+
+    currentClosed: OpportunityAggregate(where: {
+      createdAt: {_gte: $thisYearStart},
       sourceApp: {_eq: $sourceApp},
       isDeleted: {_eq: false},
-      winningChance: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
-    }) {
-      aggregate {
-        avg {
-          winningChance
-        }
-      }
-    }
+      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+    }) { aggregate { count } }
+
+    previousWon: OpportunityAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      opportunityStatus: {code: {_eq: "WON"}}
+    }) { aggregate { count } }
+
+    previousClosed: OpportunityAggregate(where: {
+      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
+      sourceApp: {_eq: $sourceApp},
+      isDeleted: {_eq: false},
+      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+    }) { aggregate { count } }
   }
 `;
 
@@ -191,19 +200,30 @@ export const useOpportunityStatisticsQueries = (context: UseOpportunityStatistic
   const fetchWinRateWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
       const now = new Date();
-      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-      
+      const thisYearStart = new Date(now.getFullYear(), 0, 1);
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { avg: { winningChance: number } } };
-        previous: { aggregate: { avg: { winningChance: number } } };
-      }>(GET_WIN_RATE_WITH_TREND, { 
-        lastQuarter: lastQuarter.toISOString(),
-        sourceApp 
+        currentWon: { aggregate: { count: number } };
+        currentClosed: { aggregate: { count: number } };
+        previousWon: { aggregate: { count: number } };
+        previousClosed: { aggregate: { count: number } };
+      }>(GET_WIN_RATE_WITH_TREND, {
+        thisYearStart: thisYearStart.toISOString(),
+        lastYearStart: lastYearStart.toISOString(),
+        lastYearEnd: lastYearEnd.toISOString(),
+        sourceApp,
       });
-      
-      const currentRate = Math.round(result.current.aggregate.avg?.winningChance || 0);
-      const previousRate = Math.round(result.previous.aggregate.avg?.winningChance || 0);
-      
+
+      const currentWon = result.currentWon.aggregate.count || 0;
+      const currentClosed = result.currentClosed.aggregate.count || 0;
+      const previousWon = result.previousWon.aggregate.count || 0;
+      const previousClosed = result.previousClosed.aggregate.count || 0;
+
+      const currentRate = currentClosed > 0 ? Math.round((currentWon / currentClosed) * 100) : 0;
+      const previousRate = previousClosed > 0 ? Math.round((previousWon / previousClosed) * 100) : 0;
+
       return calculateTrend(currentRate, previousRate);
     } catch (error) {
       console.error('Error fetching win rate with trend:', error);

@@ -24,8 +24,10 @@ export interface ContactFormValues {
 
   // Account Information
   accountId: string;
+  account: string; // Account ID for selection
   companyName: string; // Company name for display (same as opportunity form)
   ownerEmployeeId: string;
+  owner: string; // Owner employee ID for selection
   ownerOrganizationId: string;
 
   // Campaign Information
@@ -34,9 +36,16 @@ export interface ContactFormValues {
   // Additional Information
   notesSummary: string;
 
+  // Academic Title
+  academicTitle: string; // Academic title ID for selection
+
   // System fields
   id?: string;
   version?: number;
+
+  // Audit fields
+  createdAt?: string;
+  updatedAt?: string;
 
   // Source tracking
   sourceApp?: string;

@@ -76,8 +76,8 @@ const ContactFormComponent: React.FC = () => {
         pictureUrl: toStringOrUndefined(formValues.pictureUrl),
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
-        contactRole: toStringOrUndefined(formValues.contactRole),
-        //contactType: toStringOrUndefined(formValues.contactType),
+        contactRole: formValues.contactRole || "", // Always include, match contactType pattern
+        contactType: formValues.contactType || "", // Always include
         workExperienceYears: formValues.workExperienceYears
           ? parseInt(formValues.workExperienceYears)
           : undefined,
@@ -89,10 +89,10 @@ const ContactFormComponent: React.FC = () => {
         companyName: formValues.companyName
           ? toStringOrUndefined(formValues.companyName)
           : undefined,
-        accountId: toStringOrUndefined(formValues.accountId),
+        account: toStringOrUndefined(formValues.accountId), // Backend expects 'account' field
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         ownerEmployee:
-          businessAppContext.userInfo?.employeeDetails?.employeeId ||
+          toStringOrUndefined(formValues.owner) ||
           toStringOrUndefined(formValues.ownerEmployeeId),
         ownerOrganization: undefined, // Will be set by backend based on owner employee
         notesSummary: toStringOrUndefined(formValues.notesSummary),
@@ -119,19 +119,6 @@ const ContactFormComponent: React.FC = () => {
         contact: contactPayload,
         changeMode: changeMode,
       };
-
-      // Debug logs for accountId
-      console.log("🔍 Contact Form Debug:");
-      console.log("  formValues.accountId:", formValues.accountId);
-      console.log("  companyInputValue:", formValues.companyName);
-      console.log("  contactPayload.accountId:", contactPayload.accountId);
-      console.log("  contactPayload.companyName:", contactPayload.companyName);
-
-      // Log the payload for debugging
-      console.log(
-        `${isUpdate ? "Updating" : "Creating"} contact with payload:`,
-        payload
-      );
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);
@@ -168,7 +155,7 @@ const ContactFormComponent: React.FC = () => {
             <SearchableSelect
               label="Company Name *"
               name="companyName"
-              value={formValues.companyName}
+              value={formValues.accountId}
               placeholder="Please Select..."
               options={accountSuggestions as any}
               loading={accountsLoading}
@@ -183,7 +170,8 @@ const ContactFormComponent: React.FC = () => {
                 if (selectedAccount) {
                   setFormValues({
                     companyName: selectedAccount.name, // Store name for display
-                    accountId: selectedAccount.value, // Store ID for backend
+                    accountId: selectedAccount.value, // Store ID for backend AND SearchableSelect value
+                    account: selectedAccount.value, // Store ID for selection
                   });
                 }
               }}
