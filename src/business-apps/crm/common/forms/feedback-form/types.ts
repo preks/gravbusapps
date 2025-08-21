@@ -21,12 +21,13 @@ export interface TextTransformationResponse {
 }
 
 export interface EmployeeOption {
-  id: string;
+  id: string; // This is the actual employee ID (employee.id from EmployeePosition)
   name: string;
   email?: string;
   jobTitle?: string;
   department?: string;
   pictureThumbnail?: string;
+  userId?: string;
 }
 
 export interface FeedbackFormProps {

@@ -27,6 +27,10 @@ import {
 import { useCurrenciesGraphQL } from "../hooks/useCurrenciesGraphQL";
 import { useCountriesGraphQL } from "../hooks/useCountriesGraphQL";
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
+import {
+  useAccountData,
+  mapAccountToFormValues,
+} from "../hooks/useAccountData";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
@@ -257,6 +261,13 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   // Catalog initialization tracking
   const hasInitialized = useRef(false);
 
+  // Account data hook for fetching existing account data
+  const {
+    accountData,
+    loading: accountDataLoading,
+    error: accountDataError,
+  } = useAccountData(businessAppContext);
+
   // Current user employee hook for auto-selection
   const {
     employee: currentUserEmployee,
@@ -439,6 +450,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       };
     });
 
+    let finalEmployees: SelectOption[] = [...regularEmployees];
+
     // Add current user to the beginning if they're not already in the list
     if (currentUserEmployee) {
       const currentUserDisplayName =
@@ -463,18 +476,47 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
         },
       };
 
-      // Check if current user is already in the regular employees list
-      const isCurrentUserInList = regularEmployees.some(
+      const isCurrentUserInList = finalEmployees.some(
         (emp) => emp.value === currentUserEmployee.employeeId
       );
 
       if (!isCurrentUserInList) {
-        return [currentUserOption, ...regularEmployees];
+        finalEmployees.unshift(currentUserOption);
       }
     }
 
-    return regularEmployees;
-  }, [employeePositionData, currentUserEmployee]);
+    // Add account's owner employee if we have account data and owner is not in the list
+    if (accountData && accountData.Account?.[0]?.ownerEmployee) {
+      const accountOwner = accountData.Account[0];
+      const ownerEmployeeId = accountOwner?.ownerEmployee?.id;
+      const isAccountOwnerInList = finalEmployees.some(
+        (emp) => emp.value === ownerEmployeeId
+      );
+
+      if (!isAccountOwnerInList) {
+        const accountOwnerDisplayName =
+          `${accountOwner?.ownerEmployee?.firstName} ${accountOwner?.ownerEmployee?.lastName}`.trim();
+
+        const accountOwnerOption: SelectOption = {
+          id: ownerEmployeeId,
+          value: ownerEmployeeId,
+          label: `${accountOwnerDisplayName} - Account Owner`,
+          name: accountOwnerDisplayName,
+          extraInfo: {
+            picture: undefined, // We don't have this from account query
+            pictureThumbnail: accountOwner?.ownerEmployee?.pictureThumbnail,
+            jobPosition: "Account Owner", // Default since we don't have job position from account query
+            organizationalUnit: "Unknown", // Default since we don't have org unit from account query
+            userId: undefined,
+          },
+        };
+
+        finalEmployees.unshift(accountOwnerOption);
+      }
+    }
+
+    return finalEmployees;
+  }, [employeePositionData, currentUserEmployee, accountData]);
 
   // Use dynamic forms from catalog (same as lead form)
   const legalForms: SelectOption[] = useMemo(() => {
@@ -609,20 +651,68 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     []
   );
 
-  // Auto-select current user once their employee data has loaded
+  // Populate form values when account data is loaded (for editing existing accounts)
   useEffect(() => {
+    // Only populate if we have account data and the form doesn't already have this account's data
+    if (
+      accountData &&
+      accountData.Account?.[0]?.id &&
+      (!formValues.id || formValues.id !== accountData.Account[0].id)
+    ) {
+      const mappedValues = mapAccountToFormValues(accountData);
+      setFormValuesState((prev) => ({
+        ...prev,
+        ...mappedValues,
+      }));
+
+      // Don't auto-select current user if we're editing an existing account
+      autoSelectionDone.current = true;
+    }
+  }, [
+    accountData,
+    businessAppContext.additionalData?.accountId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.accountId,
+  ]);
+
+  // Auto-select current user once their employee data has loaded (only for new accounts, not editing)
+  useEffect(() => {
+    const currentAccountId =
+      businessAppContext.additionalData?.accountId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+        ?.accountId;
+
+    // Only auto-select if:
+    // 1. We have current user employee data
+    // 2. No owner is set yet
+    // 3. We haven't already done auto-selection
+    // 4. We're NOT editing an existing account (no accountId)
+    // 5. We don't have account data (meaning it's a new account)
     if (
       currentUserEmployee &&
       !formValues.owner &&
-      !autoSelectionDone.current
+      !autoSelectionDone.current &&
+      !currentAccountId && // Don't auto-select when editing existing account
+      !accountData // Don't auto-select when we have account data
     ) {
+      console.log(
+        "✅ Auto-selecting current user as owner:",
+        currentUserEmployee.employeeId
+      );
       setFormValuesState((prev) => ({
         ...prev,
         owner: currentUserEmployee.employeeId,
       }));
       autoSelectionDone.current = true;
     }
-  }, [currentUserEmployee, formValues.owner]);
+  }, [
+    currentUserEmployee,
+    formValues.owner,
+    businessAppContext.additionalData?.accountId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.accountId,
+    accountData,
+  ]);
 
   // Context value
   const value: AccountFormContextValue = {

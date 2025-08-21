@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Lead, LeadQueryVariables } from "../types";
 import { useGetLeadsData } from "../queries/LeadQueries";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -41,7 +41,8 @@ interface UseLeadListDataReturn {
     pageSize?: number,
     additionalFilters?: any,
     overrideSortField?: string,
-    overrideSortOrder?: "ASC" | "DESC" | ""
+    overrideSortOrder?: "ASC" | "DESC" | "",
+    showLoading?: boolean
   ) => Promise<void>;
   retry: () => void;
 }
@@ -79,31 +80,34 @@ export const useLeadListData = ({
   } as BusinessAppContextProps);
 
   // Stabilize filter arrays using useMemo to prevent infinite loops
-  const stableFilters = useMemo(() => ({
-    leadStatuses: [...leadStatuses],
-    leadRatings: [...leadRatings],
-    leadSources: [...leadSources],
-    industries: [...industries],
-    companySizes: [...companySizes],
-    owners: [...owners],
-    leadContacts: [...leadContacts],
-    leadCompanies: [...leadCompanies],
-    countries: [...countries],
-    regions: [...regions],
-    cities: [...cities],
-  }), [
-    leadStatuses.join(','),
-    leadRatings.join(','),
-    leadSources.join(','),
-    industries.join(','),
-    companySizes.join(','),
-    owners.join(','),
-    leadContacts.join(','),
-    leadCompanies.join(','),
-    countries.join(','),
-    regions.join(','),
-    cities.join(','),
-  ]);
+  const stableFilters = useMemo(
+    () => ({
+      leadStatuses: [...leadStatuses],
+      leadRatings: [...leadRatings],
+      leadSources: [...leadSources],
+      industries: [...industries],
+      companySizes: [...companySizes],
+      owners: [...owners],
+      leadContacts: [...leadContacts],
+      leadCompanies: [...leadCompanies],
+      countries: [...countries],
+      regions: [...regions],
+      cities: [...cities],
+    }),
+    [
+      leadStatuses.join(","),
+      leadRatings.join(","),
+      leadSources.join(","),
+      industries.join(","),
+      companySizes.join(","),
+      owners.join(","),
+      leadContacts.join(","),
+      leadCompanies.join(","),
+      countries.join(","),
+      regions.join(","),
+      cities.join(","),
+    ]
+  );
 
   const loadPage = useCallback(
     async (
@@ -180,9 +184,9 @@ export const useLeadListData = ({
           conditions.push({
             account: {
               industry: {
-                id: { _in: stableFilters.industries }
-              }
-            }
+                id: { _in: stableFilters.industries },
+              },
+            },
           });
         }
 
@@ -195,8 +199,8 @@ export const useLeadListData = ({
         if (stableFilters.leadContacts.length > 0) {
           conditions.push({
             contact: {
-              id: { _in: stableFilters.leadContacts }
-            }
+              id: { _in: stableFilters.leadContacts },
+            },
           });
         }
 
@@ -205,8 +209,8 @@ export const useLeadListData = ({
           conditions.push({
             _or: [
               { companyName: { _in: stableFilters.leadCompanies } },
-              { account: { name: { _in: stableFilters.leadCompanies } } }
-            ]
+              { account: { name: { _in: stableFilters.leadCompanies } } },
+            ],
           });
         }
 
@@ -307,12 +311,16 @@ export const useLeadListData = ({
 
         // Add country filter
         if (stableFilters.countries.length > 0) {
-          conditions.push({ country: { value: { _in: stableFilters.countries } } });
+          conditions.push({
+            country: { value: { _in: stableFilters.countries } },
+          });
         }
 
         // Add region filter
         if (stableFilters.regions.length > 0) {
-          conditions.push({ region: { value: { _in: stableFilters.regions } } });
+          conditions.push({
+            region: { value: { _in: stableFilters.regions } },
+          });
         }
 
         // Add city filter

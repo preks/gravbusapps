@@ -32,7 +32,6 @@ const LeadFormComponent: React.FC = () => {
     employeePositionsHasMore,
     loadMoreEmployeePositions,
     searchEmployeePositions,
-    addressLineCount,
   } = useLeadFormContext();
 
   // Check if all mandatory fields are filled
@@ -46,7 +45,6 @@ const LeadFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await onSubmit(formValues);
-      console.log("Comapny name value ", formValues.company);
       // Prepare comprehensive lead payload following the API structure
       const leadPayload: any = {
         sourceApp: "CRM",
@@ -134,24 +132,19 @@ const LeadFormComponent: React.FC = () => {
       leadPayload.tags = [];
       leadPayload.communicationChannels = [];
 
-      // Debug logging
-      console.log("Lead Address Debug Info:", {
-        addressLineCount: addressLineCount,
-        dynamicAddresses: formValues.addresses,
-        dynamicAddressesCount: formValues.addresses?.length || 0,
-        processedAddressesForPayload: addresses,
-        totalSeparateAddressObjects: addresses.length,
-        payloadAddressesField: leadPayload.addresses,
-        finalPayloadAddressLine: leadPayload.addressLine,
-      });
-
-      // Always use INSERT mode for lead creation
-      const changeMode = "INSERT";
+      // Use UPDATE mode if editing existing lead, INSERT for new lead
+      const changeMode = formValues.id ? "UPDATE" : "INSERT";
 
       const payload = {
         lead: leadPayload,
         changeMode: changeMode,
       };
+
+      // Add id and version for UPDATE mode
+      if (changeMode === "UPDATE" && formValues.id) {
+        leadPayload.id = formValues.id;
+        leadPayload.version = formValues.version;
+      }
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);
