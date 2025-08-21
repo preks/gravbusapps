@@ -77,7 +77,7 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
           userId: emp.employee?.userId || undefined // Use the userId from the employee object
         }))
         // Filter out the current user from the list
-        .filter((emp: EmployeeOption) => emp.userId !== currentUserId);
+        .filter((emp: EmployeeOption) => emp.id !== currentUserId);
 
       setEmployees(employeeOptions);
     } catch (err) {
