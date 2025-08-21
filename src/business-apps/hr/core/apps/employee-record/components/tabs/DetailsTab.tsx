@@ -290,7 +290,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="personal-data-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeePersonalData]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -317,7 +317,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="employee-address-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeAddress]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -343,7 +343,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="bank-account-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeBankAccount]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -369,7 +369,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="private-communication-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeCommunication]}
                 externalContextData={{
                   employeeId: employee?.id,

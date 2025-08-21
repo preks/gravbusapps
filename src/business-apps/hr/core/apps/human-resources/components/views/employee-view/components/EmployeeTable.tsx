@@ -29,9 +29,10 @@ const MemoizedAppActionButton = memo<{
   employeeId: string;
   userId?: string;
   supervisorEmployeeId?: string;
+  organizationalUnitId?: string;
   accessToken: string;
   dataTestIdPrefix: string;
-}>(({ employeeId, userId, supervisorEmployeeId, accessToken, dataTestIdPrefix }) => (
+}>(({ employeeId, userId, supervisorEmployeeId, organizationalUnitId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${employeeId}`)}
     size="icon"
@@ -39,7 +40,8 @@ const MemoizedAppActionButton = memo<{
     externalContextData={{
       employeeId: employeeId,
       keycloakUserId: userId,
-      managerId: supervisorEmployeeId
+      managerId: supervisorEmployeeId,
+      organizationalUnitId: organizationalUnitId
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
     accessToken={accessToken}
@@ -349,6 +351,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                         employeeId={employee.id}
                         userId={employee.userId}
                         supervisorEmployeeId={employee.supervisorEmployeeId}
+                        organizationalUnitId={employee.organizationalUnitId}
                         accessToken={accessToken}
                         dataTestIdPrefix={DATA_TEST_ID_PREFIX}
                       />
