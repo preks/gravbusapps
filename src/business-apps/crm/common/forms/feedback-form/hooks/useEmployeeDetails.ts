@@ -11,11 +11,11 @@ export const useEmployeeDetails = (accessToken: string, employeeId?: string) => 
     if (!employee) return null;
 
     return {
-      id: employee.employee.id,
+      id: employee.employee.id, // Use the actual employee ID from the employee object
       name: employee.employee.displayName || `${employee.firstName} ${employee.lastName}`,
-      email: undefined, // Not available in this query
       jobTitle: employee.jobPosition?.name,
-      department: employee.organizationalUnit?.name
+      department: employee.organizationalUnit?.name,
+      userId: employee.employee?.userId || undefined // Include the user ID, convert null to undefined
     };
   };
 

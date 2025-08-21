@@ -113,6 +113,8 @@ export const useOpportunityListData = (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { fetchOpportunitiesData } = useGetOpportunitiesData(params.context);
 
@@ -122,14 +124,17 @@ export const useOpportunityListData = (
       pageSize = 20,
       additionalFilters?: any,
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
       if (!params.context.accessToken) {
         console.warn("No access token provided for opportunity data loading");
         return;
       }
 
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -210,11 +215,9 @@ export const useOpportunityListData = (
         }
 
         // Add winning chance filtering
-        const winningChanceRanges = additionalFilters?.winningChanceRanges || params.winningChanceRanges;
-        if (
-          winningChanceRanges &&
-          winningChanceRanges.length > 0
-        ) {
+        const winningChanceRanges =
+          additionalFilters?.winningChanceRanges || params.winningChanceRanges;
+        if (winningChanceRanges && winningChanceRanges.length > 0) {
           const winningChanceConditions = winningChanceRanges.map(
             (range: { min?: number; max?: number }) => {
               const condition: any = {};
@@ -231,18 +234,21 @@ export const useOpportunityListData = (
         }
 
         // Add amount filtering
-        const amountRanges = additionalFilters?.amountRanges || params.amountRanges;
+        const amountRanges =
+          additionalFilters?.amountRanges || params.amountRanges;
         if (amountRanges && amountRanges.length > 0) {
-          const amountConditions = amountRanges.map((range: { min?: number; max?: number }) => {
-            const condition: any = {};
-            if (range.min !== undefined) {
-              condition._gte = range.min;
+          const amountConditions = amountRanges.map(
+            (range: { min?: number; max?: number }) => {
+              const condition: any = {};
+              if (range.min !== undefined) {
+                condition._gte = range.min;
+              }
+              if (range.max !== undefined) {
+                condition._lte = range.max;
+              }
+              return { estimatedAmount: condition };
             }
-            if (range.max !== undefined) {
-              condition._lte = range.max;
-            }
-            return { estimatedAmount: condition };
-          });
+          );
           whereConditions.push({ _or: amountConditions });
         }
 
@@ -253,8 +259,10 @@ export const useOpportunityListData = (
         }
 
         // Add close date filtering (was incorrectly filtering createdAt)
-        const createdAfter = additionalFilters?.createdAfter || params.createdAfter;
-        const createdBefore = additionalFilters?.createdBefore || params.createdBefore;
+        const createdAfter =
+          additionalFilters?.createdAfter || params.createdAfter;
+        const createdBefore =
+          additionalFilters?.createdBefore || params.createdBefore;
         if (createdAfter || createdBefore) {
           const dateCondition: any = {};
           if (createdAfter) {
@@ -293,7 +301,9 @@ export const useOpportunityListData = (
         // Add status filtering
         const statuses = additionalFilters?.statuses || params.statuses;
         if (statuses && statuses.length > 0) {
-          whereConditions.push({ opportunityStatus: { id: { _in: statuses } } });
+          whereConditions.push({
+            opportunityStatus: { id: { _in: statuses } },
+          });
         }
 
         // Combine all where conditions with _and
@@ -303,8 +313,6 @@ export const useOpportunityListData = (
             : whereConditions[0] || {};
 
         // Build order by condition - handle both override and regular sorting
-        console.log("overrideSortField", overrideSortField);
-        console.log("overrideSortOrder", overrideSortOrder);
         let orderBy: any[] = [];
         if (overrideSortField && overrideSortField !== "") {
           const sortCondition: any = {};
@@ -458,6 +466,8 @@ export const useOpportunityListData = (
 
           const totalCount = result.OpportunityAggregate?.aggregate?.count || 0;
           setTotal(totalCount);
+          setCurrentPage(page);
+          setPageSize(safePageSize);
           setHasMore(offset + safePageSize < totalCount);
         }
       } catch (err) {
@@ -491,8 +501,8 @@ export const useOpportunityListData = (
 
   const retry = useCallback(() => {
     console.log("Retrying opportunity data load");
-    // Will be implemented with actual retry logic
-  }, []);
+    loadPage(currentPage, pageSize);
+  }, [currentPage, pageSize, loadPage]);
 
   return {
     opportunities,

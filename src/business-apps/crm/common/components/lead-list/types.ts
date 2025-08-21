@@ -13,6 +13,7 @@ export interface Lead {
   createdAt?: string;
   updatedAt?: string;
   version?: number;
+  sensitive?: boolean;
   countryRef?: string;
   country?: {
     id: string;

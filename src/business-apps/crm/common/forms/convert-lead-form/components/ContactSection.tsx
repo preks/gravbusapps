@@ -171,8 +171,8 @@ const ContactSection: React.FC<ContactSectionProps> = ({
       name: `${emp.firstName} ${emp.lastName}`,
       extraInfo: {
         pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-        jobPosition: emp.jobPosition.name,
-        organizationalUnit: emp.organizationalUnit.name,
+        jobPosition: emp.jobPosition?.name,
+        organizationalUnit: emp.organizationalUnit?.name,
       },
     }));
 
@@ -979,15 +979,15 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                               accountsLength: simpleAccounts.length,
                               accountsLoading: simpleAccountsLoading,
                               accounts: simpleAccounts
-                                .map((account: any) => account.name)
+                                .map((account: any) => account?.name)
                                 .slice(0, 5), // First 5 names only
                             }
                           );
                           return simpleAccounts.map((account: any) => ({
                             id: account.id,
                             value: account.id,
-                            label: account.name,
-                            name: account.name,
+                            label: account?.name,
+                            name: account?.name,
                           }));
                         })()}
                         onSearch={searchSimpleAccounts}
