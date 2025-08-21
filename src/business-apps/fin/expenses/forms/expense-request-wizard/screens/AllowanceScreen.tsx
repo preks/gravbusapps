@@ -145,7 +145,11 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         : null;
       
       return updatedElement;
-    }).sort((a,b)=> a.itemOrder - b.itemOrder);
+    }).sort((a:any, b:any) => {
+      const positionA = a.itemOrder ?? 0;
+      const positionB = b.itemOrder ?? 0;
+      return positionA - positionB;
+  })
     setListDataArray(processedData);
     
     const initialCollapsedStates: Record<number, boolean> = {};
