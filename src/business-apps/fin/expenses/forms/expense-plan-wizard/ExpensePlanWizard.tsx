@@ -579,7 +579,7 @@ const ExpensePlanWizard: React.FC<BusinessAppContextProps> = (props) => {
       userInfo={userInfo}
       additionalData={additionalData}
     >
-      <div className="gba:flex gba:flex-col gba:h-[100%]" data-testid="expense-plan-wizard-wrapper">
+      <div className="gba:flex gba:flex-col" style={{ height: '100%' }} data-testid="expense-plan-wizard-wrapper">
         <ExpensePlanWizardContent 
           onCancel={handleCancel} 
           accessToken={accessToken} 

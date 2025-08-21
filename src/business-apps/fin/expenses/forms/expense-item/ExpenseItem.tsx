@@ -17,16 +17,10 @@ const { Title } = Typography;
 const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData, onClose }) => {
   // Get URL query parameters
   const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
-    // Parse URL query parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const expenseRequestId = urlParams.get('expenseRequestId');
-    const itemCurrency = urlParams.get('itemCurrency');
-    
-    // Merge URL parameters with additionalData, but prioritize additionalData
     return {
       ...additionalData,
-      expenseRequestId: additionalData?.expenseRequestId || expenseRequestId,
-      itemCurrency: additionalData?.itemCurrency || itemCurrency
+      expenseRequestId: additionalData?.expenseRequestId,
+      itemCurrency: additionalData?.itemCurrency
     };
   });
 

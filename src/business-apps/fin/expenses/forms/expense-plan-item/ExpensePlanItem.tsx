@@ -17,16 +17,11 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
 }) => {
 
   const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
-    // Parse URL query parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const expensePlanId = urlParams.get('expensePlanId');
-    const itemCurrency = urlParams.get('itemCurrency');
-    
-    // Merge URL parameters with additionalData
+
     return {
       ...additionalData,
-      expensePlanId: expensePlanId || additionalData?.expensePlanId,
-      itemCurrency: itemCurrency || additionalData?.itemCurrency
+      expensePlanId: additionalData?.expensePlanId,
+      itemCurrency: additionalData?.itemCurrency
     };
   });
   
@@ -96,7 +91,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
     };
 
     return (
-              <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:h-[100%]" style={{ width: '100%', maxWidth: '800px' }} data-testid="expense-plan-item-main-container">
+              <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }} data-testid="expense-plan-item-main-container">
         <div className="gba:flex gba:items-center gba:pt-10 gba:font-primary gba:relative gba:pb-[30px] gba:h-8 gba:box-content" data-testid="expense-plan-item-header-container">
           <div className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none" data-testid="expense-plan-item-title-container">
                           <Title level={4} className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto" data-testid="expense-plan-item-header-title">
@@ -107,7 +102,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
             </Title>
           </div>
         </div>
-        <Divider className="gba:m-0 gba:ml-0 gba:mb-0" data-testid="expense-plan-item-header-divider" />
+        <Divider className="gba:m-0 gba:ml-0 gba:mb-[30px]" data-testid="expense-plan-item-header-divider" />
 
         <ExpensePlanItemForm
           form={form}
