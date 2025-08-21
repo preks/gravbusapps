@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Eye, User, Search, Filter, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Eye, User, Search, Filter, Calendar, Clock, AlertCircle, UserPlus, UserMinus } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, TicketStatus } from 'packages/services-plus-core';
 import { TicketDetail } from './TicketDetail';
 import { useDeskTickets } from '../hooks/useDeskTickets';
+import { useTicketActions } from '../hooks/useTicketActions';
+import { setWorkflowEngineCurrentUser } from '../../../services/workflowEngineProvider';
+import { UserDisplayName } from '../../../components/UserDisplayName';
 // Note: DebouncedInput would be preferred but using Input with onChange for now
 
 // UI Components - TODO: Replace with @newwork/nw-design-system when available
-import { Table, Button, Tag, Drawer, Select, Input, Card, Space, Typography, Badge } from 'antd';
+import { Table, Button, Tag, Drawer, Select, Input, Card, Space, Typography, Badge, message } from 'antd';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -86,6 +89,100 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     userInfo,
   });
 
+  // Ticket actions (claim, unclaim)
+  const { 
+    claimTicket, 
+    assignTicket, 
+    isPerformingAction 
+  } = useTicketActions({
+    accessToken,
+    onSuccess: () => {
+      setOptimisticUpdates({}); // Clear all optimistic updates
+      refetch(); // Refresh the ticket list after successful action
+    },
+  });
+
+  // Optimistic updates state
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, Partial<StepInstance>>>({});
+
+  const currentUserId = userInfo?.employeeDetails?.employeeId;
+
+  // Ensure mock engine uses the logged-in user's ID for actions
+  useEffect(() => {
+    if (currentUserId) {
+      setWorkflowEngineCurrentUser(currentUserId);
+    }
+  }, [currentUserId]);
+
+  // Handle claim ticket with optimistic update
+  const handleClaimTicket = async (ticket: StepInstance) => {
+    if (!currentUserId) {
+      message.error(getTranslationFromI18nKeyAndLabel('services.error.noUser', 'User information not available'));
+      return;
+    }
+
+    // Optimistic update
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      [ticket.id]: {
+        claimedByUserId: currentUserId,
+        status: 'claimed' as TicketStatus
+      }
+    }));
+
+    const loadingMessage = message.loading(
+      getTranslationFromI18nKeyAndLabel('services.queue.claiming', 'Claiming ticket...'), 
+      0
+    );
+
+    try {
+      await claimTicket(ticket.id);
+      message.success(getTranslationFromI18nKeyAndLabel('services.queue.claimed.success', 'Ticket claimed successfully'));
+    } catch (err) {
+      // Remove optimistic update on error
+      setOptimisticUpdates(prev => {
+        const { [ticket.id]: removed, ...rest } = prev;
+        return rest;
+      });
+      message.error(getTranslationFromI18nKeyAndLabel('services.queue.claimed.error', 'Failed to claim ticket'));
+    } finally {
+      loadingMessage();
+    }
+  };
+
+  // Handle unclaim ticket (assign to null)
+  const handleUnclaimTicket = async (ticket: StepInstance) => {
+    // Optimistic update
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      [ticket.id]: {
+        claimedByUserId: undefined,
+        assignedToUserId: undefined,
+        status: 'queued' as TicketStatus
+      }
+    }));
+
+    const loadingMessage = message.loading(
+      getTranslationFromI18nKeyAndLabel('services.queue.unclaiming', 'Unclaiming ticket...'), 
+      0
+    );
+
+    try {
+      // Use assign with empty string to simulate unclaim
+      await assignTicket(ticket.id, '');
+      message.success(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.success', 'Ticket unclaimed successfully'));
+    } catch (err) {
+      // Remove optimistic update on error
+      setOptimisticUpdates(prev => {
+        const { [ticket.id]: removed, ...rest } = prev;
+        return rest;
+      });
+      message.error(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.error', 'Failed to unclaim ticket'));
+    } finally {
+      loadingMessage();
+    }
+  };
+
   // Update drawer state when ticketId prop changes
   useEffect(() => {
     if (ticketId) {
@@ -98,7 +195,13 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   const filteredTickets = useMemo(() => {
     if (!tickets) return [];
 
-    return tickets.filter(ticket => {
+    // Apply optimistic updates to tickets
+    const ticketsWithOptimisticUpdates = tickets.map(ticket => ({
+      ...ticket,
+      ...optimisticUpdates[ticket.id]
+    }));
+
+    return ticketsWithOptimisticUpdates.filter(ticket => {
       // Status filter
       if (statusFilter !== 'all' && ticket.status !== statusFilter) {
         return false;
@@ -133,7 +236,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
 
       return true;
     });
-  }, [tickets, statusFilter, assigneeFilter, searchTerm]);
+  }, [tickets, statusFilter, assigneeFilter, searchTerm, optimisticUpdates]);
 
   // Get unique assignees for filter dropdown
   const uniqueAssignees = useMemo(() => {
@@ -215,11 +318,18 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       dataIndex: 'requesterId',
       key: 'requesterId',
       width: 120,
-      render: (requesterId: string) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <User className="gba:w-4 gba:h-4 gba:text-gray-400" />
-          <Text className="gba:text-sm">{requesterId || 'Unknown'}</Text>
-        </div>
+      render: (requesterId: string, record: StepInstance) => (
+        <UserDisplayName
+          userId={requesterId}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          showIcon={true}
+          color="default"
+          size="small"
+          fallback="Unknown"
+          className="gba:text-sm"
+          testId={`requester-${record.id}`}
+        />
       ),
     },
     {
@@ -295,20 +405,31 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       render: (assignedToUserId: string | undefined, record: StepInstance) => {
         if (assignedToUserId) {
           return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <User className="gba:w-4 gba:h-4 gba:text-blue-500" />
-              <Text className="gba:text-sm">{assignedToUserId}</Text>
-            </div>
+            <UserDisplayName
+              userId={assignedToUserId}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              showIcon={true}
+              color="blue"
+              size="small"
+              className="gba:text-sm"
+              testId={`assigned-user-${record.id}`}
+            />
           );
         }
         if (record.claimedByUserId) {
           return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <User className="gba:w-4 gba:h-4 gba:text-orange-500" />
-              <Text className="gba:text-sm gba:text-gray-500">
-                {getTranslationFromI18nKeyAndLabel('services.queue.claimed', 'Claimed')}
-              </Text>
-            </div>
+            <UserDisplayName
+              userId={record.claimedByUserId}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              showIcon={true}
+              color="orange"
+              size="small"
+              fallback="Claimed User"
+              className="gba:text-sm"
+              testId={`claimed-user-${record.id}`}
+            />
           );
         }
         return (
@@ -343,20 +464,78 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     {
       title: getTranslationFromI18nKeyAndLabel('services.queue.columns.actions', 'Actions'),
       key: 'actions',
-      width: 80,
+      width: 180,
       fixed: 'right' as const,
-      render: (_: unknown, record: StepInstance) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<Eye className="gba:w-4 gba:h-4" />}
-          onClick={() => handleViewTicket(record)}
-          data-testid={`view-ticket-${record.id}`}
-          className="gba:flex gba:items-center gba:gap-1"
-        >
-          {getTranslationFromI18nKeyAndLabel('services.queue.actions.view', 'View')}
-        </Button>
-      ),
+      render: (_: unknown, record: StepInstance) => {
+        // Allow everyone to claim any unclaimed ticket (regardless of status)
+        const canClaim = !record.claimedByUserId && currentUserId;
+        // Only allow the original claimer to unclaim
+        const canUnclaim = record.claimedByUserId === currentUserId;
+        const isOptimisticallyUpdating = !!optimisticUpdates[record.id];
+
+        // Debug: Log button visibility
+        console.log(`🔍 [DeskQueue] Buttons for ticket ${record.id}:`, {
+          status: record.status,
+          claimedByUserId: record.claimedByUserId,
+          currentUserId: currentUserId,
+          canClaim: canClaim,
+          canUnclaim: canUnclaim,
+          'not claimed?': !record.claimedByUserId,
+          'has currentUser?': !!currentUserId,
+          'claimed by me?': record.claimedByUserId === currentUserId
+        });
+
+        return (
+          <Space size="small" className="gba:flex gba:flex-nowrap">
+            {/* Claim Button */}
+            {canClaim && (
+              <Button
+                type="default"
+                size="small"
+                icon={<UserPlus className="gba:w-3 gba:h-3" />}
+                onClick={() => handleClaimTicket(record)}
+                loading={isPerformingAction && isOptimisticallyUpdating}
+                disabled={isPerformingAction}
+                data-testid={`claim-ticket-${record.id}`}
+                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-blue-300 gba:text-blue-600 hover:gba:border-blue-500 hover:gba:text-blue-700"
+                title={getTranslationFromI18nKeyAndLabel('services.queue.actions.claim.tooltip', 'Claim this ticket')}
+              >
+                {getTranslationFromI18nKeyAndLabel('services.queue.actions.claim', 'Claim')}
+              </Button>
+            )}
+
+            {/* Unclaim Button */}
+            {canUnclaim && (
+              <Button
+                type="default"
+                size="small"
+                icon={<UserMinus className="gba:w-3 gba:h-3" />}
+                onClick={() => handleUnclaimTicket(record)}
+                loading={isPerformingAction && isOptimisticallyUpdating}
+                disabled={isPerformingAction}
+                data-testid={`unclaim-ticket-${record.id}`}
+                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-orange-300 gba:text-orange-600 hover:gba:border-orange-500 hover:gba:text-orange-700"
+                title={getTranslationFromI18nKeyAndLabel('services.queue.actions.unclaim.tooltip', 'Unclaim this ticket')}
+              >
+                {getTranslationFromI18nKeyAndLabel('services.queue.actions.unclaim', 'Unclaim')}
+              </Button>
+            )}
+
+            {/* View Button - always show */}
+            <Button
+              type="primary"
+              size="small"
+              icon={<Eye className="gba:w-3 gba:h-3" />}
+              onClick={() => handleViewTicket(record)}
+              data-testid={`view-ticket-${record.id}`}
+              className="gba:flex gba:items-center gba:gap-1 gba:text-xs"
+              title={getTranslationFromI18nKeyAndLabel('services.queue.actions.view.tooltip', 'View ticket details')}
+            >
+              {getTranslationFromI18nKeyAndLabel('services.queue.actions.view', 'View')}
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
 

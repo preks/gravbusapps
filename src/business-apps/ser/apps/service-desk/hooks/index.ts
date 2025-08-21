@@ -6,6 +6,7 @@ export { useTicketActions } from './useTicketActions';
 // New GraphQL-based hooks
 export { useUserCapabilitiesGraphQL } from '../../hooks/useUserCapabilitiesGraphQL';
 export { useDesksForUser } from '../../hooks/useDesksForUser';
+export { useEmployeeDetails } from '../../hooks/useEmployeeDetails';
 
 export type { 
   UseUserCapabilitiesProps, 

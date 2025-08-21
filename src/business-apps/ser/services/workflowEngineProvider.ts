@@ -44,6 +44,20 @@ export function resetWorkflowEngine(): void {
 }
 
 /**
+ * Update the current user context on the underlying engine (for mock usage)
+ * Ensures actions like claim/comment use the logged-in user's ID
+ */
+export function setWorkflowEngineCurrentUser(userId: string): void {
+  if (!userId) return;
+  if (!workflowEngineInstance) return;
+  // For MockWorkflowEngineAdapter we can update the user context at runtime
+  const maybeMock: any = workflowEngineInstance as any;
+  if (typeof maybeMock.setCurrentUserId === 'function') {
+    maybeMock.setCurrentUserId(userId);
+  }
+}
+
+/**
  * Hook to get WorkflowEngine instance in React components
  * @param currentUserId - Optional user ID for engine context
  * @returns WorkflowEngine instance

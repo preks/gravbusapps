@@ -17,7 +17,7 @@ import type {
 export class MockWorkflowEngineAdapter implements WorkflowEngine {
   private requests: Map<string, SubmittedRequest> = new Map();
   private templates: Map<string, ServiceRequestTemplate> = new Map();
-  private currentUserId: string = 'current-user-123';
+  private currentUserId: string = 'Denis Prekrat';
   private requestCounter: number = 1;
   private commentCounter: number = 1;
 
