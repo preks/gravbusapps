@@ -121,7 +121,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
   return (
     <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen" style={{ minHeight: '50vh' }}>
       <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-wizard-summary-screen-content">
-        <div className="gba:rounded-lg" data-testid="expense-request-summary-header">
+        
+          <div className="gba:rounded-lg" data-testid="expense-request-summary-header">
           <Row gutter={[24, 16]} className="gba:mb-2">
             <Col xs={24} md={12} className="gba:text-left">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -157,7 +158,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               </div>
             </Col>
           </Row>
-        </div>
+          </div>
+        <div style={{flexGrow:1}}>
         {requestData?.expensePlan && (
         <div className="gba:mt-6" data-testid="expense-request-plan-section">
           <span 
@@ -199,7 +201,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder', 'Allowances') + " ("+allowanceItems?.length + ")"}
           </span>
-          <div style={{flexGrow:1}}>
           {allowanceItems && allowanceItems.length > 0 ? (
             <>
               <div data-testid="expense-request-allowances-list">
@@ -232,7 +233,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.no_allowances_text', 'No allowances created')}
             </div>
           )}
-        </div>
         
         <div className="gba:mt-6" data-testid="expense-request-expense-items-section">
           <span 
@@ -274,7 +274,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_expense_items', 'No expense items created')}
             </div>
           )}
-        </div></div>
+        </div>
+        </div>
+        </div>
         <ExpenseSummary requestData={requestData} />
         {hasFutureDates && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">

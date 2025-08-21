@@ -389,7 +389,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   }, [isFormValid, updateTripFormValidation]);
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-[100%]" data-testid="payment-screen-container">
+    <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="payment-screen-container">
       {/* Form Section - Takes available space */}
       <div className="gba:p-6 gba:flex gba:flex-col gba:h-[100%]" data-testid="payment-form-section" style={{flexGrow:1}}>
         <Form layout="vertical" form={form}>
