@@ -14,7 +14,6 @@ import { formatDateToISO } from '@/common/utils/windowUtils';
 import { showToast } from '../../utils/notificationUtils';
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS} from './constants/constants';
 import { EVENTS } from '../../utils/constants';
-import './ExpenseRequest.css';
 
 const { Title } = Typography;
 
@@ -196,7 +195,8 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
         }else{
           expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id
-        }}
+        }
+      }
         
       else{
         expenseTypeRef = (isTrip 
@@ -268,51 +268,51 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
   };
 
   return (
-    <div className="gba:mainContainer" data-testid="expense-request-main-container">
+    <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-request-main-container">
      {step === 'expense' || step === 'plan' || step === 'trip' ? (
         <>
           {/* Expense form header */}
-          <div className="gba:headerContainer" data-testid="expense-form-header-container">
+          <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-form-header-container">
             <Button 
               variant="ghost" 
-              className="gba:backButton" 
+              style={{ padding: '0', marginRight: '16px', border: 'none', background: 'transparent' }}
               onClick={backButtonClick}
               data-testid="expense-form-back-button"
             >
               <img 
                 src={ICONS.BACK_ARROW} 
-                className="gba:backIcon" 
+                style={{ width: '24px', height: '24px' }}
                 width="24" 
                 height="24" 
                 alt="Back"
                 data-testid="expense-form-back-icon"
               />
             </Button>
-            <div className="gba:titleContainer" data-testid="expense-form-title-container">
-              <Title level={4} className="gba:headerTitle" data-testid="expense-form-header-title">
+            <div className="gba:flex-1" style={{ position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }} data-testid="expense-form-title-container">
+              <Title level={4} style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }} data-testid="expense-form-header-title">
                 {step =='plan' ? t('lowcoder:create_expense_request.initial_expense_plan_select_placeholder', 'Select Expense Plan') : step=='expense' ?t('lowcoder:create_expense_request.expense_request_container.create_expense_header', 'New Expense Request') : t('lowcoder:create_expense_request.expense_request_container.create_expense_header_trip', 'New Expense Request for Trip')}
               </Title>
             </div>
           </div>
-          <Divider className="gba:headerDivider" data-testid="expense-form-header-divider" />
+          <Divider style={{ margin: '0 0 30px 0' }} data-testid="expense-form-header-divider" />
           
           {/* Expense form content */}
           {step === 'plan' ? (
             <>
               {selectedPlan ? (
                 <>
-                  <div className="gba:selectedPlanSection" data-testid="selected-plan-section">
-                    <Typography.Text className="gba:selectedPlanLabel" data-testid="selected-plan-label">
+                  <div style={{ marginBottom: '0px' }} data-testid="selected-plan-section">
+                    <Typography.Text style={{ padding: '0 16px', display: 'block', fontSize: '16px', fontWeight: 500, marginBottom: '0', color: '#333' }} data-testid="selected-plan-label">
                       {t('lowcoder:create_expense_request.expense_request_container.selected_plan_text', 'Selected Plan for your Request')}
                     </Typography.Text>
-                    <Divider className="gba:selectedPlanDivider" data-testid="selected-plan-divider" />
+                    <Divider style={{ margin: '30px 0 24px 0px' }} data-testid="selected-plan-divider" />
                     <PlanFormContent 
                       form={form} 
                       planData={[selectedPlan]} 
                       isSelectedPlan={true} 
                     />
                   </div>
-                  <Divider className="gba:contentDivider" data-testid="expense-form-content-divider" />
+                  <Divider style={{ margin: '24px 0' }} data-testid="expense-form-content-divider" />
                   <ExpenseFormContent 
                     form={form} 
                     showTransportation={selectedPlan.planType === 'TRIP'} 
@@ -363,16 +363,16 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       ) : (
       <>
         {/* Header */}
-        <div className="gba:headerContainer" data-testid="expense-request-header-container">
-          <div className="gba:titleContainer" data-testid="expense-request-title-container">
-            <Title level={4} className="gba:headerTitle" data-testid="expense-request-header-title">
+        <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-request-header-container">
+          <div className="gba:flex-1" style={{ position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }} data-testid="expense-request-title-container">
+            <Title level={4} style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }} data-testid="expense-request-header-title">
               {t('lowcoder:create_expense_request.initiate_title_header', 'Expense Request')}
             </Title>
           </div>
         </div>
-        <Divider className="gba:headerDivider" data-testid="expense-request-header-divider" />
+        <Divider style={{ margin: '0 0 30px 0' }} data-testid="expense-request-header-divider" />
 
-        <div className="gba:formContent" data-testid="expense-request-start-content">
+        <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-start-content">
           <Form
             form={form}
             layout="vertical"
@@ -380,8 +380,8 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
             className="gba:flex gba:flex-col gba:flex-grow"
           >
           {/* Without Plan Section */}
-          <div className="gba:sectionContainer" data-testid="expense-request-without-plan-section">
-            <p className="gba:sectionTitle" data-testid="expense-request-without-plan-title">
+          <div data-testid="expense-request-without-plan-section">
+            <p style={{ fontFamily: "'Roboto', sans-serif", fontSize: '14px', lineHeight: '16px', fontWeight: 600, marginBottom: '16px' }} data-testid="expense-request-without-plan-title">
               {t('lowcoder:create_expense_request.not_based_plan_text', 'Without Plan')}
             </p>
 
@@ -389,18 +389,18 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
             {!isExpenseDisabled && (
               <Button
                 variant="ghost"
-                className="gba:requestTypeButton"
+                style={{ height: '96px', width: '100%', marginBottom: '16px', backgroundColor: '#F7F7F7', padding: '0 24px', borderRadius: '4px' }}
                 data-testid="expense-request-expense-button"
                 onClick={handleExpenseClick}
               >
-                <div className="gba:requestTypeButtonContent">
-                  <div className="gba:requestTypeButtonLeft">
-                    <img src={ICONS.RECEIPT_ICON} alt="Receipt" className="gba:requestTypeIcon" width="32" height="32" data-testid="expense-request-receipt-icon" />
-                    <span className="gba:requestTypeText" data-testid="expense-request-expense-text">
+                <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                  <div className="gba:flex gba:items-center">
+                    <img src={ICONS.RECEIPT_ICON} alt="Receipt" style={{ marginRight: '16px' }} width="32" height="32" data-testid="expense-request-receipt-icon" />
+                    <span style={{ fontFamily: "'Roboto', sans-serif", fontSize: '18px', lineHeight: '20px', fontWeight: 600 }} data-testid="expense-request-expense-text">
                       {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
                     </span>
                   </div>
-                  <img src={ICONS.RIGHT_ARROW} alt="Arrow" className="gba:requestTypeArrow" width="24" height="24" data-testid="expense-request-expense-arrow" />
+                  <img src={ICONS.RIGHT_ARROW} alt="Arrow" style={{ width: '24px', height: '24px' }} data-testid="expense-request-expense-arrow" />
                 </div>
               </Button>
             )}
@@ -409,18 +409,18 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
             {!isTripDisabled && (
               <Button
                 variant="ghost"
-                className="gba:requestTypeButton"
+                style={{ height: '96px', width: '100%', marginBottom: '16px', backgroundColor: '#F7F7F7', padding: '0 24px', borderRadius: '4px' }}
                 data-testid="expense-request-trip-button"
                 onClick={handleTripClick}
               >
-                <div className="gba:requestTypeButtonContent">
-                  <div className="gba:requestTypeButtonLeft">
-                    <img src={ICONS.TRIP_ICON} alt="Trip" className="gba:requestTypeIcon" width="32" height="32" data-testid="expense-request-trip-icon" />
-                    <span className="gba:requestTypeText" data-testid="expense-request-trip-text">
+                <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                  <div className="gba:flex gba:items-center">
+                    <img src={ICONS.TRIP_ICON} alt="Trip" style={{ marginRight: '16px' }} width="32" height="32" data-testid="expense-request-trip-icon" />
+                    <span style={{ fontFamily: "'Roboto', sans-serif", fontSize: '18px', lineHeight: '20px', fontWeight: 600 }} data-testid="expense-request-trip-text">
                       {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
                     </span>
                   </div>
-                  <img src={ICONS.RIGHT_ARROW} alt="Arrow" className="gba:requestTypeArrow" width="24" height="24" data-testid="expense-request-trip-arrow" />
+                  <img src={ICONS.RIGHT_ARROW} alt="Arrow" style={{ width: '24px', height: '24px' }} data-testid="expense-request-trip-arrow" />
                 </div>
               </Button>
             )}
@@ -430,28 +430,28 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           {(expenseCatalogueData?.ExpensePlan?.length > 0) && (
             <>
               {/* Divider */}
-              <Divider className="gba:dividerMid" data-testid="expense-request-middle-divider" />
+              <Divider style={{ margin: '40px 0px 52px 0px' }} data-testid="expense-request-middle-divider" />
 
-              <div className="gba:sectionContainer" data-testid="expense-request-with-plan-section">
-                <p className="gba:sectionTitle" data-testid="expense-request-with-plan-title">
+              <div data-testid="expense-request-with-plan-section">
+                <p style={{ fontFamily: "'Roboto', sans-serif", fontSize: '14px', lineHeight: '16px', fontWeight: 600, marginBottom: '16px' }} data-testid="expense-request-with-plan-title">
                   {t('lowcoder:create_expense_request.based_plan_text', 'Based on Plan')}
                 </p>
 
                 {/* Plan Button */}
                 <Button
                   variant="ghost"
-                  className="gba:requestTypeButton"
+                  style={{ height: '96px', width: '100%', marginBottom: '16px', backgroundColor: '#F7F7F7', padding: '0 24px', borderRadius: '4px' }}
                   data-testid="expense-request-plan-button"
                   onClick={handlePlanClick}
                 >
-                  <div className="gba:requestTypeButtonContent">
-                    <div className="gba:requestTypeButtonLeft">
-                      <img src={ICONS.PLAN_ICON} alt="Plan" className="gba:requestTypeIcon" width="32" height="32" data-testid="expense-request-plan-icon" />
-                      <span className="gba:requestTypeText" data-testid="expense-request-plan-text">
+                  <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                    <div className="gba:flex gba:items-center">
+                      <img src={ICONS.PLAN_ICON} alt="Plan" style={{ marginRight: '16px' }} width="32" height="32" data-testid="expense-request-plan-icon" />
+                      <span style={{ fontFamily: "'Roboto', sans-serif", fontSize: '18px', lineHeight: '20px', fontWeight: 600 }} data-testid="expense-request-plan-text">
                         {t('lowcoder:create_expense_request.plan_select_button', 'My expense plans')} ({expenseCatalogueData?.ExpensePlan?.length})
                       </span>
                     </div>
-                    <img src={ICONS.RIGHT_ARROW} alt="Arrow" className="gba:requestTypeArrow" width="24" height="24" data-testid="expense-request-plan-arrow" />
+                    <img src={ICONS.RIGHT_ARROW} alt="Arrow" style={{ width: '24px', height: '24px' }} data-testid="expense-request-plan-arrow" />
                   </div>
                 </Button>
               </div>
@@ -485,7 +485,7 @@ const ExpenseRequest: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
   
   return (
-    <div className="gba:expenseRequestWrapper" data-testid="expense-request-wrapper">
+    <div data-testid="expense-request-wrapper">
       <ExpenseRequestProvider {...props}>
         <ExpenseRequestContent accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
       </ExpenseRequestProvider>

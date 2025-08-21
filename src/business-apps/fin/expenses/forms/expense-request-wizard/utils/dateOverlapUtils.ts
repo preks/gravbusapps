@@ -2,45 +2,6 @@ import dayjs from 'dayjs';
 import { getCatalogValue, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 /**
- * Format date and time to ISO string
- * @param givenDate - Date object
- * @param givenTime - Time object
- * @param fallBackDate - Fallback date string
- * @returns Formatted ISO date string
- */
-export const formatDateTimeToISO = (
-  givenDate: Date | undefined,
-  givenTime: Date | undefined,
-  fallBackDate: string = ''
-): string => {
-  if (!givenDate) {
-    return fallBackDate || new Date().toISOString();
-  }
-  
-  try {
-    // Check if window.lowcoder exists
-    if (!window.lowcoder?.formatDateToISO) {
-      // Fallback to manual formatting
-      const dateStr = givenDate.toISOString().split('T')[0];
-      const timeStr = givenTime ? givenTime.toISOString().split('T')[1] : '00:00:00.000Z';
-      return `${dateStr}T${timeStr}`;
-    }
-
-    // Format with time if provided
-    if (givenTime) {
-      // Get date from givenDate and time from givenTime
-      const dateString = `${dayjs(givenDate).format('YYYY-MM-DD')}T${dayjs(givenTime).format('HH:mm:ss')}`;
-      return window.lowcoder.formatDateToISO(dateString);
-    } else {
-      const dateString = `${dayjs(givenDate).format('YYYY-MM-DD')}T00:00:00`;
-      return window.lowcoder.formatDateToISO(dateString);
-    }
-  } catch (error) {
-    return new Date().toISOString();
-  }
-};
-
-/**
  * Get overlap warning message from query response
  * @param queryResponse - Response from getRequestsAbsences query
  * @param currentPlanId - Current expense plan ID
