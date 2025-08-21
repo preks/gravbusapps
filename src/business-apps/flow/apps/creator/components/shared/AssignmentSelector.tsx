@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TaskAssignment, AssignmentTarget, AssignmentMode } from '../../types/flowTemplate';
-import { transformAssignmentTargetForUI, validateClaimAssignmentForUI, getAssignmentFieldLabel, createDefaultAssignmentTarget } from '../../utils/assignmentUtils';
-import { Button, Input, Badge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Alert, Card, CardHeader, CardContent } from '@newwork/nw-design-system';
-import { X, Plus, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react';
-import { useMockData } from '../../../../providers/MockDataProvider';
+import { TaskAssignment, AssignmentTarget, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
+import { validateClaimAssignmentForUI, createDefaultAssignmentTarget } from '../../utils/assignmentUtils';
+import { Button, Input, Badge, Alert, Card, CardHeader, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react';
+import { useTeammates } from '@/common/hooks/useTeammates';
 
 interface AssignmentSelectorProps {
   value?: TaskAssignment;
   onChange: (assignment: TaskAssignment) => void;
   assignmentMode: AssignmentMode;
+  accessToken: string;
+  userInfo?: any;
   'data-testid'?: string;
 }
 
@@ -27,69 +29,90 @@ interface FieldConfig {
 // Define ANY_SELECTOR constant
 const ANY_SELECTOR = "ANY" as const;
 
-// Field configurations for different assignment target types
-const fieldConfigs: FieldConfig[] = [
-  {
-    field: 'userIds',
-    label: 'Users',
-    icon: <UserCircle className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-blue-100 gba:!text-blue-800 gba:!border-blue-300',
-    placeholder: 'Search users...',
-    dataSource: 'users'
-  },
-  {
-    field: 'organizationalUnits',
-    label: 'Organizational Units',
-    icon: <Users className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-green-100 gba:!text-green-800 gba:!border-green-300',
-    placeholder: 'Search departments...',
-    dataSource: 'departments'
-  },
-  {
-    field: 'matrixTeams',
-    label: 'Matrix Teams',
-    icon: <Users className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-purple-100 gba:!text-purple-800 gba:!border-purple-300',
-    placeholder: 'Search matrix teams...',
-    dataSource: 'matrixTeams'
-  },
-  {
-    field: 'companies',
-    label: 'Companies',
-    icon: <Building2 className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-indigo-100 gba:!text-indigo-800 gba:!border-indigo-300',
-    placeholder: 'Search companies...',
-    dataSource: 'companies'
-  },
-  {
-    field: 'siteLocations',
-    label: 'Site Locations',
-    icon: <MapPin className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-teal-100 gba:!text-teal-800 gba:!border-teal-300',
-    placeholder: 'Search locations...',
-    dataSource: 'locations'
-  },
-  {
-    field: 'costCenters',
-    label: 'Cost Centers',
-    icon: <DollarSign className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-yellow-100 gba:!text-yellow-800 gba:!border-yellow-300',
-    placeholder: 'Search cost centers...',
-    dataSource: 'costCenters'
-  },
-  {
-    field: 'capabilities',
-    label: 'Capabilities',
-    icon: <FileCheck className="gba:w-4 gba:h-4" />,
-    color: 'gba:!bg-rose-100 gba:!text-rose-800 gba:!border-rose-300',
-    placeholder: 'Search capabilities...',
-    dataSource: 'capabilities'
-  }
-];
+// Field configurations grouped by logical categories for better UX
+const fieldConfigGroups = {
+  people: [
+    {
+      field: 'userIds' as const,
+      label: 'Users',
+      icon: <UserCircle className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-blue-100 gba:!text-blue-800 gba:!border-blue-300',
+      placeholder: 'Search users...',
+      dataSource: 'users'
+    }
+  ],
+  structure: [
+    {
+      field: 'organizationalUnits' as const,
+      label: 'Organizational Units',
+      icon: <Users className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-green-100 gba:!text-green-800 gba:!border-green-300',
+      placeholder: 'Search departments...',
+      dataSource: 'departments'
+    },
+    {
+      field: 'matrixTeams' as const,
+      label: 'Matrix Teams',
+      icon: <Users className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-purple-100 gba:!text-purple-800 gba:!border-purple-300',
+      placeholder: 'Search matrix teams...',
+      dataSource: 'matrixTeams'
+    }
+  ],
+  business: [
+    {
+      field: 'companies' as const,
+      label: 'Companies',
+      icon: <Building2 className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-indigo-100 gba:!text-indigo-800 gba:!border-indigo-300',
+      placeholder: 'Search companies...',
+      dataSource: 'companies'
+    },
+    {
+      field: 'costCenters' as const,
+      label: 'Cost Centers',
+      icon: <DollarSign className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-yellow-100 gba:!text-yellow-800 gba:!border-yellow-300',
+      placeholder: 'Search cost centers...',
+      dataSource: 'costCenters'
+    }
+  ],
+  location: [
+    {
+      field: 'siteLocations' as const,
+      label: 'Site Locations',
+      icon: <MapPin className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-teal-100 gba:!text-teal-800 gba:!border-teal-300',
+      placeholder: 'Search locations...',
+      dataSource: 'locations'
+    }
+  ],
+  skills: [
+    {
+      field: 'capabilities' as const,
+      label: 'Capabilities',
+      icon: <FileCheck className="gba:w-4 gba:h-4" />,
+      color: 'gba:!bg-rose-100 gba:!text-rose-800 gba:!border-rose-300',
+      placeholder: 'Search capabilities...',
+      dataSource: 'capabilities'
+    }
+  ]
+};
 
 interface EntityItem {
   id: string;
   name: string;
+  // Additional fields from teammates data
+  organizationalUnitId?: string;
+  organizationalUnitName?: string;
+  costCenterId?: string;
+  costCenterName?: string;
+  matrixUnitId?: string;
+  matrixUnitName?: string;
+  companyId?: string;
+  companyName?: string;
+  siteLocationId?: string;
+  siteLocationName?: string;
 }
 
 /**
@@ -103,14 +126,50 @@ interface FieldBadgesProps {
   'data-testid'?: string;
 }
 
+interface FieldBadgesProps {
+  field: AssignmentField;
+  values: string[];
+  config: FieldConfig;
+  onRemove: (field: AssignmentField, value: string) => void;
+  teammates: EntityItem[];
+  'data-testid'?: string;
+}
+
 const FieldBadges: React.FC<FieldBadgesProps> = ({
   field,
   values,
   config,
   onRemove,
+  teammates,
   'data-testid': testId = 'field-badges'
 }) => {
-  const { resolveEntityName } = useMockData();
+  // Resolve entity name from teammates data
+  const resolveEntityName = (dataSource: string, entityId: string): string => {
+    if (entityId === ANY_SELECTOR) return 'Any';
+    
+    switch (dataSource) {
+      case 'users':
+        const user = teammates.find(t => t.id === entityId);
+        return user ? user.name : entityId;
+      case 'departments':
+        const dept = teammates.find(t => t.organizationalUnitId === entityId);
+        return dept ? dept.organizationalUnitName || entityId : entityId;
+      case 'companies':
+        const company = teammates.find(t => t.companyId === entityId);
+        return company ? company.companyName || entityId : entityId;
+      case 'costCenters':
+        const costCenter = teammates.find(t => t.costCenterId === entityId);
+        return costCenter ? costCenter.costCenterName || entityId : entityId;
+      case 'matrixTeams':
+        const matrixTeam = teammates.find(t => t.matrixUnitId === entityId);
+        return matrixTeam ? matrixTeam.matrixUnitName || entityId : entityId;
+      case 'locations':
+        const location = teammates.find(t => t.siteLocationId === entityId);
+        return location ? location.siteLocationName || entityId : entityId;
+      default:
+        return entityId;
+    }
+  };
 
   if (!values || values.length === 0) {
     return null;
@@ -126,7 +185,7 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
           data-testid={`${testId}-badge-${index}`}
         >
           {config.icon}
-          <span>{value === ANY_SELECTOR ? 'Any' : resolveEntityName(config.dataSource as any, value)}</span>
+          <span>{resolveEntityName(config.dataSource, value)}</span>
           <button
             onClick={() => onRemove(field, value)}
             className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
@@ -149,6 +208,7 @@ interface FieldSelectorProps {
   selectedValues: string[];
   onAdd: (field: AssignmentField, value: string) => void;
   assignmentMode: AssignmentMode;
+  teammates: EntityItem[];
   'data-testid'?: string;
 }
 
@@ -158,22 +218,81 @@ const FieldSelector: React.FC<FieldSelectorProps> = ({
   selectedValues,
   onAdd,
   assignmentMode,
+  teammates,
   'data-testid': testId = 'field-selector'
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const { users, departments, roles, capabilities, companies, locations, costCenters, matrixTeams } = useMockData();
 
-  // Get data source for the field
+  // Get data source for the field from teammates data
   const getDataSource = (): EntityItem[] => {
     switch (config.dataSource) {
-      case 'users': return users;
-      case 'departments': return departments;
-      case 'matrixTeams': return matrixTeams || [];
-      case 'companies': return companies || [];
-      case 'locations': return locations || [];
-      case 'costCenters': return costCenters || [];
-      case 'capabilities': return capabilities;
-      default: return [];
+      case 'users': 
+        return teammates.map(t => ({ id: t.id, name: t.name }));
+      case 'departments':
+        // Extract unique organizational units from teammates
+        const deptMap = new Map<string, EntityItem>();
+        teammates.forEach(t => {
+          if (t.organizationalUnitId && t.organizationalUnitName) {
+            deptMap.set(t.organizationalUnitId, {
+              id: t.organizationalUnitId,
+              name: t.organizationalUnitName
+            });
+          }
+        });
+        return Array.from(deptMap.values());
+      case 'matrixTeams':
+        // Extract unique matrix teams from teammates
+        const matrixMap = new Map<string, EntityItem>();
+        teammates.forEach(t => {
+          if (t.matrixUnitId && t.matrixUnitName) {
+            matrixMap.set(t.matrixUnitId, {
+              id: t.matrixUnitId,
+              name: t.matrixUnitName
+            });
+          }
+        });
+        return Array.from(matrixMap.values());
+      case 'companies':
+        // Extract unique companies from teammates
+        const companyMap = new Map<string, EntityItem>();
+        teammates.forEach(t => {
+          if (t.companyId && t.companyName) {
+            companyMap.set(t.companyId, {
+              id: t.companyId,
+              name: t.companyName
+            });
+          }
+        });
+        return Array.from(companyMap.values());
+      case 'locations':
+        // Extract unique locations from teammates
+        const locationMap = new Map<string, EntityItem>();
+        teammates.forEach(t => {
+          if (t.siteLocationId && t.siteLocationName) {
+            locationMap.set(t.siteLocationId, {
+              id: t.siteLocationId,
+              name: t.siteLocationName
+            });
+          }
+        });
+        return Array.from(locationMap.values());
+      case 'costCenters':
+        // Extract unique cost centers from teammates
+        const costCenterMap = new Map<string, EntityItem>();
+        teammates.forEach(t => {
+          if (t.costCenterId && t.costCenterName) {
+            costCenterMap.set(t.costCenterId, {
+              id: t.costCenterId,
+              name: t.costCenterName
+            });
+          }
+        });
+        return Array.from(costCenterMap.values());
+      case 'capabilities':
+        // For now, return empty array as capabilities might need different data source
+        return [];
+      default: 
+        return [];
     }
   };
 
@@ -290,16 +409,50 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   value, 
   onChange,
   assignmentMode,
+  accessToken,
+  userInfo,
   'data-testid': testId = 'assignment-selector'
 }) => {
-  // Initialize assignment with targets array (use first target for editing)
+  // Tab state for organized assignment interface
+  const [activeTab, setActiveTab] = useState<'people' | 'structure' | 'business' | 'location' | 'skills'>('people');
+
+  // Get current user's employee ID for fetching teammates
+  const employeeId = userInfo?.employeeId || userInfo?.id || ''; // Use available user ID
+  
+  // Fetch real teammates data
+  const { teammates: teammatesData, loading: teammatesLoading, error: teammatesError } = useTeammates(
+    employeeId,
+    accessToken
+  );
+  
+  // Convert teammates data to EntityItem format
+  const teammates: EntityItem[] = useMemo(() => {
+    return teammatesData.map(teammate => ({
+      id: teammate.id,
+      name: teammate.fullName,
+      organizationalUnitId: teammate.organizationalUnitId,
+      organizationalUnitName: teammate.organizationalUnitName,
+      costCenterId: teammate.costCenterId,
+      costCenterName: teammate.costCenterName,
+      matrixUnitId: teammate.matrixUnitId,
+      matrixUnitName: teammate.matrixUnitName,
+      // Note: These might not be available in the teammates data, 
+      // would need additional data sources for companies/locations
+      companyId: undefined,
+      companyName: undefined,
+      siteLocationId: undefined,
+      siteLocationName: undefined,
+    }));
+  }, [teammatesData]);
+  // Initialize assignment 
   const assignment = value || {
-    targets: [createDefaultAssignmentTarget(assignmentMode)],
+    targets: null, // Set targets to null when no assignment is configured
+    assignmentMode: assignmentMode,
     allowReassignment: true
   };
 
-  // Get the first target for editing (simplified UI handles single target for now)
-  const currentTarget = assignment.targets?.[0] || createDefaultAssignmentTarget(assignmentMode);
+  // Get the current target (single object, not array)
+  const currentTarget = assignment.targets || createDefaultAssignmentTarget(assignmentMode);
 
   // Validate assignment for CLAIM mode
   const validation = useMemo(() => {
@@ -309,11 +462,12 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     return { valid: true, errors: [] };
   }, [currentTarget, assignmentMode]);
 
-  // Ensure default assignment is set if none provided
+  // Initialize assignment properly when component is first used
   useEffect(() => {
     if (!value) {
       onChange({
-        targets: [createDefaultAssignmentTarget(assignmentMode)],
+        targets: null, // Start with null targets - no assignment configured
+        assignmentMode: assignmentMode,
         allowReassignment: true
       });
     }
@@ -321,7 +475,9 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   // Handle adding a value to a field
   const handleAddValue = (field: AssignmentField, value: string) => {
-    const currentValues = currentTarget[field] || [];
+    // Use current target or create default
+    const actualTarget = assignment.targets || createDefaultAssignmentTarget(assignmentMode);
+    const currentValues = actualTarget[field] || [];
     
     // Check if value already exists
     if (currentValues.includes(value)) return;
@@ -337,13 +493,13 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     }
 
     const newTarget: AssignmentTarget = {
-      ...currentTarget,
+      ...actualTarget,
       [field]: newValues
     };
 
     const newAssignment: TaskAssignment = {
       ...assignment,
-      targets: [newTarget] // Update the first target
+      targets: newTarget // Single target, not array
     };
 
     onChange(newAssignment);
@@ -351,17 +507,23 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
   // Handle removing a value from a field
   const handleRemoveValue = (field: AssignmentField, value: string) => {
-    const currentValues = currentTarget[field] || [];
-    const newValues = currentValues.filter(v => v !== value);
+    const actualTarget = assignment.targets || createDefaultAssignmentTarget(assignmentMode);
+    const currentValues = actualTarget[field] || [];
+    const newValues = currentValues.filter((v: string) => v !== value);
 
     const newTarget: AssignmentTarget = {
-      ...currentTarget,
-      [field]: newValues.length > 0 ? newValues : (assignmentMode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : [])
+      ...actualTarget,
+      [field]: newValues.length > 0 ? newValues : null // Set to null when no values selected
     };
+
+    // Check if all fields in the target are null/empty
+    const hasAnyValues = Object.values(newTarget).some(fieldValue => 
+      fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0
+    );
 
     const newAssignment: TaskAssignment = {
       ...assignment,
-      targets: [newTarget] // Update the first target
+      targets: hasAnyValues ? newTarget : null // Set entire targets to null if no values exist
     };
 
     onChange(newAssignment);
@@ -371,9 +533,45 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   const handleReassignmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({
       ...assignment,
+      assignmentMode: assignment.assignmentMode || assignmentMode,
       allowReassignment: e.target.checked
     });
   };
+
+  // Show loading state while teammates are being fetched
+  if (teammatesLoading) {
+    return (
+      <div className="gba:space-y-4" data-testid={testId}>
+        <Card>
+          <CardContent className="gba:p-6 gba:text-center">
+            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+              <div className="gba:animate-spin gba:w-4 gba:h-4 gba:border-2 gba:border-blue-500 gba:border-t-transparent gba:rounded-full"></div>
+              <span className="gba:text-sm gba:text-gray-600">Loading user data...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state if teammates failed to load
+  if (teammatesError) {
+    return (
+      <div className="gba:space-y-4" data-testid={testId}>
+        <Card>
+          <CardContent className="gba:p-6">
+            <Alert variant="destructive">
+              <AlertTriangle className="gba:w-4 gba:h-4" />
+              <div>
+                <div className="gba:text-sm gba:font-medium">Failed to load user data</div>
+                <div className="gba:text-xs gba:mt-1">{teammatesError.message}</div>
+              </div>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -393,6 +591,11 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
               </Badge>
             )}
           </div>
+          {teammates.length > 0 && (
+            <div className="gba:text-xs gba:text-gray-500">
+              Using data from {teammates.length} team members
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {/* Validation Errors */}
@@ -407,33 +610,62 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
             </Alert>
           )}
 
-          {/* Assignment Fields */}
-          <div className="gba:space-y-4">
-            {fieldConfigs.map(config => {
-              const fieldValues = currentTarget[config.field] || [];
-              
-              return (
-                <div key={config.field} className="gba:space-y-2">
-                  <FieldSelector
-                    field={config.field}
-                    config={config}
-                    selectedValues={fieldValues}
-                    onAdd={handleAddValue}
-                    assignmentMode={assignmentMode}
-                    data-testid={`${testId}-selector-${config.field}`}
-                  />
+          {/* Tabbed Assignment Fields */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="gba:w-full">
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
+              <TabsTrigger value="people" className="gba:flex gba:items-center gba:gap-1">
+                <UserCircle className="gba:w-3 gba:h-3" />
+                People
+              </TabsTrigger>
+              <TabsTrigger value="structure" className="gba:flex gba:items-center gba:gap-1">
+                <Users className="gba:w-3 gba:h-3" />
+                Structure
+              </TabsTrigger>
+              <TabsTrigger value="business" className="gba:flex gba:items-center gba:gap-1">
+                <Building2 className="gba:w-3 gba:h-3" />
+                Business
+              </TabsTrigger>
+              <TabsTrigger value="location" className="gba:flex gba:items-center gba:gap-1">
+                <MapPin className="gba:w-3 gba:h-3" />
+                Location
+              </TabsTrigger>
+              <TabsTrigger value="skills" className="gba:flex gba:items-center gba:gap-1">
+                <FileCheck className="gba:w-3 gba:h-3" />
+                Skills
+              </TabsTrigger>
+            </TabsList>
+
+            {Object.entries(fieldConfigGroups).map(([groupKey, configs]) => (
+              <TabsContent key={groupKey} value={groupKey} className="gba:space-y-4 gba:mt-4">
+                {configs.map(config => {
+                  const fieldValues = currentTarget[config.field] || [];
                   
-                  <FieldBadges
-                    field={config.field}
-                    values={fieldValues}
-                    config={config}
-                    onRemove={handleRemoveValue}
-                    data-testid={`${testId}-badges-${config.field}`}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                  return (
+                    <div key={config.field} className="gba:space-y-2">
+                      <FieldSelector
+                        field={config.field}
+                        config={config}
+                        selectedValues={fieldValues}
+                        onAdd={handleAddValue}
+                        assignmentMode={assignmentMode}
+                        teammates={teammates}
+                        data-testid={`${testId}-selector-${config.field}`}
+                      />
+                      
+                      <FieldBadges
+                        field={config.field}
+                        values={fieldValues}
+                        config={config}
+                        onRemove={handleRemoveValue}
+                        teammates={teammates}
+                        data-testid={`${testId}-badges-${config.field}`}
+                      />
+                    </div>
+                  );
+                })}
+              </TabsContent>
+            ))}
+          </Tabs>
 
           {/* Reassignment Settings */}
           <div className="gba:mt-6 gba:pt-4 gba:border-t">

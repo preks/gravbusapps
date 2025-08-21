@@ -1,62 +1,38 @@
 import React, { useState } from 'react';
-import { Space, Tag, Typography, Form, Button, Switch, Input, Select } from 'antd';
 import { 
   UserAddOutlined, 
-  SwapOutlined, 
   CloseCircleOutlined, 
   CheckCircleOutlined,
   EyeOutlined,
-  LikeOutlined,
-  MessageOutlined,
-  UserOutlined
+  LikeOutlined
 } from '@ant-design/icons';
+import { 
+  Badge, 
+  Button, 
+  Switch, 
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system';
+import { MessageSquare } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InputRenderer } from '../../creator/components/shared/InputRenderer';
 import { LinksRenderer } from '../../creator/components/shared/LinksRenderer';
 import { mockUsers, type User as MockUser } from '../../../data/mockUsers';
 
-const { Text, Paragraph, Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
-
-interface Task {
-  id: string;
-  flowId: string;
-  status: string;
-  message?: string;
-  dueDate?: string;
-  scheduledAt?: string;
-  assignment?: {
-    assignedTo?: string;
-    currentStatus?: string;
-    assignmentMode?: string;
-  };
-  workflowMeta?: {
-    rootWorkflowId: string;
-  };
-  links?: any[];
-  form?: any[];  // Backend uses 'form'
-  inputs?: any[];  // Legacy field for backward compatibility
-  availableActions?: {
-    canComplete?: boolean;
-    canClaim?: boolean;
-    canRelease?: boolean;
-    canReassign?: boolean;
-    canReject?: boolean;
-    canUnclaim?: boolean;
-  };
-}
+// Removed Ant Design destructuring - now using nw-design-system components
+// Using a generic Task type to avoid conflicts with parent component
 
 interface TaskDetailsTabProps extends BusinessAppContextProps {
-  task: Task;
+  task: any; // Using any to avoid type conflicts with parent Task interface
   stepType?: string;
   hasLinks: boolean;
   hasInputBlocks: boolean;
   taskFormData: any;
   reassignUserId: string;
-  rejectionComment: string;
-  form: any;
-  actionLoading: string | null;
   prefixDataTestId: string;
   isCompleted?: boolean;
   onComplete: () => void;
@@ -67,14 +43,9 @@ interface TaskDetailsTabProps extends BusinessAppContextProps {
   setReassignUserId: (value: string) => void;
   setRejectionComment: (value: string) => void;
   setTaskFormData: (data: any) => void;
-  getTaskStatusColor: (status: string) => string;
-  getStepTypeColor: (stepType: string) => string;
-  getAssignmentStatusColor: (status: string) => string;
-  getDueDateTag: (task: Task) => React.ReactNode;
   isTaskOverdue: (dueDate?: string) => boolean;
   isTaskDueSoon: (dueDate?: string) => boolean;
-  formatDueDate: (dueDate: string) => string;
-  isJustClaimable: (task: Task) => boolean;
+  isJustClaimable: (task: any) => boolean;
 }
 
 export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
@@ -84,9 +55,6 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   hasInputBlocks,
   taskFormData,
   reassignUserId,
-  rejectionComment,
-  form,
-  actionLoading,
   prefixDataTestId,
   isCompleted = false,
   onComplete,
@@ -97,15 +65,9 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   setReassignUserId,
   setRejectionComment,
   setTaskFormData,
-  getTaskStatusColor,
-  getStepTypeColor,
-  getAssignmentStatusColor,
-  getDueDateTag,
   isTaskOverdue,
   isTaskDueSoon,
-  formatDueDate,
-  isJustClaimable,
-  ...context
+  isJustClaimable
 }) => {
   const [showComment, setShowComment] = useState(false);
   const [comment, setComment] = useState('');
@@ -120,97 +82,113 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   const availableUsers = mockUsers;
 
   return (
-    <div>
+    <div className="gba:space-y-4">
       {/* Task Info Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <Space wrap>
+      <div className="gba:mb-4">
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
           {stepType && (
-            <Tag 
-              color={getStepTypeColor(stepType)} 
-              style={{ fontSize: '14px', padding: '4px 12px', fontWeight: 'bold' }}
+            <Badge 
+              variant="secondary" 
+              className="gba:text-sm gba:px-3 gba:py-1 gba:font-medium"
             >
               {stepType.toUpperCase()}
-            </Tag>
-          )}
-          {task.assignment?.assignedTo && (
-            <Tag color="blue">
-              Assigned to: {task.assignment.assignedTo}
-            </Tag>
+            </Badge>
           )}
           
           {/* Due Date and Scheduled Time */}
           {task.dueDate && (
-            <Tag color={isTaskOverdue(task.dueDate) ? 'red' : isTaskDueSoon(task.dueDate) ? 'orange' : 'green'}>
+            <Badge 
+              variant="outline" 
+              style={{ 
+                borderColor: isTaskOverdue(task.dueDate) 
+                  ? 'var(--color-danger-500)' 
+                  : isTaskDueSoon(task.dueDate) 
+                    ? 'var(--color-warning-500)' 
+                    : 'var(--color-success-500)',
+                color: isTaskOverdue(task.dueDate) 
+                  ? 'var(--color-danger-700)' 
+                  : isTaskDueSoon(task.dueDate) 
+                    ? 'var(--color-warning-700)' 
+                    : 'var(--color-success-700)'
+              }}
+            >
               Due: {new Date(task.dueDate).toLocaleDateString()} {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </Tag>
+            </Badge>
           )}
           {task.scheduledAt && (
-            <Tag color="purple">
+            <Badge 
+              variant="outline" 
+              style={{ 
+                borderColor: 'var(--color-secondary-500)', 
+                color: 'var(--color-secondary-700)'
+              }}
+            >
               Scheduled: {new Date(task.scheduledAt).toLocaleDateString()} {new Date(task.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </Tag>
+            </Badge>
           )}
-        </Space>
+        </div>
       </div>
 
       {/* Task Message/Description */}
       {task.message && (
-        <div style={{ marginBottom: '16px' }}>
-          <Title level={5}>Description</Title>
-          <Paragraph>{task.message}</Paragraph>
+        <div className="gba:mb-4 gba:mt-6">
+          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>Description</h3>
+          <p className="gba:text-sm" style={{ color: 'var(--color-text-secondary)' }}>{task.message}</p>
         </div>
       )}
 
       {/* Links Section */}
       {hasLinks && (
-        <div style={{ marginBottom: '16px' }}>
-          <Title level={5}>Attachments</Title>
+        <div className="gba:mb-4">
+          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>Attachments</h3>
           <LinksRenderer links={task.links!} />
         </div>
       )}
 
       {/* Input Form Section */}
       {hasInputBlocks && !isJustClaimable(task) && (
-        <div style={{ marginBottom: '16px' }}>
-          <Title level={5}>{isCompleted ? 'Submitted Data' : 'Form Fields'}</Title>
-          <Form
-            form={form}
-            layout="vertical"
-            disabled={isCompleted}
-            onValuesChange={!isCompleted ? (changedValues, allValues) => {
-              setTaskFormData(allValues);
-            } : undefined}
-          >
+        <div className="gba:mb-4">
+          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            {isCompleted ? 'Submitted Data' : 'Form Fields'}
+          </h3>
+          <div className="gba:space-y-4">
             {(task.form || task.inputs)!.map((input: any, index: number) => (
               <InputRenderer 
                 key={index}
                 input={input}
                 index={index}
-                disabled={isCompleted}
+                value={taskFormData[input.name] || ''}
+                onChange={(value) => {
+                  console.log('Field changed:', input.name, value);
+                  setTaskFormData({
+                    ...taskFormData,
+                    [input.name]: value
+                  });
+                }}
               />
             ))}
-          </Form>
+          </div>
         </div>
       )}
 
       {/* Comment Field - Only show for active tasks */}
       {!isCompleted && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <MessageOutlined />
-            <Text>Add Comment (Optional)</Text>
+        <div className="gba:mb-4">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+            <MessageSquare className="gba:h-4 gba:w-4" />
+            <span className="gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>Add Comment (Optional)</span>
             <Switch
               checked={showComment}
-              onChange={(checked) => {
+              onCheckedChange={(checked) => {
                 setShowComment(checked);
                 if (!checked) {
                   setComment('');
                 }
               }}
-              size="small"
             />
           </div>
           {showComment && (
-            <TextArea
+            <Textarea
               rows={3}
               placeholder={
                 stepType === 'APPROVAL' 
@@ -220,8 +198,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               maxLength={500}
-              showCount
-              style={{ marginBottom: '8px' }}
+              className="gba:w-full"
             />
           )}
         </div>
@@ -229,40 +206,36 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
 
       {/* Reassignment UI - Only show for active tasks */}
       {!isCompleted && task.availableActions?.canReassign && showReassignUI && (
-        <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #d9d9d9', borderRadius: '6px', backgroundColor: '#fafafa' }}>
-          <div style={{ marginBottom: '12px' }}>
-            <Text strong>Reassign Task</Text>
+        <div className="gba:mb-4 gba:p-3 gba:rounded-md" style={{ border: '1px solid var(--color-border-default)', backgroundColor: 'var(--color-surface-secondary)' }}>
+          <div className="gba:mb-3">
+            <h4 className="gba:text-base gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>Reassign Task</h4>
           </div>
-          <div style={{ marginBottom: '12px' }}>
-            <Text>Select a user to reassign this task to:</Text>
-            <Select
-              style={{ width: '100%', marginTop: '8px' }}
-              placeholder="Select user to reassign to..."
-              value={reassignUserId}
-              onChange={(value) => setReassignUserId(value)}
-              allowClear
+          <div className="gba:mb-3">
+            <p className="gba:text-sm gba:mb-2" style={{ color: 'var(--color-text-secondary)' }}>Select a user to reassign this task to:</p>
+            <Select 
+              value={reassignUserId || ""} 
+              onValueChange={setReassignUserId}
             >
-              {availableUsers.map((user: MockUser) => (
-                <Option key={user.id} value={user.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <UserOutlined />
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <div style={{ fontWeight: 'bold' }}>{user.name}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
-                        {user.role} • {user.department}
-                      </div>
-                    </div>
-                  </div>
-                </Option>
-              ))}
+              <SelectTrigger className="gba:w-full">
+                <SelectValue placeholder="Select user to reassign to..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUsers.map((user: MockUser) => (
+                  <SelectItem 
+                    key={user.id} 
+                    value={user.id}
+                  >
+                    {user.name} - {user.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="gba:flex gba:gap-2">
             <Button
-              type="primary"
-              size="small"
+              variant="default"
+              size="sm"
               disabled={!reassignUserId}
-              loading={actionLoading === task.id + 'REASSIGN'}
               onClick={() => {
                 onReassign();
                 setShowReassignUI(false);
@@ -271,9 +244,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               Reassign to User
             </Button>
             <Button
-              type="default"
-              size="small"
-              loading={actionLoading === task.id + 'REASSIGN'}
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setReassignUserId(''); // Clear user to release back to pool
                 onReassign();
@@ -283,7 +255,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               Release to Pool
             </Button>
             <Button
-              size="small"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setShowReassignUI(false);
                 setReassignUserId('');
@@ -297,82 +270,74 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
 
       {/* Action Buttons - Only show for active tasks */}
       {!isCompleted && (
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {/* Primary Complete Action - context-aware based on task type */}
-        {task.availableActions?.canComplete && (
-          <Button
-            type="primary"
-            loading={actionLoading === task.id + 'COMPLETE'}
-            onClick={onComplete}
-            icon={getCompleteButtonIcon(stepType)}
-            data-testid={`${prefixDataTestId}-complete-button`}
-          >
-            {getCompleteButtonLabel(stepType)}
-          </Button>
-        )}
-        
-        {/* Reject Button - Only for APPROVAL tasks */}
-        {task.availableActions?.canReject && stepType === 'APPROVAL' && (
-          <Button
-            danger
-            icon={<CloseCircleOutlined />}
-            loading={actionLoading === task.id + 'REJECT'}
-            onClick={onReject}
-            data-testid={`${prefixDataTestId}-reject-button`}
-          >
-            Reject
-          </Button>
-        )}
-        
-        {/* Secondary Actions */}
-        {task.availableActions?.canClaim && (
-          <Button
-            type="default"
-            icon={<UserAddOutlined />}
-            loading={actionLoading === task.id + 'CLAIM'}
-            onClick={onClaim}
-            data-testid={`${prefixDataTestId}-claim-button`}
-          >
-            Claim
-          </Button>
-        )}
-        
-        {task.availableActions?.canRelease && (
-          <Button
-            type="default"
-            loading={actionLoading === task.id + 'RELEASE'}
-            onClick={onRelease}
-            data-testid={`${prefixDataTestId}-release-button`}
-          >
-            Release
-          </Button>
-        )}
-        
-        {/* Temporarily disabled - Reassign button */}
-        {/*
-        {task.availableActions?.canReassign && (
-          <Button
-            type="default"
-            icon={<SwapOutlined />}
-            onClick={() => setShowReassignUI(true)}
-            data-testid={`${prefixDataTestId}-reassign-button`}
-          >
-            Reassign
-          </Button>
-        )}
-        */}
-        
-        {task.availableActions?.canUnclaim && (
-          <Button
-            type="default"
-            icon={<CloseCircleOutlined />}
-            loading={actionLoading === task.id + 'UNCLAIM'}
-            onClick={onRelease}
-            data-testid={`${prefixDataTestId}-unclaim-button`}
-          >
-            Unclaim
-          </Button>
-        )}
+        <div className="gba:flex gba:gap-2 gba:flex-wrap gba:mt-6 gba:pt-4 gba:border-t" style={{ borderColor: 'var(--color-border-default)' }}>
+          {/* Primary Complete Action - context-aware based on task type */}
+          {task.availableActions?.canComplete && (
+            <Button
+              variant="default"
+              onClick={() => {
+                console.log('Completing task with form data:', taskFormData);
+                onComplete();
+              }}
+              data-testid={`${prefixDataTestId}-complete-button`}
+              className="gba:flex gba:items-center gba:gap-2"
+              style={{ 
+                backgroundColor: 'var(--color-primary-500)', 
+                color: 'var(--color-on-primary)'
+              }}
+            >
+              {getCompleteButtonIcon(stepType)}
+              {getCompleteButtonLabel(stepType)}
+            </Button>
+          )}
+          
+          {/* Reject Button - Only for APPROVAL tasks */}
+          {task.availableActions?.canReject && stepType === 'APPROVAL' && (
+            <Button
+              variant="destructive"
+              onClick={onReject}
+              data-testid={`${prefixDataTestId}-reject-button`}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <CloseCircleOutlined />
+              Reject
+            </Button>
+          )}
+          
+          {/* Secondary Actions */}
+          {task.availableActions?.canClaim && (
+            <Button
+              variant="secondary"
+              onClick={onClaim}
+              data-testid={`${prefixDataTestId}-claim-button`}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <UserAddOutlined />
+              Claim
+            </Button>
+          )}
+          
+          {task.availableActions?.canRelease && (
+            <Button
+              variant="secondary"
+              onClick={onRelease}
+              data-testid={`${prefixDataTestId}-release-button`}
+            >
+              Release
+            </Button>
+          )}
+          
+          {task.availableActions?.canUnclaim && (
+            <Button
+              variant="secondary"
+              onClick={onRelease}
+              data-testid={`${prefixDataTestId}-unclaim-button`}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <CloseCircleOutlined />
+              Unclaim
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -387,6 +352,7 @@ const getCompleteButtonLabel = (stepType?: string): string => {
     case 'INFORMATION':
       return 'Mark as Read';
     case 'ACKNOWLEDGE':
+    case 'ACKNOWLEDGEMENT': // Handle both variations for backward compatibility
       return 'Acknowledge';
     case 'TASK':
     default:
@@ -401,6 +367,7 @@ const getCompleteButtonIcon = (stepType?: string) => {
     case 'INFORMATION':
       return <EyeOutlined />;
     case 'ACKNOWLEDGE':
+    case 'ACKNOWLEDGEMENT': // Handle both variations for backward compatibility
       return <CheckCircleOutlined />;
     case 'TASK':
     default:

@@ -1,7 +1,7 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { InputBlock, InputType } from '../../types/flowTemplate';
+import { InputBlock, InputType } from '@/common/network/flows/FlowTemplateClient';
 import { Input, Label, Textarea, Button, Card, CardContent, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from '@newwork/nw-design-system';
 import { Plus, X } from 'lucide-react';
 

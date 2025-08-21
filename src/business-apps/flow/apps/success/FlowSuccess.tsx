@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { TrendingUp, Target, BarChart3, PieChart, Shield } from 'lucide-react';
+import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { TrendingUp, BarChart3, Shield, Timer, Workflow, AlertTriangle } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 // Components
 import { OverviewTab } from './components/tabs/OverviewTab';
-import { AnalyticsTab } from './components/tabs/AnalyticsTab';
+import { FlowTab } from './components/tabs/FlowTab';
 import { TrendsTab } from './components/tabs/TrendsTab';
+import { TaskPerformanceTab } from './components/tabs/TaskPerformanceTab';
 import { AuditTab } from './components/tabs/AuditTab';
+import { SLATab } from './components/tabs/SLATab';
 
 interface FlowSuccessProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -46,37 +48,54 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
       <Card className="gba:shadow-xl gba:border-0 gba:bg-white/80 gba:backdrop-blur-sm">
         <CardContent className="gba:p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-            <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:bg-gray-50 gba:p-1 gba:rounded-none gba:rounded-t-lg">
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-6 gba:bg-gray-50 gba:p-1 gba:rounded-none gba:rounded-t-lg">
               <TabsTrigger 
                 value="overview" 
-                className="gba:flex gba:items-center gba:gap-2 gba:py-3"
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
                 data-testid={`${prefixDataTestId}-overview-tab`}
               >
-                <BarChart3 className="gba:h-4 gba:w-4" />
+                <BarChart3 className="gba:h-3 gba:w-3" />
                 Overview
               </TabsTrigger>
               <TabsTrigger 
-                value="analytics" 
-                className="gba:flex gba:items-center gba:gap-2 gba:py-3"
-                data-testid={`${prefixDataTestId}-analytics-tab`}
+                value="flow" 
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
+                data-testid={`${prefixDataTestId}-flow-tab`}
               >
-                <PieChart className="gba:h-4 gba:w-4" />
-                Analytics
+                <Workflow className="gba:h-3 gba:w-3" />
+                Flows
               </TabsTrigger>
               <TabsTrigger 
+                value="task-performance" 
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
+                data-testid={`${prefixDataTestId}-task-performance-tab`}
+              >
+                <Timer className="gba:h-3 gba:w-3" />
+                Tasks
+              </TabsTrigger>
+              <TabsTrigger 
+                value="sla" 
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
+                data-testid={`${prefixDataTestId}-sla-tab`}
+              >
+                <AlertTriangle className="gba:h-3 gba:w-3" />
+                SLA
+              </TabsTrigger>
+
+              <TabsTrigger 
                 value="trends" 
-                className="gba:flex gba:items-center gba:gap-2 gba:py-3"
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
                 data-testid={`${prefixDataTestId}-trends-tab`}
               >
-                <TrendingUp className="gba:h-4 gba:w-4" />
+                <TrendingUp className="gba:h-3 gba:w-3" />
                 Trends
               </TabsTrigger>
               <TabsTrigger 
                 value="audit" 
-                className="gba:flex gba:items-center gba:gap-2 gba:py-3"
+                className="gba:flex gba:items-center gba:gap-1 gba:py-3 gba:text-xs"
                 data-testid={`${prefixDataTestId}-audit-tab`}
               >
-                <Shield className="gba:h-4 gba:w-4" />
+                <Shield className="gba:h-3 gba:w-3" />
                 Audit
               </TabsTrigger>
             </TabsList>
@@ -90,10 +109,26 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
                 />
               </TabsContent>
 
-              <TabsContent value="analytics" className="gba:mt-0">
-                <AnalyticsTab
+              <TabsContent value="flow" className="gba:mt-0">
+                <FlowTab
                   accessToken={accessToken}
-                  prefixDataTestId={`${prefixDataTestId}-analytics`}
+                  prefixDataTestId={`${prefixDataTestId}-flow`}
+                  {...context}
+                />
+              </TabsContent>
+
+              <TabsContent value="task-performance" className="gba:mt-0">
+                <TaskPerformanceTab
+                  accessToken={accessToken}
+                  prefixDataTestId={`${prefixDataTestId}-task-performance`}
+                  {...context}
+                />
+              </TabsContent>
+
+              <TabsContent value="sla" className="gba:mt-0">
+                <SLATab
+                  accessToken={accessToken}
+                  prefixDataTestId={`${prefixDataTestId}-sla`}
                   {...context}
                 />
               </TabsContent>

@@ -12,7 +12,7 @@ import {
   Upload, 
   PenTool 
 } from 'lucide-react';
-import { InputType } from '../../types/flowTemplate';
+import { InputType } from '@/common/network/flows/FlowTemplateClient';
 
 const { Text } = Typography;
 

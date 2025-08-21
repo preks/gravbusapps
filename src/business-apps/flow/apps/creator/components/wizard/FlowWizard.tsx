@@ -1,9 +1,7 @@
 import React from 'react';
-import { Card, CardContent } from '@newwork/nw-design-system';
-import { Progress } from '@newwork/nw-design-system';
-import { Button } from 'antd';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { AssignmentMode } from '../../types/flowTemplate';
+import { Card, CardContent, Button, Alert, AlertDescription } from '@newwork/nw-design-system';
+import { AlertTriangle } from 'lucide-react';
+import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
 import { 
   Shield, 
   Megaphone, 
@@ -130,27 +128,28 @@ export const FlowWizard: React.FC<FlowWizardProps> = ({
           {renderCurrentStep()}
           
           {!isValid && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded">
-              <ExclamationCircleOutlined className="gba:text-amber-600" />
-              <span className="gba:text-sm gba:text-amber-800">
+            <Alert className="gba:border-amber-200 gba:bg-amber-50">
+              <AlertTriangle className="gba:h-4 gba:w-4 gba:text-amber-600" />
+              <AlertDescription className="gba:text-amber-800">
                 {getValidationMessage()}
-              </span>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
           
-          <div className="gba:flex gba:justify-between gba:pt-4 gba:border-t">
+          <div className="gba:flex gba:justify-between gba:pt-6 gba:border-t gba:border-gray-200">
             <Button
+              variant="outline"
               onClick={handleCancel}
               data-testid={`${testId}-cancel-button`}
             >
               {getTranslationFromI18nKeyAndLabel('flow.creator.cancel', 'Cancel')}
             </Button>
             
-            <div className="gba:flex gba:gap-2">
+            <div className="gba:flex gba:gap-3">
               <Button
-                type="primary"
                 onClick={handleComplete}
                 disabled={!isValid}
+                className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:hover:from-blue-700 gba:hover:to-indigo-700 gba:text-white gba:font-semibold gba:px-6 gba:py-2 gba:rounded-lg gba:shadow-lg gba:shadow-blue-500/25 gba:transition-all gba:duration-200 gba:hover:shadow-xl gba:hover:shadow-blue-500/40 gba:hover:scale-[1.02]"
                 data-testid={`${testId}-complete-button`}
               >
                 {isEditMode 

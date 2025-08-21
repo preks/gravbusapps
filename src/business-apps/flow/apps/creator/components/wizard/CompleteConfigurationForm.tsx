@@ -1,19 +1,15 @@
-import React, { useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Alert, Badge, Button, Form, Input, InputNumber } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, Input, Textarea, Label, Alert, AlertDescription, Badge, Button } from '@newwork/nw-design-system';
 import { 
-  SettingOutlined,
-  InfoCircleOutlined
-} from '@ant-design/icons';
+  Settings,
+  Info
+} from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useWizardStore } from '../../hooks/useWizardStore';
 import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { BusinessPattern } from '../../types/businessPatterns';
-import { AssignmentMode } from '../../types/flowTemplate';
-import { PatternSelector } from './PatternSelector';
 import { StepsSection } from '../steps/StepsSection';
 
-const { TextArea } = Input;
+
 
 interface CompleteConfigurationFormProps {
   'data-testid'?: string;
@@ -41,19 +37,21 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
     flowTemplate 
   } = useFlowTemplateStore();
   
-  const [form] = Form.useForm();
+  // Local state for form inputs
+  const [title, setTitle] = useState(configuration.title || flowTemplate.name || '');
+  const [description, setDescription] = useState(configuration.description || flowTemplate.description || '');
 
-  // Sync wizard configuration with flow template store and form - one way only
+  // Sync wizard configuration with flow template store and local state
   useEffect(() => {
     if (configuration.title) {
       updateTitle(configuration.title);
-      form.setFieldsValue({ title: configuration.title });
+      setTitle(configuration.title);
     }
     if (configuration.description) {
       updateDescription(configuration.description);
-      form.setFieldsValue({ description: configuration.description });
+      setDescription(configuration.description);
     }
-  }, [configuration.title, configuration.description, updateTitle, updateDescription, form]);
+  }, [configuration.title, configuration.description, updateTitle, updateDescription]);
 
   // Sync steps from wizard configuration to flow template store - one way only
   useEffect(() => {
@@ -81,7 +79,8 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
   // Handle clearing pattern selection
   const handleClearPattern = () => {
     skipPattern();
-    form.setFieldsValue({ title: '', description: '' });
+    setTitle('');
+    setDescription('');
     updateTitle('');
     updateDescription('');
     updateConfiguration('title', '');
@@ -103,120 +102,92 @@ export const CompleteConfigurationForm: React.FC<CompleteConfigurationFormProps>
   };
 
   // Handle form field changes
-  const onFieldChange = (field: string, value: any) => {
-    if (field === 'title') {
-      updateTitle(value as string);        // Update useFlowTemplateStore
-      updateConfiguration('title', value); // Update useWizardStore
-    } else if (field === 'description') {
-      updateDescription(value as string);           // Update useFlowTemplateStore  
-      updateConfiguration('description', value);    // Update useWizardStore
-    }
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    updateTitle(value);
+    updateConfiguration('title', value);
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    updateDescription(value);
+    updateConfiguration('description', value);
   };
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
-      {/* Business Pattern Selection - Always visible at top for create mode */}
-      {!isEditMode && (
-        <Card data-testid={`${testId}-pattern-section`}>
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-3">
-              <SettingOutlined className="gba:text-blue-500" />
-              <span className="gba:text-lg">
-                {getTranslationFromI18nKeyAndLabel('flow.wizard.choosePattern', 'Choose Business Pattern')}
-              </span>
-              <Badge 
-                color="blue" 
-                text={getTranslationFromI18nKeyAndLabel('flow.wizard.optional', 'Optional')}
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-4">
-              <Alert
-                message={getTranslationFromI18nKeyAndLabel('flow.wizard.patternHelp', 'Choose a business pattern to get pre-configured steps and smart defaults, or skip to create a custom flow from scratch')}
-                type="info"
-                showIcon
-                icon={<InfoCircleOutlined />}
-              />
-              
-              <PatternSelector 
-                onNext={() => {}} // No navigation needed in single step
-                data-testid={`${testId}-pattern-selector`}
-              />
-              
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Selected Pattern Summary */}
+      {/* Selected Pattern Summary - Show only if pattern was selected */}
       {selectedPattern && (
-        <Alert
-          message={
+        <Alert className="gba:border-green-200 gba:bg-green-50">
+          <Settings className="gba:h-4 gba:w-4 gba:text-green-600" />
+          <AlertDescription className="gba:text-green-800">
             <div className="gba:flex gba:items-center gba:justify-between">
               <span>
                 <strong>{getTranslationFromI18nKeyAndLabel('flow.wizard.selectedPattern', 'Selected Pattern')}:</strong> {selectedPattern.title}
               </span>
               <Button 
-                size="small" 
+                variant="outline"
+                size="sm"
                 onClick={handleClearPattern}
                 data-testid={`${testId}-clear-pattern`}
               >
                 {getTranslationFromI18nKeyAndLabel('flow.wizard.clearPattern', 'Clear')}
               </Button>
             </div>
-          }
-          type="success"
-          showIcon
-          data-testid={`${testId}-selected-pattern`}
-        />
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Template Details Form */}
-      <div data-testid={`${testId}-basic-info`} className="gba:space-y-4 gba:mt-4">
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            title: configuration.title || flowTemplate.name || '',
-            description: configuration.description || flowTemplate.description || ''
-          }}
-          onValuesChange={(changedValues) => {
-            Object.entries(changedValues).forEach(([key, value]) => {
-              onFieldChange(key, value);
-            });
-          }}
-        >
-                      <Form.Item
-              label={getTranslationFromI18nKeyAndLabel('flow.creator.name', 'Flow Name')}
-              name="title"
-              rules={[
-                { required: true, message: 'Please enter a flow name' },
-                { min: 3, message: 'Name must be at least 3 characters' },
-                { max: 100, message: 'Name must not exceed 100 characters' }
-              ]}
-            >
-              <Input 
-                placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.namePlaceholder', 'Enter a descriptive name for your flow')}
-                data-testid={`${testId}-title-input`}
-              />
-            </Form.Item>
+      <Card data-testid={`${testId}-basic-info`}>
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <Settings className="gba:h-5 gba:w-5 gba:text-blue-500" />
+            {getTranslationFromI18nKeyAndLabel('flow.creator.templateDetails', 'Flow Details')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-6">
+          <div className="gba:space-y-2">
+            <Label htmlFor="flow-title" className="gba:text-sm gba:font-medium gba:text-gray-700">
+              {getTranslationFromI18nKeyAndLabel('flow.creator.name', 'Flow Name')} 
+              <span className="gba:text-red-500 gba:ml-1">*</span>
+            </Label>
+            <Input
+              id="flow-title"
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.namePlaceholder', 'Enter a descriptive name for your flow')}
+              className="gba:w-full"
+              data-testid={`${testId}-title-input`}
+            />
+            {title.length > 0 && title.length < 3 && (
+              <p className="gba:text-sm gba:text-red-600">Name must be at least 3 characters</p>
+            )}
+            {title.length > 100 && (
+              <p className="gba:text-sm gba:text-red-600">Name must not exceed 100 characters</p>
+            )}
+          </div>
 
-          <Form.Item
-            label={getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Description')}
-            name="description"
-            rules={[
-              { max: 500, message: 'Description must not exceed 500 characters' }
-            ]}
-          >
-                            <TextArea 
-                  rows={3}
-                  placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.descriptionPlaceholder', 'Describe the purpose and scope of this flow')}
-                  data-testid={`${testId}-description-input`}
-                />
-          </Form.Item>
-        </Form>
-      </div>
+          <div className="gba:space-y-2">
+            <Label htmlFor="flow-description" className="gba:text-sm gba:font-medium gba:text-gray-700">
+              {getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Description')}
+            </Label>
+            <Textarea
+              id="flow-description"
+              value={description}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.descriptionPlaceholder', 'Describe the purpose and scope of this flow')}
+              rows={3}
+              className="gba:w-full gba:resize-none"
+              data-testid={`${testId}-description-input`}
+            />
+            {description.length > 500 && (
+              <p className="gba:text-sm gba:text-red-600">Description must not exceed 500 characters</p>
+            )}
+            <p className="gba:text-xs gba:text-gray-500">{description.length}/500 characters</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Steps Configuration */}
       <div data-testid={`${testId}-steps-section`}>

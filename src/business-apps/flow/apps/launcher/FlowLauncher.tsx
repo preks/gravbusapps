@@ -1,44 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-// Import centralized mock users data
 import { mockUsers } from '../../data/mockUsers';
 import { env } from '@/common/env/EnvUtils';
-
-// FlowTemplate interface matching the custom flow engine API
-interface FlowTemplate {
-  id?: string;
-  name: string;
-  description: string;
-  steps: any[];
-  type?: string;
-  version?: number;
-  isPublished?: boolean;
-  metadata?: any;
-}
-
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { Spin, Alert, Card, Button, Input, Select, Typography, Modal } from 'antd';
-const { TextArea } = Input;
-import { PlayCircleOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
-import { ExecutionWizard } from '../creator/components/execution/ExecutionWizard';
+import { 
+  Toaster, 
+  Button, 
+  Alert, 
+  Spinner, 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  Card,
+  CardContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from '@newwork/nw-design-system';
+import { toast } from 'sonner';
+import { AlertTriangle, RefreshCw, Play } from 'lucide-react';
 import { MockDataProvider } from '../../providers/MockDataProvider';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+import { TemplateCard, LaunchConfiguration, EmptyState, SimulationWizard } from './components';
+import { FlowTemplate, LaunchParameters, ExecutionAssignment } from './types';
 
 // API configuration
 const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
-
-interface LaunchParameters {
-  [key: string]: string;
-}
-
-interface ExecutionAssignment {
-  stepIndex: number;
-  stepTitle: string;
-  assignmentMode: string;
-  assignedUsers: string[];
-}
 
 /**
  * Flow Launcher App component for launching published workflow templates
@@ -78,8 +67,12 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
   const [templateMetadata, setTemplateMetadata] = useState<any>(null);
   const [launchParameters, setLaunchParameters] = useState<LaunchParameters>({});
   const [executionAssignments, setExecutionAssignments] = useState<ExecutionAssignment[]>([]);
+  const [selectedInitiator, setSelectedInitiator] = useState<string>(
+    userInfo?.id || userInfo?.employeeDetails?.employeeId || mockUsers[0]?.id || ''
+  );
   const [isLaunching, setIsLaunching] = useState(false);
   const [showExecutionWizard, setShowExecutionWizard] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Load published templates from API
   const loadPublishedTemplates = async () => {
@@ -177,6 +170,8 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     }));
   };
 
+  // Initiator selection is now in the header (top-right)
+
   // Launch the workflow using ExecutionWizard
   const handleLaunchWithWizard = () => {
     if (!selectedTemplate) return;
@@ -206,7 +201,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       // Prepare execution parameters for the custom flow engine API
       const executionParams = {
         runtimeParameters: launchParameters,
-        initiator: userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
+        initiator: selectedInitiator || 'unknown',
         context: {
           flowInstanceId: `flow_instance_${Date.now()}`,
           launchedBy: userInfo?.userName || userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
@@ -226,7 +221,9 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       
       console.log('Flow launched successfully:', result);
       
-      alert(`Flow launched successfully!\n\nFlow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
+      toast.success('Flow launched successfully!', {
+        description: `Flow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`
+      });
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -238,7 +235,9 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     } catch (err) {
       console.error('Error launching workflow:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to launch workflow';
-      alert(`Failed to launch workflow: ${errorMessage}`);
+      toast.error('Failed to launch workflow', {
+        description: errorMessage
+      });
     } finally {
       setIsLaunching(false);
     }
@@ -267,7 +266,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       // Prepare execution parameters for the custom flow engine API
       const executionParams = {
         runtimeParameters: launchParameters,
-        initiator: userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
+        initiator: selectedInitiator || 'unknown',
         context: {
           flowInstanceId: `flow_instance_${Date.now()}`,
           launchedBy: userInfo?.userName || userInfo?.id || userInfo?.employeeDetails?.employeeId || 'unknown',
@@ -286,7 +285,9 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       
       console.log('Flow launched successfully:', result);
       
-      alert(`Flow launched successfully!\n\nFlow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`);
+      toast.success('Flow launched successfully!', {
+        description: `Flow ID: ${result.data?.workflowId}\nTemplate: ${selectedTemplate.name}`
+      });
       
       // Reset form after successful launch
       setLaunchParameters({});
@@ -297,7 +298,9 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     } catch (err) {
       console.error('Error launching workflow:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to launch workflow';
-      alert(`Failed to launch workflow: ${errorMessage}`);
+      toast.error('Failed to launch workflow', {
+        description: errorMessage
+      });
     } finally {
       setIsLaunching(false);
     }
@@ -309,225 +312,197 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
 
   return (
     <MockDataProvider>
-      <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6" data-testid={testId}>
-        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid={`${testId}-header`}>
-          <Title level={2} className="gba:m-0" data-testid={`${testId}-title`}>
-            {getTranslationFromI18nKeyAndLabel('flow.launcher.title', 'Launch Flow')}
-          </Title>
+      <div 
+        className="gba:min-h-screen gba:bg-gradient-to-br gba:from-blue-50 gba:via-indigo-50 gba:to-purple-100 gba:p-6"
+        data-testid={testId}
+      >
+        <Toaster />
+        
+        {/* Header */}
+        <div className="gba:mb-6" data-testid={`${testId}-header`}>
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:p-3 gba:bg-gradient-to-br gba:from-blue-500 gba:via-indigo-600 gba:to-purple-600 gba:rounded-xl gba:shadow-lg gba:shadow-blue-500/25">
+                <Play className="gba:h-8 gba:w-8 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900" data-testid={`${testId}-title`}>
+                  {getTranslationFromI18nKeyAndLabel('flow.launcher.title', 'FLOW Launcher')}
+                </h1>
+                <p className="gba:text-lg gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('flow.launcher.description', 'Launch & Configure Workflow Templates')}
+                </p>
+              </div>
+            </div>
+            {/* Top Right: Initiator Selection (no label) */}
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Select
+                value={selectedInitiator}
+                onValueChange={setSelectedInitiator}
+                data-testid={`${testId}-initiator-select`}
+              >
+                <SelectTrigger className="gba:w-64 gba:bg-white gba:shadow-sm">
+                  <SelectValue placeholder="Select initiator" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mockUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:font-medium">{user.name}</span>
+                        <span className="gba:text-xs gba:text-gray-500">({user.id})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
         
-        {isLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid={`${testId}-loading`}>
-            <Spin size="large" />
-          </div>
-        ) : error ? (
-          <Alert
-            message="Error Loading Templates"
-            description={error}
-            type="error"
-            showIcon
-            action={
-              <Button onClick={loadPublishedTemplates} data-testid={`${testId}-retry`}>
-                Retry
-              </Button>
-            }
-            data-testid={`${testId}-error`}
-          />
-        ) : (
-          <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-            {/* Template Selection */}
-            <div data-testid={`${testId}-template-selection`}>
-              <Title level={4} className="gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel('flow.launcher.selectTemplate', 'Select Template')}
-              </Title>
-              
-              {templates.length === 0 ? (
-                <Alert
-                  message="No Published Templates"
-                  description="No published flow templates are available for launch."
-                  type="info"
-                  showIcon
-                  data-testid={`${testId}-no-templates`}
-                />
-              ) : (
-                <div className="gba:space-y-3">
-                  {templates.map((template) => (
-                    <div className="gba:mt-4">
-                      <Card
-                        key={template.id}
-                        className={`gba:cursor-pointer gba:transition-all ${
-                          selectedTemplate?.id === template.id 
-                            ? 'gba:border-blue-500 gba:shadow-md' 
-                            : 'gba:border-gray-200 hover:gba:border-gray-300'
-                        }`}
-                        onClick={() => handleTemplateSelect(template)}
-                        data-testid={`${testId}-template-${template.id}`}
-                      >
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <FileTextOutlined className="gba:text-blue-500 gba:text-lg gba:mt-1" />
-                          <div className="gba:flex-1">
-                            <Title level={5} className="gba:m-0 gba:mb-1">
-                              {template.name}
-                            </Title>
-                            <Text type="secondary" className="gba:text-sm">
-                              {template.description}
-                            </Text>
-                            <div className="gba:mt-2 gba:flex gba:gap-2">
-                              <span className="gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-xs">
-                                SEQUENTIAL
-                              </span>
-                              <span className="gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:text-xs">
-                                {template.steps.length} step{template.steps.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Launch Configuration */}
-            <div data-testid={`${testId}-launch-config`}>
-              <Title level={4} className="gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel('flow.launcher.launchConfiguration', 'Launch Configuration')}
-              </Title>
-              
-              {!selectedTemplate ? (
-                <Alert
-                  message="Select a Template"
-                  description="Please select a template from the left to configure its launch parameters."
-                  type="info"
-                  data-testid={`${testId}-select-template-prompt`}
-                />
-              ) : !templateMetadata ? (
-                <div className="gba:flex gba:justify-center gba:py-4">
-                  <Spin />
-                </div>
-              ) : (
-                <div className="gba:space-y-4">
-                  <div className="gba:p-4 gba:bg-gray-50 gba:rounded">
-                    <Title level={5} className="gba:m-0 gba:mb-2">
-                      {selectedTemplate.name}
-                    </Title>
-                    <Text type="secondary">
-                      {selectedTemplate.description}
-                    </Text>
-                  </div>
-
-                  {/* Assignment Configuration */}
-                  {executionAssignments.length > 0 ? (
-                    <div className="gba:space-y-4">
-                      <Title level={5}>Task Assignments</Title>
-                      <Text type="secondary" className="gba:block gba:mb-4">
-                        Configure who should be assigned to each task in this workflow.
-                      </Text>
-                      
-                      {executionAssignments.map((assignment, index) => (
-                        <Card key={assignment.stepIndex} className="gba:border gba:border-gray-200">
-                          <div className="gba:mb-3">
-                            <Text strong className="gba:text-base">{assignment.stepTitle}</Text>
-                            <div className="gba:mt-1">
-                              <span className="gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:rounded gba:text-xs">
-                                {assignment.assignmentMode} Mode
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="gba:mb-2">
-                            <Text>Assign to users:</Text>
-                          </div>
-                          
-                          <Select
-                            mode="multiple"
-                            placeholder="Select users for this task"
-                            style={{ width: '100%' }}
-                            value={assignment.assignedUsers}
-                            onChange={(selectedUsers) => {
-                              const updatedAssignments = [...executionAssignments];
-                              updatedAssignments[index] = {
-                                ...assignment,
-                                assignedUsers: selectedUsers
-                              };
-                              setExecutionAssignments(updatedAssignments);
-                            }}
-                            data-testid={`${testId}-assignment-${assignment.stepIndex}`}
-                          >
-                                            {mockUsers.map(user => (
-                  <Option key={user.id} value={user.id}>
-                    {user.name} ({user.role})
-                  </Option>
-                ))}
-                          </Select>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <Alert
-                      message="No Assignment Required"
-                      description="This template uses automatic assignment and doesn't require manual user assignment."
-                      type="success"
-                      showIcon
-                    />
-                  )}
-
-                  <div className="gba:pt-4 gba:border-t gba:space-y-3">
-                    {/* Temporarily disabled - Launch with Configuration Wizard */}
-                    {/*
+        {/* Main Dashboard Content */}
+        <div className="gba:w-full gba:max-w-none">
+          {isLoading ? (
+            <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
+              <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
+                <Spinner size="lg" />
+                <p className="gba:mt-4 gba:text-sm gba:text-gray-600">
+                  Loading templates...
+                </p>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl">
+              <CardContent className="gba:p-6">
+                <Alert 
+                  variant="destructive"
+                  data-testid={`${testId}-error`}
+                >
+                  <AlertTriangle className="gba:h-5 gba:w-5" />
+                  <div className="gba:ml-3">
+                    <h3 className="gba:font-semibold gba:mb-2">Error Loading Templates</h3>
+                    <p className="gba:mb-4">{error}</p>
                     <Button
-                      type="primary"
-                      size="large"
-                      icon={<SettingOutlined />}
-                      onClick={handleLaunchWithWizard}
-                      className="gba:w-full"
-                      data-testid={`${testId}-launch-wizard-button`}
+                      variant="outline"
+                      onClick={loadPublishedTemplates}
+                      className="gba:gap-2"
+                      data-testid={`${testId}-retry`}
                     >
-                      {getTranslationFromI18nKeyAndLabel('flow.launcher.launchWithWizard', 'Launch with Configuration Wizard')}
+                      <RefreshCw size={16} />
+                      Retry
                     </Button>
-                    */}
+                  </div>
+                </Alert>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6 gba:w-full">
+              {/* Template Selection - 2/3 width */}
+              <div className="gba:lg:col-span-2">
+                <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full" data-testid={`${testId}-template-selection`}>
+                  <CardContent className="gba:p-6">
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                      <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                        {getTranslationFromI18nKeyAndLabel('flow.launcher.selectTemplate', 'Choose a Workflow Template')}
+                      </h2>
+                    </div>
                     
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<PlayCircleOutlined />}
-                      onClick={handleDirectLaunch}
-                      disabled={!canLaunch}
-                      loading={isLaunching}
-                      className="gba:w-full"
-                      data-testid={`${testId}-direct-launch-button`}
-                    >
-                      {isLaunching 
-                        ? getTranslationFromI18nKeyAndLabel('flow.launcher.launching', 'Launching...') 
-                        : getTranslationFromI18nKeyAndLabel('flow.launcher.quickLaunch', 'Quick Launch')
-                      }
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                    {/* Search Input */}
+                    <div className="gba:mb-4">
+                      <input
+                        type="text"
+                        placeholder="Search templates..."
+                        className="gba:w-full gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        data-testid={`${testId}-search-input`}
+                      />
+                    </div>
+                    
+                    {templates.length === 0 ? (
+                      <EmptyState
+                        title="No Published Templates"
+                        description="No published flow templates are available for launch. Create and publish templates to get started with workflow automation."
+                        actionLabel="Refresh Templates"
+                        onAction={loadPublishedTemplates}
+                        data-testid={`${testId}-no-templates`}
+                      />
+                    ) : (
+                      <div className="gba:space-y-1">
+                        {templates
+                          .filter(template => 
+                            template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            template.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                          )
+                          .map((template) => (
+                            <TemplateCard
+                              key={template.id}
+                              template={template}
+                              isSelected={selectedTemplate?.id === template.id}
+                              onClick={handleTemplateSelect}
+                              data-testid={`${testId}-template-${template.id}`}
+                            />
+                          ))
+                        }
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
-        {/* Execution Wizard Modal */}
+              {/* Launch Configuration - 1/3 width */}
+              <div className="gba:lg:col-span-1">
+                <Card className="gba:bg-white/80 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:shadow-xl gba:h-full" data-testid={`${testId}-launch-config`}>
+                  <CardContent className="gba:p-6">
+                    <h2 className="gba:text-lg gba:font-semibold gba:mb-4 gba:text-gray-900">
+                      {getTranslationFromI18nKeyAndLabel('flow.launcher.launchConfiguration', 'Launch Configuration')}
+                    </h2>
+                    
+                    <LaunchConfiguration
+                      selectedTemplate={selectedTemplate}
+                      templateMetadata={templateMetadata}
+                      executionAssignments={executionAssignments}
+                      isLaunching={isLaunching}
+                      canLaunch={canLaunch}
+                      onAssignmentsChange={setExecutionAssignments}
+                      onDirectLaunch={handleDirectLaunch}
+                      onLaunchWithWizard={handleLaunchWithWizard}
+                      data-testid={`${testId}-launch-configuration`}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Simulation Wizard Dialog */}
         {selectedTemplate && (
-          <Modal
-            title={<h1 className="gba:text-lg gba:font-bold gba:text-gray-900 gba:mb-4">{getTranslationFromI18nKeyAndLabel('flow.launcher.configureExecution', 'Configure Execution')}</h1>}
+          <Dialog
             open={showExecutionWizard}
-            onCancel={() => setShowExecutionWizard(false)}
-            footer={null}
-            width={1200}
-            className="gba:execution-wizard-modal"
-            data-testid={`${testId}-execution-wizard-modal`}
+            onOpenChange={setShowExecutionWizard}
           >
-            <ExecutionWizard
-              template={selectedTemplate as any}
-              onExecute={handleExecuteWorkflow}
-              onCancel={() => setShowExecutionWizard(false)}
-              data-testid={`${testId}-execution-wizard`}
-            />
-          </Modal>
+            <DialogContent 
+              className="gba:max-w-[85vw] gba:w-[85vw] gba:max-h-[85vh] gba:h-[85vh] gba:overflow-auto gba:p-0"
+              style={{
+                maxWidth: '85vw',
+                width: '85vw',
+                maxHeight: '85vh',
+                height: '85vh'
+              }}
+              data-testid={`${testId}-simulation-wizard-modal`}
+            >
+              <div className="gba:h-full gba:w-full gba:overflow-auto">
+                <SimulationWizard
+                  template={selectedTemplate as any}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  onExecute={handleExecuteWorkflow}
+                  onCancel={() => setShowExecutionWizard(false)}
+                  data-testid={`${testId}-simulation-wizard`}
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </MockDataProvider>

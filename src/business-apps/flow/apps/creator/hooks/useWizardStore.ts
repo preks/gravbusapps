@@ -50,6 +50,41 @@ const WIZARD_STEPS: WizardStep[] = [
   }
 ];
 
+// Helper function to normalize assignment targets (convert empty arrays to null)
+const normalizeAssignmentTargets = (assignment: TaskAssignment | undefined): TaskAssignment | undefined => {
+  if (!assignment) return undefined;
+  
+  let normalizedTargets = null;
+  
+  if (assignment.targets && assignment.targets.length > 0) {
+    const processedTargets = assignment.targets.map(target => {
+      const normalizedTarget = { ...target };
+      
+      // Convert empty arrays to null for each field
+      Object.keys(normalizedTarget).forEach(key => {
+        const value = normalizedTarget[key as keyof typeof normalizedTarget];
+        if (Array.isArray(value) && value.length === 0) {
+          normalizedTarget[key as keyof typeof normalizedTarget] = null as any;
+        }
+      });
+      
+      // Check if all fields are null/empty
+      const hasAnyValues = Object.values(normalizedTarget).some(fieldValue => 
+        fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0
+      );
+      
+      return hasAnyValues ? normalizedTarget : null;
+    }).filter(target => target !== null);
+    
+    normalizedTargets = processedTargets.length > 0 ? processedTargets : null;
+  }
+  
+  return {
+    ...assignment,
+    targets: normalizedTargets
+  };
+};
+
 // Initial wizard state
 const initialState: WizardState = {
   currentStep: 0,
@@ -300,8 +335,8 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
         links: step.links || [],
         // Preserve timing-related fields
         dueInMinutes: step.dueInMinutes,
-        // Ensure assignment is set - required by client interface
-        assignment: step.assignment || {
+        // Ensure assignment is set and normalized - required by client interface
+        assignment: normalizeAssignmentTargets(step.assignment) || {
           targets: null,
           assignmentMode: AssignmentMode.CLAIM,
           allowReassignment: true

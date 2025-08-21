@@ -21,7 +21,7 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment, AssignmentMode } from '../../types/flowTemplate';
+import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 
 const { TextArea } = Input;
@@ -73,6 +73,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   step,
   stepIndex,
   onStepChange,
+  assignmentMode,
   isNewStep = false,
   'data-testid': testId = 'simplified-step-editor'
 }) => {
@@ -159,7 +160,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
     updateStep({ inputs: updatedInputs });
   };
 
-  const updateAssignment = (assignment: TaskAssignment | undefined) => {
+  const updateAssignment = (assignment: TaskAssignment) => {
     updateStep({ assignment });
   };
 
@@ -508,6 +509,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 <AssignmentSelector
                   value={step.assignment}
                   onChange={updateAssignment}
+                  assignmentMode={assignmentMode}
                   data-testid={`${testId}-assignment-selector`}
                 />
               </div>

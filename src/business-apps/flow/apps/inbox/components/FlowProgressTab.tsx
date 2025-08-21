@@ -9,6 +9,7 @@ const { Title, Text } = Typography;
 interface FlowProgressTabProps extends BusinessAppContextProps {
   taskId: string;
   flowId: string;
+  accessToken: string;
 }
 
 interface StepData {
@@ -72,7 +73,7 @@ interface ProgressData {
   steps: StepData[];
 }
 
-const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => {
+const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId, accessToken }) => {
   const [progressData, setProgressData] = useState<ProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,9 +90,15 @@ const FlowProgressTab: React.FC<FlowProgressTabProps> = ({ taskId, flowId }) => 
       // Add cache-busting parameter when forcing refresh
       const cacheBuster = forceRefresh ? `?_=${Date.now()}` : '';
       
+      // Include authentication headers
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+      };
+      
       const [progressResponse, stepsResponse] = await Promise.all([
-        fetch(`${API_BASE}/flow/${flowId}/progress${cacheBuster}`),
-        fetch(`${API_BASE}/flow/${flowId}/progress/steps${cacheBuster}`)
+        fetch(`${API_BASE}/flows/${flowId}/progress${cacheBuster}`, { headers }),
+        fetch(`${API_BASE}/flows/${flowId}/progress/steps${cacheBuster}`, { headers })
       ]);
       
       if (!progressResponse.ok) {

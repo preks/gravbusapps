@@ -113,7 +113,7 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
     try {
       // Use the new comprehensive history API
       const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
-      const response = await fetch(`${API_BASE}/api/flow/${flowId}/history`);
+      const response = await fetch(`${API_BASE}/api/flows/${flowId}/history`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch history: ${response.status}`);

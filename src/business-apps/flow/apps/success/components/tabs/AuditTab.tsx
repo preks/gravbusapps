@@ -121,12 +121,19 @@ export const AuditTab: React.FC<AuditTabProps> = ({
   };
 
   // Format task type with color
-  const getTaskTypeColor = (taskType: string) => {
+  const getTaskTypeColor = (taskType: string | null | undefined) => {
+    if (!taskType) return 'gba:text-gray-600 gba:bg-gray-100';
     switch (taskType.toUpperCase()) {
-      case 'HUMAN':
+      case 'TASK':
+        return 'gba:text-indigo-600 gba:bg-indigo-100';
+      case 'INFORMATION':
         return 'gba:text-cyan-600 gba:bg-cyan-100';
       case 'APPROVAL':
         return 'gba:text-purple-600 gba:bg-purple-100';
+      case 'ACKNOWLEDGE':
+        return 'gba:text-green-600 gba:bg-green-100';
+      case 'HUMAN':
+        return 'gba:text-cyan-600 gba:bg-cyan-100';
       case 'SIMPLE':
       case 'USER_TASK':
         return 'gba:text-indigo-600 gba:bg-indigo-100';
@@ -140,8 +147,17 @@ export const AuditTab: React.FC<AuditTabProps> = ({
   };
 
   // Format task type display name
-  const formatTaskType = (taskType: string) => {
+  const formatTaskType = (taskType: string | null | undefined) => {
+    if (!taskType) return 'Unknown';
     switch (taskType.toUpperCase()) {
+      case 'TASK':
+        return 'Task';
+      case 'INFORMATION':
+        return 'Information';
+      case 'APPROVAL':
+        return 'Approval';
+      case 'ACKNOWLEDGE':
+        return 'Acknowledgment';
       case 'USER_TASK':
         return 'User Task';
       case 'SIMPLE':
@@ -152,8 +168,6 @@ export const AuditTab: React.FC<AuditTabProps> = ({
         return 'Loop';
       case 'HUMAN':
         return 'Human Task';
-      case 'APPROVAL':
-        return 'Approval';
       default:
         return taskType;
     }
@@ -163,7 +177,13 @@ export const AuditTab: React.FC<AuditTabProps> = ({
   const currentPage = Math.floor((filters.offset || 0) / (filters.limit || 50)) + 1;
   const totalPages = auditData ? Math.ceil(auditData.pagination.total / (filters.limit || 50)) : 0;
 
-  // Summary widgets
+  // Calculate user actions count (all actions except SYSTEM)
+  const userActionsCount = auditData?.summary?.actionBreakdown ? 
+    Object.entries(auditData.summary.actionBreakdown)
+      .filter(([action]) => action !== 'SYSTEM')
+      .reduce((total, [, count]) => total + count, 0) : 0;
+
+  // Summary widgets in requested order: Total Entries, User Actions, Unique Flows, Unique Users
   const summaryWidgets: WidgetItem[] = auditData?.summary ? [
     {
       key: 'total-entries',
@@ -174,20 +194,28 @@ export const AuditTab: React.FC<AuditTabProps> = ({
       description: 'Total audit log entries'
     },
     {
+      key: 'user-actions',
+      title: 'User Actions',
+      value: userActionsCount,
+      prefix: <Users className="gba:h-4 gba:w-4" />,
+      color: '#10b981',
+      description: 'Actions performed by users'
+    },
+    {
+      key: 'unique-flows',
+      title: 'Unique Flows',
+      value: auditData.summary.uniqueFlows,
+      prefix: <Activity className="gba:h-4 gba:w-4" />,
+      color: '#8b5cf6',
+      description: 'Unique flows'
+    },
+    {
       key: 'unique-users',
       title: 'Unique Users',
       value: auditData.summary.uniqueUsers,
       prefix: <Users className="gba:h-4 gba:w-4" />,
-      color: '#10b981',
-      description: 'Users with activity'
-    },
-    {
-      key: 'unique-templates',
-      title: 'Flows',
-      value: auditData.summary.uniqueTemplates,
-      prefix: <Activity className="gba:h-4 gba:w-4" />,
       color: '#f59e0b',
-      description: 'Unique flows'
+      description: 'Users with activity'
     }
   ] : [];
 
@@ -379,8 +407,8 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                         </td>
                         <td className="gba:py-3 gba:px-4">
                           <div>
-                            <span className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getTaskTypeColor(entry.taskType)}`}>
-                              {formatTaskType(entry.taskType)}
+                            <span className={`gba:inline-flex gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${getTaskTypeColor(entry.stepType || entry.taskType)}`}>
+                              {formatTaskType(entry.stepType || entry.taskType)}
                             </span>
                           </div>
                         </td>

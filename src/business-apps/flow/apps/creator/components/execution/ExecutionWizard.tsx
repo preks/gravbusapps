@@ -10,7 +10,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowTemplate, FlowStep, AssignmentMode } from '../../types/flowTemplate';
+import { FlowTemplate, FlowStep, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
 import { AssignmentSelector } from '../shared/AssignmentSelector';
 import { StepExecutionForm } from './StepExecutionForm';
 import { FlowStepModal } from './FlowStepModal';

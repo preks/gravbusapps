@@ -1,23 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Card, List, Button, Badge, Tag, Spin, Alert, Modal, Typography, Space, Divider, Form, Input, message, Tabs } from 'antd';
+import { message } from 'antd';
 import { 
-  UserOutlined, 
   ClockCircleOutlined, 
   CheckCircleOutlined, 
-  ExclamationCircleOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
   OrderedListOutlined,
   EyeOutlined,
-  ReloadOutlined,
   WarningOutlined
 } from '@ant-design/icons';
+import { 
+  Button, 
+  Card, 
+  CardContent,
+  Badge, 
+  Select, 
+  SelectContent,
+  SelectItem, 
+  SelectTrigger,
+  SelectValue,
+  Spinner, 
+  Alert,
+  Tabs as NwTabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@newwork/nw-design-system';
+import { Inbox, User, Clock, Calendar, AlertTriangle, CheckCircle, UserCheck, Eye, FileText, Info, ArrowRight } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
-import { TaskDetailsTab, FlowProgressTab, TaskListCard, FlowHistoryTab, FlowDataTab } from './components';
+import { TaskDetailsTab } from './components';
+import { FlowManagement } from '../../common/components';
 
-const { Option } = Select;
-const { Title, Text } = Typography;
+
+// Remove unused Ant Design destructuring
 
 interface TaskInboxProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -25,7 +45,7 @@ interface TaskInboxProps extends BusinessAppContextProps {
 
 interface Task {
   id: string;
-  flowId: string;
+  flowId?: string;
   referenceTaskName?: string;
   type?: string;
   name?: string;
@@ -180,47 +200,29 @@ const getDueDateTag = (task: Task): React.ReactNode => {
   
   if (overdue) {
     return (
-      <Tag color="red" icon={<WarningOutlined />}>
+      <Badge variant="destructive" className="gba:flex gba:items-center gba:gap-1" style={{ backgroundColor: 'var(--color-danger-500)', color: 'var(--color-on-danger)' }}>
+        <WarningOutlined className="gba:w-3 gba:h-3" />
         Overdue
-      </Tag>
+      </Badge>
     );
   } else if (dueSoon) {
     return (
-      <Tag color="orange" icon={<ClockCircleOutlined />}>
+      <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1" style={{ borderColor: 'var(--color-warning-500)', color: 'var(--color-warning-700)' }}>
+        <ClockCircleOutlined className="gba:w-3 gba:h-3" />
         Due Soon
-      </Tag>
+      </Badge>
     );
   } else {
     return (
-      <Tag color="blue" icon={<ClockCircleOutlined />}>
+      <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1" style={{ borderColor: 'var(--color-primary-500)', color: 'var(--color-primary-700)' }}>
+        <ClockCircleOutlined className="gba:w-3 gba:h-3" />
         {formatDueDate(task.dueDate)}
-      </Tag>
+      </Badge>
     );
   }
 };
 
-const getCompletionDateTag = (task: Task): React.ReactNode => {
-  if (task.status !== 'COMPLETED') return null;
-  
-  // Look for completion date in assignment history
-  const completionEntry = task.assignment?.assignmentHistory
-    ?.filter((entry: any) => entry.action === 'COMPLETE')
-    ?.sort((a: any, b: any) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0];
-  
-  if (completionEntry) {
-    return (
-      <Tag color="green" icon={<CheckCircleOutlined />}>
-        {formatCompletionDate(completionEntry.changedAt)}
-      </Tag>
-    );
-  }
-  
-  return (
-    <Tag color="green" icon={<CheckCircleOutlined />}>
-      Completed
-    </Tag>
-  );
-};
+
 
 // Import mock users data
 import { mockUsers, type User as MockUser } from '../../data/mockUsers';
@@ -232,20 +234,22 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('user-001');
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [completedLoading, setCompletedLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [completedError, setCompletedError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
   const [taskModalLoading, setTaskModalLoading] = useState(false);
   const [taskFormData, setTaskFormData] = useState<any>({});
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [rejectionComment, setRejectionComment] = useState<string>('');
-  const [form] = Form.useForm();
+  const [currentView, setCurrentView] = useState<'open' | 'completed' | 'initiated' | 'participated'>('open');
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedError, setCompletedError] = useState<string | null>(null);
+  
+
 
   const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
 
@@ -268,7 +272,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 
       if (tasksResponse.ok) {
         const tasksData = await tasksResponse.json();
-        setTasks(tasksData.tasks || []);
+        // Transform tasks to ensure flowId is available
+        const transformedTasks = (tasksData.tasks || []).map((task: any) => ({
+          ...task,
+          flowId: task.flowId || task.workflowMeta?.rootWorkflowId || task.id
+        }));
+        setTasks(transformedTasks);
       } else {
         throw new Error('Failed to fetch tasks');
       }
@@ -286,6 +295,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     }
   };
 
+
+
   // Fetch completed tasks for selected user
   const fetchCompletedTasks = async (userId: string) => {
     setCompletedLoading(true);
@@ -301,7 +312,12 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        setCompletedTasks(data.tasks || []);
+        // Transform completed tasks to ensure flowId is available
+        const transformedTasks = (data.tasks || []).map((task: any) => ({
+          ...task,
+          flowId: task.flowId || task.workflowMeta?.rootWorkflowId || task.id
+        }));
+        setCompletedTasks(transformedTasks);
       } else {
         throw new Error('Failed to fetch completed tasks');
       }
@@ -384,7 +400,6 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           setTaskFormData({});
           setReassignUserId('');
           setRejectionComment('');
-          form.resetFields();
         }
       } else {
         const errorData = await response.json();
@@ -399,11 +414,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     }
   };
 
-  // Refresh all data
-  const refreshAllData = () => {
-    fetchUserData(selectedUserId);
-    fetchCompletedTasks(selectedUserId);
-  };
+
 
   // Fetch fresh task data when opening modal
   const fetchFreshTaskData = async (taskId: string): Promise<Task | null> => {
@@ -413,7 +424,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
       };
 
-      const response = await fetch(`${API_BASE}/tasks/${taskId}`, { headers });
+      const response = await fetch(`${API_BASE}/tasks/${taskId}?userId=${selectedUserId}`, { headers });
       
       if (response.ok) {
         const taskData = await response.json();
@@ -463,7 +474,6 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         }
       });
       setTaskFormData(initialFormData);
-      form.setFieldsValue(initialFormData);
     };
 
     // Initialize with cached data
@@ -541,35 +551,45 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     setRejectionComment,
   };
 
-  // Filter and sort tasks - Backend handles filtering, frontend just separates by type
-  const assignedTasks = tasks.filter((task: any) => 
-    task.assignment?.assignedTo === selectedUserId
-  );
-  
-  const claimableTasks = tasks.filter((task: any) => 
-    task.availableActions?.canClaim === true
-  );
+  // Since we removed filters, just return all tasks
+  const filterTasks = (taskList: Task[]) => {
+    return taskList;
+  };
 
-  // Sort assigned tasks by due date
-  const sortedAssignedTasks = [...assignedTasks].sort((a: any, b: any) => {
+  // Get unified open tasks (both assigned and claimable)
+  const filteredOpenTasks = filterTasks(tasks).sort((a: Task, b: Task) => {
+    // Sort by priority: overdue > due soon > assigned > claimable > others
+    const getTaskPriority = (task: Task) => {
+      if (isTaskOverdue(task.dueDate)) return 1;
+      if (isTaskDueSoon(task.dueDate)) return 2;
+      if (task.assignment?.assignedTo === selectedUserId) return 3; // Assigned tasks first
+      if (task.availableActions?.canClaim) return 4; // Claimable tasks second
+      return 5;
+    };
+
+    const aPriority = getTaskPriority(a);
+    const bPriority = getTaskPriority(b);
+    
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    
+    // If same priority, sort by due date
     if (!a.dueDate && !b.dueDate) return 0;
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
-  // Sort claimable tasks by due date  
-  const sortedClaimableTasks = [...claimableTasks].sort((a: any, b: any) => {
-    if (!a.dueDate && !b.dueDate) return 0;
-    if (!a.dueDate) return 1;
-    if (!b.dueDate) return -1;
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-  });
+  // Calculate accurate statistics from actual filtered tasks
+  const accurateStats = {
+    assigned: filteredOpenTasks.filter(task => task.assignment?.assignedTo === selectedUserId).length,
+    claimable: filteredOpenTasks.filter(task => task.availableActions?.canClaim).length,
+    overdue: filteredOpenTasks.filter(task => isTaskOverdue(task.dueDate)).length,
+    dueSoon: filteredOpenTasks.filter(task => isTaskDueSoon(task.dueDate) && !isTaskOverdue(task.dueDate)).length
+  };
 
   // Sort completed tasks by completion date (most recent first)
-  const sortedCompletedTasks = [...completedTasks].sort((a: any, b: any) => {
-    // If we have assignment history, sort by the most recent completion date
-    const getCompletionDate = (task: any) => {
+  const filteredCompletedTasks = filterTasks(completedTasks).sort((a: Task, b: Task) => {
+    const getCompletionDate = (task: Task) => {
       if (task.assignment?.assignmentHistory) {
         const completionEntry = task.assignment.assignmentHistory
           .filter((entry: any) => entry.action === 'COMPLETE')
@@ -588,431 +608,553 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
     return new Date(bCompletion).getTime() - new Date(aCompletion).getTime();
   });
 
+
+
   return (
     <div 
+      className="gba:min-h-screen gba:bg-gradient-to-br gba:from-blue-50 gba:to-indigo-100 gba:p-6"
       data-testid={prefixDataTestId}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
     >
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
-          Task Inbox
-        </Title>
-        <Text type="secondary">Manage your assigned and claimable tasks from the custom flow engine</Text>
+      <div className="gba:mb-8">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <div className="gba:p-3 gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:rounded-xl gba:shadow-lg">
+              <Inbox className="gba:h-8 gba:w-8 gba:text-white" />
+            </div>
+            <div>
+              <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900">
+            Task Inbox
+              </h1>
+              <p className="gba:text-lg gba:text-gray-600">
+                Manage your workflow tasks from the custom flow engine
+              </p>
+            </div>
+          </div>
+          
+          {/* Top Right: User Selection */}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Select
+              value={selectedUserId}
+              onValueChange={setSelectedUserId}
+              data-testid={`${prefixDataTestId}-UserSelect`}
+            >
+              <SelectTrigger className="gba:w-64 gba:bg-white gba:shadow-sm">
+                <SelectValue placeholder="Select user" />
+              </SelectTrigger>
+              <SelectContent>
+                {mockUsers.map((user: MockUser) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-500 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium">
+                        {user.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div>
+                        <div className="gba:font-medium">{user.name}</div>
+                        <div className="gba:text-xs gba:text-gray-500">
+                          {user.role} • {user.department}
+                        </div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
-      {/* User Selection */}
-      <Card style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Text strong>Select User:</Text>
-          <Select
-            value={selectedUserId}
-            onChange={setSelectedUserId}
-            style={{ width: 400 }}
-            optionLabelProp="label"
-            listHeight={300}
-            data-testid={`${prefixDataTestId}-UserSelect`}
-          >
-            {mockUsers.map((user: MockUser) => (
-              <Option key={user.id} value={user.id} label={user.name}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <UserOutlined />
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <div style={{ fontWeight: 'bold' }}>{user.name}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      {user.role} • {user.department}
-                    </div>
-                  </div>
+      {/* Main Dashboard Content */}
+      <Card className="gba:shadow-xl gba:border-0 gba:bg-white/80 gba:backdrop-blur-sm">
+        <CardContent className="gba:p-6">
+          {/* Productivity Dashboard */}
+          {taskStats && (
+            <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-6 gba:mb-6 gba:shadow-sm">
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+                <div>
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
+                    Task Overview
+                  </h2>
+                  <p className="gba:text-gray-600 gba:text-sm">Current status of your workflow tasks</p>
                 </div>
-              </Option>
-            ))}
-          </Select>
-          <Button 
-            onClick={refreshAllData} 
-            loading={loading || completedLoading}
-            icon={<ReloadOutlined />}
-            data-testid={`${prefixDataTestId}-RefreshButton`}
-          >
-            Refresh
-          </Button>
-        </div>
-      </Card>
+                <div className="gba:text-right">
+                  <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{filteredOpenTasks.length}</div>
+                  <div className="gba:text-gray-500 gba:text-sm">Total Open Tasks</div>
+                </div>
+              </div>
+              
+              <div className="gba:grid gba:grid-cols-4 gba:gap-6">
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 hover:gba:border-blue-300 gba:transition-colors">
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                    <div className="gba:p-2 gba:bg-blue-50 gba:rounded-md">
+                      <UserCheck className="gba:h-4 gba:w-4 gba:text-blue-600" />
+                    </div>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{accurateStats.assigned}</div>
+                  </div>
+                  <div className="gba:text-gray-700 gba:font-medium gba:text-sm">Assigned to You</div>
+                </div>
+                
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 hover:gba:border-green-300 gba:transition-colors">
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                    <div className="gba:p-2 gba:bg-green-50 gba:rounded-md">
+                      <User className="gba:h-4 gba:w-4 gba:text-green-600" />
+                    </div>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{accurateStats.claimable}</div>
+                  </div>
+                  <div className="gba:text-gray-700 gba:font-medium gba:text-sm">Available to Claim</div>
+                </div>
+                
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 hover:gba:border-red-300 gba:transition-colors">
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                    <div className="gba:p-2 gba:bg-red-50 gba:rounded-md">
+                      <AlertTriangle className="gba:h-4 gba:w-4 gba:text-red-600" />
+                    </div>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{accurateStats.overdue}</div>
+                  </div>
+                  <div className="gba:text-gray-700 gba:font-medium gba:text-sm">Overdue</div>
+                </div>
+                
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 hover:gba:border-amber-300 gba:transition-colors">
+                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                    <div className="gba:p-2 gba:bg-amber-50 gba:rounded-md">
+                      <Clock className="gba:h-4 gba:w-4 gba:text-amber-600" />
+                    </div>
+                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{accurateStats.dueSoon}</div>
+                  </div>
+                  <div className="gba:text-gray-700 gba:font-medium gba:text-sm">Due Soon</div>
+                </div>
+              </div>
+            </div>
+          )}
 
 
 
       {/* Error Display */}
       {error && (
-        <Alert
-          message="Error"
-          description={error}
-          type="error"
-          closable
-          onClose={() => setError(null)}
-          style={{ marginBottom: '16px' }}
-        />
+            <Alert className="gba:mb-4" variant="destructive">
+              <div>
+                <h4 className="gba:font-medium">Error Loading Tasks</h4>
+                <p className="gba:text-sm">{error}</p>
+              </div>
+            </Alert>
       )}
 
       {/* Loading State */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Spin size="large" />
-          <div style={{ marginTop: '16px' }}>
-            <Text>Loading tasks...</Text>
-          </div>
+            <div className="gba:text-center gba:py-12">
+              <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4" />
+              <p className="gba:text-gray-500">Loading tasks...</p>
         </div>
       )}
 
-      {/* Tasks Display - Tabbed Layout */}
-      <Tabs 
-        defaultActiveKey="open"
-        data-testid={`${prefixDataTestId}-TaskTabs`}
-        items={[
-          {
-            key: 'open',
-            label: (
-              <Space>
+          {/* Tasks and Flows Display - Unified Layout with Tabs */}
+          <NwTabs value={currentView} onValueChange={(value) => setCurrentView(value as 'open' | 'completed' | 'initiated' | 'participated')} className="gba:w-full">
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:bg-gray-50 gba:p-1 gba:rounded-lg">
+              <TabsTrigger value="open" className="gba:flex gba:items-center gba:gap-2 gba:py-3">
                 <span>Open Tasks</span>
-                <Badge count={sortedAssignedTasks.length + sortedClaimableTasks.length} color="blue" />
-              </Space>
-            ),
-            children: (
-              <div>
-                {/* Loading State for Open Tasks */}
-                {loading && (
-                  <div style={{ textAlign: 'center', padding: '50px' }}>
-                    <Spin size="large" />
-                    <div style={{ marginTop: '16px' }}>
-                      <Text>Loading open tasks...</Text>
-                    </div>
-                  </div>
-                )}
-
-                {/* Error State for Open Tasks */}
-                {error && (
-                  <Alert
-                    message="Error Loading Open Tasks"
-                    description={error}
-                    type="error"
-                    closable
-                    onClose={() => setError(null)}
-                    style={{ marginBottom: '16px' }}
-                  />
-                )}
-
-                {/* Open Tasks Content */}
-                {!loading && (
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    {/* Assigned Tasks */}
-                    <Card 
-                      title={
-                        <Space>
-                          <UserOutlined />
-                          <span>My Assigned Tasks</span>
-                          <Badge count={sortedAssignedTasks.length} color="blue" />
-                        </Space>
-                      } 
-                      style={{ flex: '1 1 400px', minWidth: '400px' }}
-                    >
-                      {sortedAssignedTasks.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                          <FileTextOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-                          <div>No assigned tasks</div>
-                        </div>
-                      ) : (
-                        <List
-                          dataSource={sortedAssignedTasks}
-                          renderItem={(task) => (
-                            <TaskListCard
-                              key={task.id}
-                              task={task}
-                              stepType={task.type}
-                              assignmentStatus={task.assignment?.currentStatus}
-                              hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
-                              hasLinks={!!(task.links && task.links.length > 0)}
-                              actionLoading={actionLoading}
-                              prefixDataTestId={prefixDataTestId}
-                              onTaskClick={handleTaskClick}
-                              onQuickClaim={handleQuickClaim}
-                              getTaskTypeIcon={getTaskTypeIcon}
-                              getTaskStatusColor={getTaskStatusColor}
-                              getStepTypeColor={getStepTypeColor}
-                              getAssignmentStatusColor={getAssignmentStatusColor}
-                              getDueDateTag={getDueDateTag}
-                              isTaskOverdue={isTaskOverdue}
-                              isTaskDueSoon={isTaskDueSoon}
-                              formatDueDate={formatDueDate}
-                              accessToken={accessToken}
-                              {...context}
-                            />
-                          )}
-                          size="small"
-                        />
-                      )}
-                    </Card>
-
-                    {/* Claimable Tasks */}
-                    <Card 
-                      title={
-                        <Space>
-                          <ExclamationCircleOutlined />
-                          <span>Claimable Tasks</span>
-                          <Badge count={sortedClaimableTasks.length} color="orange" />
-                        </Space>
-                      } 
-                      style={{ flex: '1 1 400px', minWidth: '400px' }}
-                    >
-                      {sortedClaimableTasks.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
-                          <CheckCircleOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-                          <div>No claimable tasks</div>
-                        </div>
-                      ) : (
-                        <List
-                          dataSource={sortedClaimableTasks}
-                          renderItem={(task) => (
-                            <TaskListCard
-                              key={task.id}
-                              task={task}
-                              stepType={task.type}
-                              assignmentStatus={task.assignment?.currentStatus}
-                              hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
-                              hasLinks={!!(task.links && task.links.length > 0)}
-                              actionLoading={actionLoading}
-                              prefixDataTestId={prefixDataTestId}
-                              onTaskClick={handleTaskClick}
-                              onQuickClaim={handleQuickClaim}
-                              getTaskTypeIcon={getTaskTypeIcon}
-                              getTaskStatusColor={getTaskStatusColor}
-                              getStepTypeColor={getStepTypeColor}
-                              getAssignmentStatusColor={getAssignmentStatusColor}
-                              getDueDateTag={getDueDateTag}
-                              isTaskOverdue={isTaskOverdue}
-                              isTaskDueSoon={isTaskDueSoon}
-                              formatDueDate={formatDueDate}
-                              accessToken={accessToken}
-                              {...context}
-                            />
-                          )}
-                          size="small"
-                        />
-                      )}
-                    </Card>
-                  </div>
-                )}
-              </div>
-            )
-          },
-          {
-            key: 'completed',
-            label: (
-              <Space>
+                <Badge variant="secondary">{filteredOpenTasks.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="gba:flex gba:items-center gba:gap-2 gba:py-3">
                 <span>Completed Tasks</span>
-                <Badge count={completedTasks.length} color="green" />
-              </Space>
-            ),
-            children: (
-              <div>
-                {/* Loading State for Completed Tasks */}
-                {completedLoading && (
-                  <div style={{ textAlign: 'center', padding: '50px' }}>
-                    <Spin size="large" />
-                    <div style={{ marginTop: '16px' }}>
-                      <Text>Loading completed tasks...</Text>
+              </TabsTrigger>
+              <TabsTrigger value="initiated" className="gba:flex gba:items-center gba:gap-2 gba:py-3">
+                <span>Initiated Flows</span>
+              </TabsTrigger>
+              <TabsTrigger value="participated" className="gba:flex gba:items-center gba:gap-2 gba:py-3">
+                <span>Participated Flows</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="open" className="gba:mt-6">
+                {!loading && (
+                <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
+                  {filteredOpenTasks.length === 0 ? (
+                    <div className="gba:text-center gba:py-12">
+                      <FileTextOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">
+                        No tasks found
+                      </h3>
+                      <p className="gba:text-gray-600">
+                        No open tasks available at the moment
+                      </p>
+                        </div>
+                      ) : (
+                    <div className="gba:space-y-3">
+                      {filteredOpenTasks.map((task) => {
+                        const isOverdue = isTaskOverdue(task.dueDate);
+                        const isDueSoon = isTaskDueSoon(task.dueDate);
+                        const isAssigned = task.assignment?.assignedTo === selectedUserId;
+                        const canClaim = task.availableActions?.canClaim;
+                        
+                        return (
+                          <div
+                              key={task.id}
+                            className={`gba:bg-white gba:border gba:rounded-lg gba:p-4 gba:shadow-sm hover:gba:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:border-l-4 ${
+                              isOverdue 
+                                ? 'gba:border-l-red-500 hover:gba:border-red-300' 
+                                : isDueSoon
+                                ? 'gba:border-l-amber-500 hover:gba:border-amber-300'
+                                : isAssigned
+                                ? 'gba:border-l-blue-500 hover:gba:border-blue-300'
+                                : 'gba:border-l-gray-300 hover:gba:border-gray-400'
+                            }`}
+                            onClick={() => handleTaskClick(task)}
+                            data-testid={`${prefixDataTestId}-TaskCard-${task.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:gap-4">
+                              {/* Task Type Icon */}
+                              <div className={`gba:p-3 gba:rounded-lg gba:flex-shrink-0 ${
+                                task.type === 'APPROVAL' ? 'gba:bg-green-100 gba:text-green-700' :
+                                task.type === 'ACKNOWLEDGE' ? 'gba:bg-blue-100 gba:text-blue-700' :
+                                task.type === 'TASK' ? 'gba:bg-purple-100 gba:text-purple-700' :
+                                task.type === 'INFORMATION' ? 'gba:bg-orange-100 gba:text-orange-700' :
+                                'gba:bg-gray-100 gba:text-gray-700'
+                              }`}>
+                                {task.type === 'APPROVAL' ? <CheckCircle className="gba:h-5 gba:w-5" /> :
+                                 task.type === 'ACKNOWLEDGE' ? <Eye className="gba:h-5 gba:w-5" /> :
+                                 task.type === 'TASK' ? <FileText className="gba:h-5 gba:w-5" /> :
+                                 task.type === 'INFORMATION' ? <Info className="gba:h-5 gba:w-5" /> :
+                                 <FileText className="gba:h-5 gba:w-5" />}
+                              </div>
+                              
+                              {/* Task Content */}
+                              <div className="gba:flex-1 gba:min-w-0">
+                                {/* Title and Status Row */}
+                                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
+                                  <h3 className="gba:font-semibold gba:text-base gba:text-gray-900 gba:truncate">
+                                    {task.title || task.name || 'Untitled Task'}
+                                  </h3>
+                                  
+                                  {/* Priority Badges */}
+                                  {isOverdue && (
+                                    <Badge variant="destructive" className="gba:flex gba:items-center gba:gap-1" style={{ backgroundColor: 'var(--color-danger-500)', color: 'var(--color-on-danger)' }}>
+                                      <AlertTriangle className="gba:h-3 gba:w-3" />
+                                      Overdue
+                                    </Badge>
+                                  )}
+                                  {isDueSoon && !isOverdue && (
+                                    <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1" style={{ borderColor: 'var(--color-warning-500)', color: 'var(--color-warning-700)' }}>
+                                      <Clock className="gba:h-3 gba:w-3" />
+                                      Due Soon
+                                    </Badge>
+                                  )}
+                                  
+                                  {/* Assignment Status - Removed assigned pill per request */}
+                                  {canClaim ? (
+                                    <Badge variant="secondary" className="gba:flex gba:items-center gba:gap-1">
+                                      <User className="gba:h-3 gba:w-3" />
+                                      Available
+                                    </Badge>
+                                  ) : (!isAssigned && (
+                                    <Badge variant="outline" className="gba:flex gba:items-center gba:gap-1">
+                                      <User className="gba:h-3 gba:w-3" />
+                                      In Progress
+                                    </Badge>
+                                  ))}
+                                </div>
+                                
+                                {/* Description */}
+                                <p className="gba:text-sm gba:text-gray-600 gba:mb-2 gba:line-clamp-1">
+                                  {task.message || `Task ID: ${task.id}`}
+                                </p>
+                                
+                                {/* Meta Information */}
+                                <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500">
+                                  {/* Flow ID */}
+                                  <div className="gba:flex gba:items-center gba:gap-1">
+                                    <span>Flow:</span>
+                                    <code className="gba:font-mono gba:text-blue-600">
+                                      {task.flowId ? task.flowId.substring(0, 8) + '...' : 'Unknown'}
+                                    </code>
+                                  </div>
+                                  
+                                  {/* Due Date */}
+                                  {task.dueDate && (
+                                    <div className="gba:flex gba:items-center gba:gap-1">
+                                      <Calendar className="gba:h-3 gba:w-3" />
+                                      <span>{formatDueDate(task.dueDate)}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Task Type */}
+                                  <div className="gba:flex gba:items-center gba:gap-1">
+                                    <span>Type:</span>
+                                    <span className="gba:font-medium">{task.type || 'TASK'}</span>
+                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Action Button */}
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                                {canClaim && (
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => handleQuickClaim(e, task.id)}
+                                    disabled={actionLoading === task.id + 'CLAIM'}
+                                    data-testid={`${prefixDataTestId}-QuickClaimButton-${task.id}`}
+                                    className="gba:bg-blue-600 hover:gba:bg-blue-700 gba:text-white"
+                                  >
+                                    {actionLoading === task.id + 'CLAIM' ? (
+                                      <>
+                                        <Spinner className="gba:w-3 gba:h-3 gba:mr-1" />
+                                        Claiming...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserCheck className="gba:h-3 gba:w-3 gba:mr-1" />
+                                        Claim
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                                
+                                {/* View Details Button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleTaskClick(task); }}
+                                >
+                                  <ArrowRight className="gba:h-3 gba:w-3" />
+                                </Button>
+              </div>
                     </div>
+                          </div>
+                        );
+                      })}
                   </div>
                 )}
+                </div>
+              )}
+            </TabsContent>
 
-                {/* Error State for Completed Tasks */}
+            <TabsContent value="completed" className="gba:mt-6">
+              {!completedLoading && (
+                <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
                 {completedError && (
-                  <Alert
-                    message="Error Loading Completed Tasks"
-                    description={completedError}
-                    type="error"
-                    closable
-                    onClose={() => setCompletedError(null)}
-                    style={{ marginBottom: '16px' }}
-                  />
-                )}
-
-                {/* Completed Tasks Content */}
-                {!completedLoading && (
-                  <Card 
-                    title={
-                      <Space>
-                        <CheckCircleOutlined />
-                        <span>Completed Tasks</span>
-                        <Badge count={completedTasks.length} color="green" />
-                      </Space>
-                    }
-                  >
-                    {sortedCompletedTasks.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                        <CheckCircleOutlined style={{ fontSize: '64px', marginBottom: '16px' }} />
-                        <div style={{ fontSize: '16px', marginBottom: '8px' }}>No completed tasks</div>
-                        <div style={{ fontSize: '14px' }}>Completed tasks will appear here</div>
+                    <Alert className="gba:mb-4" variant="destructive">
+                      <div>
+                        <h4 className="gba:font-medium">Error Loading Completed Tasks</h4>
+                        <p className="gba:text-sm">{completedError}</p>
+                      </div>
+                    </Alert>
+                  )}
+                  
+                  {filteredCompletedTasks.length === 0 ? (
+                    <div className="gba:text-center gba:py-12">
+                      <CheckCircleOutlined className="gba:text-6xl gba:mb-4 gba:text-gray-400" />
+                      <h3 className="gba:text-lg gba:font-medium gba:mb-2 gba:text-gray-900">
+                        No completed tasks
+                      </h3>
+                      <p className="gba:text-gray-600">
+                        Completed tasks will appear here
+                      </p>
                       </div>
                     ) : (
-                      <List
-                        dataSource={sortedCompletedTasks}
-                        renderItem={(task) => (
-                          <TaskListCard
+                    <div className="gba:space-y-3">
+                      {filteredCompletedTasks.map((task) => {
+                        const completionEntry = task.assignment?.assignmentHistory
+                          ?.filter((entry: any) => entry.action === 'COMPLETE')
+                          ?.sort((a: any, b: any) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0];
+                        
+                        return (
+                          <div
                             key={task.id}
-                            task={task}
-                            stepType={task.type}
-                            assignmentStatus={task.assignment?.currentStatus}
-                            hasInputBlocks={!!((task.form || task.inputs) && (task.form || task.inputs)!.length > 0)}
-                            hasLinks={!!(task.links && task.links.length > 0)}
-                            actionLoading={actionLoading}
-                            prefixDataTestId={prefixDataTestId}
-                            isCompleted={true}
-                            onTaskClick={handleTaskClick}
-                            onQuickClaim={handleQuickClaim}
-                            getTaskTypeIcon={getTaskTypeIcon}
-                            getTaskStatusColor={getTaskStatusColor}
-                            getStepTypeColor={getStepTypeColor}
-                            getAssignmentStatusColor={getAssignmentStatusColor}
-                            getDueDateTag={getCompletionDateTag}
-                            isTaskOverdue={isTaskOverdue}
-                            isTaskDueSoon={isTaskDueSoon}
-                            formatDueDate={formatDueDate}
-                            accessToken={accessToken}
-                            {...context}
-                          />
-                        )}
-                        size="small"
-                      />
-                    )}
-                  </Card>
+                            className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm hover:gba:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:border-l-4 gba:border-l-green-500 gba:opacity-80"
+                            onClick={() => handleTaskClick(task)}
+                            data-testid={`${prefixDataTestId}-CompletedTaskCard-${task.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:gap-4">
+                              {/* Task Type Icon - Completed */}
+                              <div className="gba:p-3 gba:rounded-lg gba:bg-green-100 gba:text-green-700 gba:flex-shrink-0">
+                                <CheckCircle className="gba:h-5 gba:w-5" />
+                              </div>
+                              
+                              {/* Task Content */}
+                              <div className="gba:flex-1 gba:min-w-0">
+                                {/* Title and Completion Badge */}
+                                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
+                                  <h3 className="gba:font-semibold gba:text-base gba:text-gray-900 gba:truncate">
+                                    {task.title || task.name || 'Untitled Task'}
+                                  </h3>
+                                  <Badge variant="outline" className="gba:bg-green-50 gba:border-green-200 gba:text-green-700 gba:flex gba:items-center gba:gap-1">
+                                    <CheckCircle className="gba:h-3 gba:w-3" />
+                                    Completed
+                                  </Badge>
+                                </div>
+                                
+                                {/* Description */}
+                                <p className="gba:text-sm gba:text-gray-600 gba:mb-2 gba:line-clamp-1">
+                                  {task.message || `Task ID: ${task.id}`}
+                                </p>
+                                
+                                {/* Meta Information */}
+                                <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500">
+                                  {/* Flow ID */}
+                                  <div className="gba:flex gba:items-center gba:gap-1">
+                                    <span>Flow:</span>
+                                    <code className="gba:font-mono gba:text-blue-600">
+                                      {task.flowId ? task.flowId.substring(0, 8) + '...' : 'Unknown'}
+                                    </code>
+                                  </div>
+                                  
+                                  {/* Completion Date */}
+                                  {completionEntry && (
+                                    <div className="gba:flex gba:items-center gba:gap-1">
+                                      <Calendar className="gba:h-3 gba:w-3" />
+                                      <span>{formatCompletionDate(completionEntry.changedAt)}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Task Type */}
+                                  <div className="gba:flex gba:items-center gba:gap-1">
+                                    <span>Type:</span>
+                                    <span className="gba:font-medium">{task.type || 'TASK'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Completion Details */}
+                              <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+                                {completionEntry && (
+                                  <div className="gba:text-right">
+                                    <div className="gba:text-xs gba:text-gray-500">Completed by</div>
+                                    <div className="gba:text-sm gba:font-medium gba:text-gray-900">
+                                      {mockUsers.find(u => u.id === completionEntry.userId)?.name || 'Unknown User'}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                 )}
               </div>
-            )
-          }
-        ]}
-      />
+              )}
+              
+              {completedLoading && (
+                <div className="gba:text-center gba:py-12">
+                  <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4" />
+                  <p className="gba:text-gray-500">Loading completed tasks...</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Initiated Flows Tab */}
+            <TabsContent value="initiated" className="gba:mt-6">
+              <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
+                <FlowManagement
+                  variant="inbox"
+                  filterType="initiated"
+                  listTitle="Initiated Flows"
+                  userId={selectedUserId}
+                  accessToken={accessToken}
+                  showActions={true}
+                  hideFilters={false}
+                  hiddenTabs={[]} // Show all tabs for initiated flows
+                  prefixDataTestId={`${prefixDataTestId}-InitiatedFlows`}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Participated Flows Tab */}
+            <TabsContent value="participated" className="gba:mt-6">
+              <div className="gba:bg-gray-50/50 gba:rounded-lg gba:p-4">
+                <FlowManagement
+                  variant="inbox"
+                  filterType="participated"
+                  listTitle="Participated Flows"
+                  userId={selectedUserId}
+                  accessToken={accessToken}
+                  showActions={false} // Limited actions for participated flows
+                  hideFilters={false}
+                  hiddenTabs={['data']} // Hide data tab for participated flows
+                  prefixDataTestId={`${prefixDataTestId}-ParticipatedFlows`}
+                />
+              </div>
+            </TabsContent>
+          </NwTabs>
+        </CardContent>
+      </Card>
 
       {/* Task Modal using modular components */}
-      {selectedTask && (
-        <Modal
-          title={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {getTaskTypeIcon(selectedTask)}
-                <span>{selectedTask.title || selectedTask.name}</span>
-              </div>
-              <span style={{ fontSize: '12px', color: '#8c8c8c', fontWeight: 'normal' }}>
-                Task ID: {selectedTask.id}
-              </span>
-            </div>
-          }
-          open={isTaskModalVisible}
-          onCancel={() => {
+      <Dialog
+        open={isTaskModalVisible && !!selectedTask}
+        onOpenChange={(open) => {
+          if (!open) {
             setIsTaskModalVisible(false);
             setTaskModalLoading(false);
             setTaskFormData({});
             setReassignUserId('');
             setRejectionComment('');
-            form.resetFields();
+          }
+        }}
+
+      >
+        <DialogContent 
+          className="gba:max-w-[530px] gba:w-full" 
+          style={{ 
+            maxHeight: '90vh', 
+            overflow: 'auto',
+            backgroundColor: '#ffffff',
+            border: '1px solid var(--color-border-default)',
+            borderRadius: 'var(--border-radius-lg)',
+            boxShadow: 'var(--shadow-lg)'
           }}
-          width={800}
-          footer={null}
-          confirmLoading={taskModalLoading}
         >
-          {taskModalLoading && (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spin size="large" />
-              <div style={{ marginTop: '8px' }}>
-                <Text type="secondary">Refreshing task data...</Text>
+          <DialogHeader className="gba:pb-4">
+            <DialogTitle>
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  {selectedTask && getTaskTypeIcon(selectedTask)}
+                  <span className="gba:text-lg gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                    {selectedTask?.title || selectedTask?.name}
+                  </span>
+                </div>
+                <div className="gba:px-3 gba:py-1 gba:bg-gray-100 gba:rounded gba:inline-block gba:w-fit" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+                  <span className="gba:text-xs gba:font-mono" style={{ color: 'var(--color-text-secondary)' }}>
+                    Task ID: {selectedTask?.id}
+                  </span>
+                </div>
               </div>
+            </DialogTitle>
+          </DialogHeader>
+          {taskModalLoading && (
+            <div className="gba:text-center gba:py-5">
+              <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4" />
+              <p className="gba:text-gray-600">Refreshing task data...</p>
             </div>
           )}
-          {!taskModalLoading && (
-            <Tabs 
-              defaultActiveKey="details"
-              items={[
-              {
-                key: 'details',
-                label: 'Task Details',
-                children: (
-                  <TaskDetailsTab
-                    task={selectedTask}
-                    stepType={selectedTask.type}
-                    hasLinks={!!(selectedTask.links && selectedTask.links.length > 0)}
-                    hasInputBlocks={!!((selectedTask.form || selectedTask.inputs) && (selectedTask.form || selectedTask.inputs)!.length > 0)}
-                    taskFormData={taskFormData}
-                    reassignUserId={reassignUserId}
-                    rejectionComment={rejectionComment}
-                    form={form}
-                    actionLoading={actionLoading}
-                    prefixDataTestId={prefixDataTestId}
-                    isCompleted={selectedTask.status === 'COMPLETED'}
-                    onComplete={taskHandlers.onComplete}
-                    onClaim={taskHandlers.onClaim}
-                    onRelease={taskHandlers.onRelease}
-                    onReassign={taskHandlers.onReassign}
-                    onReject={taskHandlers.onReject}
-                    setReassignUserId={taskHandlers.setReassignUserId}
-                    setRejectionComment={taskHandlers.setRejectionComment}
-                    setTaskFormData={setTaskFormData}
-                    getTaskStatusColor={getTaskStatusColor}
-                    getStepTypeColor={getStepTypeColor}
-                    getAssignmentStatusColor={getAssignmentStatusColor}
-                    getDueDateTag={getDueDateTag}
-                    isTaskOverdue={isTaskOverdue}
-                    isTaskDueSoon={isTaskDueSoon}
-                    formatDueDate={formatDueDate}
-                    isJustClaimable={isJustClaimable}
-                    accessToken={accessToken}
-                    {...context}
-                  />
-                )
-              },
-              {
-                key: 'flowData',
-                label: 'Flow Data',
-                children: (
-                  <FlowDataTab
-                    task={selectedTask}
-                    prefixDataTestId={prefixDataTestId}
-                    accessToken={accessToken}
-                    {...context}
-                  />
-                )
-              },
-              {
-                key: 'flowProgress',
-                label: 'Flow Progress',
-                children: (
-                  <FlowProgressTab
-                    taskId={selectedTask.id}
-                    flowId={selectedTask.flowId}
-                    accessToken={accessToken}
-                    {...context}
-                  />
-                )
-              },
-              {
-                key: 'flowHistory',
-                label: 'Flow History',
-                children: (
-                  <FlowHistoryTab
-                    task={selectedTask}
-                    getAssignmentStatusColor={getAssignmentStatusColor}
-                    prefixDataTestId={prefixDataTestId}
-                    accessToken={accessToken}
-                    {...context}
-                  />
-                )
-              }
-            ]}
-          />
+          {!taskModalLoading && selectedTask && (
+            <div className="gba:w-full">
+              <TaskDetailsTab
+                task={selectedTask}
+                stepType={selectedTask.type}
+                hasLinks={!!(selectedTask.links && selectedTask.links.length > 0)}
+                hasInputBlocks={!!((selectedTask.form || selectedTask.inputs) && (selectedTask.form || selectedTask.inputs)!.length > 0)}
+                taskFormData={taskFormData}
+                reassignUserId={reassignUserId}
+                prefixDataTestId={prefixDataTestId}
+                isCompleted={selectedTask.status === 'COMPLETED'}
+                onComplete={taskHandlers.onComplete}
+                onClaim={taskHandlers.onClaim}
+                onRelease={taskHandlers.onRelease}
+                onReassign={taskHandlers.onReassign}
+                onReject={taskHandlers.onReject}
+                setReassignUserId={taskHandlers.setReassignUserId}
+                setRejectionComment={taskHandlers.setRejectionComment}
+                setTaskFormData={setTaskFormData}
+                isTaskOverdue={isTaskOverdue}
+                isTaskDueSoon={isTaskDueSoon}
+                isJustClaimable={isJustClaimable}
+                accessToken={accessToken}
+                {...context}
+              />
+            </div>
           )}
-        </Modal>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Alert } from '@newwork/nw-design-system';
 import { Spinner } from '@newwork/nw-design-system';
-import { TrendingUp, TrendingDown, Minus, Calendar, Play, CheckCircle, Users, Target, Clock, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Play, CheckCircle, Users, Target, Clock, Activity, Info } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useTrendComparison } from '../../hooks/useFlowAnalytics';
 
@@ -204,6 +204,19 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         </div>
       </div>
 
+      {/* Data Availability Warning */}
+      {trendData?.metadata && !trendData.metadata.hasPreviousData && (
+        <Alert variant="default" className="gba:bg-amber-50 gba:border-amber-200" data-testid={`${prefixDataTestId}-data-warning`}>
+          <Info className="gba:h-4 gba:w-4 gba:text-amber-600" />
+          <div>
+            <h4 className="gba:font-medium gba:text-amber-800">Limited Comparison Data</h4>
+            <p className="gba:text-amber-700 gba:mt-1">
+              {trendData.metadata.message}. Current period metrics are shown, but trend indicators may not be meaningful.
+            </p>
+          </div>
+        </Alert>
+      )}
+
       {/* Trend Comparison Cards - Focus on Change */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800">Performance Trends</h3>
@@ -259,6 +272,13 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                           <div className="gba:text-xs gba:text-gray-500">
                             ({metric.trend.change > 0 ? '+' : ''}{metric.trend.change})
                           </div>
+                          
+                          {/* Show note if no comparison data for this metric */}
+                          {metric.trend.note && (
+                            <div className="gba:text-xs gba:text-amber-600 gba:mt-1 gba:italic">
+                              {metric.trend.note}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="gba:text-gray-400">
@@ -301,7 +321,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
             {/* Current vs Previous Summary */}
             <div className="gba:space-y-3">
               <h4 className="gba:font-semibold gba:text-blue-800 gba:border-b gba:border-blue-200 gba:pb-2">
-                Performance Summary
+                {trendData?.metadata?.hasPreviousData ? 'Performance Summary' : 'Current Performance'}
               </h4>
               <div className="gba:space-y-2 gba:text-gray-700">
                 <div className="gba:flex gba:justify-between">
@@ -326,20 +346,30 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
             {/* Trend Direction Summary */}
             <div className="gba:space-y-3">
               <h4 className="gba:font-semibold gba:text-blue-800 gba:border-b gba:border-blue-200 gba:pb-2">
-                Trend Direction
+                {trendData?.metadata?.hasPreviousData ? 'Trend Direction' : 'Data Availability'}
               </h4>
               <div className="gba:space-y-2">
-                {trendMetrics.slice(0, 4).map((metric) => (
-                  <div key={metric.key} className="gba:flex gba:items-center gba:justify-between">
-                    <span className="gba:text-gray-700">{metric.title}:</span>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {getTrendIcon(metric.trend?.direction || 'stable', 16, metric.key)}
-                      <span className={`gba:font-medium ${formatTrendPercentage(metric.trend || { change: 0, percentage: 0, direction: 'stable' }, metric.key).color}`}>
-                        {metric.trend ? `${formatTrendPercentage(metric.trend, metric.key).sign}${formatTrendPercentage(metric.trend, metric.key).percentage.toFixed(1)}%` : '0%'}
-                      </span>
+                {trendData?.metadata?.hasPreviousData ? (
+                  // Show trend data when available
+                  trendMetrics.slice(0, 4).map((metric) => (
+                    <div key={metric.key} className="gba:flex gba:items-center gba:justify-between">
+                      <span className="gba:text-gray-700">{metric.title}:</span>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        {getTrendIcon(metric.trend?.direction || 'stable', 16, metric.key)}
+                        <span className={`gba:font-medium ${formatTrendPercentage(metric.trend || { change: 0, percentage: 0, direction: 'stable' }, metric.key).color}`}>
+                          {metric.trend ? `${formatTrendPercentage(metric.trend, metric.key).sign}${formatTrendPercentage(metric.trend, metric.key).percentage.toFixed(1)}%` : '0%'}
+                        </span>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  // Show explanation when no previous data available
+                  <div className="gba:text-gray-600 gba:italic gba:text-center gba:py-4">
+                    <Info className="gba:h-5 gba:w-5 gba:text-amber-500 gba:mx-auto gba:mb-2" />
+                    <p>Trend comparison requires data from {periodLabels.previous.toLowerCase()}.</p>
+                    <p className="gba:text-sm gba:mt-1">Check back after more data is collected.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>

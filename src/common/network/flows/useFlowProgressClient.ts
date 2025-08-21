@@ -81,7 +81,7 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
   const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
 
   const getFlowOverview = async (flowId: string): Promise<FlowOverview> => {
-    const response = await fetch(`${baseUrl}/api/flow/${flowId}`, {
+    const response = await fetch(`${baseUrl}/api/flows/${flowId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
   };
 
   const getFlowComments = async (flowId: string): Promise<FlowCommentsResponse> => {
-    const response = await fetch(`${baseUrl}/api/flow/${flowId}/comments`, {
+    const response = await fetch(`${baseUrl}/api/flows/${flowId}/comments`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -122,7 +122,34 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
     if (options?.limit) params.append('limit', options.limit.toString());
     if (options?.offset) params.append('offset', options.offset.toString());
     
-    const url = `${baseUrl}/api/flow/${flowId}/steps/${stepIndex}/data${params.toString() ? '?' + params.toString() : ''}`;
+    const url = `${baseUrl}/api/flows/${flowId}/steps/${stepIndex}/data${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch step data: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  };
+
+  const getStepDataByReference = async (
+    flowId: string, 
+    stepReference: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+    }
+  ): Promise<StepDataResponse> => {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    
+    const url = `${baseUrl}/api/flows/${flowId}/steps/${stepReference}/data${params.toString() ? '?' + params.toString() : ''}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -139,15 +166,24 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
 
   const getExportUrl = (flowId: string, stepIndex?: number): string => {
     if (stepIndex !== undefined) {
-      return `${baseUrl}/api/flow/${flowId}/steps/${stepIndex}/export`;
+      return `${baseUrl}/api/flows/${flowId}/steps/${stepIndex}/export`;
     }
-    return `${baseUrl}/api/flow/${flowId}/export`;
+    return `${baseUrl}/api/flows/${flowId}/export`;
+  };
+
+  const getExportUrlByReference = (flowId: string, stepReference?: string): string => {
+    if (stepReference !== undefined) {
+      return `${baseUrl}/api/flows/${flowId}/steps/${stepReference}/export`;
+    }
+    return `${baseUrl}/api/flows/${flowId}/export`;
   };
 
   return {
     getFlowOverview,
     getFlowComments,
     getStepDataJson,
-    getExportUrl
+    getStepDataByReference,
+    getExportUrl,
+    getExportUrlByReference
   };
 };

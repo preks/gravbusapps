@@ -46,10 +46,12 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
       
       const dataMap = new Map<number, StepDataResponse>();
       
-      // Load data for all previous steps (stepIndex is already 0-based for API)
+      // Load data for all previous steps using new clean API
       for (let stepIndex = 0; stepIndex < currentStepIndex; stepIndex++) {
         try {
-          const stepData = await flowClient.getStepDataJson(flowId, stepIndex, {
+          // Use new clean API with step reference
+          const stepReference = `step_${stepIndex}`;
+          const stepData = await flowClient.getStepDataByReference(flowId, stepReference, {
             limit: maxDisplayUsers
           });
           
@@ -57,7 +59,20 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
             dataMap.set(stepIndex, stepData);
           }
         } catch (stepError) {
-          console.warn(`Could not load data for step ${stepIndex}:`, stepError);
+          console.warn(`Could not load data for step ${stepIndex} (${stepReference}):`, stepError);
+          
+          // Fallback to legacy API if new API fails
+          try {
+            const stepData = await flowClient.getStepDataJson(flowId, stepIndex, {
+              limit: maxDisplayUsers
+            });
+            
+            if (stepData.totalCount > 0) {
+              dataMap.set(stepIndex, stepData);
+            }
+          } catch (fallbackError) {
+            console.warn(`Fallback also failed for step ${stepIndex}:`, fallbackError);
+          }
         }
       }
       
@@ -71,9 +86,16 @@ export const PreviousStepData: React.FC<PreviousStepDataProps> = ({
   };
 
   const handleExportStep = (stepIndex: number) => {
-    // stepIndex is already 0-based for API calls
-    const exportUrl = flowClient.getExportUrl(flowId, stepIndex);
-    window.open(exportUrl, '_blank');
+    // Use new clean API with step reference, fallback to legacy
+    const stepReference = `step_${stepIndex}`;
+    try {
+      const exportUrl = flowClient.getExportUrlByReference(flowId, stepReference);
+      window.open(exportUrl, '_blank');
+    } catch (error) {
+      // Fallback to legacy API
+      const exportUrl = flowClient.getExportUrl(flowId, stepIndex);
+      window.open(exportUrl, '_blank');
+    }
   };
 
   const renderStepData = (stepIndex: number, stepData: StepDataResponse) => {

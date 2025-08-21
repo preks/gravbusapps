@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Alert, Card } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate';
+import { FlowStep, FlowStepType, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
 import { FlowStepEditor } from './FlowStepEditor';
 
 interface FlowStepConfigurationProps {

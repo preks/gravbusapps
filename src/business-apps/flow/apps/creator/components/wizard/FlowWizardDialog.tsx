@@ -1,8 +1,6 @@
 import React from 'react';
 import { Modal } from 'antd';
 import { FlowWizard } from './FlowWizard';
-import { useWizardStore } from '../../hooks/useWizardStore';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface FlowWizardDialogProps {
   visible: boolean;
@@ -20,36 +18,33 @@ export const FlowWizardDialog: React.FC<FlowWizardDialogProps> = ({
   onComplete,
   'data-testid': testId = 'flow-wizard-dialog'
 }) => {
-  const { isEditMode } = useWizardStore();
-  
   const handleComplete = (template: any) => {
     onComplete(template);
     onClose();
   };
 
-  const dialogTitle = isEditMode 
-    ? getTranslationFromI18nKeyAndLabel('flow.creator.editWorkflow', 'Edit Flow Definition')
-    : getTranslationFromI18nKeyAndLabel('flow.creator.createWorkflow', 'Create Flow Definition');
-
   return (
     <Modal
-      title={dialogTitle}
+      title={null}
       open={visible}
       onCancel={onClose}
       footer={null}
-      width="90vw"
-      style={{ maxWidth: '1400px' }}
-      centered
-      destroyOnClose
-      maskClosable={false}
-      data-testid={testId}
-      className="gba:flow-wizard-dialog"
-      styles={{
-        body: { padding: 0, margin: 0 },
-        content: { padding: 0 }
+      width="95vw"
+      style={{ 
+        top: 20,
+        maxHeight: 'calc(100vh - 40px)',
+        padding: 0
       }}
+      bodyStyle={{
+        padding: 0,
+        height: 'calc(100vh - 100px)',
+        overflow: 'hidden'
+      }}
+      closable={false}
+      destroyOnClose={true}
+      data-testid={testId}
     >
-      <div style={{ minHeight: '70vh', maxHeight: '80vh', overflow: 'auto', padding: 0, margin: 0 }}>
+      <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
         <FlowWizard
           onComplete={handleComplete}
           onCancel={onClose}
