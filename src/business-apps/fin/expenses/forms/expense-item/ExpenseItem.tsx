@@ -101,9 +101,12 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
     // Modified handleCancel to use onClose callback if provided
     // Do NOT refetch when cancelling to preserve selected items in the wizard
     const handleCancelWithCallback = () => {
-      handleCancel();
       if (onClose) {
         onClose(false);
+        handleCancel(true);
+      }
+      else {
+        handleCancel();
       }
     };
 

@@ -77,7 +77,7 @@ interface ExpenseItemContextProps {
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
   handleSubmit: () => Promise<void>;
-  handleCancel: () => void;
+  handleCancel: (noDispatchEvent?: boolean) => void;
   handleExpenseGroupChange: (
     value: string,
     positionIndex: number
@@ -773,8 +773,15 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     );
   };
 
-  const handleCancelWrapper = () => {
+  const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
     try {
+      if(noDispatchEvent){
+        form.resetFields();
+        setPositions([DEFAULT_POSITION]);
+        setFileList([]);
+        setCurrentStep("start");
+      }
+      else {
       dispatchProcessContinueEventIfEnabled(
         EVENTS.ABORT, {
           "event": EVENTS.ABORT,
@@ -787,7 +794,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               )
           }
         })
-    } catch (error) {
+    }} catch (error) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
         "error"
