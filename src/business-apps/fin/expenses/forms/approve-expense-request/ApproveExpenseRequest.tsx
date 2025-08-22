@@ -61,33 +61,11 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
       event.returnValue = '';
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // Page is being hidden (modal close, tab switch, etc.)
-        try {
-          dispatchProcessContinueEvent("pse_cancel", {
-            event: "pse_cancel",
-            pso_exitStrategy: "cancel",
-            pso_completeNotification: {
-              type: 'info',
-              messageKey: 'The approval process has been canceled.'
-            }
-          });
-        } catch (processError) {
-          console.error('Error canceling process:', processError);
-        }
-      }
-    };
-
     // Listen for beforeunload event (browser close, refresh, navigation)
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    // Listen for visibility change (modal close, tab switch)
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -107,9 +85,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
       };
 
       // Dispatch the approval event
-      dispatchProcessContinueEvent("pse_approve", approvalPayload);
-      
-      console.log('Approving expense request:', expenseId, 'with payload:', approvalPayload);
+      dispatchProcessContinueEvent("pse_approve", approvalPayload);  
     } catch (err) {
       console.error('Error approving expense request:', err);
     } finally {
@@ -141,7 +117,6 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
       // Dispatch the rejection event
       dispatchProcessContinueEvent("pse_reject", rejectionPayload);
       
-      console.log('Returning expense request:', expenseId, 'with payload:', rejectionPayload);
     } catch (err) {
       console.error('Error returning expense request:', err);
     } finally {

@@ -72,7 +72,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
       // Dispatch the approval event
       dispatchProcessContinueEvent("pse_approve", approvalPayload);
       
-      console.log('Approving expense plan:', planId, 'with payload:', approvalPayload);
+
     } catch (err) {
       console.error('Error approving expense plan:', err);
     } finally {
@@ -104,7 +104,6 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
       // Dispatch the rejection event
       dispatchProcessContinueEvent("pse_reject", rejectionPayload);
       
-      console.log('Returning expense plan:', planId, 'with payload:', rejectionPayload);
     } catch (err) {
       console.error('Error returning expense plan:', err);
     } finally {

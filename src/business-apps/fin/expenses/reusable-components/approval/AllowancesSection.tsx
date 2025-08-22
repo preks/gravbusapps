@@ -26,16 +26,6 @@ const AllowancesSection: React.FC<AllowancesSectionProps> = ({
   const totalPages = Math.ceil(allowanceItems.length / itemsPerPage);
   const showPagination = allowanceItems.length > itemsPerPage;
 
-  // Debug logging
-  console.log('AllowancesSection Debug:', {
-    allowanceItemsLength: allowanceItems.length,
-    itemsPerPage,
-    totalPages,
-    showPagination,
-    currentPage,
-    currentItemsLength: allowanceItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).length
-  });
-
   // Calculate start and end indices for current page
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
