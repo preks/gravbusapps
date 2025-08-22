@@ -3,6 +3,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { CatalogEntry } from '@/common/types/CatalogTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SalesPipelineData } from '../types';
+import { getPipelineCatalogConfig, SourceApp } from '../utils/catalogConfig';
 
 export const SALES_PIPELINE_CATALOG = 'SalesPipeline';
 export const SALES_PIPELINE_VERSION = 'v1';
@@ -14,17 +15,20 @@ export const useSalesPipelines = (context: BusinessAppContextProps) => {
     limit?: number;
     offset?: number;
     search?: string;
+    sourceApp?: SourceApp;
   }): Promise<SalesPipelineData> => {
+    const cfg = getPipelineCatalogConfig(params?.sourceApp || 'CRM');
+
     const response = await catalogClient.getCatalogEntriesList(
       {
-        catalogIdentifier: SALES_PIPELINE_CATALOG,
-        version: SALES_PIPELINE_VERSION
+        catalogIdentifier: cfg.pipelineCatalog,
+        version: cfg.version
       },
       {
         limit: params?.limit || 100,
         offset: params?.offset || 0,
         returnTotalRecords: true,
-        includeChildCatalogEntries: false, // We don't need stages here
+        includeChildCatalogEntries: false,
         ...(params?.search && { searchCriteria: params.search })
       }
     );
@@ -33,7 +37,7 @@ export const useSalesPipelines = (context: BusinessAppContextProps) => {
   }, [catalogClient]);
 
   const fetchSalesPipelineById = useCallback(async (
-    id: string, 
+    id: string,
     includeTranslations = true
   ): Promise<CatalogEntry> => {
     const queryParams = new URLSearchParams({

@@ -71,7 +71,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
         data-testid={buttonTestId}
         noActionsText={translations.noActions}
         loadingText={translations.loading}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enable' ? 'disable' : appActionConfig.emptyStateBehavior}
+        emptyStateBehavior={appActionConfig.emptyStateBehavior}
         actionsLoading={shouldShowLoading}
         actions={combinedData}
         onDropdownOpen={handleDropdownOpen}
