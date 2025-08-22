@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import {
   PiEnvelopeSimple,
@@ -67,6 +67,7 @@ interface ProfileInfoItemProps {
   linkTo?: string;
   onClick?: () => void;
   openInNewTab?: boolean;
+  className?: string;
 }
 
 interface TagItemProps {
@@ -103,35 +104,22 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   value,
   linkTo,
   onClick,
+  className,
   openInNewTab = false,
 }) => {
   return (
-    <div className="gba:flex gba:items-center gba:gap-2">
+    <div className={`gba:flex gba:items-center gba:gap-2 ${className}`}>
       <div className="gba:shrink-0 gba:text-gray-500">{icon}</div>
       <div className="gba:grow">
         <div className="gba:text-xs gba:text-gray-500">{label}</div>
         {linkTo ? (
           <a
             href={linkTo}
-            className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap"
+            className="gba:text-sm gba:text-primary-500 gba:inline-flex gba:items-baseline gba:flex-wrap gba:hover:underline"
             target={openInNewTab ? "_blank" : undefined}
             rel={openInNewTab ? "noopener noreferrer" : undefined}
           >
-            <span className="gba:whitespace-normal">{value}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
+            <span className="gba:whitespace-normal font-medium">{value}</span>
           </a>
         ) : onClick ? (
           <a
@@ -144,20 +132,6 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
             data-testid={`profile-info-${label.toLowerCase()}-link`}
           >
             <span className="gba:whitespace-normal">{value}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="gba:h-3 gba:w-3 gba:shrink-0 gba:ml-0.5 gba:align-baseline gba:inline"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
           </a>
         ) : (
           <div className="gba:text-sm gba:text-gray-700">{value}</div>
@@ -167,11 +141,15 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   );
 };
 
-const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
+const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
   userInfo,
   employee,
   accessToken,
 }) => {
+  // Reference for container and observer
+  const skillsContainerRef = useRef<HTMLDivElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key);
@@ -319,14 +297,61 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
     }
   }, [employeeWithComms]);
 
+  // Effect to calculate and adjust height dynamically
+  useEffect(() => {
+    // Function to calculate available height
+    const calculateHeight = () => {
+      if (!skillsContainerRef.current) return;
+      
+      const rect = skillsContainerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const distanceFromTop = rect.top;
+      const paddingBottom = 20; // Buffer space at the bottom
+      
+      // Calculate available height (viewport height minus distance from top minus padding)
+      const availableHeight = viewportHeight - distanceFromTop - paddingBottom;
+      
+      // Set minimum height to avoid too small containers
+      const minHeight = 100;
+      const finalHeight = Math.max(availableHeight, minHeight);
+      
+      setContainerHeight(finalHeight);
+    };
+    
+    // Calculate initial height
+    calculateHeight();
+    
+    // Set up resize observer for parent elements that might affect positioning
+    if (!resizeObserverRef.current) {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        calculateHeight();
+      });
+      
+      if (skillsContainerRef.current?.parentElement) {
+        resizeObserverRef.current.observe(skillsContainerRef.current.parentElement);
+      }
+    }
+    
+    // Add window resize listener
+    window.addEventListener('resize', calculateHeight);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', calculateHeight);
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, []);
+
   const coreCollaborationMode = useFeature(Feature.Core.Collaboration.Key);
   const isAudioCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
   const isVideoCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full;
 
   return (
     <div className="gba:w-full gba:relative gba:overflow-hidden">
-      <div className="gba:relative gba:px-4 gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
-        <div className="gba:md:mr-8 gba:flex gba:flex-col gba:items-center">
+      <div className="gba:relative gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
+        <div className="gba:flex gba:flex-col gba:items-center">
           <div className="gba:flex gba:flex-col gba:items-center">
             <div className="gba:shrink-0 gba:mb-4 gba:z-10">
               <div className="gba:relative">
@@ -369,15 +394,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                     >
                       {isHovering && (
                         <AppActionButton
-                          data-testid="employee-action-button"
-                          variant="secondary"
+                          data-testid="employee-profile-picture-edit-button"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
                           ]}
                           externalContextData={{
                             employeeId: employee?.id,
                           }}
-                          prefixDataTestId="employee-action"
+                          prefixDataTestId="employee-profile-picture-edit"
                           accessToken={accessToken}
                           autoExecuteSingleAction={true}
                           icon={<PiPencilSimple className="gba:h-5 gba:w-5" />}
@@ -446,6 +470,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {/* Organization */}
                 <ProfileInfoItem
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Organization"}
                   value={
                     employee.employeePosition?.organizationalUnit?.name ??
@@ -453,16 +478,16 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.organizationalUnitId
-                      ? `/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
+                      ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
                       : undefined
                   }
-                  openInNewTab={true}
                 />
  
                 {/* Location */}
                 <ProfileInfoItem
                   data-testid="employee-location-info"
                   icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Location"}
                   value={
                     employee.employeePosition?.siteLocation?.name ||
@@ -470,14 +495,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.siteLocation?.id
-                      ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
+                      ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
                       : undefined
                   }
-                  openInNewTab={true}
                 />
                 {/* Email */}
                   <ProfileInfoItem
                     icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
+                    className="gba:text-blue-600"
                     label={"Work Email"}
                     value={employeeWithComms?.email ? employeeWithComms.email : "N/A"}
                     linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
@@ -487,6 +512,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
 
                   <ProfileInfoItem
                     icon={<PiPhone className="gba:h-4 gba:w-4" />}
+                    className="gba:text-blue-600"
                     label={"Work Phone"}
                     value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : "N/A"}
                     linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
@@ -496,6 +522,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {/* Manager */}
                 <ProfileInfoItem
                   icon={<PiUser className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Manager"}
                   value={
                     employee.employeePosition?.supervisor?.id &&
@@ -509,22 +536,13 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                         "Not assigned"
                       : "No manager"
                   }
-                  linkTo={undefined}
-                  onClick={
+                  linkTo={
                     employee.employeePosition?.supervisor?.id &&
                     employee.employeePosition.supervisor.id !== employee.id
-                      ? () => {
-                          const url = new URL(window.location.href);
-                          url.searchParams.set(
-                            "employeeId",
-                            employee.employeePosition?.supervisor?.id || ""
-                          );
-                          window.history.pushState({}, "", url.toString());
-                        }
+                      ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ""}`
                       : undefined
                   }
                 />
-                
                 {/* Job Position */}
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
@@ -538,6 +556,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 {/* Cost Center */}
                 <ProfileInfoItem
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
+                  className="gba:text-blue-600"
                   label={"Cost Center"}
                   value={
                     employee.employeePosition?.costCenter?.name ??
@@ -545,7 +564,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                   }
                   linkTo={
                     employee.employeePosition?.costCenter?.id
-                      ? `/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
+                      ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
                       : undefined
                   }
                 />
@@ -563,91 +582,107 @@ const ProfileHeader: React.FC<ProfileHeaderProps & BusinessAppContextProps> = ({
                 />
               </div>
 
-              {/* Teams Section - if available */}
-              {employee.employeePosition?.matrixUnitEmployees &&
-                employee.employeePosition.matrixUnitEmployees.length > 0 && (
-                  <div className="gba:mt-6">
-                    <div className="gba:flex gba:items-start gba:p-1">
+              {/* Dynamic scrollable container for Teams, Capabilities and Skills */}
+              <div 
+                ref={skillsContainerRef}
+                className="gba:w-full" 
+                data-testid="skills-capabilities-container"
+              >
+                <div 
+                  className="gba:overflow-y-auto gba:scrollbar-hide" 
+                  style={{ 
+                    height: containerHeight ? `${containerHeight}px` : 'auto',
+                    scrollbarWidth: 'none', 
+                    msOverflowStyle: 'none' 
+                  }}
+                >
+                  {/* Teams Section - if available */}
+                  {employee.employeePosition?.matrixUnitEmployees &&
+                    employee.employeePosition.matrixUnitEmployees.length > 0 && (
+                      <div className="gba:mt-4">
+                        <div className="gba:flex gba:items-start gba:p-1">
+                          <div className="gba:flex-1">
+                            <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
+                            <div className="gba:text-sm gba:text-gray-700">
+                              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                                {employee.employeePosition.matrixUnitEmployees.map(
+                                  (teamItem: MatrixUnitEmployee) => (
+                                    <TagItem
+                                      key={teamItem.matrixUnit.id}
+                                      icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                      label={teamItem.matrixUnit.name}
+                                      bgColorClass="gba:bg-blue-100"
+                                      textColorClass="gba:text-blue-800"
+                                      testId={`team-${teamItem.matrixUnit.id}`}
+                                    />
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Capabilities Section - always displayed */}
+                  <div className="gba:mt-4" data-testid="capabilities-section">
+                    <div className="gba:flex gba:items-start">
                       <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
+                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Capabilities</div>
                         <div className="gba:text-sm gba:text-gray-700">
                           <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                            {employee.employeePosition.matrixUnitEmployees.map(
-                              (teamItem: MatrixUnitEmployee) => (
-                                <TagItem
-                                  key={teamItem.matrixUnit.id}
-                                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-gray-500" />}
-                                  label={teamItem.matrixUnit.name}
-                                  bgColorClass="gba:bg-blue-100"
-                                  textColorClass="gba:text-blue-800"
-                                  testId={`team-${teamItem.matrixUnit.id}`}
-                                />
-                              )
+                            {employee.employeePosition?.employeeCapabilities && 
+                            employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
+                              employee.employeePosition.employeeCapabilities
+                                .filter(capItem => capItem.capability)
+                                .map((capItem: EmployeeCapability) => (
+                                  <TagItem
+                                    key={capItem.capability!.id}
+                                    icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                    label={capItem.capability!.name}
+                                    bgColorClass="gba:bg-green-100"
+                                    textColorClass="gba:text-green-800"
+                                    testId={`capability-${capItem.capability!.id}`}
+                                  />
+                                ))
+                            ) : (
+                              <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-capabilities-message">
+                                No capabilities assigned
+                              </span>
                             )}
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
 
-              {/* Capabilities Section - always displayed */}
-              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="capabilities-section">
-                <div className="gba:flex gba:items-start">
-                  <div className="gba:flex-1">
-                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Capabilities</div>
-                    <div className="gba:text-sm gba:text-gray-700">
-                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                        {employee.employeePosition?.employeeCapabilities && 
-                         employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
-                          employee.employeePosition.employeeCapabilities
-                            .filter(capItem => capItem.capability)
-                            .map((capItem: EmployeeCapability) => (
-                              <TagItem
-                                key={capItem.capability!.id}
-                                icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-gray-500" />}
-                                label={capItem.capability!.name}
-                                bgColorClass="gba:bg-green-100"
-                                textColorClass="gba:text-green-800"
-                                testId={`capability-${capItem.capability!.id}`}
-                              />
-                            ))
-                        ) : (
-                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-capabilities-message">
-                            No capabilities assigned
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Skills Section - always displayed */}
-              <div className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full" data-testid="skills-section">
-                <div className="gba:flex gba:items-start">
-                  <div className="gba:flex-1">
-                    <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>
-                    <div className="gba:text-sm gba:text-gray-700">
-                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                        {employee.skills?.filter(skill => skill.skill).length > 0 ? (
-                          employee.skills
-                            .filter(skillItem => skillItem.skill)
-                            .map((skillItem: EmployeeSkill) => (
-                              <TagItem
-                                key={skillItem.skill.id}
-                                icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-gray-500" />}
-                                label={skillItem.skill.name}
-                                bgColorClass="gba:bg-purple-100"
-                                textColorClass="gba:text-purple-800"
-                                testId={`skill-${skillItem.skill.id}`}
-                              />
-                            ))
-                        ) : (
-                          <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-skills-message">
-                            No skills assigned
-                          </span>
-                        )}
+                  {/* Skills Section - always displayed */}
+                  <div className="gba:mt-4" data-testid="skills-section">
+                    <div className="gba:flex gba:items-start">
+                      <div className="gba:flex-1">
+                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>
+                        <div className="gba:text-sm gba:text-gray-700">
+                          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                            {employee.skills?.filter(skill => skill.skill).length > 0 ? (
+                              employee.skills
+                                .filter(skillItem => skillItem.skill)
+                                .map((skillItem: EmployeeSkill) => (
+                                  <TagItem
+                                    key={skillItem.skill.id}
+                                    icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                    label={skillItem.skill.name}
+                                    bgColorClass="gba:bg-purple-100"
+                                    textColorClass="gba:text-purple-800"
+                                    testId={`skill-${skillItem.skill.id}`}
+                                  />
+                                ))
+                            ) : (
+                              <span className="gba:text-gray-500 gba:text-sm gba:text-left gba:block" data-testid="no-skills-message">
+                                No skills assigned
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

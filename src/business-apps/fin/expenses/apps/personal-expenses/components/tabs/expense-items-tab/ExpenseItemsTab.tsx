@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS } from '../../../queries/expenseItems';
+import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS, GET_PENDING_ITEMS_WITH_DATE_RANGE } from '../../../queries/expenseItems';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { ExpenseStatus } from '../../../utils';
 import ExpenseItemStatistics from './ExpenseItemStatistics';
 import ExpenseItemsTable from './ExpenseItemsTable';
-import { useExpenseFilters } from '../../../hooks/useExpenseFilters';
-import { useExpenseItemsTabFilters } from '../../../hooks/useExpenseItemsTabFilters';
+import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -20,10 +20,26 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(() => ({
     accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+    userInfo: props.userInfo,
+    additionalData: props.additionalData
+  }), [props.accessToken, props.userInfo, props.additionalData]);
   
-  // Use our simplified expense filters hook
+  // Get all available statuses from the enum
+  const availableStatuses = useMemo(() => [
+    'PREPARED',
+    'CREATED', 
+    'ASSIGNED',
+    'PENDING',
+    'APPROVED',
+    'REJECTED',
+    'VERIFIED',
+    'BOOKED',
+    'PAID',
+    'CLOSED',
+    'TRANSFERRED'
+  ], []);
+  
+  // Use our expense items filters hook
   const {
     addFilter,
     removeFilter,
@@ -34,18 +50,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     getFilters,
     setFilters,
     setExpenseDateRange,
-    expenseDateRange
-  } = useExpenseFilters();
+    expenseDateRange,
+    amountRange,
+    setAmountRange,
+    onStatusFilterChange
+  } = useExpenseItemsFilters(availableStatuses);
+
+  // Use the selectedFilters from the hook which already includes date range and amount range
+  const allSelectedFilters = selectedFilters;
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
-  // Centralized handler to clear all filters (UI + card)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
-    setActiveCard(null);
-    setExpenseDateRange(null);
-  }, [setFilters, setExpenseDateRange]);
-  
   // State for storing all items for statistics
   const [allItems, setAllItems] = useState<any[]>([]);
   const [hasLoadedAllItems, setHasLoadedAllItems] = useState(false);
@@ -54,8 +69,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [totalExpenses, setTotalExpenses] = useState<number | null>(null);
   const [previousMonthTotalExpenses, setPreviousMonthTotalExpenses] = useState<number | null>(null);
   const [pendingReimbursementTotal, setPendingReimbursementTotal] = useState<number>(0);
+  const [previousMonthPendingReimbursementTotal, setPreviousMonthPendingReimbursementTotal] = useState<number>(0);
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   const graphqlClient = useGraphQLClient(contextProps.accessToken);
+  
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -131,19 +149,65 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   }, [addFilter, clearFilters, selectedFilters]);
 
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    setActiveCard(prev => (prev === widgetKey ? null : widgetKey));
-  }, []);
-
-
-
-  // Handle status filter changes
-  const handleStatusFilterChange = useCallback((status: string, selected: boolean) => {
-    if (selected) {
-      addFilter(status.toLowerCase());
-    } else {
-      removeFilter(status.toLowerCase());
+    const isDeactivating = activeCard === widgetKey;
+    const newActiveCard = isDeactivating ? null : widgetKey;
+    setActiveCard(newActiveCard);
+    
+    // If deactivating (clicking the same widget again), clear all filters
+    if (isDeactivating) {
+      clearFilters();
+      // Clear expense date range
+      setExpenseDateRange(null);
+      return;
     }
-  }, [addFilter, removeFilter]);
+    
+    // Clear existing filters when switching to a different widget
+    clearFilters();
+    
+    // Apply widget-specific filter logic
+    switch (newActiveCard) {
+      case 'total-expenses':
+        const today = dayjs();
+        const currentMonthStart = today.startOf('month').toDate();
+        const currentMonthEnd = today.endOf('month').toDate();
+        
+        // Set expense date range to current month
+        setExpenseDateRange([currentMonthStart, currentMonthEnd]);
+        
+        // Set status filters to only show PAID and CLOSED items
+        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
+        allStatuses.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        onStatusFilterChange('PAID', true);
+        onStatusFilterChange('CLOSED', true);
+        break;
+        
+      case 'pending-reimbursement':
+        const currentMonthRange = dayjs().startOf('month').toDate();
+        const currentMonthEndRange = dayjs().endOf('month').toDate();
+        
+        // Set expense date range to current month
+        setExpenseDateRange([currentMonthRange, currentMonthEndRange]);
+        
+        // Set status filter to only show PENDING items
+        const allStatusesForPending = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
+        allStatusesForPending.forEach(status => {
+          onStatusFilterChange(status, false);
+        });
+        onStatusFilterChange('PENDING', true);
+        break;
+        
+      case null:
+        // Widget deactivated - filters already cleared above
+        break;
+    }
+  }, [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange]);
+
+
+
+  // Handle status filter changes - use the hook's function
+  const handleStatusFilterChange = onStatusFilterChange;
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -176,12 +240,12 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       }
 
       const today = dayjs();
-      const currentMonthStart = today.startOf('month').toISOString();
-      const currentMonthEnd = today.endOf('month').toISOString();
+      const currentMonthStart = today.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const currentMonthEnd = today.endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
       const lastMonth = today.subtract(1, 'month');
-      const previousMonthStart = lastMonth.startOf('month').toISOString();
-      const previousMonthEnd = lastMonth.endOf('month').toISOString();
+      const previousMonthStart = lastMonth.startOf('month').format('YYYY-MM-DD HH:mm:ss');
+      const previousMonthEnd = lastMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
       const fetchStatsForPeriod = async (startDate: string, endDate: string) => {
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
@@ -214,14 +278,48 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         return result.data?.totalExpenses?.aggregate?.sum?.totalAmount ?? 0;
       };
 
-      const [currentMonthTotal, previousMonthTotal] = await Promise.all([
+      const fetchPendingStatsForPeriod = async (startDate: string, endDate: string) => {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_PENDING_ITEMS_WITH_DATE_RANGE,
+            variables: {
+              employeeId,
+              startDate,
+              endDate,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        }
+
+        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount;
+      };
+
+      const [currentMonthTotal, previousMonthTotal, currentMonthPending, previousMonthPending] = await Promise.all([
         fetchStatsForPeriod(currentMonthStart, currentMonthEnd),
         fetchStatsForPeriod(previousMonthStart, previousMonthEnd),
+        fetchPendingStatsForPeriod(currentMonthStart, currentMonthEnd),
+        fetchPendingStatsForPeriod(previousMonthStart, previousMonthEnd),
       ]);
 
       if (isMounted.current) {
         setTotalExpenses(currentMonthTotal);
         setPreviousMonthTotalExpenses(previousMonthTotal);
+        setPendingReimbursementTotal(currentMonthPending);
+        setPreviousMonthPendingReimbursementTotal(previousMonthPending);
       }
     } catch (error) {
       if (isMounted.current) {
@@ -239,34 +337,109 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     fetchItemStatistics();
   }, [fetchItemStatistics]);
 
-  // Combine UI and card filters using the dedicated hook
-  const finalFilters = useExpenseItemsTabFilters(selectedFilters, activeCard);
+  // Combine UI and card filters
+  const finalFilters = useMemo(() => {
+    let filters = [...allSelectedFilters];
+    
+    // Map card keys to filter values as needed
+    if (activeCard === 'pending-reimbursement' && !filters.includes('pending')) {
+      filters.push('pending');
+    }
+    
+    if (activeCard === 'total-expenses') {
+      // Only filter paid or closed items for total expenses
+      filters = filters.filter(f => f !== 'pending' && f !== 'submitted' && f !== 'in progress');
+      if (!filters.includes('paid')) filters.push('paid');
+      if (!filters.includes('closed')) filters.push('closed');
+    }
+    
+    return filters;
+  }, [allSelectedFilters, activeCard]);
 
   // Create a custom getFilters function that includes date range parameters
   const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
     return getFilters(filtersToApply, null, null, expenseDateRange);
   }, [getFilters, expenseDateRange]);
 
-  // Fetch pending reimbursement total
+
+
+  // Process completion event listener to refresh data
   useEffect(() => {
-    const fetchPendingItems = async () => {
-      if (!contextProps.userInfo?.employeeDetails?.employeeId) return;
+    const handleProcessCompletion = (event: any) => {
       try {
-        const data = await graphqlClient.request(GET_PENDING_ITEMS, {
-          employeeId: contextProps.userInfo.employeeDetails.employeeId,
-        });
-        setPendingReimbursementTotal(
-          data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0
-        );
-        setPendingItemCountFromApi(
-          data?.pendingExcludingAllowance?.aggregate?.count ?? 0
-        );
-      } catch (e) {
-        setPendingReimbursementTotal(0);
+        if (event.detail?.resolution === 'success') {
+          // Refresh statistics data after successful process completion
+          fetchItemStatistics();
+          
+          // Refresh pending item count (for display purposes, not for filtering)
+          const fetchPendingItemCount = async () => {
+            if (!contextProps.userInfo?.employeeDetails?.employeeId) return;
+            try {
+              const data = await graphqlClient.request(GET_PENDING_ITEMS, {
+                employeeId: contextProps.userInfo.employeeDetails.employeeId,
+              });
+              setPendingItemCountFromApi(
+                data?.pendingExcludingAllowance?.aggregate?.count ?? 0
+              );
+            } catch (e) {
+              setPendingItemCountFromApi(0);
+            }
+          };
+          fetchPendingItemCount();
+          
+          // Reset all items to force refresh of statistics
+          setHasLoadedAllItems(false);
+          setAllItems([]);
+          
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
       }
     };
-    fetchPendingItems();
-  }, [contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient]);
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItemStatistics, contextProps.userInfo?.employeeDetails?.employeeId, graphqlClient]);
 
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
@@ -280,6 +453,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           totalExpenses={totalExpenses}
           previousMonthTotalExpenses={previousMonthTotalExpenses}
           pendingReimbursementTotal={pendingReimbursementTotal}
+          previousMonthPendingReimbursementTotal={previousMonthPendingReimbursementTotal}
           pendingItemCountFromApi={pendingItemCountFromApi}
           onMissingReceiptsClick={handleMissingReceiptsClick} 
           isNoReceiptFilterActive={isNoReceiptFilterActive}
@@ -288,12 +462,10 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           fetchItemStatistics={fetchItemStatistics}
           onWidgetClick={handleWidgetClick}
           activeWidgetKey={activeCard ?? undefined}
-          onExpenseDateRangeFilterChange={setExpenseDateRange}
-          onStatusFilterChange={handleStatusFilterChange}
         />
       </div>
     );
-  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, expenseDateRange, handleStatusFilterChange]);
+  }, [allItems, totalExpenses, previousMonthTotalExpenses, selectedFilters, handleMissingReceiptsClick, statsLoading, statsError, fetchItemStatistics, hasLoadedAllItems, handleWidgetClick, activeCard, pendingReimbursementTotal, previousMonthPendingReimbursementTotal]);
 
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
@@ -394,26 +566,23 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
-    if (contextProps.userInfo?.employeeDetails?.employeeId) {
-       startProcess({
-            domain: 'employee-expense',
-            processName: 'changeExpenseItem',
-            payload: {
-              employeeId: contextProps.userInfo?.employeeDetails?.employeeId
-            },
-            builderType: 'NATIVE_SCREEN'
-          });
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+              console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+        console.warn(getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.user_information_not_loaded','User information not loaded yet. Please wait a moment and try again.'));
+      return;
     }
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
-
-  // Compute availableStatuses from allItems (unfiltered, for current search/page)
-  const availableStatuses = useMemo(() => {
-    const statusSet = new Set<string>();
-    allItems.forEach(item => {
-      if (item.status) statusSet.add(item.status);
+    
+    console.log('Starting create expense process for employeeId:', employeeId);
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpenseItem',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
     });
-    return Array.from(statusSet);
-  }, [allItems]);
+  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
   return (
     <ExpenseItemsTable 
@@ -427,8 +596,10 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
       getFilters={getFiltersWithDateRange}
-      setFilters={handleClearAllFilters}
+      setFilters={setFilters}
       availableStatuses={availableStatuses}
+      amountRange={amountRange}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

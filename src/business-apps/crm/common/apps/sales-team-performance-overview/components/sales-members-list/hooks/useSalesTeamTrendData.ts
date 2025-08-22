@@ -60,7 +60,7 @@ export const useSalesTeamTrendData = (accessToken: string) => {
     const percentage = ((current - previous) / previous) * 100;
     const trend = percentage > 5 ? "up" : percentage < -5 ? "down" : "stable";
 
-    return { trend, percentage: Math.abs(percentage) };
+    return { trend, percentage }; // ✅ Removed Math.abs() to preserve sign
   };
 
   const getCurrentAndPreviousMonthDates = () => {

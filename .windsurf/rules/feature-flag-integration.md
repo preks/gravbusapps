@@ -1,5 +1,5 @@
 ---
-trigger: always_on
+alwaysApply: true
 ---
 
 # Feature Flag Integration Pattern

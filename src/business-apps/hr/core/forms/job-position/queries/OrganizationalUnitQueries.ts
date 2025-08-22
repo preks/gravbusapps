@@ -84,6 +84,6 @@ export const fetchOrganizationalUnitData = async (
   variables: QueryVariablesOrganizationalUnit
 ): Promise<OrganizationalUnitData> => {
   const query = GET_ORGANIZATIONAL_UNITS(variables);
-  console.log('Executing OrganizationalUnit query:', query);
+
   return await client.request(query);
 }; 

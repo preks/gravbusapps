@@ -17,7 +17,7 @@ import {
   CustomField,
 } from "../types";
 
-import { getCurrentActiveUserLocale, getCatalogValue } from "../../../../../../common/utils/windowUtils";
+import { getCurrentActiveUserLocale, getCatalogValue, getTranslationFromI18nKeyAndLabel } from "../../../../../../common/utils/windowUtils";
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -41,7 +41,7 @@ import {
   setByEdit,
 } from "./services";
 import { showToast } from "../../../utils/notificationUtils";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { EVENTS } from "../../../utils/constants";
 
 interface ExpenseItemContextProps {
@@ -72,11 +72,12 @@ interface ExpenseItemContextProps {
 
   employeeRuleId: string | null | object;
   expenseRuleError: string | null;
+  additionalData?: any;
 
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
   handleSubmit: () => Promise<void>;
-  handleCancel: () => void;
+  handleCancel: (noDispatchEvent?: boolean) => void;
   handleExpenseGroupChange: (
     value: string,
     positionIndex: number
@@ -91,13 +92,14 @@ interface ExpenseItemContextProps {
   handleCurrencyChange: (currencyId: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
+  setInitialItemValues: (id: string, version: string | number) => void;
 }
 
 interface ExpenseItemProviderProps {
   children: ReactNode;
   accessToken: string;
   userInfo?: any;
-  additionalData?: { [k: string]: any };
+  additionalData?: any;
 }
 
 export const ExpenseItemContext = createContext<
@@ -147,12 +149,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const [userCostCenter, setUserCostCenter] = useState<string>("");
   const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
-
+  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
+  
   const graphqlClient = useMemo(
     () => createGraphQLClient(accessToken),
     [accessToken]
   );
-
+  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData);
   useEffect(() => {
 
     fetchInitialData();
@@ -427,7 +430,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             customFields,
             setCustomFields,
             employeeRuleId,
-            t
+            t,
+            setInitialItemValues
           );
           setIsEditMode(true);
         }
@@ -762,16 +766,35 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       accessToken,
       userInfo?.employeeDetails?.employeeId,
       additionalData,
-      userInfo
+      userInfo,
+      itemValues || undefined,
+      getIsProcessEventDispatched,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 
-  const handleCancelWrapper = () => {
+  const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
     try {
-        dispatchProcessContinueEvent(EVENTS.CANCEL, {"event":EVENTS.ABORT,pso_exitStrategy:"abort",
-          pso_completeNotification:{type: 'error',
-          messageKey: t('lowcoder:absence_module.toast_notification_cancel_create_absence','The action has been canceled.') } });
-    } catch (error) {
+      if(noDispatchEvent){
+        form.resetFields();
+        setPositions([DEFAULT_POSITION]);
+        setFileList([]);
+        setCurrentStep("start");
+      }
+      else {
+      dispatchProcessContinueEventIfEnabled(
+        EVENTS.ABORT, {
+          "event": EVENTS.ABORT,
+          pso_exitStrategy: "abort",
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          }
+        })
+    }} catch (error) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
         "error"
@@ -914,6 +937,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   };
 
+  const setInitialItemValues = (id: string, version: string | number) => {
+    setItemValues({ id, version });
+  };
+
   const contextValue: ExpenseItemContextProps = {
     form,
     currentStep,
@@ -940,6 +967,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     expenseRequests,
     employeeRuleId,
     expenseRuleError,
+    additionalData,
     calculateTotal: calculateTotalWrapper,
     handleFileUpload: handleFileUploadWrapper,
     handleSubmit: handleSubmitWrapper,
@@ -952,6 +980,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
+    setInitialItemValues: setInitialItemValues,
   };
 
   return (

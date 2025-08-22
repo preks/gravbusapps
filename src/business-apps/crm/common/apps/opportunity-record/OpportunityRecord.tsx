@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Spinner,
   Tabs,
@@ -10,7 +10,7 @@ import {
 import {
   ArrowLeftOutlined,
   UserOutlined,
-  FolderOpenOutlined,
+  FileOutlined,
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -21,7 +21,7 @@ import { ContactInformation } from "./components/ContactInformation";
 import { OpportunityDetails } from "./components/OpportunityDetails";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { StageProgression } from "./components/StageProgression";
+import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -41,6 +41,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const {
     opportunity,
     opportunityData,
+    stageConditionStatuses,
     loading,
     error,
     opportunityStages,
@@ -50,6 +51,55 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     stagesError,
     refetchOpportunityData,
   } = useOpportunityData(opportunityId, props.accessToken);
+
+  // Listen for process completion events to refresh opportunity data (including stage condition updates)
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log("OpportunityRecord: Process completion event received:", event);
+
+        // Check for successful completion
+        if (event.detail?.resolution === "success") {
+          console.log("OpportunityRecord: Refreshing opportunity data after stage condition update...");
+          refetchOpportunityData();
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === "success" || response?.opportunityStageConditionStatus) {
+          console.log("OpportunityRecord: Refreshing opportunity data from response...");
+          refetchOpportunityData();
+        }
+      } catch (err) {
+        console.error("Error handling process completion in OpportunityRecord:", err);
+      }
+    };
+
+    // Listen to multiple possible event names for stage condition updates
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue",
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+    };
+  }, [refetchOpportunityData]);
 
   if (loading) {
     return (
@@ -104,14 +154,15 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         !stagesError &&
         opportunityStages.length > 0 &&
         opportunityData?.salesPipelineRef && (
-          <StageProgression
+          <OpportunityStageProgression
             currentStage={
-              opportunityData?.salesPipelineStage?.value || "Discovery"
+              opportunityData?.salesPipelineStage?.code || "Discovery"
             }
             stages={opportunityStages}
             opportunityId={opportunityId}
             opportunityVersion={parseInt(opportunity.version) || 0}
             accessToken={props.accessToken}
+            stageConditionStatuses={stageConditionStatuses}
             onStageUpdate={refetchOpportunityData}
           />
         )}
@@ -138,6 +189,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         </div>
       )}
 
+
+
       <div
         className="gba:opportunity-details-content"
         data-testid="opportunity-details-content"
@@ -153,7 +206,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               Overview
             </TabsTrigger>
             <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
+              <FileOutlined className="gba:mr-2" />
               Documents
             </TabsTrigger>
           </TabsList>
@@ -178,7 +231,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
               <div className="gba:col-span-2 gba:flex">
                 <OpportunityDetails
                   opportunityData={opportunityData}
-                  opportunityId={opportunityId}
+                  stageConditionStatuses={stageConditionStatuses}
                   context={props}
                 />
               </div>
@@ -199,11 +252,9 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           </TabsContent>
 
           <TabsContent value="documents" data-testid="documents-content">
-            <OpportunityDocuments
-              opportunityId={opportunityId}
-              context={props}
-            />
+            <OpportunityDocuments opportunityId={opportunityId} context={props} />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

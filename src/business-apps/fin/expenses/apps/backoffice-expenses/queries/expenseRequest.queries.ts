@@ -13,6 +13,8 @@ export const GET_EXPENSE_REQUESTS = `
       offset: $offset
     ) {
       id
+      version
+      currencyRef
       code
       requestDate
       createdAt
@@ -22,17 +24,53 @@ export const GET_EXPENSE_REQUESTS = `
       startDate
       endDate
       employeeId
+      requestTypeRef
+      nonReimbursableAmount
+      employeeDocumentId
+      employeeDocument {
+        createdAt
+        documentGroup
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
+      }
       currency { code }
       employee { 
         firstName 
         lastName 
         code 
-        id 
+        id
+        additionalProperties 
         employeePosition { 
           costCenter { name }
           organizationalUnit { name }
         } 
       }
+      expensePlan {
+      advancePaymentTotalAmount
+      code
+      advancePaymentAggregate {
+        aggregate {
+          sum {
+            amount
+          }
+        }
+      }
+      advancePayment {
+        amount
+        currency {
+          value
+          code
+        }
+      }
+    }
       requestType { value }
     }
     total: ExpenseRequestAggregate(where: $where) {
@@ -174,4 +212,3 @@ export const PROCESS_PAYMENT_MUTATION = `
     }
   }
 `;
-

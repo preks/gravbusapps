@@ -4,7 +4,7 @@ import { Card, Typography, Spin, Empty, theme } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/business-apps/types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useHealthInsuranceDistribution } from '../../hooks/useHealthInsuranceDistribution';
+import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution';
 
 const { Title } = Typography;
 

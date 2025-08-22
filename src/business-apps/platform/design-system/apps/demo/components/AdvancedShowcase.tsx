@@ -283,8 +283,8 @@ export function AdvancedShowcase() {
             <h4 className="gba:text-sm gba:font-medium gba:mb-2">Line Chart</h4>
             <ChartContainer
               config={{
-                desktop: { label: "Desktop", color: "hsl(var(--chart-1))" },
-                mobile: { label: "Mobile", color: "hsl(var(--chart-2))" }
+                desktop: { label: "Desktop", color: "hsl(var(--nw-chart-1))" },
+                mobile: { label: "Mobile", color: "hsl(var(--nw-chart-2))" }
               }}
               className="gba:h-[300px]"
               data-testid="line-chart"
@@ -304,14 +304,14 @@ export function AdvancedShowcase() {
                 <Line
                   dataKey="desktop"
                   type="monotone"
-                  stroke="var(--color-desktop)"
+                  stroke="var(--nw-color-desktop)"
                   strokeWidth={2}
                   dot={false}
                 />
                 <Line
                   dataKey="mobile"
                   type="monotone"
-                  stroke="var(--color-mobile)"
+                  stroke="var(--nw-color-mobile)"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -323,7 +323,7 @@ export function AdvancedShowcase() {
             <h4 className="gba:text-sm gba:font-medium gba:mb-2">Bar Chart</h4>
             <ChartContainer
               config={{
-                visitors: { label: "Visitors", color: "hsl(var(--chart-3))" }
+                visitors: { label: "Visitors", color: "hsl(var(--nw-chart-3))" }
               }}
               className="gba:h-[300px]"
               data-testid="bar-chart"
@@ -342,7 +342,7 @@ export function AdvancedShowcase() {
                 />
                 <Bar
                   dataKey="desktop"
-                  fill="var(--color-visitors)"
+                  fill="var(--nw-color-visitors)"
                   radius={8}
                 />
               </BarChart>
@@ -390,7 +390,8 @@ export function AdvancedShowcase() {
               Command Palette
             </h4>
             <Command
-              className="gba:rounded-lg gba:border gba:shadow-md gba:max-w-md"
+              className="gba:rounded-lg gba:border gba:max-w-md"
+              style={{ boxShadow: 'var(--nw-shadow-md)' }}
               data-testid="command"
             >
               <CommandInput placeholder="Type a command or search..." />

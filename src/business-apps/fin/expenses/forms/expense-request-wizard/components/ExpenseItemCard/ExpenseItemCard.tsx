@@ -42,7 +42,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
       <div className="gba:p-10 gba:flex gba:flex-row gba:justify-between gba:box-border gba:min-h-[120px]">
         <div className="gba:flex gba:flex-col">
           <div className="gba:text-sm" data-testid={`expense-item-type-${id}`}>
-            {expenseGroup}{expenseType && ":"}{expenseType}
+            {expenseGroup}{expenseType && ": "}{expenseType}
           </div>
           <div className="gba:text-[18px] gba:font-bold gba:mt-[10px]" data-testid={`expense-item-title-${id}`}>
             {title}
@@ -66,10 +66,10 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
             </div>
           )}
         </div>
-        <div className="gba:flex gba:flex-col gba:items-end gba:h-full gba:w-1/4 gba:justify-between h-auto">
+        <div className="gba:flex gba:flex-col gba:items-end gba:h-[100%] gba:w-1/4 gba:justify-between h-auto">
           <div>
             {onDelete && (
-              <div className="gba:w-full gba:flex gba:justify-end">
+              <div className="gba:w-[100%] gba:flex gba:justify-end">
                 <button 
                   className="gba:flex gba:items-center gba:justify-center gba:bg-[#F7F7F7] gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
                   onClick={() => onDelete(id)}

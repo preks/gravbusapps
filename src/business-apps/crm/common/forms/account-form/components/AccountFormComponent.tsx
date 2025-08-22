@@ -1,69 +1,64 @@
-import React from 'react';
-import { useAccountFormContext } from '../context/AccountFormContext';
-import { Button, Spinner, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import AccountInformationSection from './AccountInformationSection';
-import CompanyInformationSection from './CompanyInformationSection';
-import ContactInformationSection from './ContactInformationSection';
-import AddressInformationSection from './AddressInformationSection';
-import FinancialInformationSection from './FinancialInformationSection';
+import React from "react";
+import { useAccountFormContext } from "../context/AccountFormContext";
+import {
+  Button,
+  Alert,
+  AlertDescription,
+  Spinner,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import AccountInformationSection from "./AccountInformationSection";
+import CompanyInformationSection from "./CompanyInformationSection";
+import ContactInformationSection from "./ContactInformationSection";
+import AddressInformationSection from "./AddressInformationSection";
+import FinancialInformationSection from "./FinancialInformationSection";
 
-const prefixDataTestId = 'AccountForm';
+const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const {
-    formValues,
-    onSubmit,
-    onCancel,
-    isLoading,
-    error,
-  } = useAccountFormContext();
+  const { formValues, onSubmit, onCancel, isLoading, error, addressLineCount } =
+    useAccountFormContext();
 
   // Check if all mandatory fields are filled
-  const isFormValid = 
-    formValues.owner &&
-    formValues.accountType &&
-    formValues.accountStatus &&
-    formValues.accountName;
+  const isFormValid =
+    formValues.owner && formValues.legalForm && formValues.accountName;
 
   // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string): string | undefined => {
+  const toStringOrUndefined = (
+    value: string | undefined
+  ): string | undefined => {
     return value && value.trim() ? value.trim() : undefined;
   };
 
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      await onSubmit(formValues);
-      
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
-      
+
       // Prepare comprehensive account payload following the API structure
       const accountPayload: any = {
         sourceApp: "CRM",
-        accountTypeRef: toStringOrUndefined(formValues.accountType),
-        accountStatusRef: toStringOrUndefined(formValues.accountStatus),
-        priorityRef: toStringOrUndefined(formValues.priority),
         accountName: toStringOrUndefined(formValues.accountName),
         parentAccountRef: toStringOrUndefined(formValues.parentAccount),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryRef: toStringOrUndefined(formValues.industry),
         website: toStringOrUndefined(formValues.website),
         description: toStringOrUndefined(formValues.description),
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         phone: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         fax: toStringOrUndefined(formValues.fax),
         countryRef: toStringOrUndefined(formValues.country),
         regionRef: toStringOrUndefined(formValues.region),
-        addressLine: toStringOrUndefined(formValues.addressLine1) || toStringOrUndefined(formValues.address) || undefined,
+        addressLine: undefined, // Will be set from addresses array below
         postalCode: toStringOrUndefined(formValues.postalCode),
         city: toStringOrUndefined(formValues.city),
         annualRevenue: toStringOrUndefined(formValues.annualRevenue),
         numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
         currencyRef: toStringOrUndefined(formValues.currency),
-        timeZoneRef: toStringOrUndefined(formValues.timeZone),
+        //  timeZoneRef: toStringOrUndefined(formValues.timeZone),
         foundationDate: toStringOrUndefined(formValues.foundationDate),
         tickerSymbol: toStringOrUndefined(formValues.tickerSymbol),
         sicCode: toStringOrUndefined(formValues.sicCode),
@@ -79,41 +74,87 @@ const AccountFormComponent: React.FC = () => {
         }
       }
 
-      // Build addresses array if we have address data
-      const addresses = [];
-      const addressLine = toStringOrUndefined(formValues.addressLine1) || 
-                         toStringOrUndefined(formValues.address) ||
-                         [formValues.addressLine1, formValues.addressLine2, formValues.addressLine3, formValues.addressLine4]
-                           .filter(line => toStringOrUndefined(line))
-                           .join(', ') || '';
+      // Build addresses array from dynamic addresses
+      const addresses: any[] = [];
 
-      if (addressLine || toStringOrUndefined(formValues.city) || toStringOrUndefined(formValues.postalCode)) {
-        addresses.push({
-          addressType: "BILLING_ADDRESS",
-          addressLine: addressLine,
-          postalCode: toStringOrUndefined(formValues.postalCode),
-          city: toStringOrUndefined(formValues.city),
-          regionRef: toStringOrUndefined(formValues.region),
-          countryRef: toStringOrUndefined(formValues.country),
+      // Process dynamic addresses (new implementation)
+      if (formValues.addresses && formValues.addresses.length > 0) {
+        formValues.addresses.forEach((address) => {
+          // Filter out empty address lines
+          const nonEmptyLines = address.addressLines
+            .map((line) => toStringOrUndefined(line))
+            .filter((line) => line);
+
+          nonEmptyLines.forEach((addressLine) => {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: addressLine,
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          });
+
+          // If no address lines but other address data exists, create one address with empty addressLine
+          if (
+            nonEmptyLines.length === 0 &&
+            (toStringOrUndefined(address.city) ||
+              toStringOrUndefined(address.postalCode) ||
+              toStringOrUndefined(address.region) ||
+              toStringOrUndefined(address.country))
+          ) {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: "",
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          }
         });
       }
 
-      accountPayload.addresses = addresses;
+      // Set addresses to null if empty, otherwise use the addresses array
+      accountPayload.addresses = addresses.length > 0 ? addresses : null;
 
-      // Initialize empty arrays for tags and communication channels
+      // Set the main addressLine field from the first address (for backward compatibility)
+      if (addresses.length > 0) {
+        accountPayload.addressLine = addresses[0].addressLine;
+      } else {
+        accountPayload.addressLine = null;
+      }
+
       accountPayload.tags = [];
 
+      // Determine change mode based on whether we have an ID
+      const changeMode = isUpdate ? "UPDATE" : "INSERT";
+
       const payload = {
-        account: accountPayload
+        account: accountPayload,
+        changeMode: changeMode,
       };
-      
-      // Log the payload for debugging
-      console.log(`${isUpdate ? 'Updating' : 'Creating'} account with payload:`, payload);
-      
+
       // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload);
+      console.log(
+        "✅ Account form dispatching pse_submit event with payload:",
+        payload
+      );
+      dispatchProcessContinueEvent("pse_submit", payload);
+
+      // Call the onSubmit callback after dispatching the process event
+      // This ensures the process event is always dispatched even if onSubmit fails
+      try {
+        await onSubmit(formValues);
+      } catch (submitError) {
+        console.warn(
+          "onSubmit callback failed, but process event was dispatched:",
+          submitError
+        );
+      }
     } catch (err) {
-      console.error('Error submitting account form:', err);
+      console.error("Error submitting account form:", err);
     }
   };
 
@@ -121,21 +162,22 @@ const AccountFormComponent: React.FC = () => {
   const handleCancel = async () => {
     try {
       await onCancel();
-      
+
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null);
+      dispatchProcessContinueEvent("pse_pause", null);
     } catch (err) {
-      console.error('Error cancelling account form:', err);
+      console.error("Error cancelling account form:", err);
     }
   };
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
+      <div
+        className="gba:h-full gba:flex gba:flex-col"
+        data-testid={formatDataTestId(prefixDataTestId, "Form")}
+      >
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          
           {/* Account Information Section */}
           <AccountInformationSection />
 
@@ -153,11 +195,9 @@ const AccountFormComponent: React.FC = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">
-                {error}
-              </div>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
         </div>
 
@@ -168,7 +208,7 @@ const AccountFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
           >
             Cancel
           </Button>
@@ -178,10 +218,10 @@ const AccountFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Account' : 'Create Account'}
+            {formValues.id ? "Update Account" : "Create Account"}
           </Button>
         </div>
       </div>
@@ -189,4 +229,4 @@ const AccountFormComponent: React.FC = () => {
   );
 };
 
-export default AccountFormComponent; 
+export default AccountFormComponent;

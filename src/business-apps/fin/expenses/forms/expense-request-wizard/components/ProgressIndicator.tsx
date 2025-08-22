@@ -4,6 +4,7 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants';
 interface ProgressIndicatorProps {
   currentScreen: string;
   isTrip?: boolean;
+  isPlan?: boolean;
 }
 
 /**
@@ -12,18 +13,32 @@ interface ProgressIndicatorProps {
  * @param props - Component props
  * @returns ProgressIndicator component
  */
-const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, isTrip = true }) => {
+const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, isTrip = true, isPlan =false }) => {
   // Determine which lines should be filled based on current screen and request type
   const getLineStates = () => {
     // For non-trip expense requests, we only show Items and Summary tabs
     if (!isTrip) {
-      switch (currentScreen) {
-        case SCREEN_NAMES_ENUM.ITEMS_TAB:
-          return [true, false]; // Expense Items: 1st line filled
-        case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-          return [true, true]; // Summary: Both lines filled
-        default:
-          return [false, false];
+      if(isPlan){
+        switch (currentScreen) {
+          case SCREEN_NAMES_ENUM.ITEMS_TAB:
+            return [true, false, false]; // Expense Items: 1st line filled
+          case SCREEN_NAMES_ENUM.PAYMENT_TAB:
+            return [false, true, false]; // Expense Items: 1st line filled
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB:
+            return [true, true, true]; // Summary: Both lines filled
+          default:
+            return [false, false, false];
+        }
+      }
+      else{
+        switch (currentScreen) {
+          case SCREEN_NAMES_ENUM.ITEMS_TAB:
+            return [true, false]; // Expense Items: 1st line filled
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB:
+            return [true, true]; // Summary: Both lines filled
+          default:
+            return [false, false];
+        }
       }
     } else {
       // For trip expense requests, we show all tabs
@@ -33,6 +48,7 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, is
         case SCREEN_NAMES_ENUM.ITEMS_TAB:
           return [true, true, false, false]; // Expense Items: 1st and 2nd lines filled
         case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
+        case SCREEN_NAMES_ENUM.PAYMENT_TAB:
           return [true, true, true, false]; // Allowances: 1st, 2nd, and 3rd lines filled
         case SCREEN_NAMES_ENUM.SUMMARY_TAB:
           return [true, true, true, true]; // Summary: All lines filled
@@ -70,14 +86,14 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, is
 
   return (
     <div 
-      className="gba:progressIndicator" 
+      className="gba:flex gba:justify-between gba:gap-2 gba:mb-[30px]" 
       style={containerStyle}
       data-testid="expense-request-wizard-progress-indicator"
     >
       {lineStates.map((isFilled, index) => (
         <div
           key={`progress-line-${index}`}
-          className={`gba:progressLine ${isFilled ? 'gba:progressLineFilled' : 'gba:progressLineEmpty'}`}
+          className={` gba:h-[3px] gba:w-1/4 gba:rounded-[1.5px] ${isFilled ? 'gba:bg-[#000000]' : 'gba:bg-[#C2C2C2]'}`}
           style={getLineStyle()}
           data-testid={`expense-request-wizard-progress-line-${index}`}
         />

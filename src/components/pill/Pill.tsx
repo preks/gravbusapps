@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type PillType = 'draft' | 'completed' | 'waiting' | 'task' | 'error';
+export type PillType = 'draft' | 'completed' | 'waiting' | 'task' | 'error' | 'preparing';
 
 export interface PillProps {
   /**
@@ -42,6 +42,7 @@ const Pill: React.FC<PillProps> = ({
     waiting: '#0094D1',
     task: '#FF9E02',
     error: '#DE1D49',
+    preparing: '#94A9C7',
   };
 
   // Determine background color based on type or custom color

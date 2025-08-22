@@ -12,6 +12,7 @@ import { Opportunity, ReferenceData } from '../types';
 export const useOpportunityData = (opportunityId: string, accessToken: string) => {
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [opportunityData, setOpportunityData] = useState<any>(null);
+  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([]);
@@ -61,6 +62,11 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
       if (result && result.Opportunity && result.Opportunity.length > 0) {
         const rawOpportunityData = result.Opportunity[0];
         setOpportunityData(rawOpportunityData);
+        
+        // Set stage condition statuses if available
+        if (rawOpportunityData.stageConditionStatuses) {
+          setStageConditionStatuses(rawOpportunityData.stageConditionStatuses);
+        }
 
         // Transform the data for the UI
         const transformedOpportunity: Opportunity = {
@@ -70,7 +76,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           version: rawOpportunityData.version ?? '1',
           status: rawOpportunityData.opportunityStatus?.value || 'Open',
           statusRef: rawOpportunityData.opportunityStatus?.id || '',
-          stage: 'Discovery', // Default since not in API
+          stage: rawOpportunityData.salesPipelineStage?.code || 'Discovery', // Use actual stage from API
           stageRef: '',
           value: rawOpportunityData.estimatedAmount || 0, // Use estimatedAmount from GraphQL
           currency: {
@@ -178,24 +184,34 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
     }
   };
 
-  const fetchOpportunityStatuses = async () => {
+  const fetchOpportunityStatuses = async (sourceApp?: string) => {
     try {
       setLoadingStatuses(true);
+      // Choose correct catalog per source app
+      const catalogIdentifier = sourceApp === 'IRM' || sourceApp === 'investment-relations'
+        ? 'InvestmentOpportunityStatus'
+        : 'SalesOpportunityStatus';
+
       const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'OpportunityStatus', version: 'v1' },
+        { catalogIdentifier, version: 'v1' },
         { limit: 100, offset: 0, returnTotalRecords: true }
       );
 
-      if (response && response.data) {
+      if (response && response.data && Array.isArray(response.data)) {
         const statusData = response.data.map((entry: any) => ({
           id: entry.id,
           code: entry.code,
           value: entry.value,
         }));
         setOpportunityStatuses(statusData);
+      } else {
+        // Set empty array if no data
+        setOpportunityStatuses([]);
       }
     } catch (err) {
       console.error('Error fetching opportunity statuses:', err);
+      // Set empty array on error to prevent undefined .map() calls
+      setOpportunityStatuses([]);
     } finally {
       setLoadingStatuses(false);
     }
@@ -252,18 +268,24 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
 
   useEffect(() => {
     if (opportunityId && accessToken) {
-      fetchOpportunityData();
-      fetchOpportunityStatuses();
-      fetchActivities();
-      fetchTasks();
-      fetchNotes();
-      fetchDocuments();
+      (async () => {
+        await fetchOpportunityData();
+        // After opportunityData is populated, decide which catalog to load
+        const srcApp = (opportunityData as any)?.sourceApp;
+        await fetchOpportunityStatuses(srcApp);
+        fetchActivities();
+        fetchTasks();
+        fetchNotes();
+        fetchDocuments();
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunityId, accessToken]);
 
   return {
     opportunity,
     opportunityData,
+    stageConditionStatuses,
     loading,
     error,
     opportunityStages,

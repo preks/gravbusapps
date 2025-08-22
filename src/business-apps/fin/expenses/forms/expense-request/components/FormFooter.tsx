@@ -9,32 +9,33 @@ interface FormFooterProps {
   formIsValid?: boolean;
   onCancel: () => void;
   onSubmit?: () => void;
+  testIdPrefix?: string;
+  additionalData?: any;
 }
 
 /**
  * Footer component with cancel and submit buttons
  */
-const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit }) => {
+const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = "expense", additionalData }) => {
   const { t } = useTranslation();
-  
   return (
-    <div className="gba:footerContainer" data-testid="expense-request-footer">
-      <Divider className="gba:divider" data-testid="expense-request-bottom-divider" />
-      <div className="gba:actionButtonsContainer" data-testid="expense-request-actions">
+    <div style={{ marginTop: 'auto', width: '100%' }} data-testid={`${testIdPrefix}-footer`}>
+      <Divider style={{ margin: '16px 0' }} data-testid={`${testIdPrefix}-bottom-divider`} />
+      <div className="gba:flex gba:justify-between" style={{ padding: '16px 0' }} data-testid={`${testIdPrefix}-actions`}>
         <Button 
           variant="outline" 
-          className="gba:cancelButton" 
-          data-testid="expense-request-cancel-button"
+          style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
+          data-testid={`${testIdPrefix}-cancel-button`}
           onClick={onCancel}
           disabled={loading}
         >
           {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
-        {step === 'expense' && (
+        {(step === 'expense' || step === 'trip') && (
           <Button 
             variant="primary" 
-            className="gba:submitButton" 
-            data-testid="expense-form-submit-button"
+            style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
+            data-testid={`${testIdPrefix}-form-submit-button`}
             onClick={onSubmit}
             disabled={loading || !formIsValid}
           >

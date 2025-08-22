@@ -68,8 +68,7 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
           {accessToken && (
             <AppActionButton
               data-testid="account-record-action-button"
-              variant="primary"
-              size="md"
+              size="default"
               contextsArray={[]}
               externalContextData={{
                 accountId: accountId
@@ -77,7 +76,7 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
               staticFlowData={[]}
               prefixDataTestId="account-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enabled"
+              emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick
             >
               Actions

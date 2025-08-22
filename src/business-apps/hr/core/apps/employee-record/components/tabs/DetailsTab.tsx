@@ -290,7 +290,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="personal-data-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeePersonalData]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -316,13 +316,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="address-action-button"
-                variant="ghost"
+                data-testid="employee-address-action-button"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeAddress]}
                 externalContextData={{
                   employeeId: employee?.id,
                 }}
-                prefixDataTestId="address-action"
+                prefixDataTestId="employee-address-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}
@@ -343,7 +343,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="bank-account-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeBankAccount]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -369,7 +369,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             {isSelfView && (
               <AppActionButton 
                 data-testid="private-communication-action-button"
-                variant="ghost"
+                size="icon"
                 contextsArray={[FlowContextName.updateEmployeeCommunication]}
                 externalContextData={{
                   employeeId: employee?.id,

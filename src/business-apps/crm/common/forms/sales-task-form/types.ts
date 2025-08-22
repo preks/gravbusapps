@@ -3,6 +3,7 @@ export interface SalesTaskFormValues {
   title: string;
   taskTypeRef: string;
   priorityRef: string;
+  statusRef: string;
   timingType?: 'DEADLINE' | 'SCHEDULED';
   deadline: string | null;
   description: string;
@@ -57,6 +58,7 @@ export interface SalesTaskContextState {
   // Data collections
   taskTypes: SelectOption[];
   priorities: SelectOption[];
+  statuses: SelectOption[];
   employees: SelectOption[];
   entities: EntityOption[];
   
@@ -87,7 +89,8 @@ export interface SalesTaskSubmissionPayload {
     typeRef: string;
     name: string;
     priorityRef: string;
-    deadline: string | null;
+    statusRef: string;
+    dueDate: string | null;
     description: string;
     assignedEmployee?: string;
     lead?: string;

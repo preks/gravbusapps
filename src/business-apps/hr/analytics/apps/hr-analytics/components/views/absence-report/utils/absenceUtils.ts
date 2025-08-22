@@ -14,7 +14,7 @@ import {
   AbsenceBalanceResponse, 
   AbsenceTypesResponse, 
   AbsenceGroupsResponse 
-} from '../queries/AbsenceQueries';
+} from '../../../../queries/AbsenceQueries';
 
 export const transformAbsenceData = (
   absenceResponse: AbsenceDataResponse,

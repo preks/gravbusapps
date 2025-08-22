@@ -3,7 +3,6 @@
 
 import { useMemo } from 'react';
 import { ExpenseStatus } from '../utils';
-import dayjs from 'dayjs';
 
 export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWidget: string | null): string[] {
   return useMemo(() => {
@@ -79,11 +78,12 @@ export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWid
 
 // Helper function to determine if a widget should be active based on current filters
 export function getActiveWidgetFromFilters(selectedFilters: string[]): string | null {
-  const hasClosed = selectedFilters.includes(ExpenseStatus.CLOSED);
-  const hasOtherStatuses = selectedFilters.some(f => 
-    f !== ExpenseStatus.CLOSED && 
-    Object.values(ExpenseStatus).includes(f as ExpenseStatus)
-  );
+
+  const totalPlansFilters = [
+    ExpenseStatus.CLOSED,
+    ExpenseStatus.PAID,
+    'planDateRange'
+  ];
   
   // Check for total-estimated widget pattern (all statuses except CREATED and PAID)
   const estimatedFilters = [
@@ -91,25 +91,29 @@ export function getActiveWidgetFromFilters(selectedFilters: string[]): string | 
     ExpenseStatus.ASSIGNED,
     ExpenseStatus.PENDING,
     ExpenseStatus.APPROVED,
-    ExpenseStatus.RETURNED,
     ExpenseStatus.REJECTED,
     ExpenseStatus.VERIFIED,
     ExpenseStatus.BOOKED,
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.TRANSFERRED
+    ExpenseStatus.TRANSFERRED,
+    'planDateRange'
   ];
+
   
   const hasEstimatedPattern = estimatedFilters.every(filter => 
     selectedFilters.includes(filter)
   ) && !selectedFilters.includes(ExpenseStatus.CREATED) && 
      !selectedFilters.includes(ExpenseStatus.PAID);
+
+  const hasTotalPattern = totalPlansFilters.every(filter => 
+      selectedFilters.includes(filter)
+    ) 
   
   // Check for pending-approval widget pattern (only PENDING status)
   const hasPendingOnly = selectedFilters.length === 1 && 
     selectedFilters.includes(ExpenseStatus.PENDING);
   
   // If only closed status is selected, activate total-plans widget
-  if (hasClosed && !hasOtherStatuses) {
+  if (hasTotalPattern) {
     return 'total-plans';
   }
   

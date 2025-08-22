@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Button, List, Space, Typography, Tag, Empty, Spin, Alert } from 'antd';
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Spinner } from '@newwork/nw-design-system';
 import { EyeOutlined, EyeInvisibleOutlined, DollarCircleOutlined } from '@ant-design/icons';
 import { DashboardStats, RecentActivity } from '../types';
-import { formatNumber, getStatusColor } from '../utils/formatters';
-
-const { Text } = Typography;
+import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getExpenseItemStatusDisplay } from '../../../../utils';
+import Pill from '@/components/pill';
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined;
@@ -12,13 +13,16 @@ interface ActionFeedProps {
   error: Error | null;
 }
 
+
+
 export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error }) => {
   const [showAll, setShowAll] = useState(false);
+  
   if (isLoading) {
     return (
-      <Card className="gba:action-feed-card">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '24px' }}>
-          <Spin size="large" />
+      <Card className="gba:action-feed-card" data-testid="action-feed-loading">
+        <div className="gba:flex gba:justify-center gba:p-6">
+          <Spinner size="lg" />
         </div>
       </Card>
     );
@@ -26,13 +30,11 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
 
   if (error) {
     return (
-      <Card className="gba:action-feed-card">
-        <Alert
-          message="Error loading action feed"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+      <Card className="gba:action-feed-card" data-testid="action-feed-error">
+        <Alert variant="destructive">
+          <h4 className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_action_feed','Error loading action feed')}</h4>
+          <p>{error.message}</p>
+        </Alert>
       </Card>
     );
   }
@@ -41,80 +43,102 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
   const activitiesToShow = showAll ? recentActivity : recentActivity.slice(0, 10);
 
   return (
-    <Card
-      title="Action Feed"
-      className="gba:action-feed-card"
-      size="small"
-      styles={{ 
-        body: { padding: '6px 8px' }, 
-        header: { paddingTop: '6px', paddingBottom: '6px', fontSize: '14px' } 
-      }}
-      extra={
-        recentActivity.length > 10 ? (
-          showAll ? (
+    <Card className="gba:action-feed-card" data-testid="action-feed-card">
+      <CardHeader className="gba:py-3">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.action_feed','Action Feed')}</CardTitle>
+          {recentActivity.length > 10 && (
             <Button
-              type="link"
-              icon={<EyeInvisibleOutlined />}
-              size="small"
-              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
-              onClick={() => setShowAll(false)}
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAll(!showAll)}
+              className="gba:text-xs gba:h-auto gba:p-1"
+              data-testid="action-feed-toggle"
             >
-              View Less
+              {showAll ? (
+                <>
+                  <EyeInvisibleOutlined className="gba:mr-1" />
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_less','View Less')}
+                </>
+              ) : (
+                <>
+                  <EyeOutlined className="gba:mr-1" />
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all','View All')}
+                </>
+              )}
             </Button>
-          ) : (
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              size="small"
-              style={{ fontSize: '12px', height: '22px', padding: '0 4px' }}
-              onClick={() => setShowAll(true)}
-            >
-              View All
-            </Button>
-          )
-        ) : null
-      }
-    >
-      {recentActivity.length > 0 ? (
-        <div style={showAll ? { maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' } : {}}>
-          <List
-            size="small"
-            itemLayout="horizontal"
-            dataSource={activitiesToShow}
-            split={false}
-            renderItem={(item: RecentActivity) => (
-              <List.Item style={{ padding: '4px 0' }}>
-                <Space size={4} style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                  <Text strong style={{ fontSize: '13px' }}>
-                    {item.title}
-                  </Text>
-                  <Space size={4}>
-                    <Tag
-                      color={getStatusColor(item.status)}
-                      style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
-                    >
-                      {item.status}
-                    </Tag>
-                    {item.expenseType && (
-                      <Tag
-                        color="blue"
-                        style={{ margin: 0, padding: '0 4px', fontSize: '11px', lineHeight: '16px' }}
-                      >
-                        {item.expenseType}
-                      </Tag>
-                    )}
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      <DollarCircleOutlined /> {formatNumber(Number(item.totalAmount))}
-                    </Text>
-                  </Space>
-                </Space>
-              </List.Item>
-            )}
-          />
+          )}
         </div>
-      ) : (
-        <Empty description="No recent activity" />
-      )}
+      </CardHeader>
+      <CardContent className="gba:py-1 gba:px-2">
+        {recentActivity.length > 0 ? (
+          <div 
+            className={showAll ? "gba:max-h-[300px] gba:overflow-y-auto gba:pr-2" : ""}
+            data-testid="activity-list"
+          >
+            {/* Header Row */}
+            <div className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1 gba:border-b gba:border-gray-200 gba:mb-2">
+              <div className="gba:col-span-5 gba:text-xs gba:font-semibold gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_description_label','Description')}
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status','Status')}
+              </div>
+              <div className="gba:col-span-2 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-center">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.type_select','Type')}
+              </div>
+              <div className="gba:col-span-3 gba:text-xs gba:font-semibold gba:text-gray-600 gba:text-right">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount','Amount')}
+              </div>
+            </div>
+            <div className="gba:space-y-1">
+              {activitiesToShow.map((item: RecentActivity, index: number) => (
+                <div 
+                  key={index} 
+                  className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center gba:py-1"
+                  data-testid={`activity-item-${index}`}
+                >
+                  <div className="gba:col-span-5 gba:text-xs gba:font-medium gba:truncate">
+                    {item.title}
+                  </div>
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
+                    {(() => {
+                      const statusConfig = getExpenseItemStatusDisplay(item.status);
+                      return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-status-cell" />;
+                    })()}
+                  </div>
+                  <div className="gba:col-span-2 gba:flex gba:justify-center">
+                    {item.expenseType ? (
+                      <span className="gba:text-xs gba:px-2 gba:py-1 gba:bg-gray-100 gba:text-gray-700 gba:rounded gba:border">
+                        {item.expenseType === 'Expense' 
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense')
+                          : item.expenseType === 'Trip'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip')
+                          : item.expenseType === 'Allowance'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance','Allowance')
+                          : item.expenseType === 'General'
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.general_expense','General Expense')
+                          : item.expenseType
+                        }
+                      </span>
+                    ) : (
+                      <div className="gba:text-xs gba:text-gray-400">-</div>
+                    )}
+                  </div>
+                  <div className="gba:col-span-3 gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-end">
+                    <DollarCircleOutlined className="gba:mr-1" />
+                    {formatNumberFunction(String(item.totalAmount), '0,0.00[,]00')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="gba:text-center gba:py-4 gba:text-gray-500" data-testid="empty-activity">
+            <p className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_recent_activity','No recent activity')}</p>
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 };
