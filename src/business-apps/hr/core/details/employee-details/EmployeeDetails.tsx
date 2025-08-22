@@ -212,7 +212,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = (context) => {
               externalContextData={{
                 employeeId: employeeData.id,
                 keycloakUserId: employeeData.additionalProperties?.userId,
-                managerId: employeeData.employeePosition?.supervisor?.id
+                managerId: employeeData.employeePosition?.supervisor?.id,
+                organizationalUnitId: employeeData.employeePosition?.organizationalUnitId
               }}
               prefixDataTestId="employee-details-action"
               accessToken={accessToken}

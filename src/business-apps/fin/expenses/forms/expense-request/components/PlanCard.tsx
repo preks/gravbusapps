@@ -50,15 +50,32 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
   };
 
   return (
-    <div 
-      className={`gba:planCard ${selectable ? 'gba:planCardSelectable' : ''}`} 
-      data-testid={`plan-card-${plan.id}`}
-      onClick={handleClick}
-      role={selectable ? 'button' : undefined}
-      tabIndex={selectable ? 0 : undefined}
-    >
-      <div className="gba:planCardHeader" data-testid="plan-card-header">
-        <div className="gba:planCardIcon" data-testid="plan-card-icon-container">
+         <div 
+       className="gba:flex gba:flex-col"
+       style={{ 
+         backgroundColor: '#ffffff',
+         padding: '16px',
+         width: '100%',
+         cursor: selectable ? 'pointer' : 'default',
+         transition: selectable ? 'all 0.2s ease' : 'none',
+         ...(selectable && {
+           ':hover': {
+             boxShadow: '0 0 12px rgba(0, 0, 0, 0.15)',
+             transform: 'translateY(-2px)'
+           },
+           ':active': {
+             transform: 'translateY(0)',
+             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+           }
+         })
+       }}
+       data-testid={`plan-card-${plan.id}`}
+       onClick={handleClick}
+       role={selectable ? 'button' : undefined}
+       tabIndex={selectable ? 0 : undefined}
+     >
+             <div className="gba:flex gba:items-center" style={{ marginBottom: '12px' }} data-testid="plan-card-header">
+                 <div className="gba:flex gba:items-center" style={{ marginRight: '8px' }} data-testid="plan-card-icon-container">
           <img 
             src={`${iconPath}`} 
             alt={iconTitle} 
@@ -67,43 +84,45 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
             data-testid="plan-card-icon-image"
           />
         </div>
-        <span className="gba:planCardType" data-testid="plan-card-type">{iconTitle}</span>
+                 <span style={{ fontSize: '14px', fontWeight: 500, color: '#333333' }} data-testid="plan-card-type">{iconTitle}</span>
       </div>
       
-      <div className="gba:planCardContent" data-testid="plan-card-content">
-        <div className="gba:planCardTitle" data-testid="plan-card-title-container">
-          <span className="gba:planCardTitleText" data-testid="plan-card-title">{title || t('lowcoder:expense_item_request_card.no_title', 'No Title')}</span>
-          {tripInterval && (
-            <span className="gba:planCardInterval" data-testid="plan-card-interval">{tripInterval}</span>
-          )}
+             <div className="gba:flex gba:flex-col" data-testid="plan-card-content">
+                 <div className="gba:flex gba:flex-col" style={{ lineHeight: '20px', marginBottom: '16px' }} data-testid="plan-card-title-container">
+                     <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">{title || t('lowcoder:expense_item_request_card.no_title', 'No Title')}</span>
+                     {tripInterval && (
+             <span style={{ fontSize: '14px', fontWeight: 400, color: '#666666' }} data-testid="plan-card-interval">{tripInterval}</span>
+           )}
         </div>
         
-        <div className="gba:planCardFooter" data-testid="plan-card-footer">
-          <span className="gba:planCardCreationDate" data-testid="plan-card-creation-date">
+                 <div className="gba:flex gba:flex-row gba:items-center" style={{ lineHeight: '20px', gap: '10px', width: '100%' }} data-testid="plan-card-footer">
+                     <span style={{ fontSize: '14px', fontWeight: 'normal', width: '33%', textAlign: 'left', display: 'inline-block' }} data-testid="plan-card-creation-date">
             {t('lowcoder:expense_item_request_card.created','Created')}: {formattedCreationDate}
           </span>
           
           {paymentAmount ? (
-            <div className="gba:planCardPayment" data-testid="plan-card-payment">
-              <div className="gba:planCardPaymentIcon" data-testid="plan-card-payment-icon-container">
-                <div 
-                  className="gba:handCoinIcon" 
-                  style={{ 
-                    background: `url('${ICONS.HAND_COIN_ICON}') no-repeat center`,
-                    backgroundSize: 'contain'
-                  }}
-                  data-testid="plan-card-hand-coin-icon"
-                />
+                         <div className="gba:flex gba:items-center" style={{ gap: '5px', width: '33%', textAlign: 'left' }} data-testid="plan-card-payment">
+                             <div style={{ width: '16px', height: '16px' }} data-testid="plan-card-payment-icon-container">
+                                 <div 
+                   style={{ 
+                     background: `url('${ICONS.HAND_COIN_ICON}') no-repeat center`,
+                     backgroundSize: 'contain',
+                     width: '16px',
+                     height: '16px',
+                     filter: 'brightness(0) saturate(100%) invert(43%) sepia(17%) saturate(1570%) hue-rotate(255deg) brightness(89%) contrast(95%)'
+                   }}
+                   data-testid="plan-card-hand-coin-icon"
+                 />
               </div>
-              <span className="gba:planCardPaymentAmount" data-testid="plan-card-payment-amount">
+                             <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#A2519A' }} data-testid="plan-card-payment-amount">
                 {paymentAmount} {paymentCurrency}
               </span>
             </div>
           ) : (
-            <div className="gba:planCardPaymentEmpty" data-testid="plan-card-payment-empty"></div>
+                         <div style={{ width: '33%' }} data-testid="plan-card-payment-empty"></div>
           )}
           
-          <span className="gba:planCardAmount" data-testid="plan-card-amount">
+                     <span style={{ fontSize: '18px', fontWeight: 500, width: '33%', textAlign: 'right', display: 'inline-block' }} data-testid="plan-card-amount">
             {planAmount || '0'} {planCurrency || 'EUR'}
           </span>
         </div>

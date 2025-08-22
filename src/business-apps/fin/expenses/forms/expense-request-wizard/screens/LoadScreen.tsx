@@ -23,7 +23,7 @@ interface LoadScreenProps extends BusinessAppContextProps {
 const LoadScreen: React.FC<LoadScreenProps> = () => {
   return (
     <div 
-      className="gba:flex gba:items-center gba:justify-center gba:h-full gba:w-full" 
+      className="gba:flex gba:items-center gba:justify-center gba:h-[100%] gba:w-[100%]" 
       data-testid="expense-request-wizard-load-screen"
     >
       <img 

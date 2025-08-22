@@ -7,7 +7,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { ICONS } from "../../../utils/icons";
 import LocationContainer from "../components/LocationContainer/LocationContainer";
 import LocationForm from "../components/LocationForm/LocationForm";
-import "./TripScreen.css";
+
 import { DestinationLimit, LocationData, TripScreenProps } from "../utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../ExpenseRequestWizardQueries";
@@ -15,7 +15,8 @@ import { useExpenseRequestWizardContext } from "../context/ExpenseRequestWizardC
 import { showToast } from "../../../utils/notificationUtils";
 import LoadScreen from "./LoadScreen";
 import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
-import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { combineDateTimeToISOString } from '../utils/locationTimeUtils';
 import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLocation, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
@@ -291,8 +292,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return;
       }
       
-      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
-      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
+      const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      
       
       const variables = {
         employeeId: employeeId,
@@ -661,12 +663,13 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
 
   return (
     <div
-      className="gba:tripScreenContainer"
+      className="gba:flex gba:flex-col gba:w-[100%]"
       data-testid="expense-request-wizard-trip-screen"
     >
       <Form form={form} layout="vertical">
         <div
-          className="gba:tripContent"
+          className="gba:flex gba:flex-col"
+          style={{ padding: '0 16px 32px 16px' }}
           data-testid="expense-request-wizard-trip-screen-content"
         >
           {/* Rejection Comment */}
@@ -674,7 +677,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             <RejectionComment comment={latestRejectComment} />
           )}
           {/* Start Location */}
-          <div className="gba:locationContainerWrapper gba:withDivider" data-testid="start-location-wrapper">
+          <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -738,7 +741,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-            <div key={destination.id} className="gba:locationContainerWrapper gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+            <div key={destination.id} className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title",
@@ -776,10 +779,10 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           ))}
 
           {/* Add Destination Button */}
-          <div
-            className="gba:addDestinationContainer gba:withDivider"
-            data-testid="add-destination-container"
-          >
+                     <div
+             className="gba:flex gba:pl-4 gba:border-b gba:border-b-[#e8e8e8] gba:py-4 [&>button]:!gba:py-0 [&>button]:!gba:px-[10px] [&>button]:-gba:ml-[10px] [&>button]:!gba:rounded-[20px]"
+             data-testid="add-destination-container"
+           >
             <Button
               variant="ghost"
               onClick={addDestination}
@@ -796,7 +799,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           </div>
 
           {/* End Location */}
-          <div className="gba:locationContainerWrapper" data-testid="end-location-wrapper">
+          <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.end_location_text', 'End Location')}
               icon={ICONS.PIN_ICON}
