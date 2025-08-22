@@ -122,7 +122,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
           case 'analytics-reporting':
             return { 
               value: formatNumber(stats.assetTypes), 
-              label: 'Data Points'
+              label: 'Asset Types'
             };
           default:
             return { value: '0', label: 'Items' };

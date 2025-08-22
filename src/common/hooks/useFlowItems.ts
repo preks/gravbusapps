@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FlowItemReduced } from '../types/FlowRegistryTypes';
-import { ActionOption } from '@newwork/gravity-ui-catalog';
+import { ActionOption } from '@newwork/nw-design-system';
 import { startProcess } from '../utils/start-process';
 import { navigateTo } from '../utils/navigationUtils';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
@@ -73,6 +73,21 @@ const mapFlowItemsToActionOptions = (
   flowItems: FlowItemReduced[],
   externalContextData: ExternalContextData
 ): ActionOption[] => {
+  /**
+   * Formats a flow name by removing a leading bracketed prefix like "[ABC]" and trimming whitespace.
+   */
+  const formatFlowName = (rawName: string): string => {
+    if (!rawName) return '';
+    let name = String(rawName).trim();
+    if (name.startsWith('[')) {
+      const closingIndex = name.indexOf(']');
+      if (closingIndex !== -1) {
+        name = name.slice(closingIndex + 1);
+      }
+    }
+    return name.trim();
+  };
+
   return flowItems.map((flowItem) => {
     // Create payload directly from externalContextData
     // The context.contextData from the API is just metadata about what context is expected
@@ -80,9 +95,10 @@ const mapFlowItemsToActionOptions = (
     
     // Create ActionOption with required properties
     const id = flowItem.id || '';
-    const flowName = typeof flowItem.flowNameTranslation === 'string' ? 
+    const rawFlowName = typeof flowItem.flowNameTranslation === 'string' ? 
       flowItem.flowNameTranslation : 
       flowItem.flowName;
+    const flowName = formatFlowName(rawFlowName);
       
     // Handle different flow types differently
     let onClick: () => void;

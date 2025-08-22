@@ -1,2 +1,2 @@
 export { default as LiquidFundRecord } from './LiquidFundRecord';
-export type { LiquidFundRecordProps, LiquidFundInvestmentRecord } from './types'; 
+export type { LiquidFundRecordProps, LiquidFundInvestmentData } from './types';

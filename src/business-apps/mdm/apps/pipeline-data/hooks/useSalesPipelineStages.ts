@@ -3,6 +3,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { CatalogEntry } from '@/common/types/CatalogTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SalesPipelineStageData } from '../types';
+import { getPipelineCatalogConfig, SourceApp } from '../utils/catalogConfig';
 
 export const SALES_PIPELINE_STAGE_CATALOG = 'SalesPipelineStage';
 export const SALES_PIPELINE_STAGE_VERSION = 'v1';
@@ -15,19 +16,21 @@ export const useSalesPipelineStages = (context: BusinessAppContextProps) => {
     offset?: number;
     search?: string;
     parentPipelineId?: string;
+    sourceApp?: SourceApp;
   }): Promise<SalesPipelineStageData> => {
+    const cfg = getPipelineCatalogConfig(params?.sourceApp || 'CRM');
+
     const response = await catalogClient.getCatalogEntriesList(
       {
-        catalogIdentifier: SALES_PIPELINE_STAGE_CATALOG,
-        version: SALES_PIPELINE_STAGE_VERSION
+        catalogIdentifier: cfg.stageCatalog,
+        version: cfg.version
       },
       {
         limit: params?.limit || 100,
         offset: params?.offset || 0,
         returnTotalRecords: true,
-        includeChildCatalogEntries: true, // This is KEY for getting the stage data!
+        includeChildCatalogEntries: true,
         ...(params?.search && { searchCriteria: params.search })
-        // Note: parentEntryId filtering is done client-side since the API doesn't support it
       }
     );
 
@@ -40,6 +43,7 @@ export const useSalesPipelineStages = (context: BusinessAppContextProps) => {
       limit?: number;
       offset?: number;
       search?: string;
+      sourceApp?: SourceApp;
     }
   ): Promise<SalesPipelineStageData> => {
     return fetchSalesPipelineStages({

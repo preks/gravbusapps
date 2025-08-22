@@ -1,62 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useGetInvestmentById } from '@/common/data/investment';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import type { Investment, EquityInvestment } from '@/common/data/investment';
 
 export interface EquityInvestmentData {
-  id: string;
-  businessKey: string | null;
-  currentCompanyValuation: number | null;
-  lastReportedEbitda: number | null;
-  lastReportedTurnover: number | null;
-  investmentRole: {
-    id: string;
-    value: string;
-    code: string;
-  } | null;
-  investment: {
-    id: string;
-    businessKey: string | null;
-    name: string;
-    bookValue: number | null;
-    marketValue: number | null;
-    initialInvestmentAmount: number | null;
-    totalInvestmentAmount: number | null;
-    stakePercent: number | null;
-    debtFinancing: number | null;
-    leverageRatio: number | null;
-    acquisitionDate: string | null;
-    exitDate: string | null;
-    plannedExitDate: string | null;
-    currency: {
-      id: string;
-      value: string;
-      code: string;
-    } | null;
-    investmentGroup: {
-      id: string;
-      value: string;
-      code: string;
-    } | null;
-    investmentPhase: {
-      id: string;
-      value: string;
-      code: string;
-    } | null;
-    investmentStatus: {
-      id: string;
-      value: string;
-      code: string;
-    } | null;
-    investmentRiskLevel: {
-      id: string;
-      value: string;
-      code: string;
-    } | null;
-    account: {
-      id: string;
-      name: string;
-    } | null;
-  };
+  // Core investment data
+  investment: Investment;
+  // Equity-specific data if available
+  equityInvestment?: EquityInvestment;
 }
 
 export const useEquityRecordData = (context: BusinessAppContextProps, investmentId?: string) => {
@@ -64,7 +15,7 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const { fetchInvestmentById } = useGetInvestmentById(context);
 
   const fetchEquityData = useCallback(async () => {
     if (!investmentId || !context.accessToken) {
@@ -78,232 +29,35 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
     try {
       console.log('Fetching equity data for investmentId:', investmentId);
 
-      // First, try to find EquityInvestment by investmentId (foreign key to Investment)
-      const primaryQuery = `
-        query GetEquityInvestmentByInvestmentId($investmentId: uuid!) {
-          EquityInvestment(where: { investmentId: { _eq: $investmentId } }, limit: 1) {
-            id
-            businessKey
-            currentCompanyValuation
-            lastReportedEbitda
-            lastReportedTurnover
-            investmentRole {
-              id
-              value
-              code
-            }
-            investment {
-              id
-              businessKey
-              name
-              bookValue
-              marketValue
-              initialInvestmentAmount
-              totalInvestmentAmount
-              stakePercent
-              debtFinancing
-              leverageRatio
-              acquisitionDate
-              exitDate
-              plannedExitDate
-              currency {
-                id
-                value
-                code
-              }
-              investmentGroup {
-                id
-                value
-                code
-              }
-              investmentPhase {
-                id
-                value
-                code
-              }
-              investmentStatus {
-                id
-                value
-                code
-              }
-              investmentRiskLevel {
-                id
-                value
-                code
-              }
-              account {
-                id
-                name
-              }
-            }
-          }
-        }
-      `;
+      const result = await fetchInvestmentById(investmentId);
 
-      let result = await graphqlClient.request<{ EquityInvestment: EquityInvestmentData[] }>(
-        primaryQuery,
-        { investmentId }
-      );
-
-      console.log('Primary query result:', result);
-
-      // If no result, try fallback query using EquityInvestment id directly
-      if (!result.EquityInvestment || result.EquityInvestment.length === 0) {
-        console.log('Primary query found no results, trying fallback query with EquityInvestment id');
-        
-        const fallbackQuery = `
-          query GetEquityInvestmentById($equityInvestmentId: uuid!) {
-            EquityInvestment(where: { id: { _eq: $equityInvestmentId } }, limit: 1) {
-              id
-              businessKey
-              currentCompanyValuation
-              lastReportedEbitda
-              lastReportedTurnover
-              investmentRole {
-                id
-                value
-                code
-              }
-              investment {
-                id
-                businessKey
-                name
-                bookValue
-                marketValue
-                initialInvestmentAmount
-                totalInvestmentAmount
-                stakePercent
-                debtFinancing
-                leverageRatio
-                acquisitionDate
-                exitDate
-                plannedExitDate
-                currency {
-                  id
-                  value
-                  code
-                }
-                investmentGroup {
-                  id
-                  value
-                  code
-                }
-                investmentPhase {
-                  id
-                  value
-                  code
-                }
-                investmentStatus {
-                  id
-                  value
-                  code
-                }
-                investmentRiskLevel {
-                  id
-                  value
-                  code
-                }
-                account {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        `;
-
-        result = await graphqlClient.request<{ EquityInvestment: EquityInvestmentData[] }>(
-          fallbackQuery,
-          { equityInvestmentId: investmentId }
-        );
-
-        console.log('Fallback query result:', result);
-      }
-
-      // If still no result, try to get any equity investment for development purposes
-      if (!result.EquityInvestment || result.EquityInvestment.length === 0) {
-        console.log('No equity investment found, fetching sample data for development');
-        
-        const sampleQuery = `
-          query GetSampleEquityInvestment {
-            EquityInvestment(limit: 1) {
-              id
-              businessKey
-              currentCompanyValuation
-              lastReportedEbitda
-              lastReportedTurnover
-              investmentRole {
-                id
-                value
-                code
-              }
-              investment {
-                id
-                businessKey
-                name
-                bookValue
-                marketValue
-                initialInvestmentAmount
-                totalInvestmentAmount
-                stakePercent
-                debtFinancing
-                leverageRatio
-                acquisitionDate
-                exitDate
-                plannedExitDate
-                currency {
-                  id
-                  value
-                  code
-                }
-                investmentGroup {
-                  id
-                  value
-                  code
-                }
-                investmentPhase {
-                  id
-                  value
-                  code
-                }
-                investmentStatus {
-                  id
-                  value
-                  code
-                }
-                investmentRiskLevel {
-                  id
-                  value
-                  code
-                }
-                account {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        `;
-
-        result = await graphqlClient.request<{ EquityInvestment: EquityInvestmentData[] }>(sampleQuery);
-        console.log('Sample query result:', result);
-        
-        if (result.EquityInvestment && result.EquityInvestment.length > 0) {
-          console.log('Using sample data for development purposes');
-        }
-      }
-
-      if (result.EquityInvestment && result.EquityInvestment.length > 0) {
-        setEquityData(result.EquityInvestment[0]);
-        console.log('Successfully loaded equity data:', result.EquityInvestment[0]);
-      } else {
-        const errorMsg = `No equity investment found for ID: ${investmentId}. This might be because:
-1. The investment ID doesn't exist in the database
-2. The investment exists but is not an equity investment
-3. There are permission issues accessing the data`;
+      if (!result.investment) {
+        const errorMsg = `No investment found for ID: ${investmentId}`;
         console.warn(errorMsg);
         setError(errorMsg);
+        return;
       }
+
+      // Check if this investment has equity-specific data
+      const hasEquityData = result.investment.equityInvestment && 
+                           Object.keys(result.investment.equityInvestment).length > 0;
+
+      if (!hasEquityData) {
+        const errorMsg = `Investment ${investmentId} is not an equity investment or has no equity-specific data`;
+        console.warn(errorMsg);
+        setError(errorMsg);
+        return;
+      }
+
+      // Create the equity data structure
+      const equityInvestmentData: EquityInvestmentData = {
+        investment: result.investment,
+        equityInvestment: result.investment.equityInvestment
+      };
+
+      setEquityData(equityInvestmentData);
+      console.log('Successfully loaded equity data:', equityInvestmentData);
+
     } catch (err) {
       console.error('Error fetching equity data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred while fetching equity data';
@@ -311,7 +65,7 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
     } finally {
       setIsLoading(false);
     }
-  }, [investmentId, context.accessToken, graphqlClient]);
+  }, [investmentId, context.accessToken, fetchInvestmentById]);
 
   useEffect(() => {
     fetchEquityData();
