@@ -65,14 +65,14 @@ export const createTripLogObject = (
   currentTitle: string,
   currentCurrency: string | null,
   event: string,
-  skipStep?:boolean
+  requestAdvancePayment?:boolean
 ): LogObject => {
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
   const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
 
   return {
-    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event + (!skipStep ? ("_"+ EVENTS.SKIP) : ""),
+    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event + (!requestAdvancePayment ? ("_"+ EVENTS.SKIP) : ""),
     event: event,
     expensePlan: {
       id: initialPlan.id,
@@ -129,7 +129,7 @@ export const handleTripSubmitAction = (
   currentTitle: string,
   currentCurrency: string | null,
   event:string,
-  skipStep?:boolean,
+  requestAdvancePayment?:boolean,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   const initialPlan = expensePlanData?.ExpensePlanByPk;
@@ -143,7 +143,7 @@ export const handleTripSubmitAction = (
     );
     return false;
   }
-  const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,skipStep);
+  const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,requestAdvancePayment);
   const planItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
     expensePlanData.ExpenseItem.forEach((item: any) => {
