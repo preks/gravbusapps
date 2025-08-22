@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { BarChart3 } from 'lucide-react';
 import { EquityRecordProps } from './types';
-import { equityMockData } from './data/mockData';
 import { useEquityRecordData } from './hooks/useEquityRecordData';
 import {
   InvestmentDetailsHeader,
@@ -18,16 +17,19 @@ interface EquityRecordComponentProps extends BusinessAppContextProps {
 
 const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const mockData = equityMockData;
 
-  // Fetch real GraphQL data
+  // Fetch real GraphQL data using centralized structure
   const { equityData, isLoading, error } = useEquityRecordData(props, props.investmentId);
+
+  // If this is not an equity investment, don't render anything
+  if (error && error.includes('not an equity investment')) {
+    return null; // Let other investment type components handle it
+  }
 
   return (
     <div className="gba:bg-gray-50 gba:min-h-screen">
       {/* Investment Details Header Card - Now with real data */}
       <InvestmentDetailsHeader 
-        data={!equityData ? mockData : undefined} 
         equityData={equityData}
         isLoading={isLoading}
         error={error}
@@ -46,14 +48,12 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
             {/* Key Metrics - Now with real data and calculated KPIs */}
             <KeyMetrics 
-              data={!equityData ? mockData : undefined}
               equityData={equityData}
               isLoading={isLoading}
             />
 
             {/* Equity Details - Now with real data */}
             <EquityDetails 
-              data={!equityData ? mockData : undefined}
               equityData={equityData}
               isLoading={isLoading}
             />
@@ -61,12 +61,10 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
             {/* Company Information and Contact Details */}
             <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
               <CompanyInformation 
-                data={!equityData ? mockData : undefined}
                 equityData={equityData}
                 isLoading={isLoading}
               />
               <ContactDetails 
-                data={mockData}
                 isLoading={isLoading}
               />
             </div>

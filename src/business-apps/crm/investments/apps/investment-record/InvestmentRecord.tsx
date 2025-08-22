@@ -1,159 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Spin, Alert, Button } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useGetInvestmentById } from '@/common/data/investment';
 
 // Import the individual record components
 import { EquityRecord } from './components/equity-record';
 import { LiquidFundRecord } from './components/liquid-funds-record';
-import { PrivateEquityRecord } from './components/private-equity-record';
 import { RealEstateRecord } from './components/real-estate-record';
 
 interface InvestmentRecordProps extends BusinessAppContextProps {}
 
-interface InvestmentGroupData {
-  id: string;
-  investmentGroup?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-}
-
-interface SpecificInvestmentData {
-  liquidFundId?: string;
-  equityInvestmentId?: string;
-  privateEquityInvestmentId?: string;
-  realEstateInvestmentId?: string;
-}
-
-const GET_INVESTMENT_GROUP_QUERY = `
-  query GetInvestmentGroup($id: uuid!) {
-    Investment(where: { id: { _eq: $id } }) {
-      id
-      investmentGroup {
-        id
-        code
-        value
-      }
-    }
-  }
-`;
-
-const GET_LIQUID_FUND_ID_QUERY = `
-  query GetLiquidFundId($investmentId: uuid!) {
-    LiquidFundInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_EQUITY_INVESTMENT_ID_QUERY = `
-  query GetEquityInvestmentId($investmentId: uuid!) {
-    EquityInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_PRIVATE_EQUITY_ID_QUERY = `
-  query GetPrivateEquityId($investmentId: uuid!) {
-    PrivateEquityInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_REAL_ESTATE_ID_QUERY = `
-  query GetRealEstateId($investmentId: uuid!) {
-    RealEstateInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
 const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const [investmentId, setInvestmentId] = useState<string | null>(null);
-  const [investmentType, setInvestmentType] = useState<string | null>(null);
-  const [specificEntityData, setSpecificEntityData] = useState<SpecificInvestmentData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [investmentData, setInvestmentData] = useState<any>(null);
   
-  const graphqlClient = useGraphQLClient(props.accessToken);
+  const { fetchInvestmentById } = useGetInvestmentById(props);
 
   const fetchInvestmentData = useCallback(async (id: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // First, get the investment group
-      const result = await graphqlClient.request<{ Investment: InvestmentGroupData[] }>(
-        GET_INVESTMENT_GROUP_QUERY,
-        { id }
-      );
+      const result = await fetchInvestmentById(id);
       
-      if (!result.Investment || result.Investment.length === 0) {
+      if (!result.investment) {
         setError('Investment not found');
         return;
       }
 
-      const investment = result.Investment[0];
-      const typeCode = investment.investmentGroup?.code || investment.investmentGroup?.value || null;
-      setInvestmentType(typeCode);
-
-      if (!typeCode) {
-        setError('Investment group not found');
-        return;
-      }
-
-      // Now fetch the specific entity ID based on the investment group
-      const groupCode = typeCode.toLowerCase();
-      let specificEntityId = null;
-      let entityKey = '';
-
-      if (groupCode.includes('liquid') || groupCode.includes('fund')) {
-        const liquidResult = await graphqlClient.request<{ LiquidFundInvestment: { id: string }[] }>(
-          GET_LIQUID_FUND_ID_QUERY,
-          { investmentId: id }
-        );
-        if (liquidResult.LiquidFundInvestment && liquidResult.LiquidFundInvestment.length > 0) {
-          specificEntityId = liquidResult.LiquidFundInvestment[0].id;
-          entityKey = 'liquidFundId';
-        }
-      } else if (groupCode.includes('equity') && !groupCode.includes('private')) {
-        const equityResult = await graphqlClient.request<{ EquityInvestment: { id: string }[] }>(
-          GET_EQUITY_INVESTMENT_ID_QUERY,
-          { investmentId: id }
-        );
-        if (equityResult.EquityInvestment && equityResult.EquityInvestment.length > 0) {
-          specificEntityId = equityResult.EquityInvestment[0].id;
-          entityKey = 'equityInvestmentId';
-        }
-      } else if (groupCode.includes('private') && groupCode.includes('equity')) {
-        const privateEquityResult = await graphqlClient.request<{ PrivateEquityInvestment: { id: string }[] }>(
-          GET_PRIVATE_EQUITY_ID_QUERY,
-          { investmentId: id }
-        );
-        if (privateEquityResult.PrivateEquityInvestment && privateEquityResult.PrivateEquityInvestment.length > 0) {
-          specificEntityId = privateEquityResult.PrivateEquityInvestment[0].id;
-          entityKey = 'privateEquityInvestmentId';
-        }
-      } else if (groupCode.includes('real') && groupCode.includes('estate')) {
-        const realEstateResult = await graphqlClient.request<{ RealEstateInvestment: { id: string }[] }>(
-          GET_REAL_ESTATE_ID_QUERY,
-          { investmentId: id }
-        );
-        if (realEstateResult.RealEstateInvestment && realEstateResult.RealEstateInvestment.length > 0) {
-          specificEntityId = realEstateResult.RealEstateInvestment[0].id;
-          entityKey = 'realEstateInvestmentId';
-        }
-      }
-
-      if (specificEntityId && entityKey) {
-        setSpecificEntityData({ [entityKey]: specificEntityId });
-      } else {
-        setError(`Specific investment entity not found for type: ${typeCode}`);
-      }
+      // Store the investment ID and data for routing
+      setInvestmentId(id);
+      setInvestmentData(result.investment);
 
     } catch (err) {
       console.error('Error fetching investment data:', err);
@@ -161,7 +40,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     } finally {
       setIsLoading(false);
     }
-  }, [graphqlClient]);
+  }, [fetchInvestmentById]);
 
   useEffect(() => {
     // Get investmentId from URL query parameters
@@ -183,7 +62,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     }
   }, [investmentId, fetchInvestmentData]);
 
-  // Show loading spinner while fetching investment group
+  // Show loading spinner while fetching investment data
   if (isLoading) {
     return (
       <div 
@@ -219,16 +98,16 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     );
   }
 
-  // Route to the appropriate record component based on investment group
-  if (!investmentType || !investmentId) {
+  // Route to the appropriate record component based on investment type
+  if (!investmentId) {
     return (
       <div 
         className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-        data-testid="investment-record-no-type"
+        data-testid="investment-record-no-id"
       >
         <Alert
-          message="Investment Group Not Found"
-          description="Unable to determine the group of this investment"
+          message="Investment ID Not Found"
+          description="Unable to determine the investment ID"
           type="warning"
           showIcon
         />
@@ -236,37 +115,37 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     );
   }
 
-  // Route based on investment group code/value with specific entity IDs
-  const typeCode = investmentType.toLowerCase();
-  
-  if (typeCode.includes('equity') && !typeCode.includes('private') && specificEntityData.equityInvestmentId) {
-    return <EquityRecord {...props} investmentId={specificEntityData.equityInvestmentId} />;
-  }
-  
-  if ((typeCode.includes('liquid') || typeCode.includes('fund')) && specificEntityData.liquidFundId) {
-    return <LiquidFundRecord {...props} investmentId={specificEntityData.liquidFundId} />;
-  }
-  
-  if (typeCode.includes('private') && typeCode.includes('equity') && specificEntityData.privateEquityInvestmentId) {
-    return <PrivateEquityRecord {...props} investmentId={specificEntityData.privateEquityInvestmentId} />;
-  }
-  
-  if (typeCode.includes('real') && typeCode.includes('estate') && specificEntityData.realEstateInvestmentId) {
-    return <RealEstateRecord {...props} investmentId={specificEntityData.realEstateInvestmentId} />;
+  // Check if any investment type has data
+  const hasEquityData = investmentData?.equityInvestment && Object.keys(investmentData.equityInvestment).length > 0;
+  const hasLiquidFundData = investmentData?.liquidFundInvestment && Object.keys(investmentData.liquidFundInvestment).length > 0;
+  const hasRealEstateData = investmentData?.realEstateInvestment && Object.keys(investmentData.realEstateInvestment).length > 0;
+
+  // If no specific investment type data is found, show a message
+  if (!hasEquityData && !hasLiquidFundData && !hasRealEstateData) {
+    return (
+      <div 
+        className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
+        data-testid="investment-record-unknown-type"
+      >
+        <Alert
+          message="Investment Type Not Supported"
+          description="This investment type is not currently supported. Only Equity, Liquid Fund, and Real Estate investments are supported."
+          type="warning"
+          showIcon
+        />
+      </div>
+    );
   }
 
-  // Default fallback if group doesn't match known patterns
+  // Route based on investment type - the specific components will handle their own data fetching
+  // We pass the investment ID and let each component determine if it has the right type of data
+  
   return (
-    <div 
-      className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-      data-testid="investment-record-unknown-type"
-    >
-      <Alert
-        message="Unknown Investment Group"
-        description={`Investment group "${investmentType}" is not supported`}
-        type="warning"
-        showIcon
-      />
+    <div data-testid="investment-record-container">
+      {/* Try each investment type - the component will handle if it has data or not */}
+      <EquityRecord {...props} investmentId={investmentId} />
+      <LiquidFundRecord {...props} investmentId={investmentId} />
+      <RealEstateRecord {...props} investmentId={investmentId} />
     </div>
   );
 };

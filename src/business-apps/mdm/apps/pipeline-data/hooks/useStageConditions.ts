@@ -1,5 +1,6 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getStageParentEntryId, SourceApp } from '../utils/catalogConfig';
 
 export interface StageConditionEntry {
   id: string;
@@ -43,12 +44,11 @@ export const GET_STAGE_CONDITIONS_COUNT = (variables: StageConditionsCountVariab
 export const useStageConditions = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchStageConditionsCount = async (stageCode: string): Promise<number> => {
+  const fetchStageConditionsCount = async (stageCode: string, sourceApp: SourceApp = 'CRM'): Promise<number> => {
     if (!stageCode) return 0;
     
     try {
-      // Create the proper parentEntryId format using the stage's code
-      const parentEntryId = `SalesPipelineStage:v1:${stageCode}`;
+      const parentEntryId = getStageParentEntryId(sourceApp, stageCode);
       const query = GET_STAGE_CONDITIONS_COUNT({ parentEntryId });
       
       const result = await graphqlClient.request<StageConditionsResponse>(query);
@@ -59,12 +59,11 @@ export const useStageConditions = (context: BusinessAppContextProps) => {
     }
   };
 
-  const fetchStageConditions = async (stageCode: string): Promise<StageConditionEntry[]> => {
+  const fetchStageConditions = async (stageCode: string, sourceApp: SourceApp = 'CRM'): Promise<StageConditionEntry[]> => {
     if (!stageCode) return [];
     
     try {
-      // Create the proper parentEntryId format using the stage's code
-      const parentEntryId = `SalesPipelineStage:v1:${stageCode}`;
+      const parentEntryId = getStageParentEntryId(sourceApp, stageCode);
       const query = GET_STAGE_CONDITIONS_COUNT({ parentEntryId });
       
       const result = await graphqlClient.request<StageConditionsResponse>(query);

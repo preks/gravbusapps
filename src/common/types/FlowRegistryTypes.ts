@@ -5,10 +5,33 @@ export enum FlowContextName {
     accountEntity = 'accountEntity',
     contactEntity = 'contactEntity',
     opportunityEntity = "opportunityEntity",
+    // Investment Relations
+    investmentLeadEntity = "investmentLeadEntity",
+    createInvestmentLead = "createInvestmentLead",
+
+    investmentAccountEntity = "investmentAccountEntity",
+    createInvestmentAccount = "createInvestmentAccount",
+
+    investmentContactEntity = "investmentContactEntity",
+    createInvestmentContact = "createInvestmentContact",
+
+    investmentOpportunityEntity = "investmentOpportunityEntity",
+    createInvestmentOpportunity = "createInvestmentOpportunity",
+
+    investmentTaskEntity = "investmentTaskEntity",
+    investmentActivityEntity = "investmentActivityEntity",
+    investmentNoteEntity = "investmentNoteEntity",
+    investmentDocumentEntity = "investmentDocumentEntity",
+
+    createInvestment = "createInvestment",
+    investmentEntity = "investmentEntity",
+
     equityInvestmentEntity = "equityInvestmentEntity",
     privateEquityInvestmentEntity = "privateEquityInvestmentEntity",
     realEstateInvestmentEntity = "realEstateInvestmentEntity",
     liquidFundInvestmentEntity = "liquidFundInvestmentEntity",
+
+    //
     expenseItems = 'expenseItems',
     expensePlans = 'expensePlans',
     expenseRequests = 'expenseRequests',
