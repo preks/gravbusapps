@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { Home } from 'lucide-react';
 import { RealEstateRecordProps } from './types';
-import { realEstateMockData } from './data/mockData';
 import { useRealEstateRecordData } from './hooks/useRealEstateRecordData';
 import {
   InvestmentDetailsHeader,
@@ -18,16 +17,19 @@ interface RealEstateRecordComponentProps extends BusinessAppContextProps {
 
 const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const mockData = realEstateMockData;
 
-  // Fetch real GraphQL data
+  // Fetch real GraphQL data using centralized structure
   const { realEstateData, isLoading, error } = useRealEstateRecordData(props, props.investmentId);
+
+  // If this is not a real estate investment, don't render anything
+  if (error && error.includes('not a real estate investment')) {
+    return null; // Let other investment type components handle it
+  }
 
   return (
     <div className="gba:bg-gray-50 gba:min-h-screen">
       {/* Investment Details Header Card - Now with real data */}
       <InvestmentDetailsHeader 
-        data={!realEstateData ? mockData : undefined} 
         realEstateData={realEstateData}
         isLoading={isLoading}
         error={error}
@@ -46,22 +48,20 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
             {/* Key Metrics - Now with real data and calculated KPIs */}
             <KeyMetrics 
-              data={!realEstateData ? mockData : undefined}
               realEstateData={realEstateData}
               isLoading={isLoading}
             />
 
             {/* Real Estate Details */}
             <RealEstateDetails 
-              data={!realEstateData ? mockData : undefined}
               realEstateData={realEstateData}
               isLoading={isLoading}
             />
 
             {/* Company Information and Contact Details */}
             <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
-              <CompanyInformation data={mockData} />
-              <ContactDetails data={mockData} />
+              <CompanyInformation realEstateData={realEstateData} />
+              <ContactDetails />
             </div>
           </TabsContent>
         </Tabs>

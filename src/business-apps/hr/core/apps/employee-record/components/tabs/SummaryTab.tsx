@@ -18,8 +18,8 @@ import {
   PiSignIn,
   PiSignOut
 } from 'react-icons/pi';
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '@/common/BusinessAppContext';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from 'antd';
@@ -138,8 +138,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
           </div>
         </div>
         
-        {/* Action Button - Only visible when viewing own profile */}
-        {isSelfView && useMemo(() => (
+        {/* Action Button */}
+        {useMemo(() => (
           <div>
             <AppActionButton 
               data-testid="employee-actions-button"
@@ -153,6 +153,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               accessToken={accessToken}
               autoExecuteSingleAction={false}
               deferMainContextRequestsUntilClick={false}
+              emptyStateBehavior="hide"
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_employee.action",

@@ -173,11 +173,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     return '';
   }, []);
 
-  // Helper function to format text with only first letter uppercase
-  const formatFilterText = (text: string): string => {
-    if (!text) return text;
-    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-  };
+  //
 
   // Check if date range filter is active
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
@@ -237,9 +233,6 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 placeholder={placeholder}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                onBlur={(e) => {
-                  if (!e.target.value) setShowSearchInput(false);
-                }}
                 data-testid="data-controller-search-input"
               />
             </div>
