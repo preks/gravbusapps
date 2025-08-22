@@ -395,7 +395,6 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       {isHovering && (
                         <AppActionButton
                           data-testid="employee-profile-picture-edit-button"
-                          variant="secondary"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
                           ]}

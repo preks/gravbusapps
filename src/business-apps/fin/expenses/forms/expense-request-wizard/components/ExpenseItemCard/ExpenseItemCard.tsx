@@ -66,10 +66,10 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
             </div>
           )}
         </div>
-        <div className="gba:flex gba:flex-col gba:items-end gba:h-full gba:w-1/4 gba:justify-between h-auto">
+        <div className="gba:flex gba:flex-col gba:items-end gba:h-[100%] gba:w-1/4 gba:justify-between h-auto">
           <div>
             {onDelete && (
-              <div className="gba:w-full gba:flex gba:justify-end">
+              <div className="gba:w-[100%] gba:flex gba:justify-end">
                 <button 
                   className="gba:flex gba:items-center gba:justify-center gba:bg-[#F7F7F7] gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
                   onClick={() => onDelete(id)}

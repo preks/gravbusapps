@@ -34,8 +34,6 @@ const AccountFormComponent: React.FC = () => {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      await onSubmit(formValues);
-
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
 
@@ -139,7 +137,22 @@ const AccountFormComponent: React.FC = () => {
       };
 
       // Dispatch process continue event on successful submission
+      console.log(
+        "✅ Account form dispatching pse_submit event with payload:",
+        payload
+      );
       dispatchProcessContinueEvent("pse_submit", payload);
+
+      // Call the onSubmit callback after dispatching the process event
+      // This ensures the process event is always dispatched even if onSubmit fails
+      try {
+        await onSubmit(formValues);
+      } catch (submitError) {
+        console.warn(
+          "onSubmit callback failed, but process event was dispatched:",
+          submitError
+        );
+      }
     } catch (err) {
       console.error("Error submitting account form:", err);
     }

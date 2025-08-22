@@ -7,22 +7,22 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useTranslation } from "react-i18next";
+
 import { DataContainer } from "@/components/layout/dataContainer";
 import { useAccountListData } from "./hooks/useAccountListData";
 import { useAccountFilters } from "./hooks/useAccountFilters";
 import { AccountTable } from "./components/AccountTable";
 import { AccountStatisticsWithTrend } from "./components/AccountStatistics";
 import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithTrend";
-import { DateRangeFilter } from "../lead-list/components/DateRangeFilter";
+
 import {
   ColumnVisibilityDropdown,
   ColumnConfig,
 } from "./components/ColumnVisibilityDropdown";
 
-import { PiBuilding, PiBuildingOffice, PiFunnelSimple } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { startProcess } from "@/common/utils/start-process";
+import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { Account } from "./types";
 
 export interface AccountListProps extends BusinessAppContextProps {
@@ -37,7 +37,6 @@ export const AccountList: React.FC<AccountListProps> = (
   props: AccountListProps
 ) => {
   const { accessToken, sourceApp } = props;
-  const { t } = useTranslation();
 
   // Use the centralized account filters hook
   const {
@@ -296,28 +295,80 @@ export const AccountList: React.FC<AccountListProps> = (
     refetch: refetchStats,
   } = useAccountStatisticsWithTrend({ ...props, sourceApp });
 
+  // Listen for process completion events and refresh data when account processes complete
+  useProcessCompletion({
+    onSuccess: () => {
+      console.log("✅ Process completed successfully, refreshing account data");
+      retry();
+      refetchStats(); // Also refresh statistics
+    },
+    onFailure: () => {
+      console.log("❌ Process failed, no data refresh needed");
+    },
+  });
+
+  // DEBUG: Add temporary listeners to debug process events
+  useEffect(() => {
+    const handleProcessContinue = (event: Event) => {
+      const customEvent = event as CustomEvent<{ event: string; payload: any }>;
+      console.log(
+        "🔄 Account Process continue event received:",
+        customEvent.detail
+      );
+    };
+
+    const handleProcessCompletion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution: string }>;
+      console.log(
+        "🎯 Account Process completion event received:",
+        customEvent.detail
+      );
+    };
+
+    // Listen for both events to debug
+    window.addEventListener(
+      "com.newwork.process.continue",
+      handleProcessContinue
+    );
+    window.addEventListener(
+      "com.newwork.process.processCompletion",
+      handleProcessCompletion
+    );
+
+    return () => {
+      window.removeEventListener(
+        "com.newwork.process.continue",
+        handleProcessContinue
+      );
+      window.removeEventListener(
+        "com.newwork.process.processCompletion",
+        handleProcessCompletion
+      );
+    };
+  }, []);
+
   // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
     if (!initialLoadDone.current && accessToken && filtersInitialized) {
       initialLoadDone.current = true;
       loadPage(currentPage, pageSize);
     }
-  }, [accessToken, currentPage, pageSize, filtersInitialized]);
+  }, [accessToken, currentPage, pageSize, filtersInitialized, loadPage]);
 
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
-      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
+      loadPage(1, pageSize, {}, sortField, sortOrder);
     }
-  }, [search, pageSize, filtersInitialized]);
+  }, [search, pageSize, filtersInitialized, loadPage]);
 
   // Trigger reload when filters change
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
-      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for filtering
+      loadPage(1, pageSize, {}, sortField, sortOrder);
     }
   }, [
     JSON.stringify(selectedFilters),
@@ -325,6 +376,7 @@ export const AccountList: React.FC<AccountListProps> = (
     filterCreatedBefore,
     pageSize,
     filtersInitialized,
+    loadPage,
   ]);
 
   // Handle account selection
@@ -371,7 +423,7 @@ export const AccountList: React.FC<AccountListProps> = (
           page: 1,
         });
         // Pass empty field to loadPage immediately
-        loadPage(1, pageSize, {}, "", "DESC", false); // Don't show loading for sorting
+        loadPage(1, pageSize, {}, "", "DESC");
       } else {
         setSortField(field);
         setSortOrder(order);
@@ -382,7 +434,7 @@ export const AccountList: React.FC<AccountListProps> = (
           page: 1,
         });
         // Pass new sorting values to loadPage immediately
-        loadPage(1, pageSize, {}, field, order, false); // Don't show loading for sorting
+        loadPage(1, pageSize, {}, field, order);
       }
     },
     [pageSize, updateURLParams, loadPage]
