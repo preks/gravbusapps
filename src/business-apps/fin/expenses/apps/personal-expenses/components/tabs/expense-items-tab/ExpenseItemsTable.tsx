@@ -204,7 +204,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
-    console.log('payload',payload)
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
