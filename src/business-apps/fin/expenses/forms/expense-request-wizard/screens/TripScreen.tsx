@@ -294,6 +294,15 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       
       const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
       const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      let finalStartDate = startTimeValue;
+      let finalEndDate = endTimeValue;
+      try {
+        if (finalStartDate && finalEndDate && new Date(finalStartDate).getTime() > new Date(finalEndDate).getTime()) {
+          const temporaryValue = finalStartDate;
+          finalStartDate = finalEndDate;
+          finalEndDate = temporaryValue;
+        }
+      } catch {}
       
       
       const variables = {
@@ -303,8 +312,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         statusArray: EXCLUDED_STATUSES,
         requestId: expenseId,
         activeUserLocale,
-        startTimeValue,
-        endTimeValue
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
       };
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
