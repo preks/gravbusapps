@@ -14,7 +14,7 @@ type AnyObject = Record<string, any>;
 const prefixDataTestId = 'FeedbackApprovalScreen';
 
 /**
- * Lightweight screen to display a received feedback message and approve (accept) or cancel the task.
+ * Lightweight screen to display a received feedback message and approve (accept), reject, or cancel the task.
  * The component reads feedback data from additionalData (supports multiple shapes) and
  * uses dispatchProcessContinueEvent to continue the running process.
  */
@@ -55,6 +55,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     const handleAccept = () => {
       const payload = {
         approval: "approved"
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+    };
+
+    const handleReject = () => {
+      const payload = {
+        approval: "rejected"
       };
       
       dispatchProcessContinueEvent('pse_submit', payload);
@@ -153,6 +161,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
               className="gba:px-6 gba:py-2 gba:rounded-lg"
             >
               {getTranslationFromI18nKeyAndLabel('feedback.approval.cancel', 'Cancel')}
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleReject} 
+              data-testid={formatDataTestId(prefixDataTestId, 'RejectButton')}
+              className="gba:px-6 gba:py-2 gba:rounded-lg"
+            >
+              {getTranslationFromI18nKeyAndLabel('feedback.approval.reject', 'Reject')}
             </Button>
             <Button 
               onClick={handleAccept} 
