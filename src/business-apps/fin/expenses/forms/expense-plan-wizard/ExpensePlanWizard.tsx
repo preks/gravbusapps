@@ -52,12 +52,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     showExpenseItem,
     expenseItemParams,
     hideExpenseItem,
-    skipAdvancePayment,
-    setSkipAdvancePayment
+    setRequestAdvancePayment
   } = useExpensePlanWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
-  const { hasPastDates } = useExpensePlanDateValidation();
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
@@ -150,7 +148,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   // useEffect for screen navigation based on data
   useEffect(() => {
-    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, currentScreen)
+    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setRequestAdvancePayment, currentScreen)
   }, [expensePlanData, isTrip, loading, additionalData]);
 
   const navigateToNextScreen = () => {
@@ -176,6 +174,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   };
   
   const navigateToPreviousScreen = () => {
+    let skipStep =false
+    if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
+      skipStep = true
+    }
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
@@ -194,10 +196,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         }
         break;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-        if(!isTrip)
+        if(!skipStep)
           setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
           else
-        setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
         break;
       default:
         break;

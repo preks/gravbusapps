@@ -208,7 +208,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const handleNextItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const logObject = createItemsScreenLogObject(
@@ -228,7 +228,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const handleSaveItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const logObject = createItemsScreenLogObject(

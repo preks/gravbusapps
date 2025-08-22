@@ -441,7 +441,7 @@ export const setByExternalCustomComponent = (
   setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
   setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
 ) => {
-  const localExpenseData = expenseData?.ExpenseRequestByPk
+  const localExpenseData = expenseData?.ExpenseRequestByPk || expenseData?.ExpensePlanByPk
   let tripData = [];
   if(localExpenseData?.expenseRequestTrip && Array.isArray(localExpenseData.expenseRequestTrip) && 
   localExpenseData.expenseRequestTrip.length !== 0)
@@ -456,7 +456,6 @@ export const setByExternalCustomComponent = (
       return;
     }
   try {
-    
     // Find start point
     const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT');
     if (startPoint) {

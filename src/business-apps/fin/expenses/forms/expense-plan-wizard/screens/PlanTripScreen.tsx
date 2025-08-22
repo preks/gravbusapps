@@ -70,8 +70,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
     submitActionTripData, 
     setEmployeeRuleId, 
     updateTripFormValidation,
-    skipAdvancePayment,
-    setSkipAdvancePayment
+    requestAdvancePayment,
+    setRequestAdvancePayment
   } = useExpensePlanWizardContext();
   const { userInfo } = props;
   
@@ -534,12 +534,12 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,skipAdvancePayment);
+    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,requestAdvancePayment);
   };
 
   const handleNext = () => {
     if (validateTripForm()) {
-     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,skipAdvancePayment);
+     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,requestAdvancePayment);
     }
   };
 
@@ -761,9 +761,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           {/* Skip Advance Payment Checkbox */}
           <div className="gba:font-medium gba:py-4 [&_label]:flex [&_label]:flex-row-reverse" data-testid="skip-advance-payment-container">
             <Checkbox
-              value={skipAdvancePayment}
+              value={requestAdvancePayment}
               name={"skip-advance-payment-checkbox"}
-              onChange={(e) =>setSkipAdvancePayment(e.value as boolean || false)}
+              onChange={(e) =>setRequestAdvancePayment(e.value as boolean || false)}
               data-testid="skip-advance-payment-checkbox"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment')}

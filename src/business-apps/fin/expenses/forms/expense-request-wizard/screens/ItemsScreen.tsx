@@ -381,12 +381,21 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
     document.addEventListener('expense-request-next-items', handleNextItems);
     document.addEventListener('expense-request-save-items', handleSaveItems);
+    // Reset selection/search/page/showSelectItems on external reset
+    const handleReset = () => {
+      setSelectedItemIdsForSelection([]);
+      setSearchQuery("");
+      setCurrentPage(1);
+      setShowSelectItems(false);
+    };
+    document.addEventListener('expense-items-reset-selection', handleReset);
     
     return () => {
       document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
       document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
       document.removeEventListener('expense-request-next-items', handleNextItems);
       document.removeEventListener('expense-request-save-items', handleSaveItems);
+      document.removeEventListener('expense-items-reset-selection', handleReset);
     };
   }, [handleCancelSelection, handleConfirmSelection]);
   

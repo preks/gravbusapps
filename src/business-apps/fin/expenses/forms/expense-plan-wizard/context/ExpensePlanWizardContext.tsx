@@ -44,8 +44,8 @@ export interface ExpensePlanWizardContextProps {
   setPayloadItemsLoaded: (loaded: boolean) => void;
   payloadItemIds: string[];
   setPayloadItemIds: (ids: string[]) => void;
-  skipAdvancePayment: boolean;
-  setSkipAdvancePayment: (skip: boolean) => void;
+  requestAdvancePayment: boolean;
+  setRequestAdvancePayment: (skip: boolean) => void;
 }
 
 /**
@@ -93,7 +93,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
   // State for skip advance payment
-  const [skipAdvancePayment, setSkipAdvancePayment] = useState<boolean>(false);
+  const [requestAdvancePayment, setRequestAdvancePayment] = useState<boolean>(false);
   const graphqlClient = useGraphqlClient(accessToken);
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
 
@@ -333,8 +333,8 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     payloadItemIds,
     setPayloadItemIds,
     // Skip advance payment state
-    skipAdvancePayment,
-    setSkipAdvancePayment,
+    requestAdvancePayment,
+    setRequestAdvancePayment,
   };
 
   return (

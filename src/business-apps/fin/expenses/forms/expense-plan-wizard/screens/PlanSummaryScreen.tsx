@@ -38,7 +38,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
   const handleSave = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {
@@ -56,7 +56,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   
   const handleSubmit = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {

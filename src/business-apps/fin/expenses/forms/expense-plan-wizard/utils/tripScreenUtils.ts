@@ -72,8 +72,8 @@ export const createTripLogObject = (
   const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
 
   return {
-    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event,
-    event: skipStep ? event + "_"+EVENTS.SKIP : event,
+    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event + (!skipStep ? ("_"+ EVENTS.SKIP) : ""),
+    event: event,
     expensePlan: {
       id: initialPlan.id,
       startDate: startTripDateTime || initialPlan.startDate || "",
@@ -438,7 +438,7 @@ export const setLocalitiesDefault = (expensePlanData: any,
     expensePlanData: any,
     isTrip:boolean,
     setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
-    setSkipAdvancePayment: (skip: boolean) => void,
+    setRequestAdvancePayment: (skip: boolean) => void,
     currentScreen?: string)=>{
     
     const stepKey = additionalData?.psi_taskPayload?.stepKey
@@ -449,30 +449,34 @@ export const setLocalitiesDefault = (expensePlanData: any,
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE:
             targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
+            setRequestAdvancePayment(true);
             break;
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:
@@ -483,31 +487,35 @@ export const setLocalitiesDefault = (expensePlanData: any,
       else if(stepKey.includes(EVENTS.NEXT)){
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB; 
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:

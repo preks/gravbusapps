@@ -177,6 +177,19 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
   
   const navigateToPreviousScreen = () => {
+    try {
+      const footerResetEvent = new CustomEvent('expense-wizard-update-footer', {
+        detail: { showCustomFooter: false, selectedItemCount: 0 }
+      });
+      document.dispatchEvent(footerResetEvent);
+      if (
+        currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
+        currentScreen === SCREEN_NAMES_ENUM.CREATE_ITEM_TAB
+      ) {
+        const itemsResetEvent = new CustomEvent('expense-items-reset-selection');
+        document.dispatchEvent(itemsResetEvent);
+      }
+    } catch {}
     updateTripFormValidation(true);
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
