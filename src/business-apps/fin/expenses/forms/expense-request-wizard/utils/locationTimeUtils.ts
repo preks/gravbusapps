@@ -138,7 +138,7 @@ export const combineDateTimeToISOString = (
 ): string => {
   if (!date && !time) {
     if (fallbackDate) {
-      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00Z";
+      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00";
     }
     return "";
   }
@@ -150,7 +150,7 @@ export const combineDateTimeToISOString = (
   
   // If we only have date, return date as ISO string
   if (date && !time) {
-    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00Z";
+    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00";
   }
   
   // If we have both, combine them
@@ -158,5 +158,5 @@ export const combineDateTimeToISOString = (
   const timeString = dayjs(time).format("HH:mm:ss");
   
   // Create ISO string from combined date and time
-  return `${dateString}T${timeString}Z`;
+  return `${dateString}T${timeString}`;
 };

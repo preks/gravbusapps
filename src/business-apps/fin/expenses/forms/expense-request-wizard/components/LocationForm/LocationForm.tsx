@@ -58,6 +58,25 @@ const LocationForm: React.FC<LocationFormProps> = ({
     departureTime,
     travelRegionRef} = locationData
   const idPrefix = index !== undefined ? `${id}-${index}` : id;
+
+  const travelRegionOptions = useMemo(() => (
+    (travelRegions || []).map((region) => ({
+      id: region.travelRegionRef,
+      name: getCatalogValue(region.travelRegion)
+    }))
+  ), [travelRegions]);
+  const selectedTravelRegionValue = useMemo(() => {
+    if (!travelRegionRef) return undefined;
+    return travelRegionOptions.some(opt => opt.id === travelRegionRef) ? travelRegionRef : undefined;
+  }, [travelRegionRef, travelRegionOptions]);
+
+  useEffect(() => {
+    if (isAbroad) {
+      if (travelRegionRef && !travelRegionOptions.some(opt => opt.id === travelRegionRef)) {
+        onUpdate('travelRegionRef', undefined);
+      }
+    }
+  }, [isAbroad, travelRegionRef, travelRegionOptions, onUpdate]);
   
   /**
    * Check if date and time are in the future
@@ -183,15 +202,12 @@ const LocationForm: React.FC<LocationFormProps> = ({
             label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label', 'Region')}
             name={`${idPrefix}TravelRegion`}
             data-testid={`${idPrefix}-travel-region-select`}
-            data={travelRegions.map((region) => ({
-              id: region.travelRegionRef,
-              name: getCatalogValue(region.travelRegion)
-            }))}
+            data={travelRegionOptions}
             onChange={(value: any) => {
               onUpdate('travelRegionRef', value?.value);
             }}
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_placeholder', 'Select Region')}
-            value={travelRegionRef || undefined}
+            value={selectedTravelRegionValue}
             required={isAbroad}
           />
         </div>

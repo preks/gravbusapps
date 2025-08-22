@@ -296,12 +296,12 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   if (!array) return null;
   
   const filteredArray = array.filter(item => item.pointType === pointType);
-  const objectToCheckTime = new Date(objectToCheck.tripDateTime).getTime();
-  
-  return filteredArray.find(item => {
-    const itemTime = new Date(item.tripDateTime).getTime();
+
+  const objectToCheckKey = dayjs(objectToCheck.tripDateTime).format('YYYY-MM-DDTHH:mm');
+  const found = filteredArray.find(item => {
+    const itemKey = dayjs(item.tripDateTime).format('YYYY-MM-DDTHH:mm');
     return item.address === objectToCheck.address &&
-      itemTime === objectToCheckTime &&
+      itemKey === objectToCheckKey &&
       item.pointType === objectToCheck.pointType &&
       item.tripDirection === objectToCheck.tripDirection &&
       item.costCenterId === objectToCheck.costCenter &&
@@ -311,6 +311,16 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
       item.expenseRequestId === objectToCheck.expenseRequest &&
       item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail;
   }) || null;
+  if (found) {
+    const merged: TripData = {
+      ...objectToCheck,
+      id: found.id,
+      version: found.version
+    } as TripData;
+    return merged;
+  }
+
+  return null;
 };
 
 export const handleTripSubmitAction = (
