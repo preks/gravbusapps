@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Card, 
-  CardContent,
   Spinner, 
   Alert,
   AlertTitle,
@@ -16,14 +14,17 @@ import { formatCurrency, getCatalogValue } from './utils/formatters';
 
 // Component imports
 import ExpensePlanHeader from './components/ExpensePlanHeader';
-import EmployeeInfoSection from './components/EmployeeInfoSection';
-import NotesSection from './components/NotesSection';
-import TripSection from './components/TripSection';
-import AllowancesSection from './components/AllowancesSection';
 import ExpensesSection from './components/ExpensesSection';
 import TotalsSection from './components/TotalsSection';
-import MessageSection from './components/MessageSection';
-import ActionButtons from './components/ActionButtons';
+// Shared components
+import { 
+  EmployeeInfoSection, 
+  NotesSection, 
+  MessageSection, 
+  ActionButtons,
+  TripSection,
+  AllowancesSection
+} from '../../reusable-components/approval';
 
 const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ 
   accessToken, 
@@ -71,7 +72,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
       // Dispatch the approval event
       dispatchProcessContinueEvent("pse_approve", approvalPayload);
       
-      console.log('Approving expense plan:', planId, 'with payload:', approvalPayload);
+
     } catch (err) {
       console.error('Error approving expense plan:', err);
     } finally {
@@ -103,7 +104,6 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
       // Dispatch the rejection event
       dispatchProcessContinueEvent("pse_reject", rejectionPayload);
       
-      console.log('Returning expense plan:', planId, 'with payload:', rejectionPayload);
     } catch (err) {
       console.error('Error returning expense plan:', err);
     } finally {
@@ -168,66 +168,70 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
   };
 
      return (
-     <div className="gba:border-0" data-testid="approve-expense-plan-container">
-       <Card className="gba:border-0 gba:shadow-none">
-         <CardContent className="gba:p-0">
-          
-          <ExpensePlanHeader title={expensePlan.title} />
-          
-          <EmployeeInfoSection
-            code={expensePlan.code}
-            costCenterName={expensePlan.costCenter?.name}
-            projectName={expensePlan.project?.name}
-            employee={expensePlan.employee}
-          />
-          
-         <NotesSection description={expensePlan.description} />
-          
-          <TripSection
-            expenseRequestTrip={expensePlan.expenseRequestTrip}
-            startDate={expensePlan.startDate}
-            endDate={expensePlan.endDate}
-            destinations={destinations}
-            numberOfDestinations={numberOfDestinations}
-            countriesSummary={countriesSummary}
-          />
-          
-          <AllowancesSection
-            allowanceItems={allowanceItems}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-          />
-          
-          <ExpensesSection
-            expenseItems={expenseItems}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            getCatalogValue={getCatalogValue}
-          />
-          
-          <TotalsSection
-            totalAmount={totalAmount}
-            reimbursableAmount={reimbursableAmount}
-            nonReimbursableAmount={nonReimbursableAmount}
-            advancePaymentAmount={advancePaymentAmount}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-          />
-          
-          <MessageSection
-            message={message}
-            showWarning={showWarning}
-            onMessageChange={handleMessageChange}
-          />
-          
-          <ActionButtons
-            submitting={submitting}
-            onApprove={handleApprove}
-            onReturn={handleReturn}
-          />
-        </CardContent>
-      </Card>
-    </div>
+     <div className="gba:border-0 gba:bg-transparent" data-testid="approve-expense-plan-container">
+       <ExpensePlanHeader title={expensePlan.title} />
+       
+       <EmployeeInfoSection
+         code={expensePlan.code}
+         costCenterName={expensePlan.costCenter?.name}
+         projectName={expensePlan.project?.name}
+         employee={expensePlan.employee}
+         prefixDataTestId="approve-expense-plan"
+       />
+       
+      <NotesSection 
+        description={expensePlan.description} 
+        prefixDataTestId="approve-expense-plan"
+      />
+       
+               <TripSection
+          expenseRequestTrip={expensePlan.expenseRequestTrip}
+          startDate={expensePlan.startDate}
+          endDate={expensePlan.endDate}
+          destinations={destinations}
+          numberOfDestinations={numberOfDestinations}
+          countriesSummary={countriesSummary}
+          prefixDataTestId="approve-expense-plan"
+        />
+        
+        <AllowancesSection
+          allowanceItems={allowanceItems}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+          prefixDataTestId="approve-expense-plan"
+        />
+       
+       <ExpensesSection
+         expenseItems={expenseItems}
+         currencyCode={currencyCode}
+         formatCurrency={formatCurrency}
+         getCatalogValue={getCatalogValue}
+       />
+       
+       <TotalsSection
+         totalAmount={totalAmount}
+         reimbursableAmount={reimbursableAmount}
+         nonReimbursableAmount={nonReimbursableAmount}
+         advancePaymentAmount={advancePaymentAmount}
+         currencyCode={currencyCode}
+         formatCurrency={formatCurrency}
+       />
+       
+       <MessageSection
+         message={message}
+         showWarning={showWarning}
+         onMessageChange={handleMessageChange}
+         prefixDataTestId="approve-expense-plan"
+         warningKey="approve_expense_plan.warning_message"
+       />
+       
+       <ActionButtons
+         submitting={submitting}
+         onApprove={handleApprove}
+         onReturn={handleReturn}
+         prefixDataTestId="approve-expense-plan"
+       />
+     </div>
   );
 };
 
@@ -241,7 +245,7 @@ const ApproveExpensePlan: React.FC<BusinessAppContextProps> = (props) => {
   
   // Fallback additional data for testing when none is provided
   const fallbackAdditionalData = additionalData || {
-    planId: "18cfedab-87c4-41b1-9654-7670dd445bf7"
+    planId: "b38909fe-b3e0-467c-8906-240f11d0267d"
   };
   
   return (

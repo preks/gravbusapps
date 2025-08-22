@@ -1,10 +1,7 @@
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getCurrentActiveUserLocale, formatNumberFunction } from '@/common/utils/windowUtils';
 
 export const formatCurrency = (amount: number, currencyCode: string) => {
-  const formattedAmount = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
+  const formattedAmount = formatNumberFunction(String(amount), "0.00[,]00");
   return `${formattedAmount} ${currencyCode || 'EUR'}`;
 };
 
