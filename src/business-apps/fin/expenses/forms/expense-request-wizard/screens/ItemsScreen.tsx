@@ -310,13 +310,13 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       if (payloadItemsLoaded) return;
       if (additionalData && 
           additionalData.psi_taskPayload && 
-          additionalData.psi_taskPayload.initialParameters && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems.length > 0) {
+          additionalData.psi_taskPayload.psi_initialParameters && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0) {
         
         try {
           setIsLoading(true);
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.initialParameters.expenseItems
+          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
             .filter((item: any) => item.itemId)
             .map((item: any) => item.itemId);
           

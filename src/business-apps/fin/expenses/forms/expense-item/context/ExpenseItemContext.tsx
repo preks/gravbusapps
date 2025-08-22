@@ -201,7 +201,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       // Get expenseRequestId from either the wizard or task payload
       const expenseRequestId = 
         additionalData?.expenseRequestId || 
-        additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
       
       // Set expenseRequestId in form
       if (expenseRequestId) {
@@ -412,7 +412,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             catalogueData?.data?.EmployeePosition || [];
           const structureId = employeePosition[0]?.structureId || "";
           const expenseIdValue =
-          additionalData?.psi_taskPayload?.initialParameters?.expenseId
+          additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
         if (expenseIdValue) {
           setCurrentStep("form");
           
@@ -537,9 +537,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data;
 
-      if (additionalData?.psi_taskPayload?.initialParameters?.currencyData) {
+      if (additionalData?.psi_taskPayload?.psi_initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.psi_taskPayload.initialParameters.currencyData)
+          (c) => (c.id === additionalData?.psi_taskPayload.psi_initialParameters.currencyData)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(

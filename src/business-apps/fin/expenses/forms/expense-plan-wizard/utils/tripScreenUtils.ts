@@ -160,9 +160,9 @@ export const handleTripSubmitAction = (
     });
   }
   const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
-  if (expensePlanData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-      Array.isArray(expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-        expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+  if (expensePlanData.additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+      Array.isArray(expensePlanData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+        expensePlanData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
         version: item.version,

@@ -292,7 +292,7 @@ export const handleSubmit = async (
     }
     
     // Check if we have an expense request from either the wizard or task payload
-    const hasExpenseRequest = additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
+    const hasExpenseRequest = additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;

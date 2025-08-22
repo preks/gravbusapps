@@ -359,9 +359,9 @@ export const handleTripSubmitAction = (
     });
   }
   const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
-  if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-    expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+  if (expenseRequestData.additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+    expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
         version: item.version,

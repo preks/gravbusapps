@@ -70,8 +70,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
-      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.psi_initialParameters.expenseItems;
     }
     return [];
   };
@@ -221,9 +221,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     }
     
     const additionalItems: Array<{id: string, code: string, title: string, ruleId: string}> = [];
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-        Array.isArray(additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-      additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+        Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
         additionalItems.push({
           id: item.id,
           code: item.code || '',

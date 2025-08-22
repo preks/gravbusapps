@@ -161,7 +161,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       addCurrencyWrapper();
       const expensePlanId = 
         additionalData?.expensePlanId || 
-        additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
       
       // Set expensePlanId in form
       if (expensePlanId) {
@@ -177,7 +177,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         }
       }
 
-      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.initialParameters?.expensePlanItem;
+      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlanItem;
       if (expensePlanItemId) {
         setIsEditMode(true);
         setByEditWrapper(expensePlanItemId);
