@@ -272,8 +272,16 @@ const FeedbackFormComponent: React.FC = () => {
             )}
           </div>
 
-          {/* Submit Button - Fixed at bottom */}
-          <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:flex gba:justify-end">
+          {/* Action Buttons - Fixed at bottom */}
+          <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-2 gba:justify-end">
+            <Button
+              variant="secondary"
+              onClick={onCancel}
+              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              className="gba:px-6 gba:py-2 gba:rounded-lg"
+            >
+              {getTranslationFromI18nKeyAndLabel('feedback.form.cancel', 'Cancel')}
+            </Button>
             <Button
               variant="default"
               disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}
