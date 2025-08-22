@@ -24,11 +24,11 @@ interface CreateItemScreenProps extends BusinessAppContextProps {
  */
 const CreateItemScreen: React.FC<CreateItemScreenProps> = () => {
   return (
-    <div className="gba:createItemScreenContainer" data-testid="expense-request-wizard-create-item-screen">
-      <Title level={4} className="gba:screenTitle" data-testid="expense-request-wizard-create-item-screen-title">
+    <div data-testid="expense-request-wizard-create-item-screen">
+      <Title level={4} data-testid="expense-request-wizard-create-item-screen-title">
         {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request_wizard.create_item_screen_title', 'Create Expense Item')}
       </Title>
-      <div className="gba:createItemContent" data-testid="expense-request-wizard-create-item-screen-content">
+      <div data-testid="expense-request-wizard-create-item-screen-content">
         {/* Content will be added here */}
       </div>
     </div>

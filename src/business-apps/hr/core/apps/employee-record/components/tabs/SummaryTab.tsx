@@ -5,7 +5,6 @@ import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsen
 import dayjs from 'dayjs';
 import { Employee } from '../../hooks/useEmployeeData';
 import { Card, Avatar } from '@newwork/gravity-ui-catalog';
-import { ProfileSection } from '../ProfileSection';
 import { 
   PiBriefcase, 
   PiStack, 
@@ -29,6 +28,7 @@ import JobDetailsDrawer from './JobDetailsDrawer';
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent';
 import JobFunctionDrawerContent, { getJobFunctionIcon, getJobFunctionTitle } from './drawer-content/JobFunctionDrawerContent';
 import JobLevelDrawerContent, { getJobLevelIcon, getJobLevelTitle } from './drawer-content/JobLevelDrawerContent';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface SummaryTabProps {
   employee: Employee;
@@ -143,15 +143,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
           <div>
             <AppActionButton 
               data-testid="employee-actions-button"
-              variant="primary"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
-                employeeId: employee?.id
+                employeeId: employee?.id,
+                managerId: employee?.employeePosition?.supervisor?.id,
+                organizationalUnitId: employee?.employeePosition?.organizationalUnitId
               }}
               prefixDataTestId="employee-actions"
               accessToken={accessToken}
-              autoExecuteSingleAction={true}
-              deferMainContextRequestsUntilClick={true}
+              autoExecuteSingleAction={false}
+              deferMainContextRequestsUntilClick={false}
             >
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:hr_employee.action",
@@ -159,7 +160,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               )}
             </AppActionButton>
           </div>
-        ), [employee?.id, accessToken])}
+        ), [employee?.id, employee?.employeePosition?.supervisor?.id, employee?.employeePosition?.organizationalUnitId, accessToken])}
       </div>
       
       {/* Main grid layout for content blocks */}
@@ -182,12 +183,20 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                   <div className="gba:flex gba:flex-col gba:items-center">
                     <a 
                       className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      href={
-                        employee.employeePosition?.supervisor?.id &&
-                        employee.employeePosition.supervisor.id !== employee.id
-                          ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ""}`
-                          : undefined
-                      }
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (
+                          employee.employeePosition?.supervisor?.id &&
+                          employee.employeePosition.supervisor.id !== employee.id
+                        ) {
+                          navigateTo(
+                            buildPlatformUrl('/platform/employee-record', {
+                              employeeId: employee.employeePosition.supervisor.id,
+                            })
+                          );
+                        }
+                      }}
                       data-testid="supervisor-link"
                     >
                       <Avatar
@@ -253,9 +262,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                       <a href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          const url = new URL(window.location.href);
-                          url.searchParams.set('employeeId', member.id);
-                          window.history.pushState({}, '', url.toString());
+                          navigateTo(
+                            buildPlatformUrl('/platform/employee-record', { employeeId: member.id })
+                          );
                         }}
                         className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
                         title={`View ${member.displayName}'s profile`}
@@ -491,8 +500,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                       </Tooltip>
                       <AppActionButton
                         data-testid="request-absence-button"
-                        variant="primary"
-                        size="small"
+
+                        size="sm"
                         className="gba:flex-[2]"
                         contextsArray={[FlowContextName.employeeAbsenceRecord]}
                         externalContextData={{

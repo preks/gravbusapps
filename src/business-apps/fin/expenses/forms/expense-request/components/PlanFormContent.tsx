@@ -70,11 +70,11 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
   };
   
   return (
-    <div className={`${isSelectedPlan ? '' : 'gba:formContainer'}`} data-testid="plan-form-container">
-      <Form form={form} layout="vertical" className={`${isSelectedPlan ? '' : 'gba:form'}`} data-testid="plan-form">
+    <div className={`${isSelectedPlan ? '' : ''}`} style={{ margin: isSelectedPlan ? '0' : '0' }} data-testid="plan-form-container">
+      <Form form={form} layout="vertical" className={`${isSelectedPlan ? '' : 'gba:flex gba:flex-col gba:flex-grow'}`} data-testid="plan-form">
         {/* Search bar - only show if not displaying a selected plan */}
         {!isSelectedPlan && (
-          <div className="gba:searchBarContainer" data-testid="plan-search-container">
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '46px' }} data-testid="plan-search-container">
             <SearchBarWithLabel 
               onSearch={handleSearch} 
               placeholder={t('lowcoder:create_expense_request.search_module_placeholder', 'Search in Expense Plans List')}
@@ -84,7 +84,7 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
         )}
         
         {/* Plan cards list */}
-        <div className={`${isSelectedPlan ? '' : 'gba:planCardsContainer'}`} data-testid="plan-cards-container">
+        <div className={`${isSelectedPlan ? '' : ''}`} style={{ borderTop: isSelectedPlan ? 'none' : '2px solid #F7F7F7', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: 'calc(100vh - 10px)', backgroundColor: isSelectedPlan ? 'transparent' : '#F7F7F7', borderRadius: '4px' }} data-testid="plan-cards-container">
           {currentPlans.length > 0 ? (
             currentPlans.map(plan => (
               <PlanCard 
@@ -95,14 +95,14 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
               />
             ))
           ) : (
-            <div className="gba:noResultsMessage" data-testid="plan-no-results">
+            <div style={{ textAlign: 'center', padding: '24px', color: '#666', fontSize: '14px', backgroundColor: 'white', borderRadius: '4px', boxShadow: '0 2px 2px rgba(0, 0, 0, 0.05)' }} data-testid="plan-no-results">
               {t('lowcoder:create_expense_request.no_plans_found_search', 'No expense plans found matching your search')}
             </div>
           )}
           
           {/* Pagination - only show if not displaying a selected plan */}
           {!isSelectedPlan && filteredPlans.length > plansPerPage && (
-            <div className="gba:paginationContainer" data-testid="plan-pagination-container">
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0px' }} data-testid="plan-pagination-container">
               <Pagination
                 current={currentPage}
                 onChange={handlePageChange}

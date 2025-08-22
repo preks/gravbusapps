@@ -389,13 +389,13 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   }, [isFormValid, updateTripFormValidation]);
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid="payment-screen-container">
+    <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="payment-screen-container">
       {/* Form Section - Takes available space */}
-      <div className="gba:p-6 gba:flex gba:flex-col gba:h-full" data-testid="payment-form-section" style={{flexGrow:1}}>
+      <div className="gba:p-6 gba:flex gba:flex-col gba:h-[100%]" data-testid="payment-form-section" style={{flexGrow:1}}>
         <Form layout="vertical" form={form}>
           {/* Amount and Currency Inputs */}
-          <div className={`gba:amountCurrencyRow ${!advancePaymentError ?"gba:marginBottom16" :""}`} data-testid="amount-currency-container">
-            <div className="gba:amountField" data-testid="amount-field-container">
+          <div className={`gba:flex gba:gap-4 ${!advancePaymentError ?"gba:mb-4" :""}`} data-testid="amount-currency-container">
+            <div className="gba:w-1/2" data-testid="amount-field-container">
               <Form.Item
                 name="amount"
                 rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.current_amount_custom_rule', 'Please enter an amount') }]}
@@ -403,29 +403,33 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                 validateStatus={amountError ? 'error' : ''}
                 help={amountError}
               >
-                <InputField
-                  label={getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="gba:no-spinner"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:create_expense_type_item.current_amount_placeholder",
-                    "Enter Amount"
-                  )}
-                  data-testid="payment-amount-input"
-                  onChange={(field) => {
-                    const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
-                    form.setFieldsValue({ amount: formattedValue });
-                    handleAmountChange(field);
-                  }}
-                  required={true}
-                />
+                  <InputField
+                    label={getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:create_expense_type_item.current_amount_placeholder",
+                      "Enter Amount"
+                    )}
+                    data-testid="payment-amount-input"
+                    onChange={(field) => {
+                      const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
+                      form.setFieldsValue({ amount: formattedValue });
+                      handleAmountChange(field);
+                    }}
+                    required={true}
+                  />
               </Form.Item>
             </div>
 
-            <div className="gba:currencyField" data-testid="currency-field-container">
+            <div className="gba:w-1/2" data-testid="currency-field-container">
               <Form.Item
                 name="currency"
                 rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.current_currency_custom_rule', 'Please select a currency') }]}
@@ -466,8 +470,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
           )}
 
           {/* Payment Method Selection */}
-          <div className="gba:marginBottom16" data-testid="payment-method-container">
-            <div className="gba:relativePosition">
+          <div className="gba:mb-4" data-testid="payment-method-container">
+            <div className="gba:relative">
               <Form.Item
                 name="paymentMethod"
                 rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.payment_method_custom_rule', 'Please select a payment method') }]}
@@ -518,7 +522,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
             </span>
           </div>
 
-          <Divider className="gba:my-0" />
+          <Divider className="gba:my-6" />
 
           {/* Allowances */}
           <div className="gba:flex gba:justify-between gba:items-center" data-testid="allowances-row">
@@ -533,7 +537,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
             </span>
           </div>
 
-          <Divider className="gba:my-0" />
+          <Divider className="gba:my-6" />
 
           {/* Advance Payment */}
           <div className="gba:flex gba:justify-between gba:items-center" data-testid="advance-payment-row">

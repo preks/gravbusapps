@@ -86,14 +86,14 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ currentScreen, is
 
   return (
     <div 
-      className="gba:progressIndicator" 
+      className="gba:flex gba:justify-between gba:gap-2 gba:mb-[30px]" 
       style={containerStyle}
       data-testid="expense-request-wizard-progress-indicator"
     >
       {lineStates.map((isFilled, index) => (
         <div
           key={`progress-line-${index}`}
-          className={`gba:progressLine ${isFilled ? 'gba:progressLineFilled' : 'gba:progressLineEmpty'}`}
+          className={` gba:h-[3px] gba:w-1/4 gba:rounded-[1.5px] ${isFilled ? 'gba:bg-[#000000]' : 'gba:bg-[#C2C2C2]'}`}
           style={getLineStyle()}
           data-testid={`expense-request-wizard-progress-line-${index}`}
         />

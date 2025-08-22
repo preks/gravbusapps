@@ -23,8 +23,8 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   const { isProcessingFiles } = useExpenseItem();
 
   return (
-    <div className={`gba:startScreenContainer gba:flex gba:flex-col gba:h-full`} data-testid="start-screen-container">
-      <div className={`gba:uploadWrapper`} data-testid="upload-component-wrapper">
+    <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:gap-4 gba:flex-1 gba:min-h-0" data-testid="start-screen-container">
+      <div style={{ width: '100%', maxWidth: '100%' }} data-testid="upload-component-wrapper">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
@@ -32,20 +32,19 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
         />
       </div>
       
-      <div className={`gba:buttonContainer`} data-testid="continue-button-container">
+      <div className="gba:flex gba:justify-center" style={{ width: '100%' }} data-testid="continue-button-container">
         <Button
           variant="ghost"
           onClick={() => setCurrentStep(FORM_STEPS.FORM)}
-          className={`gba:continueButton`}
           disabled={isProcessingFiles}
           data-testid="continue-button"
         >
-          <div className={`gba:buttonWithIcon`} data-testid="continue-button-content">
-            <span className="gba:fontMedium" data-testid="continue-without-receipt-text">{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
+          <div className="gba:flex gba:items-center gba:justify-center gba:gap-2" data-testid="continue-button-content">
+            <span className="gba:font-medium gba:text-black" data-testid="continue-without-receipt-text">{t("lowcoder:create_expense_type_item.continue_button", "Continue without receipt")}</span>
             <img 
               src={ICONS.RIGHT_ARROW} 
               alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')} 
-              className={`gba:arrowIcon`}
+              className="gba:w-6 gba:h-6"
               data-testid="continue-button-arrow"
             />
           </div>
@@ -54,7 +53,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
       
       {/* Spacer to push content to the bottom */}
       <div className="gba:flex-grow" data-testid="start-screen-spacer" />
-      <div className="gba:flex gba:flex-col w-full">
+      <div className="gba:flex gba:flex-col" style={{ width: '100%' }}>
         <Divider 
           color="#EFEFEF"
           horizontal
@@ -63,11 +62,12 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           data-testid="start-screen-divider"
         />
         
-        <div className="gba:actionButtonsContainer" data-testid="start-screen-actions">
+        <div className="gba:flex gba:justify-between gba:py-4" style={{ width: '100%' }} data-testid="start-screen-actions">
           <Button
             variant="outline" 
             onClick={handleCancel}
-            className="gba:cancelButton"
+            className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+            style={{ borderRadius: '22px', height: '40px' }}
             data-testid="start-screen-cancel-button"
           >
             {t("lowcoder:create_expense_request.initiate_cancel_button", "Cancel")}

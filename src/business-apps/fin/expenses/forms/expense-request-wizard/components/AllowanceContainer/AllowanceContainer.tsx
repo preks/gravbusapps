@@ -40,23 +40,25 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   const dateToDisplay = item.allowanceDate || item.expenseDate;
   
   return (
-    <div className="gba:allowanceContainer" data-testid={`allowance-container-${index}`}>
-      <div className="gba:allowanceHeader" data-testid={`allowance-header-${index}`}>
-        <div className="gba:allowanceTitleWrapper" data-testid={`allowance-title-wrapper-${index}`}>
+    <div className="gba:flex gba:flex-col gba:w-[100%]" data-testid={`allowance-container-${index}`}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:px-4 gba:py-3" data-testid={`allowance-header-${index}`}>
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`allowance-title-wrapper-${index}`}>
           <img 
             src={ICONS.CALENDAR_ICON} 
             alt="Calendar" 
             style={{ width: "24px", height: "24px" }}
             data-testid={`allowance-icon-${index}`}
           />
-          <span className="gba:allowanceTitle" data-testid={`allowance-title-${index}`}>
+          <span className="gba:text-[#000]" style={{ fontSize: '16px', fontWeight: 500 }} 
+          data-testid={`allowance-title-${index}`}>
             {dateToDisplay ? `${getDayName(dateToDisplay)}, ${formatDate(dateToDisplay)}` : `Allowance ${index + 1}`}
           </span>
         </div>
-        <div className="gba:allowanceActions" data-testid={`allowance-actions-${index}`}>
+        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`allowance-actions-${index}`}>
           <Button
             variant="text"
-            className="gba:collapseButton"
+            className="gba:flex gba:items-center gba:justify-center"
+            style={{ padding: '4px', minWidth: 'auto', height: 'auto', marginLeft: '4px', background: 'transparent', border: 'none' }}
             data-testid={`collapse-button-${index}`}
             onClick={onToggleCollapse}
           >
@@ -72,7 +74,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
       
       {/* Only show content when not collapsed */}
       {!isCollapsed && (
-        <div className="gba:allowanceContent" data-testid={`allowance-content-${index}`}>
+        <div className="gba:flex gba:flex-col gba:gap-4" style={{ padding: '16px' }} data-testid={`allowance-content-${index}`}>
           <SelectField
             allowClear
             label={getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label', 'Cost Center')}

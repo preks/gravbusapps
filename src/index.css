@@ -27,17 +27,8 @@
 @import "tw-animate-css";
 
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-item/ExpenseItem.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request/ExpenseRequest.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/SummaryScreen.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request-invalid/ExpenseRequestInvalid.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request/components/PlanCard.css" layer(legacy-unlayered-override);
 
-/* Expense Request Wizard CSS imports */
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/ExpenseRequestWizard.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/components/LocationForm/LocationForm.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/AllowanceScreen.css" layer(legacy-unlayered-override);
-@import "./business-apps/fin/expenses/forms/expense-request-wizard/screens/TripScreen.css" layer(legacy-unlayered-override);
+
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
 @import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css" layer(legacy-unlayered-override);
