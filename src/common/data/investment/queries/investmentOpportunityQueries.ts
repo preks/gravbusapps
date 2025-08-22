@@ -8,10 +8,10 @@ export interface InvestmentOpportunityQueryVariables {
   accountIds?: string[];
   stageIds?: string[];
   pipelineIds?: string[];
+  statusIds?: string[];
   leadSourceIds?: string[];
   currencyIds?: string[];
   ownerEmployeeIds?: string[];
-  estimatedAmountBetween?: [number, number];
   forecastedProfitBetween?: [number, number];
   closeDateFrom?: string;
   closeDateTo?: string;
@@ -51,16 +51,16 @@ export const buildInvestmentOpportunityWhereCondition = (variables: InvestmentOp
     whereClause += `, opportunityPipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
+  if (variables.statusIds?.length) {
+    whereClause += `, opportunityStatus: { id: { _in: [${variables.statusIds.map(id => `"${id}"`).join(', ')}] } }`;
+  }
+
   if (variables.currencyIds?.length) {
     whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
   if (variables.ownerEmployeeIds?.length) {
     whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.estimatedAmountBetween) {
-    whereClause += `, estimatedAmount: { _gte: ${variables.estimatedAmountBetween[0]}, _lte: ${variables.estimatedAmountBetween[1]} }`;
   }
 
   if (variables.forecastedProfitBetween) {

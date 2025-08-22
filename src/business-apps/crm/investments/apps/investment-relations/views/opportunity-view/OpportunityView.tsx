@@ -29,6 +29,7 @@ import { OpportunityBoard } from "./components/opportunity-board/OpportunityBoar
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { PlusSquareIcon } from "@phosphor-icons/react";
+import { useInvestmentOpportunityFilters } from "./hooks/useInvestmentOpportunityFilters";
 
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
@@ -65,6 +66,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { filterGroups, filterLabelMap, handleFilterChange, closeAfter, closeBefore } = useInvestmentOpportunityFilters(context, selectedFilters, setSelectedFilters);
+
   // Build query variables
   const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => {
     const variables: InvestmentOpportunityQueryVariables = {
@@ -72,10 +75,52 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
       orderBy: [{ field: sortField, direction: sortOrder }],
-      ...selectedFilters
+      ...(closeAfter ? { closeDateFrom: closeAfter } : {}),
+      ...(closeBefore ? { closeDateTo: closeBefore } : {}),
     };
 
-    // Add pipeline filter
+    // Map selected filters
+    const ownerIds: string[] = [];
+    const stageIds: string[] = [];
+    const pipelineIds: string[] = [];
+    const accountIds: string[] = [];
+    const statusIds: string[] = [];
+    const amountRanges: Array<{ min?: number; max?: number }> = [];
+    const chanceRanges: Array<{ min?: number; max?: number }> = [];
+
+    selectedFilters.forEach((f) => {
+      if (f.startsWith('owner:')) ownerIds.push(f.slice(6));
+      else if (f.startsWith('stage:')) stageIds.push(f.slice(6));
+      else if (f.startsWith('pipeline:')) pipelineIds.push(f.slice(9));
+      else if (f.startsWith('account:')) accountIds.push(f.slice(8));
+      else if (f.startsWith('status:')) statusIds.push(f.slice(7));
+      else if (f === 'amount-large') amountRanges.push({ min: 100000 });
+      else if (f === 'amount-medium') amountRanges.push({ min: 50000, max: 100000 });
+      else if (f === 'amount-small') amountRanges.push({ min: 10000, max: 50000 });
+      else if (f === 'amount-micro') amountRanges.push({ max: 10000 });
+      else if (f === 'chance-high') chanceRanges.push({ min: 75, max: 100 });
+      else if (f === 'chance-medium') chanceRanges.push({ min: 50, max: 74 });
+      else if (f === 'chance-low') chanceRanges.push({ min: 25, max: 49 });
+      else if (f === 'chance-very-low') chanceRanges.push({ min: 0, max: 24 });
+    });
+
+    if (ownerIds.length) variables.ownerEmployeeIds = ownerIds;
+    if (stageIds.length) variables.stageIds = stageIds;
+    if (pipelineIds.length) variables.pipelineIds = pipelineIds;
+    if (accountIds.length) variables.accountIds = accountIds;
+    if (statusIds.length) variables.statusIds = statusIds;
+    if (amountRanges.length) {
+      const min = Math.min(...amountRanges.map(r => r.min ?? 0));
+      const max = Math.max(...amountRanges.map(r => (r.max ?? Number.MAX_SAFE_INTEGER)));
+      variables.estimatedAmountBetween = [min, max];
+    }
+    if (chanceRanges.length) {
+      const cmin = Math.min(...chanceRanges.map(r => r.min ?? 0));
+      const cmax = Math.max(...chanceRanges.map(r => (r.max ?? 100)));
+      variables.winningChanceBetween = [cmin, cmax];
+    }
+
+    // Add pipeline filter from selector
     if (selectedPipelineId !== "all") {
       variables.pipelineIds = [selectedPipelineId];
     }
@@ -88,7 +133,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     }
 
     return variables;
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, selectedPipelineId, opportunityFilter, userInfo?.employeeDetails?.employeeId, selectedEmployeeIds]);
+  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, selectedPipelineId, opportunityFilter, userInfo?.employeeDetails?.employeeId, selectedEmployeeIds, closeAfter, closeBefore]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -256,6 +301,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
               debounceDelay: 500,
               filter: selectedFilters,
               setFilter: handleSetFilter,
+              filterLabelMap,
               listTitle: (
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:flex gba:items-center gba:gap-2">
@@ -287,11 +333,22 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
               ),
             }}
             dataFilterProps={{
-              filterGroups: [], // TODO: Add proper filter groups when available
-              onFilterChange: () => {}, // TODO: Implement filter change handler
+              filterGroups,
+              onFilterChange: handleFilterChange,
             }}
             dataBody={
-              <OpportunityList {...context} />
+              <OpportunityList
+                opportunities={opportunities}
+                isLoading={isLoading}
+                totalCount={totalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onSort={handleSort}
+                sortField={sortField}
+                sortOrder={sortOrder}
+                {...context}
+              />
             }
           />
         </TabsContent>

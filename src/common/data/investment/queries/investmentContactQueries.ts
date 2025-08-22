@@ -9,8 +9,20 @@ export interface InvestmentContactQueryVariables {
   salutationIds?: string[];
   languageIds?: string[];
   ownerEmployeeIds?: string[];
+  accountIds?: string[];
+  contactTypes?: string[];
+  departments?: string[];
+  fullNames?: string[];
+  // Created timestamps
+  createdAtFrom?: string;
+  createdAtTo?: string;
   birthDateFrom?: string;
   birthDateTo?: string;
+  // Contact info presence filters
+  hasEmail?: boolean;
+  missingEmail?: boolean;
+  hasPhone?: boolean;
+  missingPhone?: boolean;
   limit?: number;
   offset?: number;
   orderBy?: Array<{
@@ -56,12 +68,50 @@ export const buildInvestmentContactWhereCondition = (variables: InvestmentContac
     whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
+  if (variables.accountIds?.length) {
+    whereClause += `, investmentAccountContact: { account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } } }`;
+  }
+
+  if (variables.contactTypes?.length) {
+    whereClause += `, type: { _in: [${variables.contactTypes.map(v => `"${v}"`).join(', ')}] }`;
+  }
+
+  if (variables.departments?.length) {
+    whereClause += `, department: { _in: [${variables.departments.map(v => `"${v}"`).join(', ')}] }`;
+  }
+
+  if (variables.fullNames?.length) {
+    whereClause += `, fullName: { _in: [${variables.fullNames.map(v => `"${v}"`).join(', ')}] }`;
+  }
+
+  // CreatedAt range
+  if (variables.createdAtFrom) {
+    whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`;
+  }
+  if (variables.createdAtTo) {
+    whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`;
+  }
+
   if (variables.birthDateFrom) {
     whereClause += `, birthDate: { _gte: "${variables.birthDateFrom}" }`;
   }
 
   if (variables.birthDateTo) {
     whereClause += `, birthDate: { _lte: "${variables.birthDateTo}" }`;
+  }
+
+  // Contact info presence
+  if (variables.hasEmail) {
+    whereClause += `, email: { _isNull: false, _neq: "" }`;
+  }
+  if (variables.missingEmail) {
+    whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`;
+  }
+  if (variables.hasPhone) {
+    whereClause += `, phone: { _isNull: false, _neq: "" }`;
+  }
+  if (variables.missingPhone) {
+    whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`;
   }
 
   whereClause += ' }';
