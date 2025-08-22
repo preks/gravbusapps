@@ -1,3 +1,3 @@
-export { default as ConfirmTransferAdvPayment } from "./ConfirmTransferAdvPayment";
+export { default } from "./ConfirmTransferAdvPayment";
 export * from "./types";
 export * from "./queries";

@@ -64,24 +64,3 @@ export interface AdvancePaymentData {
   paymentMethod: string;
   costCenter: CostCenter;
 }
-
-export interface ConfirmTransferAdvPaymentProps {
-  additionalData: {
-    value: {
-      psi_taskPayload: {
-        advancePayment: {
-          id: string;
-        };
-      };
-    };
-  };
-  contextProps: BusinessAppContextProps;
-}
-
-export interface BusinessAppContextProps {
-  userInfo?: {
-    employeeDetails?: {
-      employeeId: string;
-    };
-  };
-}

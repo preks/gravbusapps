@@ -81,9 +81,28 @@ export const useGetAdvancePaymentForApproval = (accessToken: string) => {
         AdvancePaymentByPk: AdvancePaymentData;
       }>(query, { paymentId });
       return result.AdvancePaymentByPk;
-    } catch (error) {
-      console.error("Error fetching advance payment data:", error);
-      throw error;
+    } catch (error: any) {
+      // Handle rate limiting specifically
+      if (error?.response?.status === 429 || error?.message?.includes("429")) {
+        throw new Error(
+          "429: API rate limit exceeded. Please wait a moment and try again."
+        );
+      }
+
+      // Handle other GraphQL errors
+      if (error?.response?.errors) {
+        const errorMessage = error.response.errors
+          .map((e: any) => e.message)
+          .join(", ");
+        throw new Error(`GraphQL Error: ${errorMessage}`);
+      }
+
+      // Handle network errors
+      if (error?.message) {
+        throw new Error(error.message);
+      }
+
+      throw new Error("Unknown error occurred while fetching payment data");
     }
   };
 
