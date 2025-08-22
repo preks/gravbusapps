@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -67,8 +68,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       };
     }
 
-    const rangeStart = new Date(currentStartDate);
-    const rangeEnd = new Date(currentEndDate);
+    const rangeStart = dayjs(currentStartDate).startOf('day').toDate();
+    const rangeEnd = dayjs(currentEndDate).endOf('day').toDate();
 
     // Filter absences using overlap logic AND department filter
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
@@ -611,7 +612,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       )}
 
       {/* Absence List with MONTH-FILTERED DATA */}
-      <AbsenceList 
+      <AbsenceList
         accessToken={accessToken}
         userInfo={userInfo}
         initialFilters={{
@@ -620,6 +621,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           status,
           department
         }}
+        preFilteredData={filteredAbsencesForMonth.absences}
         onDataChange={handleDataChange}
       />
     </div>

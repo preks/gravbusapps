@@ -72,6 +72,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
 
   // Get date filter for the current time filter
   const getDateFilters = () => {
@@ -188,8 +189,13 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
   const getDetailedEntitlementsQuery = () => {
     return `
-      query GetDetailedEntitlements($where: EmployeeAbsenceEntitlementBoolExp!) {
-        EmployeeAbsenceEntitlement(where: $where) {
+      query GetDetailedEntitlements($where: EmployeeAbsenceEntitlementBoolExp!, $offset: Int!, $limit: Int!, $orderBy: [EmployeeAbsenceEntitlementOrderBy!]) {
+        EmployeeAbsenceEntitlement(
+          where: $where
+          offset: $offset
+          limit: $limit
+          orderBy: $orderBy
+        ) {
           id
           employeeId
           total
@@ -202,6 +208,11 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
             id
             value
             parentEntryId
+          }
+        }
+        EmployeeAbsenceEntitlementAggregate(where: $where) {
+          aggregate {
+            count
           }
         }
       }
@@ -334,21 +345,28 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     fetchCatalogData();
   }, [accessToken]);
 
-  // Initial load effect (like AbsenceList)
+  // Initial load effect - wait for both accessToken and employees to be loaded
   useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
+    if (!initialLoadDone.current && accessToken && employees.length > 0) {
       initialLoadDone.current = true;
       fetchEntitlements();
     }
-  }, [accessToken]);
+  }, [accessToken, employees.length]);
 
-  // Search and filter effects (like AbsenceList) 
+  // Pagination effect - fetch new page when currentPage changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      fetchEntitlements();
+    }
+  }, [currentPage]);
+
+  // Search and filter effects - reset to page 1 and fetch
   useEffect(() => {
     if (initialLoadDone.current) {
       setCurrentPage(1); // Reset pagination like AbsenceList
-      fetchEntitlements();
+      // fetchEntitlements will be called by the currentPage useEffect above
     }
-  }, [timeFilter, search, JSON.stringify(selectedFilters), employees.length]);
+  }, [search, JSON.stringify(selectedFilters), pageSize]);
 
   // Main data fetching function (like AbsenceList fetchAbsences)
   const fetchEntitlements = async () => {
@@ -370,15 +388,37 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         // Fetch entitlements data with GraphQL variables like AbsenceList
         const whereConditions = buildWhereConditions();
         
-        // Log search queries for debugging
-        if (search && search.trim()) {
+        // Build order by clause (map sort fields to GraphQL field names)
+        let orderBy: any[] = [];
+        if (sortField && sortOrder) {
+          const graphqlSortOrder = sortOrder.toUpperCase(); // Convert to uppercase for GraphQL
+          if (sortField === 'employeeName') {
+            // For employee name, we can't sort directly since it's computed client-side
+            // Sort by employeeId instead (not ideal but functional)
+            orderBy.push({ employeeId: graphqlSortOrder });
+          } else if (sortField === 'organizationalUnit') {
+            // This field is also computed, skip sorting for now
+            orderBy.push({ employeeId: graphqlSortOrder });
+          } else if (sortField === 'absenceType') {
+            // Sort by type value
+            orderBy.push({ type: { value: graphqlSortOrder } });
+          } else {
+            // Direct mapping for other fields
+            orderBy.push({ [sortField]: graphqlSortOrder });
+          }
+        } else {
+          orderBy.push({ employeeId: 'ASC' });
         }
         
         const query = getDetailedEntitlementsQuery();
         const result = await graphQLClient.request<{ 
-          EmployeeAbsenceEntitlement: any[]
+          EmployeeAbsenceEntitlement: any[],
+          EmployeeAbsenceEntitlementAggregate: { aggregate: { count: number } }
         }>(query, {
-          where: whereConditions
+          where: whereConditions,
+          offset: (currentPage - 1) * pageSize,
+          limit: pageSize,
+          orderBy: orderBy
         });
         
         // Transform data using EXACT same pattern as AbsenceList for type mapping
@@ -413,6 +453,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         });
 
         setEntitlements(transformedData);
+        setTotal(result.EmployeeAbsenceEntitlementAggregate.aggregate.count);
 
       } catch (err) {
         console.error('❌ Error loading entitlements:', err);
@@ -536,39 +577,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   ];
 
-  // Apply sorting only (search and filtering now done server-side)
-  const filteredAndSortedEntitlements = useMemo(() => {
-    // Apply sorting
-    const sorted = [...entitlements].sort((a, b) => {
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-
-      // Handle different data types
-      if (sortField === 'validFrom' || sortField === 'validTo') {
-        aValue = new Date(aValue || 0);
-        bValue = new Date(bValue || 0);
-      } else if (typeof aValue === 'number') {
-        // Keep as numbers
-      } else {
-        aValue = String(aValue || '').toLowerCase();
-        bValue = String(bValue || '').toLowerCase();
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [entitlements, sortField, sortOrder]);
-
-  // Pagination
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    return filteredAndSortedEntitlements.slice(startIndex, endIndex);
-  }, [filteredAndSortedEntitlements, currentPage, pageSize]);
-
   // Handlers
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -627,12 +635,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
   // Summary statistics based on filtered data
   const summaryStats = useMemo(() => {
-    if (filteredAndSortedEntitlements.length === 0) return null;
+    if (total === 0) return null;
 
-    const totalEmployees = new Set(filteredAndSortedEntitlements.map(e => e.employeeId)).size;
-    const totalEntitlements = filteredAndSortedEntitlements.reduce((sum, e) => sum + e.entitlement, 0);
-    const totalUsed = filteredAndSortedEntitlements.reduce((sum, e) => sum + e.used, 0);
-    const totalAvailable = filteredAndSortedEntitlements.reduce((sum, e) => sum + e.available, 0);
+    const totalEmployees = new Set(entitlements.map(e => e.employeeId)).size;
+    const totalEntitlements = entitlements.reduce((sum, e) => sum + e.entitlement, 0);
+    const totalUsed = entitlements.reduce((sum, e) => sum + e.used, 0);
+    const totalAvailable = entitlements.reduce((sum, e) => sum + e.available, 0);
 
     return {
       totalEmployees,
@@ -641,7 +649,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       totalAvailable,
       utilizationRate: totalEntitlements > 0 ? (totalUsed / totalEntitlements * 100).toFixed(1) : '0'
     };
-  }, [filteredAndSortedEntitlements]);
+  }, [entitlements, total]);
 
   if (loading) {
     return (
@@ -681,57 +689,79 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
   // Table component
   const EntitlementsTable: React.FC = () => {
-    const totalPages = Math.ceil(filteredAndSortedEntitlements.length / pageSize);
+    const totalPages = Math.ceil(total / pageSize);
 
     return (
-      <Card>
-        <CardContent className="gba:p-0">
-          <div className="gba:overflow-x-auto">
-            <Table data-testid="entitlements-table" className="gba:w-full">
-              <TableHeader>
-                <TableRow>
-                  <SortableHeader field="employeeName" className="gba:w-[15%]">Employee Name</SortableHeader>
-                  <SortableHeader field="organizationalUnit" className="gba:w-[15%]">Org Unit</SortableHeader>
-                  <SortableHeader field="absenceType" className="gba:w-[15%]">Absence Type</SortableHeader>
-                  <SortableHeader field="entitlement" className="gba:w-[10%]">Entitlement</SortableHeader>
-                  <SortableHeader field="validFrom" className="gba:w-[12%]">Valid From</SortableHeader>
-                  <SortableHeader field="validTo" className="gba:w-[12%]">Valid To</SortableHeader>
-                  <SortableHeader field="used" className="gba:w-[12%]">Used (Effective Days)</SortableHeader>
-                  <SortableHeader field="available" className="gba:w-[9%]">Available</SortableHeader>
+      <div>
+        <div className="gba:overflow-x-auto">
+          <Table data-testid="entitlements-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead 
+                  onClick={() => handleSort('employeeName')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Name {sortField === 'employeeName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('organizationalUnit')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Org Unit {sortField === 'organizationalUnit' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('absenceType')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Absence Type {sortField === 'absenceType' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('entitlement')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Entitlement {sortField === 'entitlement' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('validFrom')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Valid From {sortField === 'validFrom' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('validTo')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Valid To {sortField === 'validTo' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+                <TableHead 
+                  onClick={() => handleSort('used')}
+                  className="gba:cursor-pointer gba:select-none"
+                >
+                  Used {sortField === 'used' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entitlements.map((entitlement) => (
+                <TableRow key={entitlement.id}>
+                  <TableCell className="gba:font-medium">{entitlement.employeeName}</TableCell>
+                  <TableCell>{entitlement.organizationalUnit}</TableCell>
+                  <TableCell>{entitlement.absenceType}</TableCell>
+                  <TableCell className="gba:text-right">{entitlement.entitlement}</TableCell>
+                  <TableCell>{entitlement.validFrom ? new Date(entitlement.validFrom).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>{entitlement.validTo ? new Date(entitlement.validTo).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell className="gba:text-right">{entitlement.used}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedData.map((entitlement) => (
-                  <TableRow key={entitlement.id}>
-                    <TableCell className="gba:font-medium">{entitlement.employeeName}</TableCell>
-                    <TableCell>{entitlement.organizationalUnit || 'No Department'}</TableCell>
-                    <TableCell>{entitlement.absenceType}</TableCell>
-                    <TableCell>{entitlement.entitlement} days</TableCell>
-                    <TableCell>
-                      {entitlement.validFrom ? new Date(entitlement.validFrom).toLocaleDateString() : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {entitlement.validTo ? new Date(entitlement.validTo).toLocaleDateString() : 'N/A'}
-                    </TableCell>
-                    <TableCell>{entitlement.used} days</TableCell>
-                    <TableCell>
-                      <span className={entitlement.available > 0 ? 'gba:text-green-600 gba:font-medium' : 'gba:text-gray-500'}>
-                        {entitlement.available} days
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
-          {/* Pagination - ALWAYS show arrows as requested */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="entitlements-pagination">
+        {/* Server-side pagination */}
+        {totalPages > 1 && (
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
             <div className="gba:text-sm gba:text-muted-foreground">
-              {totalPages > 1 
-                ? `${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, filteredAndSortedEntitlements.length)} of ${filteredAndSortedEntitlements.length} entitlements`
-                : `${filteredAndSortedEntitlements.length} entitlements`
-              }
+              {`${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, total)} of ${total} entitlements`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
@@ -739,8 +769,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                 <select
                   value={pageSize}
                   onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="entitlements-page-size-select"
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-gray-300 gba:text-sm"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -748,57 +777,69 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   <option value={100}>100</option>
                 </select>
               </div>
-              {totalPages > 1 && (
-                <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                  Page {currentPage} of {totalPages}
-                </div>
-              )}
+              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
+                Page {currentPage} of {totalPages}
+              </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
                   variant="outline"
-                  className="gba:hidden gba:h-8 gba:w-8 gba:p-0 gba:lg:flex"
+                  className="gba:h-8 gba:w-8 gba:p-0"
                   onClick={() => handlePaginationChange(1)}
-                  disabled={currentPage === 1 || totalPages <= 1}
-                  data-testid="entitlements-first-page-button"
+                  disabled={currentPage === 1}
                 >
-                  <span className="gba:sr-only">Go to first page</span>
                   ⟨⟨
                 </Button>
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
                   onClick={() => handlePaginationChange(currentPage - 1)}
-                  disabled={currentPage === 1 || totalPages <= 1}
-                  data-testid="entitlements-previous-page-button"
+                  disabled={currentPage === 1}
                 >
-                  <span className="gba:sr-only">Go to previous page</span>
                   ⟨
                 </Button>
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
                   onClick={() => handlePaginationChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages || totalPages <= 1}
-                  data-testid="entitlements-next-page-button"
+                  disabled={currentPage >= totalPages}
                 >
-                  <span className="gba:sr-only">Go to next page</span>
                   ⟩
                 </Button>
                 <Button
                   variant="outline"
-                  className="gba:hidden gba:h-8 gba:w-8 gba:p-0 gba:lg:flex"
+                  className="gba:h-8 gba:w-8 gba:p-0"
                   onClick={() => handlePaginationChange(totalPages)}
-                  disabled={currentPage >= totalPages || totalPages <= 1}
-                  data-testid="entitlements-last-page-button"
+                  disabled={currentPage >= totalPages}
                 >
-                  <span className="gba:sr-only">Go to last page</span>
                   ⟩⟩
                 </Button>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
+
+        {/* Single page display */}
+        {totalPages <= 1 && (
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {`${total} entitlements`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-gray-300 gba:text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -890,7 +931,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>Employee Entitlements</span>
-                <span className="gba:text-gray-500">({filteredAndSortedEntitlements.length})</span>
+                <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
           ),

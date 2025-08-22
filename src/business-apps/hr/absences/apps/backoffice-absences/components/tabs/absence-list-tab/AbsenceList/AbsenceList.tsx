@@ -40,6 +40,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
     status?: string;
     department?: string;
   };
+  preFilteredData?: EnhancedAbsence[]; // RESTORED for testing drill-down context
   onDataChange?: (data: {
     absences: EnhancedAbsence[];
     total: number;
@@ -80,50 +81,175 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(false);
   
   // Date range state (exactly like manager-absences)
-  const [startDate, setStartDate] = useState<string | undefined>(initialFilters?.startDate);
-  const [endDate, setEndDate] = useState<string | undefined>(initialFilters?.endDate);
+  // Initialize default current-year range unless pre-filtered or explicit initial filters provided
+  const defaultStartOfYear = dayjs().startOf('year').format('YYYY-MM-DD');
+  const defaultEndOfYear = dayjs().endOf('year').format('YYYY-MM-DD');
+  const [startDate, setStartDate] = useState<string | undefined>(
+    initialFilters?.startDate ?? defaultStartOfYear
+  );
+  const [endDate, setEndDate] = useState<string | undefined>(
+    initialFilters?.endDate ?? defaultEndOfYear
+  );
   const [creationStartDate, setCreationStartDate] = useState<string | undefined>(undefined);
   const [creationEndDate, setCreationEndDate] = useState<string | undefined>(undefined);
   
+  // Track initial load to prevent unnecessary re-renders
   const initialLoadDone = useRef(false);
 
-  // 🚀 PHASE 1: Expose filtered data to parent component for dynamic analysis
-  useEffect(() => {
-    if (onDataChange) {
-      const isFiltered = !!(
-        search || 
-        selectedFilters.length > 0 || 
-        startDate || 
-        endDate || 
-        creationStartDate || 
-        creationEndDate
-      );
+  // (Removed effect: defaults applied at initialization to avoid unbounded initial fetch)
 
-      const appliedFilters = {
-        search: search || undefined,
+  const fetchAbsences = async () => {
+    if (!accessToken) {
+      console.log('No access token available for BackofficeAbsenceList');
+      return;
+    }
+
+    // Always use server-side filtering
+
+    // 🚀 ORIGINAL: Server-side pagination when no preFilteredData
+    console.log('🚀 Using server-side pagination');
+    try {
+      setLoading(true);
+
+      // Build where conditions from a single source of truth
+      const conditions: any = buildWhereConditions();
+      console.debug('[AbsenceList] Applied filters and where conditions', {
         selectedFilters,
-        dateRange: (startDate || endDate) ? { startDate, endDate } : undefined,
-        creationDateRange: (creationStartDate || creationEndDate) ? { 
-          startDate: creationStartDate, 
-          endDate: creationEndDate 
-        } : undefined,
-        // 🔧 FIX: Pass current date ranges to parent for dynamic analysis
-        currentDateRange: {
-          startDate,
-          endDate,
-          creationStartDate,
-          creationEndDate
+        search,
+        startDate,
+        endDate,
+        creationStartDate,
+        creationEndDate,
+        conditions
+      });
+
+      // Build order by clause
+      let orderBy: any[] = [];
+      if (sortField && sortOrder) {
+        const graphqlSortOrder = sortOrder.toUpperCase(); // Convert to uppercase for GraphQL
+        if (sortField === 'employeeName') {
+          orderBy.push({ employee: { firstName: graphqlSortOrder } });
+          orderBy.push({ employee: { lastName: graphqlSortOrder } });
+        } else if (sortField === 'groupName') {
+          orderBy.push({ type: { value: graphqlSortOrder } });
+        } else {
+          orderBy.push({ [sortField]: graphqlSortOrder });
         }
+      } else {
+        orderBy.push({ createdAt: 'DESC' });
+      }
+
+      // Real GraphQL query for absences (based on manager-absences pattern)
+      const query = `
+        query GetEmployeeAbsences($where: EmployeeAbsenceBoolExp!, $offset: Int!, $limit: Int!, $orderBy: [EmployeeAbsenceOrderBy!]) {
+          EmployeeAbsence(where: $where, offset: $offset, limit: $limit, orderBy: $orderBy) {
+            id
+            startDate
+            endDate
+            status
+            calendarDays
+            effectiveDays
+            createdAt
+            type {
+              id
+              value
+              parentEntryId
+            }
+            employee {
+              id
+              firstName
+              lastName
+              employeePosition {
+                id
+                organizationalUnit {
+                  id
+                  name
+                }
+              }
+            }
+          }
+          EmployeeAbsenceAggregate(where: $where) {
+            aggregate {
+              count
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        where: conditions,
+        offset: (currentPage - 1) * pageSize,
+        limit: pageSize,
+        orderBy: orderBy
       };
 
-      onDataChange({
-        absences,
-        total,
-        isFiltered,
-        appliedFilters
-      });
+      const result = await graphQLClient.request(query, variables);
+
+      // Transform and enhance the data (similar to dashboard processing)
+      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) => ({
+        ...absence,
+        employeeName: absence.employee 
+          ? `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim() || 'Unknown Employee'
+          : 'Unknown Employee',
+        groupName: absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]
+          ? absenceGroups[absence.type.parentEntryId]
+          : 'Unknown Group',
+        typeName: absence.type?.value || 'Unknown Type'
+      }));
+
+      setAbsences(enhancedAbsences);
+      setTotal(result.EmployeeAbsenceAggregate.aggregate.count);
+
+      // Notify parent component with current data
+      if (onDataChange) {
+        onDataChange({
+          absences: enhancedAbsences,
+          total: result.EmployeeAbsenceAggregate.aggregate.count,
+          isFiltered: selectedFilters.length > 0 || !!search,
+          appliedFilters: {
+            search,
+            selectedFilters,
+            dateRange: { startDate, endDate },
+            creationDateRange: { startDate: creationStartDate, endDate: creationEndDate }
+          }
+        });
+      }
+
+    } catch (error) {
+      console.error('Error fetching absences:', error);
+      setError(error instanceof Error ? error : new Error('Failed to fetch absences'));
+      setAbsences([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
     }
-  }, [absences, total, search, selectedFilters, startDate, endDate, creationStartDate, creationEndDate, onDataChange]);
+  };
+
+  // Effect 1: Initial load
+  useEffect(() => {
+    if (!accessToken || initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    fetchAbsences();
+  }, [accessToken]);
+
+  // Effect 2: Search and filter changes (reset to page 1)
+  useEffect(() => {
+    if (!initialLoadDone.current || !accessToken) return;
+    // If we're not on page 1, reset to page 1 (Effect 3 will fetch)
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
+    // Already on page 1: fetch once
+    fetchAbsences();
+  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate]);
+
+  // Effect 3: Pagination, sorting, and after page reset
+  useEffect(() => {
+    if (initialLoadDone.current && accessToken) {
+      fetchAbsences();
+    }
+  }, [currentPage, sortField, sortOrder]);
 
   // Fetch team employees for the requester filter
   const fetchTeamEmployees = useCallback(async () => {
@@ -309,7 +435,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   }, [handleCreationDateRangeChange]);
 
   // Build GraphQL where conditions from filters (enhanced with date and department filtering)
-  const buildWhereConditions = () => {
+  const buildWhereConditions = useCallback(() => {
     const conditions: any = {
       isDeleted: { _eq: false } // Ensure we don't get deleted records
     };
@@ -375,257 +501,51 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         conditions.employee = { employeePosition: departmentCondition };
       }
     }
-    
+
     if (employeeFilters.length > 0) {
-      if (conditions.employee) {
-        conditions.employee = { ...conditions.employee, id: { _in: employeeFilters } };
-      } else {
-        conditions.employee = { id: { _in: employeeFilters } };
+      const employeeIds = employeeFilters.filter(filter => filter && filter.trim() !== '');
+      if (employeeIds.length > 0) {
+        if (conditions.employee) {
+          conditions.employee = { ...conditions.employee, id: { _in: employeeIds } };
+        } else {
+          conditions.employee = { id: { _in: employeeIds } };
+        }
       }
     }
 
-    // Add start/end date filters (absence date range) - OPTION 1: OVERLAP LOGIC
-    // Changed to match dashboard: include any absence that overlaps with the period
-    if (startDate && endDate) {
-      const startDateTime = `${startDate} 00:00:00+00`;
-      const endDateTime = `${endDate} 23:59:59+00`;
-      conditions.startDate = { _lte: endDateTime };  // absence starts before/on period end
-      conditions.endDate = { _gte: startDateTime };   // absence ends after/on period start
-    } else if (startDate) {
-      const startDateTime = `${startDate} 00:00:00+00`;
-      conditions.endDate = { _gte: startDateTime };   // absence ends after/on start date
-    } else if (endDate) {
-      const endDateTime = `${endDate} 23:59:59+00`;
-      conditions.startDate = { _lte: endDateTime };   // absence starts before/on end date
+    // Add date range filters (use ISO like dashboard)
+    if (startDate || endDate) {
+      if (startDate && endDate) {
+        const startDateTime = dayjs(startDate).startOf('day').toISOString();
+        const endDateTime = dayjs(endDate).endOf('day').toISOString();
+        conditions.startDate = { _lte: endDateTime };
+        conditions.endDate = { _gte: startDateTime };
+      } else if (startDate) {
+        const startDateTime = dayjs(startDate).startOf('day').toISOString();
+        conditions.endDate = { _gte: startDateTime };
+      } else if (endDate) {
+        const endDateTime = dayjs(endDate).endOf('day').toISOString();
+        conditions.startDate = { _lte: endDateTime };
+      }
     }
 
-    // Add creation date filters - exactly like manager-absences
-    if (creationStartDate && creationEndDate) {
-      const creationStartDateTime = `${creationStartDate} 00:00:00+00`;
-      const creationEndDateTime = `${creationEndDate} 23:59:59+00`;
-      conditions.createdAt = { 
-        _gte: creationStartDateTime,
-        _lte: creationEndDateTime
-      };
-    } else if (creationStartDate) {
-      const creationStartDateTime = `${creationStartDate} 00:00:00+00`;
-      conditions.createdAt = { _gte: creationStartDateTime };
-    } else if (creationEndDate) {
-      const creationEndDateTime = `${creationEndDate} 23:59:59+00`;
-      conditions.createdAt = { _lte: creationEndDateTime };
-    }
-    
-    // CRITICAL: Only include employees with active/current positions (no exitDate OR future exitDate)
-    const currentDate = new Date().toISOString();
-    const activePositionFilter = {
-      _or: [
-        { exitDate: { _isNull: true } },
-        { exitDate: { _gte: currentDate } }
-      ]
-    };
-    
-    if (conditions.employee) {
-      conditions.employee = { 
-        ...conditions.employee, 
-        employeePosition: { 
-          ...conditions.employee.employeePosition,
-          ...activePositionFilter
-        }
-      };
-    } else {
-      conditions.employee = { employeePosition: activePositionFilter };
+    // Add creation date range filters (use ISO like dashboard)
+    if (creationStartDate || creationEndDate) {
+      if (creationStartDate && creationEndDate) {
+        const startDateTime = dayjs(creationStartDate).startOf('day').toISOString();
+        const endDateTime = dayjs(creationEndDate).endOf('day').toISOString();
+        conditions.createdAt = { _gte: startDateTime, _lte: endDateTime };
+      } else if (creationStartDate) {
+        const startDateTime = dayjs(creationStartDate).startOf('day').toISOString();
+        conditions.createdAt = { _gte: startDateTime };
+      } else if (creationEndDate) {
+        const endDateTime = dayjs(creationEndDate).endOf('day').toISOString();
+        conditions.createdAt = { _lte: endDateTime };
+      }
     }
     
     return conditions;
-  };
-
-  const fetchAbsences = async () => {
-    if (!accessToken) {
-      console.log('No access token available for BackofficeAbsenceList');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Build where conditions from all filters and initialFilters
-      const whereConditions = buildWhereConditions();
-
-      // Add initial filter conditions to where clause
-      if (initialFilters?.startDate && initialFilters?.endDate) {
-        const startDateTime = `${initialFilters.startDate} 00:00:00+00`;
-        const endDateTime = `${initialFilters.endDate} 23:59:59+00`;
-        whereConditions.startDate = { _lte: endDateTime };
-        whereConditions.endDate = { _gte: startDateTime };
-      }
-
-      if (initialFilters?.status) {
-        whereConditions.status = { _eq: initialFilters.status };
-      }
-
-      if (initialFilters?.department && initialFilters.department !== 'NO_DEPARTMENT_SPECIAL') {
-        if (organizationalUnits.length > 0) {
-          const dept = organizationalUnits.find(ou => ou.name === initialFilters.department);
-          if (dept) {
-            if (whereConditions.employee) {
-              whereConditions.employee = { 
-                ...whereConditions.employee, 
-                employeePosition: { organizationalUnit: { name: { _eq: initialFilters.department } } }
-              };
-            } else {
-              whereConditions.employee = { 
-                employeePosition: { organizationalUnit: { name: { _eq: initialFilters.department } } }
-              };
-            }
-          }
-        }
-      } else if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
-        if (whereConditions.employee) {
-          whereConditions.employee = { 
-            ...whereConditions.employee, 
-            employeePosition: { organizationalUnit: { _isNull: true } }
-          };
-        } else {
-          whereConditions.employee = { 
-            employeePosition: { organizationalUnit: { _isNull: true } }
-          };
-        }
-      }
-
-      // Build order by clause
-      let orderBy: any[] = [];
-      if (sortField && sortOrder) {
-        if (sortField === 'employeeName') {
-          orderBy.push({ employee: { firstName: sortOrder } });
-          orderBy.push({ employee: { lastName: sortOrder } });
-        } else if (sortField === 'groupName') {
-          orderBy.push({ type: { value: sortOrder } });
-        } else {
-          orderBy.push({ [sortField]: sortOrder });
-        }
-      } else {
-        orderBy.push({ createdAt: 'DESC' });
-      }
-
-      // Real GraphQL query for absences (based on manager-absences pattern)
-      const query = `
-        query GetEmployeeAbsences($where: EmployeeAbsenceBoolExp!, $offset: Int!, $limit: Int!, $orderBy: [EmployeeAbsenceOrderBy!]) {
-          EmployeeAbsence(
-            where: $where
-            offset: $offset
-            limit: $limit
-            orderBy: $orderBy
-          ) {
-            id
-            startDate
-            endDate
-            effectiveDays
-            calendarDays
-            status
-            createdAt
-            employee {
-              id
-              firstName
-              lastName
-              pictureThumbnail
-              employeePosition {
-                organizationalUnit {
-                  id
-                  name
-                }
-              }
-            }
-            type {
-              objectValue
-              translations {
-                localeCode
-                value
-              }
-              id
-              value
-              parentEntryId
-            }
-          }
-          EmployeeAbsenceAggregate(where: $where) {
-            aggregate {
-              count
-            }
-          }
-        }
-      `;
-
-      const result = await graphQLClient.request<{
-        EmployeeAbsence: any[];
-        EmployeeAbsenceAggregate: { aggregate: { count: number } };
-      }>(query, {
-        where: whereConditions,
-        offset: (currentPage - 1) * pageSize,
-        limit: pageSize,
-        orderBy: orderBy
-      });
-
-      // Transform data to match EnhancedAbsence interface
-      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) => {
-        // employeePosition is now a single active position (filtered at query level)
-        const employeeName = `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim();
-        
-        return {
-        ...absence,
-          employeeName,
-          groupName: absenceGroups[absence.type.parentEntryId] || absence.type.value
-        };
-      });
-
-      setAbsences(enhancedAbsences);
-      setTotal(result.EmployeeAbsenceAggregate.aggregate.count);
-
-      // Notify parent component of data changes for dynamic analysis
-      if (onDataChange) {
-        onDataChange({
-          absences: enhancedAbsences,
-          total: result.EmployeeAbsenceAggregate.aggregate.count,
-          isFiltered: selectedFilters.length > 0 || !!search || !!startDate || !!endDate,
-          appliedFilters: {
-            search,
-            selectedFilters,
-            dateRange: { startDate, endDate },
-            creationDateRange: { startDate: creationStartDate, endDate: creationEndDate }
-          }
-        });
-      }
-
-    } catch (error) {
-      console.error('BackofficeAbsenceList API call failed:', error);
-      setError(error instanceof Error ? error : new Error('Failed to fetch absences'));
-      setAbsences([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initial load effect
-  useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
-      initialLoadDone.current = true;
-      fetchAbsences();
-    }
-  }, [accessToken, currentPage, pageSize]);
-
-  // Pagination effect - fetch new page when currentPage changes
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      fetchAbsences();
-    }
-  }, [currentPage]);
-
-  // Search and filter effects - reset to page 1 and fetch
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      setCurrentPage(1);
-      // fetchAbsences will be called by the currentPage useEffect above
-    }
-  }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate]);
+  }, [search, selectedFilters, organizationalUnits, startDate, endDate, creationStartDate, creationEndDate]);
 
   // Map department name to department ID once organizational units are loaded
   useEffect(() => {
@@ -681,6 +601,44 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       });
     }
   }, [initialFilters?.status]);
+
+  // 🚀 PHASE 1: Expose filtered data to parent component for dynamic analysis
+  useEffect(() => {
+    if (onDataChange) {
+      const isFiltered = !!(
+        search || 
+        selectedFilters.length > 0 || 
+        startDate || 
+        endDate || 
+        creationStartDate || 
+        creationEndDate
+      );
+
+      const appliedFilters = {
+        search: search || undefined,
+        selectedFilters,
+        dateRange: (startDate || endDate) ? { startDate, endDate } : undefined,
+        creationDateRange: (creationStartDate || creationEndDate) ? { 
+          startDate: creationStartDate, 
+          endDate: creationEndDate 
+        } : undefined,
+        // 🔧 FIX: Pass current date ranges to parent for dynamic analysis
+        currentDateRange: {
+          startDate,
+          endDate,
+          creationStartDate,
+          creationEndDate
+        }
+      };
+
+      onDataChange({
+        absences,
+        total,
+        isFiltered,
+        appliedFilters
+      });
+    }
+  }, [absences, total, search, selectedFilters, startDate, endDate, creationStartDate, creationEndDate, onDataChange]);
 
   // Employee filter backend search function
   const getEmployeeFilters = useCallback((searchTerm: string) => {
@@ -900,7 +858,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         setStartDate(undefined);
         setEndDate(undefined);
       }
-      return;
+      // Do not return; allow pills state to update through handleSetFilter path
     }
     
     if (filterId === 'creationDateRange') {
@@ -908,15 +866,17 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         setCreationStartDate(undefined);
         setCreationEndDate(undefined);
       }
-      return;
+      // Do not return; allow pills state to update through handleSetFilter path
     }
     
-    if (selected) {
-      setSelectedFilters(prev => [...prev, filterId]);
-    } else {
-      setSelectedFilters(prev => prev.filter(f => f !== filterId));
-    }
-  }, [selectedFilters]);
+    setSelectedFilters(prev => {
+      const next = selected 
+        ? Array.from(new Set([...prev, filterId]))
+        : prev.filter(f => f !== filterId);
+      console.debug('[AbsenceList] handleFilterChange', { filterId, selected, prev, next });
+      return next;
+    });
+  }, []);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);

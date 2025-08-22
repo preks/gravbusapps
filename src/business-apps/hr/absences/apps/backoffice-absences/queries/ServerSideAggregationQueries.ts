@@ -17,20 +17,12 @@ export const getKPIAggregationsQuery = (timeFilter: string) => {
     throw new Error(`Invalid time filter: ${timeFilter}`);
   }
 
-  const currentDate = new Date().toISOString();
-
   // Base where condition for all absences
   const baseWhere = `{
     _and: [
       { isDeleted: { _eq: false } },
       { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } },
-      { employee: { employeePosition: { 
-        _or: [
-          { exitDate: { _isNull: true } },
-          { exitDate: { _gte: "${currentDate}" } }
-        ]
-      } } }
+      { endDate: { _gte: "${dateFilters.startDate}" } }
     ]
   }`;
 
@@ -175,20 +167,12 @@ export const getHybridDataQuery = (timeFilter: string) => {
     throw new Error(`Invalid time filter: ${timeFilter}`);
   }
 
-  const currentDate = new Date().toISOString();
-
   // Optimized where clause for raw data (minimal fields needed)
   let absenceWhere = `where: { 
     _and: [
       { isDeleted: { _eq: false } },
       { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } },
-      { employee: { employeePosition: { 
-        _or: [
-          { exitDate: { _isNull: true } },
-          { exitDate: { _gte: "${currentDate}" } }
-        ]
-      } } }
+      { endDate: { _gte: "${dateFilters.startDate}" } }
     ]
   }`;
 
@@ -236,7 +220,6 @@ export const getCompleteAggregationsQuery = (
   vacationGroupId: string | null = null
 ): string => {
   const dateFilters = getDateFilters(timeFilter);
-  const currentDate = new Date().toISOString();
   
   if (!dateFilters) {
     throw new Error(`Invalid time filter: ${timeFilter}`);
@@ -247,13 +230,7 @@ export const getCompleteAggregationsQuery = (
     _and: [
       { isDeleted: { _eq: false } },
       { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } },
-      { employee: { employeePosition: { 
-        _or: [
-          { exitDate: { _isNull: true } },
-          { exitDate: { _gte: "${currentDate}" } }
-        ]
-      } } }
+      { endDate: { _gte: "${dateFilters.startDate}" } }
     ]
   }`;
 
@@ -267,12 +244,6 @@ export const getCompleteAggregationsQuery = (
         { validFrom: { _lte: "${dateFilters.endDate}" } },
         { validTo: { _gte: "${dateFilters.startDate}" } },
         { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
-        { employee: { employeePosition: { 
-          _or: [
-            { exitDate: { _isNull: true } },
-            { exitDate: { _gte: "${currentDate}" } }
-          ]
-        } } }
       ]
     }`;
   }
