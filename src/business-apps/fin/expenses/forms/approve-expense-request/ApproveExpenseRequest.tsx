@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, 
-  CardContent,
   Spinner, 
   Alert,
   AlertTitle,
@@ -14,15 +12,18 @@ import { splitExpenseItems } from '../approve-expense-plan/utils/expenseItemUtil
 import { useExpenseRequestData } from './hooks/useExpenseRequestData';
 import { formatCurrency, getCatalogValue } from '../approve-expense-plan/utils/formatters';
 
-// Component imports - reusing from approve-expense-plan
+// Component imports
 import { ExpenseRequestHeader, ExpenseRequestTotalsSection } from './components';
-import EmployeeInfoSection from '../approve-expense-plan/components/EmployeeInfoSection';
-import NotesSection from '../approve-expense-plan/components/NotesSection';
-import TripSection from '../approve-expense-plan/components/TripSection';
-import AllowancesSection from '../approve-expense-plan/components/AllowancesSection';
 import ExpensesSection from '../approve-expense-plan/components/ExpensesSection';
-import MessageSection from '../approve-expense-plan/components/MessageSection';
-import ActionButtons from '../approve-expense-plan/components/ActionButtons';
+// Shared components
+import { 
+  EmployeeInfoSection, 
+  NotesSection, 
+  MessageSection, 
+  ActionButtons,
+  TripSection,
+  AllowancesSection
+} from '../../reusable-components/approval';
 
 const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ 
   accessToken, 
@@ -227,68 +228,72 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({
   };
 
   return (
-    <div className="gba:max-w-[800px] gba:mx-auto" data-testid="approve-expense-request-container">
-      <Card className="gba:border-0 gba:shadow-none">
-        <CardContent className="gba:p-0">
-          
-          <ExpenseRequestHeader title={expenseRequest.title} />
-          
-          <EmployeeInfoSection
-            code={expenseRequest.code}
-            costCenterName={expenseRequest.costCenter?.name}
-            projectName={expenseRequest.project?.name}
-            employee={expenseRequest.employee || {}}
-          />
-          
-          <NotesSection description={expenseRequest.description} />
-          
-          <TripSection
-            expenseRequestTrip={expenseRequest.expenseRequestTrip}
-            startDate={undefined} // Expense requests don't have start/end dates in the same way
-            endDate={undefined}
-            destinations={destinations}
-            numberOfDestinations={numberOfDestinations}
-            countriesSummary={countriesSummary}
-          />
-          
-          <AllowancesSection
-            allowanceItems={allAllowances}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-          />
-          
-          <ExpensesSection
-            expenseItems={expenseItems}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            getCatalogValue={getCatalogValue}
-          />
-          
-          <ExpenseRequestTotalsSection
-            totalAmount={totalAmount}
-            reimbursableAmount={reimbursableAmount}
-            nonReimbursableAmount={nonReimbursableAmount}
-            advancePaymentAmount={advancePaymentAmount}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            expensePlanTotalAmount={expenseRequest.expensePlan?.totalAmount}
-            remainingAmount={remainingAmount}
-            isExpensePlan={expenseRequest.expensePlan !== null}
-          />
-          
-          <MessageSection
-            message={message}
-            showWarning={showWarning}
-            onMessageChange={handleMessageChange}
-          />
-          
-          <ActionButtons
-            submitting={submitting}
-            onApprove={handleApprove}
-            onReturn={handleReturn}
-          />
-        </CardContent>
-      </Card>
+    <div className="gba:max-w-[800px] gba:mx-auto gba:border-0 gba:bg-transparent" data-testid="approve-expense-request-container">
+      <ExpenseRequestHeader title={expenseRequest.title} />
+      
+      <EmployeeInfoSection
+        code={expenseRequest.code}
+        costCenterName={expenseRequest.costCenter?.name}
+        projectName={expenseRequest.project?.name}
+        employee={expenseRequest.employee || {}}
+        prefixDataTestId="approve-expense-request"
+      />
+      
+      <NotesSection 
+        description={expenseRequest.description} 
+        prefixDataTestId="approve-expense-request"
+      />
+      
+      <TripSection
+        expenseRequestTrip={expenseRequest.expenseRequestTrip}
+        startDate={undefined} // Expense requests don't have start/end dates in the same way
+        endDate={undefined}
+        destinations={destinations}
+        numberOfDestinations={numberOfDestinations}
+        countriesSummary={countriesSummary}
+        prefixDataTestId="approve-expense-request"
+      />
+      
+      <AllowancesSection
+        allowanceItems={allAllowances}
+        currencyCode={currencyCode}
+        formatCurrency={formatCurrency}
+        prefixDataTestId="approve-expense-request"
+      />
+      
+      <ExpensesSection
+        expenseItems={expenseItems}
+        currencyCode={currencyCode}
+        formatCurrency={formatCurrency}
+        getCatalogValue={getCatalogValue}
+      />
+      
+      <ExpenseRequestTotalsSection
+        totalAmount={totalAmount}
+        reimbursableAmount={reimbursableAmount}
+        nonReimbursableAmount={nonReimbursableAmount}
+        advancePaymentAmount={advancePaymentAmount}
+        currencyCode={currencyCode}
+        formatCurrency={formatCurrency}
+        expensePlanTotalAmount={expenseRequest.expensePlan?.totalAmount}
+        remainingAmount={remainingAmount}
+        isExpensePlan={expenseRequest.expensePlan !== null}
+      />
+      
+      <MessageSection
+        message={message}
+        showWarning={showWarning}
+        onMessageChange={handleMessageChange}
+        prefixDataTestId="approve-expense-request"
+        warningKey="approve_expense_request.warning_message"
+      />
+      
+      <ActionButtons
+        submitting={submitting}
+        onApprove={handleApprove}
+        onReturn={handleReturn}
+        prefixDataTestId="approve-expense-request"
+      />
     </div>
   );
 };
