@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestTotalsSectionProps {
   totalAmount: number;
@@ -62,7 +62,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
       <div className="gba:mb-6 gba:pl-6" data-testid="approve-expense-request-total">
         <div className="gba:flex gba:justify-between gba:items-center">
           <div className="gba:text-md gba:text-foreground">
-            Expenses
+            {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.planned_expenses_header', 'Expenses')}
           </div>
           <div className="gba:text-lg gba:font-semibold gba:text-foreground">
             {formatCurrency(totalAmount, currencyCode)}
@@ -85,21 +85,30 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
           </div>
         )}
         
+         {isExpensePlan && advancePaymentAmount !== 0 && (
+          <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
+            <div className="gba:text-md gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
+            </div>
+            <div className="gba:text-md gba:font-semibold" style={{ color: '#A2519A' }}>
+              {formatCurrency(advancePaymentAmount, currencyCode)}
+            </div>
+          </div>
+        )}
         {nonReimbursableAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
-              Non-Reimbursable Amount
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.non_reimbursable', 'Not Reimbursable Amount')}
             </div>
             <div className="gba:text-md gba:font-semibold" style={{ color: '#A2519A' }}>
               {formatCurrency(nonReimbursableAmount, currencyCode)}
             </div>
           </div>
         )}
-        
         {remainingAmount !== totalAmount && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
-              Remaining Amount
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining amount')}
             </div>
             <div className="gba:text-md gba:font-semibold" style={{ color: '#0ab874' }}>
               {formatCurrency(remainingAmount, currencyCode)}
@@ -107,16 +116,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
           </div>
         )}
         
-        {isExpensePlan && advancePaymentAmount !== 0 && (
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
-            <div className="gba:text-md gba:text-foreground">
-              Advance Payment
-            </div>
-            <div className="gba:text-md gba:font-semibold" style={{ color: '#A2519A' }}>
-              {formatCurrency(advancePaymentAmount, currencyCode)}
-            </div>
-          </div>
-        )}
+       
       </div>
     </>
   );

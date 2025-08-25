@@ -8,6 +8,7 @@ import {
 } from '@newwork/nw-design-system';
 import { DownOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { formatDate } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface TripSectionProps {
   expenseRequestTrip: Array<{
@@ -62,7 +63,7 @@ const TripSection: React.FC<TripSectionProps> = ({
       {/* Trip title - Light gray header bar */}
       <div className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full">
         <span className="gba:text-foreground gba:text-sm gba:font-semibold gba:pl-3">
-          Trip
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.trip_header', 'Trip')}
         </span>
       </div>
 
@@ -75,7 +76,7 @@ const TripSection: React.FC<TripSectionProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
             <span className="gba:font-semibold gba:text-foreground">
-              Start Location
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Start Location')}
             </span>
           </div>
           <div className="gba:ml-6">
@@ -96,7 +97,7 @@ const TripSection: React.FC<TripSectionProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
             <span className="gba:font-semibold gba:text-foreground">
-              End Location
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.end_location_text', 'End Location')}
             </span>
           </div>
           <div className="gba:ml-6">
@@ -120,7 +121,7 @@ const TripSection: React.FC<TripSectionProps> = ({
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
           <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
           <span className="gba:font-semibold gba:text-foreground">
-            Destination Location
+            {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.destination_location', 'Destination Location')}
           </span>
           <div className="gba:flex-1" />
           <CollapsibleTrigger asChild>
@@ -137,7 +138,7 @@ const TripSection: React.FC<TripSectionProps> = ({
           </CollapsibleTrigger>
         </div>
         <div className="gba:text-foreground gba:ml-6">
-          {numberOfDestinationPoints} Destination{numberOfDestinationPoints !== 1 ? 's' : ''} {countriesSummary.countries ? `in ${countriesSummary.countries}` : ''}
+          {numberOfDestinationPoints} {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.regions_breakdown', 'Destination')}{numberOfDestinationPoints !== 1 ? 's' : ''} {countriesSummary.countries ? `in ${countriesSummary.countries}` : ''}
         </div>   
         {/* Collapsible content */}
         <CollapsibleContent>
@@ -146,8 +147,8 @@ const TripSection: React.FC<TripSectionProps> = ({
             {destinationPoints.map((trip, index) => (
               <div key={index} className="gba:mb-0">
                 <div>
-                  <span className="gba:text-muted-foreground gba:font-semibold">Destination:{' '}</span>
-                  <span className="gba:text-foreground">{trip.address}, Departure {trip.tripDateTime && `${formatDate(trip.tripDateTime)}, ${formatTimeOnly(trip.tripDateTime)}`}</span>
+                  <span className="gba:text-muted-foreground gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.destination_location', 'Destination')}:{' '}</span>
+                  <span className="gba:text-foreground">{trip.address}, {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.destinations_breakdown', 'Departure')} {trip.tripDateTime && `${formatDate(trip.tripDateTime)}, ${formatTimeOnly(trip.tripDateTime)}`}</span>
                 </div>
               </div>
             ))}
