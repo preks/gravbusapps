@@ -660,6 +660,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
         setPositions(newPositions);
 
+        // Sync form fields for all generated positions (amount, cost center, reimbursable)
+        const formValuesBatch: Record<string, any> = {};
+        newPositions.forEach((pos, idx) => {
+          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined;
+          formValuesBatch[`amount-${idx}`] = pos.amount;
+          formValuesBatch[`costCenter-${idx}`] = pos.costCenter;
+          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable;
+        });
+        form.setFieldsValue(formValuesBatch);
+
         if (newPositions.length > 1) {
           setMultiPosition(true);
         } else {
@@ -683,6 +693,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                   const updatedPositions = [...newPositions];
                   updatedPositions[index].expenseType = matchingType.id;
                   setPositions(updatedPositions);
+                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id });
                 }
               }
             } catch (error) {

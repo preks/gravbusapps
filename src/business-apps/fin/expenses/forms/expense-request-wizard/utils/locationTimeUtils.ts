@@ -75,8 +75,13 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
   const { minDate, maxDate, minTime, maxTime } = limits;
   const { departureDate, departureTime } = location;
   
-  // If no date, nothing to validate
-  if (!departureDate) return location;
+  // If no date, ensure time is also cleared
+  if (!departureDate) {
+    return {
+      ...location,
+      departureTime: undefined
+    };
+  }
   
   // Check if date is within limits
   const isDateValid = (!minDate || departureDate >= minDate) && 
@@ -145,7 +150,9 @@ export const combineDateTimeToISOString = (
   
   // If we only have time, return time as string
   if (!date && time) {
-    return dayjs(time).format("HH:mm:ss");
+    const dateString = dayjs(time).format("YYYY-MM-DD");
+    const timeString = dayjs(time).format("HH:mm:ss")
+    return `${dateString}T${timeString}`;
   }
   
   // If we only have date, return date as ISO string

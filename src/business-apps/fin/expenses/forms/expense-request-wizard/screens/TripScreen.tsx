@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
 import { Button } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -112,6 +112,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
+  const lastAbsenceCheckKeyRef = useRef<string | null>(null);
   
   const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
@@ -315,6 +316,18 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         startTimeValue: finalStartDate,
         endTimeValue: finalEndDate
       };
+
+      const dedupeKey = JSON.stringify({
+        employeeId,
+        expenseId,
+        expensePlanId,
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
+      });
+      if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        return;
+      }
+      lastAbsenceCheckKeyRef.current = dedupeKey;
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
         const overlapWarning = getOverlapWarningMessage(response, expensePlanId);
