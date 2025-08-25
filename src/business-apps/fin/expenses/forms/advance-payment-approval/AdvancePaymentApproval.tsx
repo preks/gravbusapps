@@ -268,7 +268,7 @@ const AdvancePaymentApproval: React.FC<
               data-testid="advance-payment-approval-title"
             >
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:advance_payment.approve_title",
+                "lowcoder:approve_advance_payment.title",
                 "Approve Advance Payment"
               )}
             </h1>
@@ -280,7 +280,7 @@ const AdvancePaymentApproval: React.FC<
           <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:advance_payment.title",
+                "lowcoder:approve_advance_payment.title",
                 "Advance Payment"
               )}
             </h3>
@@ -294,7 +294,7 @@ const AdvancePaymentApproval: React.FC<
             <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:p-6">
               <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:expense_plan.title",
+                  "lowcoder:create_expense_request.expense_request_container.current_expense_plan_label",
                   "Expense plan"
                 )}
               </h3>
@@ -302,7 +302,7 @@ const AdvancePaymentApproval: React.FC<
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:common.id",
+                      "lowcoder:approve_advance_payment.id",
                       "Id"
                     )}
                     :
@@ -314,7 +314,7 @@ const AdvancePaymentApproval: React.FC<
                 <div className="gba:flex gba:justify-between gba:items-start">
                   <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:common.title",
+                      "lowcoder:expense_request_list.expense_plan_table.title",
                       "Title"
                     )}
                     :
@@ -326,7 +326,7 @@ const AdvancePaymentApproval: React.FC<
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:common.type",
+                      "lowcoder:expense_request_list.expense_plan_table.type",
                       "Type"
                     )}
                     :
@@ -338,7 +338,7 @@ const AdvancePaymentApproval: React.FC<
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:common.amount",
+                      "lowcoder:expense_request_list.expense_plan_table.amount",
                       "Amount"
                     )}
                     :
@@ -356,7 +356,7 @@ const AdvancePaymentApproval: React.FC<
             <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:p-6">
               <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:common.employee",
+                  "lowcoder:hr_absences.create_absence.employee",
                   "Employee"
                 )}
               </h3>
@@ -395,14 +395,14 @@ const AdvancePaymentApproval: React.FC<
           <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:p-6">
             <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:common.notes",
+                "lowcoder:approve_expense_request.notes_area_label",
                 "Notes"
               )}
             </h3>
             <div className="gba:bg-gray-100 gba:p-4 gba:rounded-md gba:min-h-24 gba:text-sm gba:text-gray-700">
               {description ||
                 getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:common.no_notes",
+                  "lowcoder:approve_expense_request.notes_area_placeholder",
                   "No notes"
                 )}
             </div>
@@ -412,7 +412,7 @@ const AdvancePaymentApproval: React.FC<
           <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:p-6">
             <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:advance_payment.title",
+                "lowcoder:approve_expense_request.advance_payment",
                 "Advance Payment"
               )}
             </h3>
@@ -420,7 +420,7 @@ const AdvancePaymentApproval: React.FC<
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                   {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:advance_payment.payment_method",
+                    "lowcoder:create_expense_request.add_request_trip_details.payment_method",
                     "Payment Method"
                   )}
                   :
@@ -432,7 +432,7 @@ const AdvancePaymentApproval: React.FC<
               <div className="gba:flex gba:justify-between gba:items-center">
                 <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                   {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:advance_payment.cost_center",
+                    "lowcoder:expense_request_overview.side_bar.request_cost_center",
                     "Cost Center"
                   )}
                   :
@@ -448,13 +448,13 @@ const AdvancePaymentApproval: React.FC<
           <div className="gba:px-6 gba:mb-8">
             <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:common.message",
+                "lowcoder:employee_list.search_employee_list.recent_employees_table.message",
                 "Message"
               )}
             </h3>
             <Textarea
               placeholder={getTranslationFromI18nKeyAndLabel(
-                "lowcoder:advance_payment.write_message_placeholder",
+                "lowcoder:approve_expense_plan.comment_area",
                 "Write Message..."
               )}
               value={message}
@@ -473,7 +473,7 @@ const AdvancePaymentApproval: React.FC<
               data-testid="advance-payment-reject-button"
             >
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:common.reject",
+                "lowcoder:approve_expense_request.reject_button",
                 "Reject"
               )}
             </Button>
@@ -483,7 +483,7 @@ const AdvancePaymentApproval: React.FC<
               data-testid="advance-payment-approve-button"
             >
               {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:common.approve",
+                "lowcoder:approve_expense_plan.approve_button",
                 "Approve"
               )}
             </Button>
