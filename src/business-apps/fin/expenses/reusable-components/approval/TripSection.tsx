@@ -26,6 +26,7 @@ interface TripSectionProps {
   countriesSummary: {
     countries?: string;
   };
+  prefixDataTestId?: string;
 }
 
 // Helper function to format time using formatDate with time format
@@ -40,7 +41,8 @@ const TripSection: React.FC<TripSectionProps> = ({
   endDate,
   destinations,
   numberOfDestinations,
-  countriesSummary
+  countriesSummary,
+  prefixDataTestId = 'approve-expense'
 }) => {
   const [isDestinationExpanded, setIsDestinationExpanded] = useState(true);
 
@@ -56,7 +58,7 @@ const TripSection: React.FC<TripSectionProps> = ({
   const numberOfDestinationPoints = destinationPoints.length;
 
   return (
-    <div data-testid="approve-expense-plan-trip" className="gba:mb-4">
+    <div data-testid={`${prefixDataTestId}-trip`} className="gba:mb-4">
       {/* Trip title - Light gray header bar */}
       <div className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full">
         <span className="gba:text-foreground gba:text-sm gba:font-semibold gba:pl-3">
@@ -64,11 +66,11 @@ const TripSection: React.FC<TripSectionProps> = ({
         </span>
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-8 gba:mb-2" data-testid="approve-expense-plan-trip-section">
+      <div className="gba:grid gba:grid-cols-2 gba:gap-8 gba:mb-2" data-testid={`${prefixDataTestId}-trip-section`}>
         {/* Start Location */}
         <div 
           className="gba:mb-2" 
-          data-testid="approve-expense-plan-start-location"
+          data-testid={`${prefixDataTestId}-start-location`}
         >
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
@@ -77,19 +79,19 @@ const TripSection: React.FC<TripSectionProps> = ({
             </span>
           </div>
           <div className="gba:ml-6">
-                                     <div className="gba:text-foreground">
-               {startPoint?.address || 'N/A'} 
-             </div>
-              <div className="gba:text-foreground">
-                {startPoint?.tripDateTime && `${formatDate(startPoint.tripDateTime)}, ${formatTimeOnly(startPoint.tripDateTime)}`}
-              </div>
+            <div className="gba:text-foreground">
+              {startPoint?.address || 'N/A'} 
+            </div>
+            <div className="gba:text-foreground">
+              {startPoint?.tripDateTime && `${formatDate(startPoint.tripDateTime)}, ${formatTimeOnly(startPoint.tripDateTime)}`}
+            </div>
           </div>
         </div>
 
         {/* End Location */}
         <div 
           className="gba:mb-2" 
-          data-testid="approve-expense-plan-end-location"
+          data-testid={`${prefixDataTestId}-end-location`}
         >
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <EnvironmentOutlined className="gba:text-base gba:text-muted-foreground" />
@@ -98,12 +100,12 @@ const TripSection: React.FC<TripSectionProps> = ({
             </span>
           </div>
           <div className="gba:ml-6">
-                                     <div className="gba:text-foreground">
-               {endPoint?.address || 'N/A'} 
-             </div>
-              <div className="gba:text-foreground">
-                 {endPoint?.tripDateTime && `${formatDate(endPoint.tripDateTime)}, ${formatTimeOnly(endPoint.tripDateTime)}`}
-              </div>
+            <div className="gba:text-foreground">
+              {endPoint?.address || 'N/A'} 
+            </div>
+            <div className="gba:text-foreground">
+              {endPoint?.tripDateTime && `${formatDate(endPoint.tripDateTime)}, ${formatTimeOnly(endPoint.tripDateTime)}`}
+            </div>
           </div>
         </div>
       </div>
@@ -112,7 +114,7 @@ const TripSection: React.FC<TripSectionProps> = ({
       <Collapsible 
         open={isDestinationExpanded} 
         onOpenChange={setIsDestinationExpanded}
-        data-testid="approve-expense-plan-destination"
+        data-testid={`${prefixDataTestId}-destination`}
         className="gba:w-full"
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -126,7 +128,7 @@ const TripSection: React.FC<TripSectionProps> = ({
               variant="ghost" 
               size="sm"
               className="gba:p-1 gba:h-auto"
-              data-testid="approve-expense-plan-destination-toggle"
+              data-testid={`${prefixDataTestId}-destination-toggle`}
             >
               <DownOutlined 
                 className={`gba:text-base gba:transition-transform gba:duration-200 ${isDestinationExpanded ? 'gba:rotate-180' : 'gba:rotate-0'}`}
@@ -134,23 +136,23 @@ const TripSection: React.FC<TripSectionProps> = ({
             </Button>
           </CollapsibleTrigger>
         </div>
-                 <div className="gba:text-foreground gba:ml-6">
-           {numberOfDestinationPoints} Destination{numberOfDestinationPoints !== 1 ? 's' : ''} {countriesSummary.countries ? `in ${countriesSummary.countries}` : ''}
-         </div>   
-         {/* Collapsible content */}
-         <CollapsibleContent>
-           <Separator className="gba:h-px gba:bg-gray-100 gba:mb-3 gba:mt-3" />
-           <div className="gba:ml-6 gba:mt-1 gba:text-muted-foreground gba:text-sm">
-             {destinationPoints.map((trip, index) => (
-               <div key={index} className="gba:mb-0">
-                 <div>
-                   <span className="gba:text-muted-foreground gba:font-semibold">Destination:{' '}</span>
-                   <span className="gba:text-foreground">{trip.address}, Departure {trip.tripDateTime && `${formatDate(trip.tripDateTime)}, ${formatTimeOnly(trip.tripDateTime)}`}</span>
-                 </div>
-               </div>
-             ))}
-           </div>
-         </CollapsibleContent>
+        <div className="gba:text-foreground gba:ml-6">
+          {numberOfDestinationPoints} Destination{numberOfDestinationPoints !== 1 ? 's' : ''} {countriesSummary.countries ? `in ${countriesSummary.countries}` : ''}
+        </div>   
+        {/* Collapsible content */}
+        <CollapsibleContent>
+          <Separator className="gba:h-px gba:bg-gray-100 gba:mb-3 gba:mt-3" />
+          <div className="gba:ml-6 gba:mt-1 gba:text-muted-foreground gba:text-sm">
+            {destinationPoints.map((trip, index) => (
+              <div key={index} className="gba:mb-0">
+                <div>
+                  <span className="gba:text-muted-foreground gba:font-semibold">Destination:{' '}</span>
+                  <span className="gba:text-foreground">{trip.address}, Departure {trip.tripDateTime && `${formatDate(trip.tripDateTime)}, ${formatTimeOnly(trip.tripDateTime)}`}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
       </Collapsible>
     </div>
   );

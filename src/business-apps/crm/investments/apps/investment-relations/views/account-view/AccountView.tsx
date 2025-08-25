@@ -14,6 +14,7 @@ import { AccountList } from "./components/AccountList";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { PlusSquareIcon } from "@phosphor-icons/react";
+import { useInvestmentAccountFilters } from "./hooks/useInvestmentAccountFilters";
 
 export interface AccountViewProps extends BusinessAppContextProps {}
 
@@ -31,6 +32,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
 
   // Hooks for data fetching
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context);
+  const { filterGroups, filterLabelMap, handleFilterChange, createdAfter, createdBefore } = useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters);
 
   // Data state
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
@@ -39,13 +41,62 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   const [error, setError] = useState<string | null>(null);
 
   // Build query variables
-  const queryVariables: InvestmentAccountQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: searchTerm.trim() || undefined,
-    orderBy: [{ field: sortField, direction: sortOrder }],
-    ...selectedFilters
-  }), [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
+  const queryVariables: InvestmentAccountQueryVariables = useMemo(() => {
+    const vars: Partial<InvestmentAccountQueryVariables> = {};
+    const ownerIds: string[] = [];
+    const industryIds: string[] = [];
+    const legalFormIds: string[] = [];
+    const sizeIds: string[] = [];
+    const revenueIds: string[] = [];
+    const names: string[] = [];
+    const geoPresence: string[] = [];
+    let hasWebsite = false, missingWebsite = false, hasEmail = false, missingEmail = false, hasPhone = false, missingPhone = false, hasContact = false, missingContact = false;
+
+    selectedFilters.forEach((f) => {
+      if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
+      else if (f.startsWith("industry:")) industryIds.push(f.slice(9));
+      else if (f.startsWith("legalForm:")) legalFormIds.push(f.slice(10));
+      else if (f.startsWith("companySize:")) sizeIds.push(f.slice(12));
+      else if (f.startsWith("annualRevenueBand:")) revenueIds.push(f.slice(18));
+      else if (f.startsWith("company:")) names.push(f.slice(8));
+      else if (f.startsWith("location:")) geoPresence.push(f.slice(9));
+      else if (f === "has:website") hasWebsite = true;
+      else if (f === "missing:website") missingWebsite = true;
+      else if (f === "has:email") hasEmail = true;
+      else if (f === "missing:email") missingEmail = true;
+      else if (f === "has:phone") hasPhone = true;
+      else if (f === "missing:phone") missingPhone = true;
+      else if (f === "has:contact") hasContact = true;
+      else if (f === "missing:contact") missingContact = true;
+    });
+
+    if (ownerIds.length) vars.ownerEmployeeIds = ownerIds;
+    if (industryIds.length) vars.industryClassIds = industryIds;
+    if (legalFormIds.length) vars.legalFormIds = legalFormIds;
+    if (sizeIds.length) vars.companySizeIds = sizeIds;
+    if (revenueIds.length) vars.accountAnnualRevenueBandIds = revenueIds;
+    if (names.length) vars.names = names;
+    if (geoPresence.length) vars.geographicPresenceValues = geoPresence;
+
+    const base: InvestmentAccountQueryVariables = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: searchTerm.trim() || undefined,
+      orderBy: [{ field: sortField, direction: sortOrder }],
+      ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
+      ...(createdBefore ? { createdAtTo: createdBefore } : {}),
+      ...(hasWebsite ? { hasWebsite: true } : {}),
+      ...(missingWebsite ? { missingWebsite: true } : {}),
+      ...(hasEmail ? { hasEmail: true } : {}),
+      ...(missingEmail ? { missingEmail: true } : {}),
+      ...(hasPhone ? { hasPhone: true } : {}),
+      ...(missingPhone ? { missingPhone: true } : {}),
+      ...(hasContact ? { hasContact: true } : {}),
+      ...(missingContact ? { missingContact: true } : {}),
+      ...vars,
+    };
+    return base;
+  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -147,6 +198,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           debounceDelay: 500,
           filter: selectedFilters,
           setFilter: handleSetFilter,
+          filterLabelMap,
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -178,8 +230,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           ),
         }}
         dataFilterProps={{
-          filterGroups: [], // TODO: Add proper filter groups when available
-          onFilterChange: () => {}, // TODO: Implement filter change handler
+          filterGroups,
+          onFilterChange: handleFilterChange,
         }}
         dataBody={
           <AccountList

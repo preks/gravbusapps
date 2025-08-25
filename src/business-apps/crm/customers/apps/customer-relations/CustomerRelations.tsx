@@ -62,14 +62,14 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       label: "Contacts"
     },
     {
-      key: "campaigns",
-      icon: <Megaphone />,
-      label: "Campaigns"
-    },
-    {
       key: "opportunities",
       icon: <CurrencyDollar />,
       label: "Opportunities"
+    },
+    {
+      key: "campaigns",
+      icon: <Megaphone />,
+      label: "Campaigns"
     },
     {
       key: "analytics",

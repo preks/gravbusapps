@@ -29,7 +29,7 @@ const DATA_TEST_ID_PREFIX = "AppActionButton";
 export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   // Extract App Action specific props and get clean props for ActionButton
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
-  
+
   // Use shared logic for data fetching and state management
   const {
     combinedData,
