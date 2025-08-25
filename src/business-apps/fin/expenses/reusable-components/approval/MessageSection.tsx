@@ -1,0 +1,45 @@
+import React from 'react';
+import { Textarea } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
+interface MessageSectionProps {
+  message: string;
+  showWarning: boolean;
+  onMessageChange: (value: string) => void;
+  prefixDataTestId?: string;
+  warningKey?: string;
+  warningDefaultText?: string;
+}
+
+const MessageSection: React.FC<MessageSectionProps> = ({
+  message,
+  showWarning,
+  onMessageChange,
+  prefixDataTestId = 'approve-expense',
+  warningKey = 'approve_expense.warning_message',
+  warningDefaultText = 'Please add a message!'
+}) => {
+  return (
+    <div className="gba:mb-4 gba:bg-gray-100 gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
+      <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
+        Message
+      </div>
+      <Textarea
+        placeholder="Write Message..."
+        value={message}
+        onChange={(e) => onMessageChange(e.target.value)}
+        className="gba:bg-transparent gba:border-none gba:text-muted-foreground gba:resize-none gba:p-0 gba:text-xs"
+        data-testid={`${prefixDataTestId}-message-textarea`}
+      />
+      
+      {/* Warning message */}
+      {showWarning && (
+        <div className="gba:text-red-600 gba:text-sm gba:mt-2" data-testid={`${prefixDataTestId}-warning`}>
+          {getTranslationFromI18nKeyAndLabel(warningKey, warningDefaultText)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MessageSection; 

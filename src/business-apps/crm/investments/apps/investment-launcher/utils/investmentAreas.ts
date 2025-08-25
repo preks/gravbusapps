@@ -57,7 +57,7 @@ export const investmentAreas: InvestmentArea[] = [
   // Analytics & Reporting
   {
     id: 'analytics-reporting',
-    title: 'Analytics & Reporting',
+    title: 'Analytics and Reporting',
     description: 'Advanced analytics, performance metrics, and comprehensive reporting',
     icon: ChartBar,
     category: 'analytics',

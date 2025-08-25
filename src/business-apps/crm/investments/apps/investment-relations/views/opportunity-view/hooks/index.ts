@@ -1,0 +1,2 @@
+export { useOpportunityView } from './useOpportunityView';
+

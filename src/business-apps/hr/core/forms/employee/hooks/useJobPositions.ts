@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useGetJobPositionData } from '../../../apps/job-position-list/queries/JobPositionQueries';
+import { useGetJobPositionData } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/queries/JobPositionQueries';
 import { SelectOption } from '../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 

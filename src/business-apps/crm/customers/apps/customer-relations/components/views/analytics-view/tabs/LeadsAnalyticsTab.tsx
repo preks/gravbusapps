@@ -39,6 +39,25 @@ import { LeadVelocityAnalysis } from "../components/LeadVelocityAnalysis";
 import { LeadQualityMatrix } from "../components/LeadQualityMatrix";
 import { LeadEngagementInsights } from "../components/LeadEngagementInsights";
 
+// TypeScript interfaces for chart data (matching analytics types)
+interface LeadsBySourceData {
+  source: string;
+  count: number;
+  percentage: number;
+}
+
+interface LeadsBySourceTypeData {
+  sourceType: string;
+  count: number;
+  percentage: number;
+}
+
+interface LeadsByStatusData {
+  status: string;
+  count: number;
+  percentage: number;
+}
+
 interface LeadsAnalyticsTabProps extends BusinessAppContextProps {
   data?: LeadsAnalytics;
 }
@@ -816,7 +835,7 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
         {/* Leads by Source */}
         <Card
           data-testid="leads-by-source-chart"
-          className="gba:flex-1 gba:w-1/2"
+          className="gba:flex-1 gba:w-1/3"
         >
           <CardHeader>
             <CardTitle>Leads by Source</CardTitle>
@@ -842,7 +861,7 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 </Pie>
                 <Tooltip
                   formatter={
-                    data?.leadsBySource
+                    data.leadsBySource
                       ? createPieTooltipFormatter(
                           data.leadsBySource,
                           "count",
@@ -854,10 +873,62 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 <Legend
                   verticalAlign="bottom"
                   height={40}
-                  formatter={(value, entry: any) =>
-                    `${(entry.payload as any).source} (${
-                      (entry.payload as any).count
+                  formatter={(value, entry) =>
+                    `${(entry as unknown as LeadsBySourceData).source} (${
+                      (entry as unknown as LeadsBySourceData).count
                     })`
+                  }
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Leads by Source Type */}
+        <Card
+          data-testid="leads-by-source-type-chart"
+          className="gba:flex-1 gba:w-1/3"
+        >
+          <CardHeader>
+            <CardTitle>Leads by Source Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={data.leadsBySourceType}
+                  cx="50%"
+                  cy="40%"
+                  outerRadius={75}
+                  fill="#8884d8"
+                  dataKey="count"
+                  label={false}
+                >
+                  {data.leadsBySourceType.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={
+                    data.leadsBySourceType
+                      ? createPieTooltipFormatter(
+                          data.leadsBySourceType,
+                          "count",
+                          "sourceType"
+                        )
+                      : undefined
+                  }
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={40}
+                  formatter={(value, entry) =>
+                    `${
+                      (entry as unknown as LeadsBySourceTypeData).sourceType
+                    } (${(entry as unknown as LeadsBySourceTypeData).count})`
                   }
                 />
               </PieChart>
@@ -868,7 +939,7 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
         {/* Leads by Status */}
         <Card
           data-testid="leads-by-status-chart"
-          className="gba:flex-1 gba:w-1/2"
+          className="gba:flex-1 gba:w-1/3"
         >
           <CardHeader>
             <CardTitle>Leads by Status</CardTitle>
@@ -906,9 +977,9 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 <Legend
                   verticalAlign="bottom"
                   height={40}
-                  formatter={(value, entry: any) =>
-                    `${(entry.payload as any).status} (${
-                      (entry.payload as any).count
+                  formatter={(value, entry) =>
+                    `${(entry as unknown as LeadsByStatusData).status} (${
+                      (entry as unknown as LeadsByStatusData).count
                     })`
                   }
                 />

@@ -34,7 +34,7 @@ import { usePipelineDataIntegration } from '../hooks/usePipelineDataIntegration'
 import { useStageConditions } from '../hooks/useStageConditions';
 import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { SALES_PIPELINE_CATALOG, SALES_PIPELINE_VERSION } from '../hooks/useSalesPipelines';
+import { getPipelineCatalogConfig } from '../utils/catalogConfig';
 import {
   EnhancedSalesPipeline,
   PipelineFormData,
@@ -103,11 +103,11 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
     const promises = pipelines.map(async (pipeline) => {
       try {
         // First, get all stages for this pipeline
-        const stagesResponse = await fetchSalesPipelineStagesByParent(pipeline.id);
+        const stagesResponse = await fetchSalesPipelineStagesByParent(pipeline.id, { sourceApp });
         const stages = stagesResponse.data.filter(entry => entry.parentEntryId === pipeline.id);
         
         // Then, get condition counts for each stage and sum them up
-        const conditionPromises = stages.map(stage => fetchStageConditionsCount(stage.code));
+        const conditionPromises = stages.map(stage => fetchStageConditionsCount(stage.code, sourceApp));
         const stageCounts = await Promise.all(conditionPromises);
         
         // Sum all condition counts for this pipeline
@@ -170,11 +170,8 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
     
     try {
       setOperationLoading(true);
-      await catalogClient.deleteCatalogEntry(
-        SALES_PIPELINE_CATALOG,
-        SALES_PIPELINE_VERSION,
-        pipelineToDelete.id
-      );
+      const cfg = getPipelineCatalogConfig(sourceApp);
+      await catalogClient.deleteCatalogEntry(cfg.pipelineCatalog, cfg.version, pipelineToDelete.id);
       console.log(`Pipeline "${pipelineToDelete.value}" deleted successfully`);
       await refreshPipelinesAndCounts();
     } catch (error) {
@@ -204,13 +201,8 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         if (values.description) {
           payload.additionalValue1 = values.description;
         }
-
-        await catalogClient.updateCatalogEntry(
-          SALES_PIPELINE_CATALOG,
-          SALES_PIPELINE_VERSION,
-          editingPipeline.id,
-          payload
-        );
+        const cfg = getPipelineCatalogConfig(sourceApp);
+        await catalogClient.updateCatalogEntry(cfg.pipelineCatalog, cfg.version, editingPipeline.id, payload);
         console.log(`Pipeline "${values.value}" updated successfully`);
       } else {
         // Create new pipeline
@@ -228,11 +220,8 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           payload.additionalValue1 = values.description;
         }
 
-        await catalogClient.createCatalogEntry(
-          SALES_PIPELINE_CATALOG,
-          SALES_PIPELINE_VERSION,
-          payload
-        );
+        const cfg = getPipelineCatalogConfig(sourceApp);
+        await catalogClient.createCatalogEntry(cfg.pipelineCatalog, cfg.version, payload);
         console.log(`Pipeline "${values.value}" created successfully`);
       }
 

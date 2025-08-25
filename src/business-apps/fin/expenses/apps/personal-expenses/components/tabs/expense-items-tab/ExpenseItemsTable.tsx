@@ -198,13 +198,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     
     const expenseItems = selectedItems.map((element: any) => ({
       itemId: element.id,
-      currencyId: element.currencyId
+      currencyId: element.currencyRef
     }));
     const payload = {
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
-    
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
@@ -499,12 +498,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                       domain: 'employee-expense',
                                       processName: 'changeExpenseItem',
                                       payload: {
-                                          psi_taskPayload: {
-                                           initialParameters: {
                                             employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
                                             expenseId: record.id
-                                          }
-                                      }
                                      },
                                       builderType: 'NATIVE_SCREEN'
                                     });
