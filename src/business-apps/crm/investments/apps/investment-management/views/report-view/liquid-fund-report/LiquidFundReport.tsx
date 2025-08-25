@@ -21,17 +21,17 @@ import {
   FilterIcon
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AnalyticsFilters } from '../types';
+import { AnalyticsFilters } from './types';
 import dayjs from 'dayjs';
-import { AnalyticsTable } from './AnalyticsTable';
+import { AnalyticsTable } from './components/LiquidFundReportTable';
 
 // Using individual DatePicker components for start and end dates
 
-interface LiquidFundAnalyticsProps extends BusinessAppContextProps {
+interface LiquidFundReportProps extends BusinessAppContextProps {
   'data-testid'?: string;
 }
 
-export const LiquidFundAnalytics: React.FC<LiquidFundAnalyticsProps> = ({
+export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   accessToken,
   userInfo,
   'data-testid': dataTestId = 'liquid-fund-analytics'
@@ -246,4 +246,4 @@ export const LiquidFundAnalytics: React.FC<LiquidFundAnalyticsProps> = ({
   );
 };
 
-export default LiquidFundAnalytics;
+export default LiquidFundReport;
