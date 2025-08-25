@@ -84,7 +84,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
             </div>
           </div>
         )}
-        
+
          {isExpensePlan && advancePaymentAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
@@ -115,8 +115,6 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
             </div>
           </div>
         )}
-        
-       
       </div>
     </>
   );
