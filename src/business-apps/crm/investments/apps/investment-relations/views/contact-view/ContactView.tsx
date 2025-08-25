@@ -42,15 +42,47 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
   const [error, setError] = useState<string | null>(null);
 
   // Build query variables
-  const queryVariables: InvestmentContactQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: searchTerm.trim() || undefined,
-    orderBy: [{ field: sortField, direction: sortOrder }],
-    ...(birthDateAfter ? { birthDateFrom: birthDateAfter } : {}),
-    ...(birthDateBefore ? { birthDateTo: birthDateBefore } : {}),
-    ...selectedFilters
-  }), [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, birthDateAfter, birthDateBefore]);
+  const queryVariables: InvestmentContactQueryVariables = useMemo(() => {
+    const vars: Partial<InvestmentContactQueryVariables> = {};
+    const ownerIds: string[] = [];
+    const accountIds: string[] = [];
+    const fullNames: string[] = [];
+    const typeVals: string[] = [];
+    const departmentVals: string[] = [];
+    let hasEmail = false, missingEmail = false, hasPhone = false, missingPhone = false;
+
+    selectedFilters.forEach((f) => {
+      if (f.startsWith('owner:')) ownerIds.push(f.slice(6));
+      else if (f.startsWith('contact:')) fullNames.push(f.slice(8));
+      else if (f.startsWith('account:')) accountIds.push(f.slice(8));
+      else if (f.startsWith('type:')) typeVals.push(f.slice(5));
+      else if (f.startsWith('department:')) departmentVals.push(f.slice(11));
+      else if (f === 'info:HAS_EMAIL') hasEmail = true;
+      else if (f === 'info:MISSING_EMAIL') missingEmail = true;
+      else if (f === 'info:HAS_PHONE') hasPhone = true;
+      else if (f === 'info:MISSING_PHONE') missingPhone = true;
+    });
+
+    if (ownerIds.length) vars.ownerEmployeeIds = ownerIds;
+    if (accountIds.length) vars.accountIds = accountIds;
+    if (fullNames.length) vars.fullNames = fullNames;
+    if (typeVals.length) vars.contactTypes = typeVals;
+    if (departmentVals.length) vars.departments = departmentVals;
+
+    return {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: searchTerm.trim() || undefined,
+      orderBy: [{ field: sortField, direction: sortOrder }],
+      ...(birthDateAfter ? { birthDateFrom: birthDateAfter } : {}),
+      ...(birthDateBefore ? { birthDateTo: birthDateBefore } : {}),
+      ...(hasEmail ? { hasEmail: true } : {}),
+      ...(missingEmail ? { missingEmail: true } : {}),
+      ...(hasPhone ? { hasPhone: true } : {}),
+      ...(missingPhone ? { missingPhone: true } : {}),
+      ...vars
+    };
+  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, birthDateAfter, birthDateBefore]);
 
   // Load data
   const loadData = useCallback(async () => {

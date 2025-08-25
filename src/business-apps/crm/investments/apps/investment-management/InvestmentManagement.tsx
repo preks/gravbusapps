@@ -14,7 +14,7 @@ import { navigateTo } from "@/common/utils/navigationUtils";
 import DashboardView from "./views/dashboard-view/DashboardView";
 import { AnalyticsView } from "./views/analytics-view";
 
-export interface InvestmentManagementProps extends BusinessAppContextProps {}
+export interface InvestmentManagementProps extends BusinessAppContextProps { }
 
 export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
   context
@@ -31,16 +31,23 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
       label: getTranslationFromI18nKeyAndLabel("investments", "Investments"),
     },
     {
-      key: "analytics",
-      icon: <BarChart3 />,
-      label: getTranslationFromI18nKeyAndLabel("analytics", "Analytics"),
+      key: "reports",
+      icon: <TrendingDown />,
+      label: getTranslationFromI18nKeyAndLabel("reportss", "Reports"),
     },
+
     {
       key: "divestments",
       icon: <TrendingDown />,
       label: getTranslationFromI18nKeyAndLabel("divestments", "Divestments"),
     },
+    {
+      key: "analytics",
+      icon: <BarChart3 />,
+      label: getTranslationFromI18nKeyAndLabel("analytics", "Analytics"),
+    },
   ];
+
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {

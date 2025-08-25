@@ -190,6 +190,15 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
       totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0,
   }));
 
+  // Group by source type
+  const sourceTypeGroups = groupByField(leads, "leadSourceType");
+  const leadsBySourceType = sourceTypeGroups.map((group) => ({
+    sourceType: group.key || "Unknown",
+    count: group.count,
+    percentage:
+      totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0,
+  }));
+
   // Group by rating
   const ratingGroups = groupByField(leads, "leadRating", "value");
   const leadsByRating = ratingGroups.map((group) => ({
@@ -218,6 +227,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
     totalLeads,
     leadsByStatus,
     leadsBySource,
+    leadsBySourceType,
     leadsByRating,
     leadsByCompanySize,
     leadsOverTime,
