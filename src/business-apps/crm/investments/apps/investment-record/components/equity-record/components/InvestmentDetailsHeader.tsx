@@ -63,24 +63,18 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
     }
   };
 
-  // Use real data if available, otherwise fall back to mock data
+  // Use real data from GraphQL only
   const investment = equityData?.investment;
-  const companyName = investment?.account?.name || (data ? `*${data.company_details.name}` : '*Mock Company');
-  const bookValue = investment ? formatCurrencyValue(investment.bookValue, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.book_value, data.investment.currency_ref)}` : '*N/A');
-  const marketValue = investment ? formatCurrencyValue(investment.marketValue, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.market_value, data.investment.currency_ref)}` : '*N/A');
-  const initialInvestment = investment ? formatCurrencyValue(investment.initialInvestmentAmount, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.initial_investment_amount, data.investment.currency_ref)}` : '*N/A');
-  const totalInvestment = investment ? formatCurrencyValue(investment.totalInvestmentAmount, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.total_investment_amount, data.investment.currency_ref)}` : '*N/A');
-  const stakePercent = investment ? formatPercentageValue(investment.stakePercent) : 
-    (data ? `*${formatPercentage(data.investment.stake_percent)}` : '*N/A');
-  const acquisitionDate = investment ? formatDate(investment.acquisitionDate) : 
-    (data ? `*${new Date(data.investment.acquisition_date).toLocaleDateString('de-DE')}` : '*N/A');
-  const status = investment?.investmentStatus?.value || (data ? '*Active' : '*Unknown');
-  const statusColor = investment?.investmentStatus ? getStatusColor(investment.investmentStatus.code) : 
-    (data ? getStatusColor(data.investment.investment_status_ref) : 'gba:bg-gray-100 gba:text-gray-800');
+  const companyName = investment?.investmentAccount?.name || '';
+  // Map fields to schema-backed values
+  const bookValue = investment ? formatCurrencyValue(investment.initialInvestmentAmount ?? null, investment.currency) : 'N/A';
+  const marketValue = investment ? formatCurrencyValue(investment.investmentMarketValue ?? null, investment.currency) : 'N/A';
+  const initialInvestment = investment ? formatCurrencyValue(investment.initialInvestmentAmount ?? null, investment.currency) : 'N/A';
+  const totalInvestment = investment ? formatCurrencyValue(investment.totalInvestmentAmount ?? null, investment.currency) : 'N/A';
+  const stakePercent = investment ? (investment.stakePercentage !== null && investment.stakePercentage !== undefined ? `${investment.stakePercentage.toFixed(1)}%` : '-') : 'N/A';
+  const acquisitionDate = investment ? formatDate(investment.acquisitionDate ?? null) : 'N/A';
+  const status = investment?.investmentStatus?.value || '';
+  const statusColor = investment?.investmentStatus ? getStatusColor(investment.investmentStatus.code) : 'gba:bg-gray-100 gba:text-gray-800';
 
   if (isLoading) {
     return (
@@ -138,21 +132,16 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
             </div>
             <div>
               <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                {investment?.name || (data ? `*${data.investment.name}` : '*Investment Details')}
+                {investment?.name || 'Investment Details'}
               </h2>
               <div className="gba:flex gba:items-center gba:gap-3 gba:mt-0.5">
                 <Badge className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:px-2 gba:py-0.5">
                   {investment?.investmentGroup?.value || 'Equity'}
                 </Badge>
                 <Badge className="gba:bg-indigo-100 gba:text-indigo-800 gba:text-xs gba:px-2 gba:py-0.5">
-                  {equityData?.investmentRole?.value || '*Stock Investment'}
+                  {investment?.investmentType?.value || (investment?.investmentType?.code ? investment.investmentType.code : 'Type')}
                 </Badge>
                 <span className="gba:text-xs gba:text-gray-600">{companyName}</span>
-                {equityData && !investment?.name.includes('*') && (
-                  <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
-                    Real Data
-                  </Badge>
-                )}
               </div>
             </div>
           </CardTitle>

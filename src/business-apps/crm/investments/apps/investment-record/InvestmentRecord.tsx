@@ -120,8 +120,28 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const hasLiquidFundData = investmentData?.liquidFundInvestment && Object.keys(investmentData.liquidFundInvestment).length > 0;
   const hasRealEstateData = investmentData?.realEstateInvestment && Object.keys(investmentData.realEstateInvestment).length > 0;
 
-  // If no specific investment type data is found, show a message
+  // Determine group by catalog code/value
+  const groupCode = (investmentData?.investmentGroup?.code || investmentData?.investmentGroupRef || '').toString().toUpperCase();
+  const groupLabel = investmentData?.investmentGroup?.value || investmentData?.investmentGroup?.code || 'Investment';
+
+  // If no specialization found, fallback for known groups; else show unsupported
   if (!hasEquityData && !hasLiquidFundData && !hasRealEstateData) {
+    const isKnownGroup = ['EQUITY', 'LIQUID_FUND', 'REAL_ESTATE'].some(k => groupCode.includes(k));
+    if (isKnownGroup) {
+      return (
+        <div 
+          className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
+          data-testid="investment-record-missing-specialization"
+        >
+          <Alert
+            message={`${groupLabel} Record Unavailable`}
+            description={`This ${groupLabel.toLowerCase()} investment has no specialization data yet. You can still view basic details, or update the record to add ${groupLabel.toLowerCase()} details.`}
+            type="info"
+            showIcon
+          />
+        </div>
+      );
+    }
     return (
       <div 
         className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 

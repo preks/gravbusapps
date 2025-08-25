@@ -4,9 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import type { Investment, LiquidFundInvestment } from '@/common/data/investment';
 
 export interface LiquidFundInvestmentData {
-  // Core investment data
   investment: Investment;
-  // Liquid fund-specific data if available
   liquidFundInvestment?: LiquidFundInvestment;
 }
 
@@ -27,39 +25,31 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
     setError(null);
 
     try {
-      console.log('Fetching liquid fund data for investmentId:', investmentId);
-
       const result = await fetchInvestmentById(investmentId);
 
       if (!result.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
-        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
 
-      // Check if this investment has liquid fund-specific data
-      const hasLiquidFundData = result.investment.liquidFundInvestment && 
-                                Object.keys(result.investment.liquidFundInvestment).length > 0;
+      const rawLiquidFund = (result.investment as any)?.liquidFundInvestment;
+      const normalizedLiquidFund = Array.isArray(rawLiquidFund) ? (rawLiquidFund[0] || undefined) : rawLiquidFund;
 
+      const hasLiquidFundData = !!normalizedLiquidFund;
       if (!hasLiquidFundData) {
         const errorMsg = `Investment ${investmentId} is not a liquid fund investment or has no liquid fund-specific data`;
-        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
 
-      // Create the liquid fund data structure
       const liquidFundInvestmentData: LiquidFundInvestmentData = {
         investment: result.investment,
-        liquidFundInvestment: result.investment.liquidFundInvestment
+        liquidFundInvestment: normalizedLiquidFund
       };
 
       setLiquidFundData(liquidFundInvestmentData);
-      console.log('Successfully loaded liquid fund data:', liquidFundInvestmentData);
-
     } catch (err) {
-      console.error('Error fetching liquid fund data:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred while fetching liquid fund data';
       setError(errorMessage);
     } finally {
@@ -77,4 +67,4 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
     error,
     refetch: fetchLiquidFundData
   };
-}; 
+};

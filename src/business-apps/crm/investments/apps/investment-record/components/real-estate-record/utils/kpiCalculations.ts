@@ -19,14 +19,14 @@ export const calculateRealEstateKPIs = (realEstateData: RealEstateInvestmentData
   
   // Calculate ROI: ((Market Value - Initial Investment) / Initial Investment) * 100
   const roi_percentage = 
-    investment.marketValue && investment.initialInvestmentAmount && investment.initialInvestmentAmount > 0
-      ? ((investment.marketValue - investment.initialInvestmentAmount) / investment.initialInvestmentAmount) * 100
+    investment.investmentMarketValue && investment.initialInvestmentAmount && investment.initialInvestmentAmount > 0
+      ? ((investment.investmentMarketValue - investment.initialInvestmentAmount) / investment.initialInvestmentAmount) * 100
       : null;
 
   // Calculate Multiple of Invested Capital: Market Value / Total Investment Amount
   const multiple_of_invested_capital = 
-    investment.marketValue && investment.totalInvestmentAmount && investment.totalInvestmentAmount > 0
-      ? investment.marketValue / investment.totalInvestmentAmount
+    investment.investmentMarketValue && investment.totalInvestmentAmount && investment.totalInvestmentAmount > 0
+      ? investment.investmentMarketValue / investment.totalInvestmentAmount
       : null;
 
   // Calculate years held
@@ -36,19 +36,19 @@ export const calculateRealEstateKPIs = (realEstateData: RealEstateInvestmentData
 
   // Calculate annual return: ((Market Value / Initial Investment)^(1/years)) - 1) * 100
   const annual_return_percentage = 
-    investment.marketValue && 
+    investment.investmentMarketValue && 
     investment.initialInvestmentAmount && 
     investment.initialInvestmentAmount > 0 && 
     years_held && 
     years_held > 0
-      ? (Math.pow(investment.marketValue / investment.initialInvestmentAmount, 1 / years_held) - 1) * 100
+      ? (Math.pow(investment.investmentMarketValue / investment.initialInvestmentAmount, 1 / years_held) - 1) * 100
       : null;
 
   // Calculate ownership value: Market Value * Stake Percentage
   const ownership_value = 
-    investment.marketValue && investment.stakePercent
-      ? investment.marketValue * (investment.stakePercent / 100)
-      : investment.marketValue; // Fallback to full market value if no stake percentage
+    investment.investmentMarketValue && investment.stakePercentage
+      ? investment.investmentMarketValue * (investment.stakePercentage / 100)
+      : investment.investmentMarketValue; // Fallback to full market value if no stake percentage
 
   // Calculate rental yield: (Annual Rental Income / Property Value) * 100
   // Note: This would need annual rental income data, which isn't in current schema
@@ -56,20 +56,21 @@ export const calculateRealEstateKPIs = (realEstateData: RealEstateInvestmentData
   const rental_yield = null; // TODO: Add when rental income data is available
 
   // Get occupancy rate from real estate specific data
-  const occupancy_rate = realEstateData.occupancyPercent;
+  const occupancy_rate = realEstateData.realEstateInvestment?.occupancyPercent ?? null;
 
   // Calculate Cap Rate: (Net Operating Income / Property Value) * 100
-  // This is a simplified calculation using annual expenses as proxy for NOI
+  // Simplified: use actualAnnualExpenses (negative proxy for NOI)
+  const annualExpenses = realEstateData.realEstateInvestment?.actualAnnualExpenses;
   const cap_rate = 
-    realEstateData.annualExpenses && investment.marketValue && investment.marketValue > 0
-      ? ((realEstateData.annualExpenses * -1) / investment.marketValue) * 100 // Negative because expenses reduce NOI
+    annualExpenses !== undefined && annualExpenses !== null && investment.investmentMarketValue && investment.investmentMarketValue > 0
+      ? ((annualExpenses * -1) / investment.investmentMarketValue) * 100
       : null;
 
   return {
     roi_percentage,
     multiple_of_invested_capital,
     annual_return_percentage,
-    ownership_value,
+    ownership_value: ownership_value ?? null,
     years_held,
     rental_yield,
     occupancy_rate,
