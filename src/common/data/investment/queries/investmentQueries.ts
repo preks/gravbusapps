@@ -158,6 +158,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         investmentStatus {
           ${CATALOG_ENTRY}
         }
+        investmentRiskLevel {
+          ${CATALOG_ENTRY}
+        }
         currency {
           ${CATALOG_ENTRY}
         }
@@ -172,6 +175,32 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           id
           code
           name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          investmentAccountContact {
+            contactType
+            contact {
+              id
+              firstName
+              lastName
+              fullName
+              email
+              phone
+              department
+              jobPosition
+              createdAt
+            }
+          }
         }
         investmentOpportunity {
           id
@@ -186,6 +215,15 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           foundationDate
           marketValue
           ebitdaAmount
+          turnoverAmount
+          additionalProperties
+          createdAt
+          createdBy
+          activeFrom
+          activeTo
+          processInstanceId
+          recordState
+          businessKey
         }
         
         # Real Estate Investment specialization
@@ -251,6 +289,9 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         investmentStatus {
           ${CATALOG_ENTRY}
         }
+        investmentRiskLevel {
+          ${CATALOG_ENTRY}
+        }
         currency {
           ${CATALOG_ENTRY}
         }
@@ -265,6 +306,32 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           id
           code
           name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          investmentAccountContact {
+            contactType
+            contact {
+              id
+              firstName
+              lastName
+              fullName
+              email
+              phone
+              department
+              jobPosition
+              createdAt
+            }
+          }
         }
         
         # All investment specializations with full details
@@ -279,9 +346,13 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         realEstateInvestment {
           id
           buildingYear
+          numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
           funding
+          occupancyPercent
+          locality
+          addressLine
           ${AUDIT_FIELDS}
           country {
             ${CATALOG_ENTRY}
@@ -300,6 +371,12 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           }
           interestPaymentFrequency {
             ${CATALOG_ENTRY}
+          }
+          liquidFundInvestmentReport {
+            id
+            date
+            interestRate
+            maturityDate
           }
         }
       }

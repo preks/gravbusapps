@@ -4,9 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import type { Investment, EquityInvestment } from '@/common/data/investment';
 
 export interface EquityInvestmentData {
-  // Core investment data
   investment: Investment;
-  // Equity-specific data if available
   equityInvestment?: EquityInvestment;
 }
 
@@ -27,8 +25,6 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
     setError(null);
 
     try {
-      console.log('Fetching equity data for investmentId:', investmentId);
-
       const result = await fetchInvestmentById(investmentId);
 
       if (!result.investment) {
@@ -38,25 +34,25 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
         return;
       }
 
-      // Check if this investment has equity-specific data
-      const hasEquityData = result.investment.equityInvestment && 
-                           Object.keys(result.investment.equityInvestment).length > 0;
+      // Check if this investment has equity-specific data (array format)
+      const equityInvestmentArray = (result.investment as any).equityInvestment;
+      const hasEquityData = equityInvestmentArray && 
+                           Array.isArray(equityInvestmentArray) && 
+                           equityInvestmentArray.length > 0;
 
       if (!hasEquityData) {
         const errorMsg = `Investment ${investmentId} is not an equity investment or has no equity-specific data`;
-        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
 
-      // Create the equity data structure
+      // Create the equity data structure (take first equity investment)
       const equityInvestmentData: EquityInvestmentData = {
         investment: result.investment,
-        equityInvestment: result.investment.equityInvestment
+        equityInvestment: equityInvestmentArray[0]
       };
 
       setEquityData(equityInvestmentData);
-      console.log('Successfully loaded equity data:', equityInvestmentData);
 
     } catch (err) {
       console.error('Error fetching equity data:', err);

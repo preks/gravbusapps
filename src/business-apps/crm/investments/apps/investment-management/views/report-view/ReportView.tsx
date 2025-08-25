@@ -7,14 +7,14 @@ import {
 } from '@newwork/nw-design-system';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { LiquidFundAnalytics } from './components/LiquidFundAnalytics';
+import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
 
-export interface AnalyticsProps extends BusinessAppContextProps {
+export interface ReportViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
   onSubTabChange?: (subTab: string) => void;
 }
 
-export const Analytics: React.FC<AnalyticsProps> = ({
+export const ReportView: React.FC<ReportViewProps> = ({
   accessToken,
   userInfo,
   initialSubTab = 'liquid-fund',
@@ -72,7 +72,7 @@ export const Analytics: React.FC<AnalyticsProps> = ({
 
         <div className="gba:flex-1 gba:overflow-auto">
           <TabsContent value="liquid-fund" className="gba:h-full gba:mt-0">
-            <LiquidFundAnalytics
+            <LiquidFundReport
               accessToken={accessToken}
               userInfo={userInfo}
               data-testid="liquid-fund-analytics"
@@ -84,4 +84,4 @@ export const Analytics: React.FC<AnalyticsProps> = ({
   );
 };
 
-export default Analytics;
+export default ReportView;
