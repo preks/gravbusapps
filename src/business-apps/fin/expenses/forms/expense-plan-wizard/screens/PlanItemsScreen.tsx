@@ -151,6 +151,9 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           } else if (expensePlanData?.ExpensePlanItem && expensePlanData?.ExpensePlanItem.length > 0) {
             itemCurrency = expensePlanData.ExpensePlanItem[0].currencyRef;
           }
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !currentCurrency){
+            itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
+          }
           
           const userLocale = getCurrentActiveUserLocale();
 

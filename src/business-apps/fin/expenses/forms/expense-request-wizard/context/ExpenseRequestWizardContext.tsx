@@ -159,6 +159,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       }
       
       setExpenseRequestData(response);
+      // Ensure currentCurrency reflects freshly loaded data (avoid stale value after reload)
+      const refreshedCurrencyId = response?.ExpenseRequestByPk?.currency?.id || null;
+      setCurrentCurrency(refreshedCurrencyId);
     } catch (error) {
       showToast(
         t("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
@@ -168,7 +171,6 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       setLoading(false);
     }
   };
-
   // Initialize data
   useEffect(() => {
     const initializeData = async () => {

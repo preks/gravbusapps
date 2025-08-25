@@ -70,19 +70,27 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
   
   useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
-      setCurrentCurrency(expenseRequestData.ExpenseRequestByPk.currencyRef);
-    } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
+    const requestCurrency = expenseRequestData?.ExpenseRequestByPk?.currencyRef 
+      || expenseRequestData?.ExpenseRequestByPk?.currency?.id;
+
+    if (requestCurrency) {
+      // Prefer request currency when present
+      setCurrentCurrency(requestCurrency);
+      return;
+    }
+
+    // Fallback to first item's currency when request currency is missing
+    if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
       const firstItem = expenseRequestData.ExpenseItem[0];
-      if (firstItem && firstItem.currencyRef) {
-        setCurrentCurrency(firstItem.currencyRef);
-      } else {
-        setCurrentCurrency(null);
-      }
+      setCurrentCurrency(firstItem?.currencyRef || null);
     } else {
       setCurrentCurrency(null);
     }
-  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency, additionalData]);
+  }, [
+    expenseRequestData?.ExpenseRequestByPk?.currencyRef,
+    expenseRequestData?.ExpenseRequestByPk?.currency?.id,
+    expenseRequestData?.ExpenseItem
+  ]);
   
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {

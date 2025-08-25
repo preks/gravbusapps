@@ -159,6 +159,9 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       }
       
       setExpensePlanData(response);
+      // Ensure currentCurrency reflects freshly loaded plan data
+      const refreshedCurrencyId = response?.ExpensePlanByPk?.currency?.id || response?.ExpensePlanByPk?.currencyRef || null;
+      setCurrentCurrency(refreshedCurrencyId);
     } catch (error) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense plan data"),

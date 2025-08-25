@@ -333,6 +333,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0) {
             itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
           }
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !currentCurrency){
+            itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
+          }
           
           const userLocale = getCurrentActiveUserLocale();
 

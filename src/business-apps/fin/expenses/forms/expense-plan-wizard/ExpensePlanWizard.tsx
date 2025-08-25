@@ -70,21 +70,27 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     }
   }, [expensePlanData, setCurrentTitle, additionalData]);
 
-  // Update currency when expensePlanData changes
+  // Update currency when expensePlanData changes: prefer plan currency, fallback to item currency
   useEffect(() => {
-    if (expensePlanData?.ExpensePlanByPk?.currencyRef) {
-      setCurrentCurrency(expensePlanData.ExpensePlanByPk.currencyRef);
-    } else if (expensePlanData?.ExpensePlanItem && expensePlanData.ExpensePlanItem.length > 0) {
+    const planCurrency = expensePlanData?.ExpensePlanByPk?.currencyRef 
+      || expensePlanData?.ExpensePlanByPk?.currency?.id;
+
+    if (planCurrency) {
+      setCurrentCurrency(planCurrency);
+      return;
+    }
+
+    if (expensePlanData?.ExpensePlanItem && expensePlanData.ExpensePlanItem.length > 0) {
       const firstItem = expensePlanData.ExpensePlanItem[0];
-      if (firstItem && firstItem.currencyRef) {
-        setCurrentCurrency(firstItem.currencyRef);
-      } else {
-        setCurrentCurrency(null);
-      }
+      setCurrentCurrency(firstItem?.currencyRef || null);
     } else {
       setCurrentCurrency(null);
     }
-  }, [expensePlanData?.ExpensePlanByPk?.currencyRef, expensePlanData?.ExpensePlanItem, setCurrentCurrency,additionalData]);
+  }, [
+    expensePlanData?.ExpensePlanByPk?.currencyRef,
+    expensePlanData?.ExpensePlanByPk?.currency?.id,
+    expensePlanData?.ExpensePlanItem
+  ]);
 
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {

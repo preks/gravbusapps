@@ -144,7 +144,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       }
       
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
-      
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId;
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message', 
@@ -154,9 +154,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return false;
       }
       
-      if (ruleData.id) {
-        setEmployeeRuleId(ruleData.id);
-        const hasConflict = await checkRuleConflicts(ruleData.id);
+      if (ruleDataValue) {
+        setEmployeeRuleId(ruleDataValue);
+        const hasConflict = await checkRuleConflicts(ruleDataValue);
         if (hasConflict) {
           return false;
         }
