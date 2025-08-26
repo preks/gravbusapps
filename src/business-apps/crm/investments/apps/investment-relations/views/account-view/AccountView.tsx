@@ -1,9 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { 
-  Button,
-  Spinner,
-  Alert
-} from "@newwork/nw-design-system";
+import { Button, Spinner, Alert } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentAccounts } from "@/common/data/investment/hooks/useInvestmentAccounts";
 import type { InvestmentAccount } from "@/common/data/investment/types";
@@ -20,7 +16,7 @@ export interface AccountViewProps extends BusinessAppContextProps {}
 
 export const AccountView: React.FC<AccountViewProps> = (context) => {
   const { accessToken } = context;
-  
+
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,7 +28,13 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
 
   // Hooks for data fetching
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context);
-  const { filterGroups, filterLabelMap, handleFilterChange, createdAfter, createdBefore } = useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters);
+  const {
+    filterGroups,
+    filterLabelMap,
+    handleFilterChange,
+    createdAfter,
+    createdBefore,
+  } = useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters);
 
   // Data state
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
@@ -50,7 +52,14 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     const revenueIds: string[] = [];
     const names: string[] = [];
     const geoPresence: string[] = [];
-    let hasWebsite = false, missingWebsite = false, hasEmail = false, missingEmail = false, hasPhone = false, missingPhone = false, hasContact = false, missingContact = false;
+    let hasWebsite = false,
+      missingWebsite = false,
+      hasEmail = false,
+      missingEmail = false,
+      hasPhone = false,
+      missingPhone = false,
+      hasContact = false,
+      missingContact = false;
 
     selectedFilters.forEach((f) => {
       if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
@@ -96,26 +105,110 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       ...vars,
     };
     return base;
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]);
+  }, [
+    currentPage,
+    pageSize,
+    searchTerm,
+    sortField,
+    sortOrder,
+    selectedFilters,
+    createdAfter,
+    createdBefore,
+  ]);
 
   // Load data
   const loadData = useCallback(async () => {
     if (!accessToken) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchInvestmentAccounts(queryVariables);
       setAccounts(result.InvestmentAccount || []);
       setTotalCount(result.InvestmentAccountAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error('Error loading investment accounts:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      console.error("Error loading investment accounts:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
     }
   }, [accessToken, fetchInvestmentAccounts, queryVariables]);
+
+  // Listen for process events and refresh data when investment account processes complete
+  useEffect(() => {
+    const handleProcessEvent = (event: any) => {
+      try {
+        console.log(
+          "✅ Investment Account process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures
+        if (event.detail?.resolution === "success") {
+          console.log(
+            "✅ Success resolution detected, refreshing account data"
+          );
+          loadData(); // Refresh account list data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === "success" ||
+          response?.investmentAccount
+        ) {
+          console.log(
+            "✅ Success in response or investmentAccount detected, refreshing data"
+          );
+          loadData();
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === "com.newwork.process.continue" &&
+          event.detail?.payload
+        ) {
+          console.log(
+            "✅ Continue event with payload detected, refreshing account data"
+          );
+          loadData();
+        }
+      } catch (err) {
+        console.error("Error handling process event:", err);
+      }
+    };
+
+    // Listen to multiple possible event names (following Investment Record pattern)
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue", // ✅ This is what our form dispatches!
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessEvent as EventListener);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          handleProcessEvent as EventListener
+        );
+      });
+    };
+  }, [loadData]);
 
   // Load data on mount and when variables change
   useEffect(() => {
@@ -134,23 +227,22 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   }, []);
 
   // Handle sorting
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-    } else {
-      setSortField(field);
-      setSortOrder("ASC");
-    }
-  }, [sortField, sortOrder]);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
+      } else {
+        setSortField(field);
+        setSortOrder("ASC");
+      }
+    },
+    [sortField, sortOrder]
+  );
 
   const handleSetFilter = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
     setCurrentPage(1);
   }, []);
-
-  // const toggleDataFilter = useCallback(() => {
-  //   setShowDataFilter(prev => !prev);
-  // }, []);
 
   // Loading state
   if (isLoading && accounts.length === 0) {
@@ -181,8 +273,12 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Accounts</h1>
-            <p className="gba:text-gray-600">Manage investment client accounts and relationships</p>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+              Investment Accounts
+            </h1>
+            <p className="gba:text-gray-600">
+              Manage investment client accounts and relationships
+            </p>
           </div>
         </div>
 

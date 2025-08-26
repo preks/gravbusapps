@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { UserOutlined, TeamOutlined } from '@ant-design/icons';
+import { debounce, DEFAULT_LOAD_DEBOUNCE_DELAY } from '@/common/data/investment';
 
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useTaskListData, useTaskFilters, useTaskStatistics } from './hooks';
@@ -212,30 +213,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     }
   }, [accessToken]);
 
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const debouncedLoadData = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
+  const debouncedLoadData = useCallback(
+    debounce(() => {
       if (initialLoadDone.current) {
         setCurrentPage(1);
         updateURLParams({ search, page: 1 });
         loadPage(1, pageSize);
       }
-    }, 300);
-  }, [search, pageSize, updateURLParams, loadPage]);
+    }, DEFAULT_LOAD_DEBOUNCE_DELAY),
+    [search, pageSize, updateURLParams, loadPage]
+  );
 
   useEffect(() => {
     if (initialLoadDone.current) {
       debouncedLoadData();
     }
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [search]);
+  }, [search, debouncedLoadData]);
 
   useEffect(() => {
     if (initialLoadDone.current) {
@@ -317,7 +310,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
               dataControllerProps={{
                 search,
                 setSearch,
-                debounceDelay: 500,
+                debounceDelay: DEFAULT_LOAD_DEBOUNCE_DELAY,
                 filter: selectedFilters,
                 setFilter: handleSetFilter,
                 filterLabelMap,
@@ -366,7 +359,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
               dataControllerProps={{
                 search,
                 setSearch,
-                debounceDelay: 500,
+                debounceDelay: DEFAULT_LOAD_DEBOUNCE_DELAY,
                 filter: selectedFilters,
                 setFilter: handleSetFilter,
                 filterLabelMap,

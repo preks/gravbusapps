@@ -1,9 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { 
-  Button,
-  Spinner,
-  Alert
-} from "@newwork/nw-design-system";
+import { Button, Spinner, Alert } from "@newwork/nw-design-system";
 // import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentContacts } from "@/common/data/investment/hooks/useInvestmentContacts";
@@ -21,7 +17,7 @@ export interface ContactViewProps extends BusinessAppContextProps {}
 
 export const ContactView: React.FC<ContactViewProps> = (context) => {
   const { accessToken } = context;
-  
+
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,7 +26,13 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
-  const { filterGroups, filterLabelMap, handleFilterChange, birthDateAfter, birthDateBefore } = useInvestmentContactFilters(context, selectedFilters, setSelectedFilters);
+  const {
+    filterGroups,
+    filterLabelMap,
+    handleFilterChange,
+    birthDateAfter,
+    birthDateBefore,
+  } = useInvestmentContactFilters(context, selectedFilters, setSelectedFilters);
 
   // Hooks for data fetching
   const { fetchInvestmentContacts } = useGetInvestmentContacts(context);
@@ -49,18 +51,21 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
     const fullNames: string[] = [];
     const typeVals: string[] = [];
     const departmentVals: string[] = [];
-    let hasEmail = false, missingEmail = false, hasPhone = false, missingPhone = false;
+    let hasEmail = false,
+      missingEmail = false,
+      hasPhone = false,
+      missingPhone = false;
 
     selectedFilters.forEach((f) => {
-      if (f.startsWith('owner:')) ownerIds.push(f.slice(6));
-      else if (f.startsWith('contact:')) fullNames.push(f.slice(8));
-      else if (f.startsWith('account:')) accountIds.push(f.slice(8));
-      else if (f.startsWith('type:')) typeVals.push(f.slice(5));
-      else if (f.startsWith('department:')) departmentVals.push(f.slice(11));
-      else if (f === 'info:HAS_EMAIL') hasEmail = true;
-      else if (f === 'info:MISSING_EMAIL') missingEmail = true;
-      else if (f === 'info:HAS_PHONE') hasPhone = true;
-      else if (f === 'info:MISSING_PHONE') missingPhone = true;
+      if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
+      else if (f.startsWith("contact:")) fullNames.push(f.slice(8));
+      else if (f.startsWith("account:")) accountIds.push(f.slice(8));
+      else if (f.startsWith("type:")) typeVals.push(f.slice(5));
+      else if (f.startsWith("department:")) departmentVals.push(f.slice(11));
+      else if (f === "info:HAS_EMAIL") hasEmail = true;
+      else if (f === "info:MISSING_EMAIL") missingEmail = true;
+      else if (f === "info:HAS_PHONE") hasPhone = true;
+      else if (f === "info:MISSING_PHONE") missingPhone = true;
     });
 
     if (ownerIds.length) vars.ownerEmployeeIds = ownerIds;
@@ -80,24 +85,33 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
       ...(missingEmail ? { missingEmail: true } : {}),
       ...(hasPhone ? { hasPhone: true } : {}),
       ...(missingPhone ? { missingPhone: true } : {}),
-      ...vars
+      ...vars,
     };
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, birthDateAfter, birthDateBefore]);
+  }, [
+    currentPage,
+    pageSize,
+    searchTerm,
+    sortField,
+    sortOrder,
+    selectedFilters,
+    birthDateAfter,
+    birthDateBefore,
+  ]);
 
   // Load data
   const loadData = useCallback(async () => {
     if (!accessToken) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchInvestmentContacts(queryVariables);
       setContacts(result.InvestmentContact || []);
       setTotalCount(result.InvestmentContactAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error('Error loading investment contacts:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      console.error("Error loading investment contacts:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -108,23 +122,101 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
     loadData();
   }, [loadData]);
 
+  // Listen for process events and refresh data when investment contact processes complete
+  useEffect(() => {
+    const handleProcessEvent = (event: any) => {
+      try {
+        console.log(
+          "✅ Investment Contact process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
+        if (event.detail?.resolution === "success") {
+          console.log(
+            "✅ Success resolution detected, refreshing contact data"
+          );
+          loadData(); // Refresh contact list data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === "success" ||
+          response?.investmentContact
+        ) {
+          console.log(
+            "✅ Success in response or investmentContact detected, refreshing data"
+          );
+          loadData();
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === "com.newwork.process.continue" &&
+          event.detail?.payload
+        ) {
+          console.log(
+            "✅ Continue event with payload detected, refreshing contact data"
+          );
+          loadData();
+        }
+      } catch (err) {
+        console.error("Error handling process event:", err);
+      }
+    };
+
+    // Listen to multiple possible event names (following Investment Account pattern exactly)
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue", // ✅ This is what our form dispatches!
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    // Add event listeners
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessEvent);
+      document.addEventListener(eventName, handleProcessEvent);
+    });
+
+    // Cleanup event listeners
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessEvent);
+        document.removeEventListener(eventName, handleProcessEvent);
+      });
+    };
+  }, [loadData]);
+
   // Initialize from URL parameters (search and common filters)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const initialFilters: string[] = [];
     const pushAll = (key: string, prefix: string) => {
-      urlParams.getAll(key).forEach((v) => v && initialFilters.push(`${prefix}:${v}`));
+      urlParams
+        .getAll(key)
+        .forEach((v) => v && initialFilters.push(`${prefix}:${v}`));
     };
-    pushAll('owner', 'owner');
-    pushAll('language', 'language');
-    pushAll('salutation', 'salutation');
-    pushAll('title', 'title');
+    pushAll("owner", "owner");
+    pushAll("language", "language");
+    pushAll("salutation", "salutation");
+    pushAll("title", "title");
 
     if (initialFilters.length) {
       setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
     }
 
-    const search = urlParams.get('search');
+    const search = urlParams.get("search");
     if (search) setSearchTerm(search);
   }, []);
 
@@ -140,14 +232,17 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
   }, []);
 
   // Handle sorting
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-    } else {
-      setSortField(field);
-      setSortOrder("ASC");
-    }
-  }, [sortField, sortOrder]);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
+      } else {
+        setSortField(field);
+        setSortOrder("ASC");
+      }
+    },
+    [sortField, sortOrder]
+  );
 
   const handleSetFilter = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
@@ -187,8 +282,12 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Contacts</h1>
-            <p className="gba:text-gray-600">Manage investment client contacts and relationships</p>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+              Investment Contacts
+            </h1>
+            <p className="gba:text-gray-600">
+              Manage investment client contacts and relationships
+            </p>
           </div>
         </div>
 
