@@ -193,8 +193,42 @@ export const handleTripSubmitAction = (
     });
   }
 
+  // Fallback: if counts match, preserve ids/versions by pointType and tripOrder alignment
+  const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
+    if (!existingTrips || !Array.isArray(existingTrips)) return newTrips;
+    if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips;
+    if (existingTrips.length !== newTrips.length) return newTrips;
+
+    const result = newTrips.map(trip => ({ ...trip }));
+    const pointTypes = Array.from(new Set([
+      ...existingTrips.map(t => t.pointType),
+      ...newTrips.map(t => t.pointType)
+    ]));
+    pointTypes.forEach((type) => {
+      const existingGroup = existingTrips
+        .filter(t => t.pointType === type)
+        .slice()
+        .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+      const incomingGroup = result
+        .filter(t => t.pointType === type)
+        .slice()
+        .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+      if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
+        for (let i = 0; i < incomingGroup.length; i += 1) {
+          incomingGroup[i].id = existingGroup[i].id;
+          incomingGroup[i].version = existingGroup[i].version;
+        }
+      }
+    });
+    return result;
+  };
+
+  const finalTrips = (Array.isArray(initialPlan.expenseRequestTrip) && verifiedTrips)
+    ? preserveTripIdsIfCountsMatch(initialPlan.expenseRequestTrip, arrayWithExistingTrips)
+    : arrayWithExistingTrips;
+
   (logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialPlan.expenseRequestTrip || [])
+    expenseTrips: verifiedTrips ? finalTrips : (initialPlan.expenseRequestTrip || [])
   };
 
   if (dispatchProcessContinueEventIfEnabled) {
