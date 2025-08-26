@@ -84,8 +84,19 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
   }
   
   // Check if date is within limits
-  const isDateValid = (!minDate || departureDate >= minDate) && 
-                     (!maxDate || departureDate <= maxDate);
+  // If time is not selected, compare only by calendar day to avoid timezone side-effects
+  let isDateValid: boolean;
+  if (!departureTime) {
+    const toYMD = (d?: Date) => (d ? (d.getFullYear() * 10000) + ((d.getMonth() + 1) * 100) + d.getDate() : null);
+    const dep = toYMD(departureDate);
+    const min = toYMD(minDate);
+    const max = toYMD(maxDate);
+    const minOk = (min === null) || (dep !== null && dep >= min);
+    const maxOk = (max === null) || (dep !== null && dep <= max);
+    isDateValid = minOk && maxOk;
+  } else {
+    isDateValid = (!minDate || departureDate >= minDate) && (!maxDate || departureDate <= maxDate);
+  }
   
   // If date is invalid, clear both date and time
   if (!isDateValid) {

@@ -323,6 +323,46 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   return null;
 };
 
+/**
+ * Preserve existing trip ids/versions when the number of computed trips matches existing trips.
+ * This is a fallback for backend matching issues: if counts align, we map by pointType and tripOrder
+ * and copy id/version from existing to the corresponding new trips.
+ */
+const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
+  if (!existingTrips || !Array.isArray(existingTrips)) return newTrips;
+  if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips;
+
+  if (existingTrips.length !== newTrips.length) return newTrips;
+
+  const result = newTrips.map(trip => ({ ...trip }));
+
+  const pointTypes = Array.from(new Set([
+    ...existingTrips.map(t => t.pointType),
+    ...newTrips.map(t => t.pointType)
+  ]));
+
+  pointTypes.forEach((type) => {
+    const existingGroup = existingTrips
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    const incomingGroup = result
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
+      for (let i = 0; i < incomingGroup.length; i += 1) {
+        incomingGroup[i].id = existingGroup[i].id;
+        incomingGroup[i].version = existingGroup[i].version;
+      }
+    }
+  });
+
+  return result;
+};
+
 export const handleTripSubmitAction = (
   startLocation: LocationData,
   destinations: LocationData[],
@@ -408,10 +448,14 @@ export const handleTripSubmitAction = (
     });
   }
 
-  (logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialRequest.expenseRequestTrip || [])
-  };
+  // Fallback: if counts match, preserve ids/versions by pointType and tripOrder alignment
+  const finalTrips = (Array.isArray(initialRequest.expenseRequestTrip) && verifiedTrips)
+    ? preserveTripIdsIfCountsMatch(initialRequest.expenseRequestTrip, arrayWithExistingTrips)
+    : arrayWithExistingTrips;
 
+  (logObject as LogObject).expenseRequestTrips = {
+    expenseTrips: verifiedTrips ? finalTrips : (initialRequest.expenseRequestTrip || [])
+  };
   if (dispatchProcessContinueEventIfEnabled) {
     return dispatchProcessContinueEventIfEnabled(event, logObject);
   } else {

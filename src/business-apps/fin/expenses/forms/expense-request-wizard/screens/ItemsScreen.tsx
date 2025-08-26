@@ -65,12 +65,15 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const graphQLClient = useGraphqlClient(accessToken);
 
   const expenseItems = useMemo(() => {
-    if (!expenseRequestData?.ExpenseItem || !Array.isArray(expenseRequestData.ExpenseItem)) {
+    const expensesArray = expenseRequestData?.ExpenseItem;
+    if (!expensesArray || !Array.isArray(expensesArray)) {
       return [];
     }
-    
-    return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
-  }, [expenseRequestData]);
+    // Ensure locally deleted items are excluded from the working list
+    const mappedDeletedItems = deletedItems.map((element: any) => element.id);
+    const removeDeletedItems = expensesArray.filter((element: any) => !mappedDeletedItems.includes(element.id));
+    return noAllowanceItemsFunction(removeDeletedItems);
+  }, [expenseRequestData, deletedItems]);
   
   const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
@@ -322,18 +325,18 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           
           if (extractedPayloadItemIds.length === 0) return;
           setPayloadItemIds(extractedPayloadItemIds);
+          if(!expenseRequestData) return
           const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || [];
           const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id));
           
           if (newItemIds.length === 0) return;
-          
           let itemCurrency = currentCurrency || "";
-          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef;
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0) {
+          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0 && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
           }
-          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !currentCurrency){
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !itemCurrency){
             itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
           }
           
@@ -379,29 +382,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     fetchItemsFromPayload();
   }, [additionalData, employeeId, graphQLClient, expenseRequestData, setExpenseRequestData, currentCurrency]);
 
-  useEffect(() => {
-    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
-    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
-    document.addEventListener('expense-request-next-items', handleNextItems);
-    document.addEventListener('expense-request-save-items', handleSaveItems);
-    // Reset selection/search/page/showSelectItems on external reset
-    const handleReset = () => {
-      setSelectedItemIdsForSelection([]);
-      setSearchQuery("");
-      setCurrentPage(1);
-      setShowSelectItems(false);
-    };
-    document.addEventListener('expense-items-reset-selection', handleReset);
-    
-    return () => {
-      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
-      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
-      document.removeEventListener('expense-request-next-items', handleNextItems);
-      document.removeEventListener('expense-request-save-items', handleSaveItems);
-      document.removeEventListener('expense-items-reset-selection', handleReset);
-    };
-  }, [handleCancelSelection, handleConfirmSelection]);
-  
   const handleNextItems = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
       const logObject = createItemsScreenLogObject(
@@ -434,9 +414,33 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   
   const { showCreateItem } = useExpenseRequestWizardContext();
   
+
   const handleCreateItem = useCallback(() => {
     showCreateItem();
   }, [showCreateItem]);
+  
+  useEffect(() => {
+    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
+    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
+    document.addEventListener('expense-request-next-items', handleNextItems);
+    document.addEventListener('expense-request-save-items', handleSaveItems);
+    // Reset selection/search/page/showSelectItems on external reset
+    const handleReset = () => {
+      setSelectedItemIdsForSelection([]);
+      setSearchQuery("");
+      setCurrentPage(1);
+      setShowSelectItems(false);
+    };
+    document.addEventListener('expense-items-reset-selection', handleReset);
+    
+    return () => {
+      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
+      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
+      document.removeEventListener('expense-request-next-items', handleNextItems);
+      document.removeEventListener('expense-request-save-items', handleSaveItems);
+      document.removeEventListener('expense-items-reset-selection', handleReset);
+    };
+  }, [handleCancelSelection, handleConfirmSelection, handleNextItems, handleSaveItems]);
   
   useEffect(() => {
     if (showSelectItems) {

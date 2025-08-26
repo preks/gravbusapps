@@ -197,16 +197,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     fetchItemsFromPayload();
   }, [additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency]);
 
-  useEffect(() => {
 
-    document.addEventListener('expense-plan-next-items', handleNextItems);
-    document.addEventListener('expense-plan-save-items', handleSaveItems);
-    
-    return () => {
-      document.removeEventListener('expense-plan-next-items', handleNextItems);
-      document.removeEventListener('expense-plan-save-items', handleSaveItems);
-    };
-  }, []);
   
   const handleNextItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -248,6 +239,16 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     }
   }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems, additionalData, dispatchProcessContinueEventIfEnabled]);
   
+  useEffect(() => {
+
+    document.addEventListener('expense-plan-next-items', handleNextItems);
+    document.addEventListener('expense-plan-save-items', handleSaveItems);
+    
+    return () => {
+      document.removeEventListener('expense-plan-next-items', handleNextItems);
+      document.removeEventListener('expense-plan-save-items', handleSaveItems);
+    };
+  }, [handleNextItems, handleSaveItems]);
   const { showCreateItem } = useExpensePlanWizardContext();
   
   const handleCreateItem = useCallback(() => {
