@@ -95,9 +95,9 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     return (
       <div
         data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full"
+        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full gba:p-4"
       >
-        <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
+        <div className="gba:bg-white gba:max-w-md gba:w-full">
           {/* Modal Header */}
           <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -108,7 +108,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
           </div>
 
           {/* Modal Content */}
-          <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
+          <div className="gba:p-4 gba:space-y-4">
             {/* From Section */}
             <div className="gba:space-y-2">
               <div className="gba:flex gba:items-center gba:gap-2">
