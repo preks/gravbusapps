@@ -37,7 +37,30 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   const { fetchAdvancePaymentData } =
     useGetAdvancePaymentForApproval(accessToken);
 
-  // Extract payment ID when component mounts or additionalData changes
+  const formatDateToISO = (dateString: string): string => {
+    if (!dateString) {
+      return new Date().toISOString();
+    }
+
+    try {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(dateString)) {
+        return new Date().toISOString();
+      }
+
+      const dateWithTime = dateString + "T00:00:00";
+      const date = new Date(dateWithTime);
+
+      if (isNaN(date.getTime())) {
+        return new Date().toISOString();
+      }
+
+      return date.toISOString();
+    } catch (error) {
+      return new Date().toISOString();
+    }
+  };
+
   useEffect(() => {
     if (!extractedPaymentId) {
       const paymentId = additionalData?.psi_taskPayload?.advancePayment?.id;
@@ -47,7 +70,6 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
     }
   }, [extractedPaymentId, additionalData]);
 
-  // Fetch payment data when we have a payment ID
   useEffect(() => {
     if (extractedPaymentId) {
       fetchPaymentData();
@@ -86,8 +108,9 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   };
 
   useEffect(() => {
-    const today = new Date().toISOString();
-    setTransactionDate(today);
+    const today = new Date();
+    const todayString = today.toISOString().split("T")[0];
+    setTransactionDate(todayString);
   }, []);
 
   const handleConfirm = async () => {
@@ -95,15 +118,34 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
       return;
     }
 
+    if (!transactionDate) {
+      setError("Transaction date is required");
+      return;
+    }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(transactionDate)) {
+      setError("Please enter a valid transaction date (YYYY-MM-DD)");
+      return;
+    }
+
+    if (!confirmationChecked) {
+      setError("Please confirm the payment transfer");
+      return;
+    }
+
     try {
       setIsLoading(true);
+      setError(null);
+
+      const formattedTransactionDate = formatDateToISO(transactionDate);
 
       const payload = {
         advancePayment: {
           id: extractedPaymentId,
           version: paymentData?.version,
           amount: paymentData?.amount,
-          transactionDate: transactionDate,
+          transactionDate: formattedTransactionDate,
           transactionNumber: transactionId,
           transactionConfirmed: confirmationChecked,
           transactionConfirmedByEmployee: userInfo.employeeDetails.employeeId,
@@ -119,7 +161,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
         })
       );
     } catch (error) {
-      console.error("Error confirming advance payment:", error);
+      setError("Failed to confirm payment. Please try again.");
     } finally {
       setIsLoading(false);
     }
