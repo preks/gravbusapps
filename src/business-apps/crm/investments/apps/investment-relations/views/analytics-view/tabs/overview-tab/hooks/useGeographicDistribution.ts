@@ -23,23 +23,22 @@ export const useGeographicDistribution = (accessToken: string) => {
 
         const query = `
           query GetGeographicDistribution {
-            # Get all accounts for geographic analysis
             accounts: InvestmentAccount(
               where: {
-                isDeleted: {_eq: false}, investmentAddress: {country: {value: {_isNull: false}}, _or: {countryRef: {_isNull: false}}}
+                isDeleted: {_eq: false},
+                investmentAddress: {
+                  addressType: { _eq: PRIMARY_ADDRESS },
+                  country: { value: { _isNull: false } }
+                }
               }
             ) {
               id
               name
-              countryRef
-              addressLine
-              investmentAddress {
-                country {
-                  id
-                  value
-                }
-                city
+              investmentAddress(where: { addressType: { _eq: PRIMARY_ADDRESS } }) {
+                country { id value }
+                locality
                 addressLine
+                addressType
               }
             }
           }
@@ -50,21 +49,8 @@ export const useGeographicDistribution = (accessToken: string) => {
         const countryMap = new Map<string, GeographicData>();
 
         result.accounts.forEach((account: any) => {
-          let country = null;
-
-          // First try direct country reference
-          if (account.countryRef) {
-            country = account.countryRef;
-          }
-          // Try to get country from addresses
-          else {
-            const addressWithCountry = account.investmentAddress?.find(
-              (addr: any) => addr.country?.value
-            );
-            if (addressWithCountry) {
-              country = addressWithCountry.country.value;
-            }
-          }
+          const primaryAddress = (account.investmentAddress || []).find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS' && addr.country?.value);
+          const country = primaryAddress?.country?.value;
 
           if (country) {
             if (!countryMap.has(country)) {

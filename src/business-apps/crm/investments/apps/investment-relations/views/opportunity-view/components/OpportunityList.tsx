@@ -24,91 +24,37 @@ import {
   TrendingUp
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
-import type { InvestmentOpportunityQueryVariables } from "@/common/data/investment/queries/investmentOpportunityQueries";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { formatCurrency, formatDate } from "../utils";
 import { navigateTo } from "@/common/utils/navigationUtils";
 
-export interface OpportunityListProps extends BusinessAppContextProps {}
+export interface OpportunityListProps extends BusinessAppContextProps {
+  opportunities: InvestmentOpportunity[];
+  isLoading?: boolean;
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onSort: (field: string) => void;
+  sortField: string;
+  sortOrder: "ASC" | "DESC";
+}
 
-export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
+export const OpportunityList: React.FC<OpportunityListProps> = ({
+  opportunities,
+  isLoading = false,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onSort,
+  sortField,
+  sortOrder,
+  ...context
+}) => {
   const { accessToken } = context;
-  
-  // State management
-  const [searchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
-  const [selectedFilters] = useState<Record<string, any>>({});
-
-  // Hooks for data fetching
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
-
-  // Data state
-  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Build query variables
-  const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: searchTerm.trim() || undefined,
-    orderBy: [{ field: sortField, direction: sortOrder }],
-    ...selectedFilters
-  }), [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
-
-  // Load data
-  const loadData = useCallback(async () => {
-    if (!accessToken) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const result = await fetchInvestmentOpportunities(queryVariables);
-      setOpportunities(result.InvestmentOpportunity || []);
-      setTotalCount(result.InvestmentOpportunityAggregate?.aggregate?.count || 0);
-    } catch (err) {
-      console.error('Error loading investment opportunities:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, fetchInvestmentOpportunities, queryVariables]);
-
-  // Load data on mount and when variables change
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Removed redundant search (handled by DataContainer)
-
-  // Handle pagination
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-
-
-  // Handle sorting
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-    } else {
-      setSortField(field);
-      setSortOrder("ASC");
-    }
-  }, [sortField, sortOrder]);
-
-
-
-  // Removed unused clearFilters (filters handled by parent views)
 
   // Handle row click to navigate to opportunity record
   const handleRowClick = useCallback((opportunityId: string) => {
@@ -150,18 +96,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   }
 
   // Error state
-  if (error) {
-    return (
-      <Alert variant="destructive" className="gba:mb-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <span>Error loading opportunities: {error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
-    );
-  }
+  // Error state handled by parent view
 
   return (
     <div data-testid="investment-opportunities-list">
@@ -173,7 +108,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               <TableRow>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("name")}
+                  onClick={() => onSort("name")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Opportunity
@@ -184,7 +119,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("estimatedAmount")}
+                  onClick={() => onSort("estimatedAmount")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Amount
@@ -195,7 +130,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("opportunityStatus")}
+                  onClick={() => onSort("opportunityStatus")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Win Rate
@@ -206,7 +141,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("opportunityPipeline")}
+                  onClick={() => onSort("opportunityPipeline")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Pipeline
@@ -217,7 +152,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("closeDate")}
+                  onClick={() => onSort("closeDate")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Close Date
@@ -228,7 +163,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("accountId")}
+                  onClick={() => onSort("accountId")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Account
@@ -239,7 +174,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("ownerEmployeeId")}
+                  onClick={() => onSort("ownerEmployeeId")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Owner
@@ -250,7 +185,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
                 </TableHead>
                 <TableHead 
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => handleSort("createdAt")}
+                  onClick={() => onSort("createdAt")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Created
@@ -266,9 +201,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               {opportunities.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="gba:text-center gba:py-8">
-                    <div className="gba:text-gray-500">
-                      {searchTerm ? "No opportunities found matching your search criteria." : "No opportunities available."}
-                    </div>
+                    <div className="gba:text-gray-500">No opportunities available.</div>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -405,7 +338,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               variant="outline"
               size="sm"
               disabled={currentPage === 1}
-              onClick={() => handlePageChange(currentPage - 1)}
+              onClick={() => onPageChange(currentPage - 1)}
               data-testid="investment-opportunities-prev-page-button"
             >
               Previous
@@ -414,7 +347,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               variant="outline"
               size="sm"
               disabled={currentPage * pageSize >= totalCount}
-              onClick={() => handlePageChange(currentPage + 1)}
+              onClick={() => onPageChange(currentPage + 1)}
               data-testid="investment-opportunities-next-page-button"
             >
               Next

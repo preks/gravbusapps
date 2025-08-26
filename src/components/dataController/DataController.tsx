@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -8,6 +8,7 @@ import {
   PiX,
 } from "react-icons/pi";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { DataControllerActions } from "./DataControllerActions";
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
@@ -256,53 +257,18 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
         </div>
 
-        {/* Right: Actions */}
+        {/* Right: Actions (memoized to avoid unnecessary re-renders) */}
         {(addButton || actions) && (
-          // All actions including Add are right-aligned (ml-auto)
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end" data-testid="data-controller-actions-section">
-            {/* Add Button: match design, no frame, no background, icon left, label right */}
-            {addButton && (
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                onClick={addButton.onClick}
-                data-testid={addButton["data-testid"] || "data-controller-add-button"}
-                type="button"
-              >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  {addButton.icon ?? <PlusSquareIcon />}
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  {addButton.label}
-                </span>
-              </button>
-            )}
-            {actions &&
-              (Array.isArray(actions) ? (
-                actions.map((action, idx) => {
-                  // Try to use a stable key if possible
-                  let key = idx;
-                  if (
-                    React.isValidElement(action) &&
-                    action.props?.["data-testid"]
-                  ) {
-                    key = action.props["data-testid"];
-                  }
-                  return (
-                    <div
-                      key={key}
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1"
-                      data-testid={`data-controller-action-${idx}`}
-                    >
-                      {action}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1" data-testid="data-controller-single-action">
-                  {actions}
-                </div>
-              ))}
-          </div>
+          <DataControllerActions
+            addButton={useMemo(() => {
+              if (!addButton) return undefined;
+              return {
+                ...addButton,
+                icon: addButton.icon ?? <PlusSquareIcon />,
+              };
+            }, [addButton])}
+            actions={actions}
+          />
         )}
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}

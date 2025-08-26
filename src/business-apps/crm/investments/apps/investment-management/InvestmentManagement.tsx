@@ -13,8 +13,9 @@ import { InvestmentView } from "./views/investment-view";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import DashboardView from "./views/dashboard-view/DashboardView";
 import { AnalyticsView } from "./views/analytics-view";
+import { ReportView } from "./views/report-view";
 
-export interface InvestmentManagementProps extends BusinessAppContextProps {}
+export interface InvestmentManagementProps extends BusinessAppContextProps { }
 
 export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
   context
@@ -31,16 +32,23 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
       label: getTranslationFromI18nKeyAndLabel("investments", "Investments"),
     },
     {
-      key: "analytics",
-      icon: <BarChart3 />,
-      label: getTranslationFromI18nKeyAndLabel("analytics", "Analytics"),
+      key: "reports",
+      icon: <TrendingDown />,
+      label: getTranslationFromI18nKeyAndLabel("reports", "Reports"),
     },
+
     {
       key: "divestments",
       icon: <TrendingDown />,
       label: getTranslationFromI18nKeyAndLabel("divestments", "Divestments"),
     },
+    {
+      key: "analytics",
+      icon: <BarChart3 />,
+      label: getTranslationFromI18nKeyAndLabel("analytics", "Analytics"),
+    },
   ];
+
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
@@ -155,6 +163,12 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
         return (
           <div data-testid="analytics-view" className="gba:h-full gba:overflow-auto">
             <AnalyticsView {...context} />
+          </div>
+        );
+      case "reports":
+        return (
+          <div data-testid="report-view" className="gba:h-full gba:overflow-auto">
+            <ReportView {...context} />
           </div>
         );
       case "investments":

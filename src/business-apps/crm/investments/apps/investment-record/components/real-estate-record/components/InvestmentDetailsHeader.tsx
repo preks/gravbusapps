@@ -1,6 +1,5 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Badge } from '@newwork/nw-design-system';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from '@newwork/nw-design-system';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -12,22 +11,25 @@ import {
   Home,
   AlertCircle
 } from 'lucide-react';
-import { RealEstateInvestmentRecord } from '../types';
-import { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
-import { formatCurrency, formatPercentage, getStatusColor } from '../../../utils/formatters';
+import type { RealEstateInvestmentData } from '../types';
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { Info } from 'lucide-react';
+import AuditInfoPanel from '../../shared/AuditInfoPanel';
+import { getStatusColor } from '../../../utils/formatters';
 
-interface InvestmentDetailsHeaderProps {
-  data?: RealEstateInvestmentRecord; // Legacy mock data
-  realEstateData?: RealEstateInvestmentData | null; // Real GraphQL data
+export interface InvestmentDetailsHeaderProps {
+  realEstateData?: RealEstateInvestmentData | null;
   isLoading?: boolean;
   error?: string | null;
+  context?: BusinessAppContextProps;
 }
 
 const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ 
-  data, 
   realEstateData, 
   isLoading, 
-  error 
+  error,
+  context
 }) => {
   // Helper function to format currency with GraphQL data
   const formatCurrencyValue = (amount: number | null, currency?: { code: string } | null): string => {
@@ -60,22 +62,22 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
 
   // Use real data if available, otherwise fall back to mock data
   const investment = realEstateData?.investment;
-  const companyName = investment?.account?.name || (data ? `*${data.company_details.name}` : '*Mock Company');
-  const bookValue = investment ? formatCurrencyValue(investment.bookValue, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.book_value, data.investment.currency_ref)}` : '*N/A');
-  const marketValue = investment ? formatCurrencyValue(investment.marketValue, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.market_value, data.investment.currency_ref)}` : '*N/A');
-  const initialInvestment = investment ? formatCurrencyValue(investment.initialInvestmentAmount, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.initial_investment_amount, data.investment.currency_ref)}` : '*N/A');
-  const totalInvestment = investment ? formatCurrencyValue(investment.totalInvestmentAmount, investment.currency) : 
-    (data ? `*${formatCurrency(data.investment.total_investment_amount, data.investment.currency_ref)}` : '*N/A');
-  const stakePercent = investment ? formatPercentageValue(investment.stakePercent) : 
-    (data ? `*${formatPercentage(data.investment.stake_percent)}` : '*N/A');
-  const acquisitionDate = investment ? formatDate(investment.acquisitionDate) : 
-    (data ? `*${new Date(data.investment.acquisition_date).toLocaleDateString('de-DE')}` : '*N/A');
-  const status = investment?.investmentStatus?.value || (data ? '*Active' : '*Unknown');
-  const statusColor = investment?.investmentStatus ? getStatusColor(investment.investmentStatus.code) : 
-    (data ? getStatusColor(data.investment.investment_status_ref) : 'gba:bg-gray-100 gba:text-gray-800');
+  const companyName = investment?.investmentAccount?.name || '';
+  const bookValue = 'N/A'; // no bookValue in schema
+  const marketValue = investment ? formatCurrencyValue(investment.investmentMarketValue ?? null, investment.currency) : 'N/A';
+  const initialInvestment = investment ? formatCurrencyValue(investment.initialInvestmentAmount ?? null, investment.currency) : 'N/A';
+  const totalInvestment = investment ? formatCurrencyValue(investment.totalInvestmentAmount ?? null, investment.currency) : 'N/A';
+  const stakePercent = investment ? formatPercentageValue(investment.stakePercentage ?? null) : 'N/A';
+  const acquisitionDate = investment ? formatDate(investment.acquisitionDate ?? null) : 'N/A';
+  const status = investment?.investmentStatus?.value || 'Unknown';
+  const statusColor = investment?.investmentStatus ? getStatusColor(investment.investmentStatus.code) : 'gba:bg-gray-100 gba:text-gray-800';
+
+  // Audit toggle and name resolution
+  const [showAudit, setShowAudit] = useState(false);
+  // Name resolution handled in shared panel
+  // Name resolution handled in shared component
+
+  // Name resolution handled in shared AuditInfoPanel
 
   if (isLoading) {
     return (
@@ -127,30 +129,38 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
     <div className="gba:px-6 gba:pt-6 gba:pb-4">
       <Card className="gba:bg-gradient-to-r gba:from-green-50 gba:to-emerald-50 gba:border-green-200">
         <CardHeader className="gba:pb-3">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:p-2 gba:bg-green-100 gba:rounded-md">
-              <Home className="gba:h-4 gba:w-4 gba:text-green-600" />
-            </div>
-            <div>
-              <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                {investment?.name || (data ? `*${data.investment.name}` : '*Investment Details')}
-              </h2>
-              <div className="gba:flex gba:items-center gba:gap-3 gba:mt-0.5">
-                <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
-                  {investment?.investmentGroup?.value || 'Real Estate'}
-                </Badge>
-                <Badge className="gba:bg-indigo-100 gba:text-indigo-800 gba:text-xs gba:px-2 gba:py-0.5">
-                  {realEstateData?.realEstateType?.value || '*Property Investment'}
-                </Badge>
-                <span className="gba:text-xs gba:text-gray-600">{companyName}</span>
-                {realEstateData && investment?.name && !investment.name.includes('*') && (
-                  <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
-                    Real Data
-                  </Badge>
-                )}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <div className="gba:p-2 gba:bg-green-100 gba:rounded-md">
+                <Home className="gba:h-4 gba:w-4 gba:text-green-600" />
               </div>
-            </div>
-          </CardTitle>
+              <div>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                  {investment?.name || 'Investment Details'}
+                </h2>
+                <div className="gba:flex gba:items-center gba:gap-3 gba:mt-0.5">
+                  <Badge className="gba:bg-green-100 gba:text-green-800 gba:text-xs gba:px-2 gba:py-0.5">
+                    {investment?.investmentGroup?.value || 'Real Estate'}
+                  </Badge>
+                  <Badge className="gba:bg-indigo-100 gba:text-indigo-800 gba:text-xs gba:px-2 gba:py-0.5">
+                    {investment?.investmentType?.value || 'Property Investment'}
+                  </Badge>
+                  <span className="gba:text-xs gba:text-gray-600">{companyName}</span>
+                </div>
+              </div>
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAudit(v => !v)}
+              className="gba:flex gba:items-center"
+              data-testid="audit-toggle-button"
+            >
+              <Info className="gba:h-4 gba:w-4 gba:mr-1" />
+              {getTranslationFromI18nKeyAndLabel('crm.investments.audit.info', 'Audit Info')}
+            </Button>
+          </div>
+          <AuditInfoPanel show={showAudit} investment={investment} context={context} data-testid="audit-info-panel" />
         </CardHeader>
         <CardContent className="gba:pt-0">
           <div className="gba:grid gba:gap-4 gba:grid-cols-2 gba:md:grid-cols-4 gba:lg:grid-cols-7">
