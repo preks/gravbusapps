@@ -23,13 +23,6 @@ export const AUDIT_FIELDS = `
 `;
 
 /**
- * Structure/tenant field
- */
-export const STRUCTURE_FIELD = `
-  structureId
-`;
-
-/**
  * Catalog entry with translations
  */
 export const CATALOG_ENTRY = `
@@ -60,25 +53,6 @@ export const CATALOG_ENTRY = `
     additionalValue3
     objectValue
   }
-`;
-
-// ==========================================
-// RECURRING FRAGMENTS
-// ==========================================
-
-/**
- * Basic employee fragment
- */
-
-export const EMPLOYEE = `
-    id
-    code
-    firstName
-    lastName
-    displayName
-    fullName
-    picture
-    pictureThumbnail
 `;
 
 // ==========================================

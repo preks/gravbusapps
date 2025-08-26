@@ -1,6 +1,7 @@
 // Base types that match GraphQL responses exactly for core investment entities
 // These should match the DBML schema exactly without any computed fields
-import type { CatalogEntry, EmployeeRef, BaseEntity } from '@/common/network/graphql/commonTypes';
+import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes';
+import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
 import type { InvestmentAccountRef, InvestmentOpportunityRef } from './investmentRelationBaseTypes';
 import type { ReportScope } from './investmentEnums';
 
@@ -25,7 +26,7 @@ export interface BaseInvestment extends BaseEntity {
   code?: string;
   name: string;
   isin?: string;
-  
+
   // Catalog references
   investmentGroup?: CatalogEntry;
   investmentType?: CatalogEntry;
@@ -34,7 +35,7 @@ export interface BaseInvestment extends BaseEntity {
   investmentStatus?: CatalogEntry;
   investmentRiskLevel?: CatalogEntry;
   currency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investmentAccount?: InvestmentAccountRef;
   investmentOpportunity?: InvestmentOpportunityRef;
@@ -46,7 +47,7 @@ export interface BaseInvestment extends BaseEntity {
   planedExit?: boolean;
   plannedExitDate?: string; // ISO date string
   exitDate?: string; // ISO date string
-  
+
   initialInvestmentAmount?: number;
   totalInvestmentAmount?: number;
   investmentMarketValue?: number;
@@ -55,7 +56,7 @@ export interface BaseInvestment extends BaseEntity {
   forecastedRevenueAmount?: number;
   forecastedProfitAmount?: number;
   stakePercentage?: number;
-  
+  // Added fields returned by queries
   loanRecipientName?: string;
   loanAmount?: number;
   loanOpenCommitmentAmount?: number;
@@ -78,7 +79,7 @@ export interface BaseInvestmentRole extends BaseEntity {
 
   // Catalog references
   investmentRole?: CatalogEntry;
-  
+
   // Entity references (using Ref types)  
   investment?: InvestmentRef;
 }
@@ -95,11 +96,11 @@ export interface BaseInvestmentReport extends BaseEntity {
   investmentStatus?: CatalogEntry;
   investmentRiskLevel?: CatalogEntry;
   currency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investment?: InvestmentRef;
   loanRecipientInvestmentAccount?: InvestmentAccountRef;
-  
+
   // Report fields (from investment table)
   plannedExitDate?: string; // ISO date string
   totalInvestmentAmount?: number;
@@ -109,7 +110,7 @@ export interface BaseInvestmentReport extends BaseEntity {
   forecastedRevenueAmount?: number;
   forecastedProfitAmount?: number;
   stakePercentage?: number;
-  
+
   loanRecipientName?: string;
   loanAmount?: number;
   loanOpenCommitmentAmount?: number;
@@ -132,7 +133,7 @@ export interface BaseInvestmentRoleReport extends BaseEntity {
 
   // Catalog references
   investmentRole?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investmentReport?: BaseInvestmentReport;
 }
@@ -148,7 +149,7 @@ export interface BaseInvestmentTransaction extends BaseEntity {
   // Catalog references
   investmentTransactionType?: CatalogEntry;
   currency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investment?: InvestmentRef;
 }
@@ -190,7 +191,7 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
 
   // Catalog references
   currency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   equityInvestment?: BaseEquityInvestment;
 }
@@ -198,7 +199,7 @@ export interface BaseEquityInvestmentRound extends BaseEntity {
 // real_estate_investment table
 export interface BaseRealEstateInvestment extends BaseEntity {
   id: string;
-  
+
   // Address Information
   addressLine?: any; // JsonB
   postalCode?: string;
@@ -217,7 +218,7 @@ export interface BaseRealEstateInvestment extends BaseEntity {
   country?: CatalogEntry;
   region?: CatalogEntry;
   sizeMeasurementUnit?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investment?: InvestmentRef;
 }
@@ -230,7 +231,7 @@ export interface BaseRealEstateInvestmentRentalUnit extends BaseEntity {
 
   // Catalog references
   investmentRentalUnitType?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   realEstate?: BaseRealEstateInvestment;
 }
@@ -251,7 +252,7 @@ export interface BaseRealEstateInvestmentReport extends BaseEntity {
 
   // Catalog references
   sizeMeasurementUnit?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   realEstateInvestment?: BaseRealEstateInvestment;
 }
@@ -263,7 +264,7 @@ export interface BaseRealEstateInvestmentRentalUnitReport extends BaseEntity {
 
   // Catalog references
   investmentRentalUnitType?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   realEstateInvestmentReport?: BaseRealEstateInvestmentReport;
 }
@@ -281,7 +282,7 @@ export interface BaseLiquidFundInvestment extends BaseEntity {
   // Catalog references
   investmentLiquidFundType?: CatalogEntry;
   interestPaymentFrequency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   investment?: InvestmentRef;
 }
@@ -301,7 +302,7 @@ export interface BaseLiquidFundInvestmentReport extends BaseEntity {
   // Catalog references
   investmentLiquidFundType?: CatalogEntry;
   interestPaymentFrequency?: CatalogEntry;
-  
+
   // Entity references (using Ref types)
   liquidFundInvestment?: BaseLiquidFundInvestment;
 }

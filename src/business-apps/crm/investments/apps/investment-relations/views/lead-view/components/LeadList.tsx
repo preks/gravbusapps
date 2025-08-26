@@ -258,9 +258,6 @@ export const LeadList: React.FC<LeadListProps> = ({
                           <div className="gba:font-medium">
                             {getContactName(lead)}
                           </div>
-                          {lead.academicTitle?.code && (
-                            <div className="gba:text-sm gba:text-gray-500">{lead.academicTitle.code}</div>
-                          )}
                         </div>
                       </div>
                     </TableCell>
