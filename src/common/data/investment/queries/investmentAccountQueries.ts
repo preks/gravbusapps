@@ -1,6 +1,9 @@
 // Investment Account Queries - Complete queries without custom fragments
 // Using only common fragments: CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE
-import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
+import { INVESTMENT_ACCOUNT, INVESTMENT_CONTACT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { INVESTMENT_REF } from './fragments/investmentFragments';
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
 
 export interface InvestmentAccountQueryVariables {
   ids?: string[];
@@ -144,7 +147,16 @@ export const GET_INVESTMENT_ACCOUNTS = (variables: InvestmentAccountQueryVariabl
   const where = buildInvestmentAccountWhereCondition(variables);
   
   const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
+    ? `orderBy: [${variables.orderBy.map(o => {
+        const f = o.field;
+        if (f === 'legalForm' || f === 'industryClass' || f === 'companySize' || f === 'accountAnnualRevenueBand') {
+          return `{ ${f}: { code: ${o.direction} } }`;
+        }
+        if (f === 'ownerEmployee') {
+          return `{ ownerEmployee: { displayName: ${o.direction} } }`;
+        }
+        return `{ ${f}: ${o.direction} }`;
+      }).join(', ')}]`
     : 'orderBy: [{ name: ASC }]';
 
   return `
@@ -155,41 +167,7 @@ export const GET_INVESTMENT_ACCOUNTS = (variables: InvestmentAccountQueryVariabl
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        name
-        email
-        phone
-        foundationDate
-        geographicPresence
-        specialty
-        mission
-        liquidationDate
-        website
-        picture
-        pictureThumbnail
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        legalForm {
-          ${CATALOG_ENTRY}
-        }
-        accountAnnualRevenueBand {
-          ${CATALOG_ENTRY}
-        }
-        companySize {
-          ${CATALOG_ENTRY}
-        }
-        industryClass {
-          ${CATALOG_ENTRY}
-        }
-        
-        
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_ACCOUNT}
         
         # Aggregate counts for relationships
         investmentAggregate {
@@ -228,59 +206,11 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = (id: string): string => {
   return `
     query GetInvestmentAccountById {
       InvestmentAccount(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        name
-        email
-        foundationDate
-        geographicPresence
-        specialty
-        mission
-        liquidationDate
-        website
-        picture
-        pictureThumbnail
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        legalForm {
-          ${CATALOG_ENTRY}
-        }
-        accountAnnualRevenueBand {
-          ${CATALOG_ENTRY}
-        }
-        companySize {
-          ${CATALOG_ENTRY}
-        }
-        industryClass {
-          ${CATALOG_ENTRY}
-        }
-        
-        
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_ACCOUNT}
         
         # Related investments
         investment {
-          id
-          code
-          name
-          initialInvestmentAmount
-          totalInvestmentAmount
-          investmentMarketValue
-          acquisitionDate
-          exitDate
-          
-          # Basic investment info
-          investmentType {
-            ${CATALOG_ENTRY}
-          }
-          currency {
-            ${CATALOG_ENTRY}
-          }
+          ${INVESTMENT_REF}
         }
         
         # Related contacts
@@ -288,14 +218,7 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = (id: string): string => {
           id
           contactType
           contact {
-            id
-            code
-            firstName
-            lastName
-            fullName
-            email
-            phone
-            jobPosition
+            ${INVESTMENT_CONTACT_REF}
           }
         }
       }
@@ -365,35 +288,7 @@ export const GET_INVESTMENT_TASKS_BY_ACCOUNT_ID = (accountId: string): string =>
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        code
-        name
-        description
-        comment
-        startDate
-        dueDate
-        endDate
-        taskTiming
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        taskType {
-          ${CATALOG_ENTRY}
-        }
-        taskPriority {
-          ${CATALOG_ENTRY}
-        }
-        taskStatus {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee references
-        creatorEmployee {
-          ${EMPLOYEE}
-        }
-        assignedEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_TASK}
         
         # Entity references
         account {
@@ -417,23 +312,8 @@ export const GET_INVESTMENT_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): stri
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        title
-        description
-        occurredAt
-        completedAt
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        activityType {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee references
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
-        
+        ${INVESTMENT_ACTIVITY}
+
         # Entity references
         account {
           id
@@ -456,16 +336,7 @@ export const GET_INVESTMENT_NOTES_BY_ACCOUNT_ID = (accountId: string): string =>
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        title
-        text
-        reminderDate
-        ${AUDIT_FIELDS}
-        
-        # Employee references
-        authorEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_NOTE}
         
         # Entity references
         account {
@@ -489,27 +360,7 @@ export const GET_INVESTMENT_DOCUMENTS_BY_ACCOUNT_ID = (accountId: string): strin
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        name
-        description
-        file
-        fileSize
-        mimeType
-        verified
-        verificationDate
-        authenticated
-        authenticationDate
-        mandatory
-        expirationDate
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        documentGroup {
-          ${CATALOG_ENTRY}
-        }
-        documentType {
-          ${CATALOG_ENTRY}
-        }
+        ${INVESTMENT_DOCUMENT}
         
         # Entity references
         account {

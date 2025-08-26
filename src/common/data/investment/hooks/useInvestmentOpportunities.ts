@@ -2,7 +2,14 @@
 import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { BaseInvestmentOpportunity, InvestmentOpportunity } from '../types';
+import type { 
+  BaseInvestmentOpportunity, 
+  InvestmentOpportunity,
+  BaseInvestmentTask,
+  BaseInvestmentActivity,
+  BaseInvestmentNote,
+  BaseInvestmentDocument
+} from '../types';
 
 // Use the new query imports
 import {
@@ -12,7 +19,13 @@ import {
 } from '../queries';
 
 // Use the mapper function
-import { toInvestmentOpportunity } from '../mappers';
+import { 
+  toInvestmentOpportunity,
+  toInvestmentTask,
+  toInvestmentActivity,
+  toInvestmentNote,
+  toInvestmentDocument
+} from '../mappers';
 
 // Note: InvestmentOpportunityQueryVariables is imported from queries
 
@@ -104,4 +117,88 @@ export const useSearchInvestmentOpportunities = (context: BusinessAppContextProp
   }, [graphqlClient]);
 
   return { searchInvestmentOpportunities };
+};
+
+// =====================================================
+// INVESTMENT OPPORTUNITY RELATED ENTITIES HOOKS
+// =====================================================
+
+// Hook for getting investment tasks by opportunity ID
+export const useGetInvestmentTasksByOpportunityId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentTasksByOpportunityId = useCallback(async (opportunityId: string) => {
+    const { GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID } = await import('../queries');
+    const query = GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID(opportunityId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query);
+      return result.InvestmentTask.map(toInvestmentTask);
+    } catch (error) {
+      console.error('Error fetching investment tasks by opportunity ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentTasksByOpportunityId };
+};
+
+// Hook for getting investment activities by opportunity ID
+export const useGetInvestmentActivitiesByOpportunityId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentActivitiesByOpportunityId = useCallback(async (opportunityId: string) => {
+    const { GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID } = await import('../queries');
+    const query = GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID(opportunityId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentActivity: BaseInvestmentActivity[] }>(query);
+      return result.InvestmentActivity.map(toInvestmentActivity);
+    } catch (error) {
+      console.error('Error fetching investment activities by opportunity ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentActivitiesByOpportunityId };
+};
+
+// Hook for getting investment notes by opportunity ID
+export const useGetInvestmentNotesByOpportunityId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentNotesByOpportunityId = useCallback(async (opportunityId: string) => {
+    const { GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID } = await import('../queries');
+    const query = GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID(opportunityId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentNote: BaseInvestmentNote[] }>(query);
+      return result.InvestmentNote.map(toInvestmentNote);
+    } catch (error) {
+      console.error('Error fetching investment notes by opportunity ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentNotesByOpportunityId };
+};
+
+// Hook for getting investment documents by opportunity ID
+export const useGetInvestmentDocumentsByOpportunityId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentDocumentsByOpportunityId = useCallback(async (opportunityId: string) => {
+    const { GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID } = await import('../queries');
+    const query = GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID(opportunityId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query);
+      return result.InvestmentDocument.map(toInvestmentDocument);
+    } catch (error) {
+      console.error('Error fetching investment documents by opportunity ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentDocumentsByOpportunityId };
 };

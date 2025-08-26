@@ -15,6 +15,7 @@ import { ContactView } from "./views/contact-view";
 import { OpportunityView } from "./views/opportunity-view";
 import { AnalyticsView } from "./views/analytics-view";
 import { DashboardView } from "./views/dashboard-view";
+import { TaskView } from "./views/task-view";
 import { navigateTo } from "@/common/utils/navigationUtils";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
@@ -27,6 +28,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       key: "dashboard",
       icon: <BarChart3 />,
       label: "Dashboard",
+    },
+    {
+      key: "tasks",
+      icon: <BarChart3 />,
+      label: "Tasks",
     },
     {
       key: "leads",
@@ -133,6 +139,12 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
               pipelines={[]}
               dateRange={{ startDate: new Date(), endDate: new Date() }}
             />
+          </div>
+        );
+      case "tasks":
+        return (
+          <div data-testid="tasks-tab-content">
+            <TaskView {...context} />
           </div>
         );
       

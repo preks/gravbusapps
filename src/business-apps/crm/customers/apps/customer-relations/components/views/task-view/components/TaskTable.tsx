@@ -230,7 +230,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
                 <TableHead 
                   className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('name')}
@@ -303,6 +302,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     {renderSortIcon('dueDate')}
                   </div>
                 </TableHead>
+                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -312,32 +312,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedTaskId === record.id ? 'gba:bg-blue-50' : ''}`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
-                        contextsArray={[FlowContextName.taskInstance]}
-                        externalContextData={{
-                          taskId: record.id,
-                          taskData: record.rawSalesTask
-                        }}
-                        staticFlowData={[
-                          {
-                            key: `update-task-${record.id}`,
-                            label: 'Update Task',
-                            icon: 'PiLightning',
-                            category: 'ACTION',
-                            onClick: () => handleUpdateTask(record)
-                          }
-                        ]}
-                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="enable"
-                        deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-task-cell-${record.id}`}>
                     <div 
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
@@ -435,6 +409,33 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       <span className="gba:text-sm">
                         {formatDate(record.dueDate)}
                       </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
+                        data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
+                        size="icon"
+                        contextsArray={[FlowContextName.taskInstance]}
+                        externalContextData={{
+                          taskId: record.id,
+                          taskData: record.rawSalesTask
+                        }}
+                        staticFlowData={[
+                          {
+                            key: `update-task-${record.id}`,
+                            label: 'Update Task',
+                            icon: 'PiLightning',
+                            category: 'ACTION',
+                            onClick: () => handleUpdateTask(record)
+                          }
+                        ]}
+                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="enable"
+                        deferMainContextRequestsUntilClick
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>

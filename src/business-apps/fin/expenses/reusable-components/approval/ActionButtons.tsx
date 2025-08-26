@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ActionButtonsProps {
   submitting: boolean;
@@ -22,7 +23,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         disabled={submitting}
         data-testid={`${prefixDataTestId}-return-button`}
       >
-        Return
+        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reject_button', 'Return')}
       </Button>
       <Button
         variant="default"
@@ -30,7 +31,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         disabled={submitting}
         data-testid={`${prefixDataTestId}-approve-button`}
       >
-        Approve
+        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.approve_button', 'Approve')}
       </Button>
     </div>
   );

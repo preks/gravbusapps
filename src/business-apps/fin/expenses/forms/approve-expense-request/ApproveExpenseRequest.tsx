@@ -14,7 +14,7 @@ import { formatCurrency, getCatalogValue } from '../approve-expense-plan/utils/f
 
 // Component imports
 import { ExpenseRequestHeader, ExpenseRequestTotalsSection } from './components';
-import ExpensesSection from '../approve-expense-plan/components/ExpensesSection';
+import ExpensesSection from '../../reusable-components/approval/ExpensesSection';
 // Shared components
 import { 
   EmployeeInfoSection, 

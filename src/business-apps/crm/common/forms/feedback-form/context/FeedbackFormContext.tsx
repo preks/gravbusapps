@@ -47,6 +47,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
   onCancel = async () => {},
   preSelectedEmployeeId,
 }) => {
+
   const [formValues, setFormValues] = useState<FeedbackFormValues>({
     feedbackText: '',
     transformedText: undefined,
@@ -76,6 +77,8 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
 
   // Only fetch all employees if no pre-selected employee is provided OR if pre-selected employee is current user
   const hasPreSelectedEmployee = !!preSelectedEmployeeId && !isPreSelectedEmployeeCurrentUser;
+
+
   const { 
     employees, 
     isLoading: employeesLoading, 
@@ -125,7 +128,6 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
         setError(null);
       }
     } catch (err) {
-      console.error('Text transformation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to transform text');
     }
   }, [formValues.feedbackText, apiTransformText, updateFormValues, setError]);
@@ -170,7 +172,6 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
         await onSubmit(formValues);
       }
     } catch (err) {
-      console.error('Form submission error:', err);
       setError(err instanceof Error ? err.message : 'Failed to submit feedback');
     }
   }, [formValues, onSubmit, setError, businessAppContext.userInfo]);
@@ -185,7 +186,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
         await onCancel();
       }
     } catch (err) {
-      console.error('Form cancellation error:', err);
+      // Silent error handling for cancellation
     }
   }, [onCancel]);
 

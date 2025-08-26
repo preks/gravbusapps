@@ -9,10 +9,6 @@ import type {
   BaseInvestmentActivity, 
   BaseInvestmentNote, 
   BaseInvestmentDocument,
-  InvestmentTask,
-  InvestmentActivity,
-  InvestmentNote,
-  InvestmentDocument
 } from '../types';
 
 // Use the new query imports
