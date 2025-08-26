@@ -16,7 +16,7 @@ import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
 
-export interface TaskManagementProps extends BusinessAppContextProps {
+export interface TaskViewProps extends BusinessAppContextProps {
   sourceApp?: string;
 }
 
@@ -24,7 +24,7 @@ export interface TaskManagementProps extends BusinessAppContextProps {
  * Task Management page component. Renders the task management module with a table view.
  * @returns {JSX.Element}
  */
-export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagementProps) => {
+export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
   const { accessToken, sourceApp, userInfo } = props;
   const { t } = useTranslation();
 
@@ -240,10 +240,10 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('TaskManagement - Process completion event:', event.type, event.detail);
+        console.log('TaskView - Process completion event:', event.type, event.detail);
         
         if (event.detail?.resolution === 'success') {
-          console.log('TaskManagement - Process success, refreshing tasks...');
+          console.log('TaskView - Process success, refreshing tasks...');
           loadPage(currentPage, pageSize);
           refetchStatistics();
           return;
@@ -252,7 +252,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
-          console.log('TaskManagement - Response success, refreshing tasks...');
+          console.log('TaskView - Response success, refreshing tasks...');
           loadPage(currentPage, pageSize);
           refetchStatistics();
         }
@@ -264,7 +264,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     // Universal event listener to capture all events (like other CRM components)
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('TaskManagement - Detected process/task event:', event.type, event);
+        console.log('TaskView - Detected process/task event:', event.type, event);
         handleProcessCompletion(event);
       }
     };
@@ -291,7 +291,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     const originalDispatchEvent = window.dispatchEvent;
     window.dispatchEvent = function(event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('TaskManagement - Custom Event dispatched:', event.type, event);
+        console.log('TaskView - Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
       }
       return originalDispatchEvent.call(this, event);
@@ -620,4 +620,4 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   );
 };
 
-export default TaskManagement; 
+export default TaskView; 
