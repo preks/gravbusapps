@@ -62,7 +62,9 @@ export enum FlowContextName {
     updateAccount = "updateAccount",
     transitionOpportunityStage = "transitionOpportunityStage",
     createEmployee = "createEmployee",
-    createJobPosition = "createJobPosition"
+    createJobPosition = "createJobPosition",
+    // CRM Documents
+    createCustomerDocument = "createCustomerDocument",
 }
 
 export type ContextData = {
