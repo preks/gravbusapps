@@ -16,7 +16,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   prefixDataTestId = 'approve-expense'
 }) => {
   return (
-    <div className="gba:flex gba:justify-end gba:gap-3" data-testid={`${prefixDataTestId}-actions`}>
+    <div className="gba:flex gba:justify-end gba:gap-3 gba:mb-4" data-testid={`${prefixDataTestId}-actions`}>
       <Button
         variant="outline"
         onClick={onReturn}

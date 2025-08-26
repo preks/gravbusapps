@@ -600,7 +600,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             ) : (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} expense plans`}
+                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <p className="gba:text-sm gba:font-medium">Rows per page</p>

@@ -11,7 +11,7 @@ const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title }) =>
     <>
       {/* Header Section */}
       <div 
-        className="gba:text-center gba:mb-3" 
+        className="gba:text-center gba:mb-3 gba:mt-4" 
         data-testid="approve-expense-request-header"
       >
         {/* Title - Bold, medium */}
