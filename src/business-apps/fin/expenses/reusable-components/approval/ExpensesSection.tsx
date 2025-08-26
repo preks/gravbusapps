@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileTextOutlined } from '@ant-design/icons';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseItem {
   id: string;
@@ -33,7 +34,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
       {/* Title - Grayed out full width */}
       <div className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full">
         <span className="gba:text-foreground gba:text-sm gba:font-semibold gba:pl-3">
-          Expenses ({expenseItems.length})
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.planned_expenses_header', 'Expenses')}({expenseItems.length})
         </span>
       </div>
 

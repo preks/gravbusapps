@@ -1,4 +1,5 @@
 import React from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface TotalsSectionProps {
   totalAmount: number;
@@ -26,7 +27,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
       <div className="gba:mb-6 gba:pl-6" data-testid="approve-expense-plan-total">
         <div className="gba:flex gba:justify-between gba:items-center">
           <div className="gba:text-md gba:text-foreground">
-            Expenses
+            {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.planned_expenses_header', 'Expenses')}
           </div>
           <div className="gba:text-lg gba:font-semibold gba:text-foreground">
             {formatCurrency(totalAmount, currencyCode)}
@@ -35,7 +36,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
         {nonReimbursableAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center">
             <div className="gba:text-md gba:text-foreground">
-              Non-Reimbursable Amount
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.non_reimbursable', 'Not Reimbursable Amount')}
             </div>
             <div className="gba:text-md gba:font-semibold gba:text-[#A2519A]">
               {formatCurrency(nonReimbursableAmount, currencyCode)}
@@ -45,7 +46,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
         {reimbursableAmount !== totalAmount && (
           <div className="gba:flex gba:justify-between gba:items-center">
             <div className="gba:text-md gba:text-foreground">
-              Reimbursable Amount
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.reimbursable', 'Reimbursable amount')}
             </div>
             <div className="gba:text-md gba:font-semibold gba:text-[#0ab874]">
               {formatCurrency(reimbursableAmount, currencyCode)}
@@ -61,7 +62,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
           <div className="gba:mb-6 gba:pl-6" data-testid="approve-expense-plan-advance">
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:text-md gba:text-foreground">
-                Advance Payment
+                {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
               </div>
               <div className="gba:text-md gba:font-semibold gba:text-[#A2519A]">
                 {formatCurrency(advancePaymentAmount, currencyCode)}

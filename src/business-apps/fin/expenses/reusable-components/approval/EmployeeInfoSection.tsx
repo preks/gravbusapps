@@ -1,5 +1,6 @@
 import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface EmployeeInfoSectionProps {
   code: string;
@@ -33,20 +34,23 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
       {/* Left side - Employee details */}
       <div data-testid={`${prefixDataTestId}-employee-details`}>
         <div>
-          <span className="gba:text-muted-foreground">
-            ID: {code}
+          <span className="gba:text-muted-foreground gba:font-semibold">
+            ID:  
           </span>
+          <span> {code}</span>
         </div>
         <div>
-          <span className="gba:text-muted-foreground">
-            Main Cost Center: {costCenterName}
+          <span className="gba:text-muted-foreground gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.id_cost_center_text', 'Main Cost Center:')} 
           </span>
+          <span> {costCenterName}</span>
         </div>
         {projectName && 
           <div>
-            <span className="gba:text-muted-foreground">
-              Main Project: {projectName}
+            <span className="gba:text-muted-foreground gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.main_project', 'Main Project')}: 
             </span>
+            <span> {projectName}</span>
           </div>
         }
       </div>
