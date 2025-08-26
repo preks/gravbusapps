@@ -17,7 +17,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({
       data-testid={`${prefixDataTestId}-notes`}
     >
       <div className="gba:text-sm gba:font-semibold gba:mb-1 gba:text-foreground">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_placeholder', 'No Notes')}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_label', 'Notes')}
       </div>
       <Textarea
         placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_placeholder', 'No Notes')}
