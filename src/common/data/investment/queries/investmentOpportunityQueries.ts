@@ -1,6 +1,6 @@
-// Investment Opportunity Queries - Complete queries without custom fragments
-// Using only common fragments: CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE
-import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+// Investment Opportunity Queries - Complete queries using shared fragments
+import { INVESTMENT } from './fragments/investmentFragments';
+import { INVESTMENT_OPPORTUNITY, INVESTMENT_ACCOUNT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
 
 export interface InvestmentOpportunityQueryVariables {
   ids?: string[];
@@ -86,7 +86,16 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
   const where = buildInvestmentOpportunityWhereCondition(variables);
   
   const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
+    ? `orderBy: [${variables.orderBy.map(o => {
+        const f = o.field;
+        if (f === 'opportunityStatus' || f === 'opportunityPipeline' || f === 'opportunityPipelineStage' || f === 'currency') {
+          return `{ ${f}: { code: ${o.direction} } }`;
+        }
+        if (f === 'ownerEmployee') {
+          return `{ ownerEmployee: { displayName: ${o.direction} } }`;
+        }
+        return `{ ${f}: ${o.direction} }`;
+      }).join(', ')}]`
     : 'orderBy: [{ closeDate: ASC }]';
 
   return `
@@ -97,36 +106,11 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        name
-        estimatedAmount
-        forecastedProfitAmount
-        initialInvestmentAmount
-        closeDate
-        
-        
-        annualNetColdRent
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_OPPORTUNITY}
         
         # Account relationship
         account {
-          id
-          code
-          name
+          ${INVESTMENT_ACCOUNT_REF}
         }
         
         # Aggregate counts for relationships
@@ -171,67 +155,16 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
   return `
     query GetInvestmentOpportunityById {
       InvestmentOpportunity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        name
-        estimatedAmount
-        forecastedProfitAmount
-        initialInvestmentAmount
-        closeDate
-        annualNetColdRent
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_OPPORTUNITY}
         
         # Account relationship
         account {
-          id
-          code
-          name
-          email
-          geographicPresence
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          ownerEmployee {
-            id
-            displayName
-          }
+          ${INVESTMENT_ACCOUNT_REF}
         }
         
         # Related investments
         investment {
-          id
-          code
-          name
-          initialInvestmentAmount
-          totalInvestmentAmount
-          investmentMarketValue
-          acquisitionDate
-          exitDate
-          
-          # Investment type info
-          investmentType {
-            ${CATALOG_ENTRY}
-          }
-          investmentStatus {
-            ${CATALOG_ENTRY}
-          }
-          currency {
-            ${CATALOG_ENTRY}
-          }
+          ${INVESTMENT}
         }
       }
     }
@@ -282,6 +215,106 @@ export const SEARCH_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunity
           displayName
         }
         account {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// =====================================================
+// INVESTMENT OPPORTUNITY RELATED ENTITIES QUERIES
+// =====================================================
+
+// Get Investment Tasks by Opportunity ID
+export const GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetInvestmentTasksByOpportunityId {
+      InvestmentTask(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_TASK}
+        
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Activities by Opportunity ID
+export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetInvestmentActivitiesByOpportunityId {
+      InvestmentActivity(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ occurredAt: DESC }]
+      ) {
+        ${INVESTMENT_ACTIVITY}
+        
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Notes by Opportunity ID
+export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetInvestmentNotesByOpportunityId {
+      InvestmentNote(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_NOTE}
+        
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Documents by Opportunity ID
+export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetInvestmentDocumentsByOpportunityId {
+      InvestmentDocument(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_DOCUMENT}
+        
+        # Entity references
+        opportunity {
           id
           code
           name

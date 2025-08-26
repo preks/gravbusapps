@@ -34,6 +34,7 @@ import { SalesDashboard } from "./components/views/analytics-view";
 import { useSalesDashboard } from "./components/views/dashboard-view/hooks/useSalesDashboard";
 import { DateRange } from "./components/views/dashboard-view/types/dashboardTypes";
 import CampaignManagement from "./components/views/campaign-view/CampaignManagement";
+import { TaskView } from "./components/views/task-view";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
@@ -45,6 +46,11 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       key: 'dashboard',
       icon: <House />,
       label: "Dashboard"
+    },
+    {
+      key: 'tasks',
+      icon: <List />,
+      label: "Tasks"
     },
     {
       key: "leads",
@@ -275,6 +281,12 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     switch (activeTab) {
       case "dashboard":
         return renderDashboardContent();
+      case "tasks":
+        return (
+          <div data-testid="tasks-tab-content">
+            <TaskView {...context} />
+          </div>
+        );
       case "leads":
         return (
           <div data-testid="leads-tab-content">
