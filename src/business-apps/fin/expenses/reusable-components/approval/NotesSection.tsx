@@ -13,7 +13,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({
 }) => {
   return (
     <div 
-      className="gba:mb-4  gba:p-2 gba:rounded-sm gba:w-full" 
+      className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" 
       data-testid={`${prefixDataTestId}-notes`}
     >
       <div className="gba:text-sm gba:font-semibold gba:mb-1 gba:text-foreground">

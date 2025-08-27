@@ -20,7 +20,7 @@ const MessageSection: React.FC<MessageSectionProps> = ({
   warningDefaultText = getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.warning_message', 'Please add a message!')
 }) => {
   return (
-    <div className="gba:mb-4  gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
+    <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
       <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
         {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.search_employee_list.recent_employees_table.message', 'Message')}
       </div>
