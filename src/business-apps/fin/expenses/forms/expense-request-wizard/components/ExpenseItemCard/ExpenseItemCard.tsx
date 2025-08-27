@@ -72,7 +72,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
               <div className="gba:w-[100%] gba:flex gba:justify-end">
                 <button 
                   className="gba:flex gba:items-center gba:justify-center gba:bg-[#F7F7F7] gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
-                  onClick={() => onDelete(id)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(id); }}
                   data-testid={`delete-item-button-${id}`}
                 >
                   <img src={ICONS.DELETE} alt="Delete" className="gba:w-4 gba:h-4" />

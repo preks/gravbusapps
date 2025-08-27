@@ -65,6 +65,13 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }, [expensePlanData,deletedItems]);
 
   useEffect(() => {
+    const event = new CustomEvent('expense-plan-wizard-update-footer', {
+      detail: { itemsCount: expenseItems.length }
+    });
+    document.dispatchEvent(event);
+  }, [expenseItems]);
+
+  useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
         const defaultCurrency = expensePlanData?.ExpensePlanByPk?.currency?.code || 'RON';
@@ -280,7 +287,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               className="gba:flex gba:items-center gba:gap-1"
               style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
               data-testid="create-item-button"
-              onClick={handleCreateItem}
+              onClick={(e) => { e.stopPropagation(); handleCreateItem(); }}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_position_btn', 'Add Expense Item')}
             </Button>
@@ -346,7 +353,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                 boxShadow: 'none'
               }}
               data-testid="empty-create-item-button"
-              onClick={handleCreateItem}
+              onClick={(e) => { e.stopPropagation(); handleCreateItem(); }}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_items_button', 'Add Estimated Expense Items')}
             </Button>

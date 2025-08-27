@@ -55,6 +55,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
+  const [itemsCount, setItemsCount] = useState<number>(0);
 
  
 
@@ -100,6 +101,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         }
         if (typeof event.detail.selectedItemCount === 'number') {
           setSelectedItemCount(event.detail.selectedItemCount);
+        }
+        if (typeof event.detail.itemsCount === 'number') {
+          setItemsCount(event.detail.itemsCount);
         }
       }
     };
@@ -510,6 +514,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
                   )}
                   onClick={() => {

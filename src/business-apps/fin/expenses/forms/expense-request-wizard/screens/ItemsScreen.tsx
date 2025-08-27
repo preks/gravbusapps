@@ -74,6 +74,13 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     const removeDeletedItems = expensesArray.filter((element: any) => !mappedDeletedItems.includes(element.id));
     return noAllowanceItemsFunction(removeDeletedItems);
   }, [expenseRequestData, deletedItems]);
+
+  useEffect(() => {
+    const event = new CustomEvent('expense-wizard-update-footer', {
+      detail: { itemsCount: expenseItems.length }
+    });
+    document.dispatchEvent(event);
+  }, [expenseItems]);
   
   const latestRejectComment = getLatestRejectComment(expenseRequestData);
 

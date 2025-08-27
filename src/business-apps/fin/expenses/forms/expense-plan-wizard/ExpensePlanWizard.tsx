@@ -59,6 +59,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
+  const [itemsCount, setItemsCount] = useState<number>(0);
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
 
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
@@ -100,6 +101,9 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         }
         if (typeof event.detail.selectedItemCount === 'number') {
           setSelectedItemCount(event.detail.selectedItemCount);
+        }
+        if (typeof event.detail.itemsCount === 'number') {
+          setItemsCount(event.detail.itemsCount);
         }
       }
     };
@@ -517,6 +521,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && false) // TODO: Add validation logic
                   )}
                   onClick={() => {
