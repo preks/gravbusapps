@@ -6,6 +6,15 @@
 
 import { getDateFilters } from './DashboardQueries';
 
+// Centralized overlap where-clause builder (ISO, end-to-start overlap)
+const buildBaseWhere = (startIso: string, endIso: string): string => `{
+  _and: [
+    { isDeleted: { _eq: false } },
+    { startDate: { _lte: "${endIso}" } },
+    { endDate: { _gte: "${startIso}" } }
+  ]
+}`;
+
 /**
  * ✅ Core KPI Aggregations Query
  * Gets all essential metrics in a single optimized server-side aggregation
@@ -18,13 +27,7 @@ export const getKPIAggregationsQuery = (timeFilter: string) => {
   }
 
   // Base where condition for all absences
-  const baseWhere = `{
-    _and: [
-      { isDeleted: { _eq: false } },
-      { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } }
-    ]
-  }`;
+  const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate);
 
   return `
   query GetKPIAggregations {
@@ -32,7 +35,7 @@ export const getKPIAggregationsQuery = (timeFilter: string) => {
     totalAbsences: EmployeeAbsenceAggregate(where: ${baseWhere}) {
       aggregate {
         count
-        sum { effectiveDays calendarDays workingDays }
+        sum { effectiveDays }
         avg { effectiveDays }
       }
     }
@@ -168,13 +171,7 @@ export const getHybridDataQuery = (timeFilter: string) => {
   }
 
   // Optimized where clause for raw data (minimal fields needed)
-  let absenceWhere = `where: { 
-    _and: [
-      { isDeleted: { _eq: false } },
-      { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } }
-    ]
-  }`;
+  let absenceWhere = `where: ${buildBaseWhere(dateFilters.startDate, dateFilters.endDate)}`;
 
   return `
   query GetHybridData {
@@ -184,7 +181,6 @@ export const getHybridDataQuery = (timeFilter: string) => {
       startDate
       endDate
       effectiveDays
-      calendarDays
       createdAt
       type {
         objectValue
@@ -226,13 +222,7 @@ export const getCompleteAggregationsQuery = (
   }
 
   // Base where condition for all absences
-  const baseWhere = `{
-    _and: [
-      { isDeleted: { _eq: false } },
-      { startDate: { _lte: "${dateFilters.endDate}" } },
-      { endDate: { _gte: "${dateFilters.startDate}" } }
-    ]
-  }`;
+  const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate);
 
   // Vacation entitlements specific where condition
   let vacationWhereCondition = '';
@@ -318,7 +308,6 @@ export const getCompleteAggregationsQuery = (
       startDate
       endDate
       effectiveDays
-      calendarDays
       createdAt
       type {
         objectValue

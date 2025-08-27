@@ -1,10 +1,13 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import dayjs from 'dayjs';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceList } from '../../tabs/absence-list-tab/AbsenceList/AbsenceList';
 import { DashboardData } from '../../../types';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getOverlapAggregates } from '../../../utils/getOverlapAggregates';
+import { toUtcDayRangeISO } from '../../../utils/dateUtils';
 
 interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
@@ -12,6 +15,7 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   endDate?: string;
   status?: string;
   department?: string;
+  departmentId?: string;
   timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything';
   dashboardData: DashboardData;
   onNavigateBack: () => void;
@@ -25,9 +29,24 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   endDate,
   status,
   department,
+  departmentId,
   dashboardData,
   onNavigateBack
 }) => {
+  const graphQLClient = useGraphQLClient(accessToken);
+
+  // Ensure page starts at the top when navigating from dashboard
+  useLayoutEffect(() => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    } catch {}
+  }, []);
+
+  // Server-side aggregates for details KPIs
+  const [serverTotalRequests, setServerTotalRequests] = useState<number | null>(null);
+  const [serverTotalDays, setServerTotalDays] = useState<number | null>(null);
+  const [serverUniqueEmployees, setServerUniqueEmployees] = useState<number | null>(null);
+
   // 🚀 PHASE 2: Track current filtered data for dynamic analysis
   const [currentFilteredData, setCurrentFilteredData] = useState<{
     absences: any[];
@@ -35,6 +54,35 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     isFiltered: boolean;
     appliedFilters: any;
   } | null>(null);
+
+  // Load aggregates when filters change (date, department/status)
+  const loadAggregates = useCallback(() => {
+    if (!accessToken) return;
+
+    // Determine active date range from table filters if available, otherwise from props
+    const activeStart = (currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate) ?? dayjs().startOf('year').format('YYYY-MM-DD');
+    const activeEnd = (currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate) ?? dayjs().endOf('year').format('YYYY-MM-DD');
+
+    const { startIso, endIso } = toUtcDayRangeISO(activeStart, activeEnd);
+    (async () => {
+      try {
+        const result = await getOverlapAggregates(graphQLClient, {
+          startIso: startIso || dayjs(activeStart).startOf('day').toISOString(),
+          endIso: endIso || dayjs(activeEnd).endOf('day').toISOString(),
+          departmentId: departmentId || null,
+          departmentName: department || null,
+          status: status || null
+        });
+        setServerTotalRequests(result.totalRequests);
+        setServerTotalDays(result.totalDays);
+        setServerUniqueEmployees(result.distinctEmployees);
+      } catch (e) {
+        setServerTotalRequests(null);
+        setServerTotalDays(null);
+        setServerUniqueEmployees(null);
+      }
+    })();
+  }, [accessToken, graphQLClient, departmentId, department, status, startDate, endDate, currentFilteredData?.appliedFilters?.currentDateRange?.startDate, currentFilteredData?.appliedFilters?.currentDateRange?.endDate]);
 
   // 🚀 PHASE 2: Callback to receive filtered data from AbsenceList
   const handleDataChange = useCallback((data: {
@@ -45,6 +93,11 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   }) => {
     setCurrentFilteredData(data);
   }, []);
+
+  // Run server aggregates whenever dependencies change
+  useEffect(() => {
+    loadAggregates();
+  }, [loadAggregates]);
 
   // 🎯 FILTER rawAbsences for the specific month/date range - MOVE THIS BEFORE EARLY RETURNS
   const filteredAbsencesForMonth = useMemo(() => {
@@ -68,8 +121,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       };
     }
 
-    const rangeStart = dayjs(currentStartDate).startOf('day').toDate();
-    const rangeEnd = dayjs(currentEndDate).endOf('day').toDate();
+    const { startIso: rs, endIso: re } = toUtcDayRangeISO(currentStartDate, currentEndDate);
+    const rangeStart = rs ? new Date(rs) : new Date(dayjs(currentStartDate || dayjs().startOf('month').format('YYYY-MM-DD')).toISOString());
+    const rangeEnd = re ? new Date(re) : new Date(dayjs(currentEndDate || dayjs().endOf('month').format('YYYY-MM-DD')).toISOString());
 
     // Filter absences using overlap logic AND department filter
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
@@ -179,15 +233,11 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
     const filteredAbsences = sourceData;
 
-    // Calculate core metrics from currently visible table data
-    const totalRequests = filteredAbsences.length;
-    const totalDays = filteredAbsences.reduce((sum: number, absence: any) =>
-      sum + (absence.effectiveDays || absence.calendarDays || 0), 0
-    );
-
-    // Calculate unique employees from filtered data
-    const uniqueEmployeeIds = new Set(filteredAbsences.map((absence: any) => absence.employee?.id));
-    const uniqueEmployees = uniqueEmployeeIds.size;
+    // Calculate core metrics
+    // Always use server aggregates for KPIs to ensure single source of truth
+    const totalRequests = serverTotalRequests ?? (typeof currentFilteredData?.total === 'number' ? currentFilteredData.total : 0);
+    const totalDays = serverTotalDays ?? 0;
+    const uniqueEmployees = serverUniqueEmployees ?? 0;
 
     // Calculate averages
     const avgDaysPerEmployee = uniqueEmployees > 0 ? Math.round((totalDays / uniqueEmployees) * 100) / 100 : 0;
@@ -230,7 +280,10 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     currentFilteredData?.total,
     currentFilteredData?.isFiltered,
     // Use JSON.stringify for appliedFilters to detect deep changes safely
-    JSON.stringify(currentFilteredData?.appliedFilters || {})
+    JSON.stringify(currentFilteredData?.appliedFilters || {}),
+    serverTotalRequests,
+    serverTotalDays,
+    serverUniqueEmployees
   ]);
 
   // 🎯 Dynamic UI Labels - Show current filter state
@@ -426,48 +479,48 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                 
           {/* Dynamic Analysis Grid - Main Metrics as Cards */}
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
-            <Card>
+            <Card data-testid="details-kpi-total-days">
               <CardHeader className="gba:pb-2">
                 <CardTitle className="gba:text-sm gba:font-medium">Total Days</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-days-value">
                   {dynamicAnalysis.totalDays}
                 </div>
                 <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
               </CardContent>
             </Card>
             
-            <Card>
+            <Card data-testid="details-kpi-total-requests">
               <CardHeader className="gba:pb-2">
                 <CardTitle className="gba:text-sm gba:font-medium">Total Requests</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-requests-value">
                   {dynamicAnalysis.totalRequests}
                 </div>
                 <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
               </CardContent>
             </Card>
             
-            <Card>
+            <Card data-testid="details-kpi-employees">
               <CardHeader className="gba:pb-2">
                 <CardTitle className="gba:text-sm gba:font-medium">Employees</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-employees-value">
                   {dynamicAnalysis.uniqueEmployees}
                 </div>
                 <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
               </CardContent>
             </Card>
             
-            <Card>
+            <Card data-testid="details-kpi-avg-days-per-employee">
               <CardHeader className="gba:pb-2">
                 <CardTitle className="gba:text-sm gba:font-medium">Avg Days/Employee</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-avg-days-per-employee-value">
                   {dynamicAnalysis.avgDaysPerEmployee}
                 </div>
                 <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
@@ -619,7 +672,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           startDate,
           endDate,
           status,
-          department
+          department,
+          departmentId
         }}
         preFilteredData={filteredAbsencesForMonth.absences}
         onDataChange={handleDataChange}

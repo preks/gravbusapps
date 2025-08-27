@@ -64,7 +64,7 @@ export const processCompleteServerSideAggregations = (
   const vacationMetrics = calculateVacationMetrics(rawEntitlements);
 
   // ✅ CORE KPIs (from server aggregations)
-  const totalAbsencesDays = aggregationResult.totalAbsences?.aggregate?.sum?.effectiveDays || 0;
+  // Sum of effective days is available via aggregation when needed
   const averageDuration = Math.round((aggregationResult.totalAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100;
   
   // Calculate approval rate from status breakdown
@@ -83,6 +83,7 @@ export const processCompleteServerSideAggregations = (
   }));
 
   // Use frontend calculations for departments and monthly trends (per documentation analysis)
+  // Strictly grouped by organizationalUnit.id (already provided by grouping util)
   const departmentStatistics = groupAbsencesByDepartment(enhancedAbsences);
   const monthlyTrends = groupAbsencesByMonth(enhancedAbsences, timeFilter);
   
@@ -94,7 +95,7 @@ export const processCompleteServerSideAggregations = (
         acc[groupName] = { count: 0, totalDays: 0 };
       }
       acc[groupName].count++;
-      acc[groupName].totalDays += (absence.effectiveDays || absence.calendarDays || 0);
+      acc[groupName].totalDays += (Number(absence.effectiveDays) || 0);
       return acc;
     }, {})
   ).map(([type, data]: [string, any]) => ({

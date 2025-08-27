@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { 
   ComposedChart, 
@@ -13,6 +13,8 @@ import {
 } from 'recharts';
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
 import { DashboardData } from '../../../../types';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getOverlapAggregates } from '../../../../utils/getOverlapAggregates';
 
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
@@ -24,6 +26,41 @@ const colorPalette = {
   totalLine: "#34495E" 
 };
 
+// Tooltip component that receives pre-fetched server metrics
+const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, getTypeColor, monthAggMap }) => {
+  if (!(active && payload && payload.length > 0)) return null;
+  const monthData = payload[0].payload;
+  const serverAgg = monthAggMap?.[String(label)] || null;
+  const totalForMonth = (serverAgg?.totalRequests != null) ? serverAgg.totalRequests : (monthData.total || 0);
+  const avgReqPerEmp = (serverAgg?.avgRequestsPerEmployee != null) ? serverAgg.avgRequestsPerEmployee : (monthData.trendLine || 0);
+  const avgDaysPerReq = (serverAgg?.avgDaysPerRequest != null) ? serverAgg.avgDaysPerRequest : (monthData.avgDurationPerRequest || 0);
+  const distinctEmployees = (serverAgg?.distinctEmployees != null) ? serverAgg.distinctEmployees : (monthData.uniqueEmployees || 0);
+
+  return (
+    <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
+      <p className="gba:font-medium gba:mb-2">{label}</p>
+      <p className="gba:text-sm gba:text-gray-600 gba:mb-2">Total: {totalForMonth} absences</p>
+      {absenceTypes.map((type: string) => {
+        const count = monthData[type] || 0;
+        if (count > 0) {
+          return (
+            <p key={type} className="gba:text-sm gba:flex gba:items-center gba:gap-2">
+              <span className="gba:w-3 gba:h-3 gba:rounded gba:inline-block" style={{ backgroundColor: getTypeColor(type) }} />
+              {type}: {count}
+            </p>
+          );
+        }
+        return null;
+      })}
+      <div className="gba:text-sm gba:text-gray-500 gba:mt-2 gba:border-t gba:pt-2">
+        <p>Avg Requests per Employee: {avgReqPerEmp}</p>
+        <p>Avg Duration per Request: {avgDaysPerReq} days</p>
+        <p>Unique Employees: {distinctEmployees}</p>
+      </div>
+    </div>
+  );
+};
+
 /**
  * 🚀 OPTIMIZED: Absence Trends that uses centralized dashboard data
  * Uses enhanced MonthlyTrendData[] with pre-calculated type breakdowns
@@ -31,9 +68,45 @@ const colorPalette = {
  */
 const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ 
   dashboardData,
-  onMonthClick
+  onMonthClick,
+  accessToken
 }) => {
   const { monthlyData, isLoading, error } = dashboardData;
+  const graphQLClient = useGraphQLClient(accessToken);
+
+  // Prefetch server-backed monthly aggregates for every displayed month
+  const [monthAggMap, setMonthAggMap] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let isMounted = true;
+    const run = async () => {
+      try {
+        const tasks = monthlyData.map(async (md: any) => {
+          const label = md.month as string; // e.g., "May" or "Dec 2025"
+          // Parse month and optional year
+          const m = label.match(/^(\w{3})(?:\s(\d{4}))?$/);
+          if (!m) return null;
+          const short = m[1];
+          const year = m[2] ? parseInt(m[2]) : new Date().getUTCFullYear();
+          const mapIdx: Record<string, number> = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+          const mi = mapIdx[short];
+          if (mi == null) return null;
+          const startIso = new Date(Date.UTC(year, mi, 1, 0, 0, 0, 0)).toISOString();
+          const endIso = new Date(Date.UTC(year, mi + 1, 0, 23, 59, 59, 999)).toISOString();
+          const agg = await getOverlapAggregates(graphQLClient, { startIso, endIso });
+          return { label, agg };
+        });
+        const results = await Promise.all(tasks);
+        if (!isMounted) return;
+        const map: Record<string, any> = {};
+        results.forEach((r) => { if (r && r.agg) map[r.label] = r.agg; });
+        setMonthAggMap(map);
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => { isMounted = false; };
+  }, [graphQLClient, monthlyData]);
 
       // Transform enhanced monthly trends into chart data
     const chartData = useMemo(() => {
@@ -72,13 +145,13 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
         
         // Create chart item with month and all absence types in the correct order
         const chartItem: any = {
-          month: monthData.month, // Use full month name: "Dec 2024", "Dec 2025", etc.
-          total: monthData.total,
-          // PRESERVE THE NEW FIELDS HERE!
-          uniqueEmployees: monthData.uniqueEmployees,
-          avgRequestsPerEmployee: monthData.avgRequestsPerEmployee,
-          avgDurationPerRequest: monthData.avgDurationPerRequest,
-          totalDuration: monthData.totalDuration
+          month: monthData.month,
+          // Override visible metrics with server-backed ones when available
+          total: monthAggMap[monthData.month]?.totalRequests ?? monthData.total,
+          uniqueEmployees: monthAggMap[monthData.month]?.distinctEmployees ?? monthData.uniqueEmployees,
+          avgRequestsPerEmployee: monthAggMap[monthData.month]?.avgRequestsPerEmployee ?? monthData.avgRequestsPerEmployee,
+          avgDurationPerRequest: monthAggMap[monthData.month]?.avgDaysPerRequest ?? monthData.avgDurationPerRequest,
+          totalDuration: monthAggMap[monthData.month]?.totalDays ?? monthData.totalDuration
         };
         
         // Add each absence type in the desired order (0 if not present)
@@ -105,19 +178,24 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
     });
 
     return trendData;
-  }, [monthlyData]);
+  }, [monthlyData, monthAggMap]);
 
-  // Calculate totals for header display
-  const { totalAbsenceDays, averagePerMonth } = useMemo(() => {
-    const total = chartData.reduce((sum, month) => sum + (month.total || 0), 0);
+  // Header metrics
+  // - Total Absences: match KPI (server aggregate count)
+  // - Total Days: distinct effectiveDays across the filter (secondary line)
+  const { totalAbsenceRequests, totalAbsenceDays, averagePerMonth } = useMemo(() => {
+    const distinctTotalDays = (dashboardData.rawAbsences || []).reduce(
+      (sum: number, a: any) => sum + (Number(a.effectiveDays) || 0),
+      0
+    );
     const nonZeroMonths = chartData.filter(month => month.total > 0).length;
-    const avg = nonZeroMonths > 0 ? Math.round(total / nonZeroMonths) : 0;
-    
-    return {
-      totalAbsenceDays: total,
-      averagePerMonth: avg
+    const avg = nonZeroMonths > 0 ? Math.round(distinctTotalDays / nonZeroMonths) : 0;
+    return { 
+      totalAbsenceRequests: dashboardData.totalAbsences || 0,
+      totalAbsenceDays: distinctTotalDays, 
+      averagePerMonth: avg 
     };
-  }, [chartData]);
+  }, [dashboardData.totalAbsences, dashboardData.rawAbsences, chartData]);
 
   // Get absence types in the correct order from chart data
   const absenceTypes = useMemo(() => {
@@ -193,10 +271,13 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
         <div className="gba:flex gba:flex-col gba:items-start gba:gap-4 gba:mt-4">
           <div>
             <div className="gba:text-3xl gba:font-bold gba:text-gray-900">
-              {totalAbsenceDays}
+              {totalAbsenceRequests}
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              Total Absence Days (Last 12 Months)
+              Total Absences (Current Filter)
+            </div>
+            <div className="gba:text-xs gba:text-gray-500">
+              Total Days: {totalAbsenceDays}
             </div>
           </div>
           
@@ -206,6 +287,9 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
             </div>
             <div className="gba:text-xs gba:text-gray-500">
               Based on {chartData.filter(m => m.total > 0).length} active months
+            </div>
+            <div className="gba:text-xs gba:text-gray-500">
+              Note: Monthly totals are overlap-based. A single request can appear in multiple months.
             </div>
           </div>
         </div>
@@ -252,46 +336,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
               <YAxis 
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length > 0) {
-                    const monthData = payload[0].payload;
-                    const totalForMonth = monthData.total || 0;
-                    
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow">
-                        <p className="gba:font-medium gba:mb-2">{label}</p>
-                        <p className="gba:text-sm gba:text-gray-600 gba:mb-2">
-                          Total: {totalForMonth} absences
-                        </p>
-                        {absenceTypes.map((type) => {
-                          const count = monthData[type] || 0;
-                          if (count > 0) {
-                            return (
-                              <p key={type} className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-                                <span 
-                                  className="gba:w-3 gba:h-3 gba:rounded gba:inline-block"
-                                  style={{ backgroundColor: getTypeColor(type) }}
-                                />
-                                {type}: {count}
-                              </p>
-                            );
-                          }
-                          return null;
-                        })}
-                        {payload.find(p => p.dataKey === 'trendLine') && (
-                          <div className="gba:text-sm gba:text-gray-500 gba:mt-2 gba:border-t gba:pt-2">
-                            <p>Avg Requests per Employee: {monthData.trendLine}</p>
-                            <p>Avg Duration per Request: {monthData.avgDurationPerRequest} days</p>
-                            <p>Unique Employees: {monthData.uniqueEmployees}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
+              <Tooltip content={<ServerBackedTooltip absenceTypes={absenceTypes} getTypeColor={getTypeColor} monthAggMap={monthAggMap} data-testid="absence-trends-tooltip" />} />
               <Legend 
                 content={() => {
                   return (

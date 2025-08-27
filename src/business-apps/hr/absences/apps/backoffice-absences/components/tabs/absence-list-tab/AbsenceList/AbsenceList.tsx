@@ -39,6 +39,7 @@ interface AbsenceListProps extends BusinessAppContextProps {
     endDate?: string;
     status?: string;
     department?: string;
+    departmentId?: string;
   };
   preFilteredData?: EnhancedAbsence[]; // RESTORED for testing drill-down context
   onDataChange?: (data: {
@@ -68,6 +69,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -100,28 +102,21 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   const fetchAbsences = async () => {
     if (!accessToken) {
-      console.log('No access token available for BackofficeAbsenceList');
       return;
     }
 
     // Always use server-side filtering
 
     // 🚀 ORIGINAL: Server-side pagination when no preFilteredData
-    console.log('🚀 Using server-side pagination');
     try {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
 
       // Build where conditions from a single source of truth
       const conditions: any = buildWhereConditions();
-      console.debug('[AbsenceList] Applied filters and where conditions', {
-        selectedFilters,
-        search,
-        startDate,
-        endDate,
-        creationStartDate,
-        creationEndDate,
-        conditions
-      });
 
       // Build order by clause
       let orderBy: any[] = [];
@@ -222,6 +217,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       setTotal(0);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -243,6 +239,18 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     // Already on page 1: fetch once
     fetchAbsences();
   }, [search, JSON.stringify(selectedFilters), pageSize, startDate, endDate, creationStartDate, creationEndDate]);
+
+  // Effect 2b: When organizational units load/update and a department filter is active, ensure fetch reflects mapped names
+  useEffect(() => {
+    if (!initialLoadDone.current || !accessToken) return;
+    const hasDepartmentFilter = selectedFilters.some(f => f.startsWith('department-')) || selectedFilters.includes('department-no-department');
+    if (!hasDepartmentFilter) return;
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
+    fetchAbsences();
+  }, [organizationalUnits]);
 
   // Effect 3: Pagination, sorting, and after page reset
   useEffect(() => {
@@ -470,35 +478,31 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       // Check if "No Department" filter is selected
       const hasNoDepartmentFilter = departmentFilters.includes('no-department');
       const regularDepartmentIds = departmentFilters.filter(f => f !== 'no-department');
-      
-      // Convert department IDs to names for GraphQL filter
-      const regularDepartmentNames = regularDepartmentIds.map(deptId => {
-        const dept = organizationalUnits.find(ou => ou.id === deptId);
-        return dept?.name;
-      }).filter(Boolean); // Remove undefined values
 
-      let departmentCondition;
+      let departmentCondition: any = undefined;
 
-      if (hasNoDepartmentFilter && regularDepartmentNames.length > 0) {
-        // Both regular departments AND "No Department" selected
+      if (hasNoDepartmentFilter && regularDepartmentIds.length > 0) {
+        // Both regular departments by ID AND "No Department" selected
         departmentCondition = {
           _or: [
-            { organizationalUnit: { name: { _in: regularDepartmentNames } } },
+            { organizationalUnit: { id: { _in: regularDepartmentIds } } },
             { organizationalUnit: { _isNull: true } }
           ]
         };
       } else if (hasNoDepartmentFilter) {
         // Only "No Department" selected
         departmentCondition = { organizationalUnit: { _isNull: true } };
-      } else if (regularDepartmentNames.length > 0) {
-        // Only regular departments selected - USE NAMES LIKE CALENDAR
-        departmentCondition = { organizationalUnit: { name: { _in: regularDepartmentNames } } };
+      } else if (regularDepartmentIds.length > 0) {
+        // Only regular departments by ID selected
+        departmentCondition = { organizationalUnit: { id: { _in: regularDepartmentIds } } };
       }
 
-      if (conditions.employee) {
-        conditions.employee = { ...conditions.employee, employeePosition: departmentCondition };
-      } else {
-        conditions.employee = { employeePosition: departmentCondition };
+      if (departmentCondition) {
+        if (conditions.employee) {
+          conditions.employee = { ...conditions.employee, employeePosition: departmentCondition };
+        } else {
+          conditions.employee = { employeePosition: departmentCondition };
+        }
       }
     }
 
@@ -513,33 +517,41 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       }
     }
 
-    // Add date range filters (use ISO like dashboard)
+    // Add date range filters (use ISO with UTC boundaries, aligned with server aggregates)
     if (startDate || endDate) {
       if (startDate && endDate) {
-        const startDateTime = dayjs(startDate).startOf('day').toISOString();
-        const endDateTime = dayjs(endDate).endOf('day').toISOString();
+        const [sY, sM, sD] = String(startDate).split('-').map((n) => parseInt(n, 10));
+        const [eY, eM, eD] = String(endDate).split('-').map((n) => parseInt(n, 10));
+        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString();
+        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString();
         conditions.startDate = { _lte: endDateTime };
         conditions.endDate = { _gte: startDateTime };
       } else if (startDate) {
-        const startDateTime = dayjs(startDate).startOf('day').toISOString();
+        const [sY, sM, sD] = String(startDate).split('-').map((n) => parseInt(n, 10));
+        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString();
         conditions.endDate = { _gte: startDateTime };
       } else if (endDate) {
-        const endDateTime = dayjs(endDate).endOf('day').toISOString();
+        const [eY, eM, eD] = String(endDate).split('-').map((n) => parseInt(n, 10));
+        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString();
         conditions.startDate = { _lte: endDateTime };
       }
     }
 
-    // Add creation date range filters (use ISO like dashboard)
+    // Add creation date range filters (use ISO with UTC boundaries)
     if (creationStartDate || creationEndDate) {
       if (creationStartDate && creationEndDate) {
-        const startDateTime = dayjs(creationStartDate).startOf('day').toISOString();
-        const endDateTime = dayjs(creationEndDate).endOf('day').toISOString();
+        const [csY, csM, csD] = String(creationStartDate).split('-').map((n) => parseInt(n, 10));
+        const [ceY, ceM, ceD] = String(creationEndDate).split('-').map((n) => parseInt(n, 10));
+        const startDateTime = new Date(Date.UTC(csY, (csM || 1) - 1, csD || 1, 0, 0, 0, 0)).toISOString();
+        const endDateTime = new Date(Date.UTC(ceY, (ceM || 1) - 1, ceD || 1, 23, 59, 59, 999)).toISOString();
         conditions.createdAt = { _gte: startDateTime, _lte: endDateTime };
       } else if (creationStartDate) {
-        const startDateTime = dayjs(creationStartDate).startOf('day').toISOString();
+        const [csY, csM, csD] = String(creationStartDate).split('-').map((n) => parseInt(n, 10));
+        const startDateTime = new Date(Date.UTC(csY, (csM || 1) - 1, csD || 1, 0, 0, 0, 0)).toISOString();
         conditions.createdAt = { _gte: startDateTime };
       } else if (creationEndDate) {
-        const endDateTime = dayjs(creationEndDate).endOf('day').toISOString();
+        const [ceY, ceM, ceD] = String(creationEndDate).split('-').map((n) => parseInt(n, 10));
+        const endDateTime = new Date(Date.UTC(ceY, (ceM || 1) - 1, ceD || 1, 23, 59, 59, 999)).toISOString();
         conditions.createdAt = { _lte: endDateTime };
       }
     }
@@ -549,6 +561,13 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // Map department name to department ID once organizational units are loaded
   useEffect(() => {
+    // If departmentId provided, prefer it and seed selectedFilters deterministically
+    if (initialFilters?.departmentId) {
+      const filterToken = `department-${initialFilters.departmentId}`;
+      setSelectedFilters(prev => (prev.includes(filterToken) ? prev : [...prev, filterToken]));
+      return;
+    }
+
     if (initialFilters?.department) {
       // Special handling for "No Department" case
       if (initialFilters.department === 'NO_DEPARTMENT_SPECIAL') {
@@ -672,15 +691,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // Department filter backend search function
   const getDepartmentFilters = useCallback((searchTerm: string) => {
-    // Get currently selected departments (for drill-down functionality)
-    const selectedDepartmentIds = selectedFilters
-      .filter(f => f.startsWith('department-'))
-      .map(f => f.replace('department-', ''));
-    
-    const selectedDepartments = organizationalUnits.filter(department => 
-      selectedDepartmentIds.includes(department.id)
-    );
-
     // Special "No Department" filter for employees without department assignment
     const noDepartmentFilter = {
       id: 'department-no-department',
@@ -688,18 +698,16 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       selected: selectedFilters.includes('department-no-department')
     };
 
-    // If no search term or less than 3 characters, show selected departments + "No Department" if selected
+    // If no (or short) search term, show ALL departments separately (even if names duplicate)
     if (!searchTerm || searchTerm.trim().length < 3) {
-      const filters = selectedDepartments.map(department => ({
+      const filters = organizationalUnits.map(department => ({
         id: `department-${department.id}`,
         label: department.name || 'Unknown Department',
-        selected: true // These are all selected departments
+        selected: selectedFilters.includes(`department-${department.id}`)
       }));
 
-      // Add "No Department" if it's selected
-      if (selectedFilters.includes('department-no-department')) {
-        filters.push(noDepartmentFilter);
-      }
+      // Include "No Department" option at the top
+      filters.unshift(noDepartmentFilter);
 
       return {
         filters,
@@ -708,23 +716,23 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       };
     }
 
-    // Filter departments by search term (includes both selected and matching departments)
+    // Filter departments by search term
     const filteredDepartments = organizationalUnits.filter(department => {
-        const name = department.name || '';
-        return name.toLowerCase().includes(searchTerm.toLowerCase());
-      });
+      const name = department.name || '';
+      return name.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
     const filters = filteredDepartments.map(department => ({
-        id: `department-${department.id}`,
-        label: department.name || 'Unknown Department',
-        selected: selectedFilters.includes(`department-${department.id}`)
+      id: `department-${department.id}`,
+      label: department.name || 'Unknown Department',
+      selected: selectedFilters.includes(`department-${department.id}`)
     }));
 
     // Add "No Department" option if search term matches
     if ('no department'.includes(searchTerm.toLowerCase()) || 
         'unassigned'.includes(searchTerm.toLowerCase()) ||
         'none'.includes(searchTerm.toLowerCase())) {
-      filters.unshift(noDepartmentFilter); // Add at beginning
+      filters.unshift(noDepartmentFilter);
     }
 
     return {
@@ -873,7 +881,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       const next = selected 
         ? Array.from(new Set([...prev, filterId]))
         : prev.filter(f => f !== filterId);
-      console.debug('[AbsenceList] handleFilterChange', { filterId, selected, prev, next });
       return next;
     });
   }, []);
@@ -969,16 +976,16 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     return (
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
         <CardContent className="gba:p-0">
-          {loading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-          
-          <div className="gba:overflow-x-auto">
-            <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
+          <div className="gba:relative gba:min-h-[360px]">
+            {(loading || isRefreshing) && (
+              <div className="gba:absolute gba:inset-0 gba:bg-white/60 gba:backdrop-blur-[1px] gba:flex gba:items-center gba:justify-center" data-testid={`${DATA_TEST_ID_PREFIX}-loading-overlay`}>
+                <Spinner />
+              </div>
+            )}
+            <div className="gba:overflow-x-auto">
+              <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-gray-50">
                   <TableHead 
                     className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort('employeeName')}
@@ -1129,97 +1136,8 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
-
-          {/* Pagination matching manager-absences exactly */}
-          {total > pageSize ? (
-            <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
-              <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-                <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                  Page {currentPage} of {Math.ceil(total / pageSize)}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handlePaginationChange(1)}
-                    disabled={currentPage === 1}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                  >
-                    <span className="gba:sr-only">Go to first page</span>
-                    ⟨⟨
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handlePaginationChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                  >
-                    <span className="gba:sr-only">Go to previous page</span>
-                    ⟨
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handlePaginationChange(currentPage + 1)}
-                    disabled={currentPage >= Math.ceil(total / pageSize)}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                  >
-                    <span className="gba:sr-only">Go to next page</span>
-                    ⟩
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="gba:h-8 gba:w-8 gba:p-0"
-                    onClick={() => handlePaginationChange(Math.ceil(total / pageSize))}
-                    disabled={currentPage >= Math.ceil(total / pageSize)}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                  >
-                    <span className="gba:sr-only">Go to last page</span>
-                    ⟩⟩
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {`${total} absences`}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                <select
-                  value={pageSize}
-                  onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     );
@@ -1251,6 +1169,42 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         dataBody={
           <div data-testid="backoffice-absence-table-container">
             <AbsenceTable />
+            {/* Pagination Footer */}
+            <div 
+              className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4"
+              data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
+            >
+              <div className="gba:text-sm" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
+                {total > 0 ? (
+                  <span>
+                    Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, total)} of {total}
+                  </span>
+                ) : (
+                  <span>Showing 0-0 of 0</span>
+                )}
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePaginationChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-prev-button`}
+                >
+                  Prev
+                </Button>
+                <div className="gba:text-sm" data-testid={`${DATA_TEST_ID_PREFIX}-current-page`}>
+                  Page {currentPage}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handlePaginationChange(currentPage + 1)}
+                  disabled={currentPage * pageSize >= total}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-next-button`}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </div>
         }
       />

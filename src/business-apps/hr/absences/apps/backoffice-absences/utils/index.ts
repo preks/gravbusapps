@@ -33,33 +33,38 @@ export const formatDateFull = (dateStr: string): string => {
 
 // Department statistics utilities
 export const groupAbsencesByDepartment = (absences: any[]) => {
-  const departmentMap = new Map();
-  
+  const departmentMap = new Map<string, { id: string; name: string; absences: any[]; employees: Set<string> }>();
+
   absences.forEach((absence) => {
-    // employeePosition is now a single active position (filtered at query level)
-    const departmentName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
-    
-    if (!departmentMap.has(departmentName)) {
-      departmentMap.set(departmentName, {
-        name: departmentName,
+    const orgUnitId = absence.employee?.employeePosition?.organizationalUnit?.id || 'no-department';
+    const orgUnitName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
+
+    if (!departmentMap.has(orgUnitId)) {
+      departmentMap.set(orgUnitId, {
+        id: orgUnitId,
+        name: orgUnitName,
         absences: [],
         employees: new Set()
       });
     }
-    
-    const dept = departmentMap.get(departmentName);
+
+    const dept = departmentMap.get(orgUnitId)!;
     dept.absences.push(absence);
-    dept.employees.add(absence.employee?.id);
+    if (absence.employee?.id) {
+      dept.employees.add(absence.employee.id);
+    }
   });
-  
-  return Array.from(departmentMap.values()).map(dept => {
-    const totalDays = dept.absences.reduce((sum: number, absence: any) => 
-      sum + (absence.effectiveDays || absence.calendarDays || 0), 0
+
+  return Array.from(departmentMap.values()).map((dept) => {
+    // Use effectiveDays consistently across dashboard and details
+    const totalDays = dept.absences.reduce((sum: number, absence: any) =>
+      sum + (Number(absence.effectiveDays) || 0), 0
     );
     const uniqueEmployees = dept.employees.size;
     const totalRequests = dept.absences.length;
-    
+
     return {
+      id: dept.id,
       name: dept.name,
       totalDays,
       uniqueEmployees,
@@ -74,94 +79,112 @@ export const groupAbsencesByDepartment = (absences: any[]) => {
 export const groupAbsencesByMonth = (absences: any[], timeFilter?: string) => {
   const monthMap = new Map();
   
-  // ✅ FIX: Get current year for filtering months
+  // ✅ Determine the target year only for 'current-year' view (used for labeling)
   const currentYear = new Date().getFullYear();
   const filterYear = timeFilter === 'current-year' ? currentYear : null;
-  
 
-  
+  // Helper: iterate months spanned by [start,end] and apply a callback
+  const forEachMonthInRange = (start: Date, end: Date, cb: (year: number, month: number) => void) => {
+    const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1, 0, 0, 0, 0));
+    const endMonthStart = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1, 0, 0, 0, 0));
+    while (cursor <= endMonthStart) {
+      cb(cursor.getUTCFullYear(), cursor.getUTCMonth());
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  };
+
   absences.forEach((absence) => {
     const startDate = new Date(absence.startDate);
     const endDate = new Date(absence.endDate);
-    
-    // ✅ FIX: For year-spanning absences, use the month that falls within the filtered year
-    let targetDate: Date;
-    
-    if (filterYear) {
-      // If filtering by year, choose the date that falls within the target year
-      if (startDate.getFullYear() === filterYear) {
-        targetDate = startDate; // Absence starts in target year
-      } else if (endDate.getFullYear() === filterYear) {
-        targetDate = endDate; // Absence ends in target year
-      } else {
-        // Absence doesn't overlap with target year, skip it
+
+    // Normalize to UTC month starts
+    const rangeStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1, 0, 0, 0, 0));
+    const rangeEnd = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1, 0, 0, 0, 0));
+
+    forEachMonthInRange(rangeStart, rangeEnd, (year, month) => {
+      // If filtering to current year, skip months outside it
+      if (filterYear && year !== filterYear) {
         return;
       }
-    } else {
-      // No year filtering, use start date as before
-      targetDate = startDate;
-    }
-    
-    const year = targetDate.getFullYear();
-    const month = targetDate.getMonth(); // 0-11
-    const monthName = targetDate.toLocaleDateString('en-US', { month: 'short' }); // Jan, Feb, etc.
-    
-    // ✅ Use year-month key for proper chronological sorting
-    const sortKey = `${year}-${month.toString().padStart(2, '0')}`; // e.g., "2024-01", "2024-02"
-    
-    if (!monthMap.has(sortKey)) {
-      monthMap.set(sortKey, {
-        month: monthName, // Display name (Jan, Feb, etc.)
-        year,
-        monthNumber: month,
-        sortKey,
-        absences: [],
-        employees: new Set(),
-        typeBreakdown: {}
-      });
-    }
-    
-    const monthData = monthMap.get(sortKey);
-    monthData.absences.push(absence);
-    monthData.employees.add(absence.employee?.id);
-    
-    // Use groupName for type breakdown
-    const groupName = absence.groupName || 'Unknown Group';
-    monthData.typeBreakdown[groupName] = (monthData.typeBreakdown[groupName] || 0) + 1;
+
+      const monthName = new Date(Date.UTC(year, month, 1)).toLocaleDateString('en-US', { month: 'short' });
+      const sortKey = `${year}-${month.toString().padStart(2, '0')}`;
+
+      if (!monthMap.has(sortKey)) {
+        monthMap.set(sortKey, {
+          month: monthName,
+          year,
+          monthNumber: month,
+          sortKey,
+          absences: [],
+          employees: new Set(),
+          typeBreakdown: {},
+          uniqueAbsenceIds: new Set<string>(),
+          into: 0,
+          out: 0
+        });
+      }
+
+      const monthData = monthMap.get(sortKey);
+      // Guard: ensure day-level overlap with this month (use UTC to avoid TZ drift)
+      const monthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      const monthEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+      if (!(startDate <= monthEnd && endDate >= monthStart)) {
+        return;
+      }
+      const absenceId = absence.id || `${absence.employee?.id || 'unknown'}:${absence.startDate}:${absence.endDate}`;
+      if (!monthData.uniqueAbsenceIds.has(absenceId)) {
+        monthData.uniqueAbsenceIds.add(absenceId);
+        monthData.absences.push(absence);
+        if (absence?.employee?.id) {
+          monthData.employees.add(absence.employee.id);
+        }
+        const groupName = absence.groupName || 'Unknown Group';
+        monthData.typeBreakdown[groupName] = (monthData.typeBreakdown[groupName] || 0) + 1;
+      }
+
+      // INTO: absence starts before month and ends inside month
+      const startsBeforeMonth = startDate < monthStart;
+      const endsInMonth = endDate >= monthStart && endDate <= monthEnd;
+      const startsInMonth = startDate >= monthStart && startDate <= monthEnd;
+      const endsAfterMonth = endDate > monthEnd;
+      if (startsBeforeMonth && endsInMonth) {
+        monthData.into += 1;
+      }
+      // OUT: absence starts inside month and ends after month
+      if (startsInMonth && endsAfterMonth) {
+        monthData.out += 1;
+      }
+    });
   });
-  
-  // ✅ FIX: Sort months chronologically and transform data
+
   const sortedMonthData = Array.from(monthMap.values())
-    .sort((a, b) => a.sortKey.localeCompare(b.sortKey)); // Sort by "2024-01", "2024-02", etc.
-  
-  // ✅ FIX: Check if we have multiple years - if so, include year in display
-  const years = Array.from(new Set(sortedMonthData.map(d => d.year)));
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  const years = Array.from(new Set(sortedMonthData.map((d: any) => d.year)));
   const includeYear = years.length > 1;
-  
-  
-  return sortedMonthData.map(monthData => {
-      const totalRequests = monthData.absences.length;
+
+  return sortedMonthData.map((monthData: any) => {
+      const totalRequests = monthData.uniqueAbsenceIds ? monthData.uniqueAbsenceIds.size : monthData.absences.length;
       const uniqueEmployees = monthData.employees.size;
       const totalDuration = monthData.absences.reduce((sum: number, absence: any) => 
-        sum + (absence.effectiveDays || absence.calendarDays || 0), 0
+        sum + (Number(absence.effectiveDays) || 0), 0
       );
-      
-      // ✅ FIX: Include year when multiple years exist to avoid duplicates
+
       const displayMonth = includeYear ? `${monthData.month} ${monthData.year}` : monthData.month;
-      
-      const result = {
-        month: displayMonth, // "Jan 2024", "Dec 2024", "Jan 2025" when multiple years, otherwise just "Jan", "Feb"
-        total: totalRequests, // ✅ FIX: Use 'total' instead of 'totalRequests' for chart compatibility
-        totalRequests, // Keep for backward compatibility
+
+      return {
+        month: displayMonth,
+        total: totalRequests,
+        totalRequests,
         uniqueEmployees,
         avgRequestsPerEmployee: uniqueEmployees > 0 ? Math.round((totalRequests / uniqueEmployees) * 100) / 100 : 0,
         avgDurationPerRequest: totalRequests > 0 ? Math.round((totalDuration / totalRequests) * 100) / 100 : 0,
         totalDuration,
-        typeBreakdown: monthData.typeBreakdown
+        typeBreakdown: monthData.typeBreakdown,
+        into: monthData.into,
+        out: monthData.out
       };
-      
-      
-      return result;
     });
 };
 

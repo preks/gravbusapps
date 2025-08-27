@@ -46,6 +46,7 @@ export interface DashboardData {
   
   // Department statistics
   departmentStats: Array<{
+    id?: string;
     name: string;
     totalDays: number;
     uniqueEmployees: number;

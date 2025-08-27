@@ -59,6 +59,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
 
   // Transform data for visualizations
   const departmentChartData = departmentStats.map(dept => ({
+    id: (dept as any).id,
     department: dept.name.length > 15 ? `${dept.name.substring(0, 15)}...` : dept.name,
     fullName: dept.name,
     absences: dept.totalDays,
@@ -176,6 +177,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     if (!onNavigateToDetails || !data) return;
     
     const department = data.fullName; // Use full department name
+    const departmentId = data.id;     // Prefer id when available
     const dateRange = getDateRangeForTimeFilter();
     
     // Special handling for "No Department" case
@@ -183,12 +185,14 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       // For "No Department", we need to use a special filter identifier
       onNavigateToDetails({
         department: 'NO_DEPARTMENT_SPECIAL', // Special identifier
+        departmentId: undefined,
         ...dateRange
       });
     } else {
       // Navigate to absence details with regular department name
       onNavigateToDetails({
         department,
+        departmentId,
         ...dateRange
       });
     }
