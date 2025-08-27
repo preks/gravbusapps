@@ -55,6 +55,12 @@ export interface LocationData {
     title: string;
     ruleId: string;
     expenseRequest: string;
+    costCenter: string,
+    project: string,
+    expenseGroupRef: string,
+    source: string,
+    expenseClassRef: string,
+    autoCalculated: boolean
   }
 
   /**
@@ -69,6 +75,7 @@ export interface LocationData {
       endDate: any;
       expenseRule: string;
       version: any;
+      description:string;
       costCenter: any;
       employee: any;
       expensePlan: any;

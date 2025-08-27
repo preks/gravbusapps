@@ -1,18 +1,46 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { OpportunityFormValues, SelectOption, OpportunityContextState, ADDRESS_TYPES, COMMUNICATION_CHANNEL_TYPES, RECORD_STATES } from '../types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useEmployeeById } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById';
-import { useEmployeePositions } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions';
-import { opportunityClient, OpportunityPayload } from '@/common/network/opportunity/OpportunityClient';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { message } from 'antd';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { message } from "antd";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
+import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
+import { useAccountsData } from "../hooks/useAccountsData";
+import {
+  opportunityClient,
+  OpportunityPayload,
+} from "@/common/network/opportunity/OpportunityClient";
+import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import {
+  OpportunityFormValues,
+  SelectOption,
+  OpportunityContextState,
+  ADDRESS_TYPES,
+  COMMUNICATION_CHANNEL_TYPES,
+  RECORD_STATES,
+} from "../types";
+import {
+  useOpportunityStatusCatalog,
+  usePipelineCatalogs,
+  useCurrencyCatalog,
+  useOpportunityData,
+} from "../hooks";
+import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
-interface OpportunityFormContextValue extends OpportunityContextState {
+interface OpportunityFormContextValue {
   formValues: OpportunityFormValues;
   setFormValues: (updates: Partial<OpportunityFormValues>) => void;
   onSubmit: (values: OpportunityFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
-  
+  isLoading: boolean;
+  error: string | null;
+
   // Employee positions (for owner selection)
   employeePositions: SelectOption[];
   employeePositionsLoading: boolean;
@@ -20,21 +48,51 @@ interface OpportunityFormContextValue extends OpportunityContextState {
   employeePositionsHasMore: boolean;
   loadMoreEmployeePositions: () => void;
   searchEmployeePositions: (search: string) => void;
-  
+
   // Static data
   opportunityStatuses: SelectOption[];
   pipelines: SelectOption[];
   salesPipelineStages: SelectOption[];
-  currencies: SelectOption[];
   addressTypes: SelectOption[];
   communicationChannelTypes: SelectOption[];
   recordStates: SelectOption[];
-  
+
+  // Currencies (using Currency catalog)
+  currencies: SelectOption[];
+  currenciesLoading: boolean;
+  currenciesError: string | null;
+  currenciesHasMore: boolean;
+  currenciesNeedsMoreData: boolean;
+  currenciesDisplayCount: number;
+  currenciesTotalFetched: number;
+  loadMoreCurrencies: () => void;
+  showMoreCurrencies: () => void;
+  searchCurrencies: (search: string) => void;
+
+  // Sales Campaigns
+  salesCampaigns: SelectOption[];
+  salesCampaignsLoading: boolean;
+  salesCampaignsError: string | null;
+  salesCampaignsHasMore: boolean;
+  searchSalesCampaigns: (searchTerm: string) => void;
+  loadMoreSalesCampaigns: () => void;
+
+  // Catalog refresh functions
+  refetchStages: (selectedPipelineId?: string) => void;
+
+  // Company autocomplete
+  accountSuggestions: SelectOption[];
+  searchAccounts: (search: string) => void;
+  loadMoreAccounts: () => Promise<void>;
+  accountsHasMore: boolean;
+  accountsLoading: boolean;
+
   // Business app context for child components
   businessAppContext: BusinessAppContextProps;
 }
 
-const OpportunityFormContext = createContext<OpportunityFormContextValue | null>(null);
+const OpportunityFormContext =
+  createContext<OpportunityFormContextValue | null>(null);
 
 interface OpportunityFormProviderProps {
   children: React.ReactNode;
@@ -44,7 +102,9 @@ interface OpportunityFormProviderProps {
   onCancel?: () => Promise<void>;
 }
 
-export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = ({
+export const OpportunityFormProvider: React.FC<
+  OpportunityFormProviderProps
+> = ({
   children,
   businessAppContext,
   initialValues = {},
@@ -54,74 +114,78 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   // Form state
   const [formValues, setFormValuesState] = useState<OpportunityFormValues>({
     // Opportunity Information
-    owner: '',
-    name: '',
-    opportunityStatus: '',
-    pipeline: '',
-    salesPipelineStage: '',
-    stage: '',
-    status: '',
-    
+    owner: "",
+    name: "",
+    opportunityStatus: "",
+    pipeline: "",
+    salesPipelineStage: "",
+    stage: "",
+    status: "",
+
     // Sales Information
-    estimatedAmount: '',
-    currency: '',
-    winningChance: '',
-    closeDate: '',
-    
+    estimatedAmount: "",
+    currency: "",
+    winningChance: "",
+    closeDate: "",
+
     // Relationship Information
-    account: '',
-    lead: '',
-    
+    account: "",
+    lead: "",
+
     // Business Information
-    businessKey: '',
-    code: '',
-    sourceApp: 'CRM',
+    businessKey: "",
+    code: "",
+    sourceApp: "CRM",
     personal: false,
-    
+    companyName: "",
+
     // Additional Information
-    notesSummary: '',
-    lastInteraction: '',
-    
+    notesSummary: "",
+    lastInteraction: "",
+
     // Address Information
     addresses: [],
-    
+
     // Communication Channels
     communicationChannels: [],
-    
+
     // Tags
     tags: [],
-    
+
     // Additional Properties for custom fields
     additionalProperties: {},
-    
+
     // Express fields for dynamic configuration
     express1: {},
     express2: {},
-    
+
     // Process and system fields
-    processInstanceId: '',
-    recordState: 'DRAFT',
-    
+    processInstanceId: "",
+    recordState: "DRAFT",
+
     // Audit information (readonly, for display)
-    activeFrom: '',
-    activeTo: '',
-    createdAt: '',
-    createdBy: '',
-    updatedAt: '',
-    updatedBy: '',
-    synchronizedAt: '',
-    
+    activeFrom: "",
+    activeTo: "",
+    createdAt: "",
+    createdBy: "",
+    updatedAt: "",
+    updatedBy: "",
+    synchronizedAt: "",
+
     // System fields
     id: undefined,
     version: undefined,
-    
+
     // Legacy fields (for backward compatibility)
-    accountId: '',
-    leadId: '',
-    ownerEmployeeId: '',
-    ownerOrganizationId: '',
-    
-    ...initialValues
+    accountId: "",
+    leadId: "",
+    ownerEmployeeId: "",
+    ownerOrganizationId: "",
+
+    // Sales Campaign
+    salesCampaignId: "",
+
+    ...initialValues,
   });
 
   // Global state
@@ -129,7 +193,9 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   const [error, setError] = useState<string | null>(null);
 
   // Account autocomplete state
-  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>([]);
+  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>(
+    []
+  );
   const [isSearchingAccounts, setIsSearchingAccounts] = useState(false);
 
   // Lead autocomplete state
@@ -149,125 +215,186 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
     searchEmployees,
   } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
 
-  // Current user employee hook
+  // Sales Campaigns hook
   const {
-    employee: currentUserEmployee,
-  } = useEmployeeById({ 
-    accessToken: businessAppContext.accessToken, 
-    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId 
+    options: salesCampaignsOptions,
+    loading: salesCampaignsLoading,
+    error: salesCampaignsError,
+    hasMore: salesCampaignsHasMore,
+    search: searchSalesCampaigns,
+    loadMore: loadMoreSalesCampaigns,
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+
+  // Create search wrapper for campaign autocomplete
+  const searchSalesCampaignsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all campaigns, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchSalesCampaigns(searchTerm);
+      }
+    },
+    [searchSalesCampaigns]
+  );
+
+  // Create wrapper function for campaigns to match interface
+  const loadMoreSalesCampaignsWrapper = useCallback((): void => {
+    loadMoreSalesCampaigns();
+  }, [loadMoreSalesCampaigns]);
+
+  // Current user employee hook
+  const { employee: currentUserEmployee } = useEmployeeById({
+    accessToken: businessAppContext.accessToken,
+    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
   });
 
+  // Opportunity data fetching hook for pre-filling form when updating existing opportunity
+  const {
+    opportunityData,
+    loading: opportunityDataLoading,
+    error: opportunityDataError,
+    mapOpportunityToFormValues,
+  } = useOpportunityData({ businessAppContext });
+
+  // Extract opportunityId for tracking changes
+  const opportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId;
+
+  // Reset auto-selection flag when opportunity changes or when creating new opportunity
+  useEffect(() => {
+    autoSelectionDone.current = false;
+  }, [opportunityId]);
+
   // Default submit function - saves opportunity via API
-  const defaultOnSubmit = useCallback(async (values: OpportunityFormValues) => {
-    setIsLoading(true);
-    setError(null);
+  const defaultOnSubmit = useCallback(
+    async (values: OpportunityFormValues) => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Convert form values to API payload
-      const opportunityPayload: OpportunityPayload = {
-        // Basic fields
-        id: values.id,
-        version: values.version || 0,
-        name: values.name,
-        businessKey: values.businessKey,
-        code: values.code,
-        
-        // Core opportunity fields
-        estimatedAmount: values.estimatedAmount ? parseFloat(values.estimatedAmount) : undefined,
-        winningChance: values.winningChance ? parseFloat(values.winningChance) : undefined,
-        closeDate: values.closeDate ? new Date(values.closeDate).toISOString() : undefined,
-        lastInteraction: values.lastInteraction ? new Date(values.lastInteraction).toISOString() : undefined,
-        notesSummary: values.notesSummary,
-        
-        // Status and pipeline fields
-        opportunityStatusRef: values.opportunityStatus,
-        status: values.status,
-        stage: values.stage,
-        pipelineRef: values.pipeline,
-        salesPipelineRef: values.pipeline, // Map to salesPipelineRef for backward compatibility
-        salesPipelineStageRef: values.salesPipelineStage,
-        
-        // Relationship fields
-        accountId: values.account || values.accountId,
-        leadId: values.lead || values.leadId,
-        ownerEmployeeId: values.owner || values.ownerEmployeeId,
-        ownerOrganizationId: values.ownerOrganizationId,
-        
-        // Currency and system fields
-        currencyRef: values.currency,
-        sourceApp: values.sourceApp,
-        personal: values.personal,
-        
-        // Additional properties
-        additionalProperties: values.additionalProperties,
-        express1: values.express1,
-        express2: values.express2,
-        
-        // Process fields
-        processInstanceId: values.processInstanceId,
-        recordState: values.recordState,
-        
-        // Addresses
-        addresses: values.addresses?.map(addr => ({
-          id: addr.id,
-          version: addr.version || 0,
-          addressType: addr.addressType || 'BUSINESS',
-          addressLine: addr.addressLine,
-          postalCode: addr.postalCode,
-          city: addr.city,
-          regionRef: addr.region,
-          countryRef: addr.country,
-        })),
-        
-        // Communication channels
-        communicationChannels: values.communicationChannels?.map(channel => ({
-          id: channel.id,
-          version: channel.version || 0,
-          channelType: channel.channelType,
-          channelValue: channel.channelValue,
-          isPrimary: channel.isPrimary,
-        })),
-        
-        // Tags
-        tags: values.tags?.map(tag => ({
-          id: tag.id,
-          version: tag.version || 0,
-          tagName: tag.tagName,
-          tagValue: tag.tagValue,
-        })),
-      };
+      try {
+        // Convert form values to API payload
+        const opportunityPayload: OpportunityPayload = {
+          // Basic fields
+          id: values.id,
+          version: values.version || 0,
+          name: values.name,
+          businessKey: values.businessKey,
+          code: values.code,
 
-      // Determine change mode based on whether we have an ID
-      const changeMode = values.id ? 'UPDATE' : 'INSERT';
+          // Core opportunity fields
+          estimatedAmount: values.estimatedAmount
+            ? parseFloat(values.estimatedAmount)
+            : undefined,
+          winningChance: values.winningChance
+            ? parseFloat(values.winningChance)
+            : undefined,
+          closeDate: values.closeDate
+            ? new Date(values.closeDate).toISOString()
+            : undefined,
+          lastInteraction: values.lastInteraction
+            ? new Date(values.lastInteraction).toISOString()
+            : undefined,
+          notesSummary: values.notesSummary,
 
-      // Save via API
-      const result = await opportunityClient.saveOpportunity(
-        opportunityPayload,
-        businessAppContext.accessToken,
-        changeMode
-      );
+          // Status and pipeline fields
+          opportunityStatusRef: values.opportunityStatus,
+          status: values.status,
+          stage: values.stage,
+          pipelineRef: values.pipeline,
+          salesPipelineRef: values.pipeline, // Map to salesPipelineRef for backward compatibility
+          salesPipelineStageRef: values.salesPipelineStage,
 
-      message.success('Opportunity saved successfully');
+          // Relationship fields
+          accountId: values.account || values.accountId,
+          leadId: values.lead || values.leadId,
+          ownerEmployeeId: values.owner || values.ownerEmployeeId,
+          ownerOrganizationId: values.ownerOrganizationId,
 
-      // If we're in a process context, dispatch continue event
-      if (window.parent && typeof window.parent.postMessage === 'function') {
-        const processPayload = {
-          opportunityId: result?.opportunity?.id || values.id,
-          ...result
+          // Campaign Information
+          salesCampaignId: values.salesCampaignId,
+
+          // Currency and system fields
+          currencyRef: values.currency,
+          sourceApp: values.sourceApp,
+          personal: values.personal,
+
+          // Additional properties
+          additionalProperties: values.additionalProperties,
+          express1: values.express1,
+          express2: values.express2,
+
+          // Process fields
+          processInstanceId: values.processInstanceId,
+          recordState: values.recordState,
+
+          // Addresses
+          addresses: values.addresses?.map((addr) => ({
+            id: addr.id,
+            version: addr.version || 0,
+            addressType: addr.addressType || "BUSINESS",
+            addressLine: addr.addressLine,
+            postalCode: addr.postalCode,
+            city: addr.city,
+            regionRef: addr.region,
+            countryRef: addr.country,
+          })),
+
+          // Communication channels
+          communicationChannels: values.communicationChannels?.map(
+            (channel) => ({
+              id: channel.id,
+              version: channel.version || 0,
+              channelType: channel.channelType,
+              channelValue: channel.channelValue,
+              isPrimary: channel.isPrimary,
+            })
+          ),
+
+          // Tags
+          tags: values.tags?.map((tag) => ({
+            id: tag.id,
+            version: tag.version || 0,
+            tagName: tag.tagName,
+            tagValue: tag.tagValue,
+          })),
         };
-        dispatchProcessContinueEvent('opportunitySaved', processPayload);
-      }
 
-    } catch (error) {
-      console.error('Error saving opportunity:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setError(`Failed to save opportunity: ${errorMessage}`);
-      message.error(`Failed to save opportunity: ${errorMessage}`);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [businessAppContext.accessToken]);
+        // Determine change mode based on whether we have an ID
+        const changeMode = values.id ? "UPDATE" : "INSERT";
+
+        // Save via API
+        const result = await opportunityClient.saveOpportunity(
+          opportunityPayload,
+          businessAppContext.accessToken,
+          changeMode
+        );
+
+        message.success("Opportunity saved successfully");
+
+        // Prepare payload in the same format as other forms (lead, contact, account)
+        const payload = {
+          opportunity: {
+            ...opportunityPayload,
+            id: result?.opportunity?.id || values.id,
+          },
+          changeMode: changeMode,
+        };
+
+        // Dispatch process continue event on successful submission
+        dispatchProcessContinueEvent("pse_submit", payload);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        setError(`Failed to save opportunity: ${errorMessage}`);
+        message.error(`Failed to save opportunity: ${errorMessage}`);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [businessAppContext.accessToken]
+  );
 
   // Use custom submit function if provided, otherwise use default
   const onSubmit = customOnSubmit || defaultOnSubmit;
@@ -275,31 +402,35 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   // Computed employee positions with current user prioritized
   const employeePositions = useMemo(() => {
     // Convert employee position data to SelectOption format
-    const regularEmployees: SelectOption[] = (employeePositionData || []).map(emp => {
-      const displayName = `${emp.firstName} ${emp.lastName}`;
-      const jobTitle = emp.jobPosition?.name || 'No Position';
-      const orgUnit = emp.organizationalUnit?.name || 'No Unit';
-      
-      return {
-        id: emp.employeeId,
-        value: emp.employeeId,
-        label: `${displayName} - ${jobTitle}`,
-        name: displayName,
-        extraInfo: {
-          picture: emp.employee.picture || undefined,
-          pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-          jobPosition: jobTitle,
-          organizationalUnit: orgUnit,
-          userId: emp.employee.userId || undefined,
-        }
-      };
-    });
-    
+    const regularEmployees: SelectOption[] = (employeePositionData || []).map(
+      (emp) => {
+        const displayName = `${emp.firstName} ${emp.lastName}`;
+        const jobTitle = emp.jobPosition?.name || "No Position";
+        const orgUnit = emp.organizationalUnit?.name || "No Unit";
+
+        return {
+          id: emp.employeeId,
+          value: emp.employeeId,
+          label: `${displayName} - ${jobTitle}`,
+          name: displayName,
+          extraInfo: {
+            picture: emp.employee.picture || undefined,
+            pictureThumbnail: emp.employee.pictureThumbnail || undefined,
+            jobPosition: jobTitle,
+            organizationalUnit: orgUnit,
+            userId: emp.employee.userId || undefined,
+          },
+        };
+      }
+    );
+
     if (currentUserEmployee) {
       const currentUserDisplayName = `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`;
-      const currentUserJobTitle = currentUserEmployee.jobPosition?.name || 'No Position';
-      const currentUserOrgUnit = currentUserEmployee.organizationalUnit?.name || 'No Unit';
-      
+      const currentUserJobTitle =
+        currentUserEmployee.jobPosition?.name || "No Position";
+      const currentUserOrgUnit =
+        currentUserEmployee.organizationalUnit?.name || "No Unit";
+
       const currentUserOption: SelectOption = {
         id: currentUserEmployee.employeeId,
         value: currentUserEmployee.employeeId,
@@ -307,131 +438,321 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
         name: currentUserDisplayName,
         extraInfo: {
           picture: currentUserEmployee.employee.picture || undefined,
-          pictureThumbnail: currentUserEmployee.employee.pictureThumbnail || undefined,
+          pictureThumbnail:
+            currentUserEmployee.employee.pictureThumbnail || undefined,
           jobPosition: currentUserJobTitle,
           organizationalUnit: currentUserOrgUnit,
           userId: currentUserEmployee.employee.userId || undefined,
-        }
+        },
       };
 
-      const isCurrentUserAlreadyInList = regularEmployees.some(emp => emp.id === currentUserEmployee.employeeId);
+      const isCurrentUserAlreadyInList = regularEmployees.some(
+        (emp) => emp.id === currentUserEmployee.employeeId
+      );
       if (!isCurrentUserAlreadyInList) {
-        return [currentUserOption, ...regularEmployees];
+        regularEmployees.unshift(currentUserOption);
+      }
+    }
+
+    // Add opportunity owner employee if they exist and are not already in the list
+    if (opportunityData?.ownerEmployee) {
+      const ownerEmployee = opportunityData.ownerEmployee;
+      const ownerDisplayName =
+        ownerEmployee.displayName ||
+        `${ownerEmployee.firstName} ${ownerEmployee.lastName}`;
+
+      const isOwnerAlreadyInList = regularEmployees.some(
+        (emp) => emp.id === ownerEmployee.id
+      );
+
+      if (!isOwnerAlreadyInList) {
+        const ownerOption: SelectOption = {
+          id: ownerEmployee.id,
+          value: ownerEmployee.id,
+          label: `${ownerDisplayName} - Owner`,
+          name: ownerDisplayName,
+          extraInfo: {
+            picture: undefined,
+            pictureThumbnail: ownerEmployee.pictureThumbnail || undefined,
+            jobPosition: "Owner",
+            organizationalUnit: "N/A",
+            userId: undefined,
+          },
+        };
+
+        // Add owner at the beginning (but after current user if present)
+        const currentUserIndex = regularEmployees.findIndex(
+          (emp) =>
+            currentUserEmployee && emp.id === currentUserEmployee.employeeId
+        );
+
+        if (currentUserIndex >= 0) {
+          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption);
+        } else {
+          regularEmployees.unshift(ownerOption);
+        }
       }
     }
 
     return regularEmployees;
-  }, [employeePositionData, currentUserEmployee]);
+  }, [employeePositionData, currentUserEmployee, opportunityData]);
 
-  // Static data arrays
-  const opportunityStatuses: SelectOption[] = [
-    { id: 'OPEN', value: 'OPEN', label: 'Open', name: 'Open' },
-    { id: 'WON', value: 'WON', label: 'Won', name: 'Won' },
-    { id: 'LOST', value: 'LOST', label: 'Lost', name: 'Lost' },
-    { id: 'CANCELLED', value: 'CANCELLED', label: 'Cancelled', name: 'Cancelled' }
-  ];
+  // Catalog hooks for dynamic data
+  const { opportunityStatusOptions } =
+    useOpportunityStatusCatalog(businessAppContext);
+  const {
+    pipelineOptions,
+    pipelineStageOptions,
+    refetchStages: refetchPipelineStages,
+  } = usePipelineCatalogs(businessAppContext, formValues.pipeline);
 
-  const pipelines: SelectOption[] = [
-    { id: 'SALES', value: 'SALES', label: 'Sales Pipeline', name: 'Sales Pipeline' },
-    { id: 'MARKETING', value: 'MARKETING', label: 'Marketing Pipeline', name: 'Marketing Pipeline' },
-    { id: 'PARTNER', value: 'PARTNER', label: 'Partner Pipeline', name: 'Partner Pipeline' }
-  ];
+  // Currency catalog hook with all pagination properties
+  const {
+    currencyOptions,
+    isLoading: currenciesLoading,
+    error: currenciesError,
+    hasMore: currenciesHasMore,
+    needsMoreData: currenciesNeedsMoreData,
+    displayCount: currenciesDisplayCount,
+    totalFetched: currenciesTotalFetched,
+    loadMore: loadMoreCurrencies,
+    showMore: showMoreCurrencies,
+    search: searchCurrencies,
+    initialize: initializeCurrencies,
+  } = useCurrencyCatalog(businessAppContext);
 
-  const salesPipelineStages: SelectOption[] = [
-    { id: 'PROSPECTING', value: 'PROSPECTING', label: 'Prospecting', name: 'Prospecting' },
-    { id: 'QUALIFICATION', value: 'QUALIFICATION', label: 'Qualification', name: 'Qualification' },
-    { id: 'NEEDS_ANALYSIS', value: 'NEEDS_ANALYSIS', label: 'Needs Analysis', name: 'Needs Analysis' },
-    { id: 'VALUE_PROPOSITION', value: 'VALUE_PROPOSITION', label: 'Value Proposition', name: 'Value Proposition' },
-    { id: 'PROPOSAL', value: 'PROPOSAL', label: 'Proposal', name: 'Proposal' },
-    { id: 'NEGOTIATION', value: 'NEGOTIATION', label: 'Negotiation', name: 'Negotiation' },
-    { id: 'CLOSED_WON', value: 'CLOSED_WON', label: 'Closed Won', name: 'Closed Won' },
-    { id: 'CLOSED_LOST', value: 'CLOSED_LOST', label: 'Closed Lost', name: 'Closed Lost' }
-  ];
-
-  const currencies: SelectOption[] = [
-    { id: 'EUR', value: 'EUR', label: 'Euro (EUR)', name: 'Euro' },
-    { id: 'USD', value: 'USD', label: 'US Dollar (USD)', name: 'US Dollar' },
-    { id: 'GBP', value: 'GBP', label: 'British Pound (GBP)', name: 'British Pound' },
-    { id: 'CHF', value: 'CHF', label: 'Swiss Franc (CHF)', name: 'Swiss Franc' }
-  ];
-
-  // Auto-select current user as owner
+  // Initialize currencies catalog on mount
   useEffect(() => {
-    if (currentUserEmployee && !autoSelectionDone.current && !formValues.owner) {
-      setFormValuesState(prev => ({
+    initializeCurrencies();
+  }, [initializeCurrencies]);
+
+  // Static data arrays - Memoized to prevent unnecessary re-renders
+  const opportunityStatuses: SelectOption[] = useMemo(
+    () => opportunityStatusOptions,
+    [opportunityStatusOptions]
+  );
+
+  const pipelines: SelectOption[] = useMemo(
+    () => pipelineOptions as SelectOption[],
+    [pipelineOptions]
+  );
+
+  const salesPipelineStages: SelectOption[] = useMemo(
+    () => pipelineStageOptions as SelectOption[],
+    [pipelineStageOptions]
+  );
+
+  const currencies: SelectOption[] = useMemo(
+    () => currencyOptions,
+    [currencyOptions]
+  );
+
+  // Populate form values when opportunity data is loaded (for editing existing opportunities)
+  useEffect(() => {
+    // Only populate if we have opportunity data and the form doesn't already have this opportunity's data
+    if (
+      opportunityData &&
+      opportunityData.id &&
+      (!formValues.id || formValues.id !== opportunityData.id)
+    ) {
+      const mappedValues = mapOpportunityToFormValues(opportunityData);
+      setFormValuesState((prev) => ({
+        ...prev,
+        ...mappedValues,
+      }));
+
+      // Don't auto-select current user if we're editing an existing opportunity
+      autoSelectionDone.current = true;
+    }
+  }, [
+    opportunityData,
+    mapOpportunityToFormValues,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId,
+  ]);
+
+  // Auto-select current user as owner (only if not editing existing opportunity)
+  useEffect(() => {
+    if (
+      currentUserEmployee &&
+      !autoSelectionDone.current &&
+      !formValues.owner &&
+      !formValues.id // Only auto-select for new opportunities
+    ) {
+      setFormValuesState((prev) => ({
         ...prev,
         owner: currentUserEmployee.employeeId,
-        ownerEmployeeId: currentUserEmployee.employeeId // Update legacy field too
+        ownerEmployeeId: currentUserEmployee.employeeId, // Update legacy field too
       }));
       autoSelectionDone.current = true;
     }
-  }, [currentUserEmployee, formValues.owner]);
+  }, [
+    currentUserEmployee,
+    formValues.owner,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId,
+  ]);
+
+  // Accounts data hook for company autocomplete with pagination
+  const {
+    searchAccounts: searchAccountsHook,
+    loadMoreAccounts,
+    accountState,
+  } = useAccountsData({ accessToken: businessAppContext.accessToken });
+
+  // Create search wrapper for company autocomplete
+  const searchAccountsWrapper = useCallback(
+    (searchTerm: string) => {
+      // Allow empty search to load all companies, or search with 3+ characters
+      if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
+        searchAccountsHook(searchTerm);
+      }
+    },
+    [searchAccountsHook]
+  );
+
+  // Create wrapper function to match interface
+  const loadMoreAccountsWrapper = useCallback(async (): Promise<void> => {
+    await loadMoreAccounts();
+  }, [loadMoreAccounts]);
 
   // Form value setter
-  const setFormValues = useCallback((updates: Partial<OpportunityFormValues>) => {
-    setFormValuesState(prev => ({ ...prev, ...updates }));
-  }, []);
+  const setFormValues = useCallback(
+    (updates: Partial<OpportunityFormValues>) => {
+      setFormValuesState((prev) => ({ ...prev, ...updates }));
+    },
+    []
+  );
 
   // Search functions
-  const searchAccounts = useCallback(async (search: string): Promise<SelectOption[]> => {
-    // TODO: Implement account search API integration
-    return [];
-  }, []);
+  const searchEmployeePositions = useCallback(
+    (search: string) => {
+      searchEmployees(search);
+    },
+    [searchEmployees]
+  );
 
-  const searchLeads = useCallback(async (search: string): Promise<SelectOption[]> => {
-    // TODO: Implement lead search API integration
-    return [];
-  }, []);
+  const contextValue: OpportunityFormContextValue = useMemo(
+    () => ({
+      // Form state
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
 
-  const searchEmployeePositions = useCallback((search: string) => {
-    searchEmployees(search);
-  }, [searchEmployees]);
+      // Loading states
+      isLoading,
+      error,
 
-  const contextValue: OpportunityFormContextValue = {
-    // Form state
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
+      // Employee positions
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions,
 
-    // Loading states
-    isLoading,
-    error,
+      // Static data
+      opportunityStatuses,
+      pipelines,
+      salesPipelineStages,
+      currencies,
+      addressTypes: ADDRESS_TYPES,
+      communicationChannelTypes: COMMUNICATION_CHANNEL_TYPES,
+      recordStates: RECORD_STATES,
 
-    // Employee positions
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions,
+      // Currencies (using Currency catalog)
+      currenciesLoading,
+      currenciesError,
+      currenciesHasMore,
+      currenciesNeedsMoreData,
+      currenciesDisplayCount,
+      currenciesTotalFetched,
+      loadMoreCurrencies,
+      showMoreCurrencies,
+      searchCurrencies,
 
-    // Static data
-    opportunityStatuses,
-    pipelines,
-    salesPipelineStages,
-    currencies,
-    addressTypes: ADDRESS_TYPES,
-    communicationChannelTypes: COMMUNICATION_CHANNEL_TYPES,
-    recordStates: RECORD_STATES,
+      // Sales Campaigns
+      salesCampaigns: salesCampaignsOptions, // Use salesCampaignsOptions directly
+      salesCampaignsLoading: salesCampaignsLoading,
+      salesCampaignsError: salesCampaignsError,
+      salesCampaignsHasMore: salesCampaignsHasMore,
+      searchSalesCampaigns: searchSalesCampaignsWrapper,
+      loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
-    // Account autocomplete
-    accountSuggestions,
-    searchAccounts,
-    isSearchingAccounts,
-    setIsSearchingAccounts,
-    setAccountSuggestions,
+      // Catalog refresh functions
+      refetchStages: refetchPipelineStages,
 
-    // Lead autocomplete
-    leadSuggestions,
-    searchLeads,
-    isSearchingLeads,
-    setIsSearchingLeads,
-    setLeadSuggestions,
+      // Company autocomplete
+      accountSuggestions: accountState.accounts,
+      searchAccounts: searchAccountsWrapper,
+      loadMoreAccounts: loadMoreAccountsWrapper,
+      accountsHasMore: accountState.hasMore,
+      accountsLoading: accountState.isLoading,
 
-    // Business app context for child components
-    businessAppContext,
-  };
+      // Business app context for child components
+      businessAppContext,
+    }),
+    [
+      // Form state
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+
+      // Loading states
+      isLoading,
+      error,
+
+      // Employee positions
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions,
+
+      // Static data
+      opportunityStatuses,
+      pipelines,
+      salesPipelineStages,
+      currencies,
+
+      // Currencies (using Currency catalog)
+      currenciesLoading,
+      currenciesError,
+      currenciesHasMore,
+      currenciesNeedsMoreData,
+      currenciesDisplayCount,
+      currenciesTotalFetched,
+      loadMoreCurrencies,
+      showMoreCurrencies,
+      searchCurrencies,
+
+      // Sales Campaigns
+      salesCampaignsOptions, // Use salesCampaignsOptions directly
+      salesCampaignsLoading,
+      salesCampaignsError,
+      salesCampaignsHasMore,
+      searchSalesCampaignsWrapper,
+      loadMoreSalesCampaignsWrapper,
+
+      // Catalog refresh functions
+      refetchPipelineStages,
+
+      // Company autocomplete
+      accountState.accounts,
+      searchAccountsWrapper,
+      loadMoreAccountsWrapper,
+      accountState.hasMore,
+      accountState.isLoading,
+
+      // Business app context
+      businessAppContext,
+    ]
+  );
 
   return (
     <OpportunityFormContext.Provider value={contextValue}>
@@ -443,7 +764,9 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
 export const useOpportunityFormContext = (): OpportunityFormContextValue => {
   const context = useContext(OpportunityFormContext);
   if (!context) {
-    throw new Error('useOpportunityFormContext must be used within an OpportunityFormProvider');
+    throw new Error(
+      "useOpportunityFormContext must be used within an OpportunityFormProvider"
+    );
   }
   return context;
-}; 
+};

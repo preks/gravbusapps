@@ -9,6 +9,7 @@ interface SalesTaskFormProps {
   onSubmit?: (values: SalesTaskFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
   taskData?: any;
+  isApprovalRequest?: boolean;
 }
 
 const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
@@ -16,6 +17,7 @@ const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
   onSubmit = async () => {},
   onCancel = async () => {},
   taskData,
+  isApprovalRequest = false,
   accessToken,
   userInfo,
   additionalData
@@ -33,7 +35,10 @@ const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData
+    additionalData: {
+      ...additionalData,
+      isApprovalRequest
+    }
   };
 
   return (

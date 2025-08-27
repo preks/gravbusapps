@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, Cell, LabelList
 } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useGapRateByOrgUnit } from '../../hooks/useGapRateByOrgUnit';
+import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit';
 import { BusinessAppContextProps } from '@/business-apps/types';
 
 const { Title } = Typography;

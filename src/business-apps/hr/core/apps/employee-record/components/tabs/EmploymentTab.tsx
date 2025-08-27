@@ -9,6 +9,10 @@ import AppActionButton from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PiPencilSimple } from 'react-icons/pi';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { formatNumberFunction } from '../../../../../../../common/utils/windowUtils';
+import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog';
+import { useReligionCatalog } from '../../hooks/useReligionCatalog';
+import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog';
 
 interface EmploymentTabProps {
   employee: Employee;
@@ -28,7 +32,12 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   isSelfView
 }) => {
   // Using isSelfView from props instead of calculating it locally
-
+  // Fetch health insurance type catalog for health insurance type mapping
+  const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } = useHealthInsuranceTypeCatalog(accessToken);
+  // Fetch religion catalog for church affiliation mapping
+  const { getReligionValueById, loading: loadingReligions } = useReligionCatalog(accessToken);
+  // Fetch tax bracket catalog for tax bracket mapping
+  const { getTaxBracketValueById, loading: loadingTaxBrackets } = useTaxBracketCatalog(accessToken);
   // Prepare organizational data
   const organizationalData = [
     {
@@ -167,11 +176,12 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
 
   const payrollData = getPayrollData();
 
-  // Prepare tax information data
+  // Prepare tax information data (combined from both tabs)
   const getTaxInformationData = () => {
     const taxDetails = employee.taxDetails?.[0] || {};
     
     return [
+      // Tax information from both tabs
       {
         label: "Tax Number",
         value: taxDetails.taxNumber || ''
@@ -185,16 +195,35 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
         value: taxDetails.socialSecurityNumber || ''
       },
       {
+        label: "Tax Bracket",
+        value: loadingTaxBrackets
+          ? 'Loading...'
+          : getTaxBracketValueById(taxDetails.taxBracketRef || '')
+      },
+      // Church affiliation from Details tab
+      {
+        label: "Church Affiliation",
+        value: loadingReligions 
+          ? 'Loading...' 
+          : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
+      },
+      // Child allowance present in both tabs - formatted according to user locale
+      {
+        label: "Child Tax Allowance",
+        value: taxDetails.childTaxAllowance !== undefined && taxDetails.childTaxAllowance !== null
+          ? formatNumberFunction(taxDetails.childTaxAllowance.toString())
+          : ''
+      },
+      // Health insurance info from Employment tab
+      {
         label: "Health Insurance",
         value: taxDetails.healthInsuranceName || ''
       },
       {
-        label: "Child Tax Allowance",
-        value: taxDetails.childTaxAllowance?.toString() || ''
-      },
-      {
-        label: "Tax Bracket",
-        value: taxDetails.taxBracketRef || ''
+        label: "Type Of Health Insurance",
+        value: loadingHealthInsuranceTypes 
+          ? 'Loading...' 
+          : getHealthInsuranceTypeValueById(taxDetails.healthInsuranceTypeRef || '')
       }
     ];
   };
@@ -264,13 +293,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="working-conditions-action-button"
+                data-testid="employee-working-conditions-edit-button"
                 variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingCondition]}
                 externalContextData={{
                   employeeId: employee.id
                 }}
-                prefixDataTestId="working-conditions-action"
+                prefixDataTestId="employee-working-conditions-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}
@@ -290,13 +319,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
             {isSelfView && (
               <AppActionButton 
-                data-testid="working-hours-action-button"
+                data-testid="employee-working-hours-edit-button"
                 variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingHours]}
                 externalContextData={{
                   employeeId: employee.id
                 }}
-                prefixDataTestId="working-hours-action"
+                prefixDataTestId="employee-working-hours-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
                 icon={<PiPencilSimple />}

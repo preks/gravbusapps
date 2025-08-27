@@ -249,87 +249,67 @@ export const SalesTeamPerformanceOverview: React.FC<
 
   // Create KPI widgets from trend data
   const createKpiWidgets = (): WidgetItem[] => {
-    const getTrendIcon = (trend: "up" | "down" | "stable") => {
-      switch (trend) {
-        case "up":
-          return <PiTrendUp />;
-        case "down":
-          return <PiTrendDown />;
-        default:
-          return <PiChartLine />;
-      }
-    };
-
-    const getTrendColor = (trend: "up" | "down" | "stable") => {
-      switch (trend) {
-        case "up":
-          return "#10b981";
-        case "down":
-          return "#ef4444";
-        default:
-          return "#6b7280";
-      }
-    };
-
-    const getTrendDescription = (
-      trend: "up" | "down" | "stable",
-      percentage: number,
-      period: string = "vs last month"
-    ) => {
-      if (trend === "stable") return `Stable ${period}`;
-      const direction = trend === "up" ? "increase" : "decrease";
-      return `${percentage.toFixed(1)}% ${direction} ${period}`;
-    };
-
     return [
       {
         key: "total-revenue",
         title: "Total Revenue",
         value: formatCurrency(trends.totalRevenue.currentValue),
-        prefix: getTrendIcon(trends.totalRevenue.trend),
-        color: getTrendColor(trends.totalRevenue.trend),
-        description: getTrendDescription(
-          trends.totalRevenue.trend,
-          trends.totalRevenue.trendPercentage
-        ),
+        prefix: <PiCurrencyDollar />,
+        color: "#10b981",
+        description: "Monthly revenue performance",
         valueIsString: true,
+        trend: {
+          value: `${Math.abs(trends.totalRevenue.trendPercentage).toFixed(1)}%`,
+          positive: trends.totalRevenue.trend === "up",
+          description: "growth rate",
+        },
       },
       {
         key: "win-rate",
         title: "Win Rate",
         value: trends.averageWinRate.currentValue,
-        prefix: getTrendIcon(trends.averageWinRate.trend),
-        color: getTrendColor(trends.averageWinRate.trend),
-        description: getTrendDescription(
-          trends.averageWinRate.trend,
-          trends.averageWinRate.trendPercentage
-        ),
+        prefix: <PiTarget />,
+        color: "#1677ff",
+        description: "Average team win rate",
         precision: 1,
         suffix: "%",
+        trend: {
+          value: `${trends.averageWinRate.currentValue.toFixed(1)}%`,
+          positive: trends.averageWinRate.currentValue >= 30,
+          description: "win rate",
+        },
       },
       {
         key: "total-activities",
         title: "Sales Activities",
         value: trends.totalActivities.currentValue,
-        prefix: getTrendIcon(trends.totalActivities.trend),
-        color: getTrendColor(trends.totalActivities.trend),
-        description: getTrendDescription(
-          trends.totalActivities.trend,
-          trends.totalActivities.trendPercentage
-        ),
+        prefix: <PiUsers />,
+        color: "#722ed1",
+        description: "Team activity execution",
         precision: 0,
+        trend: {
+          value: `${Math.abs(trends.totalActivities.trendPercentage).toFixed(
+            1
+          )}%`,
+          positive: trends.totalActivities.trend === "up",
+          description: "activity rate",
+        },
       },
       {
         key: "pipeline-value",
         title: "Pipeline Value",
         value: formatCurrency(trends.pipelineValue.currentValue),
-        prefix: getTrendIcon(trends.pipelineValue.trend),
-        color: getTrendColor(trends.pipelineValue.trend),
-        description: getTrendDescription(
-          trends.pipelineValue.trend,
-          trends.pipelineValue.trendPercentage
-        ),
+        prefix: <PiChartLine />,
+        color: "#ff9500",
+        description: "Total pipeline value",
         valueIsString: true,
+        trend: {
+          value: `${Math.abs(trends.pipelineValue.trendPercentage).toFixed(
+            1
+          )}%`,
+          positive: trends.pipelineValue.trend === "up",
+          description: "pipeline growth",
+        },
       },
     ];
   };

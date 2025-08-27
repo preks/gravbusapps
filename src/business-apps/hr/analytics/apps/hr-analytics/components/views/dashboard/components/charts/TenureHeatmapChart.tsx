@@ -3,7 +3,7 @@ import { Card, Typography, Spin, Empty, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Heatmap } from '@ant-design/charts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TenureDistributionItem, TenureRange, OrganizationalUnit } from '../../hooks/useTenureByOrgUnit';
+import { TenureDistributionItem, TenureRange, OrganizationalUnit } from '../../../../../hooks/useTenureByOrgUnit';
 
 const { Title } = Typography;
 

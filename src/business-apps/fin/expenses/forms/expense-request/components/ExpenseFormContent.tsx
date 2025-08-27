@@ -3,36 +3,43 @@ import { Form } from 'antd';
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog';
 import { useTranslation } from 'react-i18next';
 import { getCatalogValue } from '@/common/utils/windowUtils';
-import { useExpenseRequestContext } from '../context/ExpenseRequestContext';
-
 interface ExpenseFormContentProps {
   form: any;
   showTransportation: boolean;
   setFormIsValid?: (isValid: boolean) => void;
+  testIdPrefix?: string;
+  costCenters?: Array<{ id: string; name: string }>;
+  projects?: Array<{ id: string; name: string }>;
+  selectedCostCenter?: string;
+  setSelectedCostCenter?: (costCenterId: string) => void;
+  expenseCatalogueData?: any;
 }
 
 /**
  * Expense Form Content component that displays expense form fields
  */
-const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTransportation, setFormIsValid }) => {
+const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ 
+  form, 
+  showTransportation, 
+  setFormIsValid, 
+  testIdPrefix = "expense",
+  costCenters = [],
+  projects = [],
+  selectedCostCenter = "",
+  setSelectedCostCenter,
+  expenseCatalogueData = {}
+}) => {
   const { t } = useTranslation();
-  const { 
-    costCenters, 
-    projects, 
-    selectedCostCenter,
-    setSelectedCostCenter,
-    expenseCatalogueData
-  } = useExpenseRequestContext();
   
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || [];
 
   return (
-    <div className="gba:formContainer" data-testid="expense-form-container">
+    <div style={{ margin: '0' }} data-testid={`${testIdPrefix}-form-container`}>
       <Form 
         form={form} 
         layout="vertical" 
-        className="gba:form" 
-        data-testid="expense-form"
+        className="gba:flex gba:flex-col gba:flex-grow" 
+        data-testid={`${testIdPrefix}-form`}
         initialValues={{
           costCenter: selectedCostCenter
         }}
@@ -48,8 +55,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
         validateTrigger={['onChange', 'onBlur']}
       >
         {/* Title field */}
-        <div className="gba:marginBottom16" data-testid="title-container">
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-title-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="title"
               rules={[
@@ -70,15 +77,15 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
                 placeholder={t('lowcoder:create_expense_request.expense_request_container.current_title_placeholder', 'Enter Title')}
                 onChange={(field: any) => form.setFieldsValue({ title: field.value })}
                 required={true}
-                data-testid="title-input"
+                data-testid={`${testIdPrefix}-title-input`}
               />
             </Form.Item>
           </div>
         </div>
 
         {/* Cost Center field */}
-        <div className="gba:marginBottom16" data-testid="cost-center-container">
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-cost-center-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="costCenter"
               rules={[{ 
@@ -90,14 +97,14 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
               <SelectField
                 allowClear
                 name="costCenter"
-                data-testid="cost-center-select"
+                data-testid={`${testIdPrefix}-cost-center-select`}
                 data={costCenters?.map((center: { id: string; name: string }) => ({
                   id: center.id,
                   name: center.name,
                 })) || []}
                 onChange={(value: any) => {
                   form.setFieldsValue({ costCenter: value.value });
-                  setSelectedCostCenter(value.value as string);
+                  setSelectedCostCenter?.(value.value as string);
                 }}
                 label={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}
                 placeholder={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder', 'Select Cost Center')}
@@ -109,8 +116,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
         </div>
 
         {/* Project field */}
-        <div className="gba:marginBottom16" data-testid="project-container">
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-project-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="project"
               style={{ marginBottom: 0 }}
@@ -118,7 +125,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
               <SelectField
                 allowClear
                 name="project"
-                data-testid="project-select"
+                data-testid={`${testIdPrefix}-project-select`}
                 data={projects?.map((project: { id: string; name: string }) => ({
                   id: project.id,
                   name: project.name,
@@ -132,15 +139,15 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
         </div>
 
         {/* Comment field */}
-        <div className="gba:marginBottom16" data-testid="comment-container">
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-comment-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="comment"
               style={{ marginBottom: 0 }}
             >
               <TextAreaField
                 name="comment"
-                data-testid="comment-textarea"
+                data-testid={`${testIdPrefix}-comment-textarea`}
                 label={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
                 placeholder={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Enter Comment')}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
@@ -152,22 +159,22 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({ form, showTrans
 
         {/* Transportation means field - only shown when trip button is clicked */}
         {showTransportation && (
-          <div className="gba:marginBottom16" data-testid="transportation-means-container">
-            <div className="gba:relativePositionCheckbox">
+          <div className="gba:mb-4" data-testid={`${testIdPrefix}-transportation-means-container`}>
+            <div style={{ position: 'relative', borderRadius: '4px', padding: '10px 16px' }}>
               <Form.Item
                 name="transportationMeans"
-                label={<div className="gba:transportationMeansLabel">{t('lowcoder:create_expense_request.expense_request_container.transportation_checkbox', 'Means of Transportation')}</div>}
+                label={<div style={{ paddingBottom: '15px', fontWeight: 500, fontStyle: 'normal', fontSize: '14px' }}>{t('lowcoder:create_expense_request.expense_request_container.transportation_checkbox', 'Means of Transportation')}</div>}
                 style={{ marginBottom: 0 }}
               >
                 <CheckboxGroup
                   name="transportationMeans"
-                  data-testid="transportation-means-checkbox-group"
+                  data-testid={`${testIdPrefix}-transportation-means-checkbox-group`}
                   options={transportationMeans.map((item: any) => ({
                     label: getCatalogValue(item),
                     value: item.id
                   }))}
                   onChange={(values: any) => form.setFieldsValue({ transportationMeans: values })}
-                  className="gba:transportationCheckboxGroup"
+                  className="gba:flex gba:flex-col" style={{ gap: '15px', backgroundColor: '#ffffff' }}
                 />
               </Form.Item>
             </div>

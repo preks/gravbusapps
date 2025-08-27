@@ -132,11 +132,11 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   }, [dataDetails, onDetailsPanelClose]);
 
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative", className
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative gba:min-w-0", className
     )} data-testid="data-container">
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
-        <div className="gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-r gba:border-gray-100 gba:bg-white gba:z-0" data-testid="data-container-filter-sidebar">
+        <div className="gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-r gba:border-gray-100 gba:bg-white gba:z-0" data-testid="data-container-filter-sidebar">
           <DataFilter
             show={showDataFilter}
             onClose={handleCloseDataFilter}
@@ -145,7 +145,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         </div>
       )}
       {/* Main Content - center column */}
-      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:bg-white", {
+      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:h-full gba:bg-white gba:min-w-0", {
         "gba:pl-6": !showDataFilter
       })} data-testid="data-container-main-content">
           {CustomDataController ? (
@@ -164,7 +164,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto gba:my-4", {
+        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto", {
           'gba:bg-gray-50': contentBackground === 'gray',
           'gba:bg-white': contentBackground === 'white'
         })} data-testid="data-container-body">
@@ -176,7 +176,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         <div 
           className={cn({
             // Standard right column layout
-            "gba:flex gba:flex-col gba:w-[336px] gba:min-h-0 gba:border-l gba:border-gray-100 gba:bg-white gba:z-0": !floatingDetails,
+            "gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-l gba:border-gray-100 gba:bg-white gba:z-0": !floatingDetails,
             // Floating layout - fixed position from top of viewport excluding header, full height minus header
             "gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg": floatingDetails
           }

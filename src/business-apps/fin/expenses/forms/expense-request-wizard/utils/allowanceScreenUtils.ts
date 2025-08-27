@@ -8,10 +8,14 @@ interface ExpenseItem {
   code: string;
   title: string;
   expenseRequest: string;
-  costCenterId?: string;
-  projectId?: string;
+  costCenter?: string;
+  project?: string;
   ruleId?: string;
   expenseRuleId?: string;
+  expenseGroupRef?: string;
+  source?: string;
+  expenseClassRef?: string;
+  autoCalculated?: boolean;
 }
 
 /**
@@ -35,22 +39,32 @@ export const createAllowanceScreenLogObject = (
   // Map allowance items
   const allowanceItems: ExpenseItem[] = expenseItems.map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     expenseRequest: initialRequest?.id || '',
-    costCenterId: item.costCenterId || '',
-    projectId: item.projectId || ''
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   }));
   
   // Map non-allowance items
   const nonAllowanceItems: ExpenseItem[] = noAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expenseRequest: initialRequest?.id || '',
-    costCenterId: item.costCenterId || '',
-    projectId: item.projectId || ''
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   }));
   
   // Combine both arrays
@@ -64,7 +78,7 @@ export const createAllowanceScreenLogObject = (
       startDate: initialRequest?.startDate || "",
       endDate: initialRequest?.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialRequest?.version || "",
+      version: initialRequest?.version || 0,
       costCenter: initialRequest?.costCenterId || "",
       employee: initialRequest?.employeeId || "",
       expensePlan: initialRequest?.expensePlanId || "",

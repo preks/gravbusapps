@@ -10,7 +10,7 @@ import {
 import {
   ArrowLeftOutlined,
   UserOutlined,
-  FolderOpenOutlined,
+  FileOutlined,
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -22,6 +22,7 @@ import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { LeadDocuments } from "./components/LeadDocuments";
+
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string;
@@ -187,7 +188,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({
               Overview
             </TabsTrigger>
             <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
+              <FileOutlined className="gba:mr-2" />
               Documents
             </TabsTrigger>
           </TabsList>
@@ -227,6 +228,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({
           <TabsContent value="documents" data-testid="documents-content">
             <LeadDocuments leadId={leadId} context={props} />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>

@@ -149,13 +149,23 @@ const { t } = useTranslation();
   const getButtonContent = () => {
     if (fileList.length === 0 && currentStep === "start") {
       return (
-        <div className={`gba:uploadButtonStart`}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+          cursor: 'pointer',
+          padding: '20px',
+          width: '100%',
+          height: '100%'
+        }}>
           {isProcessingFiles ? (
             <>
               <img
                 src={ICONS.SPINNER_ICON}
                 alt="Loading"
-                className="gba:uploadIcon"
+                style={{ width: '36px', height: '36px' }}
                 width="36"
                 height="36"
                 data-testid="upload-loading-icon"
@@ -167,12 +177,12 @@ const { t } = useTranslation();
               <img 
                 src={ICONS.FOCUS} 
                 alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
-                className={`gba:uploadIcon`}
+                style={{ width: '36px', height: '36px' }}
                 width="36"
                 height="36"
                 data-testid="upload-icon-large"
               />
-              <span className="gba:fontMedium" data-testid="attach-receipt-text-start">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-start">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
             </>
           )}
         </div>
@@ -181,28 +191,33 @@ const { t } = useTranslation();
 
     if (fileList.length === 0) {
       return (
-        <div className={`gba:uploadButtonFormEmpty`}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          padding: '20px 20px',
+          width: '100%',
+          height: '100%',
+          gap: '16px'
+        }}>
           {isProcessingFiles ? (
             <>
               <img
                 src={ICONS.SPINNER_ICON}
                 alt="Loading"
-                className="gba:uploadIconSmall"
-                width="18"
-                height="18"
+                style={{ width: '18px', height: '18px' }}
                 data-testid="upload-loading-icon-small"
               />
               <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
             </>
           ) : (
             <>
-              <span className="gba:fontMedium" data-testid="attach-receipt-text-form">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-form">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
               <img 
                 src={ICONS.FOCUS} 
                 alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
-                className={`gba:uploadIconSmall`}
-                width="18"
-                height="18"
+                style={{ width: '18px', height: '18px' }}
                 data-testid="upload-icon-small"
               />
             </>
@@ -214,20 +229,43 @@ const { t } = useTranslation();
     return null;
   };
 
-  const getContainerClass = () => {
+  const getContainerStyles = (): React.CSSProperties => {
     if (fileList.length > 0) {
-      return `gba:uploadContainerWithFiles`;
+      return {
+        border: '2px solid #EFEFEF',
+        borderRadius: '4px',
+        padding: '20px 20px',
+        position: 'relative' as const,
+        backgroundColor: '#fff',
+        minHeight: '80px'
+      };
     }
 
-    return currentStep === "start" 
-      ? `gba:uploadContainerStart`
-      : `gba:uploadContainerForm`;
+    if (currentStep === "start") {
+      return {
+        border: '2px solid #EFEFEF',
+        borderRadius: '4px',
+        padding: '0',
+        height: '204px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff'
+      };
+    }
+
+    return {
+      border: '2px solid #EFEFEF',
+      borderRadius: '4px',
+      padding: '0',
+      backgroundColor: '#fff'
+    };
   };
 
   const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
 
   return (
-    <div className={getContainerClass()} data-testid="upload-container">
+    <div style={getContainerStyles()} data-testid="upload-container">
       {fileList.length === 0 ? (
         <Upload
           listType="text"
@@ -237,15 +275,15 @@ const { t } = useTranslation();
           onRemove={handleRemove}
           multiple={true}
           accept={acceptedFileTypes}
-          className={`gba:uploadComponent`}
+          style={{ width: '100%', height: '100%' }}
           disabled={isProcessingFiles}
           data-testid="upload-input-empty"
         >
           {getButtonContent()}
         </Upload>
       ) : (
-        <div className={`gba:filesFlexContainer`} data-testid="files-flex-container">
-          <div className={`gba:fileListRow`} data-testid="file-list-row">
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }} data-testid="files-flex-container">
+          <div style={{ width: '100%' }} data-testid="file-list-row">
             <Upload
               listType="text"
               fileList={fileList}
@@ -254,7 +292,7 @@ const { t } = useTranslation();
               onRemove={handleRemove}
               multiple={true}
               accept={acceptedFileTypes}
-              className={`gba:uploadComponent`}
+              style={{ width: '100%', height: '100%' }}
               showUploadList={{
                 showPreviewIcon: false,
                 showDownloadIcon: false,
@@ -264,7 +302,7 @@ const { t } = useTranslation();
             />
           </div>
 
-          <div className={`gba:attachButtonRow`} data-testid="attach-button-row">
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }} data-testid="attach-button-row">
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
@@ -274,28 +312,24 @@ const { t } = useTranslation();
               disabled={isProcessingFiles}
               data-testid="attach-more-upload"
             >
-              <div className={`gba:attachMoreContainer`} data-testid="attach-more-container">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer', gap: '16px' }} data-testid="attach-more-container">
                 {isProcessingFiles ? (
                   <>
                     <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
                     <img
                       src={ICONS.SPINNER_ICON}
                       alt="Loading"
-                      className="gba:uploadIconSmall"
-                      width="18"
-                      height="18"
+                      style={{ width: '18px', height: '18px' }}
                       data-testid="loading-icon"
                     />
                   </>
                 ) : (
                   <>
-                    <span className="gba:fontMedium" data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+                    <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
                     <img 
                       src={ICONS.FOCUS} 
                       alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
-                      className={`gba:uploadIconSmall`}
-                      width="18"
-                      height="18"
+                      style={{ width: '18px', height: '18px' }}
                       data-testid="attach-receipt-icon"
                     />
                   </>
@@ -322,10 +356,10 @@ const { t } = useTranslation();
           destroyOnClose={true}
           width={500}
         >
-          <div className={`gba:modalContent`} data-testid="modal-content">
-            <p data-testid="modal-message">{
+          <div style={{ padding: '16px 0', fontFamily: 'Roboto, sans-serif' }} data-testid="modal-content">
+            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#333', textAlign: 'center' }} data-testid="modal-message">{
             fileList.length > 1 ? t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?"): t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?")}</p>
-            <div className={`gba:modalButtons`} data-testid="modal-buttons">
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }} data-testid="modal-buttons">
               <Button 
                 variant="secondary"
                 onClick={() => handleModalConfirm(false)}

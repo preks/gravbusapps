@@ -8,6 +8,7 @@ import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseReques
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { LocationData } from '../utils/types';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 /**
  * ExpenseRequestWizardContext props interface
@@ -51,7 +52,7 @@ interface ExpenseRequestWizardProviderProps {
   children: ReactNode;
   accessToken: string;
   userInfo?: any;
-  additionalData?: { [k: string]: any };
+  additionalData?: any;
 }
 
 /**
@@ -90,13 +91,14 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
   const graphqlClient = useGraphqlClient(accessToken);
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
 
 
   // Fetch expense data when employeeRuleId is available
   // Made public so it can be called after expense item creation
   const fetchExpenseData = async () => {
     try {
-      if (!accessToken || !employeeRuleId || !userInfo) return;
+      if (!accessToken || !employeeRuleId || !userInfo || !additionalData) return;
 
       setLoading(true);
       
@@ -171,7 +173,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   useEffect(() => {
     const initializeData = async () => {
       try {
-        if (!accessToken || !userInfo) return;
+        if (!accessToken || !userInfo || !additionalData) return;
 
         const employeeId = userInfo?.employeeDetails?.employeeId;
         if (!employeeId) {
@@ -215,14 +217,14 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     };
 
     initializeData();
-  }, [accessToken, userInfo, t]);
+  }, [accessToken, userInfo, additionalData, t]);
 
   // Fetch expense data when employeeRuleId is available
   useEffect(() => {
     if (employeeRuleId) {
       fetchExpenseData();
     }
-  }, [employeeRuleId]);
+  }, [employeeRuleId, additionalData]);
 
   /**
    * Save trip data function
@@ -259,7 +261,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       employeeRuleId || '',
       currentTitle,
       determinedCurrency,
-      event
+      event,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 

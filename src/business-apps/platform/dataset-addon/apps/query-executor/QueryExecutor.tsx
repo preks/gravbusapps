@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { Typography, Space, Button, Alert, Spin, Tabs } from 'antd';
-import { ReloadOutlined, PlayCircleOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { 
+  Button, 
+  Alert, 
+  AlertTitle,
+  AlertDescription,
+  Spinner, 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent
+} from '@newwork/nw-design-system';
+import { Toaster } from 'sonner';
+import { ArrowClockwiseIcon, PlayCircleIcon, DatabaseIcon, InfoIcon, WarningCircleIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PageLayout } from '@/components/layout/pageLayout';
 import { QueryDefinition, Services, getAllServices, getServiceLabel } from '@/common/network/dataset';
@@ -8,8 +19,6 @@ import { useQueryExecutorData } from './hooks/useQueryExecutorData';
 import { QueryList } from './components/QueryList';
 import { QueryExecutionForm } from './components/QueryExecutionForm';
 import { QueryResults } from './components/QueryResults';
-
-const { Title } = Typography;
 
 const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
   const [selectedQuery, setSelectedQuery] = useState<QueryDefinition | null>(null);
@@ -46,70 +55,175 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
     setSelectedQuery(null);
   };
 
+  const formatErrorMessage = (error: string) => {
+    // Handle common error patterns
+    if (error.includes('403')) {
+      return 'Access denied. You don\'t have permission to execute queries.';
+    }
+    if (error.includes('404')) {
+      return 'Query service not found. Please check your configuration.';
+    }
+    if (error.includes('500')) {
+      return 'Server error occurred. Please try again later or contact support.';
+    }
+    if (error.includes('Network Error') || error.includes('fetch')) {
+      return 'Network connection failed. Please check your internet connection and try again.';
+    }
+    
+    // For other errors, try to extract meaningful message
+    const match = error.match(/HTTP error! status: (\d+)/);
+    if (match) {
+      const status = match[1];
+      return `Service unavailable (${status}). Please try again later.`;
+    }
+    
+    // Fallback to original error but cleaned up
+    return error.length > 100 ? error.substring(0, 100) + '...' : error;
+  };
+
   const renderServiceContent = (service: Services) => (
-    <div className="gba:max-w-6xl gba:mx-auto">
+    <div style={{ 
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      paddingTop: 'var(--nw-spacing-4)',
+      paddingBottom: 'var(--nw-spacing-4)',
+      paddingLeft: 'var(--nw-spacing-6)',
+      paddingRight: 'var(--nw-spacing-6)',
+      width: '100%'
+    }}>
       {/* Error Display */}
       {error && (
         <Alert
-          message="Error Loading Queries"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          className="gba:mb-4"
-          action={
-            <Button size="small" onClick={refetch}>
+          className="gba:border-destructive gba:bg-destructive/10"
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
+          data-testid="queries-error-alert"
+        >
+          <div className="gba:flex gba:items-start" style={{ gap: 'var(--nw-spacing-3)' }}>
+            <WarningCircleIcon 
+              className="gba:shrink-0" 
+              style={{ 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
+              }}
+              size={20}
+            />
+            <div className="gba:flex-1">
+              <h4 className="gba:font-semibold gba:text-lg" style={{ 
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
+              }}>
+                Unable to Load Queries
+              </h4>
+              <p className="gba:text-sm" style={{ 
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
+              }}>
+                {formatErrorMessage(error)}
+              </p>
+            </div>
+            <Button size="sm" onClick={refetch} className="gba:shrink-0 gba:min-w-[70px] gba:h-8" style={{ fontSize: '12px', padding: 'var(--nw-spacing-1) var(--nw-spacing-3)' }}>
               Retry
             </Button>
-          }
-          data-testid="queries-error-alert"
-        />
+          </div>
+        </Alert>
       )}
 
       {/* Execution Error Display */}
       {executionError && (
         <Alert
-          message="Query Execution Failed"
-          description={executionError}
-          type="error"
-          showIcon
-          closable
-          className="gba:mb-4"
+          className="gba:border-destructive gba:bg-destructive/10"
+          style={{ marginBottom: 'var(--nw-spacing-4)' }}
           data-testid="execution-error-alert"
-        />
+        >
+          <div className="gba:flex gba:items-start" style={{ gap: 'var(--nw-spacing-3)' }}>
+            <WarningCircleIcon 
+              className="gba:shrink-0" 
+              style={{ 
+                color: 'var(--nw-color-destructive)',
+                marginTop: 'var(--nw-spacing-1)' 
+              }}
+              size={20}
+            />
+            <div className="gba:flex-1">
+              <h4 className="gba:font-semibold gba:text-lg" style={{ 
+                color: 'var(--nw-color-destructive)',
+                margin: 'var(--nw-spacing-0)'
+              }}>
+                Query Execution Failed
+              </h4>
+              <p className="gba:text-sm" style={{ 
+                color: 'var(--nw-color-muted-foreground)',
+                margin: 'var(--nw-spacing-0)',
+                marginTop: 'var(--nw-spacing-1)'
+              }}>
+                {formatErrorMessage(executionError)}
+              </p>
+            </div>
+          </div>
+        </Alert>
       )}
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-          <Spin size="large" />
-          <span className="gba:ml-3">Loading available queries...</span>
+        <div className="gba:flex gba:justify-center gba:items-center" style={{ 
+          paddingTop: 'var(--nw-spacing-12)', 
+          paddingBottom: 'var(--nw-spacing-12)' 
+        }}>
+          <Spinner />
+          <span style={{ marginLeft: 'var(--nw-spacing-3)' }}>Loading available queries...</span>
         </div>
       ) : (
-        <>
-          {/* Query List */}
-          {queries.length > 0 ? (
-            <QueryList
-              queries={queries}
-              onExecuteQuery={handleExecuteQuery}
-              isExecuting={isExecuting}
-            />
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          minHeight: 0
+        }}>
+          {/* Show QueryResults if available, otherwise show QueryList */}
+          {executionResults ? (
+            <div style={{ 
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0
+            }}>
+              <QueryResults
+                results={executionResults}
+                onClear={clearResults}
+              />
+            </div>
           ) : (
-            <Alert
-              message="No Queries Available"
-              description={`There are no active queries available for execution in ${getServiceLabel(service)}. Please contact your administrator to create and activate queries.`}
-              type="info"
-              showIcon
-              data-testid="no-queries-alert"
-            />
+            // Query List taking full available space
+            queries.length > 0 ? (
+              <div style={{ 
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0
+              }}>
+                <QueryList
+                  queries={queries}
+                  onExecuteQuery={handleExecuteQuery}
+                  isExecuting={isExecuting}
+                />
+              </div>
+            ) : (
+              <Alert
+                variant="default"
+                data-testid="no-queries-alert"
+              >
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>No Queries Available</AlertTitle>
+                <AlertDescription>
+                  There are no active queries available for execution in {getServiceLabel(service)}.
+                  Please contact your administrator to create and activate queries.
+                </AlertDescription>
+              </Alert>
+            )
           )}
-
-          {/* Query Results */}
-          <QueryResults
-            results={executionResults}
-            onClear={clearResults}
-          />
-        </>
+        </div>
       )}
 
       {/* Query Execution Form Modal */}
@@ -123,41 +237,69 @@ const QueryExecutor: React.FC<BusinessAppContextProps> = (context) => {
     </div>
   );
 
-  const tabItems = getAllServices().map(service => ({
-    key: service,
-    label: (
-      <Space>
-        <DatabaseOutlined />
-        {getServiceLabel(service)}
-      </Space>
-    ),
-    children: renderServiceContent(service)
-  }));
-
   return (
-    <PageLayout
-      headerIcon={<PlayCircleOutlined />}
-      headerLabel="Query Executor"
-      pageHeaderRight={
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={refetch}
-          loading={isLoading}
-          data-testid="refresh-queries-button"
-        >
-          Refresh
-        </Button>
-      }
-      contentContainer={
-        <Tabs
-          activeKey={activeService}
-          onChange={(key) => setActiveService(key as Services)}
-          items={tabItems}
-          size="large"
-          className="gba:h-full"
-        />
-      }
-    />
+    <>
+      <PageLayout
+        headerIcon={<PlayCircleIcon />}
+        headerLabel="Query Executor"
+        pageHeaderRight={
+          <Button
+            variant="outline"
+            onClick={refetch}
+            disabled={isLoading}
+            data-testid="refresh-queries-button"
+            className="gba:flex gba:items-center gba:min-w-[100px] gba:h-9"
+            style={{ 
+              gap: 'var(--nw-spacing-2)',
+              fontSize: '14px',
+              padding: 'var(--nw-spacing-2) var(--nw-spacing-4)'
+            }}
+          >
+            <ArrowClockwiseIcon size={16} />
+            Refresh
+          </Button>
+        }
+        contentContainer={
+          <Tabs value={activeService} onValueChange={(value) => setActiveService(value as Services)} className="gba:h-full" style={{ display: 'flex', flexDirection: 'column' }}>
+            <TabsList style={{ 
+              display: 'inline-flex',
+              flexShrink: 0,
+              width: 'auto'
+            }}>
+              {getAllServices().map(service => (
+                <TabsTrigger 
+                  key={service} 
+                  value={service} 
+                  className="gba:flex gba:items-center gba:justify-center" 
+                  style={{ 
+                    gap: 'var(--nw-spacing-2)',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    padding: 'var(--nw-spacing-2) var(--nw-spacing-4)',
+                    minWidth: 'auto'
+                  }}
+                >
+                  <DatabaseIcon size={16} />
+                  {getServiceLabel(service)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {getAllServices().map(service => (
+              <TabsContent key={service} value={service} style={{ 
+                flex: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                {renderServiceContent(service)}
+              </TabsContent>
+            ))}
+          </Tabs>
+        }
+      />
+      <Toaster />
+    </>
   );
 };
 

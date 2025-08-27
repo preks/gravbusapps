@@ -1,0 +1,97 @@
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { KanbanCard } from "./KanbanCard";
+import type { KanbanColumnProps } from "../types";
+
+export function KanbanColumn({
+  stage,
+  items,
+  renderCard,
+  renderStageHeader,
+  isDraggedOver = false,
+  isDragging = false,
+  dragOverItem = null,
+  insertPosition = null,
+}: KanbanColumnProps) {
+  const { setNodeRef } = useDroppable({
+    id: stage.id,
+    data: {
+      type: "stage",
+      stage,
+    },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`gba:shrink-0 gba:w-72 gba:h-[700px] gba:flex gba:flex-col gba:bg-gray-50 gba:dark:bg-gray-900 gba:rounded-md gba:shadow-sm gba:border gba:transition-all gba:duration-200 ${
+        isDraggedOver && isDragging
+          ? 'gba:border-blue-400 gba:border-2 gba:bg-blue-50 gba:dark:bg-blue-900/20 gba:shadow-lg gba:ring-2 gba:ring-blue-200 gba:ring-opacity-50'
+          : 'gba:border-gray-200 gba:dark:border-gray-800'
+      }`}
+      data-testid={`kanban-column-${stage.id}`}
+    >
+      <div className="gba:p-3 gba:pb-0 gba:border-b gba:border-gray-100 gba:dark:border-gray-800">
+        {renderStageHeader ? (
+          renderStageHeader(stage, items.length)
+        ) : (
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h3 className="gba:font-medium gba:text-sm" data-testid={`stage-title-${stage.id}`}>
+              {stage.name}
+            </h3>
+          </div>
+        )}
+        
+        <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
+          <div>
+            <span className="gba:font-medium">{items.length}</span>{" "}
+            {items.length === 1 ? "item" : "items"}
+          </div>
+        </div>
+      </div>
+      
+      <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:h-[600px]">
+        <SortableContext 
+          items={items.map(item => item.id)} 
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="gba:space-y-2">
+            {items.map((item) => (
+              <div key={item.id}>
+                {/* Show insertion indicator when dragging over this item from another column */}
+                {dragOverItem === item.id && insertPosition === 'before' && (
+                  <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mb-2" />
+                )}
+                
+                {renderCard ? (
+                  renderCard(item)
+                ) : (
+                  <KanbanCard 
+                    item={item} 
+                  />
+                )}
+                
+                {/* Show insertion indicator after this item */}
+                {dragOverItem === item.id && insertPosition === 'after' && (
+                  <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mt-2" />
+                )}
+              </div>
+            ))}
+            
+            {/* Drop indicator when dragging over empty column */}
+            {isDraggedOver && isDragging && items.length === 0 && (
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-20 gba:bg-blue-100 gba:dark:bg-blue-900/30 gba:border-2 gba:border-dashed gba:border-blue-400 gba:rounded-lg gba:transition-all gba:duration-200">
+                <div className="gba:text-blue-600 gba:dark:text-blue-400 gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
+                  <svg className="gba:w-4 gba:h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Drop here
+                </div>
+              </div>
+            )}
+          </div>
+        </SortableContext>
+      </div>
+    </div>
+  );
+}

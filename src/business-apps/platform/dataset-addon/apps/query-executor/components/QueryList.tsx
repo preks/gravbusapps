@@ -1,9 +1,18 @@
 import React from 'react';
-import { Card, Button, Typography, Tag, Space, Tooltip } from 'antd';
-import { PlayCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system';
+import { PlayCircleIcon, InfoIcon } from '@phosphor-icons/react';
 import { QueryDefinition, QueryType } from '@/common/network/dataset';
-
-const { Title, Text, Paragraph } = Typography;
 
 interface QueryListProps {
   queries: QueryDefinition[];
@@ -16,97 +25,149 @@ export const QueryList: React.FC<QueryListProps> = ({
   onExecuteQuery,
   isExecuting
 }) => {
-  const getQueryTypeColor = (type: QueryType) => {
-    return type === QueryType.DATASET ? 'blue' : 'green';
+  const getQueryTypeVariant = (type: QueryType) => {
+    return type === QueryType.DATASET ? 'ext2' : 'ext5';
   };
 
-  const getParameterTypeColor = (type: string) => {
+  const getParameterTypeVariant = (type: string) => {
     switch (type) {
-      case 'DATE': return 'orange';
-      case 'CONTROL': return 'purple';
-      case 'NUMBER': return 'cyan';
-      case 'BOOLEAN': return 'red';
-      default: return 'default';
+      case 'DATE': return 'ext7';
+      case 'CONTROL': return 'ext8';
+      case 'NUMBER': return 'ext3';
+      case 'BOOLEAN': return 'ext6';
+      default: return 'secondary';
     }
   };
 
   return (
-    <div data-testid="query-executor-query-list" className="gba:space-y-4">
-      <Title level={4} className="gba:mb-4">Available Queries ({queries.length})</Title>
-      
-      {queries.map((query) => (
-        <Card
-          key={query.id || query.name}
-          data-testid={`query-card-${query.name}`}
-          className="gba:mb-4"
-          title={
-            <Space>
-              <Text strong>{query.name}</Text>
-              <Tag color={getQueryTypeColor(query.queryType)}>
-                {query.queryType}
-              </Tag>
-              <Tag color="green">{query.status}</Tag>
-            </Space>
-          }
-          extra={
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              onClick={() => onExecuteQuery(query)}
-              loading={isExecuting}
-              data-testid={`execute-button-${query.name}`}
-            >
-              Execute
-            </Button>
-          }
-        >
-          <div className="gba:space-y-3">
-            <Paragraph className="gba:text-gray-600 gba:mb-2">
-              {query.description}
-            </Paragraph>
-
-            {query.parameters.length > 0 && (
-              <div>
-                <Text strong className="gba:block gba:mb-2">
-                  <InfoCircleOutlined className="gba:mr-1" />
-                  Parameters ({query.parameters.length}):
-                </Text>
-                <Space wrap>
-                  {query.parameters.map((param) => (
-                    <Tooltip
-                      key={param.name}
-                      title={`${param.description} ${param.required ? '(Required)' : '(Optional)'}`}
-                    >
-                      <Tag 
-                        color={getParameterTypeColor(param.type)}
-                        data-testid={`parameter-${param.name}`}
-                      >
-                        {param.name}: {param.type}
-                        {param.required && ' *'}
-                      </Tag>
-                    </Tooltip>
-                  ))}
-                </Space>
+    <TooltipProvider>
+      <div data-testid="query-executor-query-list" style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0
+      }}>
+        <h4 className="gba:text-xl gba:font-semibold" style={{
+          color: 'var(--nw-color-foreground)',
+          margin: '0 0 var(--nw-spacing-4) 0',
+          flexShrink: 0
+        }}>
+          Available Queries ({queries.length})
+        </h4>
+        
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          paddingRight: 'var(--nw-spacing-2)', // Account for scrollbar
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--nw-spacing-4)'
+        }}>
+          {queries.map((query) => (
+          <Card
+            key={query.id || query.name}
+            data-testid={`query-card-${query.name}`}
+            style={{ marginBottom: 'var(--nw-spacing-4)' }}
+          >
+            <CardHeader style={{ 
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingBottom: 'var(--nw-spacing-4)',
+              gap: 'var(--nw-spacing-4)'
+            }}>
+              <CardTitle className="gba:flex gba:items-center gba:flex-1" style={{ 
+                gap: 'var(--nw-spacing-2)',
+                minWidth: 0 /* Allow title to shrink */
+              }}>
+                <span className="gba:font-bold gba:truncate">{query.name}</span>
+                <Badge variant={getQueryTypeVariant(query.queryType)}>
+                  {query.queryType}
+                </Badge>
+                <Badge
+                  variant="default"
+                  style={{
+                    backgroundColor: 'var(--nw-color-success)',
+                    color: 'var(--nw-color-on-success)'
+                  }}
+                >
+                  {query.status}
+                </Badge>
+              </CardTitle>
+              <div style={{ flexShrink: 0 }}>
+                <Button
+                  variant="default"
+                  onClick={() => onExecuteQuery(query)}
+                  disabled={isExecuting}
+                  data-testid={`execute-button-${query.name}`}
+                  className="gba:flex gba:items-center"
+                  style={{ gap: 'var(--nw-spacing-2)' }}
+                >
+                  <PlayCircleIcon size={16} />
+                  Execute
+                </Button>
               </div>
-            )}
+            </CardHeader>
 
-            {query.additionalColumns.length > 0 && (
-              <div>
-                <Text strong className="gba:block gba:mb-2">
-                  Additional Columns:
-                </Text>
-                <Space wrap>
-                  {query.additionalColumns.map((col) => (
-                    <Tag key={col.name} color="default">
-                      {col.name}: {col.type}
-                    </Tag>
-                  ))}
-                </Space>
-              </div>
-            )}
-          </div>
-        </Card>
-      ))}
-    </div>
+            <CardContent style={{ 
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--nw-spacing-3)'
+            }}>
+              <p style={{
+                color: 'var(--nw-color-muted-foreground)',
+                margin: '0 0 var(--nw-spacing-2) 0'
+              }}>
+                {query.description}
+              </p>
+
+              {query.parameters.length > 0 && (
+                <div>
+                  <p className="gba:flex gba:items-center gba:font-bold" style={{ marginBottom: 'var(--nw-spacing-2)' }}>
+                    <InfoIcon style={{ marginRight: 'var(--nw-spacing-1)' }} />
+                    Parameters ({query.parameters.length}):
+                  </p>
+                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-2)' }}>
+                    {query.parameters.map((param) => (
+                      <Tooltip key={param.name}>
+                        <TooltipTrigger>
+                          <Badge
+                            variant={getParameterTypeVariant(param.type)}
+                            data-testid={`parameter-${param.name}`}
+                          >
+                            {param.name}: {param.type}
+                            {param.required && ' *'}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{param.description} {param.required ? '(Required)' : '(Optional)'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {query.additionalColumns.length > 0 && (
+                <div>
+                  <p className="gba:font-bold gba:block" style={{ margin: '0 0 var(--nw-spacing-2) 0' }}>
+                    Additional Columns:
+                  </p>
+                  <div className="gba:flex gba:flex-wrap" style={{ gap: 'var(--nw-spacing-2)' }}>
+                    {query.additionalColumns.map((col) => (
+                      <Badge key={col.name} variant="outline">
+                        {col.name}: {col.type}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+        </div>
+      </div>
+    </TooltipProvider>
   );
 }; 

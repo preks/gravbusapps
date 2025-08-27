@@ -680,48 +680,14 @@ async function publishScreen(screenPath, options = {}) {
   const screenPathParts = screenPath.split("/");
   const product = screenPathParts[0];
 
-  console.log("📝 Creating screen-specific Tailwind config...");
-  const originalTailwindConfigPath = path.join(
-    projectRootDir,
-    "tailwind.config.js"
-  );
-  const tempTailwindConfigPath = path.join(tempDir, "tailwind.config.js");
   const originalIndexCssPath = path.join(projectRootDir, "src", "index.css");
   const tempIndexCssPath = path.join(tempDir, "index.css");
 
-  const tailwindConfigContent = fs.readFileSync(
-    originalTailwindConfigPath,
-    "utf8"
-  );
-
-  // Generate a modified tailwind config with scoped content paths using relative paths
-  const modifiedTailwindConfig = tailwindConfigContent.replace(
-    /content:\s*\[(.*?)\]/s,
-    `content: [
-    // Only include the target screen files
-    "../src/business-apps/${screenPath}/**/*.{js,ts,jsx,tsx}",
-    // Include shared components that might be used by the screen
-    "../src/common/**/*.{js,ts,jsx,tsx}",
-    "../src/components/**/*.{js,ts,jsx,tsx}",
-    // Include business-apps common components
-    "../src/business-apps/${product}/**/*.{js,ts,jsx,tsx}"
-  ]`
-  );
-
-  fs.writeFileSync(tempTailwindConfigPath, modifiedTailwindConfig, "utf8");
-  console.log(`   Created: ${tempTailwindConfigPath}`);
-
-  // Create a modified index.css that references the temporary tailwind config
+  // Create a modified index.css
   console.log("📝 Creating screen-specific index.css...");
 
   const indexCssContent = fs.readFileSync(originalIndexCssPath, "utf8");
   const modifiedIndexCss = indexCssContent
-    // Update Tailwind config reference
-    .replace(
-      /@config\s+"\.\.\/tailwind\.config\.js";/g,
-      `@config "./tailwind.config.js";
-/* Temp config for screen-specific build */`
-    )
     // Process each line
     .split("\n")
     .filter((line) => {
@@ -802,7 +768,7 @@ async function publishScreen(screenPath, options = {}) {
     }
   } catch (error) {
     console.error("❌ Build failed:", error.message);
-    process.exit(1);
+    throw error;
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION);
@@ -1017,6 +983,7 @@ async function handleComprehensiveScreenSync(changedScreens) {
 
     let syncedResources = 0;
     let syncedScreens = 0;
+    let failedSyncScreens = [];
 
     // Step 3: Process Form Screens (NO resource URL sync, preserve exact screenKey)
     if (formScreens.length > 0) {
@@ -1039,6 +1006,11 @@ async function handleComprehensiveScreenSync(changedScreens) {
           console.log(`   ✅ Form screen sync: ${screenSyncResult.operation} (screenKey: ${screen.screenKey})`);
         } else {
           console.log(`   ❌ Form screen sync failed: ${screenSyncResult.error}`);
+          failedSyncScreens.push({ 
+            screen: screen.screenComponents?.formDefinition?.componentPath?.replace(/^\//, '') || screen.screenKey, 
+            error: screenSyncResult.error, 
+            stage: 'comprehensive_sync_form' 
+          });
         }
       }
     }
@@ -1097,6 +1069,11 @@ async function handleComprehensiveScreenSync(changedScreens) {
           console.log(`   ✅ App screen sync: ${screenSyncResult.operation}`);
         } else {
           console.log(`   ❌ App screen sync failed: ${screenSyncResult.error}`);
+          failedSyncScreens.push({ 
+            screen: screen.screenComponents?.formDefinition?.componentPath?.replace(/^\//, '') || screen.screenKey, 
+            error: screenSyncResult.error, 
+            stage: 'comprehensive_sync_app' 
+          });
         }
       }
     }
@@ -1108,19 +1085,24 @@ async function handleComprehensiveScreenSync(changedScreens) {
     console.log(`   📱 App screens processed: ${appScreens.length} (with resource URL sync)`);
     console.log(`   🔗 Resource URLs synced: ${syncedResources}`);
     console.log(`   📱 Total screens synced: ${syncedScreens}`);
+    console.log(`   ❌ Failed screen syncs: ${failedSyncScreens.length}`);
+    
+    // Determine overall success - true only if no failures occurred
+    const overallSuccess = failedSyncScreens.length === 0;
     
     return { 
-      success: true, 
+      success: overallSuccess, 
       processedScreens: matchingScreens.length,
       formScreens: formScreens.length,
       appScreens: appScreens.length,
       syncedResources, 
-      syncedScreens 
+      syncedScreens,
+      failedSyncScreens 
     };
 
   } catch (error) {
     console.error("❌ Error during comprehensive screen synchronization:", error.message);
-    return { success: false, error: error.message, processedScreens: 0, syncedResources: 0, syncedScreens: 0 };
+    return { success: false, error: error.message, processedScreens: 0, syncedResources: 0, syncedScreens: 0, failedSyncScreens: [] };
   }
 }
 
@@ -1157,14 +1139,35 @@ async function main() {
   }
 
   // Read the screens to publish
-  const changedScreens = fs.readFileSync(screensFile, "utf8")
+  const detectedScreens = fs.readFileSync(screensFile, "utf8")
     .split("\n")
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .map(line => line.replace(/^src\/business-apps\//, ""));
 
-  console.log(`📋 Found ${changedScreens.length} screen(s) to publish:`);
-  changedScreens.forEach(screen => console.log(`   - ${screen}`));
+  console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`);
+  detectedScreens.forEach(screen => console.log(`   - ${screen}`));
+
+  // Filter out screens that don't exist (were removed)
+  const projectRootDir = path.resolve(__dirname, "..");
+  const existingScreens = detectedScreens.filter(screen => {
+    const sourceEntryFile = path.join(projectRootDir, "src", "business-apps", screen, "index.ts");
+    const exists = fs.existsSync(sourceEntryFile);
+    if (!exists) {
+      console.log(`   ⚠️  Skipping removed screen: ${screen} (${sourceEntryFile} not found)`);
+    }
+    return exists;
+  });
+
+  const removedCount = detectedScreens.length - existingScreens.length;
+  if (removedCount > 0) {
+    console.log(`📋 Filtered out ${removedCount} removed screen(s).`);
+  }
+
+  console.log(`📋 Found ${existingScreens.length} existing screen(s) to publish:`);
+  existingScreens.forEach(screen => console.log(`   - ${screen}`));
+
+  const changedScreens = existingScreens;
 
   // NEW: Comprehensive Screen Synchronization Step
   console.log(`\n${'='.repeat(80)}`);
@@ -1192,6 +1195,12 @@ async function main() {
   const buildResults = [];
   let successCount = 0;
   const failedScreens = [];
+
+  // Add comprehensive sync failures to failed screens list
+  if (comprehensiveSyncResult.failedSyncScreens && comprehensiveSyncResult.failedSyncScreens.length > 0) {
+    failedScreens.push(...comprehensiveSyncResult.failedSyncScreens);
+    console.log(`⚠️  ${comprehensiveSyncResult.failedSyncScreens.length} screen(s) failed during comprehensive sync`);
+  }
 
   for (const screen of changedScreens) {
     console.log(`\n📦 Building and uploading screen: ${screen}`);
@@ -1227,37 +1236,74 @@ async function main() {
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`);
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`);
   console.log(`📈 Total screens processed: ${changedScreens.length}`);
-  console.log(`✅ Successfully published: ${successCount}`);
-  console.log(`❌ Failed: ${failedScreens.length}`);
+  
+  // Calculate success count considering comprehensive sync failures
+  const comprehensiveSyncFailures = comprehensiveSyncResult.failedSyncScreens?.length || 0;
+  const buildUploadFailures = failedScreens.filter(f => f.stage === 'build_upload').length;
+  const totalFailures = failedScreens.length;
+  const actualSuccessCount = changedScreens.length - totalFailures;
+  
+  console.log(`✅ Successfully published: ${actualSuccessCount}`);
+  console.log(`❌ Failed: ${totalFailures}`);
   
   // Add comprehensive sync summary
+  console.log(`\n🔄 COMPREHENSIVE SYNC RESULTS:`);
+  console.log(`   📋 Total screens processed: ${comprehensiveSyncResult.processedScreens || 0}`);
+  console.log(`   📝 Form screens processed: ${comprehensiveSyncResult.formScreens || 0} (no resource URL sync)`);
+  console.log(`   📱 App screens processed: ${comprehensiveSyncResult.appScreens || 0} (with resource URL sync)`);
+  console.log(`   🔗 Resource URLs synced: ${comprehensiveSyncResult.syncedResources || 0}`);
+  console.log(`   📱 Screen configs synced: ${comprehensiveSyncResult.syncedScreens || 0}`);
+  console.log(`   ❌ Screen sync failures: ${comprehensiveSyncFailures}`);
+  
+  // Show comprehensive sync status
   if (comprehensiveSyncResult.success) {
-    console.log(`\n🔄 COMPREHENSIVE SYNC RESULTS:`);
-    console.log(`   📋 Total screens processed: ${comprehensiveSyncResult.processedScreens}`);
-    console.log(`   📝 Form screens synced: ${comprehensiveSyncResult.formScreens || 0} (no resource URL sync)`);
-    console.log(`   📱 App screens synced: ${comprehensiveSyncResult.appScreens || 0} (with resource URL sync)`);
-    console.log(`   🔗 Resource URLs synced: ${comprehensiveSyncResult.syncedResources}`);
-    console.log(`   📱 Total screen configs synced: ${comprehensiveSyncResult.syncedScreens}`);
+    console.log(`   ✅ Comprehensive sync: SUCCESSFUL`);
+  } else {
+    console.log(`   ❌ Comprehensive sync: FAILED${comprehensiveSyncResult.error ? ` (${comprehensiveSyncResult.error})` : ''}`);
   }
 
   if (failedScreens.length > 0) {
     console.log(`\n❌ FAILED SCREENS:`);
     console.log(`${'='.repeat(50)}`);
     
-    failedScreens.forEach((failure, index) => {
-      console.log(`\n${index + 1}. Screen: ${failure.screen}`);
-      console.log(`   Error: ${failure.error}`);
-      console.log(`   ${'─'.repeat(40)}`);
-    });
+    // Group failures by stage for better readability
+    const syncFailures = failedScreens.filter(f => f.stage?.includes('comprehensive_sync'));
+    const buildFailures = failedScreens.filter(f => f.stage === 'build_upload');
+    
+    if (syncFailures.length > 0) {
+      console.log(`\n🔄 COMPREHENSIVE SYNC FAILURES (${syncFailures.length}):`);
+      syncFailures.forEach((failure, index) => {
+        console.log(`\n${index + 1}. Screen: ${failure.screen}`);
+        console.log(`   Stage: ${failure.stage}`);
+        console.log(`   Error: ${failure.error}`);
+        console.log(`   ${'─'.repeat(40)}`);
+      });
+    }
+    
+    if (buildFailures.length > 0) {
+      console.log(`\n🔨 BUILD/UPLOAD FAILURES (${buildFailures.length}):`);
+      buildFailures.forEach((failure, index) => {
+        console.log(`\n${syncFailures.length + index + 1}. Screen: ${failure.screen}`);
+        console.log(`   Stage: ${failure.stage}`);
+        console.log(`   Error: ${failure.error}`);
+        console.log(`   ${'─'.repeat(40)}`);
+      });
+    }
     
     console.log(`\n💥 Production publishing completed with ${failedScreens.length} failure(s)!`);
     console.log(`🚨 Please review the failed screens and fix the issues before next deployment.`);
+    if (syncFailures.length > 0) {
+      console.log(`⚠️  ${syncFailures.length} screen(s) failed during comprehensive sync (screen management)`);
+    }
+    if (buildFailures.length > 0) {
+      console.log(`⚠️  ${buildFailures.length} screen(s) failed during build/upload (Azure deployment)`);
+    }
     
     // Exit with error code to fail the pipeline
     process.exit(1);
   } else {
     console.log(`\n🎉 Production publishing completed successfully!`);
-    console.log(`✨ All ${successCount} screen(s) were published without errors.`);
+    console.log(`✨ All ${actualSuccessCount} screen(s) were published without errors.`);
   }
 }
 

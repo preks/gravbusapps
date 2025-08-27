@@ -2,8 +2,8 @@ import React from 'react';
 import { Card } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext';
-import { useDepartmentMonthlySalaryStack } from '../../hooks/useDepartmentMonthlySalaryStack';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack';
 
 interface DepartmentSalaryStackedBarChartProps extends BusinessAppContextProps {}
 

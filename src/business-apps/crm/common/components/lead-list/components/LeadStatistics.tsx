@@ -1,11 +1,11 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  UserOutlined, 
-  FireOutlined, 
-  ShopOutlined, 
-  TrophyOutlined 
-} from '@ant-design/icons';
+import React from "react";
+import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import {
+  UserOutlined,
+  FireOutlined,
+  ShopOutlined,
+  TrophyOutlined,
+} from "@ant-design/icons";
 
 interface LeadStatisticsWithTrendProps {
   trendData: {
@@ -33,77 +33,79 @@ interface LeadStatisticsWithTrendProps {
   onRetry?: () => void;
 }
 
-export const LeadStatisticsWithTrend: React.FC<LeadStatisticsWithTrendProps> = ({
+export const LeadStatisticsWithTrend: React.FC<
+  LeadStatisticsWithTrendProps
+> = ({
   trendData,
   mostCommonLeadSource,
   isLoading = false,
   error = null,
-  onRetry
+  onRetry,
 }) => {
   // Get current year for display
   const currentYear = new Date().getFullYear();
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
+    const sign = changePercent >= 0 ? "+" : "";
     return `${sign}${changePercent.toFixed(1)}%`;
   };
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
     {
-      key: 'recent-leads',
-      title: 'Recent Leads',
+      key: "recent-leads",
+      title: "Recent Leads",
       value: trendData.recentLeads.current,
       prefix: <UserOutlined />,
-      color: '#1677ff',
+      color: "#1677ff",
       span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
-      description: 'New leads (past 2 weeks)',
+      description: "New leads (past 2 weeks)",
       trend: {
         value: formatTrendPercent(trendData.recentLeads.changePercent),
         positive: trendData.recentLeads.isPositive,
-        description: 'vs previous 2 weeks'
-      }
+        description: "vs previous 2 weeks",
+      },
     },
     {
-      key: 'hot-leads',
-      title: 'Hot Leads',
+      key: "hot-leads",
+      title: "Hot Leads",
       value: trendData.hotLeads.current,
       prefix: <FireOutlined />,
-      color: '#ff4d4f',
+      color: "#ff4d4f",
       span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
-      description: 'High priority prospects',
+      description: "High priority prospects",
       trend: {
         value: formatTrendPercent(trendData.hotLeads.changePercent),
         positive: trendData.hotLeads.isPositive,
-        description: 'vs last month'
-      }
+        description: "vs last month",
+      },
     },
     {
-      key: 'top-lead-source',
-      title: 'Top Lead Source',
+      key: "top-lead-source",
+      title: "Top Lead Source",
       value: mostCommonLeadSource,
       prefix: <ShopOutlined />,
-      color: '#52c41a',
+      color: "#52c41a",
       span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
-      description: 'Most common in recent leads'
+      description: "Most common in recent leads",
     },
     {
-      key: 'conversion-rate',
-      title: 'Conversion Rate',
+      key: "conversion-rate",
+      title: "Conversion Rate",
       value: trendData.conversionRate.currentRate,
       prefix: <TrophyOutlined />,
-      color: '#722ed1',
+      color: "#722ed1",
       precision: 1,
-      suffix: '%',
+      suffix: "%",
       span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
       description: `${trendData.conversionRate.current} converted in ${currentYear}`,
       trend: {
         value: formatTrendPercent(trendData.conversionRate.changePercent),
         positive: trendData.conversionRate.isPositive,
-        description: 'vs last year'
-      }
-    }
+        description: "vs last year",
+      },
+    },
   ];
 
   return (
@@ -119,4 +121,4 @@ export const LeadStatisticsWithTrend: React.FC<LeadStatisticsWithTrendProps> = (
       />
     </div>
   );
-}; 
+};

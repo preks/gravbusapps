@@ -1,19 +1,39 @@
-import React, { useState } from 'react';
-import { Typography, Tabs, Alert, Spin, Button, Space, Row, Col, Card, Progress } from 'antd';
-import { ReloadOutlined, CalendarOutlined, BarChartOutlined, TableOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
-import { useAbsenceDataIntegration } from './hooks/useAbsenceDataIntegration';
+import React, { useState, useEffect } from 'react';
+import { Tabs, Card, Row, Col, Typography, Space, Spin, Alert, Button } from 'antd';
+import { CalendarOutlined, BarChartOutlined, TableOutlined, ReloadOutlined } from '@ant-design/icons';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useAbsenceDataIntegration } from '../../../hooks/useAbsenceDataIntegration';
 import AbsenceStatisticsDashboard from './components/AbsenceStatisticsDashboard';
 import AbsenceChartsView from './components/AbsenceChartsView';
 import AbsenceDetailsTable from './components/AbsenceDetailsTable';
 
-const { Title, Text } = Typography;
 const { TabPane } = Tabs;
+const { Text, Title } = Typography;
 
 interface AbsenceReportProps extends BusinessAppContextProps {}
 
 const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  // Define valid tabs
+  const validTabs = ['overview', 'charts', 'details'];
+  const defaultTab = 'overview';
+
+  // Get tab from URL query parameter or use default
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl!;
+    } else {
+      // No valid tab in URL, set default tab in URL
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', defaultTab);
+      window.history.replaceState({}, '', url.toString());
+      return defaultTab;
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   
   const {
     absenceData,
@@ -29,6 +49,27 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
   } = useAbsenceDataIntegration(context);
 
   const prefixDataTestId = 'AbsenceReport';
+
+  // Update URL when tab changes
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : defaultTab;
+      setActiveTab(newTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (error) {
     return (
@@ -79,6 +120,12 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
     );
   }
 
+  // Safe access to array properties with fallbacks
+  const safeAbsenceTypes = absenceTypes || [];
+  const safeAbsenceGroups = absenceGroups || [];
+  const safeAbsenceData = absenceData || [];
+  const safeBalanceData = balanceData || [];
+
   return (
     <div
       data-testid={prefixDataTestId}
@@ -103,17 +150,17 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
           <div style={{ display: 'flex', gap: '8px' }}>
             <Card size="small" style={{ padding: '4px 8px' }}>
               <Text strong style={{ color: '#1890ff' }}>
-                {statistics.totalEmployees} Employees
+                {statistics?.totalEmployees || 0} Employees
               </Text>
             </Card>
             <Card size="small" style={{ padding: '4px 8px' }}>
               <Text strong style={{ color: '#722ed1' }}>
-                {absenceTypes.length} Absence Types
+                {safeAbsenceTypes.length} Absence Types
               </Text>
             </Card>
             <Card size="small" style={{ padding: '4px 8px' }}>
               <Text strong style={{ color: '#52c41a' }}>
-                {statistics.totalAbsenceDays} Total Days
+                {statistics?.totalAbsenceDays || 0} Total Days
               </Text>
             </Card>
           </div>
@@ -131,7 +178,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
       {/* Main Content */}
       <Tabs 
         activeKey={activeTab} 
-        onChange={setActiveTab}
+        onChange={handleTabChange}
         type="card"
         size="large"
         style={{ 
@@ -152,7 +199,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
           key="overview"
         >
           <AbsenceStatisticsDashboard 
-            statistics={statistics}
+            statistics={statistics as any}
             isLoading={isLoading}
           />
         </TabPane>
@@ -169,7 +216,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
           key="charts"
         >
           <AbsenceChartsView 
-            chartData={chartData}
+            chartData={chartData as any}
             isLoading={isLoading}
             dataTestId={prefixDataTestId}
           />
@@ -187,7 +234,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
           key="details"
         >
           <AbsenceDetailsTable 
-            tableData={tableData}
+            tableData={tableData as any}
             dataTestId={prefixDataTestId}
           />
         </TabPane>
@@ -201,24 +248,28 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
               <Col>
                 <Text type="secondary">
                   Last Updated: {new Date().toLocaleDateString()} • 
-                  Data includes {absenceData.length} absence records and {balanceData.length} balance entries
+                  Data includes {safeAbsenceData.length} absence records and {safeBalanceData.length} balance entries
                 </Text>
               </Col>
               <Col>
                 <Space>
-                  {absenceGroups.map((group, index) => (
-                    <div key={group.code} style={{ textAlign: 'center' }}>
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a'][index % 4] 
-                      }}>
-                        {group.value}
+                  {safeAbsenceGroups.length > 0 ? (
+                    safeAbsenceGroups.map((group, index: number) => (
+                      <div key={group?.code || `group-${index}`} style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a'][index % 4] 
+                        }}>
+                          {group?.value || 'Unknown'}
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                          {statistics?.groupStats?.find(s => s.groupCode === group?.code)?.totalDays || 0} days
+                        </div>
                       </div>
-                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                        {statistics.groupStats.find(s => s.groupCode === group.code)?.totalDays || 0} days
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <Text type="secondary">No absence group data available</Text>
+                  )}
                 </Space>
               </Col>
             </Row>

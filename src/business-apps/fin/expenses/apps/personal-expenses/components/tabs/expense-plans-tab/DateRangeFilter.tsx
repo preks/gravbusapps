@@ -1,6 +1,13 @@
 import React, { useCallback } from 'react';
 import { DatePicker, Space } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
+// Extend dayjs with required plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 const { RangePicker } = DatePicker;
 
@@ -15,7 +22,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   startDateRange,
   onDateRangeChange,
   className = '',
-  placeholder = ['Start date', 'End date']
+  placeholder = [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date') ]
 }) => {
   // Convert Date objects to dayjs objects for the DatePicker
   const dateRange: [Dayjs | null, Dayjs | null] = [
@@ -38,18 +45,15 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   }, [onDateRangeChange]);
 
   return (
-    <div className={`gba:flex gba:items-center gba:gap-2 gba:bg-white gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:shadow-sm ${className}`}>
-      <RangePicker
-        value={dateRange}
-        onChange={handleDateRangeChange}
-        placeholder={placeholder}
-        format="MMM DD, YYYY"
-        allowClear
-        allowEmpty={[true, true]}
-        size="small"
-        style={{ width: 240 }}
-        data-testid="expense-plan-start-date-range-filter"
-      />
-    </div>
+    <RangePicker
+      value={dateRange}
+      onChange={handleDateRangeChange}
+      placeholder={placeholder}
+      format="MMM DD, YYYY"
+      allowClear
+      allowEmpty={[true, true]}
+      style={{ width: '100%' }}
+      data-testid="expense-plan-start-date-range-filter"
+    />
   );
 }; 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Avatar,
@@ -31,6 +31,10 @@ import {
   PiMapPin,
   PiArrowUp,
   PiArrowDown,
+  PiGlobe,
+  PiFactory,
+  PiCheckCircle,
+  PiXCircle,
 } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
@@ -61,6 +65,7 @@ interface LeadTableProps {
   selectedLeadId?: string;
   accessToken: string;
   sourceApp?: string;
+  visibleColumns: string[];
 }
 
 const DATA_TEST_ID_PREFIX = "LeadTable";
@@ -87,8 +92,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   selectedLeadId,
   accessToken,
   sourceApp,
+  visibleColumns,
 }) => {
   const { t } = useTranslation();
+
+  // Helper function to check if a column is visible
+  const isColumnVisible = (columnId: string) =>
+    visibleColumns.includes(columnId);
 
   // Get contact display name
   const getContactName = (lead: Lead) => {
@@ -102,16 +112,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     return "-";
   };
 
-  // Get contact email
-  const getContactEmail = (lead: Lead) => {
-    return lead.email || "-";
-  };
-
-  // Get contact phone
-  const getContactPhone = (lead: Lead) => {
-    return lead.phoneNumber || "-";
-  };
-
   // Get owner display name
   const getOwnerName = (lead: Lead) => {
     if (lead.ownerEmployee?.displayName) {
@@ -123,17 +123,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
       }`.trim();
     }
     return "-";
-  };
-
-  // Parse profile picture from JSON
-  const getProfilePictureUrl = (picture?: string | null) => {
-    if (!picture) return null;
-    try {
-      const parsed = JSON.parse(picture);
-      return parsed.path || null;
-    } catch {
-      return null;
-    }
   };
 
   // Handle row click
@@ -198,7 +187,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
+    if (sortField !== field || !sortField) return null;
     if (sortOrder === "ASC")
       return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
     if (sortOrder === "DESC")
@@ -216,75 +205,208 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         )}
 
         <div className="gba:overflow-x-auto">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+          <Table
+            data-testid={`${DATA_TEST_ID_PREFIX}-table`}
+            style={{ minWidth: "1200px" }}
+          >
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead
-                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                >
-                  ACTIONS
-                </TableHead>
-                <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("firstName")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.contact", "Lead Contact")}
-                    {renderSortIcon("firstName")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("accountName")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.company", "Lead Company")}
-                    {renderSortIcon("accountName")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("createdAt")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.created", "Created")}
-                    {renderSortIcon("createdAt")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("ownerEmployeeId")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.owner", "Owner")}
-                    {renderSortIcon("ownerEmployeeId")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("leadStatusRef")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.status", "Status")}
-                    {renderSortIcon("leadStatusRef")}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("leadRatingRef")}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {t("lead.rating", "Rating")}
-                    {renderSortIcon("leadRatingRef")}
-                  </div>
-                </TableHead>
+                {isColumnVisible("name") && (
+                  <TableHead
+                    className="gba:w-[300px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("firstName")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.contact", "Lead Contact")}
+                      {renderSortIcon("firstName")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("company") && (
+                  <TableHead
+                    className="gba:w-[240px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("companyName")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.company", "Lead Company")}
+                      {renderSortIcon("companyName")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("contact") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("email")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.contactInfo", "Contact Info")}
+                      {renderSortIcon("email")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("country") && (
+                  <TableHead
+                    className="gba:w-[120px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("countryRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-country-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.country", "Country")}
+                      {renderSortIcon("countryRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("region") && (
+                  <TableHead
+                    className="gba:w-[130px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("regionRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-region-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.region", "Region/State")}
+                      {renderSortIcon("regionRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("city") && (
+                  <TableHead
+                    className="gba:w-[120px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("city")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-city-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.city", "City")}
+                      {renderSortIcon("city")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("status") && (
+                  <TableHead
+                    className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("leadStatusRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.status", "Status")}
+                      {renderSortIcon("leadStatusRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("rating") && (
+                  <TableHead
+                    className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("leadRatingRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-rating-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.rating", "Rating")}
+                      {renderSortIcon("leadRatingRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("source") && (
+                  <TableHead
+                    className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("leadSourceRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-source-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.source", "Source")}
+                      {renderSortIcon("leadSourceRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("owner") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("ownerEmployeeId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.owner", "Owner")}
+                      {renderSortIcon("ownerEmployeeId")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("created") && (
+                  <TableHead
+                    className="gba:w-[144px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("createdAt")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.created", "Creation Date")}
+                      {renderSortIcon("createdAt")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("industry") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("industryRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-industry-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.industry", "Industry")}
+                      {renderSortIcon("industryRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("companyWebsite") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("companyWebsite")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-company-website-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.companyWebsite", "Company Website")}
+                      {renderSortIcon("companyWebsite")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("companyPhone") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("companyPhone")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-company-phone-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.companyPhone", "Company Phone")}
+                      {renderSortIcon("companyPhone")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("conversionStatus") && (
+                  <TableHead
+                    className="gba:w-[180px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("leadStatusRef")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-conversion-status-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("lead.conversionStatus", "Conversion Status")}
+                      {renderSortIcon("leadStatusRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible("sensitive") && (
+                  <TableHead
+                    className="gba:w-[80px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-center"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-header`}
+                  >
+                    Sensitive
+                  </TableHead>
+                )}
+                {isColumnVisible("actions") && (
+                  <TableHead
+                    className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                  >
+                    ACTIONS
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -296,192 +418,357 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
-                        variant="secondary"
-                        contextsArray={[FlowContextName.leadEntity]}
-                        externalContextData={{
-                          leadId: record.id,
-                        }}
-                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="disable"
-                        deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}
-                  >
-                    <div
-                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(record);
-                      }}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
+                  {isColumnVisible("name") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-cell-${record.id}`}
                     >
-                      <Avatar size="sm">
-                        {record.contact?.pictureUrl && (
-                          <AvatarImage
-                            src={record.contact.pictureUrl}
-                            alt={getContactName(record)}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {getContactName(record) !== "-"
-                            ? getContactName(record)
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")
-                                .toUpperCase()
-                            : ""}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="gba:font-medium gba:text-sm">
-                          {getContactName(record)}
+                      <div
+                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRowClick(record);
+                        }}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
+                      >
+                        <Avatar size="sm">
+                          {record.contact?.pictureUrl && (
+                            <AvatarImage
+                              src={record.contact.pictureUrl}
+                              alt={getContactName(record)}
+                            />
+                          )}
+                          <AvatarFallback>
+                            {getContactName(record) !== "-"
+                              ? getContactName(record)
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                                  .toUpperCase()
+                              : "L"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="gba:font-medium gba:text-sm">
+                            {getContactName(record)}
+                          </div>
+                          {record.companyName &&
+                            !isColumnVisible("company") && (
+                              <div className="gba:text-xs gba:text-gray-500">
+                                {record.companyName}
+                              </div>
+                            )}
                         </div>
-                        {record.companyName && (
-                          <div className="gba:text-xs gba:text-gray-500">
-                            {record.companyName}
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("company") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiBuilding size={14} className="gba:text-blue-600" />
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.companyName}
+                        >
+                          {record.companyName || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("contact") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-contact-info-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:flex-col gba:gap-1">
+                        {record.email && (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <PiEnvelope
+                              size={12}
+                              className="gba:text-gray-400"
+                            />
+                            <span
+                              className="gba:text-xs gba:truncate"
+                              title={record.email}
+                            >
+                              {record.email}
+                            </span>
+                          </div>
+                        )}
+                        {record.phoneNumber && (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <PiPhone size={12} className="gba:text-gray-400" />
+                            <span className="gba:text-xs">
+                              {record.phoneNumber}
+                            </span>
                           </div>
                         )}
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-lead-company-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:flex-col gba:gap-1">
+                    </TableCell>
+                  )}
+                  {isColumnVisible("country") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-country-cell-${record.id}`}
+                    >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiBuilding size={14} className="gba:text-gray-400" />
-                        {record.account?.id ? (
-                          <span
-                            className="gba:font-medium gba:text-sm gba:cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!record.account?.id) return;
-                              const source =
-                                sourceApp === "investment-relations" ||
-                                sourceApp === "IRM"
-                                  ? "investments"
-                                  : "customer-relations";
-                              const url = buildPlatformUrl(
-                                "/platform/crm/account-record",
-                                {
-                                  accountId: record.account.id,
-                                  source,
-                                  fromEntity: "leads",
-                                }
-                              );
-                              console.log(
-                                "Navigating from leads to account:",
-                                url
-                              );
-                              navigateTo(url);
-                            }}
-                            data-testid={`${DATA_TEST_ID_PREFIX}-company-name-${record.id}`}
-                          >
-                            {record.account?.name || record.companyName || "-"}
-                          </span>
-                        ) : (
-                          <span className="gba:font-medium gba:text-sm">
-                            {record.companyName || record.account?.name || "-"}
-                          </span>
-                        )}
-                      </div>
-                      {record.companyEmail && (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <PiEnvelope size={12} className="gba:text-gray-400" />
-                          <span className="gba:text-xs gba:text-gray-600">
-                            {record.companyEmail}
-                          </span>
-                        </div>
-                      )}
-                      {record.companyWebsite && (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <span className="gba:text-xs gba:text-gray-600">
-                            {record.companyWebsite}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
-                  >
-                    {record.createdAt ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={16} className="gba:text-gray-400" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format("MMM DD, YYYY")}
+                        <PiMapPin size={14} className="gba:text-gray-400" />
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.country?.value}
+                        >
+                          {record.country?.value || "-"}
                         </span>
                       </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <Avatar size="sm">
-                        {record.ownerEmployee?.pictureThumbnail && (
-                          <AvatarImage
-                            src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
-                            alt={getOwnerName(record)}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {!record.ownerEmployee?.pictureThumbnail
-                            ? getOwnerName(record) !== "-"
+                    </TableCell>
+                  )}
+                  {isColumnVisible("region") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-region-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiMapPin size={14} className="gba:text-gray-400" />
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.region?.value}
+                        >
+                          {record.region?.value || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("city") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-city-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiMapPin size={14} className="gba:text-gray-400" />
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.city}
+                        >
+                          {record.city || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("status") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                    >
+                      <Badge
+                        variant={getLeadStatusBadgeVariant(record.leadStatus)}
+                      >
+                        {record.leadStatus?.value || "-"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("rating") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}
+                    >
+                      <Badge
+                        variant={getLeadRatingBadgeVariant(record.leadRating)}
+                      >
+                        {record.leadRating?.value || "-"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("source") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-source-cell-${record.id}`}
+                    >
+                      <div
+                        className="gba:text-sm gba:truncate"
+                        title={record.leadSource?.value}
+                      >
+                        {record.leadSource?.value || "-"}
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("owner") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <Avatar size="sm">
+                          {record.ownerEmployee?.pictureThumbnail && (
+                            <AvatarImage
+                              src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
+                              alt={getOwnerName(record)}
+                            />
+                          )}
+                          <AvatarFallback>
+                            {getOwnerName(record) !== "-"
                               ? getOwnerName(record)
                                   .split(" ")
                                   .map((n) => n[0])
                                   .join("")
                                   .toUpperCase()
-                              : "U"
-                            : undefined}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="gba:flex gba:flex-col">
-                        <span className="gba:font-medium gba:text-sm">
-                          {getOwnerName(record)}
+                              : "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex gba:flex-col">
+                          <span className="gba:font-medium gba:text-sm">
+                            {getOwnerName(record)}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("created") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiCalendar size={14} className="gba:text-gray-400" />
+                        <span className="gba:text-sm">
+                          {record.createdAt
+                            ? dayjs(record.createdAt).format("MMM DD, YYYY")
+                            : "-"}
                         </span>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
-                  >
-                    <Badge
-                      variant={getLeadStatusBadgeVariant(record.leadStatus)}
+                    </TableCell>
+                  )}
+                  {isColumnVisible("industry") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-industry-cell-${record.id}`}
                     >
-                      {record.leadStatus?.value || "-"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-rating-cell-${record.id}`}
-                  >
-                    <Badge
-                      variant={getLeadRatingBadgeVariant(record.leadRating)}
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiFactory size={14} className="gba:text-purple-600" />
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.industry?.value}
+                        >
+                          {record.industry?.value || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("companyWebsite") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-company-website-cell-${record.id}`}
                     >
-                      {record.leadRating?.value || "-"}
-                    </Badge>
-                  </TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiGlobe size={14} className="gba:text-blue-600" />
+                        {record.companyWebsite ? (
+                          <a
+                            href={record.companyWebsite}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gba:text-sm gba:text-blue-600 gba:hover:underline gba:truncate"
+                            title={record.companyWebsite}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {record.companyWebsite.replace(/^https?:\/\//, "")}
+                          </a>
+                        ) : (
+                          <span className="gba:text-sm">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("companyPhone") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-company-phone-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiPhone size={14} className="gba:text-green-600" />
+                        <span className="gba:text-sm">
+                          {record.companyPhone || "-"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("conversionStatus") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-conversion-status-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        {record.leadStatus?.code === "CONVERTED" ? (
+                          <>
+                            <PiCheckCircle
+                              size={14}
+                              className="gba:text-green-600"
+                            />
+                            <span className="gba:text-sm gba:font-medium gba:text-green-600">
+                              Converted
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <PiXCircle
+                              size={14}
+                              className="gba:text-gray-400"
+                            />
+                            <span className="gba:text-sm gba:text-gray-500">
+                              Not Converted
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible("sensitive") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6 gba:text-center"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-cell-${record.id}`}
+                    >
+                      {record.sensitive === true ? (
+                        <span
+                          className="gba:text-green-600 gba:text-lg"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-check-${record.id}`}
+                          title="Sensitive lead"
+                        >
+                          ✓
+                        </span>
+                      ) : (
+                        <span
+                          className="gba:text-gray-500 gba:text-lg"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-sensitive-x-${record.id}`}
+                          title="Not sensitive"
+                        >
+                          ✕
+                        </span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible("actions") && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.leadEntity]}
+                          externalContextData={{
+                            leadId: record.id,
+                          }}
+                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

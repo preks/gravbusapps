@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { SCREEN_NAMES_ENUM } from "../constants/constants";
 
 export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
-  return arrayOfItems.filter((element) => !(
+  return arrayOfItems?.filter((element) => !(
     (element.expenseClassRef && element.expenseClassRef.toLowerCase().includes("allowance")) || 
     (element.expenseGroupRef && element.expenseGroupRef.toLowerCase().includes("allowance"))
   ));
@@ -15,7 +15,7 @@ export const noAllowanceItemsFunction = (arrayOfItems: any[]) => {
  * @returns Array containing only allowance items
  */
 export const getAllowanceItemsFunction = (arrayOfItems: any[]) => {
-  return arrayOfItems.filter((element) => 
+  return arrayOfItems?.filter((element) => 
     (element.expenseClassRef && element.expenseClassRef.toLowerCase().includes("allowance")) || 
     (element.expenseGroupRef && element.expenseGroupRef.toLowerCase().includes("allowance"))
   );
@@ -50,6 +50,7 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
 
     return {
       "id": element.id,
+      "version": element.version,
       "title": element.title,
       "date": element.expenseDate,
       "amount": element.totalAmount,
@@ -91,16 +92,30 @@ export const createItemsScreenLogObject = (
 ) => {
   const expenseItemsArray = expenseItems.map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expenseRequest: initialRequest?.id || ''
+    expenseRequest: initialRequest?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })).concat(getAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
     id: item.id,
+    version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expenseRequest: initialRequest?.id || ''
+    expenseRequest: initialRequest?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })))
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + event,
@@ -110,7 +125,7 @@ export const createItemsScreenLogObject = (
       startDate: initialRequest?.startDate || "",
       endDate: initialRequest?.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialRequest?.version || "",
+      version: initialRequest?.version || 0,
       costCenter: initialRequest?.costCenterId || "",
       employee: initialRequest?.employeeId || "",
       expensePlan: initialRequest?.expensePlanId || "",

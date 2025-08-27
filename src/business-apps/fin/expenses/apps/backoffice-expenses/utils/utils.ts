@@ -1,11 +1,12 @@
 /**
  * Utility functions for Expense Management Overview
- * 
+ *
  * @version 1.0
  * @date 2025-06-05
  */
 
 import { PillType } from "@/components/pill/Pill";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 /**
  * Enum representing the technical statuses for expenses
@@ -43,40 +44,101 @@ export const getExpenseRequestStatusDisplay = (
   status: string
 ): StatusDisplayConfig => {
   switch (status) {
-    case ExpenseStatus.PENDING:
+    case ExpenseStatus.CREATED:
       return {
-        label: "Pending Approval",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
+        type: "draft",
+      };
+
+    case ExpenseStatus.PREPARED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.prepared",
+          "Prepared"
+        ),
+        type: "preparing",
+      };
+
+    case ExpenseStatus.ASSIGNED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.assigned",
+          "Assigned"
+        ),
         type: "task",
       };
+
+    case ExpenseStatus.PENDING:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.in_approval",
+          "In Approval"
+        ),
+        type: "waiting",
+      };
+
     case ExpenseStatus.APPROVED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.verification_required",
+          "Verification Required"
+        ),
+        type: "task",
+      };
+
     case ExpenseStatus.VERIFIED:
       return {
-        label: "Approved",
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.booking_required",
+          "Booking Required"
+        ),
+        type: "task",
       };
+
     case ExpenseStatus.BOOKED:
       return {
-        label: "Booked",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.transfer_required",
+          "Transfer Required"
+        ),
+        type: "task",
+      };
+
+    case ExpenseStatus.CLOSED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.closed",
+          "Closed"
+        ),
+        type: "completed",
+      };
+
+    case ExpenseStatus.PAID:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.paid",
+          "Paid"
+        ),
         type: "completed",
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: "Rejected",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.rejected",
+          "Rejected"
+        ),
         type: "error",
       };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: "Returned",
-        type: "waiting",
-      };
-    case ExpenseStatus.PAID:
-      return {
-        label: "Paid",
-        type: "completed",
-      };
+
     default:
       return {
-        label: status,
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
         type: "draft",
       };
   }
@@ -93,27 +155,74 @@ export const getAdvancePaymentStatusDisplay = (
   switch (status) {
     case ExpenseStatus.PENDING:
       return {
-        label: "Pending",
-        type: "task",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.in_approval",
+          "In Approval"
+        ),
+        type: "waiting",
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: "Approved",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.approved",
+          "Approved"
+        ),
         type: "completed",
+      };
+    case ExpenseStatus.BOOKED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.transfer_required",
+          "Transfer Required"
+        ),
+        type: "task",
+      };
+    case ExpenseStatus.PREPARED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.prepared",
+          "Prepared"
+        ),
+        type: "preparing",
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: "Rejected",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.rejected",
+          "Rejected"
+        ),
         type: "error",
+      };
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.payment_required",
+          "Payment Required"
+        ),
+        type: "task",
+      };
+    case ExpenseStatus.VERIFIED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.booking_required",
+          "Booking Required"
+        ),
+        type: "task",
       };
     case ExpenseStatus.PAID:
       return {
-        label: "Paid",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.paid",
+          "Paid"
+        ),
         type: "completed",
       };
     default:
       return {
-        label: status,
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.draft",
+          "Draft"
+        ),
         type: "draft",
       };
   }
@@ -122,50 +231,50 @@ export const getAdvancePaymentStatusDisplay = (
 /**
  * Determines the fiscal year date range based on current date
  * Assumes fiscal year is calendar year (Jan 1 - Dec 31)
- * 
+ *
  * @returns Object with start and end dates of the current fiscal year
  */
 export const getCurrentFiscalYearRange = () => {
   const today = new Date();
   const currentYear = today.getFullYear();
-  
+
   const fiscalYearStart = new Date(`${currentYear}-01-01T00:00:00.000Z`);
   const fiscalYearEnd = new Date(`${currentYear}-12-31T23:59:59.999Z`);
-  
+
   return {
     start: fiscalYearStart,
     end: fiscalYearEnd,
     startISOString: fiscalYearStart.toISOString(),
     endISOString: fiscalYearEnd.toISOString(),
-    year: currentYear
+    year: currentYear,
   };
 };
 
 /**
  * Formats a date string to YYYY-MM-DD format
- * 
+ *
  * @param dateString - ISO date string
  * @returns Formatted date string
  */
 export const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A';
-  return dateString.split('T')[0];
+  if (!dateString) return "N/A";
+  return dateString.split("T")[0];
 };
 
 /**
  * Determines if an expense request is part of the YTD calculation
- * 
+ *
  * @param expense - Expense data object
  * @returns Boolean indicating if expense is part of YTD
  */
 export const isExpenseInYTD = (expense: any) => {
   const fiscalYear = getCurrentFiscalYearRange();
   const expenseDate = new Date(expense.date);
-  
+
   return (
-    expenseDate >= fiscalYear.start && 
-    expenseDate <= fiscalYear.end && 
-    expense.status.toLowerCase() === 'paid' && 
-    expense.currency === 'EUR'
+    expenseDate >= fiscalYear.start &&
+    expenseDate <= fiscalYear.end &&
+    expense.status.toLowerCase() === "paid" &&
+    expense.currency === "EUR"
   );
 };

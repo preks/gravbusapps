@@ -1,6 +1,5 @@
 ---
-description: Whenever catalog entries are mentioned, or whenever there are dropdown/select components displaying catalog values, or whenever there are dropdown/select components displaying hardcoded values, or whenever catalog values are mentioned, apply this rule.
-globs: 
+description: Whenever catalog entries are mentioned, or whenever there are dropdown/select components displaying catalog values, or whenever there are dropdown/select components displaying hardcoded values, or whenever catalog values are mentioned.
 alwaysApply: false
 ---
 # Catalog API Integration Patterns

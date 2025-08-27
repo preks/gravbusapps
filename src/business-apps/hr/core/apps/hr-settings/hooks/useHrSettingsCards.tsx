@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { RiUserSettingsLine, RiMoneyDollarCircleLine, RiOrganizationChart, RiBuilding2Line } from '@remixicon/react'
+import { RiUserSettingsLine, RiMoneyDollarCircleLine, RiOrganizationChart, RiBuilding2Line, RiDeleteBin6Line } from '@remixicon/react'
 import { HrSettingsCardProps } from '../components/HrSettingsCard'
 
 export function useHrSettingsCards(): HrSettingsCardProps[] {
@@ -96,6 +96,17 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
         {
           label: t('hr.teams', 'Teams'),
           url: '/platform/mdm/organizational-data?tab=teams'
+        }
+      ]
+    },
+    {
+      title: t('hr.position_management', 'Position Management'),
+      description: t('hr.position_management_description', 'Manage job position lifecycle and terminations'),
+      icon: <RiDeleteBin6Line />,
+      entries: [
+        {
+          label: t('hr.position_termination', 'Position Termination'),
+          url: '/?app=PositionTermination&jobPositionId=test-position-123'
         }
       ]
     }

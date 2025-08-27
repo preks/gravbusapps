@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FlowItemReduced } from '../types/FlowRegistryTypes';
-import { ActionOption } from '@newwork/gravity-ui-catalog';
+import { ActionOption } from '@newwork/nw-design-system';
 import { startProcess } from '../utils/start-process';
+import { navigateTo } from '../utils/navigationUtils';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
 
 export interface ExternalContextData {
@@ -26,41 +27,41 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
 
   // Function that can be called manually to fetch flow items
   // Optional directContextData parameter allows passing context data directly without relying on state
-  const fetchFlowItems = async (directContextData?: Record<string, string>) => {
-      const contextData = directContextData || mainContextsData;
-      if (!contextData) return;
-      
-      setIsLoading(true);
-      try {
-        const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
-          contextName: contextName as any,
-          mainContextDataId: externalContextData?.[mainContextDataId as string] as string
-        }));
+  const fetchFlowItems = useCallback(async (directContextData?: Record<string, string>) => {
+    const contextData = directContextData || mainContextsData;
+    if (!contextData) return;
+    
+    setIsLoading(true);
+    try {
+      const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
+        contextName: contextName as any,
+        mainContextDataId: externalContextData?.[mainContextDataId as string] as string
+      }));
 
-        if (contexts.length === 0) return;
+      if (contexts.length === 0) return;
 
-        const response = await flowRegistry.getPermissionFlowItemsV2({
-          contexts
-        });
+      const response = await flowRegistry.getPermissionFlowItemsV2({
+        contexts
+      });
 
-        if (response?.flowItems) {
-          const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
-          setFlowData(mappedFlowItems);
-        }
-      } catch (error) {
-        console.error('Error fetching flow items:', error);
-        setFlowData([]);
-      } finally {
-        setIsLoading(false);
+      if (response?.flowItems) {
+        const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
+        setFlowData(mappedFlowItems);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching flow items:', error);
+      setFlowData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mainContextsData, externalContextData, flowRegistry]);
 
   // Only automatically fetch flow items if not in manual mode
   useEffect(() => {
     if (!manualFetch) {
       fetchFlowItems();
     }
-  }, [mainContextsData, externalContextData, manualFetch]);
+  }, [fetchFlowItems, manualFetch]);
 
   return { flowData, fetchFlowItems, isLoading };
 };
@@ -72,63 +73,81 @@ const mapFlowItemsToActionOptions = (
   flowItems: FlowItemReduced[],
   externalContextData: ExternalContextData
 ): ActionOption[] => {
-  return flowItems.map((flowItem) => {
-    // Extract data from context for payload
-    const payload: Record<string, any> = {};
-    
-    // Handle single context object (API returns context, not contexts array)
-    if (flowItem.context && flowItem.context.contextData && Array.isArray(flowItem.context.contextData) && flowItem.context.contextData.length > 0) {
-      const context = flowItem.context;
-      const contextData = context?.contextData?.[0];
-      // Verify contextData exists and has required properties
-      if (contextData && contextData.id && contextData.contextDataType && contextData.contextDataName) {
-      
-        payload[context.contextName] = {
-          id: contextData.id,
-          type: contextData.contextDataType,
-          name: contextData.contextDataName
-        };
+  /**
+   * Formats a flow name by removing a leading bracketed prefix like "[ABC]" and trimming whitespace.
+   */
+  const formatFlowName = (rawName: string): string => {
+    if (!rawName) return '';
+    let name = String(rawName).trim();
+    if (name.startsWith('[')) {
+      const closingIndex = name.indexOf(']');
+      if (closingIndex !== -1) {
+        name = name.slice(closingIndex + 1);
       }
     }
+    return name.trim();
+  };
+
+  return flowItems.map((flowItem) => {
+    // Create payload directly from externalContextData
+    // The context.contextData from the API is just metadata about what context is expected
+    const payload: Record<string, any> = { ...externalContextData };
     
-    // Fallback to contexts array if present (for backwards compatibility)
-    else if (flowItem.contexts && Array.isArray(flowItem.contexts)) {
-      flowItem.contexts.forEach((context) => {
-        if (context && context.contextData && context.contextData.length > 0) {
-          const contextData = context.contextData[0];
-          payload[context.contextName] = {
-            id: contextData.id,
-            type: contextData.contextDataType,
-            name: contextData.contextDataName
-          };
-        }
-      });
-    }
-
-    // Add external context data to payload
-    if (externalContextData && typeof externalContextData === 'object') {
-      Object.entries(externalContextData).forEach(([key, value]) => {
-        payload[key] = value;
-      });
-    }
-
     // Create ActionOption with required properties
     const id = flowItem.id || '';
-    const flowName = typeof flowItem.flowNameTranslation === 'string' ? 
+    const rawFlowName = typeof flowItem.flowNameTranslation === 'string' ? 
       flowItem.flowNameTranslation : 
       flowItem.flowName;
+    const flowName = formatFlowName(rawFlowName);
+      
+    // Handle different flow types differently
+    let onClick: () => void;
+    
+    switch (flowItem.flowType) {
+      case 'NAVIGATION':
+      case 'REPORT':
+        // For NAVIGATION and REPORT types, navigate to the target URL
+        onClick = () => {
+          // Replace placeholders in targetDesktop with actual values from externalContextData
+          let targetUrl = flowItem.targetDesktop;
+          
+          // The context.contextData tells us what context names are expected
+          // We use those names to find values in externalContextData
+          if (flowItem.context?.contextData) {
+            flowItem.context.contextData.forEach(contextDataItem => {
+              const placeholder = `{${contextDataItem.contextDataName}}`;
+              const contextValue = externalContextData[contextDataItem.contextDataName];
+              
+              if (contextValue && targetUrl.includes(placeholder)) {
+                targetUrl = targetUrl.replace(placeholder, contextValue);
+              }
+            });
+          }
+          
+          // Navigate to the target URL using the navigation utility
+          // This handles environment-specific logic (dev vs prod) and platform URL mapping
+          navigateTo(targetUrl);
+        };
+        break;
+
+      case 'ACTION':
+      default:
+        // For ACTION and unknown flow types, start a process
+        onClick = () => {
+          startProcess({
+            processName: flowItem.processName,
+            domain: flowItem.domain,
+            payload,
+            builderType: flowItem.builderType === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : 'LOWCODER'
+          });
+        };
+        break;
+    }
       
     return {
       key: id,
       label: flowName,
-      onClick: () => {
-        startProcess({
-          processName: flowItem.processName,
-          domain: flowItem.domain,
-          payload,
-          builderType: flowItem.builderType === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : 'LOWCODER'
-        });
-      },
+      onClick,
       // Additional properties for internal use
       processName: flowItem.processName,
       domain: flowItem.domain,

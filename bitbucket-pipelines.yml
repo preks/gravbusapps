@@ -71,6 +71,27 @@ definitions:
         artifacts:
           - changed-tsx.txt
 
+    - step: &build-validate-screens
+        name: Build Validate Changed Screens
+        size: 2x
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - |
+            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+              echo "Building specified screens: $SCREENS_TO_PUBLISH"
+              echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
+              node scripts/build-changed-screens.js manual-screens.txt
+            else
+              echo "No screens specified, using change detection to build screens"
+              node scripts/build-changed-screens.js
+            fi
+        artifacts:
+          - changed-tsx.txt
+          - manual-screens.txt
+
     - step: &publish-changed-prod-screens
           name: Publish Changed Production Screens
           size: 2x
@@ -79,6 +100,7 @@ definitions:
           services:
             - docker
           script:
+            - export SKIP_RESOURCE_URL_SYNC="true"
             - node scripts/publish-prod-screens.js
           artifacts:
             - changed-tsx.txt
@@ -128,7 +150,8 @@ definitions:
 pipelines:
   pull-requests:
     '**':
-      - step: *detect-changed-screens
+      - step: *install_dependencies
+      - step: *build-validate-screens
 
   branches:
     develop:
@@ -137,7 +160,7 @@ pipelines:
 
     hotfix/*:
       - step: *install_dependencies
-      - step: *publish-changed-screens
+      - step: *publish-changed-prod-screens
 
     main:
       - step: *install_dependencies
@@ -146,6 +169,13 @@ pipelines:
   custom:
     dry-run:
       - step: *detect-changed-screens
+
+    build-manual:
+      - variables:
+          - name: SCREENS_TO_PUBLISH
+            default: ""
+      - step: *install_dependencies
+      - step: *build-validate-screens
 
     publish-manual:
       - variables:

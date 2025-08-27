@@ -22,6 +22,7 @@ import { formatCurrency } from '../../../utils/currencyUtils';
 import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { startProcess } from '@/common/utils/start-process';
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string;
@@ -261,12 +262,84 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
                         variant="secondary"
-                        contextsArray={[FlowContextName.leadEntity]}
-                        externalContextData={{
-                          planId: plan.id
-                        }}
+                        staticFlowData={[
+                          ...(plan.status === 'CREATED' || plan.status === 'REJECTED') ? [
+                            {
+                              category: 'Actions',
+                              key: 'update-expense-plan',
+                              label: 'Update Expense Plan',
+                              onClick: () => {
+                                startProcess({
+                                  domain: 'employee-expense',
+                                  processName: 'changeExpensePlan',
+                                  payload: {
+                                    employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                    expensePlanId: plan.id
+                                  },
+                                  builderType: 'NATIVE_SCREEN'
+                                });
+                              }
+                            }
+                          ] : [],
+                          ...(plan.status === 'APPROVED' || plan.status === 'CLOSED') ? [
+                            {
+                              category: 'Actions',
+                              key: 'print-expense-plan',
+                              label: 'Print',
+                              onClick: () => {
+                                // TODO: Implement print functionality
+                                console.log('Print expense plan:', plan.id);
+                              }
+                            }
+                          ] : [],
+                          ...(plan.status === 'CREATED' || plan.status === 'CLOSED') ? [
+                            {
+                              category: 'Actions',
+                              key: 'request-advance-payment',
+                              label: 'Request Advance Payment',
+                              onClick: () => {
+                                startProcess({
+                                  domain: 'employee-expense',
+                                  processName: 'changeAdvancePayment',
+                                  payload: {
+                                    employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                    expensePlan: plan.id
+                                  },
+                                  builderType: 'NATIVE_SCREEN'
+                                });
+                              }
+                            }
+                          ] : [],
+                          ...(plan.status === 'APPROVED') ? [
+                            {
+                              category: 'Actions',
+                              key: 'create-expense-request',
+                              label: 'Create Expense Request',
+                              onClick: () => {
+                                startProcess({
+                                  domain: 'employee-expense',
+                                  processName: 'changeExpenseRequest',
+                                  payload: {
+                                    employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+                                    expensePlanId: plan.id
+                                  },
+                                  builderType: 'NATIVE_SCREEN'
+                                });
+                              }
+                            }
+                          ] : [],
+                          {
+                            category: 'Navigations',
+                            key: 'view-expense-plan-details',
+                            label: 'View Plan Details',
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
+                              handleViewDetails(plan);
+                            },
+                          },
+                        ]}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-plan`}
-                        accessToken={props.accessToken}
+                        accessToken={contextProps.accessToken}
                         emptyStateBehavior="disable"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}

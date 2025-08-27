@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { notification } from '@newwork/gravity-ui-catalog';
-import { useTranslation } from 'react-i18next';
 import { FlowContextName } from '../types/FlowRegistryTypes';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
 
@@ -13,11 +12,35 @@ import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
 export const useMainContextsData = (contexts: FlowContextName[], accessToken: string, manualMode: boolean = false) => {
   const [mainContextsData, setMainContextsData] = useState<Record<string, string> | undefined>();
   const [isLoading, setIsLoading] = useState(!manualMode);
-  const { t } = useTranslation();
   const flowRegistry = useFlowRegistryClient(accessToken);
 
+  // Define getAllMainContextsData first
+  const getAllMainContextsData = useCallback(async (contextsToFetch: FlowContextName[]) => {
+    try {
+      const mainContexts = await flowRegistry.getMainContextData({
+        contextNames: contextsToFetch
+      });
+      
+      if (mainContexts?.contextData) {
+        // Transform the response into a map of contextName -> mainContextDataName
+        const contextMap: Record<string, string> = {};
+        mainContexts.contextData.forEach((item: { contextName: string; mainContextDataName: string }) => {
+          contextMap[item.contextName] = item.mainContextDataName;
+        });
+        return contextMap;
+      }
+    } catch (error) {
+      notification.error({
+        message: 'Error',
+        description: 'Error loading data',
+      });
+      console.error('Error fetching main contexts data:', error);
+    }
+    return {};
+  }, [flowRegistry]);
+
   // Function to fetch context data that can be called manually
-  const fetchMainContextsData = async () => {
+  const fetchMainContextsData = useCallback(async () => {
     if (contexts.length === 0) return null;
     
     setIsLoading(true);
@@ -31,38 +54,14 @@ export const useMainContextsData = (contexts: FlowContextName[], accessToken: st
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getAllMainContextsData = async (contextsToFetch: FlowContextName[]) => {
-      try {
-        const mainContexts = await flowRegistry.getMainContextData({
-          contextNames: contextsToFetch
-        });
-        
-        if (mainContexts?.contextData) {
-          // Transform the response into a map of contextName -> mainContextDataName
-          const contextMap: Record<string, string> = {};
-          mainContexts.contextData.forEach((item: { contextName: string; mainContextDataName: string }) => {
-            contextMap[item.contextName] = item.mainContextDataName;
-          });
-          return contextMap;
-        }
-      } catch (error) {
-        notification.error({
-          message: t('common:error'),
-          description: t('common:error_loading_data'),
-        });
-        console.error('Error fetching main contexts data:', error);
-      }
-      return {};
-    };
+  }, [contexts, getAllMainContextsData]);
 
   // Only automatically fetch data if not in manual mode
   useEffect(() => {
     if (!manualMode) {
       fetchMainContextsData();
     }
-  }, [contexts, manualMode]);
+  }, [fetchMainContextsData, manualMode]);
 
   return { mainContextsData, fetchMainContextsData, isLoading };
 };

@@ -15,8 +15,24 @@ export const GET_LEADS_QUERY = `
       companyName
       companyEmail
       companyPhone
+      companyWebsite
+      conversionDate
       createdAt
       countryRef
+      regionRef
+      region {
+        id
+        code
+        value
+      }
+      city
+      addressLine
+      postalCode
+      industry {
+        id
+        code
+        value
+      }
       contact {
         id
         firstName

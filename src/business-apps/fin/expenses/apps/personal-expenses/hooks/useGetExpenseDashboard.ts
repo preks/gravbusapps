@@ -5,11 +5,13 @@ import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCatalogValue } from '@/common/utils/windowUtils';
 
 export interface ExpenseDashboard {
   pendingPayouts: number;
   bookedExpenseRequests: number;
   pendingAdvancePayments: number;
+  bookedAndPendingCount: number;
   currentMonthExpenses: {
     total: number;
     count: number;
@@ -106,7 +108,8 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         const processExpensesByType = (expenseData: any[]): Record<string, number> => {
           const expenseTypes: Record<string, number> = {};
           expenseData?.forEach((item: any) => {
-            const type = item.expenseGroup?.value || 'Other';
+            // Use getCatalogValue to get the translated name from the catalog entry
+            const type = item.expenseGroup ? getCatalogValue(item.expenseGroup) : 'Other';
             if (!expenseTypes[type]) {
               expenseTypes[type] = 0;
             }
@@ -121,11 +124,13 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
 
         const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
         const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
+        const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count + data?.pendingAdvancePayments?.aggregate?.count;
 
         const expenseDashboard: ExpenseDashboard = {
           pendingPayouts: bookedExpenseRequests + pendingAdvancePayments,
           bookedExpenseRequests: bookedExpenseRequests,
           pendingAdvancePayments: pendingAdvancePayments,
+          bookedAndPendingCount: bookedAndPendingCount,
           currentMonthExpenses: {
             total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
             count: data?.currentMonthExpenses?.aggregate?.count ?? 0,
