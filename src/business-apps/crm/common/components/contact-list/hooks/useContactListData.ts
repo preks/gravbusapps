@@ -86,6 +86,8 @@ export const useContactListData = (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { fetchContactsData } = useGetContactsData(params.context);
 
@@ -95,14 +97,17 @@ export const useContactListData = (
       pageSize = 20,
       additionalFilters?: any,
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
       if (!params.context.accessToken) {
         console.warn("No access token provided for contact data loading");
         return;
       }
 
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -137,7 +142,7 @@ export const useContactListData = (
               { ownerEmployee: { firstName: searchPattern } },
               { ownerEmployee: { lastName: searchPattern } },
               { ownerEmployee: { displayName: searchPattern } }, // Added: displayed in owner
-            ]
+            ],
           });
         }
 
@@ -164,25 +169,29 @@ export const useContactListData = (
         // Add contact filtering (by name)
         if (params.contacts && params.contacts.length > 0) {
           const contactNameConditions: any[] = [];
-          
+
           params.contacts.forEach((contactFilter) => {
             if (contactFilter.firstName && contactFilter.lastName) {
               // Filter by exact first and last name combination
               contactNameConditions.push({
                 _and: [
                   { firstName: { _eq: contactFilter.firstName } },
-                  { lastName: { _eq: contactFilter.lastName } }
-                ]
+                  { lastName: { _eq: contactFilter.lastName } },
+                ],
               });
             } else {
               // Fallback: filter by display name if individual names not available
-              const name = contactFilter.name || `${contactFilter.firstName || ''} ${contactFilter.lastName || ''}`.trim();
+              const name =
+                contactFilter.name ||
+                `${contactFilter.firstName || ""} ${
+                  contactFilter.lastName || ""
+                }`.trim();
               if (name) {
                 contactNameConditions.push({
                   _or: [
                     { firstName: { _ilike: `%${name}%` } },
-                    { lastName: { _ilike: `%${name}%` } }
-                  ]
+                    { lastName: { _ilike: `%${name}%` } },
+                  ],
                 });
               }
             }
@@ -196,38 +205,42 @@ export const useContactListData = (
         // Add contact info filtering
         if (params.contactInfo && params.contactInfo.length > 0) {
           const contactInfoConditions: any[] = [];
-          
+
           params.contactInfo.forEach((filter) => {
             switch (filter) {
               case "HAS_EMAIL":
-                contactInfoConditions.push({ email: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  email: { _isNull: false, _neq: "" },
+                });
                 break;
               case "HAS_PHONE":
-                contactInfoConditions.push({ phone: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  phone: { _isNull: false, _neq: "" },
+                });
                 break;
               case "HAS_LINKEDIN":
-                contactInfoConditions.push({ linkedinUrl: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  linkedinUrl: { _isNull: false, _neq: "" },
+                });
                 break;
               case "HAS_XING":
-                contactInfoConditions.push({ xingUrl: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  xingUrl: { _isNull: false, _neq: "" },
+                });
                 break;
               case "HAS_JOB_TITLE":
-                contactInfoConditions.push({ jobTitle: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  jobTitle: { _isNull: false, _neq: "" },
+                });
                 break;
               case "MISSING_EMAIL":
-                contactInfoConditions.push({ 
-                  _or: [
-                    { email: { _isNull: true } },
-                    { email: { _eq: "" } }
-                  ]
+                contactInfoConditions.push({
+                  _or: [{ email: { _isNull: true } }, { email: { _eq: "" } }],
                 });
                 break;
               case "MISSING_PHONE":
-                contactInfoConditions.push({ 
-                  _or: [
-                    { phone: { _isNull: true } },
-                    { phone: { _eq: "" } }
-                  ]
+                contactInfoConditions.push({
+                  _or: [{ phone: { _isNull: true } }, { phone: { _eq: "" } }],
                 });
                 break;
             }
@@ -337,7 +350,10 @@ export const useContactListData = (
                 : "DESC_NULLS_LAST";
           } else if (overrideSortField === "academicTitle") {
             orderBy.academicTitle = {
-              value: overrideSortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST"
+              value:
+                overrideSortOrder === "ASC"
+                  ? "ASC_NULLS_LAST"
+                  : "DESC_NULLS_LAST",
             };
           } else if (overrideSortField === "birthDate") {
             orderBy.birthDate =
@@ -399,7 +415,10 @@ export const useContactListData = (
               params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "academicTitle") {
             orderBy.academicTitle = {
-              value: params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST"
+              value:
+                params.sortOrder === "ASC"
+                  ? "ASC_NULLS_LAST"
+                  : "DESC_NULLS_LAST",
             };
           } else if (params.sortField === "birthDate") {
             orderBy.birthDate =
@@ -423,6 +442,8 @@ export const useContactListData = (
 
           const totalCount = result.ContactAggregate?.aggregate?.count || 0;
           setTotal(totalCount);
+          setCurrentPage(page);
+          setPageSize(safePageSize);
           setHasMore(offset + safePageSize < totalCount);
         }
       } catch (err) {
@@ -458,8 +479,8 @@ export const useContactListData = (
 
   const retry = useCallback(() => {
     console.log("Retrying contact data load");
-    // Will be implemented with actual retry logic
-  }, []);
+    loadPage(currentPage, pageSize);
+  }, [currentPage, pageSize, loadPage]);
 
   return {
     contacts,

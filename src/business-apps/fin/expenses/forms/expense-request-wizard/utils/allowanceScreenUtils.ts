@@ -8,10 +8,14 @@ interface ExpenseItem {
   code: string;
   title: string;
   expenseRequest: string;
-  costCenterId?: string;
-  projectId?: string;
+  costCenter?: string;
+  project?: string;
   ruleId?: string;
   expenseRuleId?: string;
+  expenseGroupRef?: string;
+  source?: string;
+  expenseClassRef?: string;
+  autoCalculated?: boolean;
 }
 
 /**
@@ -39,8 +43,12 @@ export const createAllowanceScreenLogObject = (
     code: item.code || '',
     title: item.title || '',
     expenseRequest: initialRequest?.id || '',
-    costCenterId: item.costCenterId || '',
-    projectId: item.projectId || ''
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   }));
   
   // Map non-allowance items
@@ -51,8 +59,12 @@ export const createAllowanceScreenLogObject = (
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expenseRequest: initialRequest?.id || '',
-    costCenterId: item.costCenterId || '',
-    projectId: item.projectId || ''
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   }));
   
   // Combine both arrays

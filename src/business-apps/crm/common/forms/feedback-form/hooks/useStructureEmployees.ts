@@ -3,7 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 import { EmployeeOption } from '../types';
 
-export const useStructureEmployees = (accessToken: string, shouldFetch: boolean = true) => {
+export const useStructureEmployees = (accessToken: string, shouldFetch: boolean = true, currentUserId?: string) => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +44,11 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
             firstName
             lastName
             employee {
-              id
-              displayName
-              pictureThumbnail
-            }
+                id
+                displayName
+                pictureThumbnail
+                userId
+              }
             jobPosition {
               name
             }
@@ -61,19 +62,22 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
       const variables = {
         structureId,
         search: search ? `%${search}%` : '%',
-        limit: 100
+        limit: 200
       };
 
       const result = await graphqlClient.request(query, variables);
       
-      const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
-        id: emp.id,
-        name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
-        email: undefined, // Not available in this query
-        jobTitle: emp.jobPosition?.name,
-        department: emp.organizationalUnit?.name,
-        pictureThumbnail: emp.employee?.pictureThumbnail
-      }));
+      const employeeOptions: EmployeeOption[] = result.EmployeePosition
+        .map((emp: any) => ({
+          id: emp.employeeId, // Use the actual employee ID from the employee object
+          name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+          jobTitle: emp.jobPosition?.name,
+          department: emp.organizationalUnit?.name,
+          pictureThumbnail: emp.employee?.pictureThumbnail,
+          userId: emp.employee?.userId || undefined // Use the userId from the employee object
+        }))
+        // Filter out the current user from the list
+        .filter((emp: EmployeeOption) => emp.id !== currentUserId);
 
       setEmployees(employeeOptions);
     } catch (err) {
@@ -82,7 +86,7 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, graphqlClient, shouldFetch]);
+  }, [accessToken, graphqlClient, shouldFetch, currentUserId]);
 
   const getEmployeeById = useCallback((employeeId: string): EmployeeOption | undefined => {
     return employees.find(emp => emp.id === employeeId);

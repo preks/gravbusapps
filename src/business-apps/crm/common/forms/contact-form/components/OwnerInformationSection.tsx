@@ -66,9 +66,12 @@ const OwnerInformationSection: React.FC = () => {
             Owner <span className="gba:text-red-500">*</span>
           </Label>
           <OwnerSelector
-            value={formValues.ownerEmployeeId}
+            value={formValues.owner || formValues.ownerEmployeeId}
             onChange={(value: string) =>
-              setFormValues({ ownerEmployeeId: value })
+              setFormValues({
+                owner: value,
+                ownerEmployeeId: value,
+              })
             }
             employees={employeePositions}
             loading={employeePositionsLoading}

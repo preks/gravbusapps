@@ -22,7 +22,6 @@ import { UploadOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import flowSmall from "@/assets/icons/flowSmall.svg";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { getAbsenceTypes } from "./queries/getAbsenceTypes";
 import { getAllEmployees } from "./queries/getAllEmployees";
 import { BusinessAppContextProps } from "../../../../../common/BusinessAppContext";
 import { getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
@@ -31,12 +30,9 @@ import { getCurrentActiveStructureId } from "@/common/utils/windowUtils";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useAbsenceValidation } from "./hooks/useAbsenceValidation";
 import { useFileClient } from "@/common/network/files/useFileClient";
+import { useAbsenceTypesByGroup } from "./hooks/useAbsenceTypesByGroup";
 
-interface AbsenceType {
-  id: string;
-  parentEntryId: string;
-  translations: { value: string; localeCode: string }[];
-}
+import { AbsenceTypeOption } from "./hooks/useAbsenceTypesByGroup";
 
 type Employee = {
   id: string;
@@ -59,10 +55,18 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const locale = getCurrentActiveUserLocale();
   const structureId = getCurrentActiveStructureId();
 
-  const absenceType = additionalData?.absenceType || "";
+  // Get absenceType from different possible sources
+  // This is the parent entry ID (absence group) that determines which absence types to show
+  const absenceType = additionalData?.absenceType || 
+                     additionalData?.externalContextData?.absenceType ||
+                     additionalData?.psi_taskPayload?.absenceType ||
+                     additionalData?.psi_taskPayload?.psi_initialParameters?.absenceType ||
+                     "";
 
-  const [types, setTypes] = useState<AbsenceType[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+
+  // Use the hook for absence types
+  const { absenceTypes: types, isLoading: typesLoading, error: typesError } = useAbsenceTypesByGroup(props, absenceType);
 
   const initialFormValues: CreateNewAbsenceFormValues = {
     selectedType: "",
@@ -113,34 +117,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
       });
   }, [accessToken, userInfo?.id, structureId, client]);
 
-  useEffect(() => {
-    if (!absenceType) {
-      setTypes([]);
-      setFormValuesState((prev) => ({ ...prev, selectedType: "" }));
-      return;
-    }
 
-    setFormValuesState((prev) => ({ ...prev, selectedType: "" }));
 
-    client
-      .request(getAbsenceTypes, {
-        activeUserLocale: locale,
-        parentEntryId: absenceType,
-      })
-      .then((res: { CatalogEntry: AbsenceType[] }) => {
-        setTypes(res.CatalogEntry);
-      })
-      .catch((error) => {
-        throw new Error(error);
-      });
-  }, [client, locale, absenceType]);
-
+  // Auto-select if only one type is available
   useEffect(() => {
     if (types.length === 1 && !formValuesState.selectedType) {
-      const selectedTypeId = types[0].id;
       setFormValuesState((prev) => ({
         ...prev,
-        selectedType: selectedTypeId,
+        selectedType: types[0].id,
       }));
     }
   }, [types, formValuesState.selectedType]);
@@ -481,9 +465,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     <SelectContent>
                       {types.map((type) => (
                         <SelectItem key={type.id} value={type.id}>
-                          {type.translations.find(
-                            (t: any) => t.localeCode === locale
-                          )?.value || type.id}
+                          {type.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

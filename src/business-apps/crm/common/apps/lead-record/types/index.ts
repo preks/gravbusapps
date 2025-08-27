@@ -169,4 +169,14 @@ export interface ReferenceData {
   code: string;
   value: string;
   alternativeCode?: string;
-} 
+}
+
+// Default export for wrapped entries
+export default {
+  Note,
+  Opportunity,
+  Contact,
+  Lead,
+  LeadActivity,
+  ReferenceData
+}; 

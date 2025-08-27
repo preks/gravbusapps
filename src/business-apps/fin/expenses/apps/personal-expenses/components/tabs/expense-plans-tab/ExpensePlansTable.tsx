@@ -340,10 +340,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                           className="gba:py-4 gba:px-3"
                           data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                         >
-                          <div className="gba:flex gba:justify-start gba:gap-2">
+                          <div 
+                            className="gba:flex gba:justify-start gba:gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <AppActionButton
                               data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${record.id}`}
-                              variant="secondary"
+                              size="icon"
                               staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'REJECTED') ? [
                                   {
@@ -432,8 +435,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                               prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick
-                              onClick={(e) => e.stopPropagation()}
+                              deferMainContextRequestsUntilClick={true}
                             />
                           </div>
                         </TableCell>
@@ -598,7 +600,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             ) : (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} expense plans`}
+                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <p className="gba:text-sm gba:font-medium">Rows per page</p>

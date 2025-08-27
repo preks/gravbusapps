@@ -1,9 +1,7 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import {
   Button,
-  Input,
   Label,
-  Spinner,
   Alert,
   AlertDescription,
 } from "@newwork/nw-design-system";
@@ -47,10 +45,6 @@ const LeadFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await onSubmit(formValues);
-      console.log("Comapny name value ", formValues.company);
-      // Determine if this is an update or create operation
-      const isUpdate = formValues.id;
-
       // Prepare comprehensive lead payload following the API structure
       const leadPayload: any = {
         sourceApp: "CRM",
@@ -73,64 +67,84 @@ const LeadFormComponent: React.FC = () => {
         companyPhone: toStringOrUndefined(formValues.companyPhone),
         companyWebsite: toStringOrUndefined(formValues.website),
         countryRef: toStringOrUndefined(formValues.country),
-        // regionRef: toStringOrUndefined(formValues.region),
-        addressLine:
-          toStringOrUndefined(formValues.addressLine1) ||
-          toStringOrUndefined(formValues.address),
+        regionRef: toStringOrUndefined(formValues.region),
+        addressLine: undefined, // Will be set from addresses array below
         postalCode: toStringOrUndefined(formValues.postalCode),
         city: toStringOrUndefined(formValues.city),
         ownerEmployee: toStringOrUndefined(formValues.owner),
         description: toStringOrUndefined(formValues.notes), // Fixed: Use notes field from DescriptionSection
       };
 
-      // For updates, include the lead ID and version
-      if (isUpdate) {
-        leadPayload.id = formValues.id;
-        if (formValues.version !== undefined) {
-          leadPayload.version = formValues.version;
-        }
-      }
+      // Build addresses array from dynamic addresses only (no legacy fallback)
+      const addresses: any[] = [];
 
-      // Build addresses array if we have address data
-      const addresses = [];
-      const addressLine =
-        toStringOrUndefined(formValues.addressLine1) ||
-        toStringOrUndefined(formValues.address) ||
-        [
-          formValues.addressLine1,
-          formValues.addressLine2,
-          formValues.addressLine3,
-          formValues.addressLine4,
-        ]
-          .filter((line) => toStringOrUndefined(line))
-          .join(", ");
+      // Process dynamic addresses only
+      if (formValues.addresses && formValues.addresses.length > 0) {
+        formValues.addresses.forEach((address) => {
+          // Filter out empty address lines
+          const nonEmptyLines = address.addressLines
+            .map((line) => toStringOrUndefined(line))
+            .filter((line) => line);
 
-      if (
-        addressLine ||
-        toStringOrUndefined(formValues.city) ||
-        toStringOrUndefined(formValues.postalCode)
-      ) {
-        addresses.push({
-          addressType: "UNKNOWN_ADDRESS",
-          addressLine: addressLine,
-          postalCode: toStringOrUndefined(formValues.postalCode),
-          city: toStringOrUndefined(formValues.city),
-          regionRef: toStringOrUndefined(formValues.region),
-          countryRef: toStringOrUndefined(formValues.country),
+          // Create a separate address object for each non-empty address line
+          nonEmptyLines.forEach((addressLine) => {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: addressLine,
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          });
+
+          // If no address lines but other address data exists, create one address with empty addressLine
+          if (
+            nonEmptyLines.length === 0 &&
+            (toStringOrUndefined(address.city) ||
+              toStringOrUndefined(address.postalCode) ||
+              toStringOrUndefined(address.region) ||
+              toStringOrUndefined(address.country))
+          ) {
+            addresses.push({
+              addressType: address.addressType || "UNKNOWN_ADDRESS",
+              addressLine: "",
+              postalCode: toStringOrUndefined(address.postalCode),
+              city: toStringOrUndefined(address.city),
+              regionRef: toStringOrUndefined(address.region),
+              countryRef: toStringOrUndefined(address.country),
+            });
+          }
         });
       }
 
-      leadPayload.addresses = addresses;
+      // Set addresses to null if empty, otherwise use the addresses array
+      leadPayload.addresses = addresses.length > 0 ? addresses : null;
+
+      // Set the main addressLine field from the first address (for backward compatibility)
+      if (addresses.length > 0) {
+        leadPayload.addressLine = addresses[0].addressLine;
+      } else {
+        leadPayload.addressLine = null;
+      }
+
+      // Initialize empty arrays for tags and communication channels (like account form)
+      leadPayload.tags = [];
+      leadPayload.communicationChannels = [];
+
+      // Use UPDATE mode if editing existing lead, INSERT for new lead
+      const changeMode = formValues.id ? "UPDATE" : "INSERT";
 
       const payload = {
         lead: leadPayload,
+        changeMode: changeMode,
       };
 
-      // Log the payload for debugging
-      console.log(
-        `${isUpdate ? "Updating" : "Creating"} lead with payload:`,
-        payload
-      );
+      // Add id and version for UPDATE mode
+      if (changeMode === "UPDATE" && formValues.id) {
+        leadPayload.id = formValues.id;
+        leadPayload.version = formValues.version;
+      }
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);

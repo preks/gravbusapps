@@ -30,6 +30,14 @@ export const getMaxLimits = (destinations: LocationData[], endLocation: Location
   ): DateTimeLimits => {
     const indexOfCurrentDestination = destinations.findIndex((dest) => dest.id === currentDestination.id);
   
+    if (destinations.length === 1) {
+      return {
+        minDate: startLocation.departureDate,
+        minTime: startLocation.departureTime,
+        maxDate: endLocation.departureDate,
+        maxTime: endLocation.departureTime,
+      };
+    }
     const destinationsBeforeCurrent = destinations.slice(0, indexOfCurrentDestination);
     const destinationsAfterCurrent = destinations.slice(indexOfCurrentDestination + 1);
   
@@ -120,10 +128,20 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
  * Combines date and time into an ISO string
  * @param date - Date object or string
  * @param time - Time as Date object or string
- * @returns ISO string representation of the combined date and time, or empty string if both are missing
+ * @param fallbackDate - Optional fallback date when both date and time are missing
+ * @returns ISO string representation of the combined date and time, or fallback date if provided, or empty string if all are missing
  */
-export const combineDateTimeToISOString = (date: Date | undefined, time: Date | undefined): string => {
-  if (!date && !time) return "";
+export const combineDateTimeToISOString = (
+  date: Date | undefined, 
+  time: Date | undefined, 
+  fallbackDate?: Date | string
+): string => {
+  if (!date && !time) {
+    if (fallbackDate) {
+      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00Z";
+    }
+    return "";
+  }
   
   // If we only have time, return time as string
   if (!date && time) {

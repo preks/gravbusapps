@@ -198,13 +198,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     
     const expenseItems = selectedItems.map((element: any) => ({
       itemId: element.id,
-      currencyId: element.currencyId
+      currencyId: element.currencyRef
     }));
     const payload = {
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
-    
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
@@ -481,11 +480,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                             className="gba:py-4 gba:px-3"
                             data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                           >
-                            <div className="gba:flex gba:justify-start gba:gap-2">
-                             <AppActionButton
-                              data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-                              variant="secondary"
-                              staticFlowData={[
+                            <div 
+                              className="gba:flex gba:justify-start gba:gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <AppActionButton
+                                data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+                                size="icon"
+                                staticFlowData={[
                                 ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
                                 {
                                   category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
@@ -496,12 +498,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                       domain: 'employee-expense',
                                       processName: 'changeExpenseItem',
                                       payload: {
-                                          psi_taskPayload: {
-                                           initialParameters: {
                                             employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
                                             expenseId: record.id
-                                          }
-                                      }
                                      },
                                       builderType: 'NATIVE_SCREEN'
                                     });
@@ -536,8 +534,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick
-                              onClick={(e) => e.stopPropagation()}
+                              deferMainContextRequestsUntilClick={true}
                             />
                             </div>
                           </TableCell>
@@ -661,7 +658,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               ) : (
                 <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {`${totalCount} expense items`}
+                    {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items')}`}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <p className="gba:text-sm gba:font-medium">Rows per page</p>

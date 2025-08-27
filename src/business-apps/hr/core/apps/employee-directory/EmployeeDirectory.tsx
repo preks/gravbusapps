@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters';
-import { PageLayout } from '@/components/layout/pageLayout';
+import { PageLayout, IconAvatar } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataCards } from '@/components/dataCards';
-import { PiUser, PiUsersThree, PiUsersThreeDuotone } from 'react-icons/pi';
+import { PiUser, PiUsersThree } from 'react-icons/pi';
+import { Users } from '@phosphor-icons/react';
 import { EmployeeCard } from './components/EmployeeCard.component';
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
 //import { useTranslation } from 'react-i18next';
@@ -44,6 +45,12 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
 
   //const { t } = useTranslation('employee_directory', { keyPrefix: 'employee_directory' });
   
+  // Memoize filters to prevent unnecessary re-renders
+  const memoizedFilters = useMemo(() => ({
+    ...getFilters(),
+    accessToken
+  }), [getFilters, accessToken]);
+  
   const {
     employees,
     total,
@@ -52,7 +59,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
     hasMore,
     loadMore,
     retry
-  } = useGetEmployees({ ...getFilters(), accessToken });
+  } = useGetEmployees(memoizedFilters);
   const loaderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -76,93 +83,85 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
     setSelectedEmployee((prev: Employee | null) => prev?.id === employee.id ? null : employee);
   }, []);
 
-  // Handle click outside of employee cards to close details
-  const handleOutsideClick = useCallback((e: MouseEvent) => {
-    // Check if the click is outside of any employee card and outside the details panel
-    const target = e.target as HTMLElement;
-    const isOutsideEmployeeCard = !target.closest('.employee-card-wrapper');
-    const isOutsideDetailsPanel = !target.closest('[data-testid="data-details-container"]');
-    
-    if (isOutsideEmployeeCard && isOutsideDetailsPanel && selectedEmployee) {
-      setSelectedEmployee(null);
-    }
-  }, [selectedEmployee]);
 
-  // Add and remove click listener for outside clicks
-  useEffect(() => {
-    document.addEventListener('click', handleOutsideClick);
-    return () => {
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  }, [handleOutsideClick]);
 
   return (
+    <div data-testid="employee-directory-app">
       <PageLayout
-        headerIcon={<PiUsersThreeDuotone color='#254469'/>}
-        headerLabel={'Employee Directory'}
-        contentHeader={null}
-        contentContainer={
-          <DataContainer<DataControllerProps>
-            dataControllerComponent={DataController}
-            dataControllerProps={{
-              // Props with debounce functionality now built into DataController
-              search: search,
-              setSearch: setSearch,
-              debounceDelay: 300, // 300ms debounce delay
-              
-              // Regular DataController props
-              filter: selectedFilters,
-              setFilter: setSelectedFilters,
-              filterLabelMap: filterLabelMap,
-              listTitle: 'Employees',
-              listIcon: <PiUsersThree size={20} />,
-              listAmount: total,
-            }}
-            dataFilterProps={{
-              filterGroups: filterGroups,
-              onFilterChange: handleFilterChange,
-            }}
-            dataBody={
-              <DataCards
-                items={employees}
-                getKey={(emp) => emp.id}
-                renderItem={(emp: Employee) => (
-                  <div 
-                    className="gba:cursor-pointer"
-                    onClick={() => handleEmployeeSelect(emp)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleEmployeeSelect(emp);
-                      }
-                    }}
-                    aria-pressed={selectedEmployee?.id === emp.id}
-                  >
-                    <EmployeeCard employee={emp} isSelected={selectedEmployee?.id === emp.id} />
-                  </div>
-                )}
-                hasMore={hasMore}
-                loading={loading}
-                error={error ? 'Failed to load employees.' : null}
-                onLoadMore={loadMore}
-                onRetry={retry}
-                emptyMessage="No employees found."
-              />
-            }
-            floatingDetails={true}
-            dataDetails={
-              selectedEmployee ? {
-                title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
-                icon: <PiUser size={20} />,
-                content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
-                // No footer needed here as the EmployeeDetails component has its own action buttons
-              } : undefined
-            }
+        headerIcon={
+          <IconAvatar
+            icon={Users}
+            variant="info"
+            size="lg"
+            data-testid="employee-directory-header-icon"
           />
         }
-      />
+        headerTitle="Employee Directory"
+        headerDescription="Browse and connect with employees across your organization"
+        className="gba:min-h-screen"
+      >
+        <DataContainer<DataControllerProps>
+          dataControllerComponent={DataController}
+          contentBackground="white"
+          dataControllerProps={{
+            // Props with debounce functionality now built into DataController
+            search: search,
+            setSearch: setSearch,
+            debounceDelay: 300, // 300ms debounce delay
+            
+            // Regular DataController props
+            filter: selectedFilters,
+            setFilter: setSelectedFilters,
+            filterLabelMap: filterLabelMap,
+            listTitle: 'Employees',
+            listIcon: <PiUsersThree size={20} />,
+            listAmount: total,
+          }}
+          dataFilterProps={{
+            filterGroups: filterGroups,
+            onFilterChange: handleFilterChange,
+          }}
+          dataBody={
+            <DataCards
+              items={employees}
+              getKey={(emp) => emp.id}
+              renderItem={(emp: Employee) => (
+                <div 
+                  className="gba:cursor-pointer"
+                  onClick={() => handleEmployeeSelect(emp)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleEmployeeSelect(emp);
+                    }
+                  }}
+                  aria-pressed={selectedEmployee?.id === emp.id}
+                >
+                  <EmployeeCard employee={emp} isSelected={selectedEmployee?.id === emp.id} />
+                </div>
+              )}
+              hasMore={hasMore}
+              loading={loading}
+              error={error ? 'Failed to load employees.' : null}
+              onLoadMore={loadMore}
+              onRetry={retry}
+              emptyMessage="No employees found."
+            />
+          }
+          floatingDetails={true}
+          dataDetails={
+            selectedEmployee ? {
+              title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
+              icon: <PiUser size={20} />,
+              content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
+              onClose: () => setSelectedEmployee(null)
+            } : undefined
+          }
+        />
+      </PageLayout>
+    </div>
   );
 };
 

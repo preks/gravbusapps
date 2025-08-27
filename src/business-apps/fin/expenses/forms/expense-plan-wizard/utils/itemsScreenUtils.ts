@@ -78,14 +78,26 @@ export const createItemsScreenLogObject = (
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expensePlan: initialPlan?.id || ''
+    expensePlan: initialPlan?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })).concat(getAllowanceItemsFunction(expensePlanData?.ExpensePlanItem || []).map(item => ({
     id: item.id,
     version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expensePlan: initialPlan?.id || ''
+    expensePlan: initialPlan?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })))
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + event + (skipStep ? ("_"+ EVENTS.SKIP) : ""),

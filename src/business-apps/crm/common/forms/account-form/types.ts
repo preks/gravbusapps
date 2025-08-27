@@ -1,3 +1,13 @@
+export interface Address {
+  id: string; // Unique identifier for the address
+  addressType: string; // "BILLING", "SHIPPING", "OFFICE", "UNKNOWN_ADDRESS", etc.
+  addressLines: string[]; // Dynamic array of address lines
+  postalCode: string;
+  city: string;
+  region: string;
+  country: string;
+}
+
 export interface AccountFormValues {
   // Account Information
   owner: string;
@@ -18,7 +28,10 @@ export interface AccountFormValues {
   email: string;
   fax: string;
 
-  // Address Information
+  // Dynamic Addresses Information
+  addresses: Address[];
+
+  // Legacy Address Information (for backward compatibility)
   country: string;
   region: string;
   addressLine1: string;

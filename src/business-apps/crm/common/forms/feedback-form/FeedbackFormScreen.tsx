@@ -4,6 +4,7 @@ import FeedbackForm from './FeedbackForm';
 import { FeedbackFormValues } from './types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { useEmployeeByUserId } from './hooks/useEmployeeByUserId';
 
 interface FeedbackFormScreenProps extends BusinessAppContextProps {
   preSelectedEmployeeId?: string;
@@ -15,12 +16,26 @@ const FeedbackFormScreen: React.FC<FeedbackFormScreenProps> = ({
   additionalData,
   preSelectedEmployeeId
 }) => {
+
+
   // Extract employeeId from additionalData following the same pattern as other forms
   const employeeId = additionalData?.employeeId || 
                     additionalData?.flowContext?.employeeId || 
                     additionalData?.contextData?.employeeId ||
                     additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                     preSelectedEmployeeId;
+
+  // Add receiverId as an additional fallback option (contains userId from psi_taskPayload)
+  const receiverId = additionalData?.psi_taskPayload?.receiverId;
+  
+  // Use the new hook to map receiverId (userId) to employeeId
+  const { employeeId: mappedEmployeeId, loading: mappingLoading, error: mappingError } = useEmployeeByUserId({
+    accessToken,
+    userId: receiverId
+  });
+
+  // Use mapped employeeId if available, otherwise fall back to the existing employeeId logic
+  const finalEmployeeId = mappedEmployeeId || employeeId;
 
   const handleSubmitFeedback = async (values: FeedbackFormValues) => {
     // Feedback submission is now handled by Kogito process via dispatchProcessContinueEvent
@@ -37,14 +52,14 @@ const FeedbackFormScreen: React.FC<FeedbackFormScreenProps> = ({
       className="gba:h-full gba:w-full"
       data-testid={formatDataTestId("FeedbackFormScreen", "Container")}
     >
-      <FeedbackForm
-        accessToken={accessToken}
-        userInfo={userInfo}
-        additionalData={additionalData}
-        onSubmit={handleSubmitFeedback}
-        onCancel={handleCancelFeedback}
-        preSelectedEmployeeId={employeeId}
-      />
+             <FeedbackForm
+         accessToken={accessToken}
+         userInfo={userInfo}
+         additionalData={additionalData}
+         onSubmit={handleSubmitFeedback}
+         onCancel={handleCancelFeedback}
+         preSelectedEmployeeId={finalEmployeeId}
+       />
     </div>
   );
 };

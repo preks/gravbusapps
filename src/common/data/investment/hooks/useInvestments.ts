@@ -1,0 +1,127 @@
+// Investment hooks - Core investment entities and their specializations
+import { useCallback } from 'react';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import type { 
+  BaseInvestment, 
+  Investment,
+  BaseEquityInvestment,
+  EquityInvestment,
+  BaseRealEstateInvestment,
+  RealEstateInvestment,
+  BaseLiquidFundInvestment,
+  LiquidFundInvestment
+} from '../types';
+
+// Use the new query imports
+import {
+  GET_INVESTMENTS,
+  GET_INVESTMENT_BY_ID,
+  type InvestmentQueryVariables
+} from '../queries';
+
+// Use the mapper functions
+import { 
+  toInvestment,
+  toEquityInvestment,
+  toRealEstateInvestment,
+  toLiquidFundInvestment
+} from '../mappers';
+
+// Note: InvestmentQueryVariables is imported from queries
+
+// Response interfaces
+export interface InvestmentQueryResponse {
+  Investment: BaseInvestment[];
+  InvestmentAggregate: {
+    aggregate: {
+      count: number;
+    };
+  };
+}
+
+export interface InvestmentByIdData {
+  investment?: Investment;
+}
+
+// Note: Specialized investment hooks will be in separate files when needed
+
+// =============================================================================
+// CORE INVESTMENT HOOKS
+// =============================================================================
+
+// Hook for getting investments with full details
+export const useGetInvestments = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestments = useCallback(async (variables: InvestmentQueryVariables = {}) => {
+    const query = GET_INVESTMENTS(variables);
+    
+    try {
+      const result = await graphqlClient.request<InvestmentQueryResponse>(query);
+      
+      // Transform base types to enhanced types using mapper
+      const enhancedInvestments = result.Investment.map(toInvestment);
+      
+      return {
+        ...result,
+        Investment: enhancedInvestments
+      };
+    } catch (error) {
+      console.error('Error fetching investments:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestments };
+};
+
+// Hook for getting investment by ID
+export const useGetInvestmentById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentById = useCallback(async (id: string) => {
+    const query = GET_INVESTMENT_BY_ID(id);
+    
+    try {
+      const result = await graphqlClient.request<{ Investment: BaseInvestment[] }>(query);
+      const baseInvestment = result.Investment[0];
+      
+      return {
+        investment: baseInvestment ? toInvestment(baseInvestment) : undefined
+      } as InvestmentByIdData;
+    } catch (error) {
+      console.error('Error fetching investment by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentById };
+};
+
+// Hook for searching investments
+export const useSearchInvestments = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const searchInvestments = useCallback(async (searchTerm: string, variables: InvestmentQueryVariables = {}) => {
+    const searchVariables = { ...variables, search: searchTerm };
+    const query = GET_INVESTMENTS(searchVariables);
+    
+    try {
+      const result = await graphqlClient.request<InvestmentQueryResponse>(query);
+      
+      // Transform base types to enhanced types using mapper
+      const enhancedInvestments = result.Investment.map(toInvestment);
+      
+      return {
+        ...result,
+        Investment: enhancedInvestments
+      };
+    } catch (error) {
+      console.error('Error searching investments:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { searchInvestments };
+};

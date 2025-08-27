@@ -6,6 +6,7 @@ import {
   RiseOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
+import { formatCompactCurrency } from '@/common/utils/numberFormatter';
 
 interface TrendData {
   current: number;
@@ -36,14 +37,7 @@ export const OpportunityStatisticsWithTrend: React.FC<OpportunityStatisticsWithT
   error = null,
   onRetry
 }) => {
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number): string => formatCompactCurrency(amount, 'USD');
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {

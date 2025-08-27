@@ -1,0 +1,2 @@
+export { useContactView } from './useContactView';
+

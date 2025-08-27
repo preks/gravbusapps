@@ -41,6 +41,12 @@ export interface PaymentScreenLogObject {
       title: string;
       ruleId: string;
       expensePlan: string;
+      costCenter: string;
+      project: string;
+      expenseGroupRef: string;
+      source: string;
+      expenseClassRef: string;
+      autoCalculated: boolean;
     }>;
   };
   expenseRequestTrips: {
@@ -76,7 +82,7 @@ export const createPaymentScreenLogObject = (
   event: string,
   skipStep:boolean
 ): PaymentScreenLogObject => {
-  const planItemsArray: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const planItemsArray: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expensePlanData.ExpensePlanItem && Array.isArray(expensePlanData.ExpensePlanItem)) {
     expensePlanData.ExpensePlanItem.forEach((item: any) => {
       if (item) {
@@ -86,7 +92,13 @@ export const createPaymentScreenLogObject = (
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
-          expensePlan: initialPlan.id || ''
+          expensePlan: initialPlan.id || '',
+          costCenter: item.costCenterId || '',
+          project: item.projectId || '',
+          expenseGroupRef: item.expenseGroupRef || '',
+          source: item.source || '',
+          expenseClassRef: item.expenseClassRef || '',
+          autoCalculated: item.autoCalculated || false
         });
       }
     });

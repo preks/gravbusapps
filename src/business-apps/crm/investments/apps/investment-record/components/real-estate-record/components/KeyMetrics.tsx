@@ -97,21 +97,20 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, realEstateData, isLoading
 
   if (isLoading) {
     return (
-      <div>
-        <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">Key Investment Metrics</h2>
-        <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="gba:hover:shadow-md gba:transition-shadow">
-              <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-                <div className="gba:animate-pulse">
-                  <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-20 gba:mb-2"></div>
-                  <div className="gba:h-6 gba:bg-gray-200 gba:rounded gba:w-16"></div>
+      <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="gba:bg-white gba:shadow-sm">
+            <CardContent className="gba:p-6">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:p-3 gba:bg-gray-100 gba:rounded-lg gba:animate-pulse gba:w-12 gba:h-12" />
+                <div className="gba:space-y-1 gba:w-full">
+                  <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-28 gba:animate-pulse" />
+                  <div className="gba:h-6 gba:bg-gray-200 gba:rounded gba:w-20 gba:animate-pulse" />
                 </div>
-                <div className="gba:w-8 gba:h-8 gba:bg-gray-200 gba:rounded-lg gba:animate-pulse"></div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
@@ -152,33 +151,26 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, realEstateData, isLoading
   ];
 
   return (
-    <div>
-      <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">Key Investment Metrics</h2>
-      <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
-        {keyMetricsData.map((metric, index) => {
-          const IconComponent = metric.icon;
-          return (
-            <Card key={index} className="gba:hover:shadow-md gba:transition-shadow">
-              <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {metric.title}
-                </CardTitle>
-                <div className={`gba:p-2 gba:rounded-lg ${metric.bgColor}`}>
-                  <IconComponent className={`gba:h-4 gba:w-4 ${metric.color}`} />
+    <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
+      {keyMetricsData.map((metric, index) => {
+        const IconComponent = metric.icon;
+        const colorBg = metric.bgColor.replace('gba:bg-', '');
+        return (
+          <Card key={index} className="gba:bg-white gba:shadow-sm gba:hover:shadow-md gba:transition-shadow">
+            <CardContent className="gba:p-6">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className={`gba:p-3 ${metric.bgColor} gba:rounded-lg`}>
+                  <IconComponent className={`gba:h-6 gba:w-6 ${metric.color}`} />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                  {metric.value}
+                <div>
+                  <p className="gba:text-sm gba:font-medium gba:text-gray-700">{metric.title}</p>
+                  <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{metric.value}</p>
                 </div>
-                {metric.showCalculated && (
-                  <p className="gba:text-xs gba:text-gray-500 gba:mt-1">Calculated from real data</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

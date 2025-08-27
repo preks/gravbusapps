@@ -38,8 +38,12 @@ export const createSummaryScreenLogObject = (
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expensePlan: initialPlan?.id || '',
-    costCenterId: item.costCenterId || '',
-    projectId: item.projectId || ''
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   }));
   
   const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;

@@ -132,7 +132,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   }, [dataDetails, onDetailsPanelClose]);
 
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative", className
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative gba:min-w-0", className
     )} data-testid="data-container">
       {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
@@ -145,7 +145,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
         </div>
       )}
       {/* Main Content - center column */}
-      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:h-full gba:bg-white", {
+      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:h-full gba:bg-white gba:min-w-0", {
         "gba:pl-6": !showDataFilter
       })} data-testid="data-container-main-content">
           {CustomDataController ? (

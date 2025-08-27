@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { PageLayout } from "@/components/layout/pageLayout";
 import { DataContainer } from "@/components/layout/dataContainer";
@@ -9,13 +15,17 @@ import { useLeadFilters } from "./hooks/useLeadFilters";
 import { LeadTable } from "./components/LeadTable";
 import { LeadStatisticsWithTrend } from "./components/LeadStatistics";
 import { useLeadStatisticsWithTrend } from "./hooks/useLeadStatisticsWithTrend";
-import { ColumnVisibilityDropdown, ColumnConfig } from "./components/ColumnVisibilityDropdown";
+import {
+  ColumnVisibilityDropdown,
+  ColumnConfig,
+} from "./components/ColumnVisibilityDropdown";
 
 import { PiStar, PiUsersFour, PiFunnelSimple } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { startProcess } from "@/common/utils/start-process";
 import { Lead } from "./types";
 import { useLeadStatisticsQueries } from "./queries/LeadStatisticsQueries";
+import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 export interface LeadListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -98,59 +108,65 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: 'actions', label: 'Actions', visible: true, disabled: true }, // Always visible
-    { id: 'name', label: 'Name', visible: true },
-    { id: 'company', label: 'Company', visible: true },
-    { id: 'contact', label: 'Contact Info', visible: true },
-    { id: 'country', label: 'Country', visible: true },
-    { id: 'region', label: 'Region/State', visible: true },
-    { id: 'city', label: 'City', visible: true },
-    { id: 'status', label: 'Status', visible: true },
-    { id: 'rating', label: 'Rating', visible: true },
-    { id: 'source', label: 'Source', visible: true },
-    { id: 'owner', label: 'Owner', visible: true },
-    { id: 'created', label: 'Creation Date', visible: true },
-    { id: 'industry', label: 'Industry', visible: false },
-    { id: 'companyWebsite', label: 'Company Website', visible: false },
-    { id: 'companyPhone', label: 'Company Phone', visible: false },
-    { id: 'conversionStatus', label: 'Conversion Status', visible: false },
+    { id: "sensitive", label: "Sensitive", visible: true },
+    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
+    { id: "name", label: "Name", visible: true },
+    { id: "company", label: "Company", visible: true },
+    { id: "contact", label: "Contact Info", visible: true },
+    { id: "country", label: "Country", visible: true },
+    { id: "region", label: "Region/State", visible: true },
+    { id: "city", label: "City", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "rating", label: "Rating", visible: true },
+    { id: "source", label: "Source", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+    { id: "industry", label: "Industry", visible: false },
+    { id: "companyWebsite", label: "Company Website", visible: false },
+    { id: "companyPhone", label: "Company Phone", visible: false },
+    { id: "conversionStatus", label: "Conversion Status", visible: false },
   ]);
 
   // Get visible columns for passing to table
-  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id);
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
 
   // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => 
-      prev.map(col => 
-        col.id === columnId ? { ...col, visible } : col
-      )
-    );
-  }, []);
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      status: 'leadStatuses',
-      rating: 'leadRatings', 
-      source: 'leadSources',
-      industry: 'industries',
-      country: 'countries',
-      region: 'regions',
-      city: 'cities',
+      status: "leadStatuses",
+      rating: "leadRatings",
+      source: "leadSources",
+      industry: "industries",
+      country: "countries",
+      region: "regions",
+      city: "cities",
       // Note: name, company, contact, owner, created, companyWebsite, companyPhone, conversionStatus don't have corresponding filters
       // companyWebsite and companyPhone are handled through search functionality only
     };
 
-    return filterGroups.filter(group => {
+    return filterGroups.filter((group) => {
       // Find the column that corresponds to this filter group
       const correspondingColumn = Object.keys(columnToFilterMap).find(
-        columnId => columnToFilterMap[columnId] === group.id
+        (columnId) => columnToFilterMap[columnId] === group.id
       );
-      
+
       // If there's no corresponding column (shouldn't happen), show the filter
       // If there is a corresponding column, only show the filter if the column is visible
-      return !correspondingColumn || visibleColumns.includes(correspondingColumn);
+      return (
+        !correspondingColumn || visibleColumns.includes(correspondingColumn)
+      );
     });
   }, [filterGroups, visibleColumns]);
 
@@ -258,48 +274,121 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Get lead data with search, sorting, and filters
   // Compute filters directly to avoid circular dependencies
-  const leadStatuses = selectedFilters.filter((f) => 
-    ['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS'].includes(f)
+  const leadStatuses = selectedFilters.filter((f) =>
+    [
+      "LEAD_NEW",
+      "LEAD_OPEN",
+      "LEAD_QUALIFIED",
+      "LEAD_CONVERTED",
+      "LEAD_LOST",
+      "UNKNOWN_LEAD_STATUS",
+    ].includes(f)
   );
-  const leadRatings = selectedFilters.filter((f) => 
-    ['HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(f)
+  const leadRatings = selectedFilters.filter((f) =>
+    ["HOT_LEAD", "WARM_LEAD", "COLD_LEAD", "UNKNOWN_LEAD_RATING"].includes(f)
   );
-  const leadSources = selectedFilters.filter((f) => f.startsWith('LeadSource:'));
-  const industries = selectedFilters.filter((f) => f.startsWith('Industry:'));
-  const companySizes = selectedFilters.filter((f) => f.startsWith('CompanySize:'));
-  const owners = selectedFilters.filter((f) => f.startsWith('employee-'));
+  const leadSources = selectedFilters.filter((f) =>
+    f.startsWith("LeadSource:")
+  );
+  const industries = selectedFilters.filter((f) => f.startsWith("Industry:"));
+  const companySizes = selectedFilters.filter((f) =>
+    f.startsWith("CompanySize:")
+  );
+  const owners = selectedFilters.filter((f) => f.startsWith("employee-"));
   const leadContacts = selectedFilters.filter((f) => {
     // Contact IDs are UUIDs that don't match other patterns
-    return f.includes('-') && f.length > 10 && 
-           !f.startsWith('employee-') && 
-           !f.startsWith('LeadSource:') && 
-           !f.startsWith('Industry:') && 
-           !f.startsWith('CompanySize:') &&
-           !['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS', 'HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(f);
+    return (
+      f.includes("-") &&
+      f.length > 10 &&
+      !f.startsWith("employee-") &&
+      !f.startsWith("LeadSource:") &&
+      !f.startsWith("Industry:") &&
+      !f.startsWith("CompanySize:") &&
+      ![
+        "LEAD_NEW",
+        "LEAD_OPEN",
+        "LEAD_QUALIFIED",
+        "LEAD_CONVERTED",
+        "LEAD_LOST",
+        "UNKNOWN_LEAD_STATUS",
+        "HOT_LEAD",
+        "WARM_LEAD",
+        "COLD_LEAD",
+        "UNKNOWN_LEAD_RATING",
+      ].includes(f)
+    );
   });
   const leadCompanies = selectedFilters.filter((f) => {
     // Company names are simple strings without special patterns
-    return !f.includes(':') && 
-           !f.includes('-') && 
-           !['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS', 'HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(f) &&
-           !f.startsWith('employee-');
+    return (
+      !f.includes(":") &&
+      !f.includes("-") &&
+      ![
+        "LEAD_NEW",
+        "LEAD_OPEN",
+        "LEAD_QUALIFIED",
+        "LEAD_CONVERTED",
+        "LEAD_LOST",
+        "UNKNOWN_LEAD_STATUS",
+        "HOT_LEAD",
+        "WARM_LEAD",
+        "COLD_LEAD",
+        "UNKNOWN_LEAD_RATING",
+      ].includes(f) &&
+      !f.startsWith("employee-")
+    );
   });
   // Address filters - use filterLabelMap to identify the correct filter types
   // For now, use a simple approach to identify address filters by pattern matching
   const countries = selectedFilters.filter((f) => {
-    return filterLabelMap[f] && f.match(/^[A-Z]{2,3}:|:v\d+:[A-Z]{2,3}$/) || f.length === 2; // Country codes or catalog entries
+    return (
+      (filterLabelMap[f] && f.match(/^[A-Z]{2,3}:|:v\d+:[A-Z]{2,3}$/)) ||
+      f.length === 2
+    ); // Country codes or catalog entries
   });
   const regions = selectedFilters.filter((f) => {
-    return filterLabelMap[f] && !f.includes(':') && !f.includes('-') && 
-           !['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS', 'HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(f) &&
-           !f.startsWith('employee-') && f.length > 2; // Region/state names
+    return (
+      filterLabelMap[f] &&
+      !f.includes(":") &&
+      !f.includes("-") &&
+      ![
+        "LEAD_NEW",
+        "LEAD_OPEN",
+        "LEAD_QUALIFIED",
+        "LEAD_CONVERTED",
+        "LEAD_LOST",
+        "UNKNOWN_LEAD_STATUS",
+        "HOT_LEAD",
+        "WARM_LEAD",
+        "COLD_LEAD",
+        "UNKNOWN_LEAD_RATING",
+      ].includes(f) &&
+      !f.startsWith("employee-") &&
+      f.length > 2
+    ); // Region/state names
   });
   const cities = selectedFilters.filter((f) => {
-    return filterLabelMap[f] && !f.includes(':') && !f.includes('-') && 
-           !['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS', 'HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(f) &&
-           !f.startsWith('employee-') && f.length > 2; // City names
+    return (
+      filterLabelMap[f] &&
+      !f.includes(":") &&
+      !f.includes("-") &&
+      ![
+        "LEAD_NEW",
+        "LEAD_OPEN",
+        "LEAD_QUALIFIED",
+        "LEAD_CONVERTED",
+        "LEAD_LOST",
+        "UNKNOWN_LEAD_STATUS",
+        "HOT_LEAD",
+        "WARM_LEAD",
+        "COLD_LEAD",
+        "UNKNOWN_LEAD_RATING",
+      ].includes(f) &&
+      !f.startsWith("employee-") &&
+      f.length > 2
+    ); // City names
   });
-  
+
   const { leads, total, loading, error, hasMore, loadMore, loadPage, retry } =
     useLeadListData({
       search,
@@ -321,6 +410,18 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       accessToken,
       sourceApp,
     });
+
+  // Listen for process completion events and refresh data when lead processes complete
+  useProcessCompletion({
+    onSuccess: () => {
+      console.log("Process completed successfully, refreshing lead data");
+      retry();
+      refetchStats(); // Also refresh statistics
+    },
+    onFailure: () => {
+      console.log("Process failed, no data refresh needed");
+    },
+  });
 
   // Remove this debug useEffect - it was causing infinite loops
   // useEffect(() => {
@@ -373,7 +474,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
       updateURLParams({ search, page: 1 });
-      loadPage(1, pageSize); // Reset to first page when search changes
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for search
     }
   }, [search, pageSize, filtersInitialized, updateURLParams]);
 
@@ -381,10 +482,10 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
       setCurrentPage(1);
-      loadPage(1, pageSize);
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for filtering
     }
   }, [
-    selectedFilters.join(','), // Use string join instead of JSON.stringify
+    selectedFilters.join(","), // Use string join instead of JSON.stringify
     filterCreatedAfter,
     filterCreatedBefore,
     pageSize,
@@ -452,7 +553,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
         });
       }
 
-      loadPage(1, pageSize);
+      loadPage(1, pageSize, {}, sortField, sortOrder, false); // Don't show loading for sorting
     },
     [pageSize, updateURLParams, loadPage, VALID_SORT_FIELDS]
   );
@@ -505,7 +606,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
               columns={columnConfig}
               onColumnVisibilityChange={handleColumnVisibilityChange}
               data-testid="lead-list-column-visibility"
-            />
+            />,
           ],
         }}
         dataFilterProps={{

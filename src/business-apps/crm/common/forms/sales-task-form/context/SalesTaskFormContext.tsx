@@ -79,9 +79,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
                         additionalData?.typeRef || 
                         initialValues?.taskTypeRef || '';
   
-  // Debug log for approval detection (cleaned up)
-  // console.log('🎯 SalesTaskFormContext - processTypeRef:', processTypeRef);
-  
+ 
   // Form state
   const [formValues, setFormValuesState] = useState<SalesTaskFormValues>({
     title: '',

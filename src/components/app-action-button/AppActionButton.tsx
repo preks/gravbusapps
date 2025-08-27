@@ -29,7 +29,7 @@ const DATA_TEST_ID_PREFIX = "AppActionButton";
 export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   // Extract App Action specific props and get clean props for ActionButton
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
-  
+
   // Use shared logic for data fetching and state management
   const {
     combinedData,
@@ -71,7 +71,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
         data-testid={buttonTestId}
         noActionsText={translations.noActions}
         loadingText={translations.loading}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior === 'enable' ? 'disable' : appActionConfig.emptyStateBehavior}
+        emptyStateBehavior={appActionConfig.emptyStateBehavior}
         actionsLoading={shouldShowLoading}
         actions={combinedData}
         onDropdownOpen={handleDropdownOpen}

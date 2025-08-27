@@ -1,11 +1,10 @@
 ---
-trigger: always_on
+alwaysApply: true
 ---
-
 # Statistics Component Guidelines for AI Agents
 
 ## Overview
-When creating statistics components in this project, ALWAYS use the WidgetGroup component for consistency, maintainability, and better UX.
+When creating statistics components in this project, ALWAYS use the WidgetGroup component for consistency, maintainability, and better UX. WidgetGroup now uses the modern SectionKpiCards component from @newwork/nw-design-system under the hood.
 
 ## Required Pattern
 
@@ -14,8 +13,10 @@ When creating statistics components in this project, ALWAYS use the WidgetGroup 
 import React from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { 
-  // Ant Design icons for prefixes
+  // Ant Design icons for prefixes (automatically mapped to supported icons)
   UserOutlined,
+  MailOutlined,
+  CalendarOutlined,
   DollarOutlined,
   // etc.
 } from '@ant-design/icons';
@@ -56,13 +57,13 @@ const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
       value: statistics.someValue,
       prefix: <SomeIcon />,
       color: '#1890ff',              // Use meaningful colors
-      span: { xs: 24, sm: 12, lg: 6 }, // Responsive spans
+      span: { xs: 24, sm: 12, lg: 6 }, // Note: span is ignored in new design system
       description: 'Helpful description',
       // Optional props:
       suffix: '%',                   // For percentages
       precision: 2,                  // For decimals
       valueIsString: true,           // For pre-formatted values
-      onClick: handleClick           // For interactive widgets
+      onClick: handleClick           // Note: onClick not supported in new design system
     },
     // ... more widgets
   ];
@@ -89,7 +90,7 @@ const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
 - **key**: Unique identifier (kebab-case)
 - **title**: Clear, descriptive title
 - **value**: The actual statistic value
-- **prefix**: Meaningful icon from @ant-design/icons
+- **prefix**: Icon from @ant-design/icons (automatically mapped to supported icons)
 - **color**: Use consistent color scheme:
   - Blue (#1890ff, #1677ff): Recent/new items
   - Green (#52c41a, #3f8600): Active/success metrics
@@ -97,10 +98,18 @@ const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
   - Purple (#722ed1, #eb2f96): Special metrics/this year
   - Red (#ff4d4f): Errors/negative metrics
 
-### Responsive Layout
-- Use consistent span patterns:
-  - `{ xs: 24, sm: 12, lg: 6 }` for 4 widgets per row on large screens
-  - `{ xs: 24, sm: 12, md: 8, lg: 5, xl: 5 }` for 5 widgets (adjust as needed)
+### Icon Mapping
+The following Ant Design icons are automatically mapped to supported icons:
+- `UserOutlined`, `ContactsOutlined`, `TeamOutlined` → 'users'
+- `MailOutlined`, `FileTextOutlined`, `DollarOutlined` → 'mail'
+- `PhoneOutlined` → 'phone'
+- `CalendarOutlined`, `ClockCircleOutlined` → 'calendar'
+- Other icons → fallback to 'users' or 'mail'
+
+### Layout Notes
+- **span**: The span property is maintained for backward compatibility but ignored in the new design system
+- The new design system uses CSS Grid with responsive columns automatically
+- Default layout is 1 column on mobile, 2 on tablet, 4 on desktop
 
 ### Data Formatting
 - **Currency**: Use `valueIsString: true` with pre-formatted values
@@ -113,7 +122,24 @@ const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
 - Use present tense
 - Be specific: "Past 2 weeks", "Currently active", "Action required"
 
+## Migration Notes
+
+### What Changed
+- ✅ WidgetGroup now uses SectionKpiCards from @newwork/nw-design-system
+- ✅ Icon mapping handles Ant Design icons automatically
+- ✅ Modern loading, error, and empty states
+- ⚠️ `span` property is ignored (responsive layout handled automatically)
+- ⚠️ `onClick` property is not supported in new design system
+- ⚠️ Some icons may fallback to generic alternatives
+
+### What Stayed the Same
+- ✅ WidgetItem interface unchanged
+- ✅ WidgetGroup props unchanged
+- ✅ All existing statistics components work without modification
+- ✅ Same data formatting patterns
+
 ## Don't Use
+- ❌ SectionKpiCards directly (use WidgetGroup instead)
 - ❌ Ant Design Card/Row/Col/Statistic directly
 - ❌ Custom card layouts
 - ❌ Inconsistent color schemes
@@ -125,14 +151,14 @@ const ComponentStatistics: React.FC<ComponentStatisticsProps> = ({
 - ✅ Provide meaningful icons and colors
 - ✅ Include helpful descriptions
 - ✅ Handle loading/error states through WidgetGroup
-- ✅ Make widgets interactive when appropriate (onClick)
 - ✅ Use consistent naming conventions
 - ✅ Pre-format complex values (currency, percentages)
 - ✅ Test responsive behavior across screen sizes
+- ✅ Use supported Ant Design icons for better mapping
 
 ## Example Files to Reference
 - `src/business-apps/crm/common/components/lead-list/components/LeadStatistics.tsx`
 - `src/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseItemStatistics.tsx`
 - `src/components/widget-group/WidgetGroup.tsx` (for WidgetItem interface)
 
-This pattern ensures consistency, better UX, and easier maintenance across all statistics components. 
+This pattern ensures consistency, better UX, and easier maintenance across all statistics components while leveraging the modern design system. 

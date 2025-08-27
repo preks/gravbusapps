@@ -7,7 +7,12 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { LeadFormValues, SelectOption, LeadContextState } from "../types";
+import {
+  LeadFormValues,
+  SelectOption,
+  LeadContextState,
+  Address,
+} from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useEmployeePositions } from "../hooks/useEmployeePositions";
 import { useEmployeeById } from "../hooks/useEmployeeById";
@@ -131,6 +136,16 @@ interface LeadFormContextValue extends LeadContextState {
   addAddressLine: () => void;
   removeAddressLine: () => void;
 
+  // Address management (new dynamic structure)
+  addAddress: () => void;
+  removeAddress: (addressId: string) => void;
+  updateAddress: (addressId: string, updates: Partial<Address>) => void;
+  addAddressLineToAddress: (addressId: string) => void;
+  removeAddressLineFromAddress: (addressId: string, lineIndex: number) => void;
+
+  // Business app context for child components
+  businessAppContext: BusinessAppContextProps;
+
   // Sales Campaigns
   salesCampaigns: SelectOption[];
   salesCampaignsLoading: boolean;
@@ -191,7 +206,20 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // Campaign Information
     salesCampaignId: "",
 
-    // Address Information
+    // Address Information (New dynamic structure)
+    addresses: [
+      {
+        id: "default-address",
+        addressType: "UNKNOWN_ADDRESS",
+        addressLines: [""],
+        postalCode: "",
+        city: "",
+        region: "",
+        country: "",
+      },
+    ],
+
+    // Address Information (Legacy fields for backward compatibility)
     country: "",
     region: "",
     addressLine1: "",
@@ -298,9 +326,20 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
   });
 
+  // Lead data hook for populating form when editing existing lead (must be before employeePositions)
+  const {
+    leadData,
+    isLoading: leadDataLoading,
+    error: leadDataError,
+    mapLeadToFormValues,
+  } = useLeadData({ businessAppContext });
+
   // Convert employee position data to SelectOption format
   const employeePositions: SelectOption[] = useMemo(() => {
-    const regularEmployees = employeePositionData.map((emp) => {
+    const finalEmployees: SelectOption[] = [];
+
+    // Add regular employees
+    const regularEmployees: SelectOption[] = employeePositionData.map((emp) => {
       const displayName =
         emp.employee.displayName || `${emp.firstName} ${emp.lastName}`.trim();
       const jobTitle = emp.jobPosition?.name || "No Position";
@@ -320,6 +359,8 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
         },
       };
     });
+
+    finalEmployees.push(...regularEmployees);
 
     // Add current user to the beginning if they're not already in the list
     if (currentUserEmployee) {
@@ -346,17 +387,46 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       };
 
       // Check if current user is already in the regular employees list
-      const isCurrentUserInList = regularEmployees.some(
+      const isCurrentUserInList = finalEmployees.some(
         (emp) => emp.value === currentUserEmployee.employeeId
       );
 
       if (!isCurrentUserInList) {
-        return [currentUserOption, ...regularEmployees];
+        finalEmployees.unshift(currentUserOption);
       }
     }
 
-    return regularEmployees;
-  }, [employeePositionData, currentUserEmployee]);
+    // Add lead's owner employee if we have lead data and owner is not in the list
+    if (leadData && leadData.ownerEmployee && leadData.ownerEmployeeId) {
+      const isLeadOwnerInList = finalEmployees.some(
+        (emp) => emp.value === leadData.ownerEmployeeId
+      );
+
+      if (!isLeadOwnerInList) {
+        const leadOwnerDisplayName =
+          leadData.ownerEmployee.displayName ||
+          `${leadData.ownerEmployee.firstName} ${leadData.ownerEmployee.lastName}`.trim();
+
+        const leadOwnerOption: SelectOption = {
+          id: leadData.ownerEmployeeId,
+          value: leadData.ownerEmployeeId,
+          label: `${leadOwnerDisplayName} - Lead Owner`,
+          name: leadOwnerDisplayName,
+          extraInfo: {
+            picture: undefined, // We don't have this from lead query
+            pictureThumbnail: undefined, // We don't have this from lead query
+            jobPosition: "Lead Owner", // Default since we don't have job position from lead query
+            organizationalUnit: "Unknown", // Default since we don't have org unit from lead query
+            userId: undefined,
+          },
+        };
+        // Add lead owner at the beginning (after current user if present)
+        finalEmployees.unshift(leadOwnerOption);
+      }
+    }
+
+    return finalEmployees;
+  }, [employeePositionData, currentUserEmployee, leadData]);
 
   // Searchable catalog hooks - memoize the config objects
   const leadSourcesConfig = useMemo(
@@ -432,16 +502,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const employeeSizesHook = useSearchableCatalog(employeeSizesConfig);
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig);
 
-  // Lead data loading hook for editing existing leads
-  const {
-    leadData,
-    isLoading: leadDataLoading,
-    error: leadDataError,
-    mapLeadToFormValues,
-  } = useLeadData({
-    businessAppContext,
-  });
-
   // Initialize data on mount
   const hasInitialized = useRef(false);
   useEffect(() => {
@@ -458,12 +518,39 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     }
   }, [businessAppContext.accessToken]);
 
-  // Auto-select current user once their employee data has loaded
+  // Auto-select current user once their employee data has loaded (only for new leads, not editing)
   useEffect(() => {
+    const currentLeadId =
+      businessAppContext.additionalData?.leadId ||
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+        ?.leadId;
+
+    console.log("👤 Auto-selection check:", {
+      hasCurrentUserEmployee: !!currentUserEmployee,
+      currentUserEmployeeId: currentUserEmployee?.employeeId,
+      formOwner: formValues.owner,
+      autoSelectionDone: autoSelectionDone.current,
+      currentLeadId: currentLeadId,
+      hasLeadData: !!leadData,
+      shouldAutoSelect:
+        currentUserEmployee &&
+        !formValues.owner &&
+        !autoSelectionDone.current &&
+        !currentLeadId &&
+        !leadData,
+    });
+
+    // Only auto-select if:
+    // 1. We have current user employee data
+    // 2. No owner is set yet
+    // 3. We haven't already done auto-selection
+    // 4. We're NOT editing an existing lead (no leadId)
     if (
       currentUserEmployee &&
       !formValues.owner &&
-      !autoSelectionDone.current
+      !autoSelectionDone.current &&
+      !currentLeadId && // Don't auto-select when editing existing lead
+      !leadData // Don't auto-select when we have lead data
     ) {
       setFormValuesState((prev) => ({
         ...prev,
@@ -471,12 +558,25 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       }));
       autoSelectionDone.current = true;
     }
-  }, [currentUserEmployee, formValues.owner]);
+  }, [
+    currentUserEmployee,
+    formValues.owner,
+    businessAppContext.additionalData?.leadId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.leadId,
+    leadData,
+  ]);
 
   // Populate form values when lead data is loaded (for editing existing leads)
   useEffect(() => {
-    if (leadData && !formValues.id) {
+    // Only populate if we have lead data and the form doesn't already have this lead's data
+    if (
+      leadData &&
+      leadData.id &&
+      (!formValues.id || formValues.id !== leadData.id)
+    ) {
       const mappedValues = mapLeadToFormValues(leadData);
+
       setFormValuesState((prev) => ({
         ...prev,
         ...mappedValues,
@@ -484,7 +584,13 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       // Don't auto-select current user if we're editing an existing lead
       autoSelectionDone.current = true;
     }
-  }, [leadData, mapLeadToFormValues, formValues.id]);
+  }, [
+    leadData,
+    mapLeadToFormValues,
+    businessAppContext.additionalData?.leadId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.leadId,
+  ]);
 
   // Update global loading and error state to include lead data loading
   useEffect(() => {
@@ -527,6 +633,122 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const setFormValues = useCallback((updates: Partial<LeadFormValues>) => {
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // Address management functions (new dynamic structure)
+  const addAddress = useCallback(() => {
+    const newAddress: Address = {
+      id: `address-${Date.now()}`,
+      addressType: "UNKNOWN_ADDRESS",
+      addressLines: [""],
+      postalCode: "",
+      city: "",
+      region: "",
+      country: "",
+    };
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: [...prev.addresses, newAddress],
+    }));
+  }, []);
+
+  const removeAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
+    }));
+  }, []);
+
+  const updateAddress = useCallback(
+    (addressId: string, updates: Partial<Address>) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId ? { ...addr, ...updates } : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  const addAddressLineToAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.map((addr) =>
+        addr.id === addressId
+          ? { ...addr, addressLines: [...addr.addressLines, ""] }
+          : addr
+      ),
+    }));
+  }, []);
+
+  const removeAddressLineFromAddress = useCallback(
+    (addressId: string, lineIndex: number) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId
+            ? {
+                ...addr,
+                addressLines: addr.addressLines.filter(
+                  (_, index) => index !== lineIndex
+                ),
+              }
+            : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  // Function to sync legacy address fields with new dynamic structure
+  const syncLegacyFieldsToAddresses = useCallback(() => {
+    if (formValues.addresses.length === 0) return;
+
+    const legacyLines = [
+      formValues.addressLine1,
+      formValues.addressLine2,
+      formValues.addressLine3,
+      formValues.addressLine4,
+    ].filter((line) => line && line.trim());
+
+    if (
+      legacyLines.length > 0 ||
+      formValues.city ||
+      formValues.postalCode ||
+      formValues.region ||
+      formValues.country
+    ) {
+      const firstAddress = formValues.addresses[0];
+      const updatedAddress: Address = {
+        ...firstAddress,
+        addressLines:
+          legacyLines.length > 0 ? legacyLines : firstAddress.addressLines,
+        city: formValues.city || firstAddress.city,
+        postalCode: formValues.postalCode || firstAddress.postalCode,
+        region: formValues.region || firstAddress.region,
+        country: formValues.country || firstAddress.country,
+      };
+
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: [updatedAddress, ...prev.addresses.slice(1)],
+      }));
+    }
+  }, [formValues]);
+
+  // Sync legacy fields to dynamic structure when they change
+  useEffect(() => {
+    syncLegacyFieldsToAddresses();
+  }, [
+    formValues.addressLine1,
+    formValues.addressLine2,
+    formValues.addressLine3,
+    formValues.addressLine4,
+    formValues.city,
+    formValues.postalCode,
+    formValues.region,
+    formValues.country,
+  ]);
 
   const contextValue: LeadFormContextValue = {
     // Form state
@@ -658,6 +880,16 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+
+    // Address management (new dynamic structure)
+    addAddress,
+    removeAddress,
+    updateAddress,
+    addAddressLineToAddress,
+    removeAddressLineFromAddress,
+
+    // Business app context for child components
+    businessAppContext,
 
     // Sales Campaigns
     salesCampaigns: salesCampaignsOptions,

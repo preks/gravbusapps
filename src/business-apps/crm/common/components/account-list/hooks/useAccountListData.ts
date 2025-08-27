@@ -105,6 +105,8 @@ export const useAccountListData = (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { fetchAccountsData } = useGetAccountsData(params.context);
 
@@ -114,14 +116,17 @@ export const useAccountListData = (
       pageSize = 20,
       additionalFilters?: any,
       overrideSortField?: string,
-      overrideSortOrder?: "ASC" | "DESC" | ""
+      overrideSortOrder?: "ASC" | "DESC" | "",
+      showLoading: boolean = true
     ) => {
       if (!params.context.accessToken) {
         console.warn("No access token provided for account data loading");
         return;
       }
 
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -144,25 +149,25 @@ export const useAccountListData = (
               // Company information
               { name: searchPattern },
               { website: searchPattern },
-              
+
               // Industry and legal form
               { legalForm: { value: searchPattern } },
               { industry: { value: searchPattern } },
-              
+
               // Owner employee information
               { ownerEmployee: { firstName: searchPattern } },
               { ownerEmployee: { lastName: searchPattern } },
               { ownerEmployee: { displayName: searchPattern } },
-              
+
               // Address information
               { addresses: { city: searchPattern } },
               { addresses: { region: { value: searchPattern } } },
               { addresses: { country: { value: searchPattern } } },
-              
+
               // Financial information (note: these are catalog entries, search by value)
               { annualRevenue: { value: searchPattern } },
               { numberOfEmployees: { value: searchPattern } },
-              
+
               // Contact information - both account level and primary contact
               { phone: searchPattern },
               { email: searchPattern },
@@ -170,21 +175,21 @@ export const useAccountListData = (
               { accountContacts: { contact: { lastName: searchPattern } } },
               { accountContacts: { contact: { email: searchPattern } } },
               { accountContacts: { contact: { phone: searchPattern } } },
-              
+
               // Note: foundationDate is timestamp, could add date search if needed
               // Note: fax field not available in current schema
-            ]
+            ],
           });
         }
 
         // Add company filtering (by name)
         if (params.companies && params.companies.length > 0) {
           const companyNameConditions: any[] = [];
-          
+
           params.companies.forEach((companyFilter) => {
             if (companyFilter.name) {
               companyNameConditions.push({
-                name: { _eq: companyFilter.name }
+                name: { _eq: companyFilter.name },
               });
             }
           });
@@ -197,62 +202,64 @@ export const useAccountListData = (
         // Add contact info filtering
         if (params.contactInfo && params.contactInfo.length > 0) {
           const contactInfoConditions: any[] = [];
-          
+
           params.contactInfo.forEach((filter) => {
             switch (filter) {
               case "HAS_WEBSITE":
-                contactInfoConditions.push({ website: { _isNull: false, _neq: "" } });
+                contactInfoConditions.push({
+                  website: { _isNull: false, _neq: "" },
+                });
                 break;
               case "HAS_EMAIL":
-                contactInfoConditions.push({ 
-                  accountContacts: { 
-                    contact: { email: { _isNull: false, _neq: "" } } 
-                  } 
+                contactInfoConditions.push({
+                  accountContacts: {
+                    contact: { email: { _isNull: false, _neq: "" } },
+                  },
                 });
                 break;
               case "HAS_PHONE":
-                contactInfoConditions.push({ 
-                  accountContacts: { 
-                    contact: { phone: { _isNull: false, _neq: "" } } 
-                  } 
+                contactInfoConditions.push({
+                  accountContacts: {
+                    contact: { phone: { _isNull: false, _neq: "" } },
+                  },
                 });
                 break;
               case "HAS_CONTACT":
-                contactInfoConditions.push({ 
-                  accountContacts: { 
-                    contact: { id: { _isNull: false } } 
-                  } 
+                contactInfoConditions.push({
+                  accountContacts: {
+                    contact: { id: { _isNull: false } },
+                  },
                 });
                 break;
               case "HAS_ADDRESS":
-                contactInfoConditions.push({ 
-                  addresses: { id: { _isNull: false } } 
+                contactInfoConditions.push({
+                  addresses: { id: { _isNull: false } },
                 });
                 break;
               case "MISSING_WEBSITE":
-                contactInfoConditions.push({ 
+                contactInfoConditions.push({
                   _or: [
                     { website: { _isNull: true } },
-                    { website: { _eq: "" } }
-                  ]
+                    { website: { _eq: "" } },
+                  ],
                 });
                 break;
               case "MISSING_EMAIL":
-                contactInfoConditions.push({ 
+                contactInfoConditions.push({
                   _not: {
-                    accountContacts: { 
-                      contact: { email: { _isNull: false, _neq: "" } } 
-                    }
-                  }
+                    accountContacts: {
+                      contact: { email: { _isNull: false, _neq: "" } },
+                    },
+                  },
                 });
                 break;
               case "MISSING_PHONE":
-                contactInfoConditions.push({ 
+                contactInfoConditions.push({
                   _not: {
-                    accountContacts: { 
-                      contact: { phone: { _isNull: false, _neq: "" } } 
-                    }
-                  }
+                    accountContacts: {
+                      contact: { phone: { _isNull: false, _neq: "" } },
+                    },
+                  },
                 });
                 break;
             }
@@ -265,12 +272,16 @@ export const useAccountListData = (
 
         // Add industry filtering
         if (params.industries && params.industries.length > 0) {
-          andConditions.push({ industry: { value: { _in: params.industries } } });
+          andConditions.push({
+            industry: { value: { _in: params.industries } },
+          });
         }
 
         // Add owner filtering
         if (params.ownerEmployeeIds && params.ownerEmployeeIds.length > 0) {
-          andConditions.push({ ownerEmployeeId: { _in: params.ownerEmployeeIds } });
+          andConditions.push({
+            ownerEmployeeId: { _in: params.ownerEmployeeIds },
+          });
         }
 
         // Add legal form (type) filtering
@@ -280,32 +291,39 @@ export const useAccountListData = (
 
         // Add annual revenue filtering
         if (params.annualRevenueIds && params.annualRevenueIds.length > 0) {
-          andConditions.push({ annualRevenueRef: { _in: params.annualRevenueIds } });
+          andConditions.push({
+            annualRevenueRef: { _in: params.annualRevenueIds },
+          });
         }
 
         // Add number of employees filtering
-        if (params.numberOfEmployeesIds && params.numberOfEmployeesIds.length > 0) {
-          andConditions.push({ numberOfEmployeesRef: { _in: params.numberOfEmployeesIds } });
+        if (
+          params.numberOfEmployeesIds &&
+          params.numberOfEmployeesIds.length > 0
+        ) {
+          andConditions.push({
+            numberOfEmployeesRef: { _in: params.numberOfEmployeesIds },
+          });
         }
 
         // Add country filtering
         if (params.countryIds && params.countryIds.length > 0) {
-          andConditions.push({ 
-            addresses: { countryRef: { _in: params.countryIds } }
+          andConditions.push({
+            addresses: { countryRef: { _in: params.countryIds } },
           });
         }
 
         // Add region filtering
         if (params.regionIds && params.regionIds.length > 0) {
-          andConditions.push({ 
-            addresses: { regionRef: { _in: params.regionIds } }
+          andConditions.push({
+            addresses: { regionRef: { _in: params.regionIds } },
           });
         }
 
         // Add city filtering
         if (params.cities && params.cities.length > 0) {
-          andConditions.push({ 
-            addresses: { city: { _in: params.cities } }
+          andConditions.push({
+            addresses: { city: { _in: params.cities } },
           });
         }
 
@@ -315,14 +333,16 @@ export const useAccountListData = (
           params.websiteFilters.forEach((filter) => {
             switch (filter) {
               case "HAS_WEBSITE":
-                websiteConditions.push({ website: { _isNull: false, _neq: "" } });
+                websiteConditions.push({
+                  website: { _isNull: false, _neq: "" },
+                });
                 break;
               case "MISSING_WEBSITE":
-                websiteConditions.push({ 
+                websiteConditions.push({
                   _or: [
                     { website: { _isNull: true } },
-                    { website: { _eq: "" } }
-                  ]
+                    { website: { _eq: "" } },
+                  ],
                 });
                 break;
             }
@@ -338,19 +358,34 @@ export const useAccountListData = (
           params.phoneFilters.forEach((filter) => {
             switch (filter) {
               case "HAS_PHONE":
-                phoneConditions.push({ 
+                phoneConditions.push({
                   _or: [
                     { phone: { _isNull: false, _neq: "" } },
-                    { accountContacts: { contact: { phone: { _isNull: false, _neq: "" } } } }
-                  ]
+                    {
+                      accountContacts: {
+                        contact: { phone: { _isNull: false, _neq: "" } },
+                      },
+                    },
+                  ],
                 });
                 break;
               case "MISSING_PHONE":
-                phoneConditions.push({ 
+                phoneConditions.push({
                   _and: [
-                    { _or: [{ phone: { _isNull: true } }, { phone: { _eq: "" } }] },
-                    { _not: { accountContacts: { contact: { phone: { _isNull: false, _neq: "" } } } } }
-                  ]
+                    {
+                      _or: [
+                        { phone: { _isNull: true } },
+                        { phone: { _eq: "" } },
+                      ],
+                    },
+                    {
+                      _not: {
+                        accountContacts: {
+                          contact: { phone: { _isNull: false, _neq: "" } },
+                        },
+                      },
+                    },
+                  ],
                 });
                 break;
             }
@@ -366,19 +401,34 @@ export const useAccountListData = (
           params.emailFilters.forEach((filter) => {
             switch (filter) {
               case "HAS_EMAIL":
-                emailConditions.push({ 
+                emailConditions.push({
                   _or: [
                     { email: { _isNull: false, _neq: "" } },
-                    { accountContacts: { contact: { email: { _isNull: false, _neq: "" } } } }
-                  ]
+                    {
+                      accountContacts: {
+                        contact: { email: { _isNull: false, _neq: "" } },
+                      },
+                    },
+                  ],
                 });
                 break;
               case "MISSING_EMAIL":
-                emailConditions.push({ 
+                emailConditions.push({
                   _and: [
-                    { _or: [{ email: { _isNull: true } }, { email: { _eq: "" } }] },
-                    { _not: { accountContacts: { contact: { email: { _isNull: false, _neq: "" } } } } }
-                  ]
+                    {
+                      _or: [
+                        { email: { _isNull: true } },
+                        { email: { _eq: "" } },
+                      ],
+                    },
+                    {
+                      _not: {
+                        accountContacts: {
+                          contact: { email: { _isNull: false, _neq: "" } },
+                        },
+                      },
+                    },
+                  ],
                 });
                 break;
             }
@@ -392,7 +442,9 @@ export const useAccountListData = (
         if (params.faxFilters && params.faxFilters.length > 0) {
           // Fax field is not available in current schema
           // This is a placeholder for when/if fax field becomes available
-          console.warn("Fax filtering not yet supported - field not available in schema");
+          console.warn(
+            "Fax filtering not yet supported - field not available in schema"
+          );
         }
 
         // Note: accountType field does not exist in GraphQL schema - removed filter
@@ -416,9 +468,13 @@ export const useAccountListData = (
 
         // Build order by condition - handle both override and regular sorting
         const orderBy: any = {};
-        const buildSortCondition = (sortField: string, sortOrder: "ASC" | "DESC" | "") => {
-          const sortDirection = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          
+        const buildSortCondition = (
+          sortField: string,
+          sortOrder: "ASC" | "DESC" | ""
+        ) => {
+          const sortDirection =
+            sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+
           switch (sortField) {
             case "name":
               orderBy.name = sortDirection;
@@ -494,6 +550,8 @@ export const useAccountListData = (
 
           const totalCount = result.AccountAggregate?.aggregate?.count || 0;
           setTotal(totalCount);
+          setCurrentPage(page);
+          setPageSize(safePageSize);
           setHasMore(offset + safePageSize < totalCount);
         }
       } catch (err) {
@@ -537,8 +595,8 @@ export const useAccountListData = (
 
   const retry = useCallback(() => {
     console.log("Retrying account data load");
-    // Will be implemented with actual retry logic
-  }, []);
+    loadPage(currentPage, pageSize);
+  }, [currentPage, pageSize, loadPage]);
 
   return {
     accounts,
