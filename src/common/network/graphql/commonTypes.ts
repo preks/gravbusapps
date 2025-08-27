@@ -75,17 +75,6 @@ export interface BaseEntity{
   version: number;
 }
 
-export interface EmployeeRef {
-  id: string;
-  code?: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  fullName: string;
-  picture?: string;
-  pictureThumbnail?: string;
-}
-
 // Note: activeFrom/activeTo are now included in AuditFields
 // Extended validity periods can be added to specific entities if needed:
 // effectiveFrom?: string;

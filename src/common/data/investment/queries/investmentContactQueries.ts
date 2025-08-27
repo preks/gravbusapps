@@ -1,7 +1,6 @@
-// Investment Contact Queries - Complete queries without custom fragments
-// Using only common fragments: CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE
-import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
-
+// Investment Contact Queries - Complete queries using shared fragments
+import { INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { INVESTMENT_CONTACT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments';
 export interface InvestmentContactQueryVariables {
   ids?: string[];
   search?: string;
@@ -136,38 +135,7 @@ export const GET_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariabl
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        firstName
-        lastName
-        fullName
-        email
-        phone
-        
-        birthDate
-        department
-        description
-        jobPosition
-        picture
-        pictureThumbnail
-        
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        academicTitle {
-          ${CATALOG_ENTRY}
-        }
-        salutation {
-          ${CATALOG_ENTRY}
-        }
-        language {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_CONTACT}
         
         # Aggregate counts for relationships
         investmentAccountContactAggregate {
@@ -211,52 +179,14 @@ export const GET_INVESTMENT_CONTACT_BY_ID = (id: string): string => {
   return `
     query GetInvestmentContactById {
       InvestmentContact(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        firstName
-        lastName
-        fullName
-        email
-        phone
-        
-        birthDate
-        department
-        description
-        jobPosition
-        picture
-        pictureThumbnail
-        
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        academicTitle {
-          ${CATALOG_ENTRY}
-        }
-        salutation {
-          ${CATALOG_ENTRY}
-        }
-        language {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_CONTACT}
         
         # Related accounts through account-contact relationships
         investmentAccountContact {
           id
           contactType
           account {
-            id
-            code
-            name
-            email
-            geographicPresence
-            industryClass {
-              ${CATALOG_ENTRY}
-            }
+            ${INVESTMENT_ACCOUNT_REF}
           }
         }
       }
@@ -310,6 +240,110 @@ export const SEARCH_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVari
         ownerEmployee {
           id
           displayName
+        }
+      }
+    }
+  `;
+};
+
+// =====================================================
+// INVESTMENT CONTACT RELATED ENTITIES QUERIES
+// =====================================================
+
+// Get Investment Tasks by Contact ID
+export const GET_INVESTMENT_TASKS_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetInvestmentTasksByContactId {
+      InvestmentTask(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_TASK}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Activities by Contact ID
+export const GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetInvestmentActivitiesByContactId {
+      InvestmentActivity(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ occurredAt: DESC }]
+      ) {
+        ${INVESTMENT_ACTIVITY}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Notes by Contact ID
+export const GET_INVESTMENT_NOTES_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetInvestmentNotesByContactId {
+      InvestmentNote(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_NOTE}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Documents by Contact ID
+export const GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetInvestmentDocumentsByContactId {
+      InvestmentDocument(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_DOCUMENT}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
         }
       }
     }

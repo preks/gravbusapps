@@ -5,16 +5,18 @@ import {
   Users,
   Building2,
   Contact as ContactIcon,
-  BarChart3
+  BarChart3,
 } from "lucide-react";
 import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import ProcessEventListener from "@/common/components/process/ProcessEventListener";
 import { LeadView } from "./views/lead-view";
 import { AccountView } from "./views/account-view";
 import { ContactView } from "./views/contact-view";
 import { OpportunityView } from "./views/opportunity-view";
 import { AnalyticsView } from "./views/analytics-view";
 import { DashboardView } from "./views/dashboard-view";
+import { TaskView } from "./views/task-view";
 import { navigateTo } from "@/common/utils/navigationUtils";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
@@ -27,6 +29,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       key: "dashboard",
       icon: <BarChart3 />,
       label: "Dashboard",
+    },
+    {
+      key: "tasks",
+      icon: <BarChart3 />,
+      label: "Tasks",
     },
     {
       key: "leads",
@@ -99,13 +106,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     updateUrl(key);
   };
 
-  
-
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-    updateUrl(activeTab);
+      updateUrl(activeTab);
     }
   }, []);
 
@@ -120,8 +125,6 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-
-
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
@@ -135,7 +138,13 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             />
           </div>
         );
-      
+      case "tasks":
+        return (
+          <div data-testid="tasks-tab-content">
+            <TaskView {...context} />
+          </div>
+        );
+
       case "leads":
         return (
           <div data-testid="leads-tab-content">
@@ -173,6 +182,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   return (
     <div data-testid="investment-relations-app">
+      {/* Process Event Listener for handling form submission events */}
+      <ProcessEventListener />
       <PageLayout
         headerPhosphorIcon={{
           icon: TrendUp,
@@ -185,7 +196,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
         headerContent={
           <Button
             variant="default"
-            onClick={() => navigateTo('/platform/irm/investment-management')}
+            onClick={() => navigateTo("/platform/irm/investment-management")}
             data-testid="investment-relations-navigate-to-management-button"
           >
             Investment Management

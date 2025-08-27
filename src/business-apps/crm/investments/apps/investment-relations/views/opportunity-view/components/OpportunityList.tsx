@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Button,
   Badge,
@@ -14,14 +14,14 @@ import {
   CardContent,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
 } from "@newwork/nw-design-system";
-import { 
+import {
   Target,
   DollarSign,
   Building2,
   Calendar,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
@@ -58,7 +58,9 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
 
   // Handle row click to navigate to opportunity record
   const handleRowClick = useCallback((opportunityId: string) => {
-    navigateTo(`/platform/irm/opportunity-record?opportunityId=${opportunityId}`);
+    navigateTo(
+      `/platform/irm/opportunity-record?opportunityId=${opportunityId}`
+    );
   }, []);
 
   // Helper function to get owner display name
@@ -66,8 +68,13 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
     if (opportunity.ownerEmployee?.displayName) {
       return opportunity.ownerEmployee.displayName;
     }
-    if (opportunity.ownerEmployee?.firstName || opportunity.ownerEmployee?.lastName) {
-      return `${opportunity.ownerEmployee.firstName || ""} ${opportunity.ownerEmployee.lastName || ""}`.trim();
+    if (
+      opportunity.ownerEmployee?.firstName ||
+      opportunity.ownerEmployee?.lastName
+    ) {
+      return `${opportunity.ownerEmployee.firstName || ""} ${
+        opportunity.ownerEmployee.lastName || ""
+      }`.trim();
     }
     return "-";
   };
@@ -75,14 +82,15 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
   // Helper function to calculate win rate based on status
   const getWinRate = (opportunity: InvestmentOpportunity) => {
     if (!opportunity.opportunityStatus?.code) return "-";
-    
+
     const status = opportunity.opportunityStatus.code.toLowerCase();
-    if (status.includes('won') || status.includes('closed_won')) return "100%";
-    if (status.includes('high_probability') || status.includes('likely_to_win')) return "80%";
-    if (status.includes('medium_probability')) return "50%";
-    if (status.includes('low_probability')) return "20%";
-    if (status.includes('lost') || status.includes('closed_lost')) return "0%";
-    
+    if (status.includes("won") || status.includes("closed_won")) return "100%";
+    if (status.includes("high_probability") || status.includes("likely_to_win"))
+      return "80%";
+    if (status.includes("medium_probability")) return "50%";
+    if (status.includes("low_probability")) return "20%";
+    if (status.includes("lost") || status.includes("closed_lost")) return "0%";
+
     return "50%"; // Default
   };
 
@@ -106,7 +114,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("name")}
                 >
@@ -117,7 +125,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("estimatedAmount")}
                 >
@@ -128,7 +136,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("opportunityStatus")}
                 >
@@ -139,7 +147,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("opportunityPipeline")}
                 >
@@ -150,7 +158,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("closeDate")}
                 >
@@ -161,7 +169,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("accountId")}
                 >
@@ -172,7 +180,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("ownerEmployeeId")}
                 >
@@ -183,7 +191,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     )}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("createdAt")}
                 >
@@ -201,13 +209,15 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
               {opportunities.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="gba:text-center gba:py-8">
-                    <div className="gba:text-gray-500">No opportunities available.</div>
+                    <div className="gba:text-gray-500">
+                      No opportunities available.
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 opportunities.map((opportunity) => (
-                  <TableRow 
-                    key={opportunity.id} 
+                  <TableRow
+                    key={opportunity.id}
                     data-testid={`investment-opportunity-row-${opportunity.id}`}
                     className="gba:cursor-pointer gba:hover:gba:bg-gray-50 gba:transition-colors"
                     onClick={() => handleRowClick(opportunity.id)}
@@ -216,111 +226,134 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Target className="gba:h-4 gba:w-4 gba:text-gray-400" />
                         <div>
-                          <div className="gba:font-medium">{opportunity.name}</div>
+                          <div className="gba:font-medium">
+                            {opportunity.name}
+                          </div>
                           {opportunity.code && (
-                            <div className="gba:text-sm gba:text-gray-500">Code: {opportunity.code}</div>
+                            <div className="gba:text-sm gba:text-gray-500">
+                              Code: {opportunity.code}
+                            </div>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                      <TableCell>
-                        {opportunity.estimatedAmount ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <DollarSign className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{formatCurrency(opportunity.estimatedAmount)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
+                    <TableCell>
+                      {opportunity.estimatedAmount ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <TrendingUp className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">{getWinRate(opportunity)}</span>
+                          <DollarSign className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatCurrency(opportunity.estimatedAmount)}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {opportunity.opportunityPipeline ? (
-                          <Badge variant="secondary" data-testid={`investment-opportunity-pipeline-${opportunity.id}`}>
-                            {opportunity.opportunityPipeline.code}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {opportunity.closeDate ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{formatDate(opportunity.closeDate)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {opportunity.account ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{opportunity.account.name}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {opportunity.ownerEmployee ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Avatar size="sm">
-                              {opportunity.ownerEmployee.picture && (
-                                <AvatarImage
-                                  src={opportunity.ownerEmployee.picture}
-                                  alt={getOwnerName(opportunity)}
-                                />
-                              )}
-                              <AvatarFallback>
-                                {getOwnerName(opportunity) !== "-"
-                                  ? getOwnerName(opportunity)
-                                      .split(" ")
-                                      .map((n: string) => n[0])
-                                      .join("")
-                                      .toUpperCase()
-                                  : "O"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="gba:text-sm">{getOwnerName(opportunity)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {opportunity.createdAt ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{formatDate(opportunity.createdAt)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`opportunity-entity-button-${opportunity.id}`}
-                            size="icon"
-                            contextsArray={[FlowContextName.investmentOpportunityEntity]}
-                            externalContextData={{ opportunityId: opportunity.id }}
-                            prefixDataTestId={`opportunity-entity-update`}
-                            accessToken={accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick={true}
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <TrendingUp className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                        <span className="gba:text-sm">
+                          {getWinRate(opportunity)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.opportunityPipeline ? (
+                        <Badge
+                          variant="secondary"
+                          data-testid={`investment-opportunity-pipeline-${opportunity.id}`}
+                        >
+                          {opportunity.opportunityPipeline.code}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.closeDate ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatDate(opportunity.closeDate)}
+                          </span>
                         </div>
-                      </TableCell>
-                     </TableRow>
-                 ))
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.account ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {opportunity.account.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.ownerEmployee ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar size="sm">
+                            {opportunity.ownerEmployee.picture && (
+                              <AvatarImage
+                                src={opportunity.ownerEmployee.picture}
+                                alt={getOwnerName(opportunity)}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(opportunity) !== "-"
+                                ? getOwnerName(opportunity)
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "O"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="gba:text-sm">
+                            {getOwnerName(opportunity)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatDate(opportunity.createdAt)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`opportunity-entity-button-${opportunity.id}`}
+                          size="icon"
+                          contextsArray={[
+                            FlowContextName.updateInvestmentOpportunity,
+                          ]}
+                          externalContextData={{
+                            opportunityId: opportunity.id,
+                          }}
+                          prefixDataTestId={`opportunity-entity-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick={true}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -331,7 +364,9 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
       {totalCount > pageSize && (
         <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
           <div className="gba:text-sm gba:text-gray-700">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} opportunities
+            Showing {(currentPage - 1) * pageSize + 1} to{" "}
+            {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
+            opportunities
           </div>
           <div className="gba:flex gba:gap-2">
             <Button

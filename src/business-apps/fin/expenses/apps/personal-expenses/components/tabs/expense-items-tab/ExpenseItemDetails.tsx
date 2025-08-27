@@ -24,7 +24,7 @@ import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, 
 import { FileClient } from '@/common/network/files/FileClient';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getDateFormat, formatNumberFunction } from '@/common/utils/windowUtils';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
 
@@ -529,7 +529,10 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 {getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount')}:
               </span>
               <span className="gba:text-gray-900 gba:font-semibold">
-                €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+                {typeof displayItem.reimbursableAmount === 'number' ? 
+                  `${formatNumberFunction(String(displayItem.reimbursableAmount))} ${displayItem.currency?.code || '-'}` : 
+                  `${formatNumberFunction('0')} -`
+                }
               </span>
             </div>
           </div>

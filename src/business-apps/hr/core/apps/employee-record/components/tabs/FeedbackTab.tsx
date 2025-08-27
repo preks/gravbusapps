@@ -5,12 +5,15 @@ import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card, Avatar } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { RequestFeedbackModal } from '@/business-apps/crm/common/forms/feedback-form/components';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -19,6 +22,7 @@ interface FeedbackTabProps {
   userInfo?: UserInfoProps; // Current user info for self-view check
   employeeFeedback?: EmployeeFeedback[];
   isSelfView: boolean; // Whether user is viewing their own profile
+  businessAppContext: BusinessAppContextProps; // Add business app context
 }
 
 // Extended interfaces to include properties used in the drawer
@@ -41,13 +45,15 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   accessToken,
   // employeeId and userInfo are kept in interface for future use
   employeeFeedback = [],
-  isSelfView
+  isSelfView,
+  businessAppContext
 }) => {
   // employeeId and userInfo props are available in the interface
   // isSelfView can be used for conditional rendering
   const [localFeedback, setLocalFeedback] = useState<EmployeeFeedback[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState<boolean>(false);
   
   // No longer need drawer state
   
@@ -164,7 +170,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           <div>
             <AppActionButton 
               data-testid="employee-feedback-give-button"
-              variant="primary"
               contextsArray={[FlowContextName.employeeGiveFeedback]}
               externalContextData={{
                 employeeId: employee?.id
@@ -183,27 +188,27 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           {/* Request Feedback Button - only visible when viewing own profile */}
           {isSelfView && (
             <div>
-              <AppActionButton
+              <Button
+                variant="outline"
+                onClick={() => setIsRequestModalOpen(true)}
                 data-testid="employee-feedback-request-button"
-                variant="secondary"
-                contextsArray={[FlowContextName.employeeRequestFeedback]}
-                externalContextData={{
-                  employeeId: employee?.id,
-                  isRequestingFeedback: true
-                }}
-                prefixDataTestId="employee-feedback-request"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
               >
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:hr_performance.request_feedback",
                   "Request Feedback"
                 )}
-              </AppActionButton>
+              </Button>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Request Feedback Modal */}
+      <RequestFeedbackModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        businessAppContext={businessAppContext}
+      />
       
       {/* Feedback Content */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">

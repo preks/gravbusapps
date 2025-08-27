@@ -20,3 +20,6 @@ export * from './investmentQueries';
 
 // Investment Report Queries
 export * from './investmentReportQueries';
+
+// Investment Task Queries
+export * from './investmentTaskQueries';

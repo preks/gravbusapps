@@ -1,6 +1,7 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+import { INVESTMENT } from './fragments/investmentFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -117,58 +118,7 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        name
-        isin
-        acquisitionDate
-        planedExit
-        plannedExitDate
-        exitDate
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        debtFinancingAmount
-        requiredCapitalAmount
-        forecastedRevenueAmount
-        forecastedProfitAmount
-        stakePercentage
-        loanRecipientName
-        loanAmount
-        loanOpenCommitmentAmount
-        loanInterestRate
-        loanStartDate
-        loanEndDate
-        loanInterestClaim
-        totalCommitmentAmount
-        totalDistributionAmount
-        fundManagerName
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStakeType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        investmentRiskLevel {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT}  
         
         # Entity relationships
         investmentAccount {
@@ -198,7 +148,7 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
               phone
               department
               jobPosition
-              createdAt
+              ${AUDIT_FIELDS}
             }
           }
         }
@@ -217,13 +167,7 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           ebitdaAmount
           turnoverAmount
           additionalProperties
-          createdAt
-          createdBy
-          activeFrom
-          activeTo
-          processInstanceId
-          recordState
-          businessKey
+          ${AUDIT_FIELDS}
         }
         
         # Real Estate Investment specialization
@@ -257,49 +201,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
   return `
     query GetInvestmentById {
       Investment(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        name
-        isin
-        acquisitionDate
-        planedExit
-        plannedExitDate
-        exitDate
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        debtFinancingAmount
-        requiredCapitalAmount
-        forecastedRevenueAmount
-        forecastedProfitAmount
-        stakePercentage
-        fundManagerName
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStakeType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        investmentRiskLevel {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT}
         
         # Entity relationships
         investmentAccount {
@@ -329,7 +231,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
               phone
               department
               jobPosition
-              createdAt
+              ${AUDIT_FIELDS}
             }
           }
         }
@@ -419,19 +321,13 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
         stakePercentage
         
         investmentType {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         investmentStatus {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         currency {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         ownerEmployee {
           id
