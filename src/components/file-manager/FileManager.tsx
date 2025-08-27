@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, Spinner, Alert, FileExplorer, type FileExplorerNode, type FileExplorerAction } from '@newwork/nw-design-system';
 import './styles/hide-unwanted-actions.css';
 import { FileDown, FilePlus, FolderPlus, Eye, Edit, Share2, Trash2 } from 'lucide-react';
@@ -68,24 +69,51 @@ const mapToExplorerNodes = (docs: DocumentNode[]): FileExplorerNode[] => {
 };
 
 export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* permissions, */ 'data-testid': dataTestId }) => {
-  const { documents, isLoading, error, refetch } = useCrmDocuments(context.accessToken, entity);
+  const { documents, isLoading, error, refetch, setDocuments } = useCrmDocuments(context.accessToken, entity);
   const graphqlClient = useGraphQLClient(context.accessToken);
   const explorerContainerRef = useRef<HTMLDivElement>(null);
+  const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const flowRegistryClient = useFlowRegistryClient(context.accessToken);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState<{ left: number; top: number } | null>(null);
+  const [menuMountEl, setMenuMountEl] = useState<HTMLElement | null>(null);
   const [selectedNode, setSelectedNode] = useState<FileExplorerNode | null>(null);
   const newFolderActionRef = useRef<HTMLButtonElement>(null);
   const uploadFileActionRef = useRef<HTMLButtonElement>(null);
   const lastNewFolderParentRef = useRef<string | null>(null);
   const lastUploadParentRef = useRef<string | null>(null);
 
-  const { renameFolder, deleteNode, hasDescendantFiles, moveNode /*, optimisticMove */ } = useDocumentMutations({
+  const { renameFolder, deleteNode, /* hasDescendantFiles, */ moveNode /*, optimisticMove */ } = useDocumentMutations({
     accessToken: context.accessToken,
     entity,
     getAllDocuments: () => documents,
-    setDocuments: () => {}, // not used here as FileExplorer manages tree; we rely on refetch after operations
+    setDocuments,
   });
+
+  // Prevent browser navigation/refresh when dropping files/folders outside explorer
+  useEffect(() => {
+    const preventOutsideDrop = (e: Event) => {
+      const root = explorerContainerRef.current;
+      const target = e.target as Node | null;
+      // If drop does not occur inside explorer container, prevent default page navigation
+      if (!root || !target || !root.contains(target)) {
+        e.preventDefault();
+      }
+    };
+    const rememberPointer = (e: PointerEvent) => {
+      const root = explorerContainerRef.current;
+      if (!root) return;
+      const rect = root.getBoundingClientRect();
+      lastPointerRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    window.addEventListener('dragover', preventOutsideDrop);
+    window.addEventListener('drop', preventOutsideDrop);
+    window.addEventListener('pointerdown', rememberPointer, true);
+    return () => {
+      window.removeEventListener('dragover', preventOutsideDrop);
+      window.removeEventListener('drop', preventOutsideDrop);
+      window.removeEventListener('pointerdown', rememberPointer, true);
+    };
+  }, []);
 
   // Handle built-in FileExplorer actions
   const handleNodeAction = async (action: string, node: FileExplorerNode) => {
@@ -144,6 +172,23 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
               documentTypeRef: typeRef,
               parentDocument: parentRef,
             },
+            // Provide additionalData payload variants for update detection in popup
+            additionalData: {
+              crmDocument: {
+                id: doc.id,
+                version,
+                name,
+                parentDocument: parentRef,
+              },
+              payload: {
+                crmDocument: {
+                  id: doc.id,
+                  version,
+                  name,
+                  parentDocument: parentRef,
+                },
+              },
+            },
           },
           builderType: 'NATIVE_SCREEN',
         });
@@ -195,10 +240,16 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
       icon: FilePlus as any,
       onClick: (node) => {
         const parentId = node.type === 'folder' ? node.id : node.parentId;
+        // Pass parentDocument redundantly through payload variations many environments expect
+        const basePayload: any = { [`${entity.type}Id`]: entity.id };
+        if (parentId) {
+          basePayload.parentDocument = parentId;
+          basePayload.payload = { parentDocument: parentId };
+        }
         startProcess({
           domain: 'customer-relations',
           processName: 'createCrmDocument',
-          payload: { [`${entity.type}Id`]: entity.id, ...(parentId ? { parentDocument: parentId } : {}) },
+          payload: basePayload,
           builderType: 'NATIVE_SCREEN',
         });
       },
@@ -214,60 +265,73 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
   // Handle three-dots click to open AppActionMenu with required options
   const handleActionsButtonClick = (node: FileExplorerNode) => {
     setSelectedNode(node);
-    // Try to anchor the menu to the clicked button position
+    // Inline-anchored: mount menu as absolute element inside the row container at the right edge
     try {
       const root = explorerContainerRef.current;
       const row = root?.querySelector(`[data-testid="file-explorer-item-${node.id}"]`) as HTMLElement | null;
-      const icon = row?.querySelector('[data-lucide="more-horizontal"]') as HTMLElement | null;
-      const button = (icon?.closest('button') as HTMLElement | null) || (row?.querySelector('button:last-of-type') as HTMLElement | null);
-      const rect = (button || row)?.getBoundingClientRect();
-      if (rect) {
-        setMenuAnchor({ left: rect.left, top: rect.bottom + 4 });
-      } else {
-        setMenuAnchor({ left: 0, top: 0 });
+      if (row) {
+        // cleanup previous mount
+        if (menuMountEl && menuMountEl.parentElement) {
+          menuMountEl.parentElement.removeChild(menuMountEl);
+        }
+        row.style.position = row.style.position || 'relative';
+        const mount = document.createElement('div');
+        mount.style.position = 'absolute';
+        mount.style.right = '0px';
+        mount.style.top = 'calc(100% + 6px)';
+        mount.style.zIndex = '10000';
+        row.appendChild(mount);
+        setMenuMountEl(mount);
+        setMenuOpen(true);
       }
     } catch {
-      setMenuAnchor({ left: 0, top: 0 });
+      setMenuOpen(true);
     }
-    setMenuOpen(true);
   };
 
   const appActions = useMemo(() => {
     if (!selectedNode) return [] as any[];
     const doc = documents.find(d => d.id === selectedNode.id);
-    const isFile = selectedNode.type === 'file' && !!doc?.file;
 
+    // Folder-specific actions requested by user
+    if (selectedNode.type === 'folder') {
+      const doDeleteFolder = async () => {
+        if (!doc) return;
+        try {
+          await deleteNode(doc.id, doc.version);
+        } finally {
+          await refetch();
+        }
+      };
+
+      return [
+        { key: 'new-subfolder', label: 'New Subfolder', onClick: () => { handleNewSubfolder(selectedNode.id); setMenuOpen(false); }, icon: <FolderPlus className="nw:h-4 nw:w-4" /> },
+        { key: 'upload-file', label: 'Upload File', onClick: () => { handleRequestUpload(selectedNode.id); setMenuOpen(false); }, icon: <FilePlus className="nw:h-4 nw:w-4" /> },
+        { key: 'delete', label: 'Delete', onClick: () => { void doDeleteFolder(); setMenuOpen(false); }, icon: <Trash2 className="nw:h-4 nw:w-4" /> },
+      ];
+    }
+
+    // File actions (unchanged)
+    const isFile = !!doc?.file;
     const openView = () => {
       if (!doc || !isFile) return;
       const url = buildDownloadUrl(entity.type, entity.id, doc);
       window.open(url, '_blank');
     };
-
     const doDownload = () => {
       if (!doc || !isFile) return;
       const url = buildDownloadUrl(entity.type, entity.id, doc);
       window.open(url, '_blank');
     };
-
     const doRename = () => { void handleNodeAction('rename', selectedNode); };
-
     const doShare = async () => {
       if (!doc || !isFile) return;
       const url = buildDownloadUrl(entity.type, entity.id, doc);
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {}
+      try { await navigator.clipboard.writeText(url); } catch {}
     };
-
     const doDelete = async () => {
       if (!doc) return;
-      const ok = window.confirm(`Delete "${selectedNode.name}"?`);
-      if (!ok) return;
-      try {
-        await deleteNode(doc.id, doc.version);
-      } finally {
-        await refetch();
-      }
+      try { await deleteNode(doc.id, doc.version); } finally { await refetch(); }
     };
 
     return [
@@ -279,11 +343,19 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
     ];
   }, [selectedNode, documents, entity, deleteNode, refetch]);
 
+  // Keep a local nodes state to avoid full refreshes during move operations
+  // Derive nodes directly from documents to avoid accidental clearing on internal callbacks
+  const derivedNodes = useMemo(() => mapToExplorerNodes(documents), [documents]);
+
   // DnD handling via FileExplorer callbacks
   const onNodesChange = async (nextNodes: FileExplorerNode[]) => {
-    // Detect parentId changes and persist
-    const before = mapToExplorerNodes(documents);
-    const beforeMap = new Map(before.map(n => [n.id, n]));
+    const beforeMap = new Map(derivedNodes.map(n => [n.id, n]));
+    // optimistic UI
+    setDocuments(prev => prev.map(d => {
+      const next = nextNodes.find(n => n.id === d.id);
+      return next ? { ...d, parentDocument: next.parentId ?? null } : d;
+    }));
+    // persist
     for (const n of nextNodes) {
       const prev = beforeMap.get(n.id);
       if (!prev) continue;
@@ -292,61 +364,74 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
       if (prevParent !== nextParent) {
         const doc = documents.find(d => d.id === n.id);
         if (!doc) continue;
-        // Optimistic in UI; backend persist
-        try {
-          await moveNode(doc.id, doc.version, nextParent);
-        } catch (e) {
-          // ignore; refetch will restore
-        }
+        moveNode(doc.id, doc.version, nextParent).catch(() => {
+          setDocuments(p => p.map(x => x.id === doc.id ? { ...x, parentDocument: prevParent } : x));
+        });
       }
     }
-
-    // Detect deletions (present before, missing now) and persist
-    const nextIds = new Set(nextNodes.map(n => n.id));
-    const deletedIds: string[] = [];
-    for (const id of beforeMap.keys()) {
-      if (!nextIds.has(id)) {
-        deletedIds.push(id);
-      }
-    }
-    if (deletedIds.length > 0) {
-      for (const id of deletedIds) {
-        const doc = documents.find(d => d.id === id);
-        if (!doc) continue;
-        // Optional guard: prevent deleting folder with files via backend policy
-        if (doc.documentType === undefined && hasDescendantFiles(id)) {
-          // If DS removed it, we just persist; backend can enforce rules as needed
-        }
-        try {
-          await deleteNode(doc.id, doc.version);
-        } catch {
-          // ignore per-item, final refetch will sync UI
-        }
-      }
-    }
-    await refetch();
   };
 
-  // Process completion refetch
+  // Process completion: upsert without refetch
   useProcessCompletion({
-    onSuccess: () => { refetch(); },
+    onSuccess: () => {
+      const w: any = window as any;
+      const resp = (w.__lastProcessResponse || {});
+      const crm = resp.crmDocument;
+      if (!crm?.id) return;
+      setDocuments(prev => {
+        const exists = prev.some(d => d.id === crm.id);
+        const mapped: any = {
+          id: crm.id,
+          version: crm.version ?? 0,
+          name: crm.name ?? 'Unnamed Document',
+          createdAt: new Date().toISOString(),
+          expirationDate: crm.expirationDate ?? null,
+          format: crm.format ?? (crm.file ? 'FILE' : null),
+          parentDocument: crm.parentDocument ?? null,
+          documentType: crm.documentTypeRef ? { id: crm.documentTypeRef, value: '' } : null,
+          documentGroup: crm.documentGroupRef ? { id: crm.documentGroupRef, value: '' } : null,
+          file: crm.file ?? null,
+          mimeType: crm.mimeType ?? null,
+          fileSize: typeof crm.fileSize === 'number' ? crm.fileSize : null,
+          createdBy: '',
+        } as any;
+        return exists ? prev.map(d => d.id === crm.id ? { ...d, ...mapped } : d) : [mapped, ...prev];
+      });
+    },
     onFailure: () => {}
   });
 
-  const nodes = useMemo(() => mapToExplorerNodes(documents), [documents]);
+  const nodes = derivedNodes;
+
+  // Ensure initial fetch even if upstream readiness prevented the first hook run
+  useEffect(() => {
+    if (context.accessToken && entity?.id) {
+      void refetch();
+    }
+  }, [context.accessToken, entity?.id]);
 
   // AppAction-backed handlers for DS header buttons
   const handleNewRootFolder = () => {
     lastNewFolderParentRef.current = null;
-    // ensure registry client has the fresh token
     if (context.accessToken) flowRegistryClient.setAccessToken(context.accessToken);
-    newFolderActionRef.current?.click();
+    // Open native screen directly with createFolder flag
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'createCrmDocument',
+      payload: { [`${entity.type}Id`]: entity.id, createFolder: true },
+      builderType: 'NATIVE_SCREEN',
+    });
   };
 
   const handleNewSubfolder = (parentId: string) => {
     lastNewFolderParentRef.current = parentId;
     if (context.accessToken) flowRegistryClient.setAccessToken(context.accessToken);
-    newFolderActionRef.current?.click();
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'createCrmDocument',
+      payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: parentId },
+      builderType: 'NATIVE_SCREEN',
+    });
   };
 
   const handleRequestUpload = (parentId: string | null) => {
@@ -379,7 +464,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
   return (
     <Card className="gba:h-full gba:bg-white" data-testid={dataTestId || 'file-manager-container'}>
       <CardContent>
-        <div className="gba:bg-white" ref={explorerContainerRef}>
+        <div className="gba:bg-white" ref={explorerContainerRef} style={{ position: 'relative' }} onMouseMove={(e) => { lastPointerRef.current = { x: e.clientX, y: e.clientY }; }}>
         <FileExplorer
           nodes={nodes}
           showSearch
@@ -422,8 +507,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
           }}
           className="gba:mt-2"
         />
-        {/* AppActionMenu as overlay opened from three-dots; uses static actions in required order */}
-        {selectedNode && (
+        {/* Inline-anchored AppActionMenu rendered as a portal into the row */}
+        {selectedNode && menuMountEl && createPortal(
           <AppActionMenu
             accessToken={context.accessToken}
             staticFlowData={appActions as any}
@@ -431,11 +516,11 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
             open={menuOpen}
             onOpenChange={(open) => setMenuOpen(open)}
             prefixDataTestId="file-manager"
-            style={{ position: 'fixed', left: menuAnchor?.left ?? 0, top: menuAnchor?.top ?? 0 }}
             data-testid="file-manager-action-menu"
           >
             <button type="button" aria-label="open actions" />
-          </AppActionMenu>
+          </AppActionMenu>,
+          menuMountEl
         )}
 
         {/* Hidden AppActions to execute New Folder and Upload processes with individual contexts */}

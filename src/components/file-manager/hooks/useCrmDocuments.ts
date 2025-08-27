@@ -7,18 +7,18 @@ export interface UseCrmDocumentsResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  setDocuments: React.Dispatch<React.SetStateAction<DocumentNode[]>>;
 }
 
 export const useCrmDocuments = (accessToken: string | undefined, entity: FileManagerEntityRef): UseCrmDocumentsResult => {
   const [documents, setDocuments] = useState<DocumentNode[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const client = useGraphQLClient(accessToken);
+  const client = useGraphQLClient(accessToken || "");
 
   const load = useCallback(async () => {
     if (!accessToken || !entity?.id) {
-      setDocuments([]);
-      setIsLoading(false);
+      // Not ready yet; keep current state (spinner remains if still initial)
       return;
     }
     setIsLoading(true);
@@ -27,7 +27,14 @@ export const useCrmDocuments = (accessToken: string | undefined, entity: FileMan
       const idField = getEntityGraphQlField(entity.type);
       const query = `
         query GetCrmDocuments($entityId: uuid!) {
-          CrmDocument(where: {${idField}: {_eq: $entityId}, isDeleted: {_eq: false}}) {
+          CrmDocument(
+            where: {
+              _and: [
+                { ${idField}: { _eq: $entityId } },
+                { isDeleted: { _neq: true } }
+              ]
+            }
+          ) {
             id
             version
             name
@@ -68,13 +75,13 @@ export const useCrmDocuments = (accessToken: string | undefined, entity: FileMan
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, entity]);
+  }, [accessToken, entity?.id, entity?.type]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  return { documents, isLoading, error, refetch: load };
+  return { documents, isLoading, error, refetch: load, setDocuments };
 };
 
 
