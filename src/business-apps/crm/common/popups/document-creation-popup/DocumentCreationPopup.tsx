@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Input, Alert, AlertDescription, Spinner } from '@newwork/nw-design-system';
+import { Button, Input, Alert, AlertDescription, Spinner, Textarea } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { fileClient } from '@/common/network/files/FileClient';
 
 export type DocumentCreationEntityType = 'account' | 'contact' | 'lead';
 
@@ -34,8 +35,9 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
     else if (contactId) { entityType = 'contact'; entityId = String(contactId); }
     else if (leadId) { entityType = 'lead'; entityId = String(leadId); }
 
+    // Folder mode only when explicitly requested or format pre-set as FOLDER
     const computedFolder = Boolean(
-      src?.folder === true || crm?.format === 'FOLDER' || (!crm?.file && !src?.file)
+      src?.folder === true || crm?.format === 'FOLDER'
     );
     const parentDocument = src?.parentDocument ?? null;
     const name = src?.name ?? '';
@@ -51,6 +53,11 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
 
   const [name, setName] = useState<string>(values.name || '');
   const [submitting, setSubmitting] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [documentGroupRef, setDocumentGroupRef] = useState<string>('');
+  const [documentTypeRef, setDocumentTypeRef] = useState<string>('');
+  const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '');
+  const [description, setDescription] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const title = useMemo(() => (values.folder ? 'Create Folder' : 'Create Document'), [values.folder]);
@@ -65,11 +72,53 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
     }
   }, [values.entityType]);
 
+  // File reading no longer needed; we use File Service upload instead
+
+  const getExtensionFromFile = (f: File): string | null => {
+    // First try from filename
+    const match = /\.([^.]+)$/.exec(f.name || '');
+    if (match && match[1]) return match[1].toLowerCase();
+    // Fallback by mime type
+    const map: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'text/plain': 'txt',
+      'text/csv': 'csv',
+      'application/json': 'json',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/msword': 'doc',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.ms-excel': 'xls',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+      'application/vnd.ms-powerpoint': 'ppt',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'application/zip': 'zip',
+    };
+    return map[f.type] || null;
+  };
+
+  const ensureNameHasExtension = (baseName: string, f?: File | null): string => {
+    const nameHasExt = /\.[^.]+$/.test(baseName);
+    if (nameHasExt) return baseName;
+    if (f) {
+      const ext = getExtensionFromFile(f);
+      if (ext) return `${baseName}.${ext}`;
+    }
+    return baseName; // leave as-is if we can't determine (backend may still validate)
+  };
+
   const handleSubmit = async () => {
     setError(null);
     const trimmed = (name || '').trim();
     if (!trimmed) {
       setError('Please provide a name.');
+      return;
+    }
+    if (!values.folder && !file) {
+      setError('Please select a file.');
       return;
     }
     try {
@@ -104,16 +153,58 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         idFromUrl ||
         '';
 
-      const crmDocument = {
+      // Build base crmDocument
+      const crmDocument: Record<string, any> = {
         version: 0,
-        name: trimmed,
-        parentDocument: values.parentDocument || undefined,
+        name: values.folder ? trimmed : ensureNameHasExtension(trimmed, file),
+        parentDocument: (parentFolderId || values.parentDocument) || undefined,
         format: values.folder ? 'FOLDER' : 'FILE',
         [entityBindingKey]: resolvedId,
-      } as Record<string, any>;
+      };
+
+      // Optional metadata
+      if (documentGroupRef) crmDocument.documentGroupRef = documentGroupRef;
+      if (documentTypeRef) crmDocument.documentTypeRef = documentTypeRef;
+      if (description) crmDocument.description = description;
+
+      // If uploading a file, upload to File Service and include returned fileId
+      if (!values.folder && file) {
+        // Ensure auth header
+        if (props.accessToken) {
+          fileClient.setAccessToken(props.accessToken);
+        }
+
+        const folderEntity = (() => {
+          switch (values.entityType) {
+            case 'account': return 'accounts';
+            case 'contact': return 'contacts';
+            case 'lead': return 'leads';
+            default: return 'accounts';
+          }
+        })();
+
+        const pathParams = { accessScope: 'public' } as const;
+        const queryParams = {
+          appName: 'crm',
+          folderPath: `/${folderEntity}/${resolvedId}/documents`,
+        } as const;
+
+        const uploadResponse = await fileClient.uploadFile(
+          file,
+          pathParams,
+          queryParams
+        );
+
+        crmDocument.file = uploadResponse.fileInfo.fileId;
+        crmDocument.fileSize = file.size;
+        crmDocument.mimeType = file.type || undefined;
+      }
 
       dispatchProcessContinueEvent('pse_submit', {
         [entityIdKey]: resolvedId,
+        folder: values.folder,
+        name: trimmed,
+        parentDocument: crmDocument.parentDocument,
         crmDocument,
       });
     } catch (e: any) {
@@ -138,14 +229,61 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         <h2 className="gba:text-xl gba:font-semibold" data-testid={formatDataTestId(prefixDataTestId, 'Title')}>{title}</h2>
       </div>
 
-      <div className="gba:mb-4">
-        <Input
-          placeholder={initialValues.folder ? 'Folder name' : 'Document name'}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-        />
-      </div>
+      {/* Conditional form */}
+      {values.folder ? (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Folder name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+          />
+        </div>
+      ) : (
+        <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+          <Input
+            type="file"
+            onChange={(e) => {
+              const f = e.target.files?.[0] || null;
+              setFile(f);
+              if (f && !name) {
+                setName(f.name);
+              }
+            }}
+            data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
+          />
+          <Input
+            placeholder="Document Group Ref (optional)"
+            value={documentGroupRef}
+            onChange={(e) => setDocumentGroupRef(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupRefInput')}
+          />
+          <Input
+            placeholder="Document Type Ref (optional)"
+            value={documentTypeRef}
+            onChange={(e) => setDocumentTypeRef(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeRefInput')}
+          />
+          <Input
+            placeholder="Parent Folder (optional)"
+            value={parentFolderId}
+            onChange={(e) => setParentFolderId(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderInput')}
+          />
+          <Input
+            placeholder="Document name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+          />
+          <Textarea
+            placeholder="Description (optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
+          />
+        </div>
+      )}
 
       <div className="gba:flex gba:gap-3">
         <Button

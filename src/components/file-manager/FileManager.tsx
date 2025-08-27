@@ -478,7 +478,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
               leadId: entity.type === 'lead' ? entity.id : undefined,
               lead: entity.type === 'lead' ? entity.id : undefined,
               ...(lastUploadParentRef.current ? { parentDocument: lastUploadParentRef.current } : {}),
-              folder: true,
+              folder: false,
               crmDocument: {
                 ...(entity.type === 'account' ? { account: entity.id } : {}),
                 ...(entity.type === 'contact' ? { contact: entity.id } : {}),
