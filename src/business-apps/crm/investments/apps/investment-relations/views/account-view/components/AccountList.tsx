@@ -12,16 +12,9 @@ import {
   CardContent,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
 } from "@newwork/nw-design-system";
-import {
-  Building2,
-  Mail,
-  Phone,
-  Globe,
-  Calendar,
-  MapPin
-} from "lucide-react";
+import { Building2, Mail, Phone, Globe, Calendar, MapPin } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import type { InvestmentAccount } from "@/common/data/investment/types";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
@@ -59,7 +52,6 @@ export const AccountList: React.FC<AccountListProps> = ({
   onClearFilters,
   ...context
 }) => {
-
   const handleRowClick = useCallback((accountId: string) => {
     navigateTo(`/platform/irm/account-record?accountId=${accountId}`);
   }, []);
@@ -75,7 +67,9 @@ export const AccountList: React.FC<AccountListProps> = ({
       return account.ownerEmployee.displayName;
     }
     if (account.ownerEmployee?.firstName || account.ownerEmployee?.lastName) {
-      return `${account.ownerEmployee.firstName || ""} ${account.ownerEmployee.lastName || ""}`.trim();
+      return `${account.ownerEmployee.firstName || ""} ${
+        account.ownerEmployee.lastName || ""
+      }`.trim();
     }
     return "-";
   };
@@ -83,25 +77,31 @@ export const AccountList: React.FC<AccountListProps> = ({
   // Helper function to get contact info
   const getContactInfo = (account: InvestmentAccount) => {
     const contactInfo = [];
-    
+
     if (account.email) {
       contactInfo.push(
-        <div key="email" className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        <div
+          key="email"
+          className="gba:flex gba:items-center gba:gap-2 gba:mb-1"
+        >
           <Mail className="gba:w-4 gba:h-4 gba:text-gray-500" />
           <span className="gba:text-sm">{account.email}</span>
         </div>
       );
     }
-    
+
     if (account.phone) {
       contactInfo.push(
-        <div key="phone" className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        <div
+          key="phone"
+          className="gba:flex gba:items-center gba:gap-2 gba:mb-1"
+        >
           <Phone className="gba:w-4 gba:h-4 gba:text-gray-500" />
           <span className="gba:text-sm">{account.phone}</span>
         </div>
       );
     }
-    
+
     if (account.website) {
       contactInfo.push(
         <div key="website" className="gba:flex gba:items-center gba:gap-2">
@@ -110,8 +110,12 @@ export const AccountList: React.FC<AccountListProps> = ({
         </div>
       );
     }
-    
-    return contactInfo.length > 0 ? contactInfo : <span className="gba:text-gray-400">No contact info</span>;
+
+    return contactInfo.length > 0 ? (
+      contactInfo
+    ) : (
+      <span className="gba:text-gray-400">No contact info</span>
+    );
   };
 
   return (
@@ -122,7 +126,7 @@ export const AccountList: React.FC<AccountListProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("name")}
                 >
@@ -131,7 +135,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("name")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("email")}
                 >
@@ -140,7 +144,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("email")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("legalForm")}
                 >
@@ -149,7 +153,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("legalForm")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("industryClass")}
                 >
@@ -158,7 +162,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("industryClass")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("companySize")}
                 >
@@ -167,7 +171,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("companySize")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("geographicPresence")}
                 >
@@ -176,16 +180,16 @@ export const AccountList: React.FC<AccountListProps> = ({
                     {getSortIcon("geographicPresence")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("ownerEmployeeId")}
+                  onClick={() => onSort("ownerEmployee")}
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Owner
-                    {getSortIcon("ownerEmployeeId")}
+                    {getSortIcon("ownerEmployee")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("createdAt")}
                 >
@@ -202,14 +206,16 @@ export const AccountList: React.FC<AccountListProps> = ({
                 <TableRow>
                   <TableCell colSpan={9} className="gba:text-center gba:py-8">
                     <div className="gba:text-gray-500">
-                      {searchTerm ? "No accounts found matching your search criteria." : "No accounts available."}
+                      {searchTerm
+                        ? "No accounts found matching your search criteria."
+                        : "No accounts available."}
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 accounts.map((account) => (
-                  <TableRow 
-                    key={account.id} 
+                  <TableRow
+                    key={account.id}
                     data-testid={`investment-account-row-${account.id}`}
                     className="gba:cursor-pointer gba:hover:gba:bg-gray-50 gba:transition-colors"
                     onClick={() => handleRowClick(account.id)}
@@ -220,104 +226,123 @@ export const AccountList: React.FC<AccountListProps> = ({
                         <div>
                           <div className="gba:font-medium">{account.name}</div>
                           {account.code && (
-                            <div className="gba:text-sm gba:text-gray-500">Code: {account.code}</div>
+                            <div className="gba:text-sm gba:text-gray-500">
+                              Code: {account.code}
+                            </div>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                      <TableCell>
-                        <div className="gba:min-w-[200px]">
-                          {getContactInfo(account)}
+                    <TableCell>
+                      <div className="gba:min-w-[200px]">
+                        {getContactInfo(account)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {account.legalForm ? (
+                        <Badge
+                          variant="secondary"
+                          data-testid={`investment-account-legal-form-${account.id}`}
+                        >
+                          {account.legalForm.code}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {account.industryClass ? (
+                        <Badge
+                          variant="secondary"
+                          data-testid={`investment-account-industry-${account.id}`}
+                        >
+                          {account.industryClass.code}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {account.companySize ? (
+                        <Badge
+                          variant="outline"
+                          data-testid={`investment-account-size-${account.id}`}
+                        >
+                          {account.companySize.code}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {account.geographicPresence && (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <MapPin className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {account.geographicPresence}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {account.legalForm ? (
-                          <Badge variant="secondary" data-testid={`investment-account-legal-form-${account.id}`}>
-                            {account.legalForm.code}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.industryClass ? (
-                          <Badge variant="secondary" data-testid={`investment-account-industry-${account.id}`}>
-                            {account.industryClass.code}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.companySize ? (
-                          <Badge variant="outline" data-testid={`investment-account-size-${account.id}`}>
-                            {account.companySize.code}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.geographicPresence && (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <MapPin className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{account.geographicPresence}</span>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.ownerEmployee ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Avatar size="sm">
-                              {account.ownerEmployee.picture && (
-                                <AvatarImage
-                                  src={account.ownerEmployee.picture}
-                                  alt={getOwnerName(account)}
-                                />
-                              )}
-                              <AvatarFallback>
-                                {getOwnerName(account) !== "-"
-                                  ? getOwnerName(account)
-                                      .split(" ")
-                                      .map((n: string) => n[0])
-                                      .join("")
-                                      .toUpperCase()
-                                  : "O"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="gba:text-sm">{getOwnerName(account)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {account.createdAt ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{formatDate(account.createdAt)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`account-entity-button-${account.id}`}
-                            size="icon"
-                            contextsArray={[FlowContextName.investmentAccountEntity]}
-                            externalContextData={{ accountId: account.id }}
-                            prefixDataTestId={`account-entity-button`}
-                            accessToken={context.accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick={true}
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {account.ownerEmployee ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar size="sm">
+                            {account.ownerEmployee.picture && (
+                              <AvatarImage
+                                src={account.ownerEmployee.picture}
+                                alt={getOwnerName(account)}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(account) !== "-"
+                                ? getOwnerName(account)
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "O"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="gba:text-sm">
+                            {getOwnerName(account)}
+                          </span>
                         </div>
-                      </TableCell>
-                     </TableRow>
-                 ))
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {account.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatDate(account.createdAt)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`account-update-button-${account.id}`}
+                          size="icon"
+                          contextsArray={[
+                            FlowContextName.updateInvestmentAccount,
+                          ]}
+                          externalContextData={{ accountId: account.id }}
+                          prefixDataTestId={`account-update`}
+                          accessToken={context.accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick={true}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -328,7 +353,9 @@ export const AccountList: React.FC<AccountListProps> = ({
       {totalCount > pageSize && (
         <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
           <div className="gba:text-sm gba:text-gray-700">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} accounts
+            Showing {(currentPage - 1) * pageSize + 1} to{" "}
+            {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
+            accounts
           </div>
           <div className="gba:flex gba:gap-2">
             <Button
@@ -355,4 +382,3 @@ export const AccountList: React.FC<AccountListProps> = ({
     </div>
   );
 };
-

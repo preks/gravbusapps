@@ -5,10 +5,11 @@ import {
   Users,
   Building2,
   Contact as ContactIcon,
-  BarChart3
+  BarChart3,
 } from "lucide-react";
 import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import ProcessEventListener from "@/common/components/process/ProcessEventListener";
 import { LeadView } from "./views/lead-view";
 import { AccountView } from "./views/account-view";
 import { ContactView } from "./views/contact-view";
@@ -105,13 +106,11 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     updateUrl(key);
   };
 
-  
-
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-    updateUrl(activeTab);
+      updateUrl(activeTab);
     }
   }, []);
 
@@ -125,8 +124,6 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
-
-
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -147,7 +144,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             <TaskView {...context} />
           </div>
         );
-      
+
       case "leads":
         return (
           <div data-testid="leads-tab-content">
@@ -185,6 +182,8 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   return (
     <div data-testid="investment-relations-app">
+      {/* Process Event Listener for handling form submission events */}
+      <ProcessEventListener />
       <PageLayout
         headerPhosphorIcon={{
           icon: TrendUp,
@@ -197,7 +196,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
         headerContent={
           <Button
             variant="default"
-            onClick={() => navigateTo('/platform/irm/investment-management')}
+            onClick={() => navigateTo("/platform/irm/investment-management")}
             data-testid="investment-relations-navigate-to-management-button"
           >
             Investment Management

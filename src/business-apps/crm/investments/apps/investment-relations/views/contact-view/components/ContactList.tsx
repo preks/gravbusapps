@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -12,14 +12,9 @@ import {
   CardContent,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
 } from "@newwork/nw-design-system";
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar
-} from "lucide-react";
+import { User, Mail, Phone, Calendar } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import type { InvestmentContact } from "@/common/data/investment/types";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
@@ -51,7 +46,6 @@ export const ContactList: React.FC<ContactListProps> = ({
   sortOrder,
   ...context
 }) => {
-
   const handleRowClick = useCallback((contactId: string) => {
     navigateTo(`/platform/irm/contact-record?contactId=${contactId}`);
   }, []);
@@ -77,7 +71,9 @@ export const ContactList: React.FC<ContactListProps> = ({
       return contact.ownerEmployee.displayName;
     }
     if (contact.ownerEmployee?.firstName || contact.ownerEmployee?.lastName) {
-      return `${contact.ownerEmployee.firstName || ""} ${contact.ownerEmployee.lastName || ""}`.trim();
+      return `${contact.ownerEmployee.firstName || ""} ${
+        contact.ownerEmployee.lastName || ""
+      }`.trim();
     }
     return "-";
   };
@@ -85,16 +81,19 @@ export const ContactList: React.FC<ContactListProps> = ({
   // Helper function to get contact info
   const getContactInfo = (contact: InvestmentContact) => {
     const contactInfo = [];
-    
+
     if (contact.email) {
       contactInfo.push(
-        <div key="email" className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        <div
+          key="email"
+          className="gba:flex gba:items-center gba:gap-2 gba:mb-1"
+        >
           <Mail className="gba:w-4 gba:h-4 gba:text-gray-500" />
           <span className="gba:text-sm">{contact.email}</span>
         </div>
       );
     }
-    
+
     if (contact.phone) {
       contactInfo.push(
         <div key="phone" className="gba:flex gba:items-center gba:gap-2">
@@ -103,8 +102,12 @@ export const ContactList: React.FC<ContactListProps> = ({
         </div>
       );
     }
-    
-    return contactInfo.length > 0 ? contactInfo : <span className="gba:text-gray-400">No contact info</span>;
+
+    return contactInfo.length > 0 ? (
+      contactInfo
+    ) : (
+      <span className="gba:text-gray-400">No contact info</span>
+    );
   };
 
   return (
@@ -115,7 +118,7 @@ export const ContactList: React.FC<ContactListProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("firstName")}
                 >
@@ -124,7 +127,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("firstName")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("email")}
                 >
@@ -133,7 +136,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("email")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("type")}
                 >
@@ -142,7 +145,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("type")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("jobPosition")}
                 >
@@ -151,7 +154,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("jobPosition")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("department")}
                 >
@@ -160,7 +163,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("department")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("ownerEmployeeId")}
                 >
@@ -169,7 +172,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                     {getSortIcon("ownerEmployeeId")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("createdAt")}
                 >
@@ -192,8 +195,8 @@ export const ContactList: React.FC<ContactListProps> = ({
                 </TableRow>
               ) : (
                 contacts.map((contact) => (
-                  <TableRow 
-                    key={contact.id} 
+                  <TableRow
+                    key={contact.id}
                     data-testid={`investment-contact-row-${contact.id}`}
                     className="gba:cursor-pointer gba:hover:gba:bg-gray-50 gba:transition-colors"
                     onClick={() => handleRowClick(contact.id)}
@@ -211,89 +214,103 @@ export const ContactList: React.FC<ContactListProps> = ({
                         </div>
                       </div>
                     </TableCell>
-                      <TableCell>
-                        <div className="gba:min-w-[200px]">
-                          {getContactInfo(contact)}
+                    <TableCell>
+                      <div className="gba:min-w-[200px]">
+                        {getContactInfo(contact)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {contact.type ? (
+                        <Badge
+                          variant="outline"
+                          data-testid={`investment-contact-type-${contact.id}`}
+                        >
+                          {contact.type}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.jobPosition ? (
+                        <Badge
+                          variant="secondary"
+                          data-testid={`investment-contact-position-${contact.id}`}
+                        >
+                          {contact.jobPosition}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.department ? (
+                        <span className="gba:text-sm">
+                          {contact.department}
+                        </span>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.ownerEmployee ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar size="sm">
+                            {contact.ownerEmployee.picture && (
+                              <AvatarImage
+                                src={contact.ownerEmployee.picture}
+                                alt={getOwnerName(contact)}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(contact) !== "-"
+                                ? getOwnerName(contact)
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "O"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="gba:text-sm">
+                            {getOwnerName(contact)}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {contact.type ? (
-                          <Badge variant="outline" data-testid={`investment-contact-type-${contact.id}`}>
-                            {contact.type}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.jobPosition ? (
-                          <Badge variant="secondary" data-testid={`investment-contact-position-${contact.id}`}>
-                            {contact.jobPosition}
-                          </Badge>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.department ? (
-                          <span className="gba:text-sm">{contact.department}</span>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.ownerEmployee ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Avatar size="sm">
-                              {contact.ownerEmployee.picture && (
-                                <AvatarImage
-                                  src={contact.ownerEmployee.picture}
-                                  alt={getOwnerName(contact)}
-                                />
-                              )}
-                              <AvatarFallback>
-                                {getOwnerName(contact) !== "-"
-                                  ? getOwnerName(contact)
-                                      .split(" ")
-                                      .map((n: string) => n[0])
-                                      .join("")
-                                      .toUpperCase()
-                                  : "O"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="gba:text-sm">{getOwnerName(contact)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {contact.createdAt ? (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">{formatDate(contact.createdAt)}</span>
-                          </div>
-                        ) : (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`contact-entity-button-${contact.id}`}
-                            size="icon"
-                            contextsArray={[FlowContextName.investmentContactEntity]}
-                            externalContextData={{ contactId: contact.id }}
-                            prefixDataTestId={`contact-entity-button`}
-                            accessToken={context.accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick={true}
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {contact.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatDate(contact.createdAt)}
+                          </span>
                         </div>
-                      </TableCell>
-                     </TableRow>
-                 ))
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`contact-entity-button-${contact.id}`}
+                          size="icon"
+                          contextsArray={[
+                            FlowContextName.updateInvestmentContact,
+                          ]}
+                          externalContextData={{ contactId: contact.id }}
+                          prefixDataTestId={`contact-entity-button`}
+                          accessToken={context.accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick={true}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
@@ -304,7 +321,9 @@ export const ContactList: React.FC<ContactListProps> = ({
       {totalCount > pageSize && (
         <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
           <div className="gba:text-sm gba:text-gray-700">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} contacts
+            Showing {(currentPage - 1) * pageSize + 1} to{" "}
+            {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
+            contacts
           </div>
           <div className="gba:flex gba:gap-2">
             <Button
