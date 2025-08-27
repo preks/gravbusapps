@@ -31,6 +31,7 @@ export interface KanbanBoardProps {
   stages: KanbanStage[];
   items: KanbanItem[];
   onDragEnd?: (itemId: string, toStageId: string, position?: number) => void;
+  // Custom content renderer for cards; drag-n-drop wrappers remain provided by KanbanCard
   renderCard?: (item: KanbanItem) => React.ReactNode;
   renderStageHeader?: (stage: KanbanStage, itemCount: number, totalAmount?: number) => React.ReactNode;
 
@@ -38,11 +39,14 @@ export interface KanbanBoardProps {
   className?: string;
   emptyStateMessage?: string;
   loading?: boolean;
+  // If false, disables reordering within the same stage; only allows moving across stages
+  allowReorderWithinStage?: boolean;
 }
 
 export interface KanbanColumnProps {
   stage: KanbanStage;
   items: KanbanItem[];
+  // Pass-through render function used inside KanbanCard as custom content
   renderCard?: (item: KanbanItem) => React.ReactNode;
   renderStageHeader?: (stage: KanbanStage, itemCount: number, totalAmount?: number) => React.ReactNode;
   isDraggedOver?: boolean;

@@ -11,6 +11,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/account-record': 'AccountRecord',
   '/platform/crm/campaign-record': 'CampaignRecord',
   '/platform/crm/customer-relations': 'CustomerRelations',
+  '/platform/crm/team-performance': 'CustomerTeamPerformance',
+  '/platform/crm/team-member-record': 'CustomerMemberRecord',
   '/platform/irm/investment-relations': 'InvestmentRelations',
   '/platform/irm/investment-record': 'InvestmentRecord',
   '/platform/irm/liquid-portfolio-record': 'LiquidPortfolioRecord',
@@ -114,4 +116,30 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
   
   const queryString = new URLSearchParams(params).toString();
   return `${basePath}?${queryString}`;
+};
+
+/**
+ * Navigate to Team Performance app
+ */
+export const navigateToTeamPerformance = (): void => {
+  navigateTo('/platform/crm/team-performance');
+};
+
+/**
+ * Navigate to Team Member Record app with employee ID
+ */
+export const navigateToTeamMemberRecord = (employeeId: string, additionalParams?: Record<string, string>): void => {
+  const params = { employeeId, ...additionalParams };
+  const url = buildPlatformUrl('/platform/crm/team-member-record', params);
+  navigateTo(url);
+};
+
+/**
+ * Get query parameters from current URL
+ */
+export const getCurrentQueryParams = (): Record<string, string> => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+  return extractQueryParams(window.location.href);
 }; 

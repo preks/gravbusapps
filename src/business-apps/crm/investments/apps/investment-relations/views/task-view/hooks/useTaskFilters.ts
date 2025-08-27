@@ -2,9 +2,9 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTaskEmployees } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskEmployees';
-import { useTaskCatalogs } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskCatalogs';
-import { useTaskReferenceCounts } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskReferenceCounts';
+import { useTaskEmployees } from '../../../../../../customers/apps/customer-relations/views/task-view/hooks/useTaskEmployees';
+import { useTaskCatalogs } from '../../../../../../customers/apps/customer-relations/views/task-view/hooks/useTaskCatalogs';
+import { useTaskReferenceCounts } from '../../../../../../customers/apps/customer-relations/views/task-view/hooks/useTaskReferenceCounts';
 
 export interface DataFilter {
   id: string;

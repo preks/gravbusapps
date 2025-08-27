@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -7,27 +7,23 @@ import {
   TableHeader,
   TableRow,
   Button,
-  Badge,
   Spinner,
-  Alert,
   Card,
   CardContent,
   Avatar,
   AvatarImage,
   AvatarFallback,
+  Badge,
 } from "@newwork/nw-design-system";
 import {
-  Target,
-  DollarSign,
   Building2,
   Calendar,
-  TrendingUp,
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { formatCurrency, formatDate } from "../utils";
+import { formatDate } from "../utils";
 import { navigateTo } from "@/common/utils/navigationUtils";
 
 export interface OpportunityListProps extends BusinessAppContextProps {
@@ -79,19 +75,94 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
     return "-";
   };
 
-  // Helper function to calculate win rate based on status
-  const getWinRate = (opportunity: InvestmentOpportunity) => {
-    if (!opportunity.opportunityStatus?.code) return "-";
+  // Helper function to get stage color based on alternativeCode
+  const getStageColor = (alternativeCode?: string): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+    if (!alternativeCode) return "outline";
+    
+    switch (alternativeCode.toUpperCase()) {
+      case "DISCOVERY":
+        return "info"; // Blue color for early stage
+      case "QUALIFICATION":
+        return "warning"; // Orange color for qualifying stage
+      case "NEGOTIATION":
+        return "secondary"; // Purple color for active negotiation
+      case "CLOSED_WON":
+        return "success"; // Green color for success
+      case "CLOSED_LOST":
+        return "destructive"; // Red color for failed
+      default:
+        return "outline"; // Default gray
+    }
+  };
 
-    const status = opportunity.opportunityStatus.code.toLowerCase();
-    if (status.includes("won") || status.includes("closed_won")) return "100%";
-    if (status.includes("high_probability") || status.includes("likely_to_win"))
-      return "80%";
-    if (status.includes("medium_probability")) return "50%";
-    if (status.includes("low_probability")) return "20%";
-    if (status.includes("lost") || status.includes("closed_lost")) return "0%";
+  // Helper function to get status color based on alternativeCode
+  const getStatusColor = (alternativeCode?: string): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+    if (!alternativeCode) return "outline";
+    
+    switch (alternativeCode.toUpperCase()) {
+      case "ACTIVE":
+      case "IN_PROGRESS":
+      case "OPEN":
+        return "info"; // Blue color for active opportunities
+      case "WON":
+      case "CLOSED_WON":
+      case "SUCCESS":
+        return "success"; // Green color for successful opportunities
+      case "LOST":
+      case "CLOSED_LOST":
+      case "FAILED":
+        return "destructive"; // Red color for failed opportunities
+      case "ON_HOLD":
+      case "PAUSED":
+        return "warning"; // Orange color for paused opportunities
+      case "QUALIFIED":
+        return "secondary"; // Purple color for qualified opportunities
+      default:
+        return "outline"; // Default gray
+    }
+  };
 
-    return "50%"; // Default
+
+
+  // Removed unused full currency formatter; using number + fixed-width currency suffix approach
+
+  // Extract currency symbol and numeric part separately for alignment
+  const getCurrencySymbol = (currencyCode?: string): string => {
+    try {
+      const code = currencyCode || "EUR";
+      const parts = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: code,
+        currencyDisplay: "narrowSymbol",
+      }).formatToParts(0);
+      return parts.find((p) => p.type === "currency")?.value || code;
+    } catch {
+      return "€";
+    }
+  };
+
+  const formatCurrencyNumberOnly = (
+    amount: number,
+    currencyCode?: string
+  ): string => {
+    try {
+      const code = currencyCode || "EUR";
+      const parts = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).formatToParts(amount);
+      return parts
+        .filter((p) => p.type !== "currency")
+        .map((p) => p.value)
+        .join("");
+    } catch {
+      return new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    }
   };
 
   // Loading state
@@ -134,19 +205,10 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     {sortField === "estimatedAmount" && (
                       <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
                     )}
+                    <span className="gba:inline-block gba:w-[5ch]" aria-hidden="true"></span>
                   </div>
                 </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("opportunityStatus")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Win Rate
-                    {sortField === "opportunityStatus" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
+
                 <TableHead
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("opportunityPipeline")}
@@ -154,6 +216,28 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                   <div className="gba:flex gba:items-center gba:gap-2">
                     Pipeline
                     {sortField === "opportunityPipeline" && (
+                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                  onClick={() => onSort("opportunityPipelineStage")}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    Stage
+                    {sortField === "opportunityPipelineStage" && (
+                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                  onClick={() => onSort("opportunityStatus")}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    Status
+                    {sortField === "opportunityStatus" && (
                       <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
                     )}
                   </div>
@@ -208,7 +292,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
             <TableBody>
               {opportunities.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="gba:text-center gba:py-8">
+                  <TableCell colSpan={10} className="gba:text-center gba:py-8">
                     <div className="gba:text-gray-500">
                       No opportunities available.
                     </div>
@@ -223,47 +307,72 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     onClick={() => handleRowClick(opportunity.id)}
                   >
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Target className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                        <div>
-                          <div className="gba:font-medium">
-                            {opportunity.name}
-                          </div>
-                          {opportunity.code && (
-                            <div className="gba:text-sm gba:text-gray-500">
-                              Code: {opportunity.code}
-                            </div>
-                          )}
+                      <div>
+                        <div className="gba:font-medium">
+                          {opportunity.name}
                         </div>
+                        {opportunity.code && (
+                          <div className="gba:text-sm gba:text-gray-500">
+                            Code: {opportunity.code}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="gba:text-right">
                       {opportunity.estimatedAmount ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <DollarSign className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">
-                            {formatCurrency(opportunity.estimatedAmount)}
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(
+                              opportunity.estimatedAmount,
+                              opportunity.currency?.code
+                            )}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(opportunity.currency?.code)}
                           </span>
                         </div>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <TrendingUp className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                        <span className="gba:text-sm">
-                          {getWinRate(opportunity)}
-                        </span>
-                      </div>
-                    </TableCell>
+
                     <TableCell>
                       {opportunity.opportunityPipeline ? (
-                        <Badge
-                          variant="secondary"
-                          data-testid={`investment-opportunity-pipeline-${opportunity.id}`}
+                        <span className="gba:text-sm" data-testid={`investment-opportunity-pipeline-${opportunity.id}`}>
+                          {opportunity.opportunityPipelineLabel ||
+                            opportunity.opportunityPipeline?.value ||
+                            opportunity.opportunityPipeline?.code ||
+                            "-"}
+                        </span>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.opportunityPipelineStage ? (
+                        <Badge 
+                          variant={getStageColor(opportunity.opportunityPipelineStage?.alternativeCode)}
+                          data-testid={`investment-opportunity-stage-${opportunity.id}`}
                         >
-                          {opportunity.opportunityPipeline.code}
+                          {opportunity.opportunityPipelineStageLabel ||
+                            opportunity.opportunityPipelineStage?.value ||
+                            opportunity.opportunityPipelineStage?.code ||
+                            "-"}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.opportunityStatus ? (
+                        <Badge 
+                          variant={getStatusColor(opportunity.opportunityStatus?.alternativeCode)}
+                          data-testid={`investment-opportunity-status-${opportunity.id}`}
+                        >
+                          {opportunity.opportunityStatusLabel ||
+                            opportunity.opportunityStatus?.value ||
+                            opportunity.opportunityStatus?.code ||
+                            "-"}
                         </Badge>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
@@ -297,9 +406,9 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                       {opportunity.ownerEmployee ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Avatar size="sm">
-                            {opportunity.ownerEmployee.picture && (
+                            {opportunity.ownerEmployee.pictureThumbnail && (
                               <AvatarImage
-                                src={opportunity.ownerEmployee.picture}
+                                src={`data:image/gif;base64,${opportunity.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(opportunity)}
                               />
                             )}
