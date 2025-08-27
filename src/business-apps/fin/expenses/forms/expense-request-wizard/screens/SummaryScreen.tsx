@@ -108,14 +108,14 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
   };
   
   // Get paginated data
-  const paginatedAllowanceItems = allowanceItems?.slice(
-    (allowanceCurrentPage - 1) * itemListLimit,
-    allowanceCurrentPage * itemListLimit
-  ).sort((a:any, b:any) => {
+  const paginatedAllowanceItems = allowanceItems?.sort((a:any, b:any) => {
     const positionA = a.itemOrder ?? 0;
     const positionB = b.itemOrder ?? 0;
     return positionA - positionB;
-})
+}).slice(
+    (allowanceCurrentPage - 1) * itemListLimit,
+    allowanceCurrentPage * itemListLimit
+  )
 
   const paginatedExpenseItems = positionsArray?.slice(
     (expenseCurrentPage - 1) * itemListLimit,

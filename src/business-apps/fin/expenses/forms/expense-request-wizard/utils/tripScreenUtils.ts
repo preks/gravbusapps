@@ -625,9 +625,8 @@ export const setLocalitiesDefault = (expenseRequestData: any,
           ...prevLocation,
           location: localityToSet
         }));
-        
-        setLocationsAreSynced(true);
       }
+      setLocationsAreSynced(true);
     } catch (error) {
       
     }
