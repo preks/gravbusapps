@@ -3,7 +3,7 @@ import { CompanyInformation } from './CompanyInformation';
 import { ContactInformation } from './ContactInformation';
 import { ActivityTimeline } from './ActivityTimeline';
 import { TasksSection } from './TasksSection';
-import { StageProgression } from './StageProgression';
+import { OpportunityStageProgression } from './OpportunityStageProgression';
 import { OpportunityDocuments } from './OpportunityDocuments';
 
 export { OpportunityHeader };
@@ -11,7 +11,7 @@ export { CompanyInformation };
 export { ContactInformation };
 export { ActivityTimeline };
 export { TasksSection };
-export { StageProgression };
+export { OpportunityStageProgression };
 export { OpportunityDocuments };
 
 export default {
@@ -20,6 +20,6 @@ export default {
   ContactInformation,
   ActivityTimeline,
   TasksSection,
-  StageProgression,
+  OpportunityStageProgression,
   OpportunityDocuments
 }; 

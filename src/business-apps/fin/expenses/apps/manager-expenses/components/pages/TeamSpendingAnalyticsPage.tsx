@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useCurrencyStore } from '../../store/useCurrencyStore';
+import { useCurrencyData } from '../../hooks/useCurrencyData';
 import { 
   Card,
   CardContent,
@@ -26,12 +28,7 @@ import { useExpenseGroupCatalog } from '../../hooks/useExpenseGroupCatalog';
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  Users,
-  FileText,
-  Calendar,
-  CurrencyEur
-} from '@phosphor-icons/react';
+import CurrencyFilter from '../../components/currency-filter';
 
 interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -42,7 +39,28 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   accessToken,
   userInfo
 }) => {
+  // Use the global currency store
+  const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>('expense-items');
+  
+  // Use the currency data hook to get dynamic currency information
+  const { 
+    availableCurrencies, 
+    defaultCurrency, 
+    isLoading: isCurrencyLoading,
+    standardizeCurrencyRef
+  } = useCurrencyData(
+    accessToken,
+    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+  );
+  
+  // Initialize currency filter with null, will be set after data is loaded
+  const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
+  
+  // Create a standardized currency reference for GraphQL queries
+  const standardizedCurrencyRef = useMemo(() => {
+    return currencyFilter ? standardizeCurrencyRef(currencyFilter) : null;
+  }, [currencyFilter, standardizeCurrencyRef]);
   
   // Use the team spending analytics hook
   const { 
@@ -50,7 +68,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     error, 
     data, 
     dateRange, 
-    setDateRange,
+    setDateRange, 
     locationFilters,
     toggleLocationFilter,
     searchTerm,
@@ -61,12 +79,21 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     setDepartmentSearchTerm
   } = useTeamSpendingAnalytics(
     accessToken,
-    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000',
+    standardizedCurrencyRef // Use standardized currency reference instead of raw currencyFilter
   );
   
   // Use the expense group catalog hook to get category names
   const { expenseGroups } = useExpenseGroupCatalog(accessToken);
   
+  // Set the default currency when data is loaded
+  useEffect(() => {
+    if (!currencyFilter && defaultCurrency) {
+      console.log('Setting default currency to:', defaultCurrency);
+      setCurrencyFilter(defaultCurrency);
+    }
+  }, [defaultCurrency, currencyFilter]);
+
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
     if (!data?.expenseItemsByCategory || !expenseGroups) return data?.expenseItemsByCategory || [];
@@ -106,9 +133,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-items',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_items', 'Total Expense Items'),
       value: data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <CurrencyEur />,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#1890ff',
-      suffix: '€',
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Individual expense transactions'
     },
@@ -116,9 +143,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-requests',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_requests', 'Total Expense Requests'),
       value: data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <FileText />,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-requests-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#52c41a',
-      suffix: '€',
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: 'Submitted expense requests'
     },
@@ -126,21 +153,21 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       key: 'total-expense-plans',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_plans', 'Total Expense Plans'),
       value: data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <Calendar />,
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">{currencyFilter || primaryCurrency}</span>,
       color: '#722ed1',
-      suffix: '€',
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Budget plans and allocations'
+      description: 'Planned expense budgets'
     },
     {
       key: 'total-advance-payments',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments', 'Total Advance Payments'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_advance_payments', 'Total Advance Payments'),
       value: data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <Users />,
-      color: '#13c2c2',
-      suffix: '€',
+      prefix: <span className="gba:font-medium" data-testid="team-analytics-advance-payments-currency-code">{currencyFilter || primaryCurrency}</span>,
+      color: '#fa8c16',
+      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Cash advances and prepayments'
+      description: 'Advance payments to employees'
     }
   ];
 
@@ -156,6 +183,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expenseItemsByMonth || []} 
               title="" 
               lineColor="#1890ff" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -168,6 +196,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <PieChartComponent 
               data={expenseItemsByCategoryWithNames} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#1890ff', '#52c41a', '#722ed1', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -187,6 +216,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#1890ff"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -206,7 +236,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                  €{data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-items-total-amount-currency">{primaryCurrency}</span> {data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00'}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -229,6 +259,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expenseRequestsByMonth || []} 
               title="" 
               lineColor="#52c41a" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -245,6 +276,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#52c41a"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -262,6 +294,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 value: item.count 
               })) || []} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#52c41a', '#1890ff', '#722ed1', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -282,7 +315,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-                  €{data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-requests-total-amount-currency">{primaryCurrency}</span> {data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00'}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -305,6 +338,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.expensePlansByMonth || []} 
               title="" 
               lineColor="#722ed1" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -321,6 +355,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []}
               title=""
               barColor="#722ed1"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -338,6 +373,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 value: item.count 
               })) || []} 
               title="" 
+              currency={currencyFilter || primaryCurrency}
               colors={['#722ed1', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
             />
           </CardContent>
@@ -358,7 +394,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
-                  €{data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-plans-total-amount-currency">{primaryCurrency}</span> {data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00'}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -381,6 +417,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={data?.advancePaymentsByMonth || []} 
               title="" 
               lineColor="#13c2c2" 
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -434,7 +471,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-cyan-600">
-                  €{data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-advance-payments-total-amount-currency">{primaryCurrency}</span> {data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00'}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -507,6 +544,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No locations found</div>
             )}
           </div>
+        </div>
+
+        <Separator className="gba:my-6" />
+
+        {/* Currency Filter */}
+        <div className="gba:space-y-4">
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency')}
+          </Label>
+          <CurrencyFilter
+            data-testid="team-analytics-currency-filter"
+            value={currencyFilter}
+            onChange={setCurrencyFilter}
+            currencies={availableCurrencies}
+            showAllOption={false}
+            placeholder="Select Currency"
+            isLoading={isCurrencyLoading}
+          />
         </div>
 
         <Separator className="gba:my-6" />

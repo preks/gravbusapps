@@ -3,32 +3,44 @@ import { SelectOption } from "../types";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
-interface AccountResponse {
+interface InvestmentAccountResponse {
   id: string;
   name: string;
+  businessKey?: string;
+  code?: string;
 }
 
-export const ACCOUNTS_QUERY = `
-  query AccountsQuery($search: String) {
-    Account(
+export const INVESTMENT_ACCOUNTS_QUERY = `
+  query InvestmentAccountsQuery($search: String) {
+    InvestmentAccount(
       limit: 20, 
       orderBy: { name: ASC },
-      where: { name: { _ilike: $search } }
+      where: { 
+        _and: [
+          { isDeleted: { _eq: false } },
+          { name: { _ilike: $search } }
+        ]
+      }
     ) {
       id
       name
+      businessKey
+      code
     }
   }
 `;
 
-export const DEFAULT_ACCOUNTS_QUERY = `
-  query DefaultAccountsQuery {
-    Account(
+export const DEFAULT_INVESTMENT_ACCOUNTS_QUERY = `
+  query DefaultInvestmentAccountsQuery {
+    InvestmentAccount(
       limit: 20, 
-      orderBy: { name: ASC }
+      orderBy: { name: ASC },
+      where: { isDeleted: { _eq: false } }
     ) {
       id
       name
+      businessKey
+      code
     }
   }
 `;
@@ -45,10 +57,12 @@ export const useAccountsData = (context: BusinessAppContextProps) => {
       // If no search term or less than 2 characters, return default first 20 accounts
       if (!searchTerm.trim() || searchTerm.trim().length < 2) {
         try {
-          const response = await graphqlClient.request<{ Account: AccountResponse[] }>(DEFAULT_ACCOUNTS_QUERY);
-          const accountsData = response.Account || [];
+          const response = await graphqlClient.request<{
+            InvestmentAccount: InvestmentAccountResponse[];
+          }>(DEFAULT_INVESTMENT_ACCOUNTS_QUERY);
+          const accountsData = response.InvestmentAccount || [];
 
-          return accountsData.map((account: AccountResponse) => ({
+          return accountsData.map((account: InvestmentAccountResponse) => ({
             value: account.id,
             label: account.name,
             name: account.name,
@@ -64,13 +78,15 @@ export const useAccountsData = (context: BusinessAppContextProps) => {
         // Format search term for PostgreSQL ILIKE operator (case-insensitive)
         const searchPattern = `%${searchTerm.trim()}%`;
 
-        const response = await graphqlClient.request<{ Account: AccountResponse[] }>(ACCOUNTS_QUERY, {
+        const response = await graphqlClient.request<{
+          InvestmentAccount: InvestmentAccountResponse[];
+        }>(INVESTMENT_ACCOUNTS_QUERY, {
           search: searchPattern,
         });
 
-        const accountsData = response.Account || [];
+        const accountsData = response.InvestmentAccount || [];
 
-        return accountsData.map((account: AccountResponse) => ({
+        return accountsData.map((account: InvestmentAccountResponse) => ({
           value: account.id,
           label: account.name,
           name: account.name,
@@ -90,11 +106,13 @@ export const useAccountsData = (context: BusinessAppContextProps) => {
     }
 
     try {
-      const response = await graphqlClient.request<{ Account: AccountResponse[] }>(DEFAULT_ACCOUNTS_QUERY);
+      const response = await graphqlClient.request<{
+        InvestmentAccount: InvestmentAccountResponse[];
+      }>(DEFAULT_INVESTMENT_ACCOUNTS_QUERY);
 
-      const accountsData = response.Account || [];
+      const accountsData = response.InvestmentAccount || [];
 
-      return accountsData.map((account: AccountResponse) => ({
+      return accountsData.map((account: InvestmentAccountResponse) => ({
         value: account.id,
         label: account.name,
         name: account.name,

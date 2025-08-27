@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert, Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@newwork/nw-design-system';
+import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert } from '@newwork/nw-design-system';
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import Pill from '@/components/pill/Pill';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
+import { useGetExpenseRequests, ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests';
+import { useExpenseRequestFilters, ExpenseRequestStatusMap } from '../../../hooks/useExpenseRequestFilters';
+import { ExpenseStatus } from '../../../utils';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { ensureShortDateFormat } from '../../../utils/dateUtils';
@@ -37,10 +39,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     totalCount,
     fetchRequests,
     approveRequest,
-    rejectRequest
+    rejectRequest,
+    sorting,
+    updateSorting
   } = useGetExpenseRequests(contextProps);
 
-  // Use the expense request filters hook
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the expense request filters hook with integrated currency filter and dynamic currencies
   const {
     search: searchText,
     setSearch,
@@ -49,37 +56,183 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
-  } = useExpenseRequestFilters();
-
-  // Fetch requests when filters or pagination changes
+    getFilters,
+    currencyFilter,
+    handleDataFilterChange
+  } = useExpenseRequestFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
+  
+  // Track if this is the first render
+  const isFirstRender = React.useRef(true);
+  
+  // Set default filter for "Approval Required" status and most used currency on initial load
   useEffect(() => {
+    if (isFirstRender.current) {
+      console.log('Initial render - setting up default filters');
+      console.log('Current selected filters:', selectedFilters);
+      console.log('ExpenseRequestStatusMap[PENDING]:', ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      
+      // Apply default filter for "Approval Required" (PENDING maps to in_approval)
+      // Force add the PENDING filter regardless of current state to ensure consistency
+      addFilter(ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      
+      // Ensure we're using the most used currency if available
+      if (currencyFilter) {
+        console.log('Setting initial currency filter to:', currencyFilter);
+      }
+      
+      // Don't set isFirstRender to false here - we'll do that in the data fetch effect
+      // after we've confirmed the filters are applied
+    }
+  }, [addFilter, selectedFilters, currencyFilter]);
+
+  // Use a ref to track the last fetch parameters to avoid redundant fetches
+  const lastFetchParams = React.useRef({
+    searchText: '',
+    currentPage: 1,
+    pageSize: 10,
+    selectedFilters: [] as string[],
+    currencyFilter: '',
+    sorting: { field: 'requestDate', order: 'DESC' }
+  });
+  
+  // Debounced fetch function to prevent multiple rapid requests
+  const debouncedFetch = React.useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      return (params: {
+        searchText: string;
+        currentPage: number;
+        pageSize: number;
+        filters: any;
+        currencyFilter: string | null;
+        sorting: { field: string; order: 'ASC' | 'DESC' };
+      }) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        timeoutId = setTimeout(() => {
+          console.log('Executing debounced fetch with params:', params);
+          const sortString = `${params.sorting.field}:${params.sorting.order.toLowerCase()}`;
+          fetchRequests(
+            params.searchText,
+            params.currentPage,
+            params.pageSize,
+            sortString,
+            params.filters.status || [],
+            params.filters.requestDateStart,
+            params.currencyFilter
+          );
+        }, 300);
+      };
+    })(),
+    [fetchRequests]
+  );
+  
+  // Consolidated fetch requests when filters or pagination changes
+  useEffect(() => {
+    // On first render, we want to fetch with default filters
+    const isInitialRender = isFirstRender.current;
+    
+    // Ensure the status filter is applied on initial render
+    if (isInitialRender && selectedFilters.length === 0) {
+      console.log('Forcing PENDING status filter on initial render');
+      addFilter(ExpenseRequestStatusMap[ExpenseStatus.PENDING]);
+      return; // Skip this render cycle, will be triggered again after filter is added
+    }
+    
     console.log('ExpenseRequestsTable useEffect triggered');
     console.log('Current selectedFilters:', selectedFilters);
     console.log('Current searchText:', searchText);
+    console.log('Current currencyFilter:', currencyFilter);
+    
     const filters = getFilters();
     console.log('getFilters() result:', filters);
-    fetchRequests(
+    
+    // Check if this is a redundant fetch with the same parameters
+    const currentParams = {
       searchText,
       currentPage,
       pageSize,
-      undefined, // sortBy
-      filters.status || [], // status filter - now an array
-      filters.requestDateStart
-    );
-  }, [searchText, currentPage, pageSize, selectedFilters, fetchRequests, getFilters]);
+      selectedFilters: [...selectedFilters],
+      currencyFilter: currencyFilter || '',
+      sorting
+    };
+    
+    const lastParams = lastFetchParams.current;
+    const isRedundantFetch = 
+      currentParams.searchText === lastParams.searchText &&
+      currentParams.currentPage === lastParams.currentPage &&
+      currentParams.pageSize === lastParams.pageSize &&
+      currentParams.currencyFilter === lastParams.currencyFilter &&
+      JSON.stringify(currentParams.selectedFilters) === JSON.stringify(lastParams.selectedFilters) &&
+      JSON.stringify(currentParams.sorting) === JSON.stringify(lastParams.sorting);
+    
+    if (isRedundantFetch) {
+      console.log('Skipping redundant fetch with same parameters');
+      return;
+    }
+    
+    // Update last fetch params
+    lastFetchParams.current = currentParams;
+    
+    // Log the actual filters being used
+    console.log('Fetching with filters:', {
+      filters,
+      statusFilters: filters.status,
+      currencyFilter
+    });
+    
+    // Use debounced fetch to prevent multiple rapid requests
+    debouncedFetch({
+      searchText,
+      currentPage,
+      pageSize,
+      filters,
+      currencyFilter,
+      sorting
+    });
+    
+    // If this was the initial render, log that we've applied default filters
+    if (isInitialRender) {
+      console.log('Initial data load with default filters:', {
+        status: filters.status || [],
+        currencyFilter
+      });
+    }
+  }, [searchText, currentPage, pageSize, selectedFilters, currencyFilter, fetchRequests, getFilters, debouncedFetch, sorting]);
 
-  // Handle search changes
+  // Handle search input changes
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page on search
   }, [setSearch]);
+  
+  // Handle sorting changes
+  const handleSort = useCallback((field: SortField) => {
+    updateSorting(field);
+    setCurrentPage(1); // Reset to first page when sorting changes
+  }, [updateSorting, setCurrentPage]);
+  
+  // Render sort indicator
+  const renderSortIndicator = useCallback((field: SortField) => {
+    if (sorting.field === field) {
+      return sorting.order === 'ASC' ? 
+        <ArrowUpOutlined className="gba:ml-1 gba:text-blue-500" /> : 
+        <ArrowDownOutlined className="gba:ml-1 gba:text-blue-500" />;
+    }
+    return null;
+  }, [sorting]);
 
-  const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
+  const handleTableChange = useCallback((pagination: any, _filters: any, _sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
-  };
-
+  }, []);
+  
   // Handle request selection
   const handleSelectRequest = useCallback((request: ExpenseRequest) => {
     setSelectedRequest(request);
@@ -137,16 +290,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
   }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
 
-  const renderDataBody = () => {
+  const renderDataBody = useCallback(() => {
     console.log('ExpenseRequestsTable renderDataBody called');
     console.log('requests data:', requests);
     console.log('isLoading:', isLoading);
     console.log('error:', error);
     
-    if (isLoading) {
+    // Only show loading spinner when there's no data yet
+    // This prevents the table from disappearing during sorting operations
+    if (isLoading && requests.length === 0) {
       return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner />
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+          <Spinner className="gba:h-8 gba:w-8" />
         </div>
       );
     }
@@ -160,47 +315,95 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       );
     }
 
-    if (!requests || requests.length === 0) {
+    if (requests.length === 0) {
       return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-          <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-            No expense requests found
-          </div>
-          <div className="gba:text-gray-400 gba:mb-4">
-            No expense requests match your current criteria.
-          </div>
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
+          No expense requests found.
         </div>
       );
     }
 
     return (
       <div>
-        {/* Table with horizontal scrolling */}
-        <div className="gba:overflow-x-auto">
+        <div className="gba:overflow-x-auto gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+          {isLoading && requests.length > 0 && (
+            <div className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10" data-testid="expense-requests-loading-overlay">
+              <Spinner className="gba:h-8 gba:w-8" />
+            </div>
+          )}
           <Table data-testid="expense-requests-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[8%]"></TableHead>
-                <TableHead className="gba:w-[25%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.request_info_pl', 'Requests')}
+                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('title')}
+                  data-testid="expense-requests-title-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Request Title')}</span>
+                    {renderSortIndicator('title')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Start Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('startDate')}
+                  data-testid="expense-requests-start-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.start_date', 'Start Date')}</span>
+                    {renderSortIndicator('startDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  End Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('endDate')}
+                  data-testid="expense-requests-end-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.end_date', 'End Date')}</span>
+                    {renderSortIndicator('endDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('employee.fullName')}
+                  data-testid="expense-requests-employee-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.employee', 'Employee')}</span>
+                    {renderSortIndicator('employee.fullName')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Creation Date
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('requestDate')}
+                  data-testid="expense-requests-request-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.creation_date', 'Creation Date')}</span>
+                    {renderSortIndicator('requestDate')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%] gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                <TableHead 
+                  className="gba:text-right gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('amount')}
+                  data-testid="expense-requests-amount-header"
+                >
+                  <div className="gba:flex gba:items-center gba:justify-end">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.amount', 'Amount')}</span>
+                    {renderSortIndicator('amount')}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_table.status', 'Status')}
+                <TableHead 
+                  className="gba:cursor-pointer gba:select-none" 
+                  onClick={() => handleSort('status')}
+                  data-testid="expense-requests-status-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.status', 'Status')}</span>
+                    {renderSortIndicator('status')}
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -292,10 +495,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       }
                     })() : 'N/A'}
                   </TableCell>
-                  <TableCell className="gba:text-right">
-                    <span className="gba:font-medium gba:text-sm">
-                      {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currency) : 'N/A'}
-                    </span>
+                  <TableCell className="gba:text-right gba:text-sm" data-testid={`expense-request-amount-cell-${record.id}`}>
+                    {typeof record.amount === 'number' ? formatCurrency(record.amount, currencyFilter || record.currency) : 'N/A'}
                   </TableCell>
                   <TableCell>
                     <Pill type={type as any} label={label} data-testid={`status-pill-${record.status?.toLowerCase()}`} />
@@ -307,8 +508,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         </Table>
         </div>
         
-        {/* Pagination */}
-        {totalCount > pageSize && (
+        {/* Pagination - Always show when there are records */}
+        {totalCount > 0 && (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid="expense-requests-pagination">
             <div className="gba:text-sm gba:text-gray-600" data-testid="expense-requests-pagination-info">
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense requests`}
@@ -344,7 +545,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-first-page-button"
                 >
                   <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
+                  ⟪⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -354,7 +555,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-previous-page-button"
                 >
                   <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
+                  ⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -364,7 +565,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-next-page-button"
                 >
                   <span className="gba:sr-only">Go to next page</span>
-                  ⟩
+                  ⟫
                 </Button>
                 <Button
                   variant="outline"
@@ -374,7 +575,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   data-testid="expense-requests-last-page-button"
                 >
                   <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
+                  ⟫⟫
                 </Button>
               </div>
             </div>
@@ -382,65 +583,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         )}
       </div>
     );
-  };
+  }, [requests, isLoading, error, totalCount, pageSize, currentPage, approveRequest, rejectRequest]);
 
-
-
-  // Handle filter changes from the filter sidebar
-  const handleFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    if (isSelected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
-    }
-    setCurrentPage(1);
-  }, [addFilter, removeFilter]);
-
-  // Get the selected filters array
-  const activeFilters = [...selectedFilters];
-  
   // Update the URL or any other side effects when filters change
   useEffect(() => {
     const filters = getFilters();
+    const sortString = sorting ? `${sorting.field}:${sorting.order.toLowerCase()}` : 'requestDate:desc';
     fetchRequests(
       searchText,
       currentPage,
       pageSize,
-      undefined, // sortBy
+      sortString, // sortBy
       filters.status || [], // status filter - now an array
-      filters.requestDateStart
+      filters.requestDateStart,
+      currencyFilter // Pass currency filter to fetch requests
     );
-  }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
+  }, [selectedFilters, searchText, currentPage, pageSize, currencyFilter, sorting, getFilters, fetchRequests]);
 
   return (
     <DataContainer
-      floatingDetails={true}
       dataControllerProps={{
         search: searchText,
         setSearch: handleSearchChange,
-        filter: activeFilters,
-        setFilter: (filters: string[]): void => {
-          // Create a set of new filter IDs for easier comparison
-          const newFilters = new Set(filters);
+        filter: selectedFilters,
+        setFilter: (newFilters: string[]): void => {
+          // Handle filter changes
+          const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f));
+          const filtersToAdd = newFilters.filter(f => !selectedFilters.includes(f));
           
-          // First, remove any filters that are not in the new filters
-          selectedFilters.forEach((filter: string) => {
-            if (!newFilters.has(filter)) {
-              removeFilter(filter);
-            }
-          });
+          // Apply filter changes
+          filtersToRemove.forEach(removeFilter);
+          filtersToAdd.forEach(addFilter);
           
-          // Then, add any new filters that aren't already selected
-          filters.forEach((filter: string) => {
-            if (!selectedFilters.includes(filter)) {
-              addFilter(filter);
-            }
-          });
-          
+          // Reset to first page when filters change
           setCurrentPage(1);
+          
+          // No need to force reload data here - the useEffect with dependencies on
+          // selectedFilters will handle the data fetching with debouncing
         },
-        placeholder: 'Search by request title, code, employee...', 
-        filterLabelMap,
+        filterLabelMap: filterLabelMap,
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -451,11 +632,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         ),
         debounceDelay: 300,
       }}
-      dataFilterProps={{ 
-        filterGroups,
-        onFilterChange: handleFilterChange,
+      dataFilterProps={{
+        filterGroups: filterGroups,
+        onFilterChange: handleDataFilterChange,
       }}
-      hideFilter={false}
       dataBody={renderDataBody()}
       contentBackground="white"
       dataDetails={selectedRequest ? {

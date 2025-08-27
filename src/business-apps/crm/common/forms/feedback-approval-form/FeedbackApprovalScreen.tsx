@@ -14,7 +14,7 @@ type AnyObject = Record<string, any>;
 const prefixDataTestId = 'FeedbackApprovalScreen';
 
 /**
- * Lightweight screen to display a received feedback message and approve (accept) or cancel the task.
+ * Lightweight screen to display a received feedback message and approve (accept), reject, or cancel the task.
  * The component reads feedback data from additionalData (supports multiple shapes) and
  * uses dispatchProcessContinueEvent to continue the running process.
  */
@@ -60,6 +60,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
       dispatchProcessContinueEvent('pse_submit', payload);
     };
 
+    const handleReject = () => {
+      const payload = {
+        approval: "rejected"
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+    };
+
     const handleCancel = () => {
       dispatchProcessContinueEvent('pse_pause', {});
     };
@@ -87,9 +95,9 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     return (
       <div
         data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full"
+        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full gba:p-4"
       >
-        <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
+        <div className="gba:bg-white gba:max-w-md gba:w-full">
           {/* Modal Header */}
           <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -100,7 +108,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
           </div>
 
           {/* Modal Content */}
-          <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
+          <div className="gba:p-4 gba:space-y-4">
             {/* From Section */}
             <div className="gba:space-y-2">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -153,6 +161,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
               className="gba:px-6 gba:py-2 gba:rounded-lg"
             >
               {getTranslationFromI18nKeyAndLabel('feedback.approval.cancel', 'Cancel')}
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleReject} 
+              data-testid={formatDataTestId(prefixDataTestId, 'RejectButton')}
+              className="gba:px-6 gba:py-2 gba:rounded-lg"
+            >
+              {getTranslationFromI18nKeyAndLabel('feedback.approval.reject', 'Reject')}
             </Button>
             <Button 
               onClick={handleAccept} 

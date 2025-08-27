@@ -16,14 +16,14 @@ export const calculateEquityKPIs = (equityData: EquityInvestmentData): Calculate
   
   // Calculate ROI: ((Market Value - Initial Investment) / Initial Investment) * 100
   const roi_percentage = 
-    investment.marketValue && investment.initialInvestmentAmount && investment.initialInvestmentAmount > 0
-      ? ((investment.marketValue - investment.initialInvestmentAmount) / investment.initialInvestmentAmount) * 100
+    investment.investmentMarketValue && investment.initialInvestmentAmount && investment.initialInvestmentAmount > 0
+      ? ((investment.investmentMarketValue - investment.initialInvestmentAmount) / investment.initialInvestmentAmount) * 100
       : null;
 
   // Calculate Multiple of Invested Capital: Market Value / Total Investment Amount
   const multiple_of_invested_capital = 
-    investment.marketValue && investment.totalInvestmentAmount && investment.totalInvestmentAmount > 0
-      ? investment.marketValue / investment.totalInvestmentAmount
+    investment.investmentMarketValue && investment.totalInvestmentAmount && investment.totalInvestmentAmount > 0
+      ? investment.investmentMarketValue / investment.totalInvestmentAmount
       : null;
 
   // Calculate years held
@@ -33,19 +33,19 @@ export const calculateEquityKPIs = (equityData: EquityInvestmentData): Calculate
 
   // Calculate annual return: ((Market Value / Initial Investment)^(1/years)) - 1) * 100
   const annual_return_percentage = 
-    investment.marketValue && 
+    investment.investmentMarketValue && 
     investment.initialInvestmentAmount && 
     investment.initialInvestmentAmount > 0 && 
     years_held && 
     years_held > 0
-      ? (Math.pow(investment.marketValue / investment.initialInvestmentAmount, 1 / years_held) - 1) * 100
+      ? (Math.pow(investment.investmentMarketValue / investment.initialInvestmentAmount, 1 / years_held) - 1) * 100
       : null;
 
   // Calculate ownership value: Market Value * Stake Percentage
   const ownership_value = 
-    investment.marketValue && investment.stakePercent
-      ? investment.marketValue * (investment.stakePercent / 100)
-      : investment.marketValue; // Fallback to full market value if no stake percentage
+    investment.investmentMarketValue && investment.stakePercentage
+      ? investment.investmentMarketValue * (investment.stakePercentage / 100)
+      : investment.investmentMarketValue; // Fallback to full market value if no stake percentage
 
   return {
     roi_percentage,

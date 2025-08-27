@@ -68,21 +68,24 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
     requests: expenseRequests,
     isLoading: isLoadingRequests,
     error: requestsError,
-    fetchRequests, // Assuming we might want to trigger refetch
   } = useGetExpenseRequests({
     accessToken,
-    // pageSize for requests can also be high for calendar view if needed
+    userInfo
   });
+  
 
-  // useEffect to fetch requests - similar to how useGetExpensePlans might internally call fetchPlans
-  // This depends on how useGetExpenseRequests is structured. If it auto-fetches, this might not be needed.
-  // For now, assuming it needs an explicit call or fetches on mount based on its own useEffect.
-  // If fetchRequests is available and needs to be called with specific params for calendar:
+
+  // Add debugging logs for calendar data loading
   React.useEffect(() => {
-    if (typeof fetchRequests === 'function') {
-      fetchRequests('', 1, 1000); // Example: fetch all requests, page 1, 1000 items
-    }
-  }, [fetchRequests]);
+    console.log('ExpenseCalendar component mounted, data sources:', {
+      plansLoading: isLoadingPlans,
+      plansError: !!plansError,
+      plansCount: expensePlans?.length || 0,
+      requestsLoading: isLoadingRequests,
+      requestsError: !!requestsError,
+      requestsCount: expenseRequests?.length || 0
+    });
+  }, [isLoadingPlans, plansError, expensePlans, isLoadingRequests, requestsError, expenseRequests]);
   
 
 
