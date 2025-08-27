@@ -494,6 +494,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                   variant="outline" 
                   style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-plan-wizard-save-button"
+                  disabled={(currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0)}
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const saveEvent = new CustomEvent('expense-plan-save-trip');
