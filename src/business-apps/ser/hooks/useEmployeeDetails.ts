@@ -21,7 +21,7 @@ export interface UseEmployeeDetailsResult {
 
 const GET_EMPLOYEE_DETAILS_QUERY = `
   query GetEmployeeDetails($employeeId: uuid!) {
-    Employee(where: { businessKey: { _eq: $employeeId } }) {
+    Employee(where: { id: { _eq: $employeeId } }) {
       id
       businessKey
       firstName
@@ -31,8 +31,9 @@ const GET_EMPLOYEE_DETAILS_QUERY = `
 `;
 
 /**
- * Hook to fetch employee details by employee ID using GraphQL
- * Used to display real names instead of just employee IDs
+ * Hook to fetch employee details by employee ID/UUID using GraphQL
+ * Searches by Employee.id field (UUID) to find firstName and lastName
+ * Used to display real names instead of just employee IDs/UUIDs
  */
 export const useEmployeeDetails = ({
   employeeId,
@@ -57,7 +58,7 @@ export const useEmployeeDetails = ({
       setError(null);
 
       try {
-        console.log(`🔍 [useEmployeeDetails] Fetching details for employee: ${employeeId}`);
+        console.log(`🔍 [useEmployeeDetails] Fetching details for employee UUID: ${employeeId}`);
         
         const response = await graphqlClient.request(GET_EMPLOYEE_DETAILS_QUERY, {
           employeeId: employeeId
@@ -70,7 +71,7 @@ export const useEmployeeDetails = ({
           setEmployee(employeeData);
           console.log(`✅ [useEmployeeDetails] Employee found: ${employeeData.firstName} ${employeeData.lastName}`);
         } else {
-          console.log(`⚠️ [useEmployeeDetails] No employee found for ID: ${employeeId}`);
+          console.log(`⚠️ [useEmployeeDetails] No employee found for UUID: ${employeeId}`);
           setEmployee(null);
         }
         

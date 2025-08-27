@@ -327,7 +327,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           color="default"
           size="small"
           fallback="Unknown"
-          className="gba:text-sm"
           testId={`requester-${record.id}`}
         />
       ),
@@ -412,7 +411,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
               showIcon={true}
               color="blue"
               size="small"
-              className="gba:text-sm"
               testId={`assigned-user-${record.id}`}
             />
           );
@@ -427,7 +425,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
               color="orange"
               size="small"
               fallback="Claimed User"
-              className="gba:text-sm"
               testId={`claimed-user-${record.id}`}
             />
           );
