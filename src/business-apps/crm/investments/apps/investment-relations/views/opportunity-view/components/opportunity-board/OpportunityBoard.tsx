@@ -304,7 +304,6 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
         payload: {
           opportunityId: itemId,
           targetStageRef: toStageId,
-          ...(position !== undefined && { position })
         },
         builderType: 'NATIVE_SCREEN',
       });
@@ -368,14 +367,12 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
               </div>
             </RadioGroup>
           </div>
-
-          {/* Pipeline Selection */}
+        </div>
+        <div className="gba:mt-4 gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
+          {/* Pipeline Selection on second line */}
           <div className="gba:flex gba:flex-col gba:gap-2">
             <Label className="gba:text-sm gba:font-medium">Pipeline:</Label>
-            <Select
-              value={selectedPipelineId}
-              onValueChange={handlePipelineChange}
-            >
+            <Select value={selectedPipelineId} onValueChange={handlePipelineChange}>
               <SelectTrigger className="gba:w-48">
                 <SelectValue placeholder="Select Pipeline" />
               </SelectTrigger>

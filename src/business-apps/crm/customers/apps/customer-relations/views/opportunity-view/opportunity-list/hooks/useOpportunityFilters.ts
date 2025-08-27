@@ -1,11 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import React from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGetPipelineStages } from "./useGetPipelineStages";
-import { useGetPipelineCatalogs } from "./useGetPipelineCatalogs";
-import { useGetOpportunityOwners } from "./useGetOpportunityOwners";
-import { useGetOpportunityAccounts } from "./useGetOpportunityAccounts";
-import { useGetOpportunityStatuses } from "./useGetOpportunityStatuses";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { DateRangeFilter } from "../../../lead-view/components/DateRangeFilter";
 
 export interface FilterGroup {
@@ -51,44 +47,126 @@ export const useOpportunityFilters = (
   }, [filtersInitialized]);
 
 
-  // Add state for pipeline stage search if needed
-  const [pipelineStageSearch, setPipelineStageSearch] = useState("");
-  const {
-    pipelineStageOptions,
-    isLoading: isPipelineStagesLoading,
-    error: pipelineStagesError,
-  } = useGetPipelineStages(context, pipelineStageSearch);
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  const [opportunityOwners, setOpportunityOwners] = useState<Array<{ id: string; name: string }>>([]);
+  const [pipelineStageOptions, setPipelineStageOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [pipelineOptions, setPipelineOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [accountOptions, setAccountOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [statusOptions, setStatusOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [, setIsOwnersLoading] = useState(false);
+  const [isPipelineStagesLoading, setIsPipelineStagesLoading] = useState(false);
+  const [isPipelinesLoading, setIsPipelinesLoading] = useState(false);
+  const [isAccountsLoading, setIsAccountsLoading] = useState(false);
+  const [isStatusesLoading, setIsStatusesLoading] = useState(false);
+  const [, setOwnersError] = useState<any>(null);
+  const [, setPipelineStagesError] = useState<any>(null);
+  const [, setPipelinesError] = useState<any>(null);
+  const [, setAccountsError] = useState<any>(null);
+  const [, setStatusesError] = useState<any>(null);
 
-  const [pipelineSearch] = useState("");
-  const {
-    pipelineOptions,
-    isLoading: isPipelinesLoading,
-    error: _pipelinesError,
-  } = useGetPipelineCatalogs(context, pipelineSearch);
+  const loadOwners = useCallback(async () => {
+    if (!context.accessToken) return;
+    setIsOwnersLoading(true); setOwnersError(null);
+    try {
+      const res = await graphqlClient.request<{ Opportunity: Array<{ ownerEmployee?: { id: string; displayName?: string; firstName?: string; lastName?: string } | null }> }>(`
+        query GetOppOwners {
+          Opportunity(where: { isDeleted: { _eq: false }, ownerEmployee: { id: { _isNull: false } } }, distinctOn: [ownerEmployeeId], limit: 50) {
+            ownerEmployee { id displayName firstName lastName }
+          }
+        }
+      `);
+      const items = (res?.Opportunity || [])
+        .filter(r => r.ownerEmployee)
+        .map(r => {
+          const e = r.ownerEmployee!;
+          const name = e.displayName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown';
+          return { id: e.id, name };
+        });
+      setOpportunityOwners(items);
+    } catch (e) { setOwnersError(e); setOpportunityOwners([]); }
+    finally { setIsOwnersLoading(false); }
+  }, [context.accessToken, graphqlClient]);
 
-  // Add state for opportunity owner search
-  const [ownerSearch, setOwnerSearch] = useState("");
-  const {
-    opportunityOwners,
-    isLoading: isOwnersLoading,
-    error: ownersError,
-  } = useGetOpportunityOwners(context, ownerSearch);
+  const loadStages = useCallback(async () => {
+    if (!context.accessToken) return;
+    setIsPipelineStagesLoading(true); setPipelineStagesError(null);
+    try {
+      const res = await graphqlClient.request<{ Opportunity: Array<{ salesPipelineStage?: { id: string; code?: string; value?: string } | null }> }>(`
+        query GetOppStages {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineStageRef], limit: 50) {
+            salesPipelineStage { id code value }
+          }
+        }
+      `);
+      const map = new Map<string, string>();
+      (res?.Opportunity || []).forEach(r => { const s = r.salesPipelineStage; if (s?.id) map.set(s.id, s.value || s.code || s.id); });
+      setPipelineStageOptions(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
+    } catch (e) { setPipelineStagesError(e); setPipelineStageOptions([]); }
+    finally { setIsPipelineStagesLoading(false); }
+  }, [context.accessToken, graphqlClient]);
 
-  // Add state for account search
-  const [accountSearch, setAccountSearch] = useState("");
-  const {
-    accountOptions,
-    isLoading: isAccountsLoading,
-    error: accountsError,
-  } = useGetOpportunityAccounts(context, accountSearch);
+  const loadPipelines = useCallback(async () => {
+    if (!context.accessToken) return;
+    setIsPipelinesLoading(true); setPipelinesError(null);
+    try {
+      const res = await graphqlClient.request<{ Opportunity: Array<{ salesPipeline?: { id: string; code?: string; value?: string } | null, pipeline?: { id: string; code?: string; value?: string } | null }> }>(`
+        query GetOppPipelines {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineRef], limit: 50) {
+            salesPipeline { id code value }
+            pipeline { id code value }
+          }
+        }
+      `);
+      const map = new Map<string, string>();
+      (res?.Opportunity || []).forEach(r => { const p = r.salesPipeline || r.pipeline; if (p?.id) map.set(p.id, p.value || p.code || p.id); });
+      setPipelineOptions(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
+    } catch (e) { setPipelinesError(e); setPipelineOptions([]); }
+    finally { setIsPipelinesLoading(false); }
+  }, [context.accessToken, graphqlClient]);
 
-  // Add state for status search
-  const [statusSearch, setStatusSearch] = useState("");
-  const {
-    statusOptions,
-    isLoading: isStatusesLoading,
-    error: statusesError,
-  } = useGetOpportunityStatuses(context, statusSearch);
+  const loadAccounts = useCallback(async () => {
+    if (!context.accessToken) return;
+    setIsAccountsLoading(true); setAccountsError(null);
+    try {
+      const res = await graphqlClient.request<{ Opportunity: Array<{ account?: { id: string; name?: string } | null }> }>(`
+        query GetOppAccounts {
+          Opportunity(where: { isDeleted: { _eq: false } }, limit: 100) {
+            account { id name }
+          }
+        }
+      `);
+      const map = new Map<string, string>();
+      (res?.Opportunity || []).forEach(r => { const a = r.account; if (a?.id) map.set(a.id, a.name || 'Unknown Account'); });
+      setAccountOptions(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
+    } catch (e) { setAccountsError(e); setAccountOptions([]); }
+    finally { setIsAccountsLoading(false); }
+  }, [context.accessToken, graphqlClient]);
+
+  const loadStatuses = useCallback(async () => {
+    if (!context.accessToken) return;
+    setIsStatusesLoading(true); setStatusesError(null);
+    try {
+      const res = await graphqlClient.request<{ Opportunity: Array<{ opportunityStatus?: { id: string; code?: string; value?: string } | null }> }>(`
+        query GetOppStatuses {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityStatusRef], limit: 50) {
+            opportunityStatus { id code value }
+          }
+        }
+      `);
+      const map = new Map<string, string>();
+      (res?.Opportunity || []).forEach(r => { const s = r.opportunityStatus; if (s?.id) map.set(s.id, s.value || s.code || s.id); });
+      setStatusOptions(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
+    } catch (e) { setStatusesError(e); setStatusOptions([]); }
+    finally { setIsStatusesLoading(false); }
+  }, [context.accessToken, graphqlClient]);
+
+  useEffect(() => {
+    loadOwners();
+    loadStages();
+    loadPipelines();
+    loadAccounts();
+    loadStatuses();
+  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses]);
 
 
 
@@ -158,115 +236,15 @@ export const useOpportunityFilters = (
     filtersInitialized,
   ]);
 
-  // Backend search function for opportunity owners
-  const getOwnerFilters = useCallback(
-    (search: string) => {
-      // Don't set state during render - use setTimeout to defer it
-      setTimeout(() => {
-        setOwnerSearch(search);
-      }, 0);
-
-      return {
-        filters: (opportunityOwners || []).map((owner) => ({
-          id: owner.id,
-          label: owner.name,
-          value: owner.name,
-          selected: selectedFilters.includes(owner.id),
-        })),
-        loading: isOwnersLoading,
-        error: ownersError,
-      };
-    },
-    [
-      opportunityOwners,
-      selectedFilters,
-      isOwnersLoading,
-      ownersError,
-    ]
-  );
+  // Backend search functions removed – we load static option lists per group
 
 
 
-  // Backend search function for pipeline stages
-  const getPipelineStageFilters = useCallback(
-    (search: string) => {
-      // Don't set state during render - use setTimeout to defer it
-      setTimeout(() => {
-        setPipelineStageSearch(search);
-      }, 0);
+  // (none)
 
-      return {
-        filters: (pipelineStageOptions || []).map((option) => ({
-          id: `stage-${option.id}`,
-          label: option.name,
-          value: option.name,
-          selected: selectedFilters.includes(`stage-${option.id}`),
-        })),
-        loading: isPipelineStagesLoading,
-        error: pipelineStagesError,
-      };
-    },
-    [
-      pipelineStageOptions,
-      selectedFilters,
-      isPipelineStagesLoading,
-      pipelineStagesError,
-    ]
-  );
+  // (none)
 
-  // Backend search function for accounts
-  const getAccountFilters = useCallback(
-    (search: string) => {
-      // Don't set state during render - use setTimeout to defer it
-      setTimeout(() => {
-        setAccountSearch(search);
-      }, 0);
-
-      return {
-        filters: (accountOptions || []).map((option) => ({
-          id: option.id,
-          label: option.name,
-          value: option.id,
-          selected: selectedFilters.includes(option.id),
-        })),
-        loading: isAccountsLoading,
-        error: accountsError,
-      };
-    },
-    [
-      accountOptions,
-      selectedFilters,
-      isAccountsLoading,
-      accountsError,
-    ]
-  );
-
-  // Backend search function for statuses
-  const getStatusFilters = useCallback(
-    (search: string) => {
-      // Don't set state during render - use setTimeout to defer it
-      setTimeout(() => {
-        setStatusSearch(search);
-      }, 0);
-
-      return {
-        filters: (statusOptions || []).map((option) => ({
-          id: `status-${option.id}`,
-          label: option.name,
-          value: option.id,
-          selected: selectedFilters.includes(`status-${option.id}`),
-        })),
-        loading: isStatusesLoading,
-        error: statusesError,
-      };
-    },
-    [
-      statusOptions,
-      selectedFilters,
-      isStatusesLoading,
-      statusesError,
-    ]
-  );
+  // (none)
 
   const handleDateRangeChange = useCallback(
     (after?: string, before?: string) => {
@@ -298,7 +276,6 @@ export const useOpportunityFilters = (
           value: owner.name,
           selected: selectedFilters.includes(owner.id),
         })),
-        backendSearch: getOwnerFilters,
       },
       {
         id: "stage",
@@ -309,7 +286,6 @@ export const useOpportunityFilters = (
           value: option.name,
           selected: selectedFilters.includes(`stage-${option.id}`),
         })),
-        backendSearch: getPipelineStageFilters,
       },
       {
         id: "pipeline",
@@ -390,7 +366,6 @@ export const useOpportunityFilters = (
           value: option.id,
           selected: selectedFilters.includes(option.id),
         })),
-        backendSearch: getAccountFilters,
       },
       {
         id: "statuses",
@@ -401,7 +376,6 @@ export const useOpportunityFilters = (
           value: option.id,
           selected: selectedFilters.includes(`status-${option.id}`),
         })),
-        backendSearch: getStatusFilters,
       },
     ],
     [
@@ -411,10 +385,6 @@ export const useOpportunityFilters = (
       pipelineOptions,
       accountOptions,
       statusOptions,
-      getOwnerFilters,
-      getPipelineStageFilters,
-      getAccountFilters,
-      getStatusFilters,
       createdAfter,
       createdBefore,
       handleDateRangeChange,
@@ -496,7 +466,7 @@ export const useOpportunityFilters = (
             filters.amountRanges.push(filter.value);
           } else if (group.id === "accounts") {
             if (!filters.accounts) filters.accounts = [];
-            filters.accounts.push(filterId);
+            filters.accounts.push(filter.id);
           } else if (group.id === "statuses") {
             if (!filters.statuses) filters.statuses = [];
             filters.statuses.push(filter.value);

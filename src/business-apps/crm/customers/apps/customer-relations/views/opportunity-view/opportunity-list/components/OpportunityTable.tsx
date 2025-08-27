@@ -15,24 +15,15 @@ import {
   Card,
   CardContent,
 } from "@newwork/nw-design-system";
-import {
-  PiUser,
-  PiCurrencyDollar,
-  PiTarget,
-  PiFunnel,
-  PiCalendar,
-  PiBuilding,
-  PiArrowUp,
-  PiArrowDown,
-  PiCheckCircle,
-} from "react-icons/pi";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
+import { Calendar, Building2 } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { Opportunity } from "../types";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import {
   getWinningChanceBadgeVariant,
-  getSalesPipelineStageBadgeVariant,
+  getBadgeVariantFromCatalog,
 } from "@/common/utils/badgeUtils";
 
 export interface OpportunityTableProps {
@@ -100,6 +91,46 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString();
   };
+
+  // Align amount formatting with investments table
+  const getCurrencySymbol = (currencyCode?: string): string => {
+    try {
+      const code = currencyCode || "EUR";
+      const parts = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: code,
+        currencyDisplay: "narrowSymbol",
+      }).formatToParts(0);
+      return parts.find((p) => p.type === "currency")?.value || code;
+    } catch {
+      return "€";
+    }
+  };
+
+  const formatCurrencyNumberOnly = (
+    amount: number | undefined,
+    currencyCode?: string
+  ): string => {
+    if (!amount) return "0";
+    try {
+      const code = currencyCode || "EUR";
+      const parts = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).formatToParts(amount);
+      return parts
+        .filter((p) => p.type !== "currency")
+        .map((p) => p.value)
+        .join("");
+    } catch {
+      return new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    }
+  };
   // Handle row click
   const handleRowClick = useCallback(
     (record: Opportunity) => {
@@ -158,6 +189,26 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
     return "Unassigned";
   };
 
+  const getStageColor = (
+    alternativeCode?: string
+  ): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+    if (!alternativeCode) return "outline";
+    switch (alternativeCode.toUpperCase()) {
+      case "DISCOVERY":
+        return "info";
+      case "QUALIFICATION":
+        return "warning";
+      case "NEGOTIATION":
+        return "secondary";
+      case "CLOSED_WON":
+        return "success";
+      case "CLOSED_LOST":
+        return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
   return (
     <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       <CardContent className="gba:p-0">
@@ -189,8 +240,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     onClick={() => handleSort("estimatedAmount")}
                     data-testid={`${DATA_TEST_ID_PREFIX}-value-header`}
                   >
-                    <div className="gba:flex gba:items-center">
-                      Value
+                    <div className="gba:flex gba:items-center gba:justify-center">
+                      Amount
                       {renderSortIcon("estimatedAmount")}
                     </div>
                   </TableHead>
@@ -202,20 +253,8 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Win Rate
+                      Chance
                       {renderSortIcon("winningChance")}
-                    </div>
-                  </TableHead>
-                )}
-                {isColumnVisible('stage') && (
-                  <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("stage")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      Stage
-                      {renderSortIcon("stage")}
                     </div>
                   </TableHead>
                 )}
@@ -231,6 +270,30 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
+                {isColumnVisible('stage') && (
+                  <TableHead
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("stage")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Stage
+                      {renderSortIcon("stage")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('status') && (
+                  <TableHead
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("status")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      Status
+                      {renderSortIcon("status")}
+                    </div>
+                  </TableHead>
+                )}
                 {isColumnVisible('closeDate') && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -240,18 +303,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     <div className="gba:flex gba:items-center">
                       Close Date
                       {renderSortIcon("closeDate")}
-                    </div>
-                  </TableHead>
-                )}
-                {isColumnVisible('owner') && (
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("ownerEmployeeId")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      Owner
-                      {renderSortIcon("ownerEmployeeId")}
                     </div>
                   </TableHead>
                 )}
@@ -267,16 +318,24 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('status') && (
+                {isColumnVisible('owner') && (
                   <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("status")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("ownerEmployeeId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Status
-                      {renderSortIcon("status")}
+                      Owner
+                      {renderSortIcon("ownerEmployeeId")}
                     </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('createdAt') && (
+                  <TableHead
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    <div className="gba:flex gba:items-center">Created {renderSortIcon("createdAt")}</div>
                   </TableHead>
                 )}
                 {isColumnVisible('actions') && (
@@ -319,7 +378,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                         </div>
                         {record.account && !isColumnVisible('account') && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
-                            <PiBuilding size={12} />
+                            <Building2 size={12} className="gba:text-gray-400" />
                             <span
                               className="gba:truncate"
                               title={record.account.name}
@@ -336,12 +395,21 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${record.id}`}
                     >
-                      <div className="gba:text-sm gba:font-medium">
-                        {formatCurrency(
-                          record.estimatedAmount,
-                          record.currency?.code
-                        )}
-                      </div>
+                      {record.estimatedAmount ? (
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(
+                              record.estimatedAmount,
+                              record.currency?.code
+                            )}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(record.currency?.code)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('winRate') && (
@@ -358,31 +426,42 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       </Badge>
                     </TableCell>
                   )}
-                  {isColumnVisible('stage') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}
-                    >
-                      <Badge
-                        variant={getSalesPipelineStageBadgeVariant(
-                          record.salesPipelineStage
-                        )}
-                      >
-                        {record.salesPipelineStage?.value || "Unknown Stage"}
-                      </Badge>
-                    </TableCell>
-                  )}
                   {isColumnVisible('pipeline') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}
                     >
-                      <div
-                        className="gba:text-sm gba:truncate"
-                        title={record.salesPipeline?.value}
-                      >
-                        {record.salesPipeline?.value || "-"}
+                      <div className="gba:text-sm gba:truncate" title={record.opportunityPipeline?.value}>
+                        {record.opportunityPipeline?.value || record.opportunityPipeline?.code || "-"}
                       </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('stage') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}
+                    >
+                      {record.opportunityPipelineStage ? (
+                        <Badge variant={getStageColor(record.opportunityPipelineStage?.alternativeCode)}>
+                          {record.opportunityPipelineStage?.value || record.opportunityPipelineStage?.code || "-"}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('status') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                    >
+                      {record.opportunityStatus ? (
+                        <Badge variant={getBadgeVariantFromCatalog(record.opportunityStatus)}>
+                          {record.opportunityStatus?.value || record.opportunityStatus?.code || "-"}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('closeDate') && (
@@ -390,8 +469,26 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-close-date-cell-${record.id}`}
                     >
-                      <div className="gba:text-sm">
-                        {formatDate(record.closeDate)}
+                      {record.closeDate ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">{formatDate(record.closeDate)}</span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('account') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                        <span className="gba:text-sm gba:truncate" title={record.account?.name}>
+                          {record.account?.name || "-"}
+                        </span>
                       </div>
                     </TableCell>
                   )}
@@ -426,30 +523,16 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('account') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiBuilding size={14} className="gba:text-blue-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.account?.name}>
-                          {record.account?.name || "-"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  )}
-                  {isColumnVisible('status') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCheckCircle size={14} className="gba:text-green-600" />
-                        <Badge variant="default">
-                          {record.salesOpportunityStatus?.value || "-"}
-                        </Badge>
-                      </div>
+                  {isColumnVisible('createdAt') && (
+                    <TableCell className="gba:py-4 gba:px-6">
+                      {record.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">{formatDate(record.createdAt)}</span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('actions') && (

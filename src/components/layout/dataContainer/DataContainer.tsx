@@ -131,12 +131,30 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
     onDetailsPanelClose();
   }, [dataDetails, onDetailsPanelClose]);
 
+  // Measure the main content (controller + body) to cap the filter height
+  const mainContentRef = React.useRef<HTMLDivElement>(null);
+  const [mainContentHeight, setMainContentHeight] = React.useState<number>(0);
+  React.useEffect(() => {
+    const el = mainContentRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setMainContentHeight(entry.contentRect.height);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative gba:min-w-0", className
-    )} data-testid="data-container">
-      {/* Filter Sidebar - left column, visible if open */}
+    <div className={cn("gba:flex gba:flex-row gba:h-full gba:w-full gba:relative gba:min-w-0", className)} data-testid="data-container">
+      {/* Filter Sidebar - left column, visible if open; capped to main content height */}
       {showDataFilter && (
-        <div className="gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-r gba:border-gray-100 gba:bg-white gba:z-0" data-testid="data-container-filter-sidebar">
+        <div
+          className="gba:flex gba:flex-col gba:w-[336px] gba:border-r gba:border-gray-100 gba:bg-white gba:z-0"
+          style={{ maxHeight: mainContentHeight ? `${mainContentHeight}px` : undefined, overflowY: 'auto' }}
+          data-testid="data-container-filter-sidebar"
+        >
           <DataFilter
             show={showDataFilter}
             onClose={handleCloseDataFilter}
@@ -144,10 +162,11 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
           />
         </div>
       )}
-      {/* Main Content - center column */}
-      <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:h-full gba:bg-white gba:min-w-0", {
-        "gba:pl-6": !showDataFilter
-      })} data-testid="data-container-main-content">
+
+      {/* Main + Details wrapper */}
+      <div className="gba:flex gba:flex-row gba:flex-1 gba:min-w-0" ref={mainContentRef}>
+        {/* Main Content - controller above body */}
+        <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:min-w-0", !showDataFilter && "gba:pl-6")} data-testid="data-container-main-content">
           {CustomDataController ? (
             <CustomDataController
               showDataFilter={showDataFilter}
@@ -164,36 +183,36 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-        <div className={cn("gba:flex-1 gba:min-h-0 gba:overflow-auto", {
-          'gba:bg-gray-50': contentBackground === 'gray',
-          'gba:bg-white': contentBackground === 'white'
-        })} data-testid="data-container-body">
-          {dataBody}
+          <div className={cn("gba:min-h-0 gba:overflow-auto", { 'gba:bg-gray-50': contentBackground === 'gray', 'gba:bg-white': contentBackground === 'white' })} data-testid="data-container-body">
+            {dataBody}
+          </div>
         </div>
-      </div>
-      {/* Details Sidebar - right column or floating, only if present */}
-      {dataDetails && (
-        <div 
-          className={cn({
-            // Standard right column layout
-            "gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-l gba:border-gray-100 gba:bg-white gba:z-0": !floatingDetails,
-            // Floating layout - fixed position from top of viewport excluding header, full height minus header
-            "gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg": floatingDetails
-          }
-        )}
-          onClick={(e) => e.stopPropagation()}
-          data-testid={floatingDetails ? "data-container-details-floating" : "data-container-details-sidebar"}
-        >
-          <DataDetails
-            title={dataDetails.title}
-            icon={dataDetails.icon}
-            onClose={handleDetailsClose}
-            footer={dataDetails.footer}
+
+        {/* Details Sidebar - right column or floating, only if present */}
+        {dataDetails && (
+          <div 
+            className={cn(
+              !floatingDetails
+                ? "gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-l gba:border-gray-100 gba:bg-white gba:z-0"
+                : "",
+              floatingDetails
+                ? "gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg"
+                : ""
+            )}
+            onClick={(e) => e.stopPropagation()}
+            data-testid={floatingDetails ? "data-container-details-floating" : "data-container-details-sidebar"}
           >
-            {dataDetails.content}
-          </DataDetails>
-        </div>
-      )}
+            <DataDetails
+              title={dataDetails.title}
+              icon={dataDetails.icon}
+              onClose={handleDetailsClose}
+              footer={dataDetails.footer}
+            >
+              {dataDetails.content}
+            </DataDetails>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -8,9 +8,19 @@ import { BaseCustomerOpportunity, CustomerOpportunity } from '../types';
 export function toCustomerOpportunity(base: BaseCustomerOpportunity): CustomerOpportunity {
   // Extract labels from catalog entries
   const currencyLabel = base.currency?.value || base.currency?.code;
-  const opportunityPipelineLabel = base.opportunityPipeline?.value || base.opportunityPipeline?.code;
-  const opportunityPipelineStageLabel = base.opportunityPipelineStage?.value || base.opportunityPipelineStage?.code;
-  const opportunityStatusLabel = base.opportunityStatus?.value || base.opportunityStatus?.code;
+  const normalizedPipeline = (base as any).opportunityPipeline
+    ?? (base as any).pipeline
+    ?? (base as any).salesPipeline
+    ?? undefined;
+  const normalizedStage = (base as any).opportunityPipelineStage
+    ?? (base as any).salesPipelineStage
+    ?? undefined;
+  const normalizedStatus = (base as any).opportunityStatus
+    ?? ((base as any).status ? { id: '', code: (base as any).status, value: (base as any).status } : undefined);
+
+  const opportunityPipelineLabel = normalizedPipeline?.value || normalizedPipeline?.code;
+  const opportunityPipelineStageLabel = normalizedStage?.value || normalizedStage?.code;
+  const opportunityStatusLabel = normalizedStatus?.value || normalizedStatus?.code;
   const ownerDisplayName = base.ownerEmployee?.displayName || 
     `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim();
 
@@ -19,6 +29,13 @@ export function toCustomerOpportunity(base: BaseCustomerOpportunity): CustomerOp
 
   return {
     ...base,
+    // Ensure numeric fields are present for UI list
+    estimatedAmount: base.estimatedAmount,
+    winningChance: (base as any).winningChance ?? (base as any).probability ?? undefined,
+    // Normalize fields so UI can consume consistent names
+    opportunityPipeline: normalizedPipeline,
+    opportunityPipelineStage: normalizedStage,
+    opportunityStatus: normalizedStatus,
     
     // Computed UI fields (only those defined in CustomerOpportunity interface)
     displayName,

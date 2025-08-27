@@ -203,7 +203,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Company
+                      Account
                       {renderSortIcon("accountId")}
                     </div>
                   </TableHead>

@@ -8,9 +8,7 @@ import React, {
 import { DataContainer } from "@/components/layout/dataContainer";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useOpportunityListData } from "./hooks/useOpportunityListData";
-import { useOpportunityStatisticsWithTrend } from "./hooks/useOpportunityStatisticsWithTrend";
 import { useOpportunityFilters } from "./hooks/useOpportunityFilters";
-import { OpportunityStatisticsWithTrend } from "./components/OpportunityStatistics";
 import OpportunityTable from "./components/OpportunityTable";
 import { Opportunity } from "./types";
 import {
@@ -42,14 +40,15 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
     { id: "opportunity", label: "Opportunity", visible: true },
-    { id: "value", label: "Value", visible: true },
-    { id: "winRate", label: "Win Rate", visible: true },
+    { id: "value", label: "Amount", visible: true },
+    { id: "winRate", label: "Chance", visible: true },
     { id: "stage", label: "Stage", visible: true },
     { id: "pipeline", label: "Pipeline", visible: true },
     { id: "closeDate", label: "Close Date", visible: true },
     { id: "owner", label: "Owner", visible: true },
     { id: "account", label: "Account", visible: true },
     { id: "status", label: "Status", visible: true },
+    { id: "createdAt", label: "Created", visible: true },
   ]);
 
   // Get visible columns for passing to table
@@ -114,10 +113,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     pipelines: appliedFilters.pipelines,
   });
 
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({
-    ...context,
-    sourceApp,
-  });
+  // statistics are loaded at the view level
 
   // Listen for process completion events and refresh data when opportunity processes complete
   useProcessCompletion({
@@ -126,7 +122,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
         "Process completed successfully, refreshing opportunity data"
       );
       opportunityListData.retry();
-      opportunityStatistics.refetch(); // Also refresh statistics
+      // statistics refresh handled at view level
     },
     onFailure: () => {
       console.log("Process failed, no data refresh needed");
@@ -145,7 +141,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
         sortField,
         sortOrder
       );
-      opportunityStatistics.refetch();
+      // statistics are loaded at the view level
     }
   }, [context.accessToken, pageSize, sortField, sortOrder]); // Load immediately when token present
 
@@ -169,6 +165,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     JSON.stringify(appliedFilters.winningChanceRanges), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.amountRanges), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.statuses), // Use JSON.stringify for array
+    JSON.stringify(appliedFilters.accounts), // Trigger reload when accounts change
     JSON.stringify(appliedFilters.owners), // Use JSON.stringify for array
     JSON.stringify(appliedFilters.pipelines), // Use JSON.stringify for array
     appliedFilters.createdAfter,
@@ -268,9 +265,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     });
   }, []);
 
-  const handleRetryStatistics = useCallback(() => {
-    opportunityStatistics.refetch();
-  }, [opportunityStatistics]);
+  // statistics retry handled at view level
 
   const handleRetryData = useCallback(() => {
     opportunityListData.loadPage(
@@ -308,18 +303,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
 
   return (
     <div data-testid="opportunity-list-content">
-      <div data-testid="opportunity-statistics-section" className="gba:mb-6">
-        {opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        ) : (
-          <div>Loading statistics...</div>
-        )}
-      </div>
+      {/* statistics are shown at the view level above the tabs */}
 
       <DataContainer
         dataControllerProps={{

@@ -1,25 +1,15 @@
 import { useState, useCallback } from "react";
 import { Opportunity, UseOpportunityListDataReturn } from "../types";
-import {
-  useGetOpportunitiesData,
-  OpportunityData,
-} from "../queries/OpportunityQueries";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { enforceQueryLimit } from "@/business-apps/crm/common/utils/queryLimits";
+import {
+  useCustomerOpportunities,
+} from "@/common/data/customer/hooks/useCustomerOpportunities";
+import type {
+  CustomerOpportunityQueryVariables,
+} from "@/common/data/customer/queries/customerOpportunityQueries";
 
-const temporaryMapToStage = (stage: string) => {
-  return (
-    {
-      UNKNOWN_STAGE: "Unknown Stage",
-      NEW_OPPORTUNITY: "New Opportunity",
-      IN_QUALIFICATION: "In Qualification",
-      PROPOSAL: "Proposal",
-      PROPOSAL_IN_PROGRESS: "Proposal In Progress",
-      NEGOTIATION: "Negotiation",
-      CLOSED: "Closed",
-    }[stage] || "Unknown Stage"
-  );
-};
+// deprecated mapping no longer used
 
 interface UseOpportunityListDataParams {
   search?: string;
@@ -38,72 +28,7 @@ interface UseOpportunityListDataParams {
   pipelines?: string[];
 }
 
-const transformOpportunityData = (
-  apiOpportunity: OpportunityData
-): Opportunity => {
-  return {
-    id: apiOpportunity.id,
-    name: apiOpportunity.name || "",
-    description: "", // Field doesn't exist in API, set empty string
-    estimatedAmount: apiOpportunity.estimatedAmount || 0,
-    winningChance: apiOpportunity.winningChance || 0,
-    closeDate: apiOpportunity.closeDate || "",
-    salesPipeline: apiOpportunity.salesPipeline
-      ? {
-          id: apiOpportunity.salesPipeline.id,
-          value: apiOpportunity.salesPipeline.value,
-          code: apiOpportunity.salesPipeline.code,
-          objectValue: apiOpportunity.salesPipeline.objectValue,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined },
-    salesPipelineStage: apiOpportunity.salesPipelineStage
-      ? {
-          id: apiOpportunity.salesPipelineStage.id,
-          value: apiOpportunity.salesPipelineStage.value,
-          code: apiOpportunity.salesPipelineStage.code,
-          objectValue: apiOpportunity.salesPipelineStage.objectValue,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined },
-    salesOpportunityStatus: apiOpportunity.opportunityStatus
-      ? {
-          id: apiOpportunity.opportunityStatus.id,
-          value: apiOpportunity.opportunityStatus.value,
-          code: apiOpportunity.opportunityStatus.code,
-          objectValue: apiOpportunity.opportunityStatus.objectValue,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined },
-    salesLeadSource: { id: "", value: "", code: "" }, // Field doesn't exist in API
-    currency: apiOpportunity.currency
-      ? {
-          id: apiOpportunity.currency.id,
-          value: apiOpportunity.currency.value,
-          code: apiOpportunity.currency.code,
-          objectValue: apiOpportunity.currency.objectValue,
-        }
-      : { id: "", value: "USD", code: "USD", objectValue: undefined },
-    account: apiOpportunity.account
-      ? {
-          id: apiOpportunity.account.id,
-          name: apiOpportunity.account.name,
-        }
-      : undefined,
-    accountId: apiOpportunity.accountId || "",
-    ownerEmployee: apiOpportunity.ownerEmployee
-      ? {
-          id: apiOpportunity.ownerEmployee.id,
-          firstName: apiOpportunity.ownerEmployee.firstName || "",
-          lastName: apiOpportunity.ownerEmployee.lastName || "",
-          displayName:
-            apiOpportunity.ownerEmployee.displayName ||
-            `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`,
-          pictureThumbnail: apiOpportunity.ownerEmployee.pictureThumbnail || "",
-        }
-      : undefined,
-    sourceApp: "",
-    createdAt: apiOpportunity.createdAt,
-    updatedAt: apiOpportunity.updatedAt || "",
-  };
-};
+// Data returned from centralized API already matches Opportunity type via mappers
 
 export const useOpportunityListData = (
   params: UseOpportunityListDataParams
@@ -116,7 +41,7 @@ export const useOpportunityListData = (
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const { fetchOpportunitiesData } = useGetOpportunitiesData(params.context);
+  const { fetchCustomerOpportunities } = useCustomerOpportunities(params.context);
 
   const loadPage = useCallback(
     async (
@@ -177,22 +102,22 @@ export const useOpportunityListData = (
             },
           });
 
-          // Add stage and pipeline search
-          searchConditions.push({ stage: { _ilike: searchTerm } }); // Added: displayed in stage
+          // Add stage and pipeline search (centralized names)
+          searchConditions.push({ stage: { _ilike: searchTerm } });
           searchConditions.push({
-            salesPipelineStage: { value: { _ilike: searchTerm } },
-          }); // Added: displayed in stage
+            opportunityPipelineStage: { value: { _ilike: searchTerm } },
+          });
           searchConditions.push({
             pipeline: { value: { _ilike: searchTerm } },
-          }); // Added: displayed in pipeline
+          });
           searchConditions.push({
-            salesPipeline: { value: { _ilike: searchTerm } },
-          }); // Added: displayed in pipeline
+            opportunityPipeline: { value: { _ilike: searchTerm } },
+          });
 
           // Add status search
           searchConditions.push({
             opportunityStatus: { value: { _ilike: searchTerm } },
-          }); // Added: displayed in status
+          });
 
           // Add number-specific conditions if the search term can be parsed as a number
           if (isNumber) {
@@ -282,12 +207,12 @@ export const useOpportunityListData = (
           whereConditions.push({ ownerEmployeeId: { _in: owners } });
         }
 
-        // Add pipeline filtering (check both pipeline and salesPipeline ID)
+        // Add pipeline filtering (check both pipeline and opportunityPipeline ID)
         const pipelines = additionalFilters?.pipelines || params.pipelines;
         if (pipelines && pipelines.length > 0) {
           const pipelineConditions: any[] = [
             { pipeline: { id: { _in: pipelines } } },
-            { salesPipeline: { id: { _in: pipelines } } },
+            { opportunityPipeline: { id: { _in: pipelines } } },
           ];
           whereConditions.push({ _or: pipelineConditions });
         }
@@ -307,10 +232,7 @@ export const useOpportunityListData = (
         }
 
         // Combine all where conditions with _and
-        const whereCondition =
-          whereConditions.length > 1
-            ? { _and: whereConditions }
-            : whereConditions[0] || {};
+        // local whereCondition no longer used directly; centralized variables constructed below
 
         // Build order by condition - handle both override and regular sorting
         let orderBy: any[] = [];
@@ -323,15 +245,12 @@ export const useOpportunityListData = (
                 ? "ASC_NULLS_LAST"
                 : "DESC_NULLS_LAST";
           } else if (overrideSortField === "estimatedAmount") {
+            // Nulls first in ASC so null behaves like 0
             sortCondition.estimatedAmount =
-              overrideSortOrder === "ASC"
-                ? "ASC_NULLS_LAST"
-                : "DESC_NULLS_LAST";
+              overrideSortOrder === "ASC" ? "ASC_NULLS_FIRST" : "DESC_NULLS_LAST";
           } else if (overrideSortField === "winningChance") {
             sortCondition.winningChance =
-              overrideSortOrder === "ASC"
-                ? "ASC_NULLS_LAST"
-                : "DESC_NULLS_LAST";
+              overrideSortOrder === "ASC" ? "ASC_NULLS_FIRST" : "DESC_NULLS_LAST";
           } else if (overrideSortField === "closeDate") {
             sortCondition.closeDate =
               overrideSortOrder === "ASC"
@@ -350,19 +269,17 @@ export const useOpportunityListData = (
                   : "DESC_NULLS_LAST",
             };
           } else if (overrideSortField === "stage") {
-            sortCondition.salesPipelineStage = {
-              value:
-                overrideSortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            // Schema supports direct scalar 'stage' sorting
+            sortCondition.stage =
+              overrideSortOrder === "ASC"
+                ? "ASC_NULLS_LAST"
+                : "DESC_NULLS_LAST";
           } else if (overrideSortField === "pipeline") {
-            sortCondition.salesPipeline = {
-              value:
-                overrideSortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            // Fallback: pipeline nested sort not supported → sort by name
+            sortCondition.name =
+              overrideSortOrder === "ASC"
+                ? "ASC_NULLS_LAST"
+                : "DESC_NULLS_LAST";
           } else if (overrideSortField === "accountId") {
             sortCondition.account = {
               name:
@@ -371,12 +288,11 @@ export const useOpportunityListData = (
                   : "DESC_NULLS_LAST",
             };
           } else if (overrideSortField === "status") {
-            sortCondition.opportunityStatus = {
-              value:
-                overrideSortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            // Fallback: status nested sort not supported → sort by createdAt
+            sortCondition.createdAt =
+              overrideSortOrder === "ASC"
+                ? "ASC_NULLS_LAST"
+                : "DESC_NULLS_LAST";
           }
 
           if (Object.keys(sortCondition).length > 0) {
@@ -394,10 +310,10 @@ export const useOpportunityListData = (
               params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "estimatedAmount") {
             sortCondition.estimatedAmount =
-              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+              params.sortOrder === "ASC" ? "ASC_NULLS_FIRST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "winningChance") {
             sortCondition.winningChance =
-              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+              params.sortOrder === "ASC" ? "ASC_NULLS_FIRST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "closeDate") {
             sortCondition.closeDate =
               params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
@@ -412,19 +328,12 @@ export const useOpportunityListData = (
                   : "DESC_NULLS_LAST",
             };
           } else if (params.sortField === "stage") {
-            sortCondition.salesPipelineStage = {
-              value:
-                params.sortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            sortCondition.stage =
+              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "pipeline") {
-            sortCondition.salesPipeline = {
-              value:
-                params.sortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            // Fallback: pipeline nested sort not supported → sort by name
+            sortCondition.name =
+              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "accountId") {
             sortCondition.account = {
               name:
@@ -433,12 +342,9 @@ export const useOpportunityListData = (
                   : "DESC_NULLS_LAST",
             };
           } else if (params.sortField === "status") {
-            sortCondition.opportunityStatus = {
-              value:
-                params.sortOrder === "ASC"
-                  ? "ASC_NULLS_LAST"
-                  : "DESC_NULLS_LAST",
-            };
+            // Fallback: status nested sort not supported → sort by createdAt
+            sortCondition.createdAt =
+              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           }
 
           if (Object.keys(sortCondition).length > 0) {
@@ -451,20 +357,61 @@ export const useOpportunityListData = (
           orderBy = [{ createdAt: "DESC_NULLS_LAST" }];
         }
 
-        const result = await fetchOpportunitiesData({
+        // Map local filters to centralized query variables
+        const variables: CustomerOpportunityQueryVariables = {
           offset,
           limit: safePageSize,
-          where: whereCondition,
-          orderBy,
-        });
+        } as any;
 
-        if (result?.Opportunity) {
-          const transformedOpportunities = result.Opportunity.map(
-            transformOpportunityData
-          );
-          setOpportunities(transformedOpportunities);
+        // Map sorting
+        const resolveSortField = (f?: string): string | undefined => {
+          if (!f) return undefined;
+          if (f === 'ownerEmployeeId') return 'ownerEmployee';
+          if (f === 'stage') return 'stage';
+          if (f === 'pipeline') return 'name';
+          if (f === 'accountId') return 'account';
+          if (f === 'status') return 'createdAt';
+          return f;
+        };
 
-          const totalCount = result.OpportunityAggregate?.aggregate?.count || 0;
+        const selectedSortField = resolveSortField(overrideSortField && overrideSortField !== '' ? overrideSortField : params.sortField);
+        const selectedSortOrder = (overrideSortField && overrideSortField !== '' ? overrideSortOrder : params.sortOrder) as 'ASC' | 'DESC';
+
+        if (selectedSortField) {
+          variables.orderBy = [{ field: selectedSortField, direction: selectedSortOrder }];
+        } else {
+          variables.orderBy = [{ field: 'createdAt', direction: 'DESC' }];
+        }
+
+        // Translate whereCondition structure into variables used by centralized builder
+        // Only pass arrays we control from filters; search already handled below
+        const searchParam = additionalFilters?.search || params.search;
+        if (searchParam?.trim()) variables.search = searchParam.trim();
+        const stagesParam = additionalFilters?.stages || params.stages;
+        if (stagesParam?.length) (variables as any).stageValues = stagesParam;
+        const pipelinesParam = additionalFilters?.pipelines || params.pipelines;
+        if (pipelinesParam?.length) (variables as any).pipelineIds = pipelinesParam;
+        const accountsParam = additionalFilters?.accounts || params.accounts;
+        if (accountsParam?.length) variables.accountIds = accountsParam;
+        const ownersParam = additionalFilters?.owners || params.owners;
+        if (ownersParam?.length) variables.ownerEmployeeIds = ownersParam;
+        const statusesParam = additionalFilters?.statuses || params.statuses;
+        if (statusesParam?.length) variables.statusIds = statusesParam;
+        const winningChanceRangesParam = additionalFilters?.winningChanceRanges || params.winningChanceRanges;
+        if (winningChanceRangesParam?.length) variables.winningChanceRanges = winningChanceRangesParam;
+        const amountRangesParam = additionalFilters?.amountRanges || params.amountRanges;
+        if (amountRangesParam?.length) variables.estimatedAmountRanges = amountRangesParam;
+        const createdAfterParam = additionalFilters?.createdAfter || params.createdAfter;
+        const createdBeforeParam = additionalFilters?.createdBefore || params.createdBefore;
+        if (createdAfterParam) variables.closeDateFrom = createdAfterParam;
+        if (createdBeforeParam) variables.closeDateTo = createdBeforeParam;
+
+        const result = await fetchCustomerOpportunities(variables);
+
+        if (result) {
+          setOpportunities(result.opportunities as unknown as Opportunity[]);
+
+          const totalCount = result.total || 0;
           setTotal(totalCount);
           setCurrentPage(page);
           setPageSize(safePageSize);
@@ -480,7 +427,7 @@ export const useOpportunityListData = (
       }
     },
     [
-      fetchOpportunitiesData,
+      fetchCustomerOpportunities,
       params.search,
       params.sortField,
       params.sortOrder,

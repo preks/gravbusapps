@@ -43,7 +43,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
     { id: "name", label: "Name", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
-    { id: "company", label: "Company", visible: true },
+    { id: "company", label: "Account", visible: true },
     { id: "role", label: "Role", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "created", label: "Creation Date", visible: true },

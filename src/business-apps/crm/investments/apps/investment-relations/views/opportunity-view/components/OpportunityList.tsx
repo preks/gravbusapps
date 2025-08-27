@@ -200,12 +200,11 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                   className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
                   onClick={() => onSort("estimatedAmount")}
                 >
-                  <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
                     Amount
                     {sortField === "estimatedAmount" && (
                       <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
                     )}
-                    <span className="gba:inline-block gba:w-[5ch]" aria-hidden="true"></span>
                   </div>
                 </TableHead>
 
@@ -311,11 +310,6 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                         <div className="gba:font-medium">
                           {opportunity.name}
                         </div>
-                        {opportunity.code && (
-                          <div className="gba:text-sm gba:text-gray-500">
-                            Code: {opportunity.code}
-                          </div>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell className="gba:text-right">

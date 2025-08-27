@@ -204,7 +204,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-company-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      {t("account.company", "Company")}
+                      {t("account.company", "Account")}
                       {renderSortIcon("name")}
                     </div>
                   </TableHead>

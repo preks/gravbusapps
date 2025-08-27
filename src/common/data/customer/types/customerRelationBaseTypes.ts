@@ -2,7 +2,7 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes';
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
-import type { ContactType, AddressType, SourceTable, TaskTiming, TaskAssigneeType, TaskHolidayPolicy } from './customerEnums';
+import type { ContactType, AddressType } from './customerEnums';
 
 // Forward declarations for reference types to avoid circular dependencies
 export interface CustomerAccountRef {
@@ -117,14 +117,26 @@ export interface BaseCustomerOpportunity extends BaseEntity {
   name?: string;
   closeDate?: string; // ISO date string
   
+  // Amount and probability fields
+  estimatedAmount?: number;
+  winningChance?: number;
+  
   // Catalog references
   currency?: CatalogEntry;
-  opportunityPipeline?: CatalogEntry;
-  opportunityPipelineStage?: CatalogEntry;
+  // Updated schema fields
+  pipeline?: CatalogEntry;
+  salesPipeline?: CatalogEntry;
+  salesPipelineStage?: CatalogEntry;
   opportunityStatus?: CatalogEntry;
+  // Direct scalar stage and status
+  stage?: string;
+  status?: string;
   
   // Employee reference
   ownerEmployee?: EmployeeRef;
+  
+  // Related entity references
+  account?: CustomerAccountRef;
 }
 
 // crm_lead table
@@ -172,9 +184,14 @@ export interface BaseCustomerTask extends BaseEntity {
   endDate?: string; // ISO date string
   
   // Catalog references
-  taskType?: CatalogEntry;
-  taskPriority?: CatalogEntry;
-  taskStatus?: CatalogEntry;
+  taskType?: CatalogEntry; // legacy
+  taskPriority?: CatalogEntry; // legacy
+  taskStatus?: CatalogEntry; // legacy
+  // Updated schema reference fields
+  typeRef?: string;
+  priorityRef?: string;
+  statusRef?: string;
+  timingType?: string;
   
   // Employee references
   creatorEmployee?: EmployeeRef;

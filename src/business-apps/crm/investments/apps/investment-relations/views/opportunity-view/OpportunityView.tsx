@@ -312,12 +312,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       {/* Filters moved to Board View tab */}
 
       {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="gba:w-full"
-      >
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="gba:mb-2">
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="board">Board View</TabsTrigger>
         </TabsList>

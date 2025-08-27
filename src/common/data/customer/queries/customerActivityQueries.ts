@@ -89,7 +89,7 @@ export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariable
 
         # Entity references (minimal for display)
         account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { ${CUSTOMER_CONTACT_REF} }
+        contact { id code firstName lastName email }
         lead { ${CUSTOMER_LEAD_REF} }
         opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
       }
@@ -144,7 +144,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string
           code
           firstName
           lastName
-          fullName
+          email
         }
       }
     }

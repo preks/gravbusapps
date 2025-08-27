@@ -58,7 +58,7 @@ export const AccountList: React.FC<AccountListProps> = (
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
-    { id: "company", label: "Company", visible: true },
+    { id: "company", label: "Account", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "created", label: "Creation Date", visible: true },
     { id: "owner", label: "Owner", visible: true },

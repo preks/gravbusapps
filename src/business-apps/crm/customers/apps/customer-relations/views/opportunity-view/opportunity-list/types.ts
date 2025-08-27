@@ -1,57 +1,6 @@
-export interface Opportunity {
-  id: string;
-  name: string;
-  description?: string;
-  estimatedAmount?: number;
-  winningChance?: number;
-  closeDate?: string;
-  stage?: string;
-  salesPipeline?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  salesPipelineStage?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  salesOpportunityStatus?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  salesLeadSource?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  currency?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  account?: {
-    id: string;
-    name: string;
-  };
-  accountId?: string;
-  ownerEmployee?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    displayName?: string;
-    pictureThumbnail?: string;
-  };
-  sourceApp?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { CustomerOpportunity } from '@/common/data/customer/types';
+
+export type Opportunity = CustomerOpportunity;
 
 export interface UseOpportunityListDataReturn {
   opportunities: Opportunity[];

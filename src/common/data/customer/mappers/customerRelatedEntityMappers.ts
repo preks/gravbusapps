@@ -16,9 +16,9 @@ import {
  */
 export function toCustomerTask(base: BaseCustomerTask): CustomerTask {
   // Extract labels from catalog entries
-  const taskTypeLabel = base.taskType?.value || base.taskType?.code;
-  const taskPriorityLabel = base.taskPriority?.value || base.taskPriority?.code;
-  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code;
+  const taskTypeLabel = base.taskType?.value || base.taskType?.code || (base as any).typeRef || undefined;
+  const taskPriorityLabel = base.taskPriority?.value || base.taskPriority?.code || (base as any).priorityRef || undefined;
+  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code || (base as any).statusRef || undefined;
   
   // Employee display names
   const creatorDisplayName = base.creatorEmployee?.displayName || 
