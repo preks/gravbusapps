@@ -171,6 +171,7 @@ interface UseEmployeeActivitiesDataProps {
   sortField?: string;
   sortOrder?: "ASC" | "DESC";
   accessToken: string;
+  userInfo?: any; // Add userInfo to get the user ID for createdBy comparisons
 }
 
 interface UseEmployeeActivitiesDataReturn {
@@ -194,6 +195,7 @@ export const useEmployeeActivitiesData = ({
   sortField = "createdAt",
   sortOrder = "DESC",
   accessToken,
+  userInfo,
 }: UseEmployeeActivitiesDataProps): UseEmployeeActivitiesDataReturn => {
   const [activities, setActivities] = useState<SalesActivity[]>([]);
   const [total, setTotal] = useState(0);
@@ -205,7 +207,9 @@ export const useEmployeeActivitiesData = ({
 
   const { fetchEmployeeActivities } = useEmployeeActivitiesQueries({
     accessToken,
-  } as BusinessAppContextProps);
+    userInfo: undefined,
+    additionalData: undefined,
+  });
 
   const loadPage = useCallback(
     async (
@@ -291,6 +295,7 @@ export const useEmployeeActivitiesData = ({
 
         const variables: EmployeeActivitiesQueryVariables = {
           employeeId,
+          userId: userInfo?.id, // Pass user ID for createdBy comparisons
           offset,
           limit: safePageSize,
           orderBy: [orderBy],
@@ -298,6 +303,9 @@ export const useEmployeeActivitiesData = ({
         };
 
         const result = await fetchEmployeeActivities(variables);
+
+        // Debug logging for activity loading
+
         // Filter out activities with null createdAt before transformation
         // const validActivities = (result.SalesActivity || []).filter(
         //   (activity) => activity.createdAt !== null

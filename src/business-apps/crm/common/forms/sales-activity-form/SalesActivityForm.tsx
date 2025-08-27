@@ -17,7 +17,7 @@ const { TextArea } = Input;
 const initialValues = {
   activityTypeRef: '',
   title: '',
-  date: null,
+  occurredAt: null,
   description: '',
   files: [],
 };
@@ -245,7 +245,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           version: 0,
           activityTypeRef: values.activityTypeRef,
           title: values.title,
-          date: values.date ? dayjs(values.date).toISOString() : null,
+          occurredAt: values.occurredAt ? dayjs(values.occurredAt).toISOString() : null,
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
@@ -327,11 +327,11 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           </Select>
         </Form.Item>
         <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date')}
-          name="date"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.dateRequired', 'Date is required') }]}
+          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.occurredAt', 'Occurred At')}
+          name="occurredAt"
+          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.occurredAtRequired', 'Occurred date is required') }]}
         >
-          <DatePicker data-testid="date-input" className="gba:w-full" style={{ width: '100%' }} />
+          <DatePicker data-testid="occurred-at-input" className="gba:w-full" style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}

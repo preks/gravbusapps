@@ -1,9 +1,36 @@
 import React, { useState, useRef } from "react";
-import { Spinner, Button } from "@newwork/nw-design-system";
+import { Spinner, Button, Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
+import { PiCalendar } from 'react-icons/pi';
 import { PerformanceHeader } from "./components/header";
 import { SalesPerformanceTab, SalesActivitiesTab } from "./components/tabs";
+import { ActivitiesCalendar } from "./components/activities/ActivitiesCalendar";
 import { useEmployeeHeaderData } from "./hooks/useEmployeeHeaderData";
 import { SalesMemberPerformanceProps, TabItem } from "./types";
+
+// Helper to extract team context from URL or props
+const getTeamContextFromUrl = (): { teamId: string; teamName: string } | undefined => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const teamId = urlParams.get("teamId");
+  
+  if (teamId) {
+    // In real implementation, fetch team name from API or pass as prop
+    // For now, use mock team names
+    const mockTeamNames: Record<string, string> = {
+      'team-1': 'Enterprise Sales',
+      'team-2': 'SMB Sales', 
+      'team-3': 'Key Accounts',
+      'team-4': 'Inside Sales',
+      'team-5': 'Channel Partners',
+    };
+    
+    return {
+      teamId,
+      teamName: mockTeamNames[teamId] || `Team ${teamId}`,
+    };
+  }
+  
+  return undefined;
+};
 
 const DATA_TEST_ID_PREFIX = "SalesMemberPerformance";
 
@@ -15,15 +42,18 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
   userInfo,
   additionalData,
 }) => {
-  const [activeTab, setActiveTab] = useState<"performance" | "activities">(
+  const [activeTab, setActiveTab] = useState<"performance" | "activities" | "calendar">(
     initialTab
   );
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const tabContentRef = useRef<HTMLDivElement>(null);
+  
+  // Get team context for comparisons
+  const teamContext = getTeamContextFromUrl();
 
   // Simplified tab change handler
   const handleTabChange = (value: string) => {
-    setActiveTab(value as "performance" | "activities");
+    setActiveTab(value as "performance" | "activities" | "calendar");
   };
 
   // Fetch real employee header data
@@ -43,6 +73,10 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
     {
       key: "activities",
       label: "Sales Activities",
+    },
+    {
+      key: "calendar",
+      label: "Activity Calendar",
     },
   ];
 
@@ -151,6 +185,8 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
                 userInfo={userInfo}
                 additionalData={additionalData}
                 isLoading={false}
+                teamContext={teamContext}
+                showComparisons={!!teamContext} // Show comparisons if we have team context
               />
             </div>
           )}
@@ -160,6 +196,22 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
               <SalesActivitiesTab
                 memberId={memberId}
                 accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
+            </div>
+          )}
+
+          {activeTab === "calendar" && (
+            <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`} className="gba:p-6">
+              <ActivitiesCalendar
+                employeeId={memberId}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                onTotalChange={(total) => {
+                  // Track total activities for this employee
+                  console.log(`Total activities for employee ${memberId}:`, total);
+                }}
               />
             </div>
           )}

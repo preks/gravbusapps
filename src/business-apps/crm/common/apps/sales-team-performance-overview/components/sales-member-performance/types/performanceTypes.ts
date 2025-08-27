@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 export interface SalesMemberPerformanceProps extends BusinessAppContextProps {
   memberId: string;
   onBack?: () => void;
-  initialTab?: 'performance' | 'activities';
+  initialTab?: 'performance' | 'activities' | 'calendar';
 }
 
 // Tab configuration

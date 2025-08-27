@@ -7,6 +7,8 @@ const DATA_TEST_ID_PREFIX = 'SalesActivitiesTab';
 export const SalesActivitiesTab: React.FC<SalesActivitiesTabProps> = ({
   memberId,
   accessToken,
+  userInfo,
+  additionalData,
   ...context
 }) => {
   const [activitiesTotal, setActivitiesTotal] = useState<number>(0);
@@ -25,6 +27,8 @@ export const SalesActivitiesTab: React.FC<SalesActivitiesTabProps> = ({
       <ActivitiesStatistics
         employeeId={memberId}
         accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={additionalData}
         {...context}
       />
       
@@ -32,6 +36,7 @@ export const SalesActivitiesTab: React.FC<SalesActivitiesTabProps> = ({
       <ActivitiesTable
         employeeId={memberId}
         accessToken={accessToken}
+        userInfo={userInfo}
         onTotalChange={handleActivitiesTotalChange}
       />
     </div>

@@ -178,6 +178,14 @@ export const useSalesTeamDataIntegration = (
   // Load data for a specific page
   const loadData = useCallback(
     async (page: number, pageSize: number, search?: string) => {
+      if (!context.accessToken) {
+        console.log("⚠️ useSalesTeamDataIntegration: No access token available, waiting...");
+        setError('Access token required');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("✅ useSalesTeamDataIntegration: Access token available, loading data...");
       setIsLoading(true);
       setError(null);
 

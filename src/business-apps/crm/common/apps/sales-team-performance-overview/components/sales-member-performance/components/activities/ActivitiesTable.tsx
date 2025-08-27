@@ -12,8 +12,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@newwork/nw-design-system";
 import {
   PiPhone,
@@ -27,12 +25,10 @@ import {
   PiTarget,
   PiHandshake,
   PiChartLine,
-  PiTable,
   PiCalendar,
 } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { DebouncedInput } from "@/components/data-filter/DebouncedInput";
 import {
   ActivitiesTableProps,
   ActivityEntityType,
@@ -41,28 +37,25 @@ import {
   ActivitySortField,
   SortOrder,
   getActivityScoreBadgeVariant,
-  ACTIVITY_TYPE_COLORS,
 } from "./types";
 import { useEmployeeActivitiesData } from "../../hooks/useEmployeeActivitiesData";
-import { ActivitiesCalendar } from "./ActivitiesCalendar";
 import { DataContainer } from "@/components/layout/dataContainer";
 import { useActivityFilters } from "../../hooks/useActivityFilters";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import dayjs from "dayjs";
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 const DATA_TEST_ID_PREFIX = "EmployeeActivitiesTable";
-
-type ViewMode = "table" | "calendar";
 
 export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
   employeeId,
   accessToken,
+  userInfo,
   onTotalChange,
 }) => {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<ActivitySortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -88,6 +81,7 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
       sortField,
       sortOrder,
       accessToken,
+      userInfo, // Now passing real userInfo for proper createdBy filtering
     });
 
   // Load initial data when component mounts or when dependencies change
@@ -240,6 +234,38 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
     return "Contact"; // Default fallback
   };
 
+  // Handle reference click to navigate to the respective page
+  const handleReferenceClick = (activity: any) => {
+    let url: string | null = null;
+
+    // Check entity type and build appropriate URL
+    if (activity.account?.name) {
+      url = buildPlatformUrl('/platform/crm/account-record', { 
+        accountId: activity.accountId,
+        source: 'sales-activities'
+      });
+    } else if (activity.contact?.firstName || activity.contact?.lastName) {
+      url = buildPlatformUrl('/platform/crm/contact-record', { 
+        contactId: activity.contactId,
+        source: 'sales-activities'
+      });
+    } else if (activity.lead?.name || activity.lead?.contact) {
+      url = buildPlatformUrl('/platform/crm/lead-record', { 
+        leadId: activity.leadId,
+        source: 'sales-activities'
+      });
+    } else if (activity.opportunity?.name) {
+      url = buildPlatformUrl('/platform/crm/opportunity-record', { 
+        opportunityId: activity.opportunityId,
+        source: 'sales-activities'
+      });
+    }
+
+    if (url) {
+      navigateTo(url);
+    }
+  };
+
   // Loading state
   if (loading && activities.length === 0) {
     return (
@@ -305,24 +331,22 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
       }}
       dataBody={
         <>
-          {/* Content based on view mode */}
-          {viewMode === "table" ? (
-            <>
-              {activities.length === 0 && !loading && (
-                <div
-                  className="gba:text-center gba:p-8"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
-                >
-                  <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    No activities found
-                  </h3>
-                  <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
-                    {search
-                      ? "Try adjusting your search criteria."
-                      : "This employee currently has no activities."}
-                  </p>
-                </div>
-              )}
+          {/* Activities Table Content */}
+          {activities.length === 0 && !loading && (
+            <div
+              className="gba:text-center gba:p-8"
+              data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
+            >
+              <h3 className="gba:text-sm gba:font-medium gba:text-gray-900">
+                No activities found
+              </h3>
+              <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+                {search
+                  ? "Try adjusting your search criteria."
+                  : "This employee currently has no activities."}
+              </p>
+            </div>
+          )}
               {/* Table */}
               {activities.length > 0 && (
                 <Card data-testid={`${DATA_TEST_ID_PREFIX}-table-card`}>
@@ -375,17 +399,6 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                               Reference
                             </TableHead>
 
-                            {/* Occurred At Column */}
-                            <TableHead
-                              className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                              onClick={() => handleSort("occurredAt")}
-                              data-testid={`${DATA_TEST_ID_PREFIX}-header-occurred`}
-                            >
-                              <div className="gba:flex gba:items-center">
-                                Occurred At {renderSortIcon("occurredAt")}
-                              </div>
-                            </TableHead>
-
                             {/* Created At Column */}
                             <TableHead
                               className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -394,6 +407,17 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                             >
                               <div className="gba:flex gba:items-center">
                                 Creation Date {renderSortIcon("createdAt")}
+                              </div>
+                            </TableHead>
+
+                            {/* Occurred At Column */}
+                            <TableHead
+                              className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                              onClick={() => handleSort("occurredAt")}
+                              data-testid={`${DATA_TEST_ID_PREFIX}-header-occurred`}
+                            >
+                              <div className="gba:flex gba:items-center">
+                                Occurred At {renderSortIcon("occurredAt")}
                               </div>
                             </TableHead>
 
@@ -421,7 +445,6 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                                 <div className="gba:flex gba:justify-start gba:gap-2">
                                   <AppActionButton
                                     data-testid={`${DATA_TEST_ID_PREFIX}-update-activity-button-${activity.id}`}
-                                    variant="secondary"
                                     contextsArray={[FlowContextName.flowEntity]}
                                     externalContextData={{
                                       entityId: activity.id,
@@ -464,11 +487,12 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
 
                               {/* Reference Column */}
                               <TableCell
-                                className="gba:py-4 gba:px-6"
+                                className="gba:py-4 gba:px-6 gba:cursor-pointer hover:gba:bg-gray-50"
                                 data-testid={`${DATA_TEST_ID_PREFIX}-reference-cell-${activity.id}`}
+                                onClick={() => handleReferenceClick(activity)}
                               >
                                 <div className="gba:flex gba:flex-col gba:gap-1">
-                                  <div className="gba:text-sm gba:font-medium gba:text-gray-900">
+                                  <div className="gba:text-sm gba:font-medium gba:text-blue-600 hover:gba:text-blue-700 hover:gba:underline">
                                     {getEntityName(activity)}
                                   </div>
                                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-gray-500">
@@ -486,28 +510,6 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                                     </span>
                                   </div>
                                 </div>
-                              </TableCell>
-
-                              {/* Occurred At Column */}
-                              <TableCell
-                                className="gba:py-4 gba:px-6"
-                                data-testid={`${DATA_TEST_ID_PREFIX}-occurred-cell-${activity.id}`}
-                              >
-                                {activity.occurredAt ? (
-                                  <div className="gba:flex gba:items-center gba:gap-2">
-                                    <PiCalendar
-                                      size={16}
-                                      className="gba:text-gray-400"
-                                    />
-                                    <span className="gba:text-sm">
-                                      {dayjs(activity.occurredAt).format(
-                                        "MMM DD, YYYY"
-                                      )}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  "-"
-                                )}
                               </TableCell>
 
                               {/* Created At Column */}
@@ -529,6 +531,30 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                                   </div>
                                 ) : (
                                   "-"
+                                )}
+                              </TableCell>
+
+                              {/* Occurred At Column */}
+                              <TableCell
+                                className="gba:py-4 gba:px-6"
+                                data-testid={`${DATA_TEST_ID_PREFIX}-occurred-cell-${activity.id}`}
+                              >
+                                {activity.occurredAt ? (
+                                  <div className="gba:flex gba:items-center gba:gap-2">
+                                    <PiCalendar
+                                      size={16}
+                                      className="gba:text-blue-500"
+                                    />
+                                    <span className="gba:text-sm gba:font-medium">
+                                      {dayjs(activity.occurredAt).format(
+                                        "MMM DD, YYYY"
+                                      )}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="gba:text-gray-400 gba:text-sm gba:italic">
+                                    Not specified
+                                  </span>
                                 )}
                               </TableCell>
 
@@ -646,15 +672,6 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
                   </div>
                 </div>
               </div>
-            </>
-          ) : (
-            /* Calendar View */
-            <ActivitiesCalendar
-              employeeId={employeeId}
-              accessToken={accessToken}
-              onTotalChange={onTotalChange}
-            />
-          )}
         </>
       }
     />

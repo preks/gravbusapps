@@ -3,6 +3,9 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 // Entity types that activities can reference
 export type ActivityEntityType = "Contact" | "Lead" | "Opportunity" | "Account";
 
+// Activity types for activities
+export type ActivityType = "Call" | "Email" | "Meeting" | "Task";
+
 // Basic employee info for activity ownership
 export interface ActivityEmployee {
   id: string;
@@ -65,6 +68,7 @@ export interface ActivitiesStatisticsProps extends BusinessAppContextProps {
 export interface ActivitiesTableProps {
   employeeId: string;
   accessToken: string;
+  userInfo?: any; // Add userInfo for proper createdBy filtering
   onTotalChange?: (total: number) => void;
 }
 

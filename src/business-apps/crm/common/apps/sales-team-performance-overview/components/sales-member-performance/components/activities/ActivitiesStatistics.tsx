@@ -20,6 +20,8 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   employeeId,
   onRetry,
   accessToken,
+  userInfo,
+  additionalData,
   ...context
 }) => {
   // Fetch real activities statistics
@@ -27,6 +29,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
     useEmployeeActivitiesStatistics({
       employeeId,
       accessToken,
+      userInfo, // Now passing real userInfo for proper createdBy filtering
       periodInMonths: 1, // Across all references
     });
 
@@ -44,6 +47,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
       search: "",
       sortField: "createdAt",
       sortOrder: "DESC",
+      userInfo, // Now passing real userInfo for proper createdBy filtering
     });
 
   // Handle retry

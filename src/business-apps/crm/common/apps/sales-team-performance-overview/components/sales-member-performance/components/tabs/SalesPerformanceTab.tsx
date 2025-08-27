@@ -13,6 +13,12 @@ interface SalesPerformanceTabProps extends BusinessAppContextProps {
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  // Enhanced context for comparisons
+  teamContext?: {
+    teamId: string;
+    teamName: string;
+  };
+  showComparisons?: boolean;
 }
 
 export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
@@ -22,6 +28,8 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   isLoading = false,
   error = null,
   onRetry,
+  teamContext,
+  showComparisons = true,
   ...context
 }) => {
   return (
@@ -29,11 +37,13 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
       className="gba:flex gba:flex-col gba:gap-6"
       data-testid={`${DATA_TEST_ID_PREFIX}-container`}
     >
-      {/* Performance Statistics Section */}
+      {/* Performance Statistics Section with Enhanced Context */}
       <PerformanceStatistics
         employeeId={employeeId}
         accessToken={accessToken}
         onRetry={onRetry}
+        teamContext={teamContext}
+        showComparisons={showComparisons}
         {...context}
       />
       

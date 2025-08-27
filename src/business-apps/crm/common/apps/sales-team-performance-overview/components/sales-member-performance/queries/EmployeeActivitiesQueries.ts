@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface EmployeeActivitiesQueryVariables {
   employeeId: string;
+  userId?: string; // Add userId for createdBy comparisons (user ID != employee ID)
   offset?: number;
   limit?: number;
   orderBy?: Array<any>;
@@ -50,6 +51,7 @@ export interface EmployeeActivity {
   description?: string;
   title?: string;
   createdAt: string;
+  occurredAt?: string;
   ownerEmployeeId: string;
   ownerEmployee: {
     fullName?: string;
@@ -117,6 +119,8 @@ export const GET_EMPLOYEE_ACTIVITIES_QUERY = `
       source
       description
       createdAt
+      occurredAt
+      createdBy
       ownerEmployeeId
       ownerEmployee {
         fullName
@@ -172,9 +176,26 @@ export const useEmployeeActivitiesQueries = (
       variables: EmployeeActivitiesQueryVariables
     ): Promise<EmployeeActivitiesResponse> => {
       // Build where clause with employee filter and additional conditions
+      // Include activities where:
+      // 1. ownerEmployeeId matches (assigned to them) OR
+      // 2. ownerEmployeeId is null AND createdBy matches (created by them but unassigned)
+      // Note: createdBy is a USER ID, not an EMPLOYEE ID
+      const userId = variables.userId; // Get user ID from variables
       const baseWhere = {
-        ownerEmployeeId: { _eq: variables.employeeId },
-        isDeleted: { _eq: false },
+        _and: [
+          {
+            _or: [
+              { ownerEmployeeId: { _eq: variables.employeeId } },
+              ...(userId ? [{ 
+                _and: [
+                  { ownerEmployeeId: { _eq: null } },
+                  { createdBy: { _eq: userId } }
+                ]
+              }] : [])
+            ]
+          },
+          { isDeleted: { _eq: false } }
+        ]
       };
 
       // Merge with any additional where conditions

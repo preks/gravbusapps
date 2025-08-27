@@ -62,4 +62,8 @@ export class GraphQLClient {
   }
 }
 
-export const graphQLClient = new GraphQLClient(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') ?? '');
+// Fallback to development endpoint if environment variable is not set
+const graphqlEndpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') ?? 'https://newwork-dev.newwork.com/v1/graphql';
+console.log('GraphQL endpoint:', graphqlEndpoint); // Debug log
+
+export const graphQLClient = new GraphQLClient(graphqlEndpoint);

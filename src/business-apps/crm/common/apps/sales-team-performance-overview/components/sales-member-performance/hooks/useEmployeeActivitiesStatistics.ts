@@ -10,6 +10,7 @@ import { useEmployeeActivitiesData } from "./useEmployeeActivitiesData";
 interface UseEmployeeActivitiesStatisticsProps {
   employeeId: string;
   accessToken: string;
+  userInfo?: any; // Add userInfo for proper createdBy filtering
   periodInMonths?: number; // Default to 1 for "across all references"
 }
 
@@ -39,11 +40,11 @@ const calculateStatistics = (
     };
   }
 
-  // Count activity types from transformed data
+  // Count activity types from raw API data (same as table/calendar)
   const activityTypeCounts: Record<string, number> = {};
   activities.forEach((activity) => {
     if (!activity) return;
-    const type = activity.type || "Task";
+    const type = activity.activityType?.value || "Task";
     activityTypeCounts[type] = (activityTypeCounts[type] || 0) + 1;
   });
 
@@ -53,7 +54,32 @@ const calculateStatistics = (
   ) as ActivityType;
   const mostCommonCount = activityTypeCounts[mostCommonActivityType] || 0;
 
-  // Count entity types from transformed data
+  // Helper function to get entity type from raw API data (same as table/calendar)
+  const getEntityType = (activity: any): ActivityEntityType => {
+    // Check if it's an account
+    if (activity.account?.name) {
+      return "Account";
+    }
+
+    // Check if it's a contact
+    if (activity.contact?.firstName || activity.contact?.lastName) {
+      return "Contact";
+    }
+
+    // Check if it's a lead
+    if (activity.lead?.name || activity.lead?.contact) {
+      return "Lead";
+    }
+
+    // Check if it's an opportunity
+    if (activity.opportunity?.name) {
+      return "Opportunity";
+    }
+
+    return "Contact"; // Default fallback
+  };
+
+  // Count entity types from raw API data
   const entityTypeCounts: Record<ActivityEntityType, number> = {
     Contact: 0,
     Lead: 0,
@@ -62,11 +88,9 @@ const calculateStatistics = (
   };
 
   activities.forEach((activity) => {
-    if (!activity || !activity.reference) return;
-    const entityType = activity.reference.entityType;
-    if (entityType in entityTypeCounts) {
-      entityTypeCounts[entityType]++;
-    }
+    if (!activity) return;
+    const entityType = getEntityType(activity);
+    entityTypeCounts[entityType]++;
   });
 
   // Find most worked entity type
@@ -75,24 +99,16 @@ const calculateStatistics = (
   ).reduce((a, b) => (entityTypeCounts[a] > entityTypeCounts[b] ? a : b));
   const mostWorkedCount = entityTypeCounts[mostWorkedEntityType] || 0;
 
-  // Calculate average activity score from the transformed data
-  const totalScore = activities.reduce(
-    (sum, activity) => sum + activity.activityScore,
-    0
-  );
-  const averageScore = totalCount > 0 ? Math.round(totalScore / totalCount) : 0;
-
-  // Calculate trend based on average score
-  const trend =
-    averageScore >= 90
-      ? 8.5
-      : averageScore >= 80
-      ? 5.2
-      : averageScore >= 70
-      ? 2.8
-      : averageScore >= 60
-      ? 0.5
-      : -1.2;
+  // Activity score is not available in the real data, so we'll use a simplified metric
+  // Based on completion rate and activity volume
+  const completedActivities = activities.filter(activity => activity.occurredAt).length;
+  const completionRate = totalCount > 0 ? (completedActivities / totalCount) * 100 : 0;
+  
+  // Simple score based on completion rate and volume
+  const averageScore = Math.round(completionRate);
+  
+  // Calculate trend based on completion rate
+  const trend = completionRate >= 80 ? 5.2 : completionRate >= 60 ? 2.8 : completionRate >= 40 ? 0.5 : -1.2;
 
   return {
     totalActivities: {
@@ -121,6 +137,7 @@ const calculateStatistics = (
 export const useEmployeeActivitiesStatistics = ({
   employeeId,
   accessToken,
+  userInfo,
   periodInMonths = 1,
 }: UseEmployeeActivitiesStatisticsProps): UseEmployeeActivitiesStatisticsReturn => {
   const [statistics, setStatistics] = useState<ActivityStatistics | null>(null);
@@ -133,9 +150,9 @@ export const useEmployeeActivitiesStatistics = ({
       search: "", // No search filter for statistics
       sortField: "createdAt",
       sortOrder: "DESC",
+      userInfo, // Now passing real userInfo for proper createdBy filtering
     });
-  console.log("activities", activities);
-  console.log("total", total);
+
   // Calculate statistics whenever activities data changes
   useEffect(() => {
     if (!loading && !error) {
