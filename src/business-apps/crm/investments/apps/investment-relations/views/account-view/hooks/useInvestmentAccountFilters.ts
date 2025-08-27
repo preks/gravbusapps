@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { DataFilterGroup } from "@/components/data-filter/DataFilter";
-import { DateRangeFilter } from "@/business-apps/crm/common/components/lead-list/components/DateRangeFilter";
+import { DateRangeFilter } from "@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter";
 
 interface OwnerItem { id: string; name: string }
 interface CatalogItem { id: string; code?: string; value?: string }

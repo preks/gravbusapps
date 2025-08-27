@@ -1,5 +1,12 @@
 // Customer Lead Queries - using shared fragments
-import { CUSTOMER_LEAD, CUSTOMER_ACCOUNT_REF } from './fragments/customerRelationFragments';
+import { 
+  CUSTOMER_LEAD, 
+  CUSTOMER_ACCOUNT_REF, 
+  CUSTOMER_TASK, 
+  CUSTOMER_SALES_ACTIVITY, 
+  CUSTOMER_CRM_NOTE, 
+  CUSTOMER_CRM_DOCUMENT 
+} from './fragments/customerRelationFragments';
 
 export interface CustomerLeadQueryVariables {
   ids?: string[];
@@ -129,6 +136,110 @@ export const SEARCH_CUSTOMER_LEADS = (variables: CustomerLeadQueryVariables): st
         sensitive
         email
         companyName
+      }
+    }
+  `;
+};
+
+// Get Customer Tasks by Lead ID
+export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerTasksByLeadId {
+      SalesTask(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Activities by Lead ID
+export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerActivitiesByLeadId {
+      SalesActivity(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_SALES_ACTIVITY}
+
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Notes by Lead ID
+export const GET_CUSTOMER_NOTES_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerNotesByLeadId {
+      CrmNote(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_NOTE}
+        
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Documents by Lead ID
+export const GET_CUSTOMER_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerDocumentsByLeadId {
+      CrmDocument(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_DOCUMENT}
+        
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
       }
     }
   `;

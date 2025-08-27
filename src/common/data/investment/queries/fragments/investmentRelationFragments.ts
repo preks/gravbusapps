@@ -186,6 +186,15 @@ export const INVESTMENT_OPPORTUNITY = `
     currency {
       ${CATALOG_ENTRY}
     }
+    opportunityPipeline {
+      ${CATALOG_ENTRY}
+    }
+    opportunityPipelineStage {
+      ${CATALOG_ENTRY}
+    }
+    opportunityStatus {
+      ${CATALOG_ENTRY}
+    }
     
     # Employee relationship
     ownerEmployee {

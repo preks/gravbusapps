@@ -6,7 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DebouncedInput } from "@/components/data-filter";
 import { useSalesData } from "./hooks/useSalesData";
-import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
+import { OpportunityList } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-list";
 
 interface SalesProps extends BusinessAppContextProps {}
 

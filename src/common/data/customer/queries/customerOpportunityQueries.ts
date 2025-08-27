@@ -1,5 +1,12 @@
 // Customer Opportunity Queries - using shared fragments
-import { CUSTOMER_OPPORTUNITY, CUSTOMER_ACCOUNT_REF } from './fragments/customerRelationFragments';
+import { 
+  CUSTOMER_OPPORTUNITY, 
+  CUSTOMER_ACCOUNT_REF, 
+  CUSTOMER_TASK, 
+  CUSTOMER_SALES_ACTIVITY, 
+  CUSTOMER_CRM_NOTE, 
+  CUSTOMER_CRM_DOCUMENT 
+} from './fragments/customerRelationFragments';
 
 export interface CustomerOpportunityQueryVariables {
   ids?: string[];
@@ -103,6 +110,102 @@ export const SEARCH_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQuer
         name
         description
         closeDate
+      }
+    }
+  `;
+};
+
+// Get Customer Tasks by Opportunity ID
+export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetCustomerTasksByOpportunityId {
+      SalesTask(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Activities by Opportunity ID
+export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetCustomerActivitiesByOpportunityId {
+      SalesActivity(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_SALES_ACTIVITY}
+
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Notes by Opportunity ID
+export const GET_CUSTOMER_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetCustomerNotesByOpportunityId {
+      CrmNote(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_NOTE}
+        
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Documents by Opportunity ID
+export const GET_CUSTOMER_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetCustomerDocumentsByOpportunityId {
+      CrmDocument(
+        where: { 
+          opportunity: { id: { _eq: "${opportunityId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_DOCUMENT}
+        
+        # Entity references
+        opportunity {
+          id
+          code
+          name
+        }
       }
     }
   `;

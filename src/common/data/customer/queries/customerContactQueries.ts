@@ -1,5 +1,12 @@
 // Customer Contact Queries - using shared fragments
-import { CUSTOMER_CONTACT, CUSTOMER_ACCOUNT_REF } from './fragments/customerRelationFragments';
+import { 
+  CUSTOMER_CONTACT, 
+  CUSTOMER_ACCOUNT_REF, 
+  CUSTOMER_TASK, 
+  CUSTOMER_SALES_ACTIVITY, 
+  CUSTOMER_CRM_NOTE, 
+  CUSTOMER_CRM_DOCUMENT 
+} from './fragments/customerRelationFragments';
 
 export interface CustomerContactQueryVariables {
   ids?: string[];
@@ -151,4 +158,107 @@ export const SEARCH_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariable
   `;
 };
 
+// Get Customer Tasks by Contact ID
+export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetCustomerTasksByContactId {
+      SalesTask(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+          fullName
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Activities by Contact ID
+export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetCustomerActivitiesByContactId {
+      SalesActivity(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_SALES_ACTIVITY}
+
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+          fullName
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Notes by Contact ID
+export const GET_CUSTOMER_NOTES_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetCustomerNotesByContactId {
+      CrmNote(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_NOTE}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+          fullName
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Documents by Contact ID
+export const GET_CUSTOMER_DOCUMENTS_BY_CONTACT_ID = (contactId: string): string => {
+  return `
+    query GetCustomerDocumentsByContactId {
+      CrmDocument(
+        where: { 
+          contact: { id: { _eq: "${contactId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_DOCUMENT}
+        
+        # Entity references
+        contact {
+          id
+          code
+          firstName
+          lastName
+          fullName
+        }
+      }
+    }
+  `;
+};
 
