@@ -54,7 +54,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "linkedin", label: "LinkedIn Profile", visible: false },
     { id: "xing", label: "Xing Profile", visible: false },
     { id: "jobTitle", label: "Job Title", visible: false },
-    { id: "department", label: "Department", visible: false },
+    { id: "department", label: "Department", visible: true },
   ]);
 
   // Get visible columns for passing to table

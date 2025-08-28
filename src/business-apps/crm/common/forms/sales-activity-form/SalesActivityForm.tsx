@@ -245,7 +245,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           version: 0,
           activityTypeRef: values.activityTypeRef,
           title: values.title,
-          occuredAt: values.date ? dayjs(values.date).toISOString() : null,
+          occurredAt: values.date ? dayjs(values.date).toISOString() : null,
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
