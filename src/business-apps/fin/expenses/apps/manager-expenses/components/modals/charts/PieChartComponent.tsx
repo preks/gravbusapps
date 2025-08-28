@@ -13,6 +13,7 @@ interface PieChartProps {
   dataKey?: string;
   height?: number;
   colors?: string[];
+  currency?: string;
 }
 
 /**
@@ -24,7 +25,8 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   nameKey = 'name',
   dataKey = 'value',
   height = 300,
-  colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#fa8c16']
+  colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#fa8c16'],
+  currency = 'EUR'
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -68,14 +70,15 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 innerRadius={60}
                 fill="#8884d8"
                 dataKey={dataKey}
-                label={(entry) => `${entry[nameKey]}: ${formatNumberFunction(entry[dataKey].toString(), "0.00[,]00")}`}
+                label={(entry) => `${entry[nameKey]}: ${formatNumberFunction(entry[dataKey].toString(), "0.00[,]00")} ${currency}`}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")} ${currency}`, 'Amount']}
+                labelFormatter={(name) => `${name}`}
               />
               <Legend />
             </PieChart>

@@ -1,5 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Empty } from "antd";
 import { KanbanCard } from "./KanbanCard";
 import type { KanbanColumnProps } from "../types";
 
@@ -42,12 +43,14 @@ export function KanbanColumn({
           </div>
         )}
         
-        <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
-          <div>
-            <span className="gba:font-medium">{items.length}</span>{" "}
-            {items.length === 1 ? "item" : "items"}
+        {!renderStageHeader && (
+          <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
+            <div>
+              <span className="gba:font-medium">{items.length}</span>{" "}
+              {items.length === 1 ? "item" : "items"}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:h-[600px]">
@@ -63,13 +66,10 @@ export function KanbanColumn({
                   <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mb-2" />
                 )}
                 
-                {renderCard ? (
-                  renderCard(item)
-                ) : (
-                  <KanbanCard 
-                    item={item} 
-                  />
-                )}
+                <KanbanCard 
+                  item={item}
+                  renderContent={renderCard ? (_) => renderCard(item) : undefined}
+                />
                 
                 {/* Show insertion indicator after this item */}
                 {dragOverItem === item.id && insertPosition === 'after' && (
@@ -87,6 +87,18 @@ export function KanbanColumn({
                   </svg>
                   Drop here
                 </div>
+              </div>
+            )}
+            
+            {/* Drop indicator when dragging over column with cards */}
+            {isDraggedOver && isDragging && items.length > 0 && !dragOverItem && (
+              <div className="gba:h-1 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse" />
+            )}
+            
+            {/* Empty state when no items and not dragging */}
+            {items.length === 0 && (!isDragging || !isDraggedOver) && (
+              <div className="gba:text-center gba:py-4 gba:text-gray-500 gba:dark:text-gray-400">
+                <Empty description="No entries" />
               </div>
             )}
           </div>

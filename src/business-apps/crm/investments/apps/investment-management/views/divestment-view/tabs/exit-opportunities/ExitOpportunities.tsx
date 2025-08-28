@@ -3,11 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-sys
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { List, Grid3X3, Search, TrendingUp, DollarSign, Target, CheckCircle } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
+import { OpportunityBoard } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-board";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { DebouncedInput } from "@/components/data-filter";
 import { useExitOpportunitiesData } from "./hooks/useExitOpportunitiesData";
-import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
+import { OpportunityList } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-list";
 
 interface ExitOpportunitiesProps extends BusinessAppContextProps {
   initialSubTab?: string;

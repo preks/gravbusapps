@@ -1,5 +1,12 @@
 // Customer Account Queries - using shared fragments
-import { CUSTOMER_ACCOUNT, CUSTOMER_ACCOUNT_REF } from './fragments/customerRelationFragments';
+import { 
+  CUSTOMER_ACCOUNT, 
+  CUSTOMER_ACCOUNT_REF, 
+  CUSTOMER_TASK, 
+  CUSTOMER_SALES_ACTIVITY, 
+  CUSTOMER_CRM_NOTE, 
+  CUSTOMER_CRM_DOCUMENT 
+} from './fragments/customerRelationFragments';
 
 export interface CustomerAccountQueryVariables {
   ids?: string[];
@@ -154,4 +161,98 @@ export const SEARCH_CUSTOMER_ACCOUNTS = (variables: CustomerAccountQueryVariable
   `;
 };
 
+// Get Customer Tasks by Account ID
+export const GET_CUSTOMER_TASKS_BY_ACCOUNT_ID = (accountId: string): string => {
+  return `
+    query GetCustomerTasksByAccountId {
+      SalesTask(
+        where: { 
+          account: { id: { _eq: "${accountId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_TASK}
 
+        # Entity references
+        account {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Activities by Account ID
+export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string => {
+  return `
+    query GetCustomerActivitiesByAccountId {
+      SalesActivity(
+        where: { 
+          account: { id: { _eq: "${accountId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_SALES_ACTIVITY}
+
+        # Entity references
+        account {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Notes by Account ID
+export const GET_CUSTOMER_NOTES_BY_ACCOUNT_ID = (accountId: string): string => {
+  return `
+    query GetCustomerNotesByAccountId {
+      CrmNote(
+        where: { 
+          account: { id: { _eq: "${accountId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_NOTE}
+        
+        # Entity references
+        account {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Documents by Account ID
+export const GET_CUSTOMER_DOCUMENTS_BY_ACCOUNT_ID = (accountId: string): string => {
+  return `
+    query GetCustomerDocumentsByAccountId {
+      CrmDocument(
+        where: { 
+          account: { id: { _eq: "${accountId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_DOCUMENT}
+        
+        # Entity references
+        account {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};

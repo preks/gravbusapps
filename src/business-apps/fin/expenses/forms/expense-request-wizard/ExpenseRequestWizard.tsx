@@ -55,6 +55,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
+  const [itemsCount, setItemsCount] = useState<number>(0);
 
  
 
@@ -70,19 +71,27 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
   
   useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
-      setCurrentCurrency(expenseRequestData.ExpenseRequestByPk.currencyRef);
-    } else if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
+    const requestCurrency = expenseRequestData?.ExpenseRequestByPk?.currencyRef 
+      || expenseRequestData?.ExpenseRequestByPk?.currency?.id;
+
+    if (requestCurrency) {
+      // Prefer request currency when present
+      setCurrentCurrency(requestCurrency);
+      return;
+    }
+
+    // Fallback to first item's currency when request currency is missing
+    if (expenseRequestData?.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
       const firstItem = expenseRequestData.ExpenseItem[0];
-      if (firstItem && firstItem.currencyRef) {
-        setCurrentCurrency(firstItem.currencyRef);
-      } else {
-        setCurrentCurrency(null);
-      }
+      setCurrentCurrency(firstItem?.currencyRef || null);
     } else {
       setCurrentCurrency(null);
     }
-  }, [expenseRequestData?.ExpenseRequestByPk?.currencyRef, expenseRequestData?.ExpenseItem, setCurrentCurrency, additionalData]);
+  }, [
+    expenseRequestData?.ExpenseRequestByPk?.currencyRef,
+    expenseRequestData?.ExpenseRequestByPk?.currency?.id,
+    expenseRequestData?.ExpenseItem
+  ]);
   
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
@@ -92,6 +101,9 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
         }
         if (typeof event.detail.selectedItemCount === 'number') {
           setSelectedItemCount(event.detail.selectedItemCount);
+        }
+        if (typeof event.detail.itemsCount === 'number') {
+          setItemsCount(event.detail.itemsCount);
         }
       }
     };
@@ -177,6 +189,19 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
   };
   
   const navigateToPreviousScreen = () => {
+    try {
+      const footerResetEvent = new CustomEvent('expense-wizard-update-footer', {
+        detail: { showCustomFooter: false, selectedItemCount: 0 }
+      });
+      document.dispatchEvent(footerResetEvent);
+      if (
+        currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
+        currentScreen === SCREEN_NAMES_ENUM.CREATE_ITEM_TAB
+      ) {
+        const itemsResetEvent = new CustomEvent('expense-items-reset-selection');
+        document.dispatchEvent(itemsResetEvent);
+      }
+    } catch {}
     updateTripFormValidation(true);
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
@@ -462,6 +487,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   variant="outline" 
                   style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-request-wizard-save-button"
+                  disabled={(currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0)}
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const saveEvent = new CustomEvent('expense-request-save-trip');
@@ -489,6 +515,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
                   )}
                   onClick={() => {

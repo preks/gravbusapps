@@ -39,6 +39,13 @@ import { LeadVelocityAnalysis } from "./components/LeadVelocityAnalysis";
 import { LeadQualityMatrix } from "./components/LeadQualityMatrix";
 import { LeadEngagementInsights } from "./components/LeadEngagementInsights";
 
+// TypeScript interfaces for chart data
+interface LeadsBySourceTypeData {
+  sourceType: string;
+  count: number;
+  percentage: number;
+}
+
 interface LeadTabProps extends BusinessAppContextProps {
   data?: LeadsAnalytics;
 }
@@ -322,10 +329,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 const DATA_TEST_ID_PREFIX = "LeadLifecycleChart";
 
-export const LeadTab: React.FC<LeadTabProps> = ({
-  data,
-  ...context
-}) => {
+export const LeadTab: React.FC<LeadTabProps> = ({ data, ...context }) => {
   const [selectedTimeFilter, setSelectedTimeFilter] =
     useState<TimeFilter>("quarter");
 
@@ -816,7 +820,7 @@ export const LeadTab: React.FC<LeadTabProps> = ({
         {/* Leads by Source */}
         <Card
           data-testid="leads-by-source-chart"
-          className="gba:flex-1 gba:w-1/2"
+          className="gba:flex-1 gba:w-1/3"
         >
           <CardHeader>
             <CardTitle>Leads by Source</CardTitle>
@@ -865,10 +869,67 @@ export const LeadTab: React.FC<LeadTabProps> = ({
           </CardContent>
         </Card>
 
+        {/* Leads by Source Type */}
+        <Card
+          data-testid="leads-by-source-type-chart"
+          className="gba:flex-1 gba:w-1/3"
+        >
+          <CardHeader>
+            <CardTitle>Leads by Source Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!data?.leadsBySourceType || data.leadsBySourceType.length === 0 ? (
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-[300px] gba:text-gray-500">
+                No lead source type data available
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={data.leadsBySourceType}
+                    cx="50%"
+                    cy="40%"
+                    outerRadius={75}
+                    fill="#8884d8"
+                    dataKey="count"
+                    label={false}
+                  >
+                    {data.leadsBySourceType.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={
+                      data?.leadsBySourceType
+                        ? createPieTooltipFormatter(
+                            data.leadsBySourceType,
+                            "count",
+                            "sourceType"
+                          )
+                        : undefined
+                    }
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={40}
+                    formatter={(value, entry: any) => {
+                      const payload = entry.payload;
+                      return `${payload?.sourceType || 'Unknown'} (${payload?.count || 0})`;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Leads by Status */}
         <Card
           data-testid="leads-by-status-chart"
-          className="gba:flex-1 gba:w-1/2"
+          className="gba:flex-1 gba:w-1/3"
         >
           <CardHeader>
             <CardTitle>Leads by Status</CardTitle>

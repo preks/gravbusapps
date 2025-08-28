@@ -38,7 +38,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
   const handleSave = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {
@@ -56,7 +56,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   
   const handleSubmit = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {
@@ -113,14 +113,14 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   };
   
   // Get paginated data
-  const paginatedAllowanceItems = allowanceItems?.slice(
-    (allowanceCurrentPage - 1) * itemListLimit,
-    allowanceCurrentPage * itemListLimit
-  ).sort((a:any, b:any) => {
+  const paginatedAllowanceItems = allowanceItems?.sort((a:any, b:any) => {
     const positionA = a.itemOrder ?? 0;
     const positionB = b.itemOrder ?? 0;
     return positionA - positionB;
-});
+}).slice(
+    (allowanceCurrentPage - 1) * itemListLimit,
+    allowanceCurrentPage * itemListLimit
+  )
   
   const paginatedExpenseItems = normalItems?.slice(
     (expenseCurrentPage - 1) * itemListLimit,

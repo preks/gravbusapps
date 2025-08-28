@@ -256,9 +256,9 @@ export const ContactList: React.FC<ContactListProps> = ({
                       {contact.ownerEmployee ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Avatar size="sm">
-                            {contact.ownerEmployee.picture && (
+                            {contact.ownerEmployee.pictureThumbnail && (
                               <AvatarImage
-                                src={contact.ownerEmployee.picture}
+                                src={`data:image/gif;base64,${contact.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(contact)}
                               />
                             )}

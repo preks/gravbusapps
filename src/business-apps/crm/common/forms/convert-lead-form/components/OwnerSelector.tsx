@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Avatar,
   AvatarImage,
@@ -46,17 +46,109 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
   dataTestId,
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [cachedSelectedEmployee, setCachedSelectedEmployee] =
+    useState<SelectOption | null>(null);
 
   // Find selected employee - check both value and id for robustness
-  const selectedEmployee = employees.find(
+  const currentSelectedEmployee = employees.find(
     (emp) => emp.value === value || emp.id === value
   );
+
+  // Simple cache management: always update cache when we find the employee in current array
+  useEffect(() => {
+    if (currentSelectedEmployee) {
+      console.log(
+        "🔍 OwnerSelector - useEffect: Found current employee, updating cache:",
+        currentSelectedEmployee.name
+      );
+      setCachedSelectedEmployee(currentSelectedEmployee);
+    }
+  }, [currentSelectedEmployee]);
+
+  // Clear cache when value is cleared
+  useEffect(() => {
+    if (!value) {
+      console.log(
+        "🔍 OwnerSelector - useEffect: Value cleared, clearing cache"
+      );
+      setCachedSelectedEmployee(null);
+    }
+  }, [value]);
+
+  // Display logic: prioritize current employee, fallback to cache only if it matches current value
+  const selectedEmployee =
+    currentSelectedEmployee ||
+    (value &&
+    cachedSelectedEmployee &&
+    (cachedSelectedEmployee.value === value ||
+      cachedSelectedEmployee.id === value)
+      ? cachedSelectedEmployee
+      : null);
+
+  // Create enhanced employees array that always includes the selected employee
+  const enhancedEmployees = useMemo(() => {
+    if (!cachedSelectedEmployee || !value) return employees;
+
+    // Check if the cached selected employee is already in the current employees
+    const isSelectedInEmployees = employees.some(
+      (emp) =>
+        emp.value === cachedSelectedEmployee.value ||
+        emp.id === cachedSelectedEmployee.id
+    );
+
+    if (isSelectedInEmployees) {
+      return employees;
+    }
+
+    // Add the cached selected employee to the beginning of the list
+    return [cachedSelectedEmployee, ...employees];
+  }, [employees, cachedSelectedEmployee, value]);
+
+  // Debug logging (after all variables are defined)
+  console.log("🔍 OwnerSelector - Display state:", {
+    value,
+    currentSelectedEmployee: currentSelectedEmployee?.name,
+    cachedSelectedEmployee: cachedSelectedEmployee?.name,
+    selectedEmployee: selectedEmployee?.name,
+    employeesCount: employees.length,
+    cacheMatchesValue: cachedSelectedEmployee
+      ? cachedSelectedEmployee.value === value ||
+        cachedSelectedEmployee.id === value
+      : false,
+    enhancedEmployeesCount: enhancedEmployees.length,
+  });
 
   const handleChangeClick = () => {
     setShowDropdown(true);
   };
 
   const handleEmployeeSelect = (selectedValue: string) => {
+    // Find the selected employee from the dropdown options
+    const newSelectedEmployee = enhancedEmployees.find(
+      (emp) => emp.value === selectedValue || emp.id === selectedValue
+    );
+
+    console.log("🔍 OwnerSelector - Employee selected:", {
+      selectedValue,
+      newSelectedEmployee: newSelectedEmployee?.name,
+      currentValue: value,
+      willUpdateCache: !!newSelectedEmployee,
+    });
+
+    // Immediately update cache with the newly selected employee
+    if (newSelectedEmployee) {
+      console.log(
+        "🔍 OwnerSelector - Immediately caching:",
+        newSelectedEmployee.name
+      );
+      setCachedSelectedEmployee(newSelectedEmployee);
+    } else {
+      console.warn(
+        "🔍 OwnerSelector - Warning: Selected employee not found in options"
+      );
+    }
+
+    // Update the form value
     onChange(selectedValue);
     setShowDropdown(false);
   };
@@ -85,7 +177,7 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
           name="owner"
           value={value}
           placeholder="Search and select employee owner..."
-          options={employees}
+          options={enhancedEmployees}
           loading={loading}
           hasMore={hasMore}
           onSearch={onSearch}

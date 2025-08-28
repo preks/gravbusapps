@@ -1,23 +1,30 @@
-import React from "react";
-import { Button } from "@newwork/nw-design-system";
-import { PiArrowRight } from "react-icons/pi";
-import Pill from "@/components/pill/Pill";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import React from 'react';
+import { Button } from '@newwork/nw-design-system';
+import { PiArrowRight } from 'react-icons/pi';
+import Pill from '@/components/pill/Pill';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { useCurrencyStore } from '../../../store/useCurrencyStore';
+import { formatCurrency } from '../../../utils/currencyUtils';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   plan: any;
-  onApprove: (planId: string) => void;
-  onReject: (planId: string) => void;
+  onApprove?: (planId: string) => Promise<void>;
+  onReject?: (planId: string) => Promise<void>;
 }
 
-// Helper function to format currency
-const formatCurrency = (amount: number, currencyValue = "European euro") => {
-  const currencySymbol =
-    currencyValue === "European euro" ? "€" : currencyValue?.charAt(0) || "€";
-  return `${currencySymbol}${amount?.toFixed(2) || "0.00"}`;
-};
+// Shared component for expense details view
+interface ExpenseDetailsViewProps {
+  title: string;
+  code: string;
+  status: string;
+  requester: string;
+  department: string;
+  tripType: string;
+  totalAmount: string;
+  onViewDetails: () => void;
+}
 
 const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
   title,
@@ -110,12 +117,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   onApprove,
   onReject,
 }) => {
-  // Helper function to format currency
-  const formatCurrency = (amount: number, currencyValue = "European euro") => {
-    const currencySymbol =
-      currencyValue === "European euro" ? "€" : currencyValue?.charAt(0) || "€";
-    return `${currencySymbol}${amount?.toFixed(2) || "0.00"}`;
-  };
+  // Use the currency store for global currency state management
+  const { primaryCurrency } = useCurrencyStore();
 
   // Get trip type
   const getTripType = () => {
@@ -164,11 +167,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       }
       department={getDepartment()}
       tripType={getTripType()}
-      totalAmount={
-        typeof plan.totalAmount === "number"
-          ? formatCurrency(plan.totalAmount, plan.currency?.value)
-          : "-"
-      }
+      totalAmount={typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, primaryCurrency || plan.currency?.value) : '-'}
       onViewDetails={handleViewDetails}
     />
   );

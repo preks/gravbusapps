@@ -66,7 +66,7 @@ export const handleSubmit = async (
     }
 
     // Check if we have an expense plan from either the wizard or task payload
-    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;

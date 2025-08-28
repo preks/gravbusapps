@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import { Spinner } from '@newwork/nw-design-system';
 import { KanbanColumn } from './components/KanbanColumn';
 import { KanbanCard } from './components/KanbanCard';
@@ -17,9 +16,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   className = '',
   loading = false,
   emptyStateMessage,
+  allowReorderWithinStage = true,
   ...props
 }) => {
   const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -40,9 +43,61 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setActiveItem(draggedItem || null);
   };
 
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over, active } = event;
+    
+    if (over) {
+      const overId = over.id as string;
+      const activeId = active.id as string;
+      
+      // Find the active item
+      const activeItem = items.find(item => item.id === activeId);
+      
+      // Check if we're hovering over a stage (column)
+      const stage = stages.find(s => s.id === overId);
+      if (stage) {
+        setDragOverStage(overId);
+        setDragOverItem(null);
+        setInsertPosition(null);
+      } else {
+        // We're hovering over another item
+        const overItem = items.find(item => item.id === overId);
+        if (overItem && activeItem) {
+          const overStageId = overItem.stageId;
+          const activeStageId = activeItem.stageId;
+          
+          setDragOverStage(overStageId || null);
+          
+          // If dragging to a different column, enable insertion positioning
+          if (activeStageId !== overStageId) {
+            setDragOverItem(overId);
+            // For simplicity, we'll insert after the hovered card
+            setInsertPosition('after');
+          } else {
+            // Same column - no visual feedback when reordering is disabled
+            setDragOverItem(null);
+            setInsertPosition(null);
+          }
+        } else {
+          setDragOverStage(null);
+          setDragOverItem(null);
+          setInsertPosition(null);
+        }
+      }
+    } else {
+      setDragOverStage(null);
+      setDragOverItem(null);
+      setInsertPosition(null);
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
+    // Clear all drag over states
+    setDragOverStage(null);
+    setDragOverItem(null);
+    setInsertPosition(null);
     setActiveItem(null);
     
     if (!over || active.id === over.id) {
@@ -63,22 +118,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       if (activeStageId !== targetStage.id) {
         onDragEnd?.(activeId, targetStage.id, items.length);
       }
-    } else {
-      // Check if we're dropping on another item (reordering within same stage)
-      const overItem = items.find(item => item.id === overId);
-      if (overItem && activeItem.stageId === overItem.stageId) {
-        const oldIndex = items.findIndex(item => item.id === activeId);
-        const newIndex = items.findIndex(item => item.id === overId);
-        
-        if (oldIndex !== newIndex) {
-          const newItems = arrayMove(items, oldIndex, newIndex);
-          // Update the stageId for the moved item
-          const updatedItem = { ...newItems[newIndex], stageId: activeItem.stageId };
-          newItems[newIndex] = updatedItem;
-          
-          // Call onDragEnd with the new order
-          onDragEnd?.(activeId, activeItem.stageId || '', newIndex);
+      return;
+    }
+    
+    // Check if we're dropping on another item
+    const overItem = items.find(item => item.id === overId);
+    if (overItem) {
+      const activeStageId = activeItem.stageId;
+      const overStageId = overItem.stageId;
+      
+      if (activeStageId === overStageId) {
+        if (!allowReorderWithinStage) {
+          // Reordering disabled: treat as no-op
+          return;
         }
+        // Reordering within the same column - calculate new position
+        const stageItems = items.filter(item => item.stageId === activeStageId);
+        const activeIndex = stageItems.findIndex(item => item.id === activeId);
+        const overIndex = stageItems.findIndex(item => item.id === overId);
+        
+        if (activeIndex !== overIndex) {
+          onDragEnd?.(activeId, activeStageId || '', overIndex);
+        }
+      } else {
+        // Moving to a different stage with specific positioning
+        const targetStageItems = items.filter(item => item.stageId === overStageId);
+        const insertIndex = targetStageItems.findIndex(item => item.id === overId);
+        
+        // Insert after the target item
+        const newPosition = insertIndex + 1;
+        
+        onDragEnd?.(activeId, overStageId || '', newPosition);
       }
     }
   };
@@ -110,6 +180,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="gba:flex gba:flex-1 gba:overflow-x-auto gba:overflow-y-hidden gba:scroll-smooth gba:p-4 gba:gap-4">
@@ -123,6 +194,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               }
               renderCard={renderCard}
               renderStageHeader={renderStageHeader}
+              isDraggedOver={dragOverStage === stage.id}
+              isDragging={activeItem !== null}
+              dragOverItem={dragOverItem}
+              insertPosition={insertPosition}
             />
           ))}
         </div>

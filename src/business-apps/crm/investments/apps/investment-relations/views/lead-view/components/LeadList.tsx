@@ -334,9 +334,9 @@ export const LeadList: React.FC<LeadListProps> = ({
                         {lead.ownerEmployee ? (
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Avatar size="sm">
-                              {lead.ownerEmployee.picture && (
+                              {lead.ownerEmployee.pictureThumbnail && (
                                 <AvatarImage
-                                  src={lead.ownerEmployee.picture}
+                                  src={`data:image/gif;base64,${lead.ownerEmployee.pictureThumbnail}`}
                                   alt={getOwnerName(lead)}
                                 />
                               )}

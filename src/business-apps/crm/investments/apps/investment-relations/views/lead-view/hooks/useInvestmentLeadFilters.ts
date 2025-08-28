@@ -5,7 +5,7 @@ import { buildFilterGroups } from '@/common/network/graphql/queryHelpers';
 import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/queries/investmentLeadQueries';
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
-import { DateRangeFilter } from "@/business-apps/crm/common/components/lead-list/components/DateRangeFilter";
+import { DateRangeFilter } from "@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter";
 
 interface OwnerItem { id: string; name: string; }
 interface StatusItem { id: string; code?: string; value?: string; }
