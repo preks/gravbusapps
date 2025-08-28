@@ -101,10 +101,11 @@
 
   /* Filter pill specific styling for DataController */
   .gba\:filter-pill {
-    max-width: 320px !important;
-    min-width: 115px !important;
+    max-width: 280px !important;
+    min-width: fit-content !important;
     word-wrap: break-word !important;
     overflow: hidden !important;
+    flex-shrink: 0 !important;
   }
 
   .gba\:filter-pill-text {

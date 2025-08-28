@@ -30,7 +30,6 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
       currencyRef
       createdAt
       updatedAt
-      status
       employee {
         id
         displayName
@@ -61,7 +60,9 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
             supervisorEmployeeId: {_eq: $managerId}
           }
         },
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        status: {_nin: [ "DISCARDED", "REJECTED"]},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -85,9 +86,35 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
     ) {
       aggregate {
         pendingCount: count
+      }
+    }
+    pendingAmountStats: ExpensePlanAggregate(
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
+      }
+    ) {
+      aggregate {
         sum {
           totalAmount
         }
+      }
+    }
+    # Debug: Get all pending plans without filters to see if any exist
+    allPendingPlansDebug: ExpensePlanAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"}
+      }
+    ) {
+      aggregate {
+        count
       }
     }
   }
