@@ -143,26 +143,20 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
               {
                 label: "Active Leads",
                 onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "leads",
-                      salesLeadStatus: "SalesLeadStatus:v1:OPEN",
-                    }
-                  );
+                  const url = buildPlatformUrl('/platform/irm/investment-relations', { 
+                    view: 'leads', 
+                    leadStatus: 'InvestmentLeadStatus:v1:OPEN' 
+                  });
                   navigateTo(url);
                 },
               },
               {
                 label: "Converted Leads",
                 onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "leads",
-                      salesLeadStatus: "SalesLeadStatus:v1:CONVERTED",
-                    }
-                  );
+                  const url = buildPlatformUrl('/platform/irm/investment-relations', { 
+                    view: 'leads', 
+                    leadStatus: 'InvestmentLeadStatus:v1:CONVERTED' 
+                  });
                   navigateTo(url);
                 },
               },
@@ -269,52 +263,30 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
               {
                 label: "Equity Investments",
                 onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "investments",
-                      subView: "equity",
-                    }
-                  );
-                  navigateTo(url);
-                },
-              },
-              {
-                label: "Private Equity Investments",
-                onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "investments",
-                      subView: "private-equity",
-                    }
-                  );
+                  const url = buildPlatformUrl('/platform/irm/investment-management', { 
+                    view: 'investments', 
+                    subView: 'equity' 
+                  });
                   navigateTo(url);
                 },
               },
               {
                 label: "Liquid Funds Investments",
                 onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "investments",
-                      subView: "liquid-funds",
-                    }
-                  );
+                  const url = buildPlatformUrl('/platform/irm/investment-management', { 
+                    view: 'investments', 
+                    subView: 'liquid-funds' 
+                  });
                   navigateTo(url);
                 },
               },
               {
                 label: "Real Estate Investments",
                 onClick: () => {
-                  const url = buildPlatformUrl(
-                    "/platform/irm/investment-relations",
-                    {
-                      view: "investments",
-                      subView: "real-estate",
-                    }
-                  );
+                  const url = buildPlatformUrl('/platform/irm/investment-management', { 
+                    view: 'investments', 
+                    subView: 'real-estate' 
+                  });
                   navigateTo(url);
                 },
               },
@@ -417,10 +389,8 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         view: "contacts",
       });
       navigateTo(url);
-    } else if (area.id === "investments") {
-      const url = buildPlatformUrl("/platform/irm/investment-relations", {
-        view: "investments",
-      });
+    } else if (area.id === 'investments') {
+      const url = buildPlatformUrl('/platform/irm/investment-management', { view: 'investments' });
       navigateTo(url);
     } else if (area.id === "analytics-reporting") {
       const url = buildPlatformUrl("/platform/irm/investment-relations", {

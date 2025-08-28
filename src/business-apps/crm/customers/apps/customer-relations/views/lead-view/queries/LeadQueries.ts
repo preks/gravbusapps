@@ -7,6 +7,7 @@ export const GET_LEADS_QUERY = `
   query GetLeads($offset: Int, $limit: Int, $orderBy: [LeadOrderBy!], $where: LeadBoolExp) {
     Lead(offset: $offset, limit: $limit, orderBy: $orderBy, where: $where) {
       id
+      sensitive
       name
       firstName
       lastName
@@ -24,6 +25,7 @@ export const GET_LEADS_QUERY = `
         id
         code
         value
+        additionalValue1
       }
       city
       addressLine

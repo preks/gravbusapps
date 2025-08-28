@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { KanbanCardProps } from "../types";
 
-export function KanbanCard({ item, onClick, renderContent, className = "" }: KanbanCardProps) {
+export function KanbanCard({ item, onClick, renderContent, className = "", isInSourceColumn = false }: KanbanCardProps) {
   const { 
     attributes, 
     listeners, 
@@ -19,9 +19,10 @@ export function KanbanCard({ item, onClick, renderContent, className = "" }: Kan
     },
   });
 
+  // Disable transform in source column to prevent position preview
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: isInSourceColumn ? undefined : CSS.Transform.toString(transform),
+    transition: isInSourceColumn ? undefined : transition,
   };
 
   const handleClick = (e: React.MouseEvent) => {

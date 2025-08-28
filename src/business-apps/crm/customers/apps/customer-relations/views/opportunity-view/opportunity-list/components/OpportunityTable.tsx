@@ -362,10 +362,11 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               {data.map((record) => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
                     selectedOpportunityId === record.id ? "gba:bg-blue-50" : ""
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                  onClick={() => handleRowClick(record)}
                 >
                   {isColumnVisible("opportunity") && (
                     <TableCell
@@ -534,30 +535,44 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
                     >
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Avatar size="sm">
-                          {record.ownerEmployee?.pictureThumbnail && (
-                            <AvatarImage
-                              src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
-                              alt={getOwnerName(record)}
-                            />
-                          )}
-                          <AvatarFallback>
-                            {getOwnerName(record) !== "-"
-                              ? getOwnerName(record)
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .toUpperCase()
-                              : "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">
-                            {getOwnerName(record)}
-                          </span>
+                      {record.ownerEmployee ? (
+                        <div
+                          className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const empId = record.ownerEmployee?.id;
+                            if (empId) {
+                              navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                            }
+                          }}
+                        >
+                          <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+                            {record.ownerEmployee?.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
+                                alt={getOwnerName(record)}
+                                className="gba:object-cover gba:object-center"
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(record) !== "-"
+                                ? getOwnerName(record)
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex gba:flex-col">
+                            <span className="gba:font-medium gba:text-sm">
+                              {getOwnerName(record)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible("createdAt") && (

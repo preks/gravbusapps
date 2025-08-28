@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Avatar,
@@ -8,10 +8,7 @@ import {
   AvatarFallback,
   Button,
   Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  
   Table,
   TableHeader,
   TableBody,
@@ -26,18 +23,16 @@ import {
   PiUser,
   PiEnvelope,
   PiPhone,
-  PiBuilding,
   PiCalendar,
   PiMapPin,
   PiArrowUp,
   PiArrowDown,
   PiCurrencyDollar,
   PiFlag,
-  PiUsers,
   PiGlobe,
   PiPrinter,
-  PiSignpost,
 } from "react-icons/pi";
+import { Building2 } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { Account } from "../types";
@@ -80,9 +75,9 @@ export const AccountTable: React.FC<AccountTableProps> = ({
   sourceApp,
   loading,
   error,
-  hasMore,
-  loadMore,
-  loadPage,
+  hasMore: _hasMore,
+  loadMore: _loadMore,
+  loadPage: _loadPage,
   retry,
   total,
   currentPage,
@@ -221,30 +216,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('created') && (
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("createdAt")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      {t("account.created", "Creation Date")}
-                      {renderSortIcon("createdAt")}
-                    </div>
-                  </TableHead>
-                )}
-                {isColumnVisible('owner') && (
-                  <TableHead
-                    className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("ownerEmployeeId")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      {t("account.owner", "Owner")}
-                      {renderSortIcon("ownerEmployeeId")}
-                    </div>
-                  </TableHead>
-                )}
                 {isColumnVisible('legalForm') && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -266,6 +237,54 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     <div className="gba:flex gba:items-center">
                       {t("account.industry", "Industry")}
                       {renderSortIcon("industryRef")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('employees') && (
+                  <TableHead
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("numberOfEmployees")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-employees-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("account.size", "Size")}
+                      {renderSortIcon("numberOfEmployees")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('location') && (
+                  <TableHead
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("geographicPresence")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-location-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("account.location", "Location")}
+                      {renderSortIcon("geographicPresence")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('owner') && (
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("ownerEmployeeId")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-owner-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("account.owner", "Owner")}
+                      {renderSortIcon("ownerEmployeeId")}
+                    </div>
+                  </TableHead>
+                )}
+                {isColumnVisible('created') && (
+                  <TableHead
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort("createdAt")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {t("account.created", "Creation Date")}
+                      {renderSortIcon("createdAt")}
                     </div>
                   </TableHead>
                 )}
@@ -293,18 +312,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('employees') && (
-                  <TableHead
-                    className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("numberOfEmployees")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-employees-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      {t("account.employees", "Number of Employees")}
-                      {renderSortIcon("numberOfEmployees")}
-                    </div>
-                  </TableHead>
-                )}
+                
                 {isColumnVisible('website') && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -401,10 +409,11 @@ export const AccountTable: React.FC<AccountTableProps> = ({
               {accounts.map((record) => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
                     selectedAccountId === record.id ? "gba:bg-blue-50" : ""
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                  onClick={() => handleRowClick(record)}
                 >
                   {isColumnVisible('company') && (
                     <TableCell
@@ -412,26 +421,15 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-company-cell-${record.id}`}
                     >
                       <div
-                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRowClick(record);
                         }}
                         data-testid={`${DATA_TEST_ID_PREFIX}-company-name-${record.id}`}
                       >
-                        <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:bg-blue-100 gba:rounded-full">
-                          <PiBuilding size={20} className="gba:text-blue-600" />
-                        </div>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">
-                            {record.name || "-"}
-                          </span>
-                          {record.website && (
-                            <span className="gba:text-xs gba:text-gray-500">
-                              {record.website}
-                            </span>
-                          )}
-                        </div>
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-400" />
+                        <span className="gba:font-medium gba:text-sm">{record.name || "-"}</span>
                       </div>
                     </TableCell>
                   )}
@@ -512,54 +510,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('created') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
-                    >
-                      {record.createdAt ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <PiCalendar size={16} className="gba:text-gray-400" />
-                          <span className="gba:text-sm">
-                            {dayjs(record.createdAt).format("MMM DD, YYYY")}
-                          </span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                  )}
-                  {isColumnVisible('owner') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Avatar size="sm">
-                          {record.ownerEmployee?.pictureThumbnail && (
-                            <AvatarImage
-                              src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
-                              alt={getOwnerName(record)}
-                            />
-                          )}
-                          <AvatarFallback>
-                            {getOwnerName(record) !== "-"
-                              ? getOwnerName(record)
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .toUpperCase()
-                              : "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">
-                            {getOwnerName(record)}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                  )}
                   {isColumnVisible('legalForm') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
@@ -578,6 +528,89 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                       <Badge variant={getIndustryBadgeVariant(record.industry)}>
                         {record.industry?.value || "-"}
                       </Badge>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('employees') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-employees-cell-${record.id}`}
+                    >
+                      <Badge variant="outline">
+                        {record.numberOfEmployees || "-"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('location') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-location-cell-${record.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiMapPin size={14} className="gba:text-gray-400" />
+                        <span className="gba:text-sm">{record.location || "-"}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {isColumnVisible('owner') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
+                    >
+                      {record.ownerEmployee ? (
+                        <div
+                          className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const empId = record.ownerEmployee?.id;
+                            if (empId) {
+                              navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                            }
+                          }}
+                        >
+                          <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+                            {record.ownerEmployee?.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
+                                alt={getOwnerName(record)}
+                                className="gba:object-cover gba:object-center"
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(record) !== "-"
+                                ? getOwnerName(record)
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex gba:flex-col">
+                            <span className="gba:font-medium gba:text-sm">
+                              {getOwnerName(record)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible('created') && (
+                    <TableCell
+                      className="gba:py-4 gba:px-6"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
+                    >
+                      {record.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiCalendar size={16} className="gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {dayjs(record.createdAt).format("MMM DD, YYYY")}
+                          </span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                   )}
                   {isColumnVisible('annualRevenue') && (
@@ -602,19 +635,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                         <PiFlag size={14} className="gba:text-blue-600" />
                         <span className="gba:text-sm">
                           {record.billingCountry || "-"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  )}
-                  {isColumnVisible('employees') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-employees-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiUsers size={14} className="gba:text-purple-600" />
-                        <span className="gba:text-sm gba:font-medium">
-                          {record.numberOfEmployees || "-"}
                         </span>
                       </div>
                     </TableCell>
@@ -648,7 +668,7 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-region-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiSignpost size={14} className="gba:text-orange-600" />
+                        <PiMapPin size={14} className="gba:text-orange-600" />
                         <span className="gba:text-sm">
                           {record.region || "-"}
                         </span>

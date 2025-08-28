@@ -9,6 +9,7 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
+// no joinAddressLines needed anymore
 import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
@@ -75,22 +76,25 @@ const LeadFormComponent: React.FC = () => {
         description: toStringOrUndefined(formValues.notes), // Fixed: Use notes field from DescriptionSection
       };
 
-      // Build addresses array from dynamic addresses only (no legacy fallback)
+      // Customer Leads: API expects addressLine as string
+      // Compose from form's dynamic address inputs into a single string (join by newline)
+      const collectedLines: string[] = [];
+      // Build addresses array from dynamic addresses
       const addresses: any[] = [];
-
-      // Process dynamic addresses only
       if (formValues.addresses && formValues.addresses.length > 0) {
         formValues.addresses.forEach((address) => {
-          // Filter out empty address lines
-          const nonEmptyLines = address.addressLines
+          const nonEmptyLines = (address.addressLines || [])
             .map((line) => toStringOrUndefined(line))
-            .filter((line) => line);
+            .filter((line): line is string => !!line);
 
-          // Create a separate address object for each non-empty address line
+          // Collect for flat string
+          collectedLines.push(...nonEmptyLines);
+
+          // Preserve addresses array entries (one per line, as before)
           nonEmptyLines.forEach((addressLine) => {
             addresses.push({
               addressType: address.addressType || "UNKNOWN_ADDRESS",
-              addressLine: addressLine,
+              addressLine,
               postalCode: toStringOrUndefined(address.postalCode),
               city: toStringOrUndefined(address.city),
               regionRef: toStringOrUndefined(address.region),
@@ -98,7 +102,6 @@ const LeadFormComponent: React.FC = () => {
             });
           });
 
-          // If no address lines but other address data exists, create one address with empty addressLine
           if (
             nonEmptyLines.length === 0 &&
             (toStringOrUndefined(address.city) ||
@@ -117,16 +120,15 @@ const LeadFormComponent: React.FC = () => {
           }
         });
       }
-
-      // Set addresses to null if empty, otherwise use the addresses array
-      leadPayload.addresses = addresses.length > 0 ? addresses : null;
-
-      // Set the main addressLine field from the first address (for backward compatibility)
-      if (addresses.length > 0) {
-        leadPayload.addressLine = addresses[0].addressLine;
-      } else {
-        leadPayload.addressLine = null;
+      // Fallback from single addressLine field (support multi-line via newline split)
+      const singleLine = toStringOrUndefined((formValues as any).addressLine);
+      if (singleLine) {
+        collectedLines.push(...singleLine.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length > 0));
       }
+
+      const addressString = collectedLines.join("\n");
+      leadPayload.addressLine = addressString || null;
+      leadPayload.addresses = addresses.length > 0 ? addresses : null;
 
       // Initialize empty arrays for tags and communication channels (like account form)
       leadPayload.tags = [];

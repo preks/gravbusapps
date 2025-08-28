@@ -3,11 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-sys
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { List, Grid3X3, Search, TrendingUp, DollarSign, Target, CheckCircle } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { OpportunityBoard } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-board";
+import { OpportunityBoard } from "@/business-apps/crm/investments/apps/investment-relations/views/opportunity-view/components/opportunity-board/OpportunityBoard";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { DebouncedInput } from "@/components/data-filter";
 import { useExitOpportunitiesData } from "./hooks/useExitOpportunitiesData";
-import { OpportunityList } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-list";
+import { OpportunityList } from "@/business-apps/crm/investments/apps/investment-relations/views/opportunity-view/components/OpportunityList";
 
 interface ExitOpportunitiesProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -42,6 +42,16 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
     context,
     statusFilter: "active", // Exclude WON opportunities (those are for Sales tab)
   });
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   useEffect(() => {
     loadPage(currentPage, pageSize);
@@ -139,7 +149,19 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   };
 
   const renderOpportunityList = () => (
-    <OpportunityList accessToken={accessToken} userInfo={userInfo} sourceApp="divestments" />
+    <OpportunityList
+      opportunities={opportunities}
+      isLoading={loading}
+      totalCount={total}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      onPageChange={setCurrentPage}
+      onSort={handleSort}
+      sortField={sortField}
+      sortOrder={sortOrder || "ASC"}
+      accessToken={accessToken}
+      userInfo={userInfo}
+    />
   );
 
   return (
@@ -227,7 +249,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             <OpportunityBoard
               accessToken={accessToken}
               userInfo={userInfo}
-              sourceApp="divestments"
+              dealType="DINVESTMENT_DEAL"
             />
           </TabsContent>
         </Tabs>

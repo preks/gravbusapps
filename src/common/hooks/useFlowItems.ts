@@ -23,6 +23,7 @@ interface UseFlowItemsProps {
 export const useFlowItems = ({ mainContextsData, externalContextData, accessToken = '', manualFetch = false }: UseFlowItemsProps) => {
   const [flowData, setFlowData] = useState<ActionOption[]>([]);
   const [isLoading, setIsLoading] = useState(!manualFetch);
+  const [lastFetchedContexts, setLastFetchedContexts] = useState<string>(''); // Track last fetched contexts
   const flowRegistry = useFlowRegistryClient(accessToken);
 
   // Function that can be called manually to fetch flow items
@@ -31,6 +32,11 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
     const contextData = directContextData || mainContextsData;
     if (!contextData) return;
     
+    // Create a unique key for this context combination to prevent duplicate fetches
+    const contextKey = JSON.stringify({ contextData, externalContextData });
+    if (contextKey === lastFetchedContexts && !directContextData) {
+      return; // Skip if we've already fetched for these exact contexts
+    }
     setIsLoading(true);
     try {
       const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
@@ -47,6 +53,7 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
       if (response?.flowItems) {
         const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
         setFlowData(mappedFlowItems);
+        setLastFetchedContexts(contextKey); // Update last fetched contexts
       }
     } catch (error) {
       console.error('Error fetching flow items:', error);
@@ -54,14 +61,14 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
     } finally {
       setIsLoading(false);
     }
-  }, [mainContextsData, externalContextData, flowRegistry]);
+  }, [mainContextsData, externalContextData, flowRegistry, lastFetchedContexts]);
 
   // Only automatically fetch flow items if not in manual mode
   useEffect(() => {
-    if (!manualFetch) {
+    if (!manualFetch && mainContextsData) {
       fetchFlowItems();
     }
-  }, [fetchFlowItems, manualFetch]);
+  }, [mainContextsData, manualFetch]); // Removed fetchFlowItems to avoid circular dependency
 
   return { flowData, fetchFlowItems, isLoading };
 };

@@ -1,10 +1,11 @@
 // Investment Opportunity Queries - Complete queries using shared fragments
-import { INVESTMENT } from './fragments/investmentFragments';
+import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments';
 import { INVESTMENT_OPPORTUNITY, INVESTMENT_ACCOUNT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
 
 export interface InvestmentOpportunityQueryVariables {
   ids?: string[];
   search?: string;
+  dealType?: string; // Added dealType filtering
   accountIds?: string[];
   stageIds?: string[];
   pipelineIds?: string[];
@@ -19,13 +20,18 @@ export interface InvestmentOpportunityQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
 // Build where condition for Investment Opportunity queries
 export const buildInvestmentOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }';
+  
+  // Filter by dealType (INVESTMENT_DEAL, DINVESTMENT_DEAL, etc.)
+  if (variables.dealType) {
+    whereClause += `, dealType: { _eq: "${variables.dealType}" }`;
+  }
   
   // Search across multiple fields (only using fields that exist in the schema)
   if (variables.search?.trim()) {
@@ -113,6 +119,11 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
           ${INVESTMENT_ACCOUNT_REF}
         }
         
+        # Related investments
+        investment {
+          ${INVESTMENT_REF}
+        }
+        
         # Aggregate counts for relationships
         investmentAggregate {
           aggregate {
@@ -162,7 +173,7 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
           ${INVESTMENT_ACCOUNT_REF}
         }
         
-        # Related investments
+        # Related investments (detailed view)
         investment {
           ${INVESTMENT}
         }

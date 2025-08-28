@@ -15,10 +15,7 @@ import { useLeadFilters } from "./hooks/useLeadFilters";
 import { LeadTable } from "./components/LeadTable";
 import { LeadStatisticsWithTrend } from "./components/LeadStatistics";
 import { useLeadStatisticsWithTrend } from "./hooks/useLeadStatisticsWithTrend";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 
 import { PiStar, PiUsersFour, PiFunnelSimple } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -76,6 +73,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     "countryRef",
     "regionRef",
     "city",
+    "leadCombined",
   ];
 
   // Get initial values from URL parameters using standard web APIs - ONLY ONCE
@@ -108,14 +106,10 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "sensitive", label: "Sensitive", visible: true },
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
-    { id: "name", label: "Name", visible: true },
-    { id: "company", label: "Company", visible: true },
+    { id: "lead", label: "Lead", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
-    { id: "country", label: "Country", visible: true },
-    { id: "region", label: "Region/State", visible: true },
-    { id: "city", label: "City", visible: true },
+    { id: "address", label: "Address", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "rating", label: "Rating", visible: true },
     { id: "source", label: "Source", visible: true },
@@ -156,17 +150,24 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       // companyWebsite and companyPhone are handled through search functionality only
     };
 
+    const isAddressVisible = visibleColumns.includes("address");
+
     return filterGroups.filter((group) => {
-      // Find the column that corresponds to this filter group
       const correspondingColumn = Object.keys(columnToFilterMap).find(
         (columnId) => columnToFilterMap[columnId] === group.id
       );
 
-      // If there's no corresponding column (shouldn't happen), show the filter
-      // If there is a corresponding column, only show the filter if the column is visible
-      return (
-        !correspondingColumn || visibleColumns.includes(correspondingColumn)
-      );
+      if (!correspondingColumn) return true;
+
+      // If address column is visible, also show country/region/city filters
+      if (
+        isAddressVisible &&
+        (group.id === "countries" || group.id === "regions" || group.id === "cities")
+      ) {
+        return true;
+      }
+
+      return visibleColumns.includes(correspondingColumn);
     });
   }, [filterGroups, visibleColumns]);
 
@@ -389,9 +390,16 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     ); // City names
   });
 
+  // Sensitivity filter derived from selectedFilters
+  const sensitivityFilter: boolean | undefined = useMemo(() => {
+    // Toggle model: only "sensitive:true" means on; otherwise undefined (show all)
+    return selectedFilters.includes("sensitive:true") ? true : undefined;
+  }, [selectedFilters]);
+
   const { leads, total, loading, error, hasMore, loadMore, loadPage, retry } =
     useLeadListData({
       search,
+      // sensitivity derived below
       leadStatuses,
       leadRatings,
       leadSources,
@@ -409,6 +417,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
       sortOrder,
       accessToken,
       sourceApp,
+      sensitive: sensitivityFilter,
     });
 
   // Listen for process completion events and refresh data when lead processes complete
@@ -488,6 +497,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     selectedFilters.join(","), // Use string join instead of JSON.stringify
     filterCreatedAfter,
     filterCreatedBefore,
+    sensitivityFilter,
     pageSize,
     filtersInitialized,
   ]);
@@ -600,14 +610,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
             label: "Add",
             "data-testid": "add-lead-button",
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="lead-list-column-visibility"
-            />,
-          ],
+           columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'lead-list-column-visibility'
+          },
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

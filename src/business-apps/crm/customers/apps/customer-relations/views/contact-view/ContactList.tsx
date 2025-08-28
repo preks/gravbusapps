@@ -13,10 +13,7 @@ import { useContactFilters } from "./hooks/useContactFilters";
 import { ContactStatisticsWithTrend } from "./components/ContactStatistics";
 import ContactTable from "./components/ContactTable";
 import { Contact } from "./types";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 import { Alert } from "antd";
 import { startProcess } from "@/common/utils/start-process";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
@@ -324,14 +321,11 @@ const ContactList: React.FC<ContactListProps> = (context) => {
             label: "Add",
             "data-testid": "add-contact-button",
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="contact-list-column-visibility"
-            />,
-          ],
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'contact-list-column-visibility'
+          },
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

@@ -16,6 +16,7 @@ export interface AccountData {
   website: string;
   phone: string;
   email: string;
+  geographicPresence?: string;
   legalForm: {
     value: string;
     code: string;
@@ -99,6 +100,7 @@ export const GET_ACCOUNTS_DATA = `
       website
       phone
       email
+      geographicPresence
       legalForm {
         value
         code

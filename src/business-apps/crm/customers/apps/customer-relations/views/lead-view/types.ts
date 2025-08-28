@@ -25,6 +25,7 @@ export interface Lead {
     id: string;
     code: string;
     value: string;
+    additionalValue1?: string;
   };
   city?: string;
   addressLine?: string;

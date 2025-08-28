@@ -9,6 +9,7 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
+import { buildAddressLine } from "@/common/utils/addressFormatter";
 import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
@@ -89,9 +90,7 @@ const LeadFormComponent: React.FC = () => {
         regionRef: toStringOrUndefined(formValues.region),
         locality: toStringOrUndefined(formValues.locality), // ✅ UPDATED: Use formValues.locality
         postalCode: toStringOrUndefined(formValues.postalCode),
-        addressLine: formValues.addressLine
-          ? { address: formValues.addressLine }
-          : null, // ✅ UPDATED: Single address line as jsonb
+        addressLine: buildAddressLine(formValues.addressLine),
 
         // ✅ FIXED: Conversion Information with correct API field names
         convertedAccount: toStringOrUndefined(formValues.accountId), // ✅ FIXED: API expects 'convertedAccount' not 'convertedAccountId'
