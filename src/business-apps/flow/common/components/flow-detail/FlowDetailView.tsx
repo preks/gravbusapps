@@ -397,6 +397,18 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         console.log('🔍 Steps from API:', flowDetails?.steps);
         
         // Transform API data to match FlowDetailData interface
+        // Calculate actual progress from step data if available
+        let actualProgressPercentage = progress.userTaskProgressPercentage || 0;
+        if (flowDetails?.steps && flowDetails.steps.length > 0) {
+          const totalTasks = flowDetails.steps.reduce((sum: number, step: any) => 
+            sum + (step.totalTasks || step.total_tasks || 0), 0);
+          const completedTasks = flowDetails.steps.reduce((sum: number, step: any) => 
+            sum + (step.completedTasks || step.completed_tasks || 0), 0);
+          if (totalTasks > 0) {
+            actualProgressPercentage = Math.round((completedTasks / totalTasks) * 100);
+          }
+        }
+
         const flowData: FlowDetailData = {
           flowId: progress.rootWorkflowId,
           flowName: progress.rootWorkflowName || 'Unknown Workflow',
@@ -404,7 +416,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           status: progress.workflowStatus,
           startTime: progress.timeInsights?.workflowStartTime || new Date().toISOString(),
           updateTime: progress.timeInsights?.lastActivityTime || new Date().toISOString(),
-          progressPercentage: progress.userTaskProgressPercentage || 0,
+          progressPercentage: actualProgressPercentage,
           stepStatus: {
             completed: progress.completedSteps || 0,
             total: progress.totalSteps || 0,
@@ -452,15 +464,25 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             completedBy: step.completedBy || undefined,
             totalForks: step.totalForks || undefined,
             completedForks: step.completedForks || undefined,
+            // Map backend task counts for progress computation
+            totalTasks: step.totalTasks ?? step.total_tasks ?? undefined,
+            completedTasks: step.completedTasks ?? step.completed_tasks ?? undefined,
             rejectedForks: step.rejectedForks || undefined,
             inProgressForks: step.inProgressForks || undefined,
             assignmentMode: step.assignmentMode || undefined,
             dueDate: step.dueDate || undefined,
             completedAt: step.completedAt || undefined,
+            // include additional timing fields to enable chronological sorting
+            startedAt: step.startedAt || undefined,
+            scheduledAt: step.scheduledAt || undefined,
+            availableAt: step.availableAt || undefined,
+            expectedStartAt: step.expectedStartAt || undefined,
+            expectedFinishAt: step.expectedFinishAt || undefined,
             completionTimeMinutes: step.completionTimeMinutes || undefined
           }));
           console.log('🔍 Transformed steps:', transformedSteps);
-          setFlowSteps(transformedSteps);
+          // Sort strictly by template order (stepIndex)
+          setFlowSteps([...transformedSteps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)));
         } else {
           console.log('🔍 No steps found, creating fallback steps');
           // Fallback: create steps based on progress data
@@ -479,7 +501,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                 undefined
             });
           }
-          setFlowSteps(steps);
+          // Keep template order (ascending by stepIndex)
+          setFlowSteps([...steps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)));
         }
         
         setIsLoading(false);

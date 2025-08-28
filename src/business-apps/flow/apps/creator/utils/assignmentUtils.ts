@@ -16,7 +16,7 @@ export function transformAssignmentTargetForUI(
   // For ASSIGN mode: convert undefined arrays to []
   const defaultValue = mode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : [];
 
-  transformed.userIds = target.userIds?.length ? target.userIds : defaultValue;
+  transformed.users = target.users?.length ? target.users : defaultValue;
   transformed.organizationalUnits = target.organizationalUnits?.length ? target.organizationalUnits : defaultValue;
   transformed.matrixTeams = target.matrixTeams?.length ? target.matrixTeams : defaultValue;
   transformed.companies = target.companies?.length ? target.companies : defaultValue;
@@ -34,8 +34,8 @@ export function validateClaimAssignmentForUI(target: AssignmentTarget): { valid:
   const errors: string[] = [];
 
   // CLAIM mode validation rules:
-  // 1. userIds are not accepted (unless it's just ANY_SELECTOR)
-  if (target.userIds && target.userIds.length > 0 && !target.userIds.every(id => id === ANY_SELECTOR)) {
+  // 1. users are not accepted (unless it's just ANY_SELECTOR)
+  if (target.users && target.users.length > 0 && !target.users.every(id => id === ANY_SELECTOR)) {
     errors.push('Direct user assignment is not allowed in CLAIM mode');
   }
 
@@ -65,7 +65,7 @@ export function validateClaimAssignmentForUI(target: AssignmentTarget): { valid:
  */
 export function getAssignmentFieldLabel(field: keyof AssignmentTarget): string {
   const labels: Record<keyof AssignmentTarget, string> = {
-    userIds: 'Users',
+    users: 'Users',
     organizationalUnits: 'Organizational Units',
     matrixTeams: 'Matrix Teams',
     companies: 'Companies',
@@ -84,7 +84,7 @@ export function isEmptyAssignmentTargetForUI(target: AssignmentTarget): boolean 
   const hasOnlyAnySelectorOrEmpty = (values?: string[]) => 
     !values || values.length === 0 || values.every(v => v === ANY_SELECTOR);
 
-  return hasOnlyAnySelectorOrEmpty(target.userIds) &&
+  return hasOnlyAnySelectorOrEmpty(target.users) &&
          hasOnlyAnySelectorOrEmpty(target.organizationalUnits) &&
          hasOnlyAnySelectorOrEmpty(target.matrixTeams) &&
          hasOnlyAnySelectorOrEmpty(target.companies) &&
@@ -100,7 +100,7 @@ export function createDefaultAssignmentTarget(mode: AssignmentMode): AssignmentT
   const defaultValue = mode === AssignmentMode.CLAIM ? [ANY_SELECTOR] : [];
   
   return {
-    userIds: defaultValue,
+    users: defaultValue,
     organizationalUnits: defaultValue,
     matrixTeams: defaultValue,
     companies: defaultValue,

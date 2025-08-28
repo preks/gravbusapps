@@ -40,8 +40,28 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   
   // AI Creation state
 
-  const [activeTab, setActiveTab] = useState('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
   const { resetTemplate } = useFlowTemplateStore();
+  // Sync with URL hash for deep links (#create, #manage)
+  useEffect(() => {
+    const applyHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'create' || hash === 'manage') {
+        setActiveTab(hash);
+      }
+    };
+    applyHash();
+    const handler = () => applyHash();
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  useEffect(() => {
+    const current = window.location.hash.replace('#', '');
+    if (current !== activeTab) {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
 
   // Business patterns with expanded sub-patterns
   const businessPatterns = [
@@ -1233,8 +1253,15 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   const handleAIFlowGenerated = (template: FlowTemplate) => {
     console.log('AI generated template received:', template);
     
+    // Remove the ID from AI-generated template to ensure it's treated as a NEW template (create mode)
+    // The FlowDesigner uses the presence of template.id to determine create vs update mode
+    const newTemplate: FlowTemplate = {
+      ...template,
+      id: undefined // Force create mode by removing any existing ID
+    };
+    
     // Store the template for the designer to use
-    setSelectedTemplate(template);
+    setSelectedTemplate(newTemplate);
     
     // Open the new FlowDesigner instead of the legacy wizard
     setShowDesigner(true);

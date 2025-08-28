@@ -1103,7 +1103,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
             boxShadow: 'var(--shadow-lg)'
           }}
         >
-          <DialogHeader className="gba:pb-4">
+          <DialogHeader className="gba:pb-4 gba:border-b" style={{ borderColor: 'var(--color-border-default)' }}>
             <DialogTitle>
               <div className="gba:flex gba:flex-col gba:gap-2">
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -1112,8 +1112,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
                     {selectedTask?.title || selectedTask?.name}
                   </span>
                 </div>
-                <div className="gba:px-3 gba:py-1 gba:bg-gray-100 gba:rounded gba:inline-block gba:w-fit" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
-                  <span className="gba:text-xs gba:font-mono" style={{ color: 'var(--color-text-secondary)' }}>
+                <div className="gba:px-0 gba:py-0 gba:inline-block gba:w-fit">
+                  <span className="gba:text-xs gba:font-mono" style={{ color: 'var(--color-muted-foreground)' }}>
                     Task ID: {selectedTask?.id}
                   </span>
                 </div>

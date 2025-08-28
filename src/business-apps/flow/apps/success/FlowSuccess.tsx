@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { TrendingUp, BarChart3, Shield, Timer, Workflow, AlertTriangle } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -21,6 +21,30 @@ export const FlowSuccess: React.FC<FlowSuccessProps> = ({
   ...context
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Sync tab with URL hash (deep linking)
+  useEffect(() => {
+    const applyHash = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        const valid = ['overview', 'flow', 'task-performance', 'sla', 'trends', 'audit'];
+        if (valid.includes(hash)) {
+          setActiveTab(hash);
+        }
+      }
+    };
+
+    applyHash();
+    const handler = () => applyHash();
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hash.replace('#', '') !== activeTab) {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
 
   return (
     <div 

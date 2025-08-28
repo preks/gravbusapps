@@ -97,7 +97,7 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
             {isGenerating ? (
               <>
                 <Spinner size="sm" className="gba:mr-2" />
-                <span className="gba:animate-pulse">Generating Magic...</span>
+                <span className="gba:animate-pulse">Generating Flow...</span>
               </>
             ) : (
               <>

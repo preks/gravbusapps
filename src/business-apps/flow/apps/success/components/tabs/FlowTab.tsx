@@ -185,7 +185,7 @@ export const FlowTab: React.FC<FlowTabProps> = ({
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <Timer className="gba:h-5 gba:w-5" />
-            Flow Template Performance
+            Flow Performance
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -199,6 +199,7 @@ export const FlowTab: React.FC<FlowTabProps> = ({
                   <th className="gba:text-right gba:p-3 gba:font-semibold">Completion Rate</th>
                   <th className="gba:text-right gba:p-3 gba:font-semibold">Avg Cycle Time</th>
                   <th className="gba:text-right gba:p-3 gba:font-semibold">Median Cycle Time</th>
+                  <th className="gba:text-right gba:p-3 gba:font-semibold">Tasks (Completed/Total)</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,6 +227,11 @@ export const FlowTab: React.FC<FlowTabProps> = ({
                       <div className="gba:text-xs gba:text-gray-500">
                         p75 {formatCycleTime(template.p75CycleTime)} · p95 {formatCycleTime(template.p95CycleTime)}
                       </div>
+                    </td>
+                    <td className="gba:p-3 gba:text-right">
+                      {typeof (template as any).completedTasks !== 'undefined' && typeof (template as any).totalTasks !== 'undefined'
+                        ? `${(template as any).completedTasks}/${(template as any).totalTasks}`
+                        : '—'}
                     </td>
                   </tr>
                 )) : (
@@ -339,18 +345,12 @@ export const FlowTab: React.FC<FlowTabProps> = ({
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
                         dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { 
-                          day: '2-digit', 
-                          month: '2-digit' 
-                        })}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
                       />
                       <YAxis />
                       <ChartTooltip 
                         content={<ChartTooltipContent />}
-                        labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
+                        labelFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
                       />
                       <Bar dataKey="workflows_started" fill="hsl(200, 85%, 70%)" name="Started" />
                       <Bar dataKey="workflows_completed" fill="hsl(200, 85%, 55%)" name="Completed" />

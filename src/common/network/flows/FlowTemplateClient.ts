@@ -1,5 +1,6 @@
 import { RestClient } from '../rest/RestClient';
 import { env } from '@/common/env/EnvUtils';
+import { FlowTags } from '@/common/types/FlowTags';
 
 // Flow template types (matching backend)
 export enum FlowStepType {
@@ -18,7 +19,8 @@ export enum InputType {
   DATE = 'DATE',
   DATETIME = 'DATETIME',
   NUMBER = 'NUMBER',
-  FILE = 'FILE'
+  FILE = 'FILE',
+  SIGNATURE = 'SIGNATURE'
 }
 
 export enum AssignmentMode {
@@ -46,7 +48,7 @@ export interface Link {
 }
 
 export interface AssignmentTarget {
-  userIds?: string[];
+  users?: string[];
   organizationalUnits?: string[];
   matrixTeams?: string[];
   companies?: string[];
@@ -67,6 +69,7 @@ export interface FlowStep {
   title: string;
   message?: string;
   dueInMinutes?: number;
+  dueDate?: string; // ISO date string for specific due date
   form?: InputBlock[];  // Backend uses 'form'
   inputs?: InputBlock[];  // Legacy field for backward compatibility
   links?: Link[];
@@ -92,6 +95,9 @@ export interface FlowTemplate {
   
   // Self-service specific: simplified to just the init step
   initStep?: InitStep;
+  
+  // Tagging system for metadata-based querying
+  tags?: FlowTags;
 }
 
 /**

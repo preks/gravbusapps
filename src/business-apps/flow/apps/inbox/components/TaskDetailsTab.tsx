@@ -115,17 +115,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               Due: {new Date(task.dueDate).toLocaleDateString()} {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
             </Badge>
           )}
-          {task.scheduledAt && (
-            <Badge 
-              variant="outline" 
-              style={{ 
-                borderColor: 'var(--color-secondary-500)', 
-                color: 'var(--color-secondary-700)'
-              }}
-            >
-              Scheduled: {new Date(task.scheduledAt).toLocaleDateString()} {new Date(task.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </Badge>
-          )}
+          {/* Scheduled pill removed per request */}
         </div>
       </div>
 
@@ -149,7 +139,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       {hasInputBlocks && !isJustClaimable(task) && (
         <div className="gba:mb-4">
           <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            {isCompleted ? 'Submitted Data' : 'Form Fields'}
+            {isCompleted ? 'Submitted Data' : 'Form'}
           </h3>
           <div className="gba:space-y-4">
             {(task.form || task.inputs)!.map((input: any, index: number) => (
@@ -282,8 +272,9 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               data-testid={`${prefixDataTestId}-complete-button`}
               className="gba:flex gba:items-center gba:gap-2"
               style={{ 
-                backgroundColor: 'var(--color-primary-500)', 
-                color: 'var(--color-on-primary)'
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-primary-foreground)',
+                borderColor: 'var(--color-primary)'
               }}
             >
               {getCompleteButtonIcon(stepType)}

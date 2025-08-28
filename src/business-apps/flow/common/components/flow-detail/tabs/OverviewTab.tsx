@@ -65,6 +65,8 @@ interface FlowStep {
   completedBy?: string;
   totalForks?: number;
   completedForks?: number;
+  totalTasks?: number;
+  completedTasks?: number;
   rejectedForks?: number;
   inProgressForks?: number;
   assignmentMode?: string;
@@ -390,6 +392,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 }
               };
 
+              // Compute per-step progress from tasks when available
+              const totalTasks = (step.totalTasks ?? step.totalForks ?? 0) as number;
+              const completedTasks = (step.completedTasks ?? step.completedForks ?? 0) as number;
+              const stepPercent = step.status === 'COMPLETED' ? 100 : (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
+
               return (
                 <div key={step.id} 
                      className="gba:flex gba:items-center gba:gap-4 gba:p-3 gba:border gba:rounded-lg"
@@ -405,6 +412,21 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                     <Badge variant="outline" className="gba:text-xs">
                       {step.status}
                     </Badge>
+                  </div>
+                  <div className="gba:mb-2">
+                    <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-gray-600 gba:mb-1">
+                      <span>Step Progress</span>
+                      <span>{stepPercent}%{totalTasks > 0 ? ` • ${completedTasks}/${totalTasks} tasks` : ''}</span>
+                    </div>
+                    <div className="gba:h-2 gba:bg-gray-100 gba:rounded-sm gba:overflow-hidden">
+                      <div
+                        className="gba:h-full gba:transition-all gba:duration-300"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, stepPercent))}%`,
+                          backgroundColor: step.status === 'COMPLETED' ? '#10b981' : '#3b82f6'
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-600">
                     {step.assignedTo && (

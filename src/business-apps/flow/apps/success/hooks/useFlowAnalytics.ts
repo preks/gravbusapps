@@ -492,13 +492,15 @@ export const useFlowManagementAnalytics = ({
   accessToken,
   departmentId,
   templateId,
-  userId
+  userId,
+  tags
 }: {
   timeframe?: 'wtd' | 'mtd' | 'qtd' | 'ytd';
   accessToken: string;
   departmentId?: string;
   templateId?: string;
   userId?: string;
+  tags?: Record<string, string>;
 }) => {
   const [data, setData] = useState<FlowManagementAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -511,12 +513,13 @@ export const useFlowManagementAnalytics = ({
     setError(null);
     
     try {
-      const params = new URLSearchParams({
-        timeframe,
-        ...(departmentId && { departmentId }),
-        ...(templateId && { templateId }),
-        ...(userId && { userId })
-      });
+      const params = new URLSearchParams({ timeframe });
+      if (departmentId) params.append('departmentId', departmentId);
+      if (templateId) params.append('templateId', templateId);
+      if (userId) params.append('userId', userId);
+      if (tags) {
+        Object.entries(tags).forEach(([k, v]) => params.append(`tag.${k}`, String(v)));
+      }
 
       const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
       const response = await fetch(`${API_BASE}/analytics/flow-management?${params}`, {
@@ -543,7 +546,7 @@ export const useFlowManagementAnalytics = ({
     } finally {
       setIsLoading(false);
     }
-  }, [timeframe, accessToken, departmentId, templateId, userId]);
+  }, [timeframe, accessToken, departmentId, templateId, userId, JSON.stringify(tags)]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -658,6 +661,7 @@ export const useTaskPerformanceAnalytics = (filters: {
   userId?: string;
   stepType?: string;
   workflowType?: string;
+  tags?: Record<string, string>;
   accessToken: string;
 }): {
   data: TaskPerformanceAnalytics | null;
@@ -693,6 +697,10 @@ export const useTaskPerformanceAnalytics = (filters: {
       if (filters.userId) queryParams.append('userId', filters.userId);
       if (filters.stepType) queryParams.append('stepType', filters.stepType);
       if (filters.workflowType) queryParams.append('workflowType', filters.workflowType);
+
+      if (filters.tags) {
+        Object.entries(filters.tags).forEach(([k, v]) => queryParams.append(`tag.${k}`, String(v)));
+      }
 
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -738,7 +746,8 @@ export const useTaskPerformanceAnalytics = (filters: {
     filters.templateId,
     filters.userId,
     filters.stepType,
-    filters.workflowType
+    filters.workflowType,
+    JSON.stringify(filters.tags)
   ]);
 
   // Fetch data when filters change
@@ -1088,7 +1097,8 @@ export const useTemplatePerformanceAnalytics = ({
   sortBy = 'completionRate',
   sortOrder = 'desc',
   departmentId,
-  userId
+  userId,
+  tags
 }: {
   timeframe?: 'wtd' | 'mtd' | 'qtd' | 'ytd';
   accessToken: string;
@@ -1098,6 +1108,7 @@ export const useTemplatePerformanceAnalytics = ({
   sortOrder?: 'asc' | 'desc';
   departmentId?: string;
   userId?: string;
+  tags?: Record<string, string>;
 }) => {
   const [data, setData] = useState<TemplatePerformanceAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1110,15 +1121,10 @@ export const useTemplatePerformanceAnalytics = ({
     setError(null);
     
     try {
-      const params = new URLSearchParams({
-        timeframe,
-        limit: limit.toString(),
-        offset: offset.toString(),
-        sortBy,
-        sortOrder,
-        ...(departmentId && { departmentId }),
-        ...(userId && { userId })
-      });
+      const params = new URLSearchParams({ timeframe, limit: String(limit), offset: String(offset), sortBy, sortOrder });
+      if (departmentId) params.append('departmentId', departmentId);
+      if (userId) params.append('userId', userId);
+      if (tags) Object.entries(tags).forEach(([k, v]) => params.append(`tag.${k}`, String(v)));
 
       const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
       const response = await fetch(`${API_BASE}/analytics/template-performance?${params}`, {
@@ -1145,7 +1151,7 @@ export const useTemplatePerformanceAnalytics = ({
     } finally {
       setIsLoading(false);
     }
-  }, [timeframe, accessToken, limit, offset, sortBy, sortOrder, departmentId, userId]);
+  }, [timeframe, accessToken, limit, offset, sortBy, sortOrder, departmentId, userId, JSON.stringify(tags)]);
 
   useEffect(() => {
     fetchAnalytics();
