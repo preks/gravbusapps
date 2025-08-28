@@ -11,8 +11,16 @@ export interface SalesActivityData {
   version: number;
   description: string;
   createdAt: string;
+  occurredAt?: string | null;
   completedAt?: string | null;
   createdBy: string;
+  ownerEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    fullName: string;
+  };
   activityType?: {
     code: string;
     id: string;
@@ -34,8 +42,16 @@ export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): st
         version
         description
         createdAt
+        occurredAt
         completedAt
         createdBy
+        ownerEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          fullName
+        }
         activityType {
           code
           id
