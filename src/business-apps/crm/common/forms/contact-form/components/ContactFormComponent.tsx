@@ -76,7 +76,6 @@ const ContactFormComponent: React.FC = () => {
         pictureUrl: toStringOrUndefined(formValues.pictureUrl),
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
-        contactRole: formValues.contactRole || "", // Always include, match contactType pattern
         contactType: formValues.contactType || "", // Always include
         workExperienceYears: formValues.workExperienceYears
           ? parseInt(formValues.workExperienceYears)

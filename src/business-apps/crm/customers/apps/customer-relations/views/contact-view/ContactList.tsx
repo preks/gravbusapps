@@ -44,7 +44,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "name", label: "Name", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "company", label: "Account", visible: true },
-    { id: "role", label: "Role", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "created", label: "Creation Date", visible: true },
     { id: "owner", label: "Owner", visible: true },
@@ -80,7 +79,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      role: "contactRole",
       type: "contactType",
       department: "departments",
       // Note: name, contact, company, created, owner, academicTitle, birthDate, account, linkedin, xing, jobTitle don't have corresponding filters yet

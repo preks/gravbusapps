@@ -218,18 +218,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('role') && (
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("contactRole")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-role-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      Role
-                      {renderSortIcon("contactRole")}
-                    </div>
-                  </TableHead>
-                )}
                 {isColumnVisible('type') && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
@@ -494,19 +482,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('role') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-role-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiBriefcase size={14} className="gba:text-purple-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.contactRole}>
-                          {record.contactRole || "-"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  )}
+                  {/* Role cell removed */}
                   {isColumnVisible('type') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"

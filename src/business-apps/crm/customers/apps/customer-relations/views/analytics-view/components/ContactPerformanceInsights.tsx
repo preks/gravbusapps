@@ -72,7 +72,6 @@ export const ContactPerformanceInsights: React.FC<ContactPerformanceInsightsProp
               firstName
               lastName
               email
-              contactRole
               contactType
               createdAt
               updatedAt
@@ -178,17 +177,13 @@ export const ContactPerformanceInsights: React.FC<ContactPerformanceInsightsProp
           .sort((a, b) => a.month.localeCompare(b.month));
 
         // Performance by contact role
-        const rolePerformance = contacts.reduce((acc: any, contact: any) => {
-          const role = contact.contactRole || 'Unknown';
-          if (!acc[role]) {
-            acc[role] = {
-              count: 0,
-              totalEngagement: 0
-            };
+        // Role-based performance removed; derive from contactType as proxy
+        const typePerformance = contacts.reduce((acc: any, contact: any) => {
+          const type = contact.contactType || 'Unknown';
+          if (!acc[type]) {
+            acc[type] = { count: 0, totalEngagement: 0 };
           }
-          acc[role].count += 1;
-          
-          // Calculate engagement score based on available data
+          acc[type].count += 1;
           let engagementScore = 0;
           if (contact.communicationChannels && contact.communicationChannels.length > 0) {
             engagementScore += contact.communicationChannels.length * 2;
@@ -197,16 +192,15 @@ export const ContactPerformanceInsights: React.FC<ContactPerformanceInsightsProp
           if (contact.accountId && opportunitiesByAccount[contact.accountId] && opportunitiesByAccount[contact.accountId].length > 0) {
             engagementScore += 5;
           }
-          
-          acc[role].totalEngagement += engagementScore;
+          acc[type].totalEngagement += engagementScore;
           return acc;
         }, {});
 
-        const performanceByRole = Object.entries(rolePerformance)
+        const performanceByRole = Object.entries(typePerformance)
           .map(([role, data]: [string, any]) => ({
             role,
-            count: data.count,
-            avgEngagement: Math.round((data.totalEngagement / data.count) * 10) / 10
+            count: (data as any).count,
+            avgEngagement: Math.round((((data as any).totalEngagement / (data as any).count) * 10)) / 10
           }))
           .sort((a, b) => b.avgEngagement - a.avgEngagement)
           .slice(0, 8);

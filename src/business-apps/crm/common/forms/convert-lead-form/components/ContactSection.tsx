@@ -216,13 +216,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
     },
   ];
 
-  const contactRoles = [
-    { id: "primary", value: "primary", label: "Primary Contact" },
-    { id: "secondary", value: "secondary", label: "Secondary Contact" },
-    { id: "decision-maker", value: "decision-maker", label: "Decision Maker" },
-    { id: "influencer", value: "influencer", label: "Influencer" },
-    { id: "champion", value: "champion", label: "Champion" },
-  ];
 
   const departments = [
     { id: "sales", value: "sales", label: "Sales" },
@@ -1114,30 +1107,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                           form.setFieldsValue({ contactType: value });
                         }}
                         data-testid="contact-type-select"
-                      />
-                    </Form.Item>
-                  </div>
-                  {/* Contact Role */}
-                  <div>
-                    <Form.Item
-                      name="contactRole"
-                      label={getTranslationFromI18nKeyAndLabel(
-                        "crm:contact.contactRole",
-                        "Contact Role"
-                      )}
-                    >
-                      <SearchableSelect
-                        name="contactRole"
-                        value={form.getFieldValue("contactRole")}
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          "crm:contact.selectContactRole",
-                          "Select Contact Role"
-                        )}
-                        options={contactRoles as any}
-                        onChange={(value) => {
-                          form.setFieldsValue({ contactRole: value });
-                        }}
-                        data-testid="contact-role-select"
                       />
                     </Form.Item>
                   </div>

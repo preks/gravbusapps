@@ -11,7 +11,6 @@ export interface ContactFormValues {
   // Professional Information
   jobTitle: string;
   department: string;
-  contactRole: string;
   contactType: string;
   workExperienceYears: string;
 
@@ -75,7 +74,6 @@ export interface ContactContextState {
 
   // Data collections
   contactTypes: SelectOption[];
-  contactRoles: SelectOption[];
   academicTitles: SelectOption[];
   languages: SelectOption[];
   departments: SelectOption[];

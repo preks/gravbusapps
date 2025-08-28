@@ -25,12 +25,6 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ contact 
                 </div>
               </div>
               
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Contact Role</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {contact?.contactRole || '-'}
-                </div>
-              </div>
               
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Contact Type</div>

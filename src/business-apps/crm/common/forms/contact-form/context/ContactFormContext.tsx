@@ -68,7 +68,6 @@ interface ContactFormContextValue {
 
   // Static dropdown options
   contactTypes: SelectOption[];
-  contactRoles: SelectOption[];
   departments: SelectOption[];
 
   // Business app context for child components
@@ -107,7 +106,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     // Professional Information
     jobTitle: "",
     department: "",
-    contactRole: "", // Will be set to default for new contacts or actual value for existing
     contactType: "", // Will be set to default for new contacts or actual value for existing
     workExperienceYears: "",
 
@@ -255,42 +253,15 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
         firstName: mappedValues.firstName,
         lastName: mappedValues.lastName,
         email: mappedValues.email,
-        contactRole: mappedValues.contactRole,
         contactType: mappedValues.contactType,
         birthDate: mappedValues.birthDate,
         salesCampaignId: mappedValues.salesCampaignId,
-        originalContactRole: contactData.contactRole,
         originalContactType: contactData.contactType,
-        currentFormContactRole: formValues.contactRole,
         currentFormContactType: formValues.contactType,
-        willOverrideUserSelection:
-          !!formValues.contactRole &&
-          formValues.contactRole !== mappedValues.contactRole,
       });
-
-      // Special warning if we're about to override a user selection
-      if (
-        formValues.contactRole &&
-        formValues.contactRole !== mappedValues.contactRole
-      ) {
-        console.warn(
-          "⚠️ POTENTIAL OVERRIDE: User had contactRole:",
-          formValues.contactRole,
-          "but mapping will set:",
-          mappedValues.contactRole
-        );
-      }
 
       // Check if we would override any user selections
       const userSelections = [];
-      if (
-        formValues.contactRole &&
-        formValues.contactRole !== mappedValues.contactRole
-      ) {
-        userSelections.push(
-          `contactRole (user: ${formValues.contactRole}, db: ${mappedValues.contactRole})`
-        );
-      }
       if (
         formValues.accountId &&
         formValues.accountId !== mappedValues.accountId
@@ -558,46 +529,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     []
   );
 
-  // Dynamic Contact Roles - fetched from database like ContactType pattern
-  const contactRoles: SelectOption[] = useMemo(() => {
-    // Base contact roles that are always available
-    const baseRoles = [
-      {
-        id: "primary",
-        value: "primary",
-        label: "Primary Contact",
-        name: "Primary Contact",
-      },
-      {
-        id: "secondary",
-        value: "secondary",
-        label: "Secondary Contact",
-        name: "Secondary Contact",
-      },
-      {
-        id: "decision-maker",
-        value: "decision-maker",
-        label: "Decision Maker",
-        name: "Decision Maker",
-      },
-      {
-        id: "influencer",
-        value: "influencer",
-        label: "Influencer",
-        name: "Influencer",
-      },
-      {
-        id: "champion",
-        value: "champion",
-        label: "Champion",
-        name: "Champion",
-      },
-    ];
-
-    // TODO: Consider using useGetContactRoles hook for dynamic values
-    // This would fetch actual contactRole values from database like ContactType
-    return baseRoles;
-  }, []);
 
   // Academic Titles and Languages now come from catalog hooks (removed hardcoded data)
 
@@ -641,12 +572,11 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     contactDataPopulated.current = false; // Allow new contact data to be populated
 
     // Set defaults for NEW contacts only (when no contactId)
-    if (!contactId && !formValues.contactType && !formValues.contactRole) {
+    if (!contactId && !formValues.contactType) {
       console.log("🆕 Setting defaults for new contact");
       setFormValuesState((prev) => ({
         ...prev,
         contactType: "PRIMARY_CONTACT",
-        contactRole: "primary",
       }));
     }
   }, [contactId]);
@@ -729,11 +659,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   useEffect(() => {
     if (prevFormValues.current) {
       const changes = [];
-      if (prevFormValues.current.contactRole !== formValues.contactRole) {
-        changes.push(
-          `contactRole: ${prevFormValues.current.contactRole} → ${formValues.contactRole}`
-        );
-      }
       if (prevFormValues.current.accountId !== formValues.accountId) {
         changes.push(
           `accountId: ${prevFormValues.current.accountId} → ${formValues.accountId}`
@@ -750,21 +675,15 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       }
     }
     prevFormValues.current = { ...formValues };
-  }, [formValues.contactRole, formValues.accountId, formValues.contactType]);
+  }, [formValues.accountId, formValues.contactType]);
 
   // Form values update handler
   const setFormValues = useCallback(
     (updates: Partial<ContactFormValues>) => {
       console.log("🔄 setFormValues called with:", {
         updates: updates,
-        currentContactRole: formValues.contactRole,
         currentAccountId: formValues.accountId,
-        hasContactRole: "contactRole" in updates,
         hasAccountId: "accountId" in updates,
-        contactRoleChange:
-          "contactRole" in updates
-            ? `${formValues.contactRole} → ${updates.contactRole}`
-            : "no change",
         accountIdChange:
           "accountId" in updates
             ? `${formValues.accountId} → ${updates.accountId}`
@@ -774,7 +693,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
 
       setFormValuesState((prev) => ({ ...prev, ...updates }));
     },
-    [formValues.contactRole, formValues.accountId]
+    [formValues.accountId]
   );
 
   // Employee positions search
@@ -836,7 +755,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
 
     // Static dropdown options
     contactTypes,
-    contactRoles,
     departments,
 
     // Business app context for child components
