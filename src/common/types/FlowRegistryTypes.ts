@@ -5,6 +5,7 @@ export enum FlowContextName {
   accountEntity = "accountEntity",
   contactEntity = "contactEntity",
   opportunityEntity = "opportunityEntity",
+  updateOpportunity = "updateOpportunity",
   // Investment Relations
   investmentLeadEntity = "investmentLeadEntity",
   createInvestmentLead = "createInvestmentLead",
