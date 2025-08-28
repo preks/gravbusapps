@@ -124,6 +124,12 @@ export interface BaseInvestmentReport extends BaseEntity {
 
   fundManagerName?: string;
   identification?: any; // Jsonb
+  
+  // Specific report type relationships
+  equityInvestmentReport?: BaseEquityInvestmentReport[];
+  liquidFundInvestmentReport?: BaseLiquidFundInvestmentReport[];
+  realEstateInvestmentReport?: BaseRealEstateInvestmentReport[];
+  investmentRoleReport?: BaseInvestmentRoleReport[];
 }
 
 // investment_role_report table

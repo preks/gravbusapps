@@ -59,19 +59,26 @@ export interface RealEstateInvestmentRentalUnitQueryVariables {
 // Build where condition for Investment Report queries
 export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }';
-  
+
   // Filter by investment IDs
   if (variables.investmentIds?.length) {
     whereClause += `, investment: { id: { _in: [${variables.investmentIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
   // Filter by date range
-  if (variables.reportDateFrom) {
-    whereClause += `, date: { _gte: "${variables.reportDateFrom}" }`;
-  }
-
-  if (variables.reportDateTo) {
-    whereClause += `, date: { _lte: "${variables.reportDateTo}" }`;
+  if (variables.reportDateFrom || variables.reportDateTo) {
+    let dateFilter = 'date: {';
+    if (variables.reportDateFrom) {
+      dateFilter += ` _gte: "${variables.reportDateFrom}"`;
+    }
+    if (variables.reportDateTo) {
+      if (variables.reportDateFrom) {
+        dateFilter += ',';
+      }
+      dateFilter += ` _lte: "${variables.reportDateTo}"`;
+    }
+    dateFilter += ' }';
+    whereClause += `, ${dateFilter}`;
   }
 
   // Filter by report scope
@@ -140,182 +147,98 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
           currency {
             ${CATALOG_ENTRY}
           }
+          
+          # Investment account for proprietor information
+          investmentAccount {
+            id
+            name
+          }
+        }
+        
+        # Specific report type relationships
+        equityInvestmentReport {
+          id
+          date
+          scope
+          marketValue
+          ebitdaAmount
+          equityInvestmentId
+          ${AUDIT_FIELDS}
+          
+          equityInvestment {
+            id
+            foundationDate
+          }
+        }
+        
+        liquidFundInvestmentReport {
+          id
+          date
+          interestRate
+          bankAccountNumber
+          bankName
+          earlyTerminationAllowed
+          maturityDate
+          ${AUDIT_FIELDS}
+          
+          interestPaymentFrequency {
+            ${CATALOG_ENTRY}
+          }
+          investmentLiquidFundType {
+            ${CATALOG_ENTRY}
+          }
+          
+          liquidFundInvestment {
+            id
+            maturityDate
+            interestRate
+            bankName
+            
+            investment {
+              id
+              name
+              code
+              
+              investmentAccount {
+                id
+                name
+              }
+            }
+          }
+        }
+        
+        realEstateInvestmentReport {
+          id
+          date
+          occupancyPercent
+          numberOfUnits
+          annualNetColdRent
+          actualAnnualExpenses
+          funding
+          liquidityForecast
+          ${AUDIT_FIELDS}
+          
+          realEstateInvestment {
+            id
+            locality
+            buildingYear
+          }
+        }
+        
+        investmentRoleReport {
+          id
+          displayOrder
+          ${AUDIT_FIELDS}
+          
+          investmentRole {
+            ${CATALOG_ENTRY}
+          }
         }
       }
       
       InvestmentReportAggregate(${where}) {
         aggregate {
           count
-        }
-      }
-    }
-  `;
-};
-
-// Get Equity Investment Reports
-export const GET_EQUITY_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  
-  let whereClause = 'where: { isDeleted: { _eq: false }';
-  
-  if (variables.investmentIds?.length) {
-    whereClause += `, equityInvestment: { id: { _in: [${variables.investmentIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-  
-  if (variables.reportDateFrom) {
-    whereClause += `, date: { _gte: "${variables.reportDateFrom}" }`;
-  }
-  
-  if (variables.reportDateTo) {
-    whereClause += `, date: { _lte: "${variables.reportDateTo}" }`;
-  }
-  
-  whereClause += ' }';
-  
-  const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ date: DESC }]';
-
-  return `
-    query GetEquityInvestmentReports {
-      EquityInvestmentReport(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${whereClause}
-      ) {
-        id
-        date
-        scope
-        marketValue
-        turnoverAmount
-        ebitdaAmount
-        ${AUDIT_FIELDS}
-        
-        # Equity Investment relationship
-        equityInvestment { id marketValue ebitdaAmount investment { id code name isin } }
-      }
-    }
-  `;
-};
-
-// Get Real Estate Investment Reports
-export const GET_REAL_ESTATE_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  
-  let whereClause = 'where: { isDeleted: { _eq: false }';
-  
-  if (variables.investmentIds?.length) {
-    whereClause += `, realEstateInvestment: { id: { _in: [${variables.investmentIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-  
-  if (variables.reportDateFrom) {
-    whereClause += `, date: { _gte: "${variables.reportDateFrom}" }`;
-  }
-  
-  if (variables.reportDateTo) {
-    whereClause += `, date: { _lte: "${variables.reportDateTo}" }`;
-  }
-  
-  whereClause += ' }';
-  
-  const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ date: DESC }]';
-
-  return `
-    query GetRealEstateInvestmentReports {
-      RealEstateInvestmentReport(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${whereClause}
-      ) {
-        id
-        date
-        scope
-        size
-        numberOfUnits
-        occupancyPercent
-        annualNetColdRent
-        funding
-        actualAnnualExpenses
-        targetAnnualExpenses
-        liquidityForecast
-        ${AUDIT_FIELDS}
-        
-        # Real Estate Investment relationship
-        realEstateInvestment { 
-          id 
-          buildingYear 
-          size 
-          numberOfUnits 
-          annualNetColdRent 
-          funding 
-          actualAnnualExpenses 
-          investment { id code name isin } 
-        }
-      }
-    }
-  `;
-};
-
-// Get Liquid Fund Investment Reports
-export const GET_LIQUID_FUND_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  
-  let whereClause = 'where: { isDeleted: { _eq: false }';
-  
-  if (variables.investmentIds?.length) {
-    whereClause += `, liquidFundInvestment: { id: { _in: [${variables.investmentIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-  
-  if (variables.reportDateFrom) {
-    whereClause += `, date: { _gte: "${variables.reportDateFrom}" }`;
-  }
-  
-  if (variables.reportDateTo) {
-    whereClause += `, date: { _lte: "${variables.reportDateTo}" }`;
-  }
-  
-  whereClause += ' }';
-  
-  const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ date: DESC }]';
-
-  return `
-    query GetLiquidFundInvestmentReports {
-      LiquidFundInvestmentReport(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${whereClause}
-      ) {
-        id
-        date
-        scope
-        proprietorName
-        bankName
-        bankAccountNumber
-        earlyTerminationAllowed
-        interestRate
-        maturityDate
-        ${AUDIT_FIELDS}
-        
-        # Liquid Fund Investment relationship
-        liquidFundInvestment { 
-          id 
-          proprietorName 
-          bankName 
-          bankAccountNumber 
-          earlyTerminationAllowed 
-          interestRate 
-          maturityDate 
-          investment { id code name isin } 
         }
       }
     }
@@ -478,6 +401,9 @@ export const GET_INVESTMENT_TRANSACTIONS = (variables: InvestmentTransactionQuer
       InvestmentTransactionAggregate(${whereClause}) {
         aggregate {
           count
+          sum {
+            amount
+          }
         }
       }
     }
@@ -499,7 +425,6 @@ export const GET_INVESTMENT_TRANSACTION_BY_ID = (id: string): string => {
         date
         amount
         comment
-        
         ${AUDIT_FIELDS}
         
         # Catalog references
@@ -537,14 +462,16 @@ export const GET_EQUITY_INVESTMENT_ROUNDS = (variables: EquityInvestmentRoundQue
   
   // Filter by year
   if (variables.year) {
-    whereClause += `, year: { _eq: ${variables.year} }`;
+    const yearStart = `${variables.year}-01-01`;
+    const yearEnd = `${variables.year}-12-31`;
+    whereClause += `, date: { _gte: "${yearStart}", _lte: "${yearEnd}" }`;
   }
   
   // Search functionality
   if (variables.search?.trim()) {
     const searchTerm = variables.search.trim();
     whereClause += `, _or: [
-      { name: { _ilike: "%${searchTerm}%" } }
+      { roundNumber: { _ilike: "%${searchTerm}%" } }
     ]`;
   }
   
@@ -552,7 +479,7 @@ export const GET_EQUITY_INVESTMENT_ROUNDS = (variables: EquityInvestmentRoundQue
   
   const orderByClause = variables.orderBy?.length 
     ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ year: DESC }]';
+    : 'orderBy: [{ date: DESC }]';
 
   return `
     query GetEquityInvestmentRounds {
@@ -563,16 +490,16 @@ export const GET_EQUITY_INVESTMENT_ROUNDS = (variables: EquityInvestmentRoundQue
         offset: ${offset}
       ) {
         id
-        name
-        year
-        preValue
-        investmentVolume
-        volumeShare
-        roundSharePercentage
-        
+        date
+        roundNumber
+        roundAmount
+        valuation
         ${AUDIT_FIELDS}
         
         # Catalog references
+        roundType {
+          ${CATALOG_ENTRY}
+        }
         currency {
           ${CATALOG_ENTRY}
         }
@@ -580,10 +507,9 @@ export const GET_EQUITY_INVESTMENT_ROUNDS = (variables: EquityInvestmentRoundQue
         # Equity Investment reference
         equityInvestment {
           id
-          foundationDate
           marketValue
-          turnoverAmount
           ebitdaAmount
+          foundationDate
           ${AUDIT_FIELDS}
           
           investment {
@@ -599,6 +525,9 @@ export const GET_EQUITY_INVESTMENT_ROUNDS = (variables: EquityInvestmentRoundQue
       EquityInvestmentRoundAggregate(${whereClause}) {
         aggregate {
           count
+          sum {
+            roundAmount
+          }
         }
       }
     }
@@ -614,20 +543,19 @@ export const GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS = (variables: RealEstateInv
   
   // Filter by real estate investment IDs
   if (variables.realEstateInvestmentIds?.length) {
-    whereClause += `, realEstate: { id: { _in: [${variables.realEstateInvestmentIds.map(id => `"${id}"`).join(', ')}] } }`;
+    whereClause += `, realEstateInvestment: { id: { _in: [${variables.realEstateInvestmentIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
   
   // Filter by rental unit type
   if (variables.rentalUnitType) {
-    whereClause += `, investmentRentalUnitType: { code: { _eq: "${variables.rentalUnitType}" } }`;
+    whereClause += `, unitType: { code: { _eq: "${variables.rentalUnitType}" } }`;
   }
   
   // Search functionality
   if (variables.search?.trim()) {
     const searchTerm = variables.search.trim();
     whereClause += `, _or: [
-      { code: { _ilike: "%${searchTerm}%" } },
-      { name: { _ilike: "%${searchTerm}%" } }
+      { unitNumber: { _ilike: "%${searchTerm}%" } }
     ]`;
   }
   
@@ -635,7 +563,7 @@ export const GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS = (variables: RealEstateInv
   
   const orderByClause = variables.orderBy?.length 
     ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ code: ASC }]';
+    : 'orderBy: [{ unitNumber: ASC }]';
 
   return `
     query GetRealEstateInvestmentRentalUnits {
@@ -646,31 +574,31 @@ export const GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS = (variables: RealEstateInv
         offset: ${offset}
       ) {
         id
-        code
-        name
-        
+        unitNumber
+        size
+        rentAmount
+        isOccupied
+        occupancyStartDate
+        occupancyEndDate
         ${AUDIT_FIELDS}
         
         # Catalog references
-        investmentRentalUnitType {
+        unitType {
+          ${CATALOG_ENTRY}
+        }
+        currency {
+          ${CATALOG_ENTRY}
+        }
+        sizeMeasurementUnit {
           ${CATALOG_ENTRY}
         }
         
         # Real Estate Investment reference
-        realEstate {
+        realEstateInvestment {
           id
-          addressLine
-          postalCode
-          locality
-          buildingYear
           size
           numberOfUnits
-          occupancyPercent
-          annualNetColdRent
-          funding
-          actualAnnualExpenses
-          targetAnnualExpenses
-          liquidityForecast
+          propertyValue
           ${AUDIT_FIELDS}
           
           investment {
@@ -686,8 +614,17 @@ export const GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS = (variables: RealEstateInv
       RealEstateInvestmentRentalUnitAggregate(${whereClause}) {
         aggregate {
           count
+          sum {
+            size
+            rentAmount
+          }
         }
       }
     }
   `;
 };
+
+// NOTE: Specific investment report queries (GET_EQUITY_INVESTMENT_REPORTS, 
+// GET_REAL_ESTATE_INVESTMENT_REPORTS, GET_LIQUID_FUND_INVESTMENT_REPORTS) 
+// have been removed as all reports now use the enhanced GET_INVESTMENT_REPORTS 
+// query with relationships above.

@@ -254,7 +254,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     return executeTest(
       'equity-investment-reports', 
       () => fetchEquityInvestmentReports(variables),
-      'Equity Investment Reports Query - GET_EQUITY_INVESTMENT_REPORTS',
+      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Equity)',
       variables
     );
   };
@@ -267,7 +267,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     return executeTest(
       'real-estate-investment-reports', 
       () => fetchRealEstateInvestmentReports(variables),
-      'Real Estate Investment Reports Query - GET_REAL_ESTATE_INVESTMENT_REPORTS',
+      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Real Estate)',
       variables
     );
   };
@@ -280,7 +280,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     return executeTest(
       'equity-reports', 
       () => fetchEquityInvestmentReports(variables),
-      'Equity Reports Query - GET_EQUITY_INVESTMENT_REPORTS',
+      'Investment Reports Query - GET_INVESTMENT_REPORTS (Enhanced)',
       variables
     );
   };
@@ -319,7 +319,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     return executeTest(
       'liquid-fund-reports', 
       () => fetchLiquidFundInvestmentReports(variables),
-      'Liquid Fund Investment Reports Query - GET_LIQUID_FUND_INVESTMENT_REPORTS',
+      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Liquid Fund)',
       variables
     );
   };

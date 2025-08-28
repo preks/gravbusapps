@@ -3,11 +3,16 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Button
 } from '@newwork/nw-design-system';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { BarChart3, TrendingUp, Building2, PieChart, Upload } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
+import { RealEstateReport } from './real-estate-report/RealEstateReport';
+import { EquityReport } from './equity-report/EquityReport';
+import { InvestmentDocumentUploadForm } from '../../../../forms/investment-document-upload-form';
 
 export interface ReportViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -17,10 +22,12 @@ export interface ReportViewProps extends BusinessAppContextProps {
 export const ReportView: React.FC<ReportViewProps> = ({
   accessToken,
   userInfo,
+  additionalData,
   initialSubTab = 'liquid-fund',
   onSubTabChange
 }) => {
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // Update URL when tab changes
   useEffect(() => {
@@ -56,9 +63,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 Analyze investment performance and portfolio metrics
               </p>
             </div>
+            <div>
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="upload-document-button"
+              >
+                <Upload className="gba:h-4 gba:w-4" />
+                {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
+              </Button>
+            </div>
           </div>
           
-          <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-1 gba:max-w-md">
+          <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-3 gba:max-w-2xl">
             <TabsTrigger 
               value="liquid-fund" 
               className="gba:flex gba:items-center gba:gap-2"
@@ -66,6 +83,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
             >
               <TrendingUp className="gba:h-4 gba:w-4" />
               Liquid Fund
+            </TabsTrigger>
+            <TabsTrigger 
+              value="real-estate" 
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="real-estate-analytics-tab"
+            >
+              <Building2 className="gba:h-4 gba:w-4" />
+              Real Estate
+            </TabsTrigger>
+            <TabsTrigger 
+              value="equity" 
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="equity-analytics-tab"
+            >
+              <PieChart className="gba:h-4 gba:w-4" />
+              Equity
             </TabsTrigger>
           </TabsList>
         </div>
@@ -78,8 +111,39 @@ export const ReportView: React.FC<ReportViewProps> = ({
               data-testid="liquid-fund-analytics"
             />
           </TabsContent>
+          
+          <TabsContent value="real-estate" className="gba:h-full gba:mt-0">
+            <RealEstateReport
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid="real-estate-analytics"
+            />
+          </TabsContent>
+          
+          <TabsContent value="equity" className="gba:h-full gba:mt-0">
+            <EquityReport
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid="equity-analytics"
+            />
+          </TabsContent>
         </div>
       </Tabs>
+
+      {/* Upload Report Modal */}
+      <InvestmentDocumentUploadForm
+        mode="modal"
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onSuccess={(fileIds: string[]) => {
+          console.log('Documents uploaded successfully with IDs:', fileIds);
+          setUploadDialogOpen(false);
+        }}
+        showInvestmentSelector={true}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={additionalData}
+      />
     </div>
   );
 };

@@ -10,8 +10,9 @@ import {
   LiquidFundDetails,
   LiquidFundInvestmentReports
 } from './components';
-import { CompanyInformation, ContactDetails } from '../shared';
+import { CompanyInformation, ContactDetails, UploadReportButton } from '../shared';
 import LiquidPortfolioReports from '@/business-apps/crm/investments/apps/investment-management/views/investment-view/components/LiquidPortfolioReports';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -76,6 +77,29 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
             </div>
           </TabsContent>
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
+            {/* Reports Header with Upload Button */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.title', 'Investment Reports')}
+                </h3>
+                <p className="gba:text-sm gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.description', 'View and manage performance reports and financial documents')}
+                </p>
+              </div>
+              <UploadReportButton
+                investmentId={liquidFundData?.investment?.id}
+                onUploadSuccess={(fileIds) => {
+                  console.log('Upload successful, file IDs:', fileIds);
+                  // Could trigger refresh of reports here if needed
+                }}
+                accessToken={context.accessToken}
+                userInfo={context.userInfo}
+                additionalData={context.additionalData}
+              />
+            </div>
+
+            {/* Existing Reports Display */}
             {liquidFundData?.liquidFundInvestment?.id && (
               <LiquidFundInvestmentReports
                 liquidFundInvestmentId={liquidFundData.liquidFundInvestment.id}
