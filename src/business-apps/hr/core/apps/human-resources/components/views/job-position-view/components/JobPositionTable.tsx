@@ -27,7 +27,7 @@ import { PiArrowUp, PiArrowDown, PiInfo } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { JobPosition } from '../hooks/useJobPositionListData';
-import { formatDataTestId } from '@/modules/orgchart/utils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = React.memo<{
