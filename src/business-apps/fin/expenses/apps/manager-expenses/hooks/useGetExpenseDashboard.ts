@@ -82,7 +82,7 @@ export interface ExpenseDashboardResult {
  * @param context Business app context containing user info and access token
  * @returns Object containing dashboard data, loading state, error, and refresh function
  */
-export const useGetExpenseDashboard = (context?: BusinessAppContextProps): ExpenseDashboardResult => {
+export const useGetExpenseDashboard = (context?: BusinessAppContextProps, currencyFilter?: string): ExpenseDashboardResult => {
   const [dashboardData, setDashboardData] = useState<ExpenseDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,10 +143,13 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         return date.toISOString();
       })();
       
+      // Format the currency reference for the database query (Currency:v1:CODE format)
+      const formattedCurrencyRef = currencyFilter ? `Currency:v1:${currencyFilter}` : undefined;
+      
       // Make the request using the GraphQL client
       const result = await graphQLClient.request(
         GET_EXPENSE_DASHBOARD_BY_MANAGER,
-        { managerId, startDate, yearStart }
+        { managerId, startDate, yearStart, currencyRef: formattedCurrencyRef }
       );
       
       const data = result;

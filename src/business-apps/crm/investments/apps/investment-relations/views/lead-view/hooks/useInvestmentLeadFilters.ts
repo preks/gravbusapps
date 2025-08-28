@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { buildFilterGroups } from '@/common/network/graphql/queryHelpers';
+import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/queries/investmentLeadQueries';
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
-import { DateRangeFilter } from "@/business-apps/crm/common/components/lead-list/components/DateRangeFilter";
+import { DateRangeFilter } from "@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter";
 
 interface OwnerItem { id: string; name: string; }
 interface StatusItem { id: string; code?: string; value?: string; }
@@ -56,35 +58,13 @@ export const useInvestmentLeadFilters = (
     setLoadingOwners(true);
     setErrorOwners(null);
     try {
-      const where = `where: {
-        isDeleted: { _eq: false },
-        ownerEmployee: {
-          _and: [
-            { id: { _isNull: false } }
-            ${search.trim() ? `, { _or: [
-              { firstName: { _ilike: "%${search}%" } },
-              { lastName: { _ilike: "%${search}%" } },
-              { displayName: { _ilike: "%${search}%" } }
-            ] }` : ""}
-          ]
-        }
-      }`;
-      const query = `
-        query GetLeadOwners {
-          InvestmentLead(
-            ${where}
-            distinctOn: [ownerEmployeeId]
-            limit: 50
-          ) {
-            ownerEmployee {
-              id
-              displayName
-              firstName
-              lastName
-            }
-          }
-        }
-      `;
+      const queries = buildFilterGroups({
+        entityName: 'InvestmentLead',
+        descriptors: INVESTMENT_LEAD_DESCRIPTORS,
+        searchByKey: { ownerEmployeeIds: search },
+        limit: 50
+      });
+      const query = queries['ownerEmployeeIds'];
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ ownerEmployee: { id: string; displayName?: string; firstName?: string; lastName?: string } | null }> }>(query);
       const items: OwnerItem[] = (res.InvestmentLead || [])
         .filter(r => r.ownerEmployee)
@@ -160,12 +140,8 @@ export const useInvestmentLeadFilters = (
     if (!context.accessToken) return;
     setLoadingContacts(true); setErrorContacts(null);
     try {
-      const where = `where: { isDeleted: { _eq: false } ${search.trim() ? `, _or: [ { firstName: { _ilike: "%${search}%" } }, { lastName: { _ilike: "%${search}%" } } ]` : ''} }`;
-      const query = `
-        query GetLeadContacts {
-          InvestmentLead(${where}, limit: 100) { firstName lastName }
-        }
-      `;
+      const queries = buildFilterGroups({ entityName: 'InvestmentLead', descriptors: INVESTMENT_LEAD_DESCRIPTORS, searchByKey: { contactFullNames: search }, limit: 100 });
+      const query = queries['contactFullNames'];
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ firstName?: string; lastName?: string }> }>(query);
       const uniq = new Map<string, { firstName: string; lastName: string }>();
       (res.InvestmentLead || []).forEach(l => {
@@ -184,12 +160,8 @@ export const useInvestmentLeadFilters = (
     if (!context.accessToken) return;
     setLoadingCompanies(true); setErrorCompanies(null);
     try {
-      const where = `where: { isDeleted: { _eq: false } ${search.trim() ? `, companyName: { _ilike: "%${search}%" }` : ''} }`;
-      const query = `
-        query GetLeadCompanies {
-          InvestmentLead(${where}, limit: 100) { companyName }
-        }
-      `;
+      const queries = buildFilterGroups({ entityName: 'InvestmentLead', descriptors: INVESTMENT_LEAD_DESCRIPTORS, searchByKey: { companyNames: search }, limit: 100 });
+      const query = queries['companyNames'];
       const names = new Set<string>();
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ companyName?: string }> }>(query);
       (res.InvestmentLead || []).forEach(r => { if (r.companyName) names.add(r.companyName); });
@@ -203,12 +175,8 @@ export const useInvestmentLeadFilters = (
     if (!context.accessToken) return;
     setLoadingCountries(true); setErrorCountries(null);
     try {
-      const where = `where: { isDeleted: { _eq: false } ${search.trim() ? `, country: { _or: [ { code: { _ilike: "%${search}%" } }, { value: { _ilike: "%${search}%" } } ] }` : ''} }`;
-      const query = `
-        query GetLeadCountries {
-          InvestmentLead(${where}, limit: 100) { country { id code value } }
-        }
-      `;
+      const queries = buildFilterGroups({ entityName: 'InvestmentLead', descriptors: INVESTMENT_LEAD_DESCRIPTORS, searchByKey: { countryIds: search }, limit: 100 });
+      const query = queries['countryIds'];
       const map = new Map<string, CountryItem>();
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ country?: CountryItem }> }>(query);
       (res.InvestmentLead || []).forEach(r => { if (r.country?.id) map.set(r.country.id, r.country); });
@@ -221,10 +189,8 @@ export const useInvestmentLeadFilters = (
     if (!context.accessToken) return;
     setLoadingRegions(true); setErrorRegions(null);
     try {
-      const where = `where: { isDeleted: { _eq: false } ${search.trim() ? `, region: { value: { _ilike: \"%${search}%\" } }` : ''} }`;
-      const query = `
-        query GetLeadRegions { InvestmentLead(${where}, limit: 100) { region { id code value } } }
-      `;
+      const queries = buildFilterGroups({ entityName: 'InvestmentLead', descriptors: INVESTMENT_LEAD_DESCRIPTORS, searchByKey: { regions: search }, limit: 100 });
+      const query = queries['regions'];
       const values = new Set<string>();
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ region?: { id?: string; code?: string; value?: string } | null }> }>(query);
       (res.InvestmentLead || []).forEach(r => {
@@ -240,10 +206,8 @@ export const useInvestmentLeadFilters = (
     if (!context.accessToken) return;
     setLoadingCities(true); setErrorCities(null);
     try {
-      const where = `where: { isDeleted: { _eq: false } ${search.trim() ? `, locality: { _ilike: "%${search}%" }` : ''} }`;
-      const query = `
-        query GetLeadCities { InvestmentLead(${where}, limit: 100) { locality } }
-      `;
+      const queries = buildFilterGroups({ entityName: 'InvestmentLead', descriptors: INVESTMENT_LEAD_DESCRIPTORS, searchByKey: { localities: search }, limit: 100 });
+      const query = queries['localities'];
       const set = new Set<string>();
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ locality?: string }> }>(query);
       (res.InvestmentLead || []).forEach(r => { if (r.locality?.trim()) set.add(r.locality.trim()); });

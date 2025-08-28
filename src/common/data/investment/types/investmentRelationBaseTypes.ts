@@ -1,6 +1,7 @@
 // Base types that match GraphQL responses exactly for CRM relation entities
 // These should match the DBML schema exactly without any computed fields
-import type { CatalogEntry, EmployeeRef, BaseEntity } from '@/common/network/graphql/commonTypes';
+import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes';
+import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
 import type { ContactType, AddressType, SourceTable, TaskTiming, TaskAssigneeType, TaskHolidayPolicy } from './investmentEnums';
 
 // Forward declarations for reference types to avoid circular dependencies
@@ -8,6 +9,22 @@ export interface InvestmentAccountRef {
   id: string;
   code: string;
   name: string;
+  // Fields used in investment queries (inline account selection)
+  email?: string;
+  phone?: string;
+  foundationDate?: string; // ISO date string
+  geographicPresence?: string;
+  // Catalog references (inline)
+  companySize?: CatalogEntry;
+  accountAnnualRevenueBand?: CatalogEntry;
+  industryClass?: CatalogEntry;
+  // Employee reference (inline selections)
+  ownerEmployee?: EmployeeRef;
+  // Inline relation selection used in queries
+  investmentAccountContact?: Array<{
+    contactType?: ContactType;
+    contact?: InvestmentContactRef;
+  }>;
 }
 
 export interface InvestmentContactRef {
@@ -16,6 +33,13 @@ export interface InvestmentContactRef {
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  // Fields used in nested contact selection within accountContact
+  email?: string;
+  phone?: string;
+  department?: string;
+  jobPosition?: string;
+  picture?: string;
+  pictureThumbnail?: string;
 }
 
 export interface InvestmentOpportunityRef {
@@ -172,6 +196,8 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   code?: string;
   name: string;
   notesSummary?: string;
+  description?: string;
+  probability?: number;
   lastInteraction?: string;
   closeDate?: string; // ISO date string
   estimatedAmount?: number;
@@ -180,6 +206,8 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   currency?: CatalogEntry;
   opportunityPipeline?: CatalogEntry;
   opportunityPipelineStage?: CatalogEntry;
+  // Some queries may expose this as `stage`
+  stage?: CatalogEntry;
   opportunityStatus?: CatalogEntry;
   
   // Entity references (using Ref types)

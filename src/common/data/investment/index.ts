@@ -10,6 +10,12 @@ export * from './queries';
 // Export all hooks
 export * from './hooks';
 
+// Export all mappers
+export * from './mappers';
+
+// Export all utilities
+export * from './utils';
+
 // Re-export commonly used items for convenience
 export type {
   // Core types

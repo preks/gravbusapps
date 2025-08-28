@@ -1,20 +1,20 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { Home } from 'lucide-react';
-import { RealEstateInvestmentRecord } from '../types';
-import { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
-import { formatCurrency } from '../../../utils/formatters';
+import type { RealEstateInvestmentData } from '../types';
 
 interface RealEstateDetailsProps {
-  data?: RealEstateInvestmentRecord; // Legacy mock data
-  realEstateData?: RealEstateInvestmentData | null; // Real GraphQL data
+  realEstateData?: RealEstateInvestmentData | null;
   isLoading?: boolean;
 }
 
-const RealEstateDetails: React.FC<RealEstateDetailsProps> = ({ data, realEstateData, isLoading }) => {
-  // Helper function to format currency with GraphQL data
-  const formatCurrencyValue = (amount: number | null, currency?: { code: string } | null): string => {
-    if (!amount && amount !== 0) return 'N/A';
+const RealEstateDetails: React.FC<RealEstateDetailsProps> = ({ realEstateData, isLoading }) => {
+  const inv = realEstateData?.investment;
+  const rei = realEstateData?.realEstateInvestment as unknown as Record<string, any> | undefined;
+
+  const formatCurrencyValue = (amount: number | null | undefined, currency?: { code: string } | null): string => {
+    if (amount === null) return '-';
+    if (amount === undefined) return 'N/A';
     const currencyCode = currency?.code || 'EUR';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
@@ -24,129 +24,96 @@ const RealEstateDetails: React.FC<RealEstateDetailsProps> = ({ data, realEstateD
     }).format(amount);
   };
 
-  // Helper function to format date
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('de-DE');
+  // no-op placeholder removed to avoid unused warnings
+
+  const displayFromObj = (obj: any, key: string, formatter?: (v: any) => string): string => {
+    if (!obj || !(key in obj)) return 'N/A';
+    const val = obj[key];
+    if (val === null || val === undefined || val === '') return '-';
+    return formatter ? formatter(val) : String(val);
   };
 
-  // Helper function to build location string
   const buildLocationString = (): string => {
-    if (realEstateData) {
-      const parts = [
-        realEstateData.addressLine,
-        realEstateData.postalCode,
-        realEstateData.city,
-        realEstateData.country?.value,
-        realEstateData.region?.value
-      ].filter(Boolean);
-      
-      return parts.length > 0 ? parts.join(', ') : 'N/A';
-    } else if (data) {
-      return `*${data.real_estate_investment.property_location}`;
-    }
-    return '*N/A';
+    if (!rei) return 'N/A';
+    const hasAddress = 'addressLine' in rei;
+    const hasLocality = 'locality' in rei;
+    const hasCountry = 'country' in rei;
+    if (!hasAddress && !hasLocality && !hasCountry) return 'N/A';
+    const address = hasAddress ? rei.addressLine : null;
+    const addressStr = address ? (typeof address === 'string' ? address : '') : null;
+    const locality = hasLocality ? rei.locality : null;
+    const countryVal = hasCountry ? rei.country?.value : null;
+    const parts = [addressStr, locality, countryVal].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : '-';
   };
 
   const getPropertyType = (): string => {
-    if (realEstateData?.realEstateType?.value) {
-      return realEstateData.realEstateType.value;
+    if (rei && 'realEstateType' in rei) {
+      const v = rei.realEstateType?.value;
+      return v ?? '-';
     }
-    return '*Commercial Office';
+    return 'N/A';
   };
 
   const getPropertySize = (): string => {
-    if (realEstateData?.size) {
-      return `${realEstateData.size.toLocaleString()} sqm`;
-    } else if (data) {
-      return `*${data.real_estate_investment.property_size_sqm.toLocaleString()} sqm`;
-    }
-    return '*N/A';
+    if (!rei) return 'N/A';
+    if (!('size' in rei)) return 'N/A';
+    const size = rei.size;
+    if (size === null || size === undefined) return '-';
+    return `${Number(size).toLocaleString()} sqm`;
   };
 
   const getPurchasePrice = (): string => {
-    if (realEstateData?.investment?.initialInvestmentAmount) {
-      return formatCurrencyValue(realEstateData.investment.initialInvestmentAmount, realEstateData.investment.currency);
-    } else if (data) {
-      return `*${formatCurrency(data.real_estate_investment.purchase_price, data.investment.currency_ref)}`;
-    }
-    return '*N/A';
+    if (!inv) return 'N/A';
+    if (!('initialInvestmentAmount' in inv)) return 'N/A';
+    return formatCurrencyValue(inv.initialInvestmentAmount, inv.currency || undefined);
   };
 
   const getCurrentMarketValue = (): string => {
-    if (realEstateData?.investment?.marketValue) {
-      return formatCurrencyValue(realEstateData.investment.marketValue, realEstateData.investment.currency);
-    } else if (data) {
-      return `*${formatCurrency(data.real_estate_investment.current_market_value, data.investment.currency_ref)}`;
-    }
-    return '*N/A';
+    if (!inv) return 'N/A';
+    if (!('investmentMarketValue' in inv)) return 'N/A';
+    return formatCurrencyValue(inv.investmentMarketValue, inv.currency || undefined);
   };
 
   const getAnnualRentalIncome = (): string => {
-    // This field is not available in GraphQL schema yet
-    if (data) {
-      return `*${formatCurrency(data.real_estate_investment.rental_income_annual, data.investment.currency_ref)}`;
-    }
-    return '*N/A';
+    // Map to annualNetColdRent
+    if (!rei) return 'N/A';
+    if (!('annualNetColdRent' in rei)) return 'N/A';
+    return formatCurrencyValue(rei.annualNetColdRent, inv?.currency || undefined);
   };
 
   const getOccupancyRate = (): string => {
-    if (realEstateData?.occupancyPercent !== null && realEstateData?.occupancyPercent !== undefined) {
-      return `${realEstateData.occupancyPercent}%`;
-    } else if (data) {
-      return `*${data.real_estate_investment.occupancy_rate}%`;
-    }
-    return '*N/A';
+    if (!rei) return 'N/A';
+    if (!('occupancyPercent' in rei)) return 'N/A';
+    const v = rei.occupancyPercent;
+    if (v === null || v === undefined) return '-';
+    return `${v}%`;
   };
 
-  const getRentalYield = (): string => {
-    // This field is not available in GraphQL schema yet
-    if (data) {
-      return `*${data.real_estate_investment.rental_yield_percentage}%`;
-    }
-    return '*N/A';
-  };
+  const getRentalYield = (): string => 'N/A';
+  const getLastValuationDate = (): string => 'N/A';
 
-  const getLastValuationDate = (): string => {
-    // This field is not available in GraphQL schema yet
-    if (data) {
-      return `*${formatDate(data.real_estate_investment.last_valuation_date)}`;
-    }
-    return '*N/A';
-  };
+  const getBuildingYear = (): string => displayFromObj(rei, 'buildingYear');
 
-  const getPropertyCondition = (): string => {
-    // This field is not available in GraphQL schema yet
-    return '*Excellent';
-  };
-
-  const getPropertyManagement = (): string => {
-    // This field is not available in GraphQL schema yet
-    if (data) {
-      return `*${data.real_estate_investment.property_management_company}`;
-    }
-    return '*N/A';
-  };
-
-  const getBuildingYear = (): string => {
-    if (realEstateData?.buildingYear) {
-      return realEstateData.buildingYear;
-    }
-    return '*N/A';
-  };
-
-  const getNumberOfUnits = (): string => {
-    if (realEstateData?.numberOfUnits) {
-      return realEstateData.numberOfUnits.toString();
-    }
-    return '*N/A';
-  };
+  const getNumberOfUnits = (): string => displayFromObj(rei, 'numberOfUnits');
 
   const getAnnualExpenses = (): string => {
-    if (realEstateData?.annualExpenses) {
-      return formatCurrencyValue(realEstateData.annualExpenses, realEstateData.investment.currency);
-    }
-    return '*N/A';
+    if (!rei) return 'N/A';
+    if (!('actualAnnualExpenses' in rei)) return 'N/A';
+    return formatCurrencyValue(rei.actualAnnualExpenses, inv?.currency || undefined);
+  };
+
+  const getFunding = (): string => {
+    if (!rei) return 'N/A';
+    if (!('funding' in rei)) return 'N/A';
+    return formatCurrencyValue(rei.funding, inv?.currency || undefined);
+  };
+
+  const getCountry = (): string => {
+    if (!rei) return 'N/A';
+    if (!('country' in rei)) return 'N/A';
+    const v = rei.country?.value;
+    return v === null || v === undefined || v === '' ? '-' : String(v);
   };
 
   if (isLoading) {
@@ -195,6 +162,12 @@ const RealEstateDetails: React.FC<RealEstateDetailsProps> = ({ data, realEstateD
             </p>
           </div>
           <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Country</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {getCountry()}
+            </p>
+          </div>
+          <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Property Size</h4>
             <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
               {getPropertySize()}
@@ -210,6 +183,20 @@ const RealEstateDetails: React.FC<RealEstateDetailsProps> = ({ data, realEstateD
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Current Market Value</h4>
             <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
               {getCurrentMarketValue()}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Stake Percentage</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {inv && 'stakePercentage' in (inv as any)
+                ? ((inv as any).stakePercentage ?? '-')
+                : 'N/A'}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Funding</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {getFunding()}
             </p>
           </div>
           <div>

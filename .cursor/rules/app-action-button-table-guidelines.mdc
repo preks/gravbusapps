@@ -4,7 +4,7 @@ alwaysApply: true
 # AppActionButton Table Integration Guidelines (Concise)
 
 ## Core Rule
-Every table component must include AppActionButton as the **FIRST column**.
+Every table component must include AppActionButton as the **LAST column** with the size "icon".
 
 ## Required Imports & Props
 ```typescript
@@ -30,12 +30,12 @@ const columns = [
       <div className="gba:flex gba:justify-start gba:gap-2">
         <AppActionButton
           data-testid={`${PREFIX}-update-${entity}-button-${record.id}`}
-          variant="secondary"
+          size="icon"
           contextsArray={[FlowContextName.entityContext]}
           externalContextData={{ entityId: record.id }}
           prefixDataTestId={`${PREFIX}-update-${entity}`}
           accessToken={accessToken}
-          emptyStateBehavior="disable"
+          emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
           onClick={(e) => e.stopPropagation()}
         />
@@ -61,12 +61,12 @@ const columns = [
         <div className="gba:flex gba:justify-start gba:gap-2">
           <AppActionButton
             data-testid={`${entity}-update-${type}-button-${record.id}`}
-            variant="secondary"
+            size="icon"
             contextsArray={[FlowContextName.entityContext]}
             externalContextData={{ entityId: record.id }}
             prefixDataTestId={`${entity}-update-${type}`}
             accessToken={accessToken}
-            emptyStateBehavior="disable"
+            emptyStateBehavior="enable"
             deferMainContextRequestsUntilClick
             onClick={(e) => e.stopPropagation()}
           />
@@ -79,11 +79,10 @@ const columns = [
 ```
 
 ## Standard Configuration
-- **variant**: `"secondary"`
-- **emptyStateBehavior**: `"disable"`
-- **width**: `'60px'` (DataTable) or `gba:w-[60px]` (Custom)
+- **size**: `"icon"`
+- **emptyStateBehavior**: `"enable"`
 - **onClick**: `(e) => e.stopPropagation()`
-- **position**: First column (index 0)
+- **position**: Last column
 - **alignment**: `gba:justify-start`
 
 ## Entity Context Mapping

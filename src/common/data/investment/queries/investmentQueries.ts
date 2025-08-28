@@ -1,6 +1,7 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+import { INVESTMENT } from './fragments/investmentFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -117,61 +118,39 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        name
-        isin
-        acquisitionDate
-        planedExit
-        plannedExitDate
-        exitDate
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        debtFinancingAmount
-        requiredCapitalAmount
-        forecastedRevenueAmount
-        forecastedProfitAmount
-        stakePercentage
-        loanRecipientName
-        loanAmount
-        loanOpenCommitmentAmount
-        loanInterestRate
-        loanStartDate
-        loanEndDate
-        loanInterestClaim
-        totalCommitmentAmount
-        totalDistributionAmount
-        fundManagerName
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStakeType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT}  
         
         # Entity relationships
         investmentAccount {
           id
           code
           name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          investmentAccountContact {
+            contactType
+            contact {
+              id
+              firstName
+              lastName
+              fullName
+              email
+              phone
+              department
+              jobPosition
+              ${AUDIT_FIELDS}
+            }
+          }
         }
         investmentOpportunity {
           id
@@ -186,6 +165,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           foundationDate
           marketValue
           ebitdaAmount
+          turnoverAmount
+          additionalProperties
+          ${AUDIT_FIELDS}
         }
         
         # Real Estate Investment specialization
@@ -219,52 +201,39 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
   return `
     query GetInvestmentById {
       Investment(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        name
-        isin
-        acquisitionDate
-        planedExit
-        plannedExitDate
-        exitDate
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        debtFinancingAmount
-        requiredCapitalAmount
-        forecastedRevenueAmount
-        forecastedProfitAmount
-        stakePercentage
-        fundManagerName
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStakeType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT}
         
         # Entity relationships
         investmentAccount {
           id
           code
           name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          investmentAccountContact {
+            contactType
+            contact {
+              id
+              firstName
+              lastName
+              fullName
+              email
+              phone
+              department
+              jobPosition
+              ${AUDIT_FIELDS}
+            }
+          }
         }
         
         # All investment specializations with full details
@@ -279,9 +248,13 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         realEstateInvestment {
           id
           buildingYear
+          numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
           funding
+          occupancyPercent
+          locality
+          addressLine
           ${AUDIT_FIELDS}
           country {
             ${CATALOG_ENTRY}
@@ -300,6 +273,12 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           }
           interestPaymentFrequency {
             ${CATALOG_ENTRY}
+          }
+          liquidFundInvestmentReport {
+            id
+            date
+            interestRate
+            maturityDate
           }
         }
       }
@@ -342,19 +321,13 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
         stakePercentage
         
         investmentType {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         investmentStatus {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         currency {
-          id
-          code
-          value
+          ${CATALOG_ENTRY}
         }
         ownerEmployee {
           id

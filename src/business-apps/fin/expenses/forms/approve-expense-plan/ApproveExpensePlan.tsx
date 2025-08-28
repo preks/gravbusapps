@@ -7,6 +7,7 @@ import {
 } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getDestinationsFromTrips, getDestinationCountriesSummary } from './utils/destinationUtils';
 import { splitExpenseItems } from './utils/expenseItemUtils';
 import { useExpensePlanData } from './hooks/useExpensePlanData';
@@ -14,7 +15,7 @@ import { formatCurrency, getCatalogValue } from './utils/formatters';
 
 // Component imports
 import ExpensePlanHeader from './components/ExpensePlanHeader';
-import ExpensesSection from './components/ExpensesSection';
+import ExpensesSection from '../../reusable-components/approval/ExpensesSection';
 import TotalsSection from './components/TotalsSection';
 // Shared components
 import { 
@@ -184,7 +185,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
         prefixDataTestId="approve-expense-plan"
       />
        
-               <TripSection
+        <TripSection
           expenseRequestTrip={expensePlan.expenseRequestTrip}
           startDate={expensePlan.startDate}
           endDate={expensePlan.endDate}

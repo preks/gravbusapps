@@ -12,12 +12,36 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ liquidFundData }) => {
   if (!liquidFundData) {
     return null;
   }
-  // Placeholder computations until metrics are provided by API
-  const { investment, liquidFundInvestment } = liquidFundData;
-  const roi = 0; // derive when available
-  const multipleOfInvestedCapital = (investment.investmentMarketValue || 0) / (investment.totalInvestmentAmount || 1);
-  const annualReturn = 0; // derive when available
-  const ownershipValue = investment.investmentMarketValue || 0;
+  const { investment } = liquidFundData;
+
+  const marketValue = investment.investmentMarketValue ?? null;
+  const initialInvestment = investment.initialInvestmentAmount ?? null;
+  const totalInvestment = investment.totalInvestmentAmount ?? null;
+  const stakePercentage = investment.stakePercentage ?? null;
+  const acquisitionDate = investment.acquisitionDate ?? null;
+
+  // ROI = (Market - Initial) / Initial
+  const roi: number | null = marketValue !== null && initialInvestment !== null && initialInvestment > 0
+    ? ((marketValue - initialInvestment) / initialInvestment) * 100
+    : null;
+
+  // MOIC = Market / Total Investment Amount
+  const multipleOfInvestedCapital: number | null = marketValue !== null && totalInvestment !== null && totalInvestment > 0
+    ? marketValue / totalInvestment
+    : null;
+
+  // Annual Return (CAGR) = (Market / Initial)^(1/years) - 1
+  const yearsHeld: number | null = acquisitionDate
+    ? Math.max(0, (Date.now() - new Date(acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 365))
+    : null;
+  const annualReturn: number | null = marketValue !== null && initialInvestment !== null && initialInvestment > 0 && yearsHeld && yearsHeld > 0
+    ? (Math.pow(marketValue / initialInvestment, 1 / yearsHeld) - 1) * 100
+    : null;
+
+  // Ownership Value = Market * Stake% (fallback to Market if no stake)
+  const ownershipValue = marketValue !== null
+    ? (stakePercentage !== null ? marketValue * (stakePercentage / 100) : marketValue)
+    : 0;
   
   return (
     <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4">
@@ -30,7 +54,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ liquidFundData }) => {
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-gray-700">ROI</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {formatPercentage(roi)}
+                {roi === null ? 'N/A' : formatPercentage(roi)}
               </p>
             </div>
           </div>
@@ -46,7 +70,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ liquidFundData }) => {
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-gray-700">Multiple of Invested Capital</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {multipleOfInvestedCapital.toFixed(2)}x
+                {multipleOfInvestedCapital === null ? 'N/A' : `${multipleOfInvestedCapital.toFixed(2)}x`}
               </p>
             </div>
           </div>
@@ -62,7 +86,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ liquidFundData }) => {
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-gray-700">Annual Return</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {formatPercentage(annualReturn)}
+                {annualReturn === null ? 'N/A' : formatPercentage(annualReturn)}
               </p>
             </div>
           </div>

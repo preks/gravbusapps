@@ -13,6 +13,7 @@ import { InvestmentView } from "./views/investment-view";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import DashboardView from "./views/dashboard-view/DashboardView";
 import { AnalyticsView } from "./views/analytics-view";
+import { ReportView } from "./views/report-view";
 
 export interface InvestmentManagementProps extends BusinessAppContextProps { }
 
@@ -33,7 +34,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
     {
       key: "reports",
       icon: <TrendingDown />,
-      label: getTranslationFromI18nKeyAndLabel("reportss", "Reports"),
+      label: getTranslationFromI18nKeyAndLabel("reports", "Reports"),
     },
 
     {
@@ -162,6 +163,12 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
         return (
           <div data-testid="analytics-view" className="gba:h-full gba:overflow-auto">
             <AnalyticsView {...context} />
+          </div>
+        );
+      case "reports":
+        return (
+          <div data-testid="report-view" className="gba:h-full gba:overflow-auto">
+            <ReportView {...context} />
           </div>
         );
       case "investments":

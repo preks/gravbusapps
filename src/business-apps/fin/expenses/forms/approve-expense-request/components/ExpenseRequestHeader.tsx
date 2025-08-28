@@ -4,13 +4,14 @@ import { Separator } from '@newwork/nw-design-system';
 interface ExpenseRequestHeaderProps {
   title: string;
 }
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title }) => {
   return (
     <>
       {/* Header Section */}
       <div 
-        className="gba:text-center gba:mb-3" 
+        className="gba:text-center gba:mb-3 gba:mt-4" 
         data-testid="approve-expense-request-header"
       >
         {/* Title - Bold, medium */}
@@ -26,7 +27,7 @@ const ExpenseRequestHeader: React.FC<ExpenseRequestHeaderProps> = ({ title }) =>
           className="gba:text-sm gba:font-normal gba:m-0 gba:text-muted-foreground" 
           data-testid="approve-expense-request-subtitle"
         >
-          Expense Request Approval
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.expense_subtitle', 'Expense Request Approval')}
         </h2>
       </div>
 

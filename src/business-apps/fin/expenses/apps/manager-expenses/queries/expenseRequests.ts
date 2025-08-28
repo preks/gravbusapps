@@ -209,7 +209,7 @@ export const REJECT_EXPENSE_REQUEST = `
 `;
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!) {
+  query GetExpenseRequestStatistics($employeeId: uuid!, $currencyRef: String) {
   pendingRequests: ExpenseRequestAggregate(
     where: {
       employee: {
@@ -218,7 +218,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "PENDING"}
+      status: {_eq: "PENDING"},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
@@ -236,7 +237,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "APPROVED"}
+      status: {_eq: "APPROVED"},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
@@ -254,7 +256,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "REJECTED"}
+      status: {_eq: "REJECTED"},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
@@ -272,7 +275,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]}
+      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {

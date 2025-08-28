@@ -1,8 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import {
-  Button,
-  Alert
-} from "@newwork/nw-design-system";
+import { Button, Alert } from "@newwork/nw-design-system";
 // import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentLeads } from "@/common/data/investment/hooks/useInvestmentLeads";
@@ -16,7 +13,7 @@ import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useInvestmentLeadFilters } from "./hooks/useInvestmentLeadFilters";
 
-export interface LeadViewProps extends BusinessAppContextProps { }
+export interface LeadViewProps extends BusinessAppContextProps {}
 
 export const LeadView: React.FC<LeadViewProps> = (context) => {
   const { accessToken } = context;
@@ -29,7 +26,13 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
-  const { filterGroups, filterLabelMap, handleFilterChange, createdAfter, createdBefore } = useInvestmentLeadFilters(context, selectedFilters, setSelectedFilters);
+  const {
+    filterGroups,
+    filterLabelMap,
+    handleFilterChange,
+    createdAfter,
+    createdBefore,
+  } = useInvestmentLeadFilters(context, selectedFilters, setSelectedFilters);
 
   // Hooks for data fetching
   const { fetchInvestmentLeads } = useGetInvestmentLeads(context);
@@ -39,6 +42,9 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Lead statistics refresh function (will be defined by LeadStatistics component)
+  const [refreshStats, setRefreshStats] = useState<(() => void) | null>(null);
 
   // Build query variables
   const queryVariables: InvestmentLeadQueryVariables = useMemo(() => {
@@ -54,17 +60,17 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     const contactFullNames: string[] = [];
     let sensitive: boolean | undefined = undefined;
     selectedFilters.forEach((f) => {
-      if (f.startsWith('status:')) statusIds.push(f.slice(7));
-      else if (f.startsWith('owner:')) ownerIds.push(f.slice(6));
-      else if (f.startsWith('rating:')) ratingIds.push(f.slice(7));
-      else if (f.startsWith('source:')) sourceIds.push(f.slice(7));
-      else if (f.startsWith('country:')) countryIds.push(f.slice(8));
-      else if (f.startsWith('company:')) companyNames.push(f.slice(8));
-      else if (f.startsWith('region:')) regions.push(f.slice(7));
-      else if (f.startsWith('city:')) localities.push(f.slice(5));
-      else if (f.startsWith('contact:')) contactFullNames.push(f.slice(8));
-      else if (f === 'sensitive:true') sensitive = true;
-      else if (f === 'sensitive:false') sensitive = false;
+      if (f.startsWith("status:")) statusIds.push(f.slice(7));
+      else if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
+      else if (f.startsWith("rating:")) ratingIds.push(f.slice(7));
+      else if (f.startsWith("source:")) sourceIds.push(f.slice(7));
+      else if (f.startsWith("country:")) countryIds.push(f.slice(8));
+      else if (f.startsWith("company:")) companyNames.push(f.slice(8));
+      else if (f.startsWith("region:")) regions.push(f.slice(7));
+      else if (f.startsWith("city:")) localities.push(f.slice(5));
+      else if (f.startsWith("contact:")) contactFullNames.push(f.slice(8));
+      else if (f === "sensitive:true") sensitive = true;
+      else if (f === "sensitive:false") sensitive = false;
     });
     if (statusIds.length) filterVars.leadStatusIds = statusIds;
     if (ownerIds.length) filterVars.ownerEmployeeIds = ownerIds;
@@ -74,8 +80,9 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     if (companyNames.length) (filterVars as any).companyNames = companyNames;
     if (regions.length) (filterVars as any).regions = regions;
     if (localities.length) (filterVars as any).localities = localities;
-    if (contactFullNames.length) (filterVars as any).contactFullNames = contactFullNames;
-    if (typeof sensitive === 'boolean') filterVars.sensitive = sensitive;
+    if (contactFullNames.length)
+      (filterVars as any).contactFullNames = contactFullNames;
+    if (typeof sensitive === "boolean") filterVars.sensitive = sensitive;
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -83,9 +90,18 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       orderBy: [{ field: sortField, direction: sortOrder }],
       ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
       ...(createdBefore ? { createdAtTo: createdBefore } : {}),
-      ...filterVars
+      ...filterVars,
     };
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]);
+  }, [
+    currentPage,
+    pageSize,
+    searchTerm,
+    sortField,
+    sortOrder,
+    selectedFilters,
+    createdAfter,
+    createdBefore,
+  ]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -99,8 +115,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       setLeads(result.InvestmentLead || []);
       setTotalCount(result.InvestmentLeadAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error('Error loading investment leads:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      console.error("Error loading investment leads:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +126,88 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Listen for process events and refresh data when investment lead processes complete
+  useEffect(() => {
+    const handleProcessEvent = (event: any) => {
+      try {
+        console.log(
+          "✅ Investment Lead process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures
+        if (event.detail?.resolution === "success") {
+          console.log("✅ Success resolution detected, refreshing data");
+          loadData(); // Refresh lead list data
+          if (refreshStats) {
+            refreshStats(); // Also refresh statistics if available
+          }
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === "success" ||
+          response?.investmentLead
+        ) {
+          console.log(
+            "✅ Success in response or investmentLead detected, refreshing data"
+          );
+          loadData();
+          if (refreshStats) {
+            refreshStats();
+          }
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === "com.newwork.process.continue" &&
+          event.detail?.payload
+        ) {
+          console.log(
+            "✅ Continue event with payload detected, refreshing data"
+          );
+          loadData();
+          if (refreshStats) {
+            refreshStats();
+          }
+        }
+      } catch (err) {
+        console.error("Error handling process event:", err);
+      }
+    };
+
+    // Listen to multiple possible event names (following Investment Record pattern)
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue", // ✅ This is what our form dispatches!
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessEvent as EventListener);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          handleProcessEvent as EventListener
+        );
+      });
+    };
+  }, [loadData, refreshStats]);
 
   // Initialize from URL parameters (search and common filters)
   useEffect(() => {
@@ -123,23 +221,23 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     };
 
     // Basic filters (IDs)
-    pushAll('leadStatus', 'status');
-    pushAll('leadRating', 'rating');
-    pushAll('leadSource', 'source');
-    pushAll('owner', 'owner');
-    pushAll('country', 'country');
+    pushAll("leadStatus", "status");
+    pushAll("leadRating", "rating");
+    pushAll("leadSource", "source");
+    pushAll("owner", "owner");
+    pushAll("country", "country");
     // Value-based filters
-    pushAll('region', 'region');
-    pushAll('city', 'city');
+    pushAll("region", "region");
+    pushAll("city", "city");
     // Company and contact
-    pushAll('company', 'company');
-    pushAll('contact', 'contact'); // expects First|Last
+    pushAll("company", "company");
+    pushAll("contact", "contact"); // expects First|Last
 
     if (initialFilters.length) {
       setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
     }
 
-    const search = urlParams.get('search');
+    const search = urlParams.get("search");
     if (search) setSearchTerm(search);
   }, []);
 
@@ -155,14 +253,17 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   }, []);
 
   // Handle sorting
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-    } else {
-      setSortField(field);
-      setSortOrder("ASC");
-    }
-  }, [sortField, sortOrder]);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
+      } else {
+        setSortField(field);
+        setSortOrder("ASC");
+      }
+    },
+    [sortField, sortOrder]
+  );
 
   const handleSetFilter = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
@@ -195,13 +296,17 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Leads</h1>
-            <p className="gba:text-gray-600">Manage investment lead generation and qualification</p>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+              Investment Leads
+            </h1>
+            <p className="gba:text-gray-600">
+              Manage investment lead generation and qualification
+            </p>
           </div>
         </div>
 
         {/* Statistics Cards (server-based, separate fetch) */}
-        <LeadStatistics {...context} />
+        <LeadStatistics {...context} onRefreshReady={setRefreshStats} />
       </div>
 
       {/* Data Container with Lead List */}

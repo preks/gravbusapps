@@ -72,6 +72,7 @@ export const GET_LEADS_ANALYTICS = `
       lastName
       email
       createdAt
+      leadSourceType
       leadStatus {
         id
         code

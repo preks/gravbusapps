@@ -1,7 +1,72 @@
-// Investment Lead Queries - Complete queries without custom fragments
-// Using only common fragments: CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE
-import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+// Investment Lead Queries - using shared fragments and generic query helpers
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments';
+import { INVESTMENT_LEAD, INVESTMENT_CONTACT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers';
+import type { Descriptor } from '@/common/network/graphql/queryHelpers';
 
+// Unified descriptors for InvestmentLead (search, sort, filters, and option metadata)
+export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
+  // Search/sort
+  { key: 'firstName', searchPaths: ['firstName'], type: 'text' },
+  { key: 'lastName', searchPaths: ['lastName'], type: 'text' },
+  { key: 'email', searchPaths: ['email'], type: 'text' },
+  { key: 'companyName', searchPaths: ['companyName'], type: 'text' },
+  { key: 'city', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
+  { key: 'leadStatus', searchPaths: ['leadStatus.value', 'leadStatus.code'], sortPath: 'leadStatus.code', type: 'text' },
+  { key: 'leadRating', searchPaths: ['leadRating.value', 'leadRating.code'], sortPath: 'leadRating.code', type: 'text' },
+  { key: 'leadSource', searchPaths: ['leadSource.value', 'leadSource.code'], sortPath: 'leadSource.code', type: 'text' },
+  { key: 'ownerEmployee', searchPaths: ['ownerEmployee.displayName'], sortPath: 'ownerEmployee.displayName', type: 'text' },
+  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
+
+  // Filters (IDs, strings, booleans, dates, custom)
+  { key: 'academicTitleIds', path: 'academicTitle.id', kind: 'inIds' },
+  { key: 'salutationIds', path: 'salutation.id', kind: 'inIds' },
+  { key: 'leadStatusIds', path: 'leadStatus.id', kind: 'inIds' },
+  { key: 'leadSourceIds', path: 'leadSource.id', kind: 'inIds' },
+  { key: 'leadRatingIds', path: 'leadRating.id', kind: 'inIds' },
+  { key: 'industryClassIds', path: 'industryClass.id', kind: 'inIds' },
+  { key: 'companySizeIds', path: 'companySize.id', kind: 'inIds' },
+  {
+    key: 'ownerEmployeeIds',
+    path: 'ownerEmployee.id',
+    kind: 'inIds',
+    optionSelectPaths: ['ownerEmployee.id', 'ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
+    optionSearchPaths: ['ownerEmployee.firstName', 'ownerEmployee.lastName', 'ownerEmployee.displayName'],
+    optionDistinctOn: ['ownerEmployeeId']
+  },
+  { key: 'countryIds', path: 'country.id', kind: 'inIds', optionSelectPaths: ['country.id', 'country.code', 'country.value'], optionSearchPaths: ['country.code', 'country.value'] },
+  { key: 'companyNames', path: 'companyName', kind: 'inStrings', optionSelectPaths: ['companyName'], optionSearchPaths: ['companyName'] },
+  { key: 'regions', path: 'region.value', kind: 'inStrings', optionSelectPaths: ['region.id', 'region.code', 'region.value'], optionSearchPaths: ['region.value', 'region.code'] },
+  { key: 'localities', path: 'locality', kind: 'inStrings', optionSelectPaths: ['locality'], optionSearchPaths: ['locality'] },
+  { key: 'conversionDateFrom', path: 'conversionDate', kind: 'dateFrom' },
+  { key: 'conversionDateTo', path: 'conversionDate', kind: 'dateTo' },
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' },
+  { key: 'sensitive', path: 'sensitive', kind: 'eqBool' },
+  {
+    key: 'contactFullNames',
+    kind: 'custom',
+    optionSelectPaths: ['firstName', 'lastName'],
+    optionSearchPaths: ['firstName', 'lastName'],
+    build: (values: string[]) => {
+      if (!Array.isArray(values) || !values.length) return '';
+      const parts: string[] = [];
+      for (const n of values) {
+        const [first, last] = String(n).split('|');
+        const f = (first || '').trim();
+        const l = (last || '').trim();
+        if (f && l) {
+          parts.push(`{ _and: [ { firstName: { _ilike: "%${f}%" } }, { lastName: { _ilike: "%${l}%" } } ] }`);
+        } else if (f) {
+          parts.push(`{ firstName: { _ilike: "%${f}%" } }`);
+        } else if (l) {
+          parts.push(`{ lastName: { _ilike: "%${l}%" } }`);
+        }
+      }
+      return parts.length ? `{ _or: [${parts.join(', ')}] }` : '';
+    }
+  }
+];
 export interface InvestmentLeadQueryVariables {
   ids?: string[];
   search?: string;
@@ -35,111 +100,13 @@ export interface InvestmentLeadQueryVariables {
 export const buildInvestmentLeadWhereCondition = (variables: InvestmentLeadQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }';
 
-  // Search across multiple fields (only using fields that exist in the schema)
-  if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim();
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${searchTerm}%" } },
-      { lastName: { _ilike: "%${searchTerm}%" } },
-      { email: { _ilike: "%${searchTerm}%" } },
-      { phoneNumber: { _ilike: "%${searchTerm}%" } },
-      { position: { _ilike: "%${searchTerm}%" } },
-      { companyName: { _ilike: "%${searchTerm}%" } },
-      { companyEmail: { _ilike: "%${searchTerm}%" } },
-      { companyPhone: { _ilike: "%${searchTerm}%" } },
-      { companyWebsite: { _ilike: "%${searchTerm}%" } },
-      { code: { _ilike: "%${searchTerm}%" } },
-      { description: { _ilike: "%${searchTerm}%" } },
-      { investmentName: { _ilike: "%${searchTerm}%" } }
-    ]`;
-  }
+  // Generic search across dot-paths from descriptors
+  const searchOr = buildSearch(variables.search || '', INVESTMENT_LEAD_DESCRIPTORS);
+  if (searchOr) whereClause += `, ${searchOr}`;
 
-  // Filter by specific fields
-  if (variables.academicTitleIds?.length) {
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.salutationIds?.length) {
-    whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.leadStatusIds?.length) {
-    whereClause += `, leadStatus: { id: { _in: [${variables.leadStatusIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.leadSourceIds?.length) {
-    whereClause += `, leadSource: { id: { _in: [${variables.leadSourceIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.leadRatingIds?.length) {
-    whereClause += `, leadRating: { id: { _in: [${variables.leadRatingIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.industryClassIds?.length) {
-    whereClause += `, industryClass: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.companySizeIds?.length) {
-    whereClause += `, companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.conversionDateFrom) {
-    whereClause += `, conversionDate: { _gte: "${variables.conversionDateFrom}" }`;
-  }
-
-  if (variables.conversionDateTo) {
-    whereClause += `, conversionDate: { _lte: "${variables.conversionDateTo}" }`;
-  }
-
-  if (variables.createdAtFrom) {
-    whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`;
-  }
-
-  if (variables.createdAtTo) {
-    whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`;
-  }
-
-  if (variables.countryIds?.length) {
-    whereClause += `, country: { id: { _in: [${variables.countryIds.map(id => `"${id}"`).join(', ')}] } }`;
-  }
-
-  if (variables.companyNames?.length) {
-    whereClause += `, companyName: { _in: [${variables.companyNames.map(n => `"${n.replace(/"/g, '\\"')}"`).join(', ')}] }`;
-  }
-
-  if (variables.regions?.length) {
-    whereClause += `, region: { value: { _in: [${variables.regions.map(r => `"${r.replace(/"/g, '\\"')}"`).join(', ')}] } }`;
-  }
-
-  if (variables.localities?.length) {
-    whereClause += `, locality: { _in: [${variables.localities.map(c => `"${c.replace(/"/g, '\\"')}"`).join(', ')}] }`;
-  }
-
-  if (variables.contactFullNames?.length) {
-    const nameConds = variables.contactFullNames.map(n => {
-      const [first, last] = n.split('|');
-      const f = (first || '').trim();
-      const l = (last || '').trim();
-      if (f && l) {
-        return `{ _and: [ { firstName: { _ilike: "%${f}%" } }, { lastName: { _ilike: "%${l}%" } } ] }`;
-      }
-      if (f) return `{ firstName: { _ilike: "%${f}%" } }`;
-      if (l) return `{ lastName: { _ilike: "%${l}%" } }`;
-      return '';
-    }).filter(Boolean);
-    if (nameConds.length) {
-      whereClause += `, _or: [${nameConds.join(', ')}]`;
-    }
-  }
-
-  // Boolean filter for sensitivity
-  if (typeof variables.sensitive === 'boolean') {
-    whereClause += `, sensitive: { _eq: ${variables.sensitive} }`;
-  }
+  // Generic AND filters from descriptors
+  const andFilters = buildFilter(variables as any, INVESTMENT_LEAD_DESCRIPTORS);
+  if (andFilters) whereClause += `, ${andFilters}`;
 
   whereClause += ' }';
   return whereClause;
@@ -151,9 +118,8 @@ export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {
   const offset = variables.offset || 0;
   const where = buildInvestmentLeadWhereCondition(variables);
 
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC }]';
+  const orderByBuilt = buildOrderBy(variables.orderBy || [], INVESTMENT_LEAD_DESCRIPTORS);
+  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]';
 
   return `
     query GetInvestmentLeads {
@@ -163,50 +129,7 @@ export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        firstName
-        lastName
-        sensitive
-        email
-        phoneNumber
-        position
-        companyName
-        companyEmail
-        companyPhone
-        companyWebsite
-        description
-        conversionDate
-        annualNetColdRent
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        academicTitle {
-          ${CATALOG_ENTRY}
-        }
-        salutation {
-          ${CATALOG_ENTRY}
-        }
-        leadRating {
-          ${CATALOG_ENTRY}
-        }
-        leadStatus {
-          ${CATALOG_ENTRY}
-        }
-        leadSource {
-          ${CATALOG_ENTRY}
-        }
-        industryClass {
-          ${CATALOG_ENTRY}
-        }
-        companySize {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_LEAD}
         
         # Entity relationships
         convertedAccount {
@@ -215,13 +138,15 @@ export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {
           name
           email
           geographicPresence
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          companySize {
+            ${CATALOG_ENTRY}
+          }
         }
         convertedContact {
-          id
-          code
-          firstName
-          lastName
-          email
+          ${INVESTMENT_CONTACT_REF}
         }
       }
       
@@ -239,54 +164,7 @@ export const GET_INVESTMENT_LEAD_BY_ID = (id: string): string => {
   return `
     query GetInvestmentLeadById {
       InvestmentLead(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        id
-        code
-        firstName
-        lastName
-        sensitive
-        email
-        
-        companyName
-        companyEmail
-        companyPhone
-        companyWebsite
-        
-        description
-        
-        
-        conversionDate
-        
-        
-        annualNetColdRent
-        ${AUDIT_FIELDS}
-        
-        # Catalog relationships
-        academicTitle {
-          ${CATALOG_ENTRY}
-        }
-        salutation {
-          ${CATALOG_ENTRY}
-        }
-        
-        leadStatus {
-          ${CATALOG_ENTRY}
-        }
-        leadSource {
-          ${CATALOG_ENTRY}
-        }
-        industryClass {
-          ${CATALOG_ENTRY}
-        }
-        companySize {
-          ${CATALOG_ENTRY}
-        }
-        
-        
-        # Employee relationship
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
-        
+        ${INVESTMENT_LEAD}
         # Entity relationships
         convertedAccount {
           id
@@ -299,11 +177,7 @@ export const GET_INVESTMENT_LEAD_BY_ID = (id: string): string => {
           }
         }
         convertedContact {
-          id
-          code
-          firstName
-          lastName
-          email
+          ${INVESTMENT_CONTACT_REF}
         }
       }
     }
@@ -375,35 +249,7 @@ export const GET_INVESTMENT_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        code
-        name
-        description
-        comment
-        startDate
-        dueDate
-        endDate
-        taskTiming
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        taskType {
-          ${CATALOG_ENTRY}
-        }
-        taskPriority {
-          ${CATALOG_ENTRY}
-        }
-        taskStatus {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee references
-        creatorEmployee {
-          ${EMPLOYEE}
-        }
-        assignedEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_TASK}
         
         # Entity references
         lead {
@@ -428,22 +274,7 @@ export const GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => 
         }
         orderBy: [{ occurredAt: DESC }]
       ) {
-        id
-        title
-        description
-        occurredAt
-        completedAt
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        activityType {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Employee references
-        ownerEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_ACTIVITY}
         
         # Entity references
         lead {
@@ -468,16 +299,7 @@ export const GET_INVESTMENT_NOTES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        title
-        text
-        reminderDate
-        ${AUDIT_FIELDS}
-        
-        # Employee references
-        authorEmployee {
-          ${EMPLOYEE}
-        }
+        ${INVESTMENT_NOTE}
         
         # Entity references
         lead {
@@ -502,35 +324,7 @@ export const GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        id
-        name
-        description
-        file
-        fileSize
-        mimeType
-        verified
-        verificationDate
-        authenticated
-        authenticationDate
-        mandatory
-        expirationDate
-        folder
-        ${AUDIT_FIELDS}
-        
-        # Catalog references
-        documentGroup {
-          ${CATALOG_ENTRY}
-        }
-        documentType {
-          ${CATALOG_ENTRY}
-        }
-        
-        # Entity references
-        parentDocument {
-          id
-          name
-          description
-        }
+        ${INVESTMENT_DOCUMENT}
         lead {
           id
           code

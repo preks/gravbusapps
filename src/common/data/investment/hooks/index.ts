@@ -5,6 +5,7 @@ export * from './useInvestmentLeads';
 export * from './useInvestmentAccounts';
 export * from './useInvestmentContacts';
 export * from './useInvestmentOpportunities';
+export * from './useInvestmentTasks';
 
 // Core Investment Entity Hooks
 export * from './useInvestments';

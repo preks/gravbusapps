@@ -17,18 +17,18 @@ const MessageSection: React.FC<MessageSectionProps> = ({
   onMessageChange,
   prefixDataTestId = 'approve-expense',
   warningKey = 'approve_expense.warning_message',
-  warningDefaultText = 'Please add a message!'
+  warningDefaultText = getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.warning_message', 'Please add a message!')
 }) => {
   return (
-    <div className="gba:mb-4 gba:bg-gray-100 gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
+    <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid={`${prefixDataTestId}-message`}>
       <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
-        Message
+        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.search_employee_list.recent_employees_table.message', 'Message')}
       </div>
       <Textarea
-        placeholder="Write Message..."
+        placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.comment_area', 'Write Message...')}
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
-        className="gba:bg-transparent gba:border-none gba:text-muted-foreground gba:resize-none gba:p-0 gba:text-xs"
+        className="gba:bg-transparent gba:border-none gba:text-muted-foreground gba:resize-none gba:p-2 gba:text-xs gba:bg-gray-100"
         data-testid={`${prefixDataTestId}-message-textarea`}
       />
       

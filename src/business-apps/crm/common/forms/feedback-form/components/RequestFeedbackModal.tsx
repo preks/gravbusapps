@@ -1,0 +1,321 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Button, 
+  Label, 
+  Spinner, 
+  Alert,
+  AlertDescription,
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from '@newwork/nw-design-system';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+
+const prefixDataTestId = "RequestFeedbackModal";
+
+interface EmployeeOption {
+  id: string;
+  name: string;
+  jobTitle?: string;
+  department?: string;
+  pictureThumbnail?: string;
+  userId?: string;
+}
+
+interface RequestFeedbackModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  businessAppContext: BusinessAppContextProps;
+}
+
+const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
+  isOpen,
+  onClose,
+  businessAppContext
+}) => {
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Add null checks for businessAppContext
+  if (!businessAppContext || !businessAppContext.accessToken) {
+    return null;
+  }
+  
+  const graphqlClient = useGraphQLClient(businessAppContext.accessToken);
+  const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+
+  // Fetch employees
+  const fetchEmployees = async (search?: string) => {
+    if (!businessAppContext.accessToken) return;
+
+    const structureId = getCurrentActiveStructureId();
+    if (!structureId) {
+      setError('No structure ID available');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const query = `
+        query GetStructureEmployees($structureId: uuid!, $search: String, $limit: Int) {
+          EmployeePosition(
+            where: {
+              structureId: { _eq: $structureId },
+              employee: { isDeleted: { _eq: false } },
+              _or: [
+                { firstName: { _ilike: $search } },
+                { lastName: { _ilike: $search } },
+                { employee: { displayName: { _ilike: $search } } }
+              ]
+            },
+            limit: $limit,
+            orderBy: { firstName: ASC, lastName: ASC }
+          ) {
+            id
+            employeeId
+            firstName
+            lastName
+            employee {
+                id
+                displayName
+                pictureThumbnail
+                userId
+              }
+            jobPosition {
+              name
+            }
+            organizationalUnit {
+              name
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        structureId,
+        search: search ? `%${search}%` : '%',
+        limit: 200
+      };
+
+      const result = await graphqlClient.request(query, variables);
+      
+      const employeeOptions: EmployeeOption[] = result.EmployeePosition
+        .map((emp: any) => ({
+          id: emp.employeeId,
+          name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+          jobTitle: emp.jobPosition?.name,
+          department: emp.organizationalUnit?.name,
+          pictureThumbnail: emp.employee?.pictureThumbnail,
+          userId: emp.employee?.userId
+        }))
+        // Filter out the current user from the list
+        .filter((emp: EmployeeOption) => !currentUserEmployeeId || emp.id !== currentUserEmployeeId);
+
+      setEmployees(employeeOptions);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch employees');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get selected employee details
+  const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+
+  // Handle search
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    fetchEmployees(value);
+  };
+
+  // Handle employee selection
+  const handleEmployeeChange = (employeeId: string) => {
+    setSelectedEmployeeId(employeeId);
+    setError(null);
+  };
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (!selectedEmployeeId) {
+      setError('Please select an employee to request feedback from');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const payload = {
+        feedbackRequest: {
+          id: undefined, // Will be generated by the process
+          businessKey: undefined, // Will be generated by the process
+          requestDate: new Date().toISOString(),
+          requesterEmployeeId: currentUserEmployeeId, // Current user requesting feedback
+          requestedEmployeeId: selectedEmployeeId, // Employee to request feedback from
+          status: 'pending', // Default status
+        },
+        receiverId: selectedEmployee?.userId, // The user ID of the employee to request feedback from
+        event: "request_feedback"
+      };
+      
+      // Dispatch the process continue event
+      dispatchProcessContinueEvent("pse_request_feedback", payload);
+      
+      // Close the modal
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to request feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedEmployeeId('');
+      setError(null);
+      setSearchTerm('');
+      fetchEmployees();
+    }
+  }, [isOpen]);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="gba:max-w-md gba:w-full">
+        <DialogHeader>
+          <DialogTitle>
+            {getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="gba:space-y-4 gba:p-4">
+          {/* Employee Selection Section */}
+          <div className="gba:space-y-2">
+            <Label htmlFor="employee-select" className="gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel('feedback.request.employee.label', 'Select Employee')} *
+            </Label>
+            
+            {/* Search Input */}
+            <input
+              type="text"
+              placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.search.placeholder', 'Search employees...')}
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
+              data-testid={formatDataTestId(prefixDataTestId, "SearchInput")}
+            />
+
+            {/* Employee Dropdown */}
+            <select
+              id="employee-select"
+              name="employee"
+              value={selectedEmployeeId}
+              onChange={(e) => handleEmployeeChange(e.target.value)}
+              className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
+              data-testid={formatDataTestId(prefixDataTestId, "EmployeeSelect")}
+            >
+              <option value="">
+                {getTranslationFromI18nKeyAndLabel('feedback.request.employee.placeholder', 'Select an employee...')}
+              </option>
+              {isLoading ? (
+                <option disabled>
+                  {getTranslationFromI18nKeyAndLabel('feedback.request.employee.loading', 'Loading employees...')}
+                </option>
+              ) : error ? (
+                <option disabled className="gba:text-red-500">
+                  {error}
+                </option>
+              ) : employees.length === 0 ? (
+                <option disabled>
+                  {getTranslationFromI18nKeyAndLabel('feedback.request.employee.empty', 'No employees found')}
+                </option>
+              ) : (
+                employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} {employee.jobTitle && `(${employee.jobTitle})`}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Selected Employee Display */}
+          {selectedEmployee && (
+            <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-gray-50 gba:rounded-lg">
+              <Avatar className="gba:w-10 gba:h-10">
+                {selectedEmployee.pictureThumbnail && (
+                  <AvatarImage
+                    src={`data:image/gif;base64,${selectedEmployee.pictureThumbnail}`}
+                    alt={selectedEmployee.name}
+                  />
+                )}
+                <AvatarFallback className="gba:bg-gray-300">
+                  {selectedEmployee.name !== "-"
+                    ? selectedEmployee.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                    : "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="gba:flex-1">
+                <div className="gba:font-medium gba:text-gray-900">{selectedEmployee.name}</div>
+                {selectedEmployee.jobTitle && (
+                  <div className="gba:text-sm gba:text-gray-500">{selectedEmployee.jobTitle}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, "ErrorAlert")}>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Action Buttons */}
+          <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            >
+              {getTranslationFromI18nKeyAndLabel('feedback.request.cancel', 'Cancel')}
+            </Button>
+            <Button
+              variant="default"
+              disabled={!selectedEmployeeId || isSubmitting}
+              onClick={handleSubmit}
+              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white"
+              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            >
+              {isSubmitting && <Spinner size="sm" className="gba:mr-2" />}
+              {getTranslationFromI18nKeyAndLabel('feedback.request.submit', 'Request Feedback')}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default RequestFeedbackModal;

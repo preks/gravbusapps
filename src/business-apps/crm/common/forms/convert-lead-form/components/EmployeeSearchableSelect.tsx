@@ -155,12 +155,13 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
       const { target } = e;
       if (target instanceof HTMLDivElement) {
         const { scrollTop, scrollHeight, clientHeight } = target;
-        if (
-          scrollTop + clientHeight >= scrollHeight - 10 &&
-          hasMore &&
-          !loading &&
-          onLoadMore
-        ) {
+        // More generous threshold for scroll detection (50px from bottom)
+        const threshold = 50;
+        const isNearBottom =
+          scrollTop + clientHeight >= scrollHeight - threshold;
+        const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+        if (isNearBottom && hasMore && !loading && onLoadMore) {
           onLoadMore();
         }
       }
@@ -333,7 +334,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
           <SelectContent
             className="gba:w-full gba:max-h-80 gba:overflow-hidden"
             ref={listRef}
-            onScroll={handleScroll}
           >
             {/* Search Input */}
             <div className="gba:sticky gba:top-0 gba:z-10 gba:bg-white gba:border-b gba:border-gray-200 gba:p-2">
@@ -373,7 +373,10 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
             </div>
 
             {/* Results */}
-            <div className="gba:max-h-64 gba:overflow-y-auto">
+            <div
+              className="gba:max-h-64 gba:overflow-y-auto"
+              onScroll={handleScroll}
+            >
               {enhancedOptions.length > 0 ? (
                 enhancedOptions.map((employee) => (
                   <SelectItem

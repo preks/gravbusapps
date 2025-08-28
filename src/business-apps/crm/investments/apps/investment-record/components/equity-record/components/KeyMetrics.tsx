@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent } from '@newwork/nw-design-system';
 import { TrendingUp, Target, BarChart3, DollarSign } from 'lucide-react';
 import { formatCurrency, formatPercentage } from '../../../utils/formatters';
-import { EquityInvestmentRecord } from '../types';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import { 
   calculateEquityKPIs, 
@@ -11,7 +10,7 @@ import {
 } from '../utils/kpiCalculations';
 
 interface KeyMetricsProps {
-  data?: EquityInvestmentRecord; // Legacy mock data
+  data?: any; // Legacy mock data not used anymore
   equityData?: EquityInvestmentData | null; // Real GraphQL data
   isLoading?: boolean;
 }
@@ -127,9 +126,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, equityData, isLoading }) 
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
                 {formatROI()}
               </p>
-              {equityData && kpis.roi_percentage !== null && (
-                <p className="gba:text-xs gba:text-gray-500">Calculated from real data</p>
-              )}
+              
             </div>
           </div>
         </CardContent>
@@ -146,9 +143,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, equityData, isLoading }) 
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
                 {formatMultiple()}
               </p>
-              {equityData && kpis.multiple_of_invested_capital !== null && (
-                <p className="gba:text-xs gba:text-gray-500">Calculated from real data</p>
-              )}
+              
             </div>
           </div>
         </CardContent>
@@ -165,9 +160,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, equityData, isLoading }) 
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
                 {formatAnnualReturn()}
               </p>
-              {equityData && kpis.annual_return_percentage !== null && (
-                <p className="gba:text-xs gba:text-gray-500">Calculated from real data</p>
-              )}
+              
             </div>
           </div>
         </CardContent>
@@ -184,9 +177,7 @@ const KeyMetrics: React.FC<KeyMetricsProps> = ({ data, equityData, isLoading }) 
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
                 {formatOwnershipValue()}
               </p>
-              {equityData && kpis.ownership_value !== null && (
-                <p className="gba:text-xs gba:text-gray-500">Calculated from real data</p>
-              )}
+              
             </div>
           </div>
         </CardContent>

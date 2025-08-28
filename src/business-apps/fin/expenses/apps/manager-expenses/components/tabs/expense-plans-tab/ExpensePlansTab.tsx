@@ -19,36 +19,40 @@ interface ExpensePlansTabProps extends BusinessAppContextProps {
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo,
-    }),
-    [props.accessToken, props.userInfo]
-  );
-
-  // Use the expense plan filters hook (same pattern as expense items)
+  const contextProps = useMemo(() => ({
+    accessToken: props.accessToken,
+    userInfo: props.userInfo
+  }), [props.accessToken, props.userInfo]);
+  
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the expense plan filters hook with accessToken and managerId for dynamic currency data
   const {
     searchTerm,
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    currencyFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
-  } = useExpensePlanFilters();
+  } = useExpensePlanFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
 
   // Use the statistics-only hook to get KPI data without interfering with table data
   const {
     planStats,
     statsLoading,
     statsError,
-    fetchPlanStatistics,
     approvePlan,
     rejectPlan,
   } = useMainViewExpensePlans({
     ...contextProps,
-    statisticsOnly: true, // This prevents race conditions with the table data
+    currentCurrencyFilter: currencyFilter,
+    statisticsOnly: true // This prevents race conditions with the table data
   });
 
   // State for selected plan details
@@ -100,16 +104,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     [setSearchTerm]
   );
 
-  // Handle filter changes (only log when user actually clicks)
-  const handleFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      console.log("🔥 Filter clicked:", { filterId, selected }); // Only log on actual clicks
-      handleDataFilterChange(filterId, selected);
-    },
-    [handleDataFilterChange]
-  );
+  // No need for separate status filter handler as we use handleDataFilterChange
 
-  // Handle clearing all filters
+  // Use the handleDataFilterChange function directly from the hook
+  // This handles both status and currency filters
+
+  // Handle clear all filters
   const clearAllFilters = useCallback(() => {
     setSearchTerm("");
     setStatusFilter([]);
@@ -123,9 +123,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           planStats={planStats}
           statsLoading={statsLoading}
           statsError={statsError}
-          fetchPlanStatistics={fetchPlanStatistics}
           activeFilter={statusFilter}
-          onFilterChange={(filter) => setStatusFilter(filter || [])}
+          onFilterChange={(filter) => setStatusFilter(filter ? [filter as unknown as ExpenseStatus] : [])}
+          currencyFilter={currencyFilter}
+          fetchPlanStatistics={() => {}}
         />
       </div>
 
@@ -133,79 +134,82 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       <DataContainer
         contentBackground="white"
         dataControllerProps={{
-          search: searchTerm,
-          filter: statusFilter,
-          setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
-            const filtersToRemove = statusFilter.filter(
-              (f) => !newFilters.includes(f)
-            );
-            if (filtersToRemove.length > 0) {
-              console.log("🔥 Filters removed:", filtersToRemove); // Only log when filters actually removed
-            }
-            setStatusFilter(newFilters as ExpenseStatus[]);
-          },
-          addButton: {
-            onClick: () => {
-              // TODO: Implement add plan functionality
-              console.log("Add plan clicked");
+            search: searchTerm,
+            filter: statusFilter,
+            setSearch: handleSearchChange,
+            setFilter: (newFilters) => {
+              // Convert filters to string IDs for comparison
+              const currentFilters = statusFilter.map(status => status as unknown as string);
+              const incomingFilters = newFilters.map(status => status as unknown as string);
+              
+              // Find filters to remove and add
+              const filtersToRemove = currentFilters.filter(f => !incomingFilters.includes(f));
+              const filtersToAdd = incomingFilters.filter(f => !currentFilters.includes(f));
+              
+              // Apply filter changes
+              filtersToRemove.forEach(filter => handleDataFilterChange(filter, false));
+              filtersToAdd.forEach(filter => handleDataFilterChange(filter, true));
             },
-            label: "Add",
-            "data-testid": "add-expense-plan-button",
-          },
-          filterLabelMap: filterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:backoffice_expense_landing_page.plan_info_pl",
-                    "Plans"
-                  )}
-                </span>
-                <span className="gba:text-gray-500">(x)</span>
+            addButton: {
+              onClick: () => {
+                // TODO: Implement add plan functionality
+                console.log("Add plan clicked");
+              },
+              label: "Add",
+              "data-testid": "add-expense-plan-button"
+            },
+            filterLabelMap: filterLabelMap,
+            listTitle: (
+              <div className="gba:flex gba:items-center gba:gap-4">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:backoffice_expense_landing_page.plan_info_pl",
+                      "Plans"
+                    )}
+                  </span>
+                  <span className="gba:text-gray-500">(x)</span>
+                </div>
               </div>
+            ),
+            debounceDelay: 300
+          }}
+          dataFilterProps={{
+            filterGroups,
+            onFilterChange: handleDataFilterChange
+          }}
+          dataBody={
+            <div data-testid="expense-plans-table-container">
+              <ExpensePlansTable
+                {...contextProps}
+                search={searchTerm}
+                onSearchChange={handleSearchChange}
+                activeFilter={statusFilter}
+                onFilterChange={(filter) => setStatusFilter(filter ? [filter as unknown as ExpenseStatus] : [])}
+                onClearFilters={clearAllFilters}
+                employeeId={props.employeeId}
+                onViewDetails={handleViewDetails}
+                currencyFilter={currencyFilter}
+              />
             </div>
-          ),
-          debounceDelay: 300,
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        dataBody={
-          <div data-testid="expense-plans-table-container">
-            <ExpensePlansTable
-              {...contextProps}
-              search={searchTerm}
-              onSearchChange={handleSearchChange}
-              activeFilter={statusFilter}
-              onFilterChange={(filter) => setStatusFilter(filter || [])}
-              onClearFilters={clearAllFilters}
-              employeeId={props.employeeId}
-              onViewDetails={handleViewDetails}
-            />
-          </div>
-        }
-        dataDetails={
-          selectedPlan
-            ? {
-                title: selectedPlan.title || "Expense Plan Details",
-                icon: <PiFileText />,
-                content: (
-                  <ExpensePlanDetails
-                    {...contextProps}
-                    plan={selectedPlan}
-                    onApprove={handleApprovePlan}
-                    onReject={handleRejectPlan}
-                  />
-                ),
-                onClose: handleCloseDetails,
-                footer: null,
-              }
-            : undefined
-        }
-      />
+          }
+          dataDetails={selectedPlan ? {
+            title: selectedPlan.title || 'Expense Plan Details',
+            icon: <PiFileText />,
+            content: (
+              <ExpensePlanDetails
+                {...contextProps}
+                plan={selectedPlan}
+                onApprove={handleApprovePlan}
+                onReject={handleRejectPlan}
+                {...contextProps} 
+                // @ts-ignore - Component expects these props but TypeScript doesn't recognize them
+              />
+            ),
+            onClose: handleCloseDetails,
+            footer: null
+          } : undefined}
+        />
     </div>
   );
 };

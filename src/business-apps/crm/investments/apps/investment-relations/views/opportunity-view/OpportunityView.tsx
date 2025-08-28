@@ -1,25 +1,15 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { 
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  RadioGroup,
-  RadioGroupItem,
-  Label,
   Spinner,
   Alert,
-  Button
+  Button,
 } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
-import { useGenericPipelines } from "@/components/kanban-board/hooks/useGenericPipelines";
-import { useGenericPipelineStages } from "@/components/kanban-board/hooks/useGenericPipelineStages";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
 import type { InvestmentOpportunityQueryVariables } from "@/common/data/investment/queries/investmentOpportunityQueries";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
@@ -34,8 +24,8 @@ import { useInvestmentOpportunityFilters } from "./hooks/useInvestmentOpportunit
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
 export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
-  const { accessToken, userInfo } = context;
-  
+  const { accessToken } = context;
+
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,28 +35,34 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
-  
-  // Filter states
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("all");
-  const [opportunityFilter, setOpportunityFilter] = useState<"my" | "all" | "selected">("all");
-  const [selectedEmployeeIds] = useState<string[]>([]);
+
+  // Board view filters have been moved to the OpportunityBoard component
+  // List view only needs basic filtering
 
   // Hooks for data fetching
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
-  const { pipelines } = useGenericPipelines(accessToken, "InvestmentOpportunityPipeline");
-  const { stages, isLoading: isLoadingStages } = useGenericPipelineStages(
-    accessToken,
-    "InvestmentOpportunityPipelineStage",
-    selectedPipelineId === "all" ? undefined : selectedPipelineId
-  );
+  const { fetchInvestmentOpportunities } =
+    useGetInvestmentOpportunities(context);
+  // Board view loads its own stages based on selected pipeline
 
   // Data state
-  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([]);
+  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>(
+    []
+  );
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { filterGroups, filterLabelMap, handleFilterChange, closeAfter, closeBefore } = useInvestmentOpportunityFilters(context, selectedFilters, setSelectedFilters);
+  const {
+    filterGroups,
+    filterLabelMap,
+    handleFilterChange,
+    closeAfter,
+    closeBefore,
+  } = useInvestmentOpportunityFilters(
+    context,
+    selectedFilters,
+    setSelectedFilters
+  );
 
   // Build query variables
   const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => {
@@ -89,19 +85,21 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     const chanceRanges: Array<{ min?: number; max?: number }> = [];
 
     selectedFilters.forEach((f) => {
-      if (f.startsWith('owner:')) ownerIds.push(f.slice(6));
-      else if (f.startsWith('stage:')) stageIds.push(f.slice(6));
-      else if (f.startsWith('pipeline:')) pipelineIds.push(f.slice(9));
-      else if (f.startsWith('account:')) accountIds.push(f.slice(8));
-      else if (f.startsWith('status:')) statusIds.push(f.slice(7));
-      else if (f === 'amount-large') amountRanges.push({ min: 100000 });
-      else if (f === 'amount-medium') amountRanges.push({ min: 50000, max: 100000 });
-      else if (f === 'amount-small') amountRanges.push({ min: 10000, max: 50000 });
-      else if (f === 'amount-micro') amountRanges.push({ max: 10000 });
-      else if (f === 'chance-high') chanceRanges.push({ min: 75, max: 100 });
-      else if (f === 'chance-medium') chanceRanges.push({ min: 50, max: 74 });
-      else if (f === 'chance-low') chanceRanges.push({ min: 25, max: 49 });
-      else if (f === 'chance-very-low') chanceRanges.push({ min: 0, max: 24 });
+      if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
+      else if (f.startsWith("stage:")) stageIds.push(f.slice(6));
+      else if (f.startsWith("pipeline:")) pipelineIds.push(f.slice(9));
+      else if (f.startsWith("account:")) accountIds.push(f.slice(8));
+      else if (f.startsWith("status:")) statusIds.push(f.slice(7));
+      else if (f === "amount-large") amountRanges.push({ min: 100000 });
+      else if (f === "amount-medium")
+        amountRanges.push({ min: 50000, max: 100000 });
+      else if (f === "amount-small")
+        amountRanges.push({ min: 10000, max: 50000 });
+      else if (f === "amount-micro") amountRanges.push({ max: 10000 });
+      else if (f === "chance-high") chanceRanges.push({ min: 75, max: 100 });
+      else if (f === "chance-medium") chanceRanges.push({ min: 50, max: 74 });
+      else if (f === "chance-low") chanceRanges.push({ min: 25, max: 49 });
+      else if (f === "chance-very-low") chanceRanges.push({ min: 0, max: 24 });
     });
 
     if (ownerIds.length) variables.ownerEmployeeIds = ownerIds;
@@ -110,45 +108,44 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     if (accountIds.length) variables.accountIds = accountIds;
     if (statusIds.length) variables.statusIds = statusIds;
     if (amountRanges.length) {
-      const min = Math.min(...amountRanges.map(r => r.min ?? 0));
-      const max = Math.max(...amountRanges.map(r => (r.max ?? Number.MAX_SAFE_INTEGER)));
-      variables.estimatedAmountBetween = [min, max];
+      const min = Math.min(...amountRanges.map((r) => r.min ?? 0));
+      const max = Math.max(
+        ...amountRanges.map((r) => r.max ?? Number.MAX_SAFE_INTEGER)
+      );
+      variables.forecastedProfitBetween = [min, max];
     }
-    if (chanceRanges.length) {
-      const cmin = Math.min(...chanceRanges.map(r => r.min ?? 0));
-      const cmax = Math.max(...chanceRanges.map(r => (r.max ?? 100)));
-      variables.winningChanceBetween = [cmin, cmax];
-    }
+    // Note: winningChance filtering not supported in current schema
 
-    // Add pipeline filter from selector
-    if (selectedPipelineId !== "all") {
-      variables.pipelineIds = [selectedPipelineId];
-    }
-
-    // Add employee filter
-    if (opportunityFilter === "my" && userInfo?.employeeDetails?.employeeId) {
-      variables.ownerEmployeeIds = [userInfo.employeeDetails.employeeId];
-    } else if (opportunityFilter === "selected" && selectedEmployeeIds.length > 0) {
-      variables.ownerEmployeeIds = selectedEmployeeIds;
-    }
+    // Board view handles its own filtering - list view only uses DataContainer filters
 
     return variables;
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, selectedPipelineId, opportunityFilter, userInfo?.employeeDetails?.employeeId, selectedEmployeeIds, closeAfter, closeBefore]);
+  }, [
+    currentPage,
+    pageSize,
+    searchTerm,
+    sortField,
+    sortOrder,
+    selectedFilters,
+    closeAfter,
+    closeBefore,
+  ]);
 
   // Load data
   const loadData = useCallback(async () => {
     if (!accessToken) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchInvestmentOpportunities(queryVariables);
       setOpportunities(result.InvestmentOpportunity || []);
-      setTotalCount(result.InvestmentOpportunityAggregate?.aggregate?.count || 0);
+      setTotalCount(
+        result.InvestmentOpportunityAggregate?.aggregate?.count || 0
+      );
     } catch (err) {
-      console.error('Error loading investment opportunities:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      console.error("Error loading investment opportunities:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -157,6 +154,82 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   // Load data on mount and when variables change
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Listen for process events and refresh data when investment opportunity processes complete
+  useEffect(() => {
+    const handleProcessEvent = (event: any) => {
+      try {
+        console.log(
+          "✅ Investment Opportunity process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
+        if (event.detail?.resolution === "success") {
+          console.log(
+            "✅ Success resolution detected, refreshing opportunity data"
+          );
+          loadData(); // Refresh opportunity list data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === "success" ||
+          response?.investmentOpportunity
+        ) {
+          console.log(
+            "✅ Success in response or investmentOpportunity detected, refreshing data"
+          );
+          loadData();
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === "com.newwork.process.continue" &&
+          event.detail?.payload
+        ) {
+          console.log(
+            "✅ Continue event with payload detected, refreshing opportunity data"
+          );
+          loadData();
+        }
+      } catch (err) {
+        console.error("Error handling process event:", err);
+      }
+    };
+
+    // Listen to multiple possible event names (following Investment Account pattern exactly)
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue", // ✅ This is what our form dispatches!
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    // Add event listeners
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessEvent);
+      document.addEventListener(eventName, handleProcessEvent);
+    });
+
+    // Cleanup event listeners
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessEvent);
+        document.removeEventListener(eventName, handleProcessEvent);
+      });
+    };
   }, [loadData]);
 
   // Handle search
@@ -171,14 +244,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   }, []);
 
   // Handle sorting
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-    } else {
-      setSortField(field);
-      setSortOrder("ASC");
-    }
-  }, [sortField, sortOrder]);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
+      } else {
+        setSortField(field);
+        setSortOrder("ASC");
+      }
+    },
+    [sortField, sortOrder]
+  );
 
   const handleSetFilter = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
@@ -189,17 +265,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   //   setShowDataFilter(prev => !prev);
   // }, []);
 
-  // Handle pipeline selection
-  const handlePipelineChange = useCallback((pipelineId: string) => {
-    setSelectedPipelineId(pipelineId);
-    setCurrentPage(1);
-  }, []);
-
-  // Handle opportunity filter change
-  const handleOpportunityFilterChange = useCallback((filter: "my" | "all" | "selected") => {
-    setOpportunityFilter(filter);
-    setCurrentPage(1);
-  }, []);
+  // Board view handles its own filtering - handlers removed
 
   // Loading state
   if (isLoading && opportunities.length === 0) {
@@ -230,8 +296,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Opportunities</h1>
-            <p className="gba:text-gray-600">Manage investment opportunities and pipeline stages</p>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+              Investment Opportunities
+            </h1>
+            <p className="gba:text-gray-600">
+              Manage investment opportunities and pipeline stages
+            </p>
           </div>
         </div>
 
@@ -239,55 +309,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
         <OpportunityStatistics {...context} />
       </div>
 
-      {/* Filters and Pipeline Selection */}
-      <div className="gba:mb-6 gba:p-4 gba:bg-gray-50 gba:rounded-lg">
-        <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
-          {/* Opportunity Filter */}
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <Label className="gba:text-sm gba:font-medium">Filter by:</Label>
-            <RadioGroup
-              value={opportunityFilter}
-              onValueChange={handleOpportunityFilterChange}
-              className="gba:flex gba:gap-4"
-            >
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="my" id="my-opportunities" />
-                <Label htmlFor="my-opportunities">My Opportunities</Label>
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="all" id="all-opportunities" />
-                <Label htmlFor="all-opportunities">All Opportunities</Label>
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="selected" id="selected-employees" />
-                <Label htmlFor="selected-employees">Selected Employees</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Pipeline Selection */}
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <Label className="gba:text-sm gba:font-medium">Pipeline:</Label>
-            <Select value={selectedPipelineId} onValueChange={handlePipelineChange}>
-              <SelectTrigger className="gba:w-48">
-                <SelectValue placeholder="Select Pipeline" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Pipelines</SelectItem>
-                {pipelines?.map((pipeline) => (
-                  <SelectItem key={pipeline.id} value={pipeline.id}>
-                    {pipeline.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+      {/* Filters moved to Board View tab */}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="gba:mb-2">
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="board">Board View</TabsTrigger>
         </TabsList>
@@ -355,10 +381,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
 
         <TabsContent value="board" className="gba:mt-6">
           <OpportunityBoard
-            opportunities={opportunities}
-            stages={stages || []}
-            isLoading={isLoading}
-            isLoadingStages={isLoadingStages}
             {...context}
           />
         </TabsContent>

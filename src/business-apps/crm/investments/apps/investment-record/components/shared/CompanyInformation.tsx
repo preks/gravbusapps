@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Building2 } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatters';
+import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system';
+import { Building2, ExternalLink } from 'lucide-react';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
 interface CompanyInformationProps {
   data?: {
@@ -29,11 +29,18 @@ interface CompanyInformationProps {
       account_name?: string; // Real GraphQL data
     };
   }; // Legacy mock data
-  equityData?: {
+  investmentData?: {
     investment: {
-      account?: {
+      investmentAccount?: {
         id: string;
         name: string;
+        email?: string | null;
+        website?: string | null;
+        industryClass?: { value?: string | null } | null;
+        foundationDate?: string | null;
+        geographicPresence?: string | null;
+        companySize?: { value?: string | null } | null;
+        accountAnnualRevenueBand?: { value?: string | null } | null;
       } | null;
       currency?: {
         code: string;
@@ -43,19 +50,7 @@ interface CompanyInformationProps {
   isLoading?: boolean;
 }
 
-const CompanyInformation: React.FC<CompanyInformationProps> = ({ data, equityData, isLoading }) => {
-  // Helper function to format currency with GraphQL data
-  const formatCurrencyValue = (amount: number | null, currency?: { code: string } | null): string => {
-    if (!amount && amount !== 0) return 'N/A';
-    const currencyCode = currency?.code || 'EUR';
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
+const CompanyInformation: React.FC<CompanyInformationProps> = ({ data, investmentData, isLoading }) => {
   if (isLoading) {
     return (
       <Card>
@@ -80,26 +75,40 @@ const CompanyInformation: React.FC<CompanyInformationProps> = ({ data, equityDat
   }
 
   // Use real data if available, otherwise fall back to mock data
-  const hasRealAccountData = equityData?.investment?.account?.name || data?.investment?.account_name;
+  const hasRealAccountData = investmentData?.investment?.investmentAccount?.name || data?.investment?.account_name;
   const companyName = hasRealAccountData 
-    ? (equityData?.investment?.account?.name || data?.investment?.account_name || 'N/A')
+    ? (investmentData?.investment?.investmentAccount?.name || data?.investment?.account_name || 'N/A')
     : (data ? `*${data.company_details.name}` : '*N/A');
   
-  const companyDetails = data?.company_details;
-  const investment = data?.investment;
+  // Legacy mock structures no longer used
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <Building2 className="gba:h-5 gba:w-5" />
-          Company Information
-          {hasRealAccountData && (
-            <span className="gba:ml-2 gba:px-2 gba:py-1 gba:bg-green-100 gba:text-green-800 gba:text-xs gba:rounded">
-              Partial Real Data
-            </span>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <Building2 className="gba:h-5 gba:w-5" />
+            Company Information
+          </CardTitle>
+          {investmentData?.investment?.investmentAccount?.id && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-1"
+              onClick={() => {
+                const url = buildPlatformUrl('/platform/irm/account-record', {
+                  accountId: investmentData.investment.investmentAccount!.id,
+                });
+                navigateTo(url);
+              }}
+              data-testid="company-info-account-link"
+              aria-label="Open account record"
+            >
+              <ExternalLink className="gba:h-4 gba:w-4" />
+              Open Account
+            </Button>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3">
@@ -111,74 +120,76 @@ const CompanyInformation: React.FC<CompanyInformationProps> = ({ data, equityDat
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Website</h4>
-            {companyDetails ? (
-              <a 
-                href={companyDetails.website} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="gba:text-sm gba:font-semibold gba:text-blue-600 gba:hover:underline gba:break-all gba:overflow-hidden gba:block"
-              >
-                *{companyDetails.website}
-              </a>
-            ) : (
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-                *N/A
-              </p>
-            )}
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {investmentData?.investment?.investmentAccount?.website || '-'}
+            </p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Legal Form</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              *Ltd
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">E-Mail</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-all gba:overflow-hidden">
-              {companyDetails ? `*${companyDetails.email}` : '*N/A'}
-            </p>
+            {investmentData?.investment?.investmentAccount?.email ? (
+              <a
+                href={`mailto:${investmentData.investment.investmentAccount.email}`}
+                className="gba:text-sm gba:font-semibold gba:text-blue-600 gba:break-all gba:overflow-hidden hover:gba:underline"
+              >
+                {investmentData.investment.investmentAccount.email}
+              </a>
+            ) : (
+              <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-all gba:overflow-hidden">-</p>
+            )}
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Country</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails ? `*${companyDetails.address.country}` : '*N/A'}
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Phone</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails ? `*${companyDetails.phone}` : '*N/A'}
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Industry</h4>
             <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails ? `*${companyDetails.industry}` : '*N/A'}
+              {investmentData?.investment?.investmentAccount?.industryClass?.value || '-'}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Company Size</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {investmentData?.investment?.investmentAccount?.companySize?.value || '-'}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Revenue Band</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {investmentData?.investment?.investmentAccount?.accountAnnualRevenueBand?.value || '-'}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Geographic Presence</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {investmentData?.investment?.investmentAccount?.geographicPresence || '-'}
+            </p>
+          </div>
+          <div>
+            <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Founded</h4>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
+              {investmentData?.investment?.investmentAccount?.foundationDate ? new Date(investmentData.investment.investmentAccount.foundationDate).toLocaleDateString('de-DE') : '-'}
             </p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Employees</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails ? `*${companyDetails.employees}` : '*N/A'}
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Address</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails ? (
-                <>
-                  *{companyDetails.address.street}<br />
-                  {companyDetails.address.city}, {companyDetails.address.state}<br />
-                  {companyDetails.address.postal_code}, {companyDetails.address.country}
-                </>
-              ) : '*N/A'}
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Revenue</h4>
-            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">
-              {companyDetails && investment ? `*${formatCurrency(companyDetails.revenue, investment.currency_ref)}` : '*N/A'}
-            </p>
+            <p className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:break-words gba:overflow-hidden">N/A</p>
           </div>
         </div>
       </CardContent>

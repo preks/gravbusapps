@@ -2,7 +2,14 @@
 import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { BaseInvestmentContact, InvestmentContact } from '../types';
+import type { 
+  BaseInvestmentContact, 
+  InvestmentContact,
+  BaseInvestmentTask,
+  BaseInvestmentActivity,
+  BaseInvestmentNote,
+  BaseInvestmentDocument
+} from '../types';
 
 // Use the new query imports
 import {
@@ -12,7 +19,13 @@ import {
 } from '../queries';
 
 // Use the mapper function
-import { toInvestmentContact } from '../mappers';
+import { 
+  toInvestmentContact,
+  toInvestmentTask,
+  toInvestmentActivity,
+  toInvestmentNote,
+  toInvestmentDocument
+} from '../mappers';
 
 // Note: InvestmentContactQueryVariables is imported from queries
 
@@ -104,4 +117,88 @@ export const useSearchInvestmentContacts = (context: BusinessAppContextProps) =>
   }, [graphqlClient]);
 
   return { searchInvestmentContacts };
+};
+
+// =====================================================
+// INVESTMENT CONTACT RELATED ENTITIES HOOKS
+// =====================================================
+
+// Hook for getting investment tasks by contact ID
+export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentTasksByContactId = useCallback(async (contactId: string) => {
+    const { GET_INVESTMENT_TASKS_BY_CONTACT_ID } = await import('../queries');
+    const query = GET_INVESTMENT_TASKS_BY_CONTACT_ID(contactId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query);
+      return result.InvestmentTask.map(toInvestmentTask);
+    } catch (error) {
+      console.error('Error fetching investment tasks by contact ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentTasksByContactId };
+};
+
+// Hook for getting investment activities by contact ID
+export const useGetInvestmentActivitiesByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentActivitiesByContactId = useCallback(async (contactId: string) => {
+    const { GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID } = await import('../queries');
+    const query = GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID(contactId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentActivity: BaseInvestmentActivity[] }>(query);
+      return result.InvestmentActivity.map(toInvestmentActivity);
+    } catch (error) {
+      console.error('Error fetching investment activities by contact ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentActivitiesByContactId };
+};
+
+// Hook for getting investment notes by contact ID
+export const useGetInvestmentNotesByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentNotesByContactId = useCallback(async (contactId: string) => {
+    const { GET_INVESTMENT_NOTES_BY_CONTACT_ID } = await import('../queries');
+    const query = GET_INVESTMENT_NOTES_BY_CONTACT_ID(contactId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentNote: BaseInvestmentNote[] }>(query);
+      return result.InvestmentNote.map(toInvestmentNote);
+    } catch (error) {
+      console.error('Error fetching investment notes by contact ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentNotesByContactId };
+};
+
+// Hook for getting investment documents by contact ID
+export const useGetInvestmentDocumentsByContactId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentDocumentsByContactId = useCallback(async (contactId: string) => {
+    const { GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID } = await import('../queries');
+    const query = GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID(contactId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query);
+      return result.InvestmentDocument.map(toInvestmentDocument);
+    } catch (error) {
+      console.error('Error fetching investment documents by contact ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentDocumentsByContactId };
 };
