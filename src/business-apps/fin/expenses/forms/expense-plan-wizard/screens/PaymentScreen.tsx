@@ -294,7 +294,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const handleSave = () => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const advanceObject = createAdvanceObject(
@@ -321,7 +321,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   const handleNext = () => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const advanceObject = createAdvanceObject(
@@ -391,7 +391,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   return (
     <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="payment-screen-container">
       {/* Form Section - Takes available space */}
-      <div className="gba:p-6 gba:flex gba:flex-col gba:h-[100%]" data-testid="payment-form-section" style={{flexGrow:1}}>
+      <div className="gba:p-y gba:flex gba:flex-col gba:h-[100%]" data-testid="payment-form-section" style={{flexGrow:1}}>
         <Form layout="vertical" form={form}>
           {/* Amount and Currency Inputs */}
           <div className={`gba:flex gba:gap-4 ${!advancePaymentError ?"gba:mb-4" :""}`} data-testid="amount-currency-container">

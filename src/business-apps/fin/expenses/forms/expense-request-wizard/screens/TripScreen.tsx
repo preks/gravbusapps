@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
 import { Button } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -70,8 +70,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
-      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.psi_initialParameters.expenseItems;
     }
     return [];
   };
@@ -112,6 +112,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
+  const lastAbsenceCheckKeyRef = useRef<string | null>(null);
   
   const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
@@ -143,7 +144,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       }
       
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
-      
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId;
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message', 
@@ -153,9 +154,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return false;
       }
       
-      if (ruleData.id) {
-        setEmployeeRuleId(ruleData.id);
-        const hasConflict = await checkRuleConflicts(ruleData.id);
+      if (ruleDataValue) {
+        setEmployeeRuleId(ruleDataValue);
+        const hasConflict = await checkRuleConflicts(ruleDataValue);
         if (hasConflict) {
           return false;
         }
@@ -221,9 +222,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     }
     
     const additionalItems: Array<{id: string, code: string, title: string, ruleId: string}> = [];
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-        Array.isArray(additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-      additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+        Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
         additionalItems.push({
           id: item.id,
           code: item.code || '',
@@ -294,6 +295,15 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       
       const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
       const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      let finalStartDate = startTimeValue;
+      let finalEndDate = endTimeValue;
+      try {
+        if (finalStartDate && finalEndDate && new Date(finalStartDate).getTime() > new Date(finalEndDate).getTime()) {
+          const temporaryValue = finalStartDate;
+          finalStartDate = finalEndDate;
+          finalEndDate = temporaryValue;
+        }
+      } catch {}
       
       
       const variables = {
@@ -303,9 +313,21 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         statusArray: EXCLUDED_STATUSES,
         requestId: expenseId,
         activeUserLocale,
-        startTimeValue,
-        endTimeValue
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
       };
+
+      const dedupeKey = JSON.stringify({
+        employeeId,
+        expenseId,
+        expensePlanId,
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
+      });
+      if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        return;
+      }
+      lastAbsenceCheckKeyRef.current = dedupeKey;
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
         const overlapWarning = getOverlapWarningMessage(response, expensePlanId);

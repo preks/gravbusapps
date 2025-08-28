@@ -65,12 +65,22 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const graphQLClient = useGraphqlClient(accessToken);
 
   const expenseItems = useMemo(() => {
-    if (!expenseRequestData?.ExpenseItem || !Array.isArray(expenseRequestData.ExpenseItem)) {
+    const expensesArray = expenseRequestData?.ExpenseItem;
+    if (!expensesArray || !Array.isArray(expensesArray)) {
       return [];
     }
-    
-    return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
-  }, [expenseRequestData]);
+    // Ensure locally deleted items are excluded from the working list
+    const mappedDeletedItems = deletedItems.map((element: any) => element.id);
+    const removeDeletedItems = expensesArray.filter((element: any) => !mappedDeletedItems.includes(element.id));
+    return noAllowanceItemsFunction(removeDeletedItems);
+  }, [expenseRequestData, deletedItems]);
+
+  useEffect(() => {
+    const event = new CustomEvent('expense-wizard-update-footer', {
+      detail: { itemsCount: expenseItems.length }
+    });
+    document.dispatchEvent(event);
+  }, [expenseItems]);
   
   const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
@@ -106,9 +116,15 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     try {
       setIsLoading(true);
       
-      const currentItemIds = expenseRequestData.ExpenseItem?.map((item: any) => item.id) || [];
-      
-      const excludedIds = [...currentItemIds, ...selectedItemsToInitial.map((item: any) => item.id)];
+      const currentItemIds = expenseItems?.map((item: any) => item.id) || [];
+      // Exclude currently attached items and items selected in this view from both API and local lists appropriately
+      const excludedIdsBase = [...currentItemIds, ...selectedItemsToInitial.map((item: any) => item.id)];
+      // API should also exclude payload items and locally deleted items to prevent duplicates
+      const excludedIdsForApi = [
+        ...excludedIdsBase,
+        ...payloadItemIds,
+        ...deletedItems.map((d: any) => d.id)
+      ];
       
       let itemCurrency = null;
       if (currentCurrency) {
@@ -125,52 +141,59 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
         employeeId,
         status: "CREATED",
         activeUserLocale: userLocale,
-        idsArray: [...excludedIds, ...payloadItemIds],
+        idsArray: excludedIdsForApi,
         itemCurrency: itemCurrency
       };
       
-      await graphQLClient.request(fetchEmployeeExpenseItems, {
+      const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
         ...countVariables,
         limit: 1,
         offset: 0,
         titleSearch: searchQuery ? `%${searchQuery}%` : '%'
       });
-      
-      const offset = (currentPage - 1) * itemListLimit;
-      
-      const variables = {
-        ...countVariables,
-        limit: Number(itemListLimit),
-        offset: Math.max(0, Number(offset)),
-        titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
-      };
-            
-      const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
-      
-      const items = response?.ExpenseItemEmployee || [];
-      
-      const filteredApiItems = noAllowanceItemsFunction(items);
-      
+      const apiItemsCount = countResponse?.ExpenseItemAggregate?.aggregate?.count || 0;
+      const globalStart = Math.max(0, (currentPage - 1) * itemListLimit);
       const filteredDeletedItems = deletedItems.filter((item: any) => {
-        if (excludedIds.includes(item.id)) return false;
-        
+        if (excludedIdsBase.includes(item.id)) return false;
         if (searchQuery && item.title) {
           return item.title.toLowerCase().includes(searchQuery.toLowerCase());
         }
-        
         return true;
       });
       
-      const apiItemsCount = response?.ExpenseItemAggregate?.aggregate?.count || 0;
       const totalItemsCount = apiItemsCount + filteredDeletedItems.length;
       setTotalItems(totalItemsCount);
+
+      const deletedStart = globalStart < filteredDeletedItems.length ? globalStart : 0;
+      const deletedItemsInPage = globalStart < filteredDeletedItems.length
+        ? Math.min(itemListLimit, filteredDeletedItems.length - globalStart)
+        : 0;
+      const deletedSlice = deletedItemsInPage > 0
+        ? filteredDeletedItems.slice(deletedStart, deletedStart + deletedItemsInPage)
+        : [];
+
+      const apiNeeded = Math.max(0, itemListLimit - deletedSlice.length);
+      const apiOffset = Math.max(0, globalStart - filteredDeletedItems.length);
+      let items: any[] = [];
+      if (apiNeeded > 0) {
+        const variables = {
+          ...countVariables,
+          limit: Number(apiNeeded),
+          offset: Math.max(0, Number(apiOffset)),
+          titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
+        };
+        const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
+        items = response?.ExpenseItemEmployee || [];
+      }
       
-      let finalItems = filteredApiItems;
+      const filteredApiItems = noAllowanceItemsFunction(items).filter((apiItem: any) =>
+        !deletedItems.some((d: any) => d.id === apiItem.id)
+      );
       
-      if (finalItems.length < itemListLimit) {
-        const remainingSlots = itemListLimit - finalItems.length;
-        const deletedItemsToShow = filteredDeletedItems.slice(0, remainingSlots);
-        finalItems = [...finalItems, ...deletedItemsToShow];
+
+      let finalItems = deletedSlice;
+      if (filteredApiItems.length > 0) {
+        finalItems = [...finalItems, ...filteredApiItems];
       }
       
       setSelectItemsList(finalItems);
@@ -253,13 +276,30 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       }));
       
       const currentItems = expenseRequestData?.ExpenseItem || [];
-      const updatedItems = [...currentItems, ...selectedItems];
+      const mergedByIdMap = new Map<string, any>();
+      for (const singleItem of currentItems) {
+        if (singleItem?.id) mergedByIdMap.set(singleItem.id, singleItem);
+      }
+      for (const singleItem of selectedItems) {
+        if (singleItem?.id) mergedByIdMap.set(singleItem.id, singleItem);
+      }
+      const updatedItems = Array.from(mergedByIdMap.values());
       setExpenseRequestData({
         ...expenseRequestData,
         ExpenseItem: updatedItems
       });
       
-      setSelectedItemsToInitial((prev: any[]) => [...prev, ...selectedItems]);
+
+      setSelectedItemsToInitial((prev: any[]) => {
+        const map = new Map<string, any>();
+        for (const it of prev) {
+          if (it?.id) map.set(it.id, it);
+        }
+        for (const it of selectedItems) {
+          if (it?.id) map.set(it.id, it);
+        }
+        return Array.from(map.values());
+      });
       
       setDeletedItems(deletedItems.filter((item: any) => 
         !selectedItemIdsForSelection.includes(item.id)
@@ -310,28 +350,31 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       if (payloadItemsLoaded) return;
       if (additionalData && 
           additionalData.psi_taskPayload && 
-          additionalData.psi_taskPayload.initialParameters && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems.length > 0) {
+          additionalData.psi_taskPayload.psi_initialParameters && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0) {
         
         try {
           setIsLoading(true);
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.initialParameters.expenseItems
+          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
             .filter((item: any) => item.itemId)
             .map((item: any) => item.itemId);
           
           if (extractedPayloadItemIds.length === 0) return;
           setPayloadItemIds(extractedPayloadItemIds);
+          if(!expenseRequestData) return
           const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || [];
           const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id));
           
           if (newItemIds.length === 0) return;
-          
           let itemCurrency = currentCurrency || "";
-          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef;
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0) {
+          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0 && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
+          }
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !itemCurrency){
+            itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
           }
           
           const userLocale = getCurrentActiveUserLocale();
@@ -376,20 +419,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     fetchItemsFromPayload();
   }, [additionalData, employeeId, graphQLClient, expenseRequestData, setExpenseRequestData, currentCurrency]);
 
-  useEffect(() => {
-    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
-    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
-    document.addEventListener('expense-request-next-items', handleNextItems);
-    document.addEventListener('expense-request-save-items', handleSaveItems);
-    
-    return () => {
-      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
-      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
-      document.removeEventListener('expense-request-next-items', handleNextItems);
-      document.removeEventListener('expense-request-save-items', handleSaveItems);
-    };
-  }, [handleCancelSelection, handleConfirmSelection]);
-  
   const handleNextItems = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
       const logObject = createItemsScreenLogObject(
@@ -422,9 +451,33 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   
   const { showCreateItem } = useExpenseRequestWizardContext();
   
+
   const handleCreateItem = useCallback(() => {
     showCreateItem();
   }, [showCreateItem]);
+  
+  useEffect(() => {
+    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
+    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
+    document.addEventListener('expense-request-next-items', handleNextItems);
+    document.addEventListener('expense-request-save-items', handleSaveItems);
+    // Reset selection/search/page/showSelectItems on external reset
+    const handleReset = () => {
+      setSelectedItemIdsForSelection([]);
+      setSearchQuery("");
+      setCurrentPage(1);
+      setShowSelectItems(false);
+    };
+    document.addEventListener('expense-items-reset-selection', handleReset);
+    
+    return () => {
+      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
+      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
+      document.removeEventListener('expense-request-next-items', handleNextItems);
+      document.removeEventListener('expense-request-save-items', handleSaveItems);
+      document.removeEventListener('expense-items-reset-selection', handleReset);
+    };
+  }, [handleCancelSelection, handleConfirmSelection, handleNextItems, handleSaveItems]);
   
   useEffect(() => {
     if (showSelectItems) {
