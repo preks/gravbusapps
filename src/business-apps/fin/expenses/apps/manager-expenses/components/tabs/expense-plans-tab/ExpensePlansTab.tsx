@@ -182,7 +182,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           addButton: {
             onClick: () => {
               // TODO: Implement add plan functionality
-              console.log("Add plan clicked");
             },
             label: "Add",
             "data-testid": "add-expense-plan-button",

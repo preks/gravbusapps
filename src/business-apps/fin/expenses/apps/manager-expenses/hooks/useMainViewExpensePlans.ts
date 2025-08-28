@@ -235,9 +235,6 @@ export const useMainViewExpensePlans = ({
           whereClause.currencyRef = {
             _eq: `Currency:v1:${currentCurrencyFilter}`,
           };
-          console.log(
-            `🔍 EXPENSE PLANS TABLE: Filtering by currency: ${currentCurrencyFilter}`
-          );
         }
 
         // Add search functionality

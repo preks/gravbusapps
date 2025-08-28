@@ -343,10 +343,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                                     label: "Print",
                                     onClick: () => {
                                       // TODO: Implement print functionality
-                                      console.log(
-                                        "Print expense plan:",
-                                        plan.id
-                                      );
+                                      // TODO: Implement print functionality
                                     },
                                   },
                                 ]
