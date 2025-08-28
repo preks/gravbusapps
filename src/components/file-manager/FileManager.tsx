@@ -6,7 +6,7 @@ import { FileDown, FilePlus, FolderPlus, Eye, Edit, Share2, Trash2 } from 'lucid
 // (no local header buttons)
 import type { FileManagerProps, DocumentNode } from './types';
 import { isFileDocument } from './types';
-import { useCrmDocuments } from './hooks/useCrmDocuments';
+import { useDocuments } from './hooks/useDocuments';
 import { useDocumentMutations } from './hooks/useDocumentMutations';
 import { startProcess } from '@/common/utils/start-process';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -68,8 +68,8 @@ const mapToExplorerNodes = (docs: DocumentNode[]): FileExplorerNode[] => {
   });
 };
 
-export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* permissions, */ 'data-testid': dataTestId }) => {
-  const { documents, isLoading, error, refetch, setDocuments } = useCrmDocuments(context.accessToken, entity);
+export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app = 'crm', /* permissions, */ 'data-testid': dataTestId }) => {
+  const { documents, isLoading, error, refetch, setDocuments } = useDocuments(context.accessToken, entity, app);
   const graphqlClient = useGraphQLClient(context.accessToken);
   const explorerContainerRef = useRef<HTMLDivElement>(null);
   const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -121,7 +121,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
       if (node.type !== 'file') return;
       const doc = documents.find(d => d.id === node.id);
       if (!doc || !doc.file) return;
-      const url = buildDownloadUrl(entity.type, entity.id, doc);
+      const url = buildDownloadUrl(entity.type, entity.id, doc, app);
       window.open(url, '_blank');
       return;
     }
@@ -135,9 +135,10 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
         // Fetch latest version and metadata before opening update modal
         let latest = null as any;
         try {
+          const entityName = app === 'crm' ? 'CrmDocument' : 'InvestmentDocument';
           const query = `
-            query GetCrmDocumentById($id: uuid!) {
-              CrmDocument(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
+            query GetDocumentById($id: uuid!) {
+              ${entityName}(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
                 id
                 version
                 name
@@ -147,8 +148,9 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
               }
             }
           `;
-          const result = await graphqlClient.request<{ CrmDocument: any[] }>(query, { id: doc.id });
-          latest = Array.isArray(result?.CrmDocument) ? result!.CrmDocument[0] : null;
+          const result = await graphqlClient.request<{ [k: string]: any[] }>(query, { id: doc.id });
+          const key = app === 'crm' ? 'CrmDocument' : 'InvestmentDocument';
+          latest = Array.isArray(result?.[key]) ? result![key][0] : null;
         } catch {
           // ignore and fall back to cached doc
         }
@@ -160,11 +162,11 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
         const parentRef = latest?.parentDocument?.id ?? doc.parentDocument ?? '';
 
         startProcess({
-          domain: 'customer-relations',
-          processName: 'createCrmDocument',
+          domain: app === 'crm' ? 'customer-relations' : 'investments',
+          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
           payload: {
             [`${entity.type}Id`]: entity.id,
-            crmDocument: {
+            [app === 'crm' ? 'crmDocument' : 'investmentDocument']: {
               id: doc.id,
               version,
               name,
@@ -172,16 +174,19 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
               documentTypeRef: typeRef,
               parentDocument: parentRef,
             },
+            mode: 'rename',
             // Provide additionalData payload variants for update detection in popup
             additionalData: {
-              crmDocument: {
+              mode: 'rename',
+              [app === 'crm' ? 'crmDocument' : 'investmentDocument']: {
                 id: doc.id,
                 version,
                 name,
                 parentDocument: parentRef,
               },
               payload: {
-                crmDocument: {
+                mode: 'rename',
+                [app === 'crm' ? 'crmDocument' : 'investmentDocument']: {
                   id: doc.id,
                   version,
                   name,
@@ -215,8 +220,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
       onClick: (node) => {
         if (node.type !== 'folder') return;
         startProcess({
-          domain: 'customer-relations',
-          processName: 'createCrmDocument',
+          domain: app === 'crm' ? 'customer-relations' : 'investments',
+          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
           payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: node.id },
           builderType: 'NATIVE_SCREEN',
         });
@@ -230,7 +235,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
         if (node.type !== 'file') return;
         const doc = documents.find(d => d.id === node.id);
         if (!doc || !doc.file) return;
-        const url = buildDownloadUrl(entity.type, entity.id, doc);
+        const url = buildDownloadUrl(entity.type, entity.id, doc, app);
         window.open(url, '_blank');
       },
     },
@@ -247,8 +252,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
           basePayload.payload = { parentDocument: parentId };
         }
         startProcess({
-          domain: 'customer-relations',
-          processName: 'createCrmDocument',
+          domain: app === 'crm' ? 'customer-relations' : 'investments',
+          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
           payload: basePayload,
           builderType: 'NATIVE_SCREEN',
         });
@@ -315,18 +320,18 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
     const isFile = !!doc?.file;
     const openView = () => {
       if (!doc || !isFile) return;
-      const url = buildDownloadUrl(entity.type, entity.id, doc);
+      const url = buildDownloadUrl(entity.type, entity.id, doc, app);
       window.open(url, '_blank');
     };
     const doDownload = () => {
       if (!doc || !isFile) return;
-      const url = buildDownloadUrl(entity.type, entity.id, doc);
+      const url = buildDownloadUrl(entity.type, entity.id, doc, app);
       window.open(url, '_blank');
     };
     const doRename = () => { void handleNodeAction('rename', selectedNode); };
     const doShare = async () => {
       if (!doc || !isFile) return;
-      const url = buildDownloadUrl(entity.type, entity.id, doc);
+      const url = buildDownloadUrl(entity.type, entity.id, doc, app);
       try { await navigator.clipboard.writeText(url); } catch {}
     };
     const doDelete = async () => {
@@ -376,27 +381,30 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
     onSuccess: () => {
       const w: any = window as any;
       const resp = (w.__lastProcessResponse || {});
-      const crm = resp.crmDocument;
-      if (!crm?.id) return;
-      setDocuments(prev => {
-        const exists = prev.some(d => d.id === crm.id);
-        const mapped: any = {
-          id: crm.id,
-          version: crm.version ?? 0,
-          name: crm.name ?? 'Unnamed Document',
-          createdAt: new Date().toISOString(),
-          expirationDate: crm.expirationDate ?? null,
-          format: crm.format ?? (crm.file ? 'FILE' : null),
-          parentDocument: crm.parentDocument ?? null,
-          documentType: crm.documentTypeRef ? { id: crm.documentTypeRef, value: '' } : null,
-          documentGroup: crm.documentGroupRef ? { id: crm.documentGroupRef, value: '' } : null,
-          file: crm.file ?? null,
-          mimeType: crm.mimeType ?? null,
-          fileSize: typeof crm.fileSize === 'number' ? crm.fileSize : null,
-          createdBy: '',
-        } as any;
-        return exists ? prev.map(d => d.id === crm.id ? { ...d, ...mapped } : d) : [mapped, ...prev];
-      });
+      const docResp = app === 'crm' ? resp.crmDocument : resp.investmentDocument;
+      if (docResp?.id) {
+        setDocuments(prev => {
+          const exists = prev.some(d => d.id === docResp.id);
+          const mapped: any = {
+            id: docResp.id,
+            version: docResp.version ?? 0,
+            name: docResp.name ?? 'Unnamed Document',
+            createdAt: new Date().toISOString(),
+            expirationDate: docResp.expirationDate ?? null,
+            format: docResp.format ?? (docResp.file ? 'FILE' : null),
+            parentDocument: docResp.parentDocument ?? null,
+            documentType: docResp.documentTypeRef ? { id: docResp.documentTypeRef, value: '' } : null,
+            documentGroup: docResp.documentGroupRef ? { id: docResp.documentGroupRef, value: '' } : null,
+            file: docResp.file ?? null,
+            mimeType: docResp.mimeType ?? null,
+            fileSize: typeof docResp.fileSize === 'number' ? docResp.fileSize : null,
+            createdBy: '',
+          } as any;
+          return exists ? prev.map(d => d.id === docResp.id ? { ...d, ...mapped } : d) : [mapped, ...prev];
+        });
+      }
+      // Always refetch to ensure the view reflects backend state immediately
+      void refetch();
     },
     onFailure: () => {}
   });
@@ -416,8 +424,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
     if (context.accessToken) flowRegistryClient.setAccessToken(context.accessToken);
     // Open native screen directly with createFolder flag
     startProcess({
-      domain: 'customer-relations',
-      processName: 'createCrmDocument',
+      domain: app === 'crm' ? 'customer-relations' : 'investments',
+      processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
       payload: { [`${entity.type}Id`]: entity.id, createFolder: true },
       builderType: 'NATIVE_SCREEN',
     });
@@ -427,8 +435,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
     lastNewFolderParentRef.current = parentId;
     if (context.accessToken) flowRegistryClient.setAccessToken(context.accessToken);
     startProcess({
-      domain: 'customer-relations',
-      processName: 'createCrmDocument',
+      domain: app === 'crm' ? 'customer-relations' : 'investments',
+      processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
       payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: parentId },
       builderType: 'NATIVE_SCREEN',
     });
@@ -489,8 +497,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
           onNodeAction={(action, node) => {
             if (action === 'create-subfolder' && node.type === 'folder') {
               startProcess({
-                domain: 'customer-relations',
-                processName: 'createCrmDocument',
+                domain: app === 'crm' ? 'customer-relations' : 'investments',
+                processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
                 payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: node.id },
                 builderType: 'NATIVE_SCREEN',
               });
@@ -523,7 +531,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
           menuMountEl
         )}
 
-        {/* Hidden AppActions to execute New Folder and Upload processes with individual contexts */}
+        {/* Hidden AppActions only for CRM */}
+        {app === 'crm' && (
         <div className="gba:hidden" aria-hidden>
           {/* New Folder AppAction - uses createCustomerDocument flow context */}
           <AppAction
@@ -577,6 +586,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, /* pe
             <button ref={uploadFileActionRef} type="button" data-testid="file-manager-upload-file-action" />
           </AppAction>
         </div>
+        )}
 
         {/* No local modal: popup will handle name input */}
         </div>

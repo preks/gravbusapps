@@ -24,13 +24,19 @@ export const getFileExtension = (doc: DocumentNode): string => {
   return 'pdf';
 };
 
-export const buildDownloadUrl = (type: FileManagerEntityType, entityId: string, doc: DocumentNode): string => {
+export const buildDownloadUrl = (
+  type: FileManagerEntityType,
+  entityId: string,
+  doc: DocumentNode,
+  app: 'crm' | 'irm' = 'crm'
+): string => {
   const base = getEntityFilesPath(type);
+  const appPath = app === 'crm' ? 'crm' : 'irm';
   if (doc.file && doc.file.includes('.')) {
-    return `/files/api/v1/public/downloads/crm/${base}/${entityId}/documents/${doc.file}`;
+    return `/files/api/v1/public/downloads/${appPath}/${base}/${entityId}/documents/${doc.file}`;
   }
   const ext = getFileExtension(doc);
-  return `/files/api/v1/public/downloads/crm/${base}/${entityId}/documents/${doc.file}.${ext}`;
+  return `/files/api/v1/public/downloads/${appPath}/${base}/${entityId}/documents/${doc.file}.${ext}`;
 };
 
 

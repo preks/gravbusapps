@@ -1,6 +1,6 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-export type FileManagerEntityType = 'account' | 'contact' | 'lead';
+export type FileManagerEntityType = 'account' | 'contact' | 'lead' | 'opportunity';
 
 export interface FileManagerEntityRef {
   type: FileManagerEntityType;
@@ -25,6 +25,7 @@ export interface FileManagerPermissions {
 export interface FileManagerProps {
   context: BusinessAppContextProps;
   entity: FileManagerEntityRef;
+  app?: 'crm' | 'irm';
   ui?: FileManagerUiOptions;
   permissions?: FileManagerPermissions;
   'data-testid'?: string;
@@ -56,11 +57,11 @@ export const isFileDocument = (doc: DocumentNode): boolean => {
   return fmt === 'FILE' || !!doc.mimeType || !!doc.file;
 };
 
-export const getEntityPayloadKey = (type: FileManagerEntityType): 'account' | 'contact' | 'lead' => {
+export const getEntityPayloadKey = (type: FileManagerEntityType): 'account' | 'contact' | 'lead' | 'opportunity' => {
   return type;
 };
 
-export const getEntityGraphQlField = (type: FileManagerEntityType): 'accountId' | 'contactId' | 'leadId' => {
+export const getEntityGraphQlField = (type: FileManagerEntityType): 'accountId' | 'contactId' | 'leadId' | 'opportunityId' => {
   switch (type) {
     case 'account':
       return 'accountId';
@@ -68,10 +69,12 @@ export const getEntityGraphQlField = (type: FileManagerEntityType): 'accountId' 
       return 'contactId';
     case 'lead':
       return 'leadId';
+    case 'opportunity':
+      return 'opportunityId';
   }
 };
 
-export const getEntityFilesPath = (type: FileManagerEntityType): 'accounts' | 'contacts' | 'leads' => {
+export const getEntityFilesPath = (type: FileManagerEntityType): 'accounts' | 'contacts' | 'leads' | 'opportunities' => {
   switch (type) {
     case 'account':
       return 'accounts';
@@ -79,6 +82,8 @@ export const getEntityFilesPath = (type: FileManagerEntityType): 'accounts' | 'c
       return 'contacts';
     case 'lead':
       return 'leads';
+    case 'opportunity':
+      return 'opportunities';
   }
 };
 

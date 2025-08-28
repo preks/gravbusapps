@@ -92,8 +92,18 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
   const [parentLoading, setParentLoading] = useState<boolean>(false);
   const graphqlClient = useGraphQLClient(props.accessToken || '');
 
-  // Load parent folders for the current entity
+  // Rename mode detection (from payload/additionalData)
+  const renameMode = useMemo(() => {
+    const src = { ...(props as any), ...(initialValues as any) } as any;
+    const ad = src?.additionalData || {};
+    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
+    const modeFromAd = ad?.mode || ad?.psi_taskPayload?.psi_initialParameters?.mode || ad?.psi_taskPayload?.initialParameters?.mode;
+    return (src?.mode === 'rename') || (payload?.mode === 'rename') || (modeFromAd === 'rename');
+  }, [initialValues, props]);
+
+  // Load parent folders for the current entity (skip for rename mode)
   React.useEffect(() => {
+    if (renameMode) return;
     const loadParents = async () => {
       if (!props.accessToken || !values.entityId) return;
       setParentLoading(true);
@@ -123,20 +133,39 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       }
     };
     loadParents();
-  }, [props.accessToken, values.entityId, values.entityType]);
+  }, [props.accessToken, values.entityId, values.entityType, renameMode]);
+
+  // Ensure parent folder dropdown is preselected when provided by payload
+  React.useEffect(() => {
+    if (renameMode) return;
+    if (!parentFolderId && values.parentDocument) {
+      setParentFolderId(values.parentDocument);
+    }
+  }, [renameMode, values.parentDocument, parentFolderId, parentFolders.length]);
 
   // Detect update mode from incoming crmDocument (presence of id)
   const sourcePayload = useMemo(() => ({ ...(props as any), ...(initialValues as any) } as any), [props, initialValues]);
-  const existingCrm = sourcePayload?.crmDocument || {};
+  const existingCrm = useMemo(() => {
+    const ad = sourcePayload?.additionalData || {};
+    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
+    return (
+      sourcePayload?.crmDocument ||
+      ad?.crmDocument ||
+      ad?.psi_taskPayload?.psi_initialParameters?.crmDocument ||
+      ad?.psi_taskPayload?.initialParameters?.crmDocument ||
+      payload?.crmDocument ||
+      {}
+    );
+  }, [sourcePayload]);
   const isUpdateMode = !!existingCrm?.id;
 
   const title = useMemo(
-    () => (isUpdateMode ? 'Update Document' : (values.folder ? 'Create Folder' : 'Create Document')),
-    [isUpdateMode, values.folder]
+    () => (renameMode ? 'Rename Document' : (isUpdateMode ? 'Update Document' : (values.folder ? 'Create Folder' : 'Create Document'))),
+    [renameMode, isUpdateMode, values.folder]
   );
   const actionLabel = useMemo(
-    () => (isUpdateMode ? 'Save' : 'Create'),
-    [isUpdateMode]
+    () => (renameMode ? 'Save' : (isUpdateMode ? 'Save' : 'Create')),
+    [renameMode, isUpdateMode]
   );
 
   const entityIdKey = useMemo(() => {
@@ -193,7 +222,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       setError('Please provide a name.');
       return;
     }
-    if (!values.folder && !isUpdateMode && !file) {
+    if (!values.folder && !isUpdateMode && !renameMode && !file) {
       setError('Please select a file.');
       return;
     }
@@ -234,12 +263,30 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         [entityBindingKey]: resolvedId,
       };
 
-      if (isUpdateMode) {
+      if (renameMode || isUpdateMode) {
         // Update: keep id/version and allow renaming without requiring file
         crmDocument.id = existingCrm.id;
-        crmDocument.version = existingCrm.version ?? 0;
+        let effectiveVersion: number | undefined = existingCrm?.version;
+        if (!effectiveVersion || Number.isNaN(Number(effectiveVersion)) || Number(effectiveVersion) <= 0) {
+          // Fallback: fetch latest version from GraphQL by id to avoid outdated-version errors
+          try {
+            const query = `
+              query GetCrmDocumentVersion($id: uuid!) {
+                CrmDocument(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
+                  id
+                  version
+                }
+              }
+            `;
+            const res = await graphqlClient.request<{ CrmDocument: { id: string; version: number }[] }>(query, { id: crmDocument.id });
+            effectiveVersion = res?.CrmDocument?.[0]?.version ?? 0;
+          } catch {
+            effectiveVersion = 0;
+          }
+        }
+        crmDocument.version = Number(effectiveVersion) || 0;
         crmDocument.name = trimmed;
-        if (parentFolderId || values.parentDocument) {
+        if (!renameMode && (parentFolderId || values.parentDocument)) {
           crmDocument.parentDocument = parentFolderId || values.parentDocument;
         }
       } else {
@@ -250,13 +297,15 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         crmDocument.format = values.folder ? 'FOLDER' : 'FILE';
       }
 
-      // Optional metadata
-      if (documentGroupRef) crmDocument.documentGroupRef = documentGroupRef;
-      if (documentTypeRef) crmDocument.documentTypeRef = documentTypeRef;
-      if (description) crmDocument.description = description;
+      // Optional metadata (skip for rename)
+      if (!renameMode) {
+        if (documentGroupRef) crmDocument.documentGroupRef = documentGroupRef;
+        if (documentTypeRef) crmDocument.documentTypeRef = documentTypeRef;
+        if (description) crmDocument.description = description;
+      }
 
       // If uploading a file (create or update), upload to File Service and include returned fileId
-      if (!values.folder && file) {
+      if (!renameMode && !values.folder && file) {
         // Ensure auth header
         if (props.accessToken) {
           fileClient.setAccessToken(props.accessToken);
@@ -318,7 +367,16 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       </div>
 
       {/* Conditional form */}
-      {values.folder ? (
+      {renameMode ? (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Document name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
+          />
+        </div>
+      ) : values.folder ? (
         <div className="gba:mb-4">
           <Input
             placeholder="Folder name"
