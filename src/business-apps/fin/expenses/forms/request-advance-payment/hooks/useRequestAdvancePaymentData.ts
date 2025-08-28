@@ -3,7 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getCurrentActiveUserLocale, getCurrentActiveStructureId } from '@/common/utils/windowUtils';
-import { GET_EXPENSE_PLANS_BY_USER, GET_EXPENSE_PLAN_DETAILS, GET_ALL_EXPENSE_PLANS_BY_USER } from '../queries/RequestAdvancePaymentQueries';
+import { GET_EXPENSE_PLANS_BY_USER, GET_EXPENSE_PLAN_DETAILS } from '../queries/RequestAdvancePaymentQueries';
 
 export interface ExpensePlan {
   id: string;
@@ -88,22 +88,17 @@ export const useRequestAdvancePaymentData = (
         userId
       });
 
+      console.log('Raw expense plans response:', response?.ExpensePlan);
+
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
-        setExpensePlans(response.ExpensePlan);
+        // Filter plans to only include APPROVED and ASSIGNED status
+        const filteredPlans = response.ExpensePlan.filter((plan: any) => 
+          plan.status === 'APPROVED' || plan.status === 'ASSIGNED'
+        );
+        setExpensePlans(filteredPlans);
+        console.log('Filtered expense plans (APPROVED/ASSIGNED only):', filteredPlans);
       } else {
-        // Try to fetch ALL plans to see what's available
-        try {
-          const allPlansResponse = await graphqlClient.request(GET_ALL_EXPENSE_PLANS_BY_USER, {
-            structureId,
-            userId
-          });
-          
-          if (allPlansResponse?.ExpensePlan && allPlansResponse.ExpensePlan.length > 0) {
-            setExpensePlans(allPlansResponse.ExpensePlan);
-          }
-        } catch (allPlansErr) {
-          console.error('Error fetching all plans:', allPlansErr);
-        }
+        console.log('No expense plans found with APPROVED or ASSIGNED status');
       }
 
       if (response?.CostCenter) {
@@ -129,6 +124,7 @@ export const useRequestAdvancePaymentData = (
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
         const planDetails = response.ExpensePlan[0];
+        console.log('Expense plan details fetched:', planDetails);
         // Update the expense plan with detailed information
         setExpensePlans(prev => prev.map(plan => 
           plan.id === planId ? { ...plan, ...planDetails } : plan
@@ -160,19 +156,35 @@ export const useRequestAdvancePaymentData = (
       );
 
       // Handle the response based on the actual structure
-      const catalogEntries = (response as any)?.catalogEntries || (response as any)?.data?.catalogEntries || [];
+      const catalogEntries = (response as any)?.catalogEntries || (response as any)?.data?.catalogEntries || response?.data || [];
       
       if (catalogEntries.length > 0) {
         const currencyOptions: Currency[] = catalogEntries.map((entry: any) => ({
           id: entry.id,
-          code: entry.value,
-          name: entry.value
+          code: entry.value || entry.code || entry.name,
+          name: entry.value || entry.code || entry.name
         }));
         setCurrencies(currencyOptions);
+      } else {
+        // Fallback to common currencies if catalog is empty
+        const fallbackCurrencies: Currency[] = [
+          { id: 'EUR', code: 'EUR', name: 'EUR' },
+          { id: 'USD', code: 'USD', name: 'USD' },
+          { id: 'GBP', code: 'GBP', name: 'GBP' },
+          { id: 'CHF', code: 'CHF', name: 'CHF' }
+        ];
+        setCurrencies(fallbackCurrencies);
       }
     } catch (err) {
       console.error('Error fetching currencies:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch currencies');
+      // Fallback to common currencies on error
+      const fallbackCurrencies: Currency[] = [
+        { id: 'EUR', code: 'EUR', name: 'EUR' },
+        { id: 'USD', code: 'USD', name: 'USD' },
+        { id: 'GBP', code: 'GBP', name: 'GBP' },
+        { id: 'CHF', code: 'CHF', name: 'CHF' }
+      ];
+      setCurrencies(fallbackCurrencies);
     }
   }, [catalogClient, context.accessToken]);
 

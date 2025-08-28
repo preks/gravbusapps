@@ -167,7 +167,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       processName: 'changeAdvancePayment',
       payload: {
         employeeId: employeeId
-      }
+      },
+      builderType: 'NATIVE_SCREEN'
     });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
