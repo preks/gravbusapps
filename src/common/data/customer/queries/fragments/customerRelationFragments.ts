@@ -9,11 +9,6 @@ export const CUSTOMER_ACCOUNT_REF = `
     id
     code
     name
-    email
-    phone
-    website
-    picture
-    pictureThumbnail
     annualRevenue {
       ${CATALOG_ENTRY}
     }
@@ -23,29 +18,10 @@ export const CUSTOMER_ACCOUNT = `
     id
     code
     name
-    email
-    phone
-    foundationDate
-    liquidationDate
-    website
-    picture
-    pictureThumbnail
-    mission
-    geographicPresence
-    specialty
     ${AUDIT_FIELDS}
     
     # Catalog relationships
-    legalForm {
-      ${CATALOG_ENTRY}
-    }
     annualRevenue {
-      ${CATALOG_ENTRY}
-    }
-    companySize {
-      ${CATALOG_ENTRY}
-    }
-    industryClass {
       ${CATALOG_ENTRY}
     }
     
@@ -64,13 +40,7 @@ export const CUSTOMER_CONTACT_REF = `
     code
     firstName
     lastName
-    fullName
     email
-    phone
-    department
-    jobPosition
-    picture
-    pictureThumbnail
 `;
 
 export const CUSTOMER_CONTACT = `
@@ -78,22 +48,12 @@ export const CUSTOMER_CONTACT = `
     code
     firstName
     lastName
-    fullName
     email
-    phone
     birthDate
-    department
-    description
-    jobPosition
-    picture
-    pictureThumbnail
     ${AUDIT_FIELDS}
     
     # Catalog relationships
     academicTitle {
-      ${CATALOG_ENTRY}
-    }
-    salutation {
       ${CATALOG_ENTRY}
     }
     language {
@@ -120,27 +80,26 @@ export const CUSTOMER_OPPORTUNITY = `
     id
     code
     name
+    estimatedAmount
+    winningChance
     closeDate
     ${AUDIT_FIELDS}
     
     # Catalog relationships
-    currency {
-      ${CATALOG_ENTRY}
-    }
-    opportunityPipeline {
-      ${CATALOG_ENTRY}
-    }
-    opportunityPipelineStage {
-      ${CATALOG_ENTRY}
-    }
-    opportunityStatus {
-      ${CATALOG_ENTRY}
-    }
+    currency { ${CATALOG_ENTRY} }
+    pipeline { ${CATALOG_ENTRY} }
+    salesPipeline { ${CATALOG_ENTRY} }
+    salesPipelineStage { ${CATALOG_ENTRY} }
+    opportunityStatus { ${CATALOG_ENTRY} }
     
     # Employee relationship
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
+    
+    # Direct scalar stage/status
+    stage
+    status
 `;
 
 // ==========================================
@@ -175,9 +134,6 @@ export const CUSTOMER_LEAD = `
     academicTitle {
       ${CATALOG_ENTRY}
     }
-    salutation {
-      ${CATALOG_ENTRY}
-    }
     leadRating {
       ${CATALOG_ENTRY}
     }
@@ -185,12 +141,6 @@ export const CUSTOMER_LEAD = `
       ${CATALOG_ENTRY}
     }
     leadSource {
-      ${CATALOG_ENTRY}
-    }
-    industryClass {
-      ${CATALOG_ENTRY}
-    }
-    companySize {
       ${CATALOG_ENTRY}
     }
     
@@ -215,16 +165,11 @@ export const CUSTOMER_TASK = `
     endDate
     ${AUDIT_FIELDS}
     
-    # Catalog references
-    taskType {
-      ${CATALOG_ENTRY}
-    }
-    taskPriority {
-      ${CATALOG_ENTRY}
-    }
-    taskStatus {
-      ${CATALOG_ENTRY}
-    }
+    # Reference fields
+    typeRef
+    priorityRef
+    statusRef
+    timingType
     
     # Employee references
     creatorEmployee {

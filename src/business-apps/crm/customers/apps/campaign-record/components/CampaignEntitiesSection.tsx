@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCampaignEntities } from '../hooks/useCampaignEntities';
 import CampaignEntitiesTable from './CampaignEntitiesTable';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { DateRangeFilter } from '@/business-apps/crm/common/components/lead-list/components/DateRangeFilter';
+import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 
 export interface CampaignEntitiesSectionProps extends BusinessAppContextProps {
   campaignId: string;

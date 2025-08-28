@@ -20,7 +20,6 @@ import { Avatar } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../hooks/useEmployeeData';
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import AppActionButton from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useFeature } from "@/common/hooks/useFeature";
 import { Feature } from "@/common/types/constants/FeatureHub";
@@ -30,6 +29,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { notification } from 'antd';
 import { StarIcon } from "lucide-react";
 import { TeamOutlined } from "@ant-design/icons";
+import AppActionMenu from "@/components/app-action-menu/AppActionMenu";
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -393,7 +393,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       aria-label={"Edit profile picture"}
                     >
                       {isHovering && (
-                        <AppActionButton
+                        <AppActionMenu
                           data-testid="employee-profile-picture-edit-button"
                           contextsArray={[
                             FlowContextName.employeeProfilePicture,
@@ -404,9 +404,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                           prefixDataTestId="employee-profile-picture-edit"
                           accessToken={accessToken}
                           autoExecuteSingleAction={true}
-                          icon={<PiPencilSimple className="gba:h-5 gba:w-5" />}
                           emptyStateBehavior="hide"
-                        />
+                        >
+                          <PiPencilSimple className="gba:h-5 gba:w-5" />
+                        </AppActionMenu>
                       )}
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useGetCampaignTypes, CAMPAIGN_TYPE_CATALOG, CAMPAIGN_TYPE_VERSION } from '@/business-apps/crm/customers/apps/customer-relations/components/views/campaign-view/components/campaign-list/hooks/useGetCampaignTypes';
+import { useGetCampaignTypes, CAMPAIGN_TYPE_CATALOG, CAMPAIGN_TYPE_VERSION } from '@/business-apps/crm/customers/apps/customer-relations/views/campaign-view/components/campaign-list/hooks/useGetCampaignTypes';
 import type { CampaignFormValues, CampaignFormContextValue } from '../types';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';

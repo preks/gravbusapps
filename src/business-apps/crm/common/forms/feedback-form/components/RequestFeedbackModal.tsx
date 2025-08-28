@@ -49,6 +49,11 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Add null checks for businessAppContext
+  if (!businessAppContext || !businessAppContext.accessToken) {
+    return null;
+  }
+  
   const graphqlClient = useGraphQLClient(businessAppContext.accessToken);
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
 
@@ -119,7 +124,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
           userId: emp.employee?.userId
         }))
         // Filter out the current user from the list
-        .filter((emp: EmployeeOption) => emp.id !== currentUserEmployeeId);
+        .filter((emp: EmployeeOption) => !currentUserEmployeeId || emp.id !== currentUserEmployeeId);
 
       setEmployees(employeeOptions);
     } catch (err) {

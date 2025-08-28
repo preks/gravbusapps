@@ -288,9 +288,9 @@ export const AccountList: React.FC<AccountListProps> = ({
                       {account.ownerEmployee ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Avatar size="sm">
-                            {account.ownerEmployee.picture && (
+                            {account.ownerEmployee.pictureThumbnail && (
                               <AvatarImage
-                                src={account.ownerEmployee.picture}
+                                src={`data:image/gif;base64,${account.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(account)}
                               />
                             )}

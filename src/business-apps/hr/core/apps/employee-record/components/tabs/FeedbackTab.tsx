@@ -5,15 +5,14 @@ import dayjs from 'dayjs';
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData';
 import { Card, Avatar } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
-import { Button } from '@newwork/nw-design-system';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { BusinessAppContextProps, UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { PiPencilSimple } from 'react-icons/pi';
+import { AppActionMenu } from '@/components/app-action-menu';
 import { RequestFeedbackModal } from '@/business-apps/crm/common/forms/feedback-form/components';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -43,7 +42,7 @@ interface FormattedFeedback {
 const FeedbackTab: React.FC<FeedbackTabProps> = ({ 
   employee,
   accessToken,
-  // employeeId and userInfo are kept in interface for future use
+  userInfo,
   employeeFeedback = [],
   isSelfView,
   businessAppContext
@@ -168,47 +167,59 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         <div className="gba:flex gba:gap-2">
           {/* Give Feedback Button */}
           <div>
-            <AppActionButton 
-              data-testid="employee-feedback-give-button"
-              contextsArray={[FlowContextName.employeeGiveFeedback]}
-              externalContextData={{
-                employeeId: employee?.id
-              }}
-              prefixDataTestId="employee-feedback-give"
-              accessToken={accessToken}
-              autoExecuteSingleAction={true}
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:hr_performance.give_feedback",
-                "Give Feedback"
-              )}
-            </AppActionButton>
+            <AppActionMenu
+                data-testid="employee-feedback-give-button"
+                contextsArray={[FlowContextName.employeeGiveFeedback]}
+                externalContextData={{
+                  employeeId: employee?.id
+                }}
+                prefixDataTestId="employee-feedback-give"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                  <PiPencilSimple />
+                  Give Feedback
+                </div>
+              </AppActionMenu>
           </div>
           
           {/* Request Feedback Button - only visible when viewing own profile */}
           {isSelfView && (
             <div>
-              <Button
-                variant="outline"
-                onClick={() => setIsRequestModalOpen(true)}
-                data-testid="employee-feedback-request-button"
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:hr_performance.request_feedback",
-                  "Request Feedback"
-                )}
-              </Button>
+              <AppActionMenu
+                  data-testid="employee-feedback-request-button"
+                  contextsArray={[FlowContextName.employeeRequestFeedback]}
+                  externalContextData={{
+                    employeeId: employee?.id,
+                    isRequestingFeedback: true
+                  }}
+                  prefixDataTestId="employee-feedback-request"
+                  accessToken={accessToken}
+                  autoExecuteSingleAction={true}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                    <PiPencilSimple />
+                    Request Feedback
+                  </div>
+                </AppActionMenu>
             </div>
           )}
         </div>
       </div>
       
       {/* Request Feedback Modal */}
-      <RequestFeedbackModal
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-        businessAppContext={businessAppContext}
-      />
+      {isRequestModalOpen && accessToken && userInfo && (
+        <RequestFeedbackModal
+          isOpen={isRequestModalOpen}
+          onClose={() => setIsRequestModalOpen(false)}
+          businessAppContext={{
+            accessToken,
+            userInfo,
+            additionalData: {}
+          }}
+        />
+      )}
       
       {/* Feedback Content */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">

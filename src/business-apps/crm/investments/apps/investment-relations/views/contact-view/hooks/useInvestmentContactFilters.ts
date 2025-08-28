@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
-import { DateRangeFilter } from "@/business-apps/crm/common/components/lead-list/components/DateRangeFilter";
+import { DateRangeFilter } from "@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter";
 
 interface SimpleItem { id: string; label: string; }
 interface AccountItem { id: string; name: string; }
