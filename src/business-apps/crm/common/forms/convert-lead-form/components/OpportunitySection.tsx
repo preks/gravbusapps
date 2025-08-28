@@ -104,12 +104,6 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
   // Auto-set default pipeline when pipelines are loaded
   useEffect(() => {
     if (pipelines.length > 0 && !form.getFieldValue("opportunityPipeline")) {
-      console.log(
-        "Setting default pipeline, available pipelines:",
-        pipelines.length,
-        pipelines
-      );
-
       // Try to find "standard" pipeline first, otherwise use the first one
       const standardPipeline = pipelines.find(
         (p) =>
@@ -117,8 +111,6 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           p?.value?.toLowerCase().includes("standard") ||
           p?.name?.toLowerCase().includes("standard")
       );
-
-      console.log("Found standard pipeline:", standardPipeline);
 
       const selectedPipeline = standardPipeline || pipelines[0];
       form.setFieldsValue({ opportunityPipeline: selectedPipeline.value });
@@ -521,37 +513,36 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                 )}
                 <span className="gba:text-red-500 gba:ml-1">*</span>
               </Label>
-              <OwnerSelector
-                value={form.getFieldValue("opportunityOwnerEmployee") || ""}
-                onChange={(value: string) => {
-                  console.log("🔍 Opportunity Owner Selected:", value);
-                  form.setFieldsValue({ opportunityOwnerEmployee: value });
-                }}
-                employees={opportunityEmployeePositions as any}
-                loading={opportunityEmployeePositionsLoading}
-                hasMore={opportunityEmployeePositionsHasMore}
-                onLoadMore={loadMoreOpportunityEmployeePositions}
-                onSearch={(searchTerm: string) => {
-                  searchOpportunityEmployeePositions(searchTerm);
-                }}
-                error={opportunityEmployeePositionsError}
-                dataTestId="opportunity-owner-select"
-              />
-              {/* Hidden input to ensure form captures the value */}
               <Form.Item
                 name="opportunityOwnerEmployee"
+                style={{ margin: 0 }}
                 rules={[
                   {
                     required: true,
                     message: getTranslationFromI18nKeyAndLabel(
                       "crm:opportunity.ownerEmployeeRequired",
-                      "Please select an owner employee"
+                      "Please select owner employee"
                     ),
                   },
                 ]}
-                style={{ display: "none" }}
               >
-                <input type="hidden" />
+                <OwnerSelector
+                  value={form.getFieldValue("opportunityOwnerEmployee") || ""}
+                  onChange={(value: string) => {
+                    form.setFieldsValue({ opportunityOwnerEmployee: value });
+                    // Force form to update
+                    form.validateFields(["opportunityOwnerEmployee"]);
+                  }}
+                  employees={opportunityEmployeePositions as any}
+                  loading={opportunityEmployeePositionsLoading}
+                  hasMore={opportunityEmployeePositionsHasMore}
+                  onLoadMore={loadMoreOpportunityEmployeePositions}
+                  onSearch={(searchTerm: string) => {
+                    searchOpportunityEmployeePositions(searchTerm);
+                  }}
+                  error={opportunityEmployeePositionsError}
+                  dataTestId="opportunity-owner-select"
+                />
               </Form.Item>
             </div>
           </div>

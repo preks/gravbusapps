@@ -107,6 +107,9 @@ const OpportunityFormComponent: React.FC = () => {
           formValues.accountId || formValues.account
         ),
 
+        // Record state (convert back to lowercase for API)
+        recordState: toStringOrUndefined(formValues.recordState)?.toLowerCase(),
+
         // Additional properties (empty object as per API)
         additionalProperties: {},
       };

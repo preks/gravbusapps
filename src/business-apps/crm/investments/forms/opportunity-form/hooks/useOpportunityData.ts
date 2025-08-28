@@ -85,7 +85,7 @@ export const mapInvestmentOpportunityDataToFormValues = (
 
     // Process and system fields
     processInstanceId: opportunity.processInstanceId || "",
-    recordState: opportunity.recordState || "ACTIVE",
+    recordState: opportunity.recordState?.toUpperCase() || "",
 
     // Audit information (readonly)
     activeFrom: opportunity.activeFrom || "",
