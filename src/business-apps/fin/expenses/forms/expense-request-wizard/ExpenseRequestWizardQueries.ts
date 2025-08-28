@@ -563,6 +563,24 @@ export const getExpenseRulesDataQuery =`query getTravelRegionRules($expenseRuleI
 }
 `
 
+export const getExpenseRulePkData = `query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
+    ExpenseRuleByPk(id: $expenseRuleId) {
+      useSingleCurrency
+    currency {
+      code
+      id
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+  }
+  }`
+
 export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:uuid, $requestType: String, $absenceStatus: String, $startTimeValue: timestamp, $endTimeValue: timestamp, $statusArray: [String!] ,$activeUserLocale: String) {
   ExpenseRequest(where: {requestTypeRef: {_eq: $requestType},id: {_neq: $requestId}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}], status: {_nin: $statusArray}}, orderBy: {startDate: ASC}, limit: 1) {
     id

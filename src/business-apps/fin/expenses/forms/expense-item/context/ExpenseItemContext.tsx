@@ -202,7 +202,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const expenseRequestId = 
         additionalData?.expenseRequestId || 
         additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
-      
       // Set expenseRequestId in form
       if (expenseRequestId) {
         form.setFieldsValue({ expenseRequestId: expenseRequestId });
@@ -210,16 +209,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         form.setFieldsValue({ expenseRequestId: "0" });
       }
       
-      // Handle itemCurrency if provided from wizard
+      // Handle itemCurrency and useSingleCurrency if provided from wizard
       if (additionalData?.itemCurrency && currencies.length > 0) {
         const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency);
         if (currencyToSet) {
-          form.setFieldsValue({ 
-            currency: currencyToSet.id,
-            fixedCurrency: true
-          });
+          if (typeof additionalData?.useSingleCurrency === 'boolean') {
+            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency });
+          }
+          form.setFieldsValue({ currency: currencyToSet.id });
         }
       }
+
     }
   }, [catalogueDataResponse, accessToken, additionalData, currencies]);
 
