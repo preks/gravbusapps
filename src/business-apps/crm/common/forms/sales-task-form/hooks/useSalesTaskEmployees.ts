@@ -12,6 +12,7 @@ export interface SalesTaskEmployee {
   firstName: string;
   lastName: string;
   displayName: string;
+  userId: string;
 }
 
 const GET_SALES_TASK_EMPLOYEES_QUERY = `
@@ -37,6 +38,7 @@ const GET_SALES_TASK_EMPLOYEES_QUERY = `
       firstName
       lastName
       displayName
+      userId
     }
   }
 `;
@@ -89,7 +91,8 @@ export const useSalesTaskEmployees = (accessToken: string, params?: UseSalesTask
         id: emp.id,
         displayName: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
         firstName: emp.firstName || '',
-        lastName: emp.lastName || ''
+        lastName: emp.lastName || '',
+        userId: emp.userId || ''
       }));
       
       setData(processedEmployees);

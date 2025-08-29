@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { UserOutlined, TeamOutlined } from '@ant-design/icons';
 
@@ -12,9 +11,11 @@ import { useTaskStatistics } from './hooks/useTaskStatistics';
 import { TaskTable } from './components/TaskTable';
 import { TaskDetails } from './components/TaskDetails';
 import TaskStatistics from './components/TaskStatistics';
-import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PlusSquareIcon } from '@phosphor-icons/react';
 
 export interface TaskViewProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -26,7 +27,6 @@ export interface TaskViewProps extends BusinessAppContextProps {
  */
 export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
   const { accessToken, sourceApp, userInfo } = props;
-  const { t } = useTranslation();
 
   // Tab state management
   const [activeTab, setActiveTab] = useState('my');
@@ -165,15 +165,7 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
     return baseFilters;
   }, [getFilters, activeTab, userInfo]);
 
-  // Handle adding a new task
-  const handleAddTask = useCallback(() => {
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesTask',
-      payload: {},
-      builderType: 'NATIVE_SCREEN',
-    });
-  }, []);
+
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -222,19 +214,7 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
     accessToken
   });
 
-  // Throttle refetch to prevent excessive requests
-  const lastRefetchTime = useRef(0);
-  const REFETCH_THROTTLE_MS = 2000; // Reduced to 2 seconds for better UX
 
-  const throttledRefresh = useCallback(() => {
-    const now = Date.now();
-    if (now - lastRefetchTime.current < REFETCH_THROTTLE_MS) {
-      return; // Skip if too recent
-    }
-    lastRefetchTime.current = now;
-    retry();
-    refetchStatistics();
-  }, [retry, refetchStatistics]);
 
   // Listen for process completion events to refresh tasks (following established CRM pattern)
   useEffect(() => {
@@ -368,15 +348,9 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
     setSelectedTask(task);
   }, []);
 
-  // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedTask(null);
-  }, []);
 
-  // Handle search change
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-  }, [setSearch]);
+
+
 
   // Throttled pagination to prevent rapid requests
   const lastPaginationTime = useRef(0);
@@ -498,11 +472,22 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
                     </div>
                   </div>
                 ),
-                addButton: {
-                  onClick: handleAddTask,
-                  label: 'Add',
-                  'data-testid': 'add-task-button'
-                },
+                actions: (
+                  <AppAction
+                    contextsArray={[FlowContextName.createCustomerTask]}
+                    accessToken={accessToken}
+                    data-testid="add-task-action"
+                    emptyStateBehavior="hide"
+                  >
+                    <div
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                      data-testid="add-task-trigger"
+                    >
+                      <PlusSquareIcon />
+                      Add
+                    </div>
+                  </AppAction>
+                ),
               }}
               dataFilterProps={{
                 filterGroups,
@@ -557,11 +542,22 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
                     </div>
                   </div>
                 ),
-                addButton: {
-                  onClick: handleAddTask,
-                  label: 'Add',
-                  'data-testid': 'add-task-button'
-                },
+                actions: (
+                  <AppAction
+                    contextsArray={[FlowContextName.createCustomerTask]}
+                    accessToken={accessToken}
+                    data-testid="add-task-action"
+                    emptyStateBehavior="hide"
+                  >
+                    <div
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                      data-testid="add-task-trigger"
+                    >
+                      <PlusSquareIcon />
+                      Add
+                    </div>
+                  </AppAction>
+                ),
               }}
               dataFilterProps={{
                 filterGroups,

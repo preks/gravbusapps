@@ -25,7 +25,6 @@ import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from "react-icons/pi";
 import { Clock, Calendar } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { startProcess } from "@/common/utils/start-process";
 import { Task } from "../types/TaskTypes";
 import {
   getTaskStatusBadgeVariant,
@@ -128,20 +127,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
       employeeId: employee.id,
     });
     navigateTo(url);
-  }, []);
-
-  // Handle task update
-  const handleUpdateTask = useCallback((task: Task) => {
-    console.log("TaskTable - Updating task:", task);
-    console.log("TaskTable - Raw sales task data:", task.rawSalesTask);
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveSalesTask",
-      payload: {
-        taskData: task.rawSalesTask, // Pass the raw sales task data
-      },
-      builderType: "NATIVE_SCREEN",
-    });
   }, []);
 
   // Handle reference record navigation
@@ -496,20 +481,10 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.taskInstance]}
+                        contextsArray={[FlowContextName.customerTaskEntity]}
                         externalContextData={{
                           taskId: record.id,
-                          taskData: record.rawSalesTask,
                         }}
-                        staticFlowData={[
-                          {
-                            key: `update-task-${record.id}`,
-                            label: "Update Task",
-                            icon: "PiLightning",
-                            category: "ACTION",
-                            onClick: () => handleUpdateTask(record),
-                          },
-                        ]}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
                         accessToken={accessToken}
                         emptyStateBehavior="enable"
