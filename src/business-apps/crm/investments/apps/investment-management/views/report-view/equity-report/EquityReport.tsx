@@ -24,6 +24,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EquityAnalyticsFilters } from './types';
 import dayjs from 'dayjs';
 import { EquityAnalyticsTable } from './components/EquityAnalyticsTable';
+import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes';
 
 // Using individual DatePicker components for start and end dates
 
@@ -36,6 +37,14 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   userInfo,
   'data-testid': dataTestId = 'equity-analytics'
 }) => {
+  // Fetch dynamic equity investment types from catalog
+  const { investmentTypes, loading: typesLoading, error: typesError } = useEquityInvestmentTypes(accessToken);
+  
+  // Use catalog types if available, otherwise use empty array (only Overview tab)
+  const effectiveInvestmentTypes = typesError || investmentTypes.length === 0 ? [] : investmentTypes;
+  
+
+  
   // Sub-tab management
   const [activeSubTab, setActiveSubTab] = useState<string>('overview');
 
@@ -69,16 +78,24 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     [appliedEndDate?.valueOf()]
   );
 
+  // Find the selected investment type from catalog
+  const selectedInvestmentType = useMemo(() => {
+    if (activeSubTab === 'overview') return undefined;
+    return effectiveInvestmentTypes.find(type => type.code === activeSubTab);
+  }, [activeSubTab, effectiveInvestmentTypes]);
+
   // Create filters for equity analytics (with investment type filtering)
-  const equityAnalyticsFilters = useMemo((): EquityAnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
-    investmentType: activeSubTab === 'private-equity' ? 'Private Equity' : 
-                   activeSubTab === 'venture-capital' ? 'Venture Capital' : 
-                   activeSubTab === 'public-equity' ? 'Public Equity' : undefined,
-    fundManagerName: appliedFundManager && appliedFundManager !== 'All' ? appliedFundManager : undefined
-  }), [startDateString, endDateString, appliedCurrency, appliedFundManager, activeSubTab]);
+  const equityAnalyticsFilters = useMemo((): EquityAnalyticsFilters => {
+    const filters = {
+      startDate: startDateString,
+      endDate: endDateString,
+      currency: appliedCurrency,
+      investmentType: selectedInvestmentType?.code || undefined,
+      fundManagerName: appliedFundManager && appliedFundManager !== 'All' ? appliedFundManager : undefined
+    };
+
+    return filters;
+  }, [startDateString, endDateString, appliedCurrency, appliedFundManager, selectedInvestmentType, activeSubTab]);
 
   // Create overview filters (without investment type filtering)
   const overviewFilters = useMemo((): EquityAnalyticsFilters => ({
@@ -114,8 +131,35 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     setSelectedFundManager(fundManager);
   };
 
+  // Show loading state while investment types are being fetched
+  const showLoadingWarning = typesLoading && !typesError;
+  const showErrorWarning = typesError && effectiveInvestmentTypes.length === 0;
+
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
+      {/* Warning messages */}
+      {showLoadingWarning && (
+        <Card className="gba:border-yellow-200 gba:bg-yellow-50">
+          <CardContent className="gba:p-4">
+            <div className="gba:text-sm gba:text-yellow-800">
+              ⚠️ Loading investment types from catalog... Showing Overview only.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {showErrorWarning && (
+        <Card className="gba:border-orange-200 gba:bg-orange-50">
+          <CardContent className="gba:p-4">
+            <div className="gba:text-sm gba:text-orange-800">
+              ⚠️ Unable to load investment types from catalog. Showing Overview only. 
+              <br />
+              <span className="gba:text-xs">Error: {typesError}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters Section */}
       <Card>
         <CardHeader>
@@ -199,19 +243,19 @@ export const EquityReport: React.FC<EquityReportProps> = ({
 
       {/* Equity Analytics Tables with Sub-tabs */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
+        <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${effectiveInvestmentTypes.length + 1}, minmax(0, 1fr))` }}>
           <TabsTrigger value="overview" data-testid={`${dataTestId}-overview-tab`}>
             Overview
           </TabsTrigger>
-          <TabsTrigger value="private-equity" data-testid={`${dataTestId}-private-equity-tab`}>
-            Private Equity
-          </TabsTrigger>
-          <TabsTrigger value="venture-capital" data-testid={`${dataTestId}-venture-capital-tab`}>
-            Venture Capital
-          </TabsTrigger>
-          <TabsTrigger value="public-equity" data-testid={`${dataTestId}-public-equity-tab`}>
-            Public Equity
-          </TabsTrigger>
+          {effectiveInvestmentTypes.map((type) => (
+            <TabsTrigger 
+              key={type.code} 
+              value={type.code} 
+              data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab`}
+            >
+              {type.value}
+            </TabsTrigger>
+          ))}
         </TabsList>
         
         <TabsContent value="overview" className="gba:mt-6">
@@ -220,43 +264,23 @@ export const EquityReport: React.FC<EquityReportProps> = ({
             userInfo={userInfo}
             filters={overviewFilters}
             investmentType="All Equity Investments"
-            title="Equity Analytics Overview"
+            title="Equity Analytics - Overview"
             data-testid={`${dataTestId}-overview-table`}
           />
         </TabsContent>
         
-        <TabsContent value="private-equity" className="gba:mt-6">
-          <EquityAnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={equityAnalyticsFilters}
-            investmentType="Private Equity"
-            title="Private Equity Analytics"
-            data-testid={`${dataTestId}-private-equity-table`}
-          />
-        </TabsContent>
-        
-        <TabsContent value="venture-capital" className="gba:mt-6">
-          <EquityAnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={equityAnalyticsFilters}
-            investmentType="Venture Capital"
-            title="Venture Capital Analytics"
-            data-testid={`${dataTestId}-venture-capital-table`}
-          />
-        </TabsContent>
-        
-        <TabsContent value="public-equity" className="gba:mt-6">
-          <EquityAnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={equityAnalyticsFilters}
-            investmentType="Public Equity"
-            title="Public Equity Analytics"
-            data-testid={`${dataTestId}-public-equity-table`}
-          />
-        </TabsContent>
+        {effectiveInvestmentTypes.map((type) => (
+          <TabsContent key={type.code} value={type.code} className="gba:mt-6">
+            <EquityAnalyticsTable
+              accessToken={accessToken}
+              userInfo={userInfo}
+              filters={equityAnalyticsFilters}
+              investmentType={type.value}
+              title={`${type.value} Analytics`}
+              data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
+            />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

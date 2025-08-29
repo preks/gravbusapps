@@ -15,7 +15,7 @@ export interface EquityAnalyticsFilters {
   fundManagerName?: string;
 }
 
-// Raw data from GraphQL for equity investments
+// Raw data from GraphQL for equity investments - ALIGNED WITH SCHEMA
 export interface EquityInvestmentAnalyticsResponse {
   id: string;
   marketValue: number;
@@ -29,8 +29,11 @@ export interface EquityInvestmentAnalyticsResponse {
     fundManagerName: string;
     acquisitionDate: string;
     forecastedProfitAmount: number;
-    forecastedRevenueAmount: number;
+    forecastedRevenueAmount: number; // FIXED: Was forecastedRevenue
     currencyRef: string;
+    // Additional available fields from GraphQL
+    debtFinancingAmount?: number;
+    exitDate?: string;
   };
   equityInvestmentReport: EquityInvestmentReportAnalyticsResponse[];
 }
@@ -54,14 +57,20 @@ export interface EquityAnalyticsRowData {
   currency: string;
   acquisitionDate: string;
   foundationDate: string;
-  // Financial metrics
+  // Investment type data for filtering
+  investmentType?: string; // Investment type code (PHARMA, DISRUPTIVE_TECHNOLOGY, etc.)
+  investmentTypeValue?: string; // Investment type display value
+  investmentGroupCode?: string; // Investment group code (EQUITY, REAL_ESTATE, etc.)
+  // Financial metrics - ALIGNED WITH GRAPHQL
   currentMarketValue: number;
   currentEbitda: number;
   forecastedProfit: number;
-  forecastedRevenue: number;
-  // Performance calculations
-  unrealizedGain: number;
-  ebitdaMargin: number;
+  forecastedRevenue: number; // Maps to: forecastedRevenueAmount
+  // Performance calculations - COMPUTED FIELDS
+  unrealizedGain: number; // Calculated: currentMarketValue - initialInvestment
+  ebitdaMargin: number; // Calculated: (currentEbitda / forecastedRevenue) * 100
+  // Additional available metrics
+  debtFinancing?: number; // Maps to: debtFinancingAmount
   // Metadata
   equityInvestmentId: string;
   investmentId: string;
@@ -104,14 +113,4 @@ export interface EquityAnalyticsTransformOptions {
   aggregateBy?: 'investment' | 'fundManager';
 }
 
-export default {
-  EquityAnalyticsQueryVariables,
-  EquityAnalyticsFilters,
-  EquityInvestmentAnalyticsResponse,
-  EquityInvestmentReportAnalyticsResponse,
-  EquityAnalyticsRowData,
-  EquityAnalyticsTotals,
-  EquityAnalyticsResponse,
-  EquityAnalyticsState,
-  EquityAnalyticsTransformOptions
-};
+// All types are exported individually above
