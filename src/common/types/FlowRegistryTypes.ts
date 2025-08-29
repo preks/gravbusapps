@@ -27,6 +27,7 @@ export enum FlowContextName {
   investmentActivityEntity = "investmentActivityEntity",
   investmentNoteEntity = "investmentNoteEntity",
   investmentDocumentEntity = "investmentDocumentEntity",
+  uploadInvestmentReport = "uploadInvestmentReport",
 
   createInvestment = "createInvestment",
   investmentEntity = "investmentEntity",
