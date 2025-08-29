@@ -32,7 +32,7 @@ import { startProcess } from '@/common/utils/start-process';
 
 interface OpportunityBoardProps extends BusinessAppContextProps {
   // Board loads its own stages based on selected pipeline
-  dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DINVESTMENT_DEAL)
+  dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
 }
 
 

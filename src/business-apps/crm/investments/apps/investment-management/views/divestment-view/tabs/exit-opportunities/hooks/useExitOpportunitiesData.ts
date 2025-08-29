@@ -77,7 +77,7 @@ export const useExitOpportunitiesData = (
         const variables: InvestmentOpportunityQueryVariables = {
           limit: pageSize,
           offset: (page - 1) * pageSize,
-          dealType: "DINVESTMENT_DEAL", // Filter for divestment opportunities using dealType
+          dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities using dealType
           search: additionalFilters?.search || params.search,
         };
 

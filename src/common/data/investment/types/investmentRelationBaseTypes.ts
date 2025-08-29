@@ -230,7 +230,7 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   investment?: InvestmentRef[]; // List of investments related to this opportunity
 
   // Domain Specific Fields
-  dealType?: string; // INVESTMENT_DEAL, DINVESTMENT_DEAL, etc.
+  dealType?: string; // INVESTMENT_DEAL, DIVESTMENT_DEAL, etc.
   investmentName?: string;
   investmentGroup?: CatalogEntry;
   investmentType?: CatalogEntry;

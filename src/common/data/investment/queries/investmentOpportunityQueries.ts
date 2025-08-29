@@ -28,7 +28,7 @@ export interface InvestmentOpportunityQueryVariables {
 export const buildInvestmentOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }';
   
-  // Filter by dealType (INVESTMENT_DEAL, DINVESTMENT_DEAL, etc.)
+  // Filter by dealType (INVESTMENT_DEAL, DIVESTMENT_DEAL, etc.)
   if (variables.dealType) {
     whereClause += `, dealType: { _eq: "${variables.dealType}" }`;
   }
