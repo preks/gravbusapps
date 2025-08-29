@@ -1,12 +1,10 @@
 import React from 'react';
-import { Card, Typography, Button, Empty, Row, Col, Collapse, Tag } from 'antd';
-import { Play, Folder, AppWindow, ArticleNyTimes, ChatCircle } from '@phosphor-icons/react';
-import { PiSquaresFourDuotone, PiAppWindowBold, PiClockBold } from 'react-icons/pi';
-import BackgroundImage from '../../assets/images/background.png';
+import { Card, CardContent, Button, Badge } from '@newwork/nw-design-system';
+import { Play, Folder, AppWindow, Article, ChatCircle, SquaresFour, Clock, CaretDown, CaretRight } from '@phosphor-icons/react';
+
 import { PageLayout } from '../layout/pageLayout';
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+// Removed antd Typography and Collapse imports - using nw-design-system instead
 
 interface BusinessAppInfo {
     name: string;
@@ -21,24 +19,74 @@ interface RecentlyUsedApp {
     name: string;
     module: string;
     subModule?: string;
+    screenKey: string;
     lastUsed: number;
 }
 
 interface IDEStartScreenProps {
     businessApps: BusinessAppInfo[];
     onAppSelect: (app: BusinessAppInfo) => void;
-    recentlyUsedApps: RecentlyUsedApp[];
 }
 
 
 
 export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     businessApps,
-    onAppSelect,
-    recentlyUsedApps
+    onAppSelect
 }) => {
 
-    // Recently used apps are now managed by the parent component
+    // Recently used apps tracking
+    const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
+    const MAX_RECENT_APPS = 5;
+
+    const [recentlyUsedApps, setRecentlyUsedApps] = React.useState<RecentlyUsedApp[]>([]);
+
+    // Load recently used apps from localStorage on component mount
+    React.useEffect(() => {
+        const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
+        if (savedRecentApps) {
+            try {
+                const parsed = JSON.parse(savedRecentApps);
+                setRecentlyUsedApps(parsed);
+            } catch (error) {
+                console.error("Failed to parse recent apps:", error);
+            }
+        }
+    }, []);
+
+    // Update recently used apps when an app is selected
+    const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
+        const now = Date.now();
+        const existingIndex = recentlyUsedApps.findIndex(
+            (recentApp) => recentApp.screenKey === app.screenKey
+        );
+
+        let updatedApps = [...recentlyUsedApps];
+
+        if (existingIndex !== -1) {
+            updatedApps[existingIndex].lastUsed = now;
+        } else {
+            updatedApps.push({
+                name: app.name,
+                module: app.module,
+                subModule: app.subModule,
+                screenKey: app.screenKey,
+                lastUsed: now,
+            });
+        }
+
+        updatedApps = updatedApps
+            .sort((a, b) => b.lastUsed - a.lastUsed)
+            .slice(0, MAX_RECENT_APPS);
+
+        setRecentlyUsedApps(updatedApps);
+        localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(updatedApps));
+    };
+
+    const handleAppClick = (app: BusinessAppInfo) => {
+        updateRecentlyUsedApps(app);
+        onAppSelect(app);
+    };
 
     // Group business apps by module and sub-module
     const groupedApps = businessApps.reduce((acc, app) => {
@@ -56,19 +104,16 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     }, {} as Record<string, Record<string, BusinessAppInfo[]>>);
 
     const createAppURL = (app: BusinessAppInfo): string => {
-        const url = new URL(window.location.href);
-        url.searchParams.set("app", app.name);
-        return url.toString();
+        const baseUrl = window.location.origin + window.location.pathname;
+        return `${baseUrl}?${app.type}=${app.screenKey}`;
     };
 
-    const handleAppClick = (app: BusinessAppInfo) => {
-        onAppSelect(app);
-    };
+
 
     const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
-        // Allow middle-click and right-click to work with browser defaults
-        if (event.button === 1 || event.button === 2) {
-            return; // Let browser handle middle-click and right-click
+        // Allow middle-click and Ctrl+click to work with browser defaults
+        if (event.button === 1 || event.ctrlKey || event.metaKey) {
+            return; // Let browser handle middle-click and Ctrl+click
         }
         
         // For left-click, prevent default and handle navigation
@@ -79,9 +124,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     const getRecentApps = (): BusinessAppInfo[] => {
         return recentlyUsedApps
             .map(recent => businessApps.find(app =>
-                app.name === recent.name &&
-                app.module === recent.module &&
-                app.subModule === recent.subModule
+                app.screenKey === recent.screenKey
             ))
             .filter(Boolean) as BusinessAppInfo[];
     };
@@ -99,7 +142,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
             case 'app':
                 return <Play />;
             case 'form':
-                return <ArticleNyTimes />;
+                return <Article />;
             case 'popup':
                 return <ChatCircle />;
             default:
@@ -145,27 +188,41 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
                     e.stopPropagation();
                 }
             }}
-            className="gba:w-full gba:text-left gba:justify-start gba:mb-1 gba:h-8 gba:flex gba:items-center gba:no-underline hover:gba:bg-gray-100 gba:text-gray-700 hover:gba:text-gray-900"
+            className="gba:flex gba:items-center gba:mb-1 gba:h-8 gba:w-full gba:text-left gba:justify-start gba:no-underline hover:gba:bg-gray-100 gba:text-gray-700 hover:gba:text-gray-900"
             style={{
                 padding: '4px 8px',
                 borderRadius: '4px',
                 transition: 'all 0.2s',
-                justifyContent: 'flex-start',
                 textDecoration: 'none',
-                color: 'inherit',
-                display: 'flex',
-                alignItems: 'center'
+                color: 'inherit'
             }}
         >
             <span style={{ marginRight: '6px', fontSize: '14px', color: getTypeColor(app.type) }}>
                 {getTypeIcon(app.type)}
             </span>
             <span className="gba:text-xs gba:truncate gba:text-left gba:flex-grow">{app.name}</span>
-            <Tag size="small" color={getTypeColor(app.type)} style={{ marginLeft: '4px', fontSize: '10px' }}>
+            <Badge 
+                variant="secondary" 
+                className="gba:ml-2 gba:text-xs"
+                style={{ backgroundColor: `${getTypeColor(app.type)}20`, color: getTypeColor(app.type) }}
+            >
                 {getTypeLabel(app.type)}
-            </Tag>
+            </Badge>
         </a>
     );
+
+    // Move state management to component level
+    const [expandedSubModules, setExpandedSubModules] = React.useState<Set<string>>(new Set());
+    
+    const toggleSubModule = (subModule: string) => {
+        const newExpanded = new Set(expandedSubModules);
+        if (newExpanded.has(subModule)) {
+            newExpanded.delete(subModule);
+        } else {
+            newExpanded.add(subModule);
+        }
+        setExpandedSubModules(newExpanded);
+    };
 
     const renderSubModuleContent = (subModules: Record<string, BusinessAppInfo[]>) => {
         const subModuleEntries = Object.entries(subModules);
@@ -181,146 +238,174 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
 
         // Show sub-modules with collapsible sections
         return (
-            <Collapse
-                ghost
-                size="small"
-                className="gba:w-full"
-                expandIconPosition="end"
-            >
-                {subModuleEntries.map(([subModule, apps]) => (
-                    <Panel
-                        key={subModule}
-                        header={
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                                <Folder className="gba:text-blue-500" />
-                                <Text strong className="gba:text-sm">
-                                    {formatSubModuleName(subModule)}
-                                </Text>
-                                <Tag color="blue">
-                                    {apps.length}
-                                </Tag>
-                            </div>
-                        }
-                        className="gba:bg-gray-50 gba:rounded gba:mb-2"
-                    >
-                        <div className="gba:space-y-1 gba:pl-4 gba:text-left">
-                            {apps.map(renderAppButton)}
+            <div className="gba:w-full gba:space-y-2">
+                {subModuleEntries.map(([subModule, apps]) => {
+                    const isExpanded = expandedSubModules.has(subModule);
+                    return (
+                        <div key={subModule} className="gba:bg-gray-50 gba:rounded gba:mb-2">
+                            <Button
+                                variant="ghost"
+                                onClick={() => toggleSubModule(subModule)}
+                                className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
+                            >
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                    <Folder className="gba:text-blue-500" />
+                                    <span className="gba:text-sm gba:font-medium">
+                                        {formatSubModuleName(subModule)}
+                                    </span>
+                                    <Badge variant="secondary">
+                                        {apps.length}
+                                    </Badge>
+                                </div>
+                                {isExpanded ? <CaretDown size={16} /> : <CaretRight size={16} />}
+                            </Button>
+                            {isExpanded && (
+                                <div className="gba:px-4 gba:pb-2 gba:space-y-1 gba:text-left">
+                                    {apps.map(renderAppButton)}
+                                </div>
+                            )}
                         </div>
-                    </Panel>
-                ))}
-            </Collapse>
+                    );
+                })}
+            </div>
         );
     };
 
     return (
-        <div data-testid="IDE-StartScreen">
+        <div 
+            data-testid="IDE-StartScreen"
+            className="gba:min-h-screen nw:bg-gradient-decorative-2"
+        >
             <PageLayout
                 variant="display"
-                headerIcon={<PiSquaresFourDuotone color='#FFFFFF' />}
+                headerIcon={<SquaresFour color='#000000' />}
                 headerLabel="Business Applications"
-                headerLabelClassName="gba:!text-white"
-                backgroundImage={BackgroundImage}
+                headerLabelClassName="gba:!text-black"
+                className="nw:will-change-auto gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
                 contentContainer={
                     <div className="gba:p-6">
                         {/* Recently Used Section */}
                         {recentlyUsedApps.length > 0 && (
                             <div className="gba:mb-8">
-                                <Title level={4} className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:!text-white">
-                                    <PiClockBold color="#FFFFFF" />
+                                <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
+                                    <Clock color="#000000" />
                                     Recently Used
-                                </Title>
-                                <Row gutter={[16, 16]} justify="center">
+                                </h4>
+                                <div 
+                                    className="gba:grid gba:gap-4"
+                                    style={{
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                                        display: 'grid'
+                                    }}
+                                >
                                     {getRecentApps().map((app) => (
-                                        <Col key={app.name} xs={24} sm={12} md={8} lg={6} xl={4}>
-                                            <a
-                                                href={createAppURL(app)}
-                                                onClick={(e) => handleAppLinkClick(e, app)}
-                                                onAuxClick={(e) => {
-                                                    // Handle middle-click specifically
-                                                    if (e.button === 1) {
-                                                        // Allow browser to open in new tab
-                                                        e.stopPropagation();
-                                                    }
-                                                }}
-                                                style={{ 
-                                                    textDecoration: 'none', 
-                                                    color: 'inherit',
-                                                    display: 'block'
-                                                }}
-                                            >
-                                                <Card
-                                                    hoverable
-                                                    size="small"
-                                                    className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
-                                                    style={{ cursor: 'pointer' }}
+                                        <Card
+                                            key={app.name}
+                                            className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+                                        >
+                                            <CardContent className="gba:p-3">
+                                                <a
+                                                    href={createAppURL(app)}
+                                                    onClick={(e) => handleAppLinkClick(e, app)}
+                                                    onAuxClick={(e) => {
+                                                        // Handle middle-click specifically
+                                                        if (e.button === 1) {
+                                                            // Allow browser to open in new tab
+                                                            e.stopPropagation();
+                                                        }
+                                                    }}
+                                                    className="gba:block gba:no-underline gba:text-inherit"
                                                 >
-                                                    <div className="gba:text-center">
-                                                        <div style={{ color: getTypeColor(app.type), fontSize: '24px', marginBottom: '8px' }}>
+                                                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                                        <div style={{ color: getTypeColor(app.type), fontSize: '18px' }}>
                                                             {getTypeIcon(app.type)}
                                                         </div>
-                                                        <div className="gba:text-sm gba:font-medium gba:truncate" title={app.name}>
+                                                        <div className="gba:text-sm gba:font-medium gba:truncate gba:flex-1" title={app.name}>
                                                             {app.name}
                                                         </div>
-                                                        <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                                                            {formatModuleName(app.module)}
-                                                            {app.subModule && app.subModule !== 'default' && (
-                                                                <span> › {formatSubModuleName(app.subModule.split('/')[0])}</span>
-                                                            )}
-                                                        </div>
-                                                        <Tag size="small" color={getTypeColor(app.type)} style={{ marginTop: '4px' }}>
-                                                            {getTypeLabel(app.type)}
-                                                        </Tag>
                                                     </div>
-                                                </Card>
-                                            </a>
-                                        </Col>
+                                                    <div className="gba:text-xs gba:text-gray-500 gba:mb-2">
+                                                        {formatModuleName(app.module)}
+                                                        {app.subModule && app.subModule !== 'default' && (
+                                                            <span> › {formatSubModuleName(app.subModule.split('/')[0])}</span>
+                                                        )}
+                                                    </div>
+                                                    <Badge 
+                                                        variant="secondary" 
+                                                        className="gba:text-xs"
+                                                        style={{ backgroundColor: `${getTypeColor(app.type)}20`, color: getTypeColor(app.type) }}
+                                                    >
+                                                        {getTypeLabel(app.type)}
+                                                    </Badge>
+                                                </a>
+                                            </CardContent>
+                                        </Card>
                                     ))}
-                                </Row>
+                                </div>
                             </div>
                         )}
 
                         {/* Module Cards */}
                         <div className="gba:mb-4">
-                            <Title level={4} className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:!text-white">
-                                <PiAppWindowBold color="#FFFFFF" />
+                            <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
+                                <AppWindow color="#000000" />
                                 All Applications
-                            </Title>
+                            </h4>
                             {Object.keys(groupedApps).length === 0 ? (
-                                <Empty
-                                    description="No business applications found"
-                                    className="gba:py-12"
-                                />
+                                <div className="gba:py-12 gba:text-center">
+                                    <div className="gba:text-gray-500 gba:text-lg">
+                                        No business applications found
+                                    </div>
+                                </div>
                             ) : (
-                                <Row gutter={[24, 24]}>
+                                <div 
+                                    className="gba:grid gba:gap-6"
+                                    style={{
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                        display: 'grid'
+                                    }}
+                                >
                                     {Object.entries(groupedApps).map(([module, subModules]) => {
                                         const totalApps = Object.values(subModules).reduce((sum, apps) => sum + apps.length, 0);
 
                                         return (
-                                            <Col key={module} xs={24} sm={12} lg={8} xl={6}>
-                                                <Card
-                                                    title={
-                                                        <div className="gba:flex gba:items-center gba:justify-between">
-                                                                                                    <span className="gba:flex gba:items-center gba:gap-2">
-                                            <AppWindow className="gba:text-blue-600" />
-                                            {formatModuleName(module)}
-                                        </span>
-                                                            <Tag color="blue">{totalApps}</Tag>
-                                                        </div>
-                                                    }
-                                                    className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
-                                                    style={{ height: '400px' }}
-                                                    bodyStyle={{
-                                                        padding: '12px',
-                                                        height: 'calc(100% - 57px)',
-                                                        overflowY: 'auto'
+                                            <Card
+                                                key={module}
+                                                className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                                                style={{ height: '400px', display: 'flex', flexDirection: 'column' }}
+                                            >
+                                                <CardContent 
+                                                    className="gba:p-3" 
+                                                    style={{ 
+                                                        flex: 1, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        minHeight: 0,
+                                                        height: '100%'
                                                     }}
                                                 >
-                                                    {renderSubModuleContent(subModules)}
-                                                </Card>
-                                            </Col>
+                                                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                                                        <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                                                            <AppWindow className="gba:text-blue-600" />
+                                                            {formatModuleName(module)}
+                                                        </span>
+                                                        <Badge variant="secondary">{totalApps}</Badge>
+                                                    </div>
+                                                    <div 
+                                                        style={{ 
+                                                            flex: 1, 
+                                                            overflowY: 'auto',
+                                                            minHeight: 0,
+                                                            maxHeight: '100%'
+                                                        }}
+                                                    >
+                                                        {renderSubModuleContent(subModules)}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
                                         );
                                     })}
-                                </Row>
+                                </div>
                             )}
                         </div>
                     </div>
