@@ -654,6 +654,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
@@ -665,7 +666,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
                         accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}
                       />

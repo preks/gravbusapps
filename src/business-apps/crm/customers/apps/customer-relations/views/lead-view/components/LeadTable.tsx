@@ -22,7 +22,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@newwork/nw-design-system";
-import { PiEnvelope, PiPhone, PiCalendar, PiMapPin, PiArrowUp, PiArrowDown, PiGlobe, PiFactory, PiCheckCircle, PiXCircle } from "react-icons/pi";
+import {
+  PiEnvelope,
+  PiPhone,
+  PiCalendar,
+  PiMapPin,
+  PiArrowUp,
+  PiArrowDown,
+  PiGlobe,
+  PiFactory,
+  PiCheckCircle,
+  PiXCircle,
+} from "react-icons/pi";
 import { User, Building2, Flag } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
@@ -373,11 +384,17 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-lead-combined-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:flex-col gba:gap-2">
-                        {(record.contact?.firstName || record.contact?.lastName) && (
-                          <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}>
+                        {(record.contact?.firstName ||
+                          record.contact?.lastName) && (
+                          <div
+                            className="gba:flex gba:items-center gba:gap-2"
+                            data-testid={`${DATA_TEST_ID_PREFIX}-lead-contact-name-${record.id}`}
+                          >
                             <User className="gba:h-4 gba:w-4 gba:text-gray-400" />
                             <div className="gba:flex gba:items-center gba:gap-1">
-                              <div className="gba:font-medium gba:text-sm">{getContactName(record)}</div>
+                              <div className="gba:font-medium gba:text-sm">
+                                {getContactName(record)}
+                              </div>
                               {record.sensitive === true && (
                                 <TooltipProvider>
                                   <Tooltip>
@@ -400,28 +417,39 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
                             <div className="gba:flex gba:items-center gba:gap-1">
-                              <span className="gba:text-sm gba:truncate" title={record.companyName}>{record.companyName}</span>
-                              {record.sensitive === true && !(record.contact?.firstName || record.contact?.lastName) && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Badge
-                                        variant="warning"
-                                        className="gba:ml-2 gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
-                                      >
-                                        <Flag className="gba:h-3 gba:w-3" />
-                                      </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Sensitive</TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
+                              <span
+                                className="gba:text-sm gba:truncate"
+                                title={record.companyName}
+                              >
+                                {record.companyName}
+                              </span>
+                              {record.sensitive === true &&
+                                !(
+                                  record.contact?.firstName ||
+                                  record.contact?.lastName
+                                ) && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge
+                                          variant="warning"
+                                          className="gba:ml-2 gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
+                                        >
+                                          <Flag className="gba:h-3 gba:w-3" />
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Sensitive</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
                             </div>
                           </div>
                         )}
-                        {!((record.contact?.firstName || record.contact?.lastName) || record.companyName) && (
-                          <span className="gba:text-gray-400">-</span>
-                        )}
+                        {!(
+                          record.contact?.firstName ||
+                          record.contact?.lastName ||
+                          record.companyName
+                        ) && <span className="gba:text-gray-400">-</span>}
                       </div>
                     </TableCell>
                   )}
@@ -462,7 +490,10 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-address-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-start gba:gap-2">
-                        <PiMapPin size={14} className="gba:text-gray-400 gba:mt-0.5" />
+                        <PiMapPin
+                          size={14}
+                          className="gba:text-gray-400 gba:mt-0.5"
+                        />
                         <div className="gba:flex gba:flex-col gba:gap-1">
                           {(() => {
                             const address = formatAddress({
@@ -472,10 +503,20 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                               region: record.region?.additionalValue1,
                               country: record.country?.value,
                             });
-                            if (!address) return <span className="gba:text-gray-400">-</span>;
-                            return address.split("\n").map((l: string, i: number) => (
-                              <div key={i} className="gba:text-sm gba:leading-snug">{l}</div>
-                            ));
+                            if (!address)
+                              return (
+                                <span className="gba:text-gray-400">-</span>
+                              );
+                            return address
+                              .split("\n")
+                              .map((l: string, i: number) => (
+                                <div
+                                  key={i}
+                                  className="gba:text-sm gba:leading-snug"
+                                >
+                                  {l}
+                                </div>
+                              ));
                           })()}
                         </div>
                       </div>
@@ -530,11 +571,16 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                             e.stopPropagation();
                             const empId = record.ownerEmployee?.id;
                             if (empId) {
-                              navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                              navigateTo(
+                                `/platform/employee-record?employeeId=${empId}`
+                              );
                             }
                           }}
                         >
-                          <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+                          <Avatar
+                            size="sm"
+                            className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full"
+                          >
                             {record.ownerEmployee?.pictureThumbnail && (
                               <AvatarImage
                                 src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
@@ -666,6 +712,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
@@ -677,7 +724,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                           }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-lead`}
                           accessToken={accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                           onClick={(e) => e.stopPropagation()}
                         />

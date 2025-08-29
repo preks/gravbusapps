@@ -593,6 +593,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
@@ -604,7 +605,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                           }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
                           accessToken={accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                           onClick={(e) => e.stopPropagation()}
                         />
