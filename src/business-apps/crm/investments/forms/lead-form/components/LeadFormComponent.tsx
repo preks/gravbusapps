@@ -60,8 +60,7 @@ const LeadFormComponent: React.FC = () => {
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
         description: toStringOrUndefined(formValues.notes),
-        sensitive:
-          formValues.sensitive === "true" || formValues.sensitive === true,
+        sensitive: formValues.sensitive,
 
         // ✅ UPDATED: Lead Information with new fields
         leadRatingRef: toStringOrUndefined(formValues.rating),
@@ -171,21 +170,6 @@ const LeadFormComponent: React.FC = () => {
         investmentLead: leadPayload,
         changeMode: changeMode,
       };
-
-      // ✅ DEBUG: Log the final payload structure with correct field mapping
-      console.log("🚀 Investment Lead Payload WITH CORRECT FIELDS:", {
-        changeMode: payload.changeMode,
-        investmentLeadId: payload.investmentLead?.id,
-        sourceApp: payload.investmentLead?.sourceApp,
-        ownerEmployee: payload.investmentLead?.ownerEmployee,
-        convertedAccount: payload.investmentLead?.convertedAccount,
-        convertedContact: payload.investmentLead?.convertedContact,
-        convertedOpportunity: payload.investmentLead?.convertedOpportunity,
-        payloadKeys: Object.keys(payload),
-        investmentLeadKeys: Object.keys(payload.investmentLead || {}),
-        leadName: payload.investmentLead?.investmentName,
-        leadStatus: payload.investmentLead?.leadStatusRef,
-      });
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);

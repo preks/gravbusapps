@@ -1,6 +1,14 @@
 import React from "react";
 import { Button } from "antd";
 import { TagsOutlined, StarOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
+} from "@newwork/nw-design-system";
+import { Flag } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { startProcess } from "@/common/utils/start-process";
@@ -49,9 +57,27 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
                 fontSize: "24px",
                 fontWeight: "bold",
                 marginBottom: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
               }}
             >
               {lead.name}
+              {(leadData?.sensitive === true || lead.sensitive === true) && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="warning"
+                        className="gba:ml-2 gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
+                      >
+                        <Flag className="gba:h-3 gba:w-3" />
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>Sensitive</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
 
             {/* Lead-specific fields */}

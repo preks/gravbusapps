@@ -74,6 +74,7 @@ const LeadFormComponent: React.FC = () => {
         city: toStringOrUndefined(formValues.city),
         ownerEmployee: toStringOrUndefined(formValues.owner),
         description: toStringOrUndefined(formValues.notes), // Fixed: Use notes field from DescriptionSection
+        sensitive: formValues.sensitive,
       };
 
       // Customer Leads: API expects addressLine as string

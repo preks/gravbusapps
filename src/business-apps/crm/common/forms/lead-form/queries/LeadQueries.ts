@@ -84,6 +84,7 @@ export interface LeadQueryResult {
   };
   salesCampaignId?: string;
   version?: number;
+  sensitive?: boolean;
 }
 
 export const GET_LEAD_BY_ID = `
@@ -166,6 +167,7 @@ export const GET_LEAD_BY_ID = `
       }
       salesCampaignId
       version
+      sensitive
     }
   }
 `;
