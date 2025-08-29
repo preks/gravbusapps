@@ -208,15 +208,15 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('role') && (
+                {isColumnVisible('department') && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("contactRole")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-role-header`}
+                    onClick={() => handleSort("department")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-department-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Role
-                      {renderSortIcon("contactRole")}
+                      Department
+                      {renderSortIcon("department")}
                     </div>
                   </TableHead>
                 )}
@@ -481,15 +481,16 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     )}
                   </TableCell>
                   )}
-                  {isColumnVisible('role') && (
+                  {isColumnVisible('department') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-role-cell-${record.id}`}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-department-cell-${record.id}`}
                     >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiBriefcase size={14} className="gba:text-purple-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.contactRole}>
-                          {record.contactRole || "-"}
+                      <div className="gba:flex gba:items-center">
+                        <span className="gba:text-sm gba:truncate" title={record.department}>
+                          {record.department
+                            ? record.department.charAt(0).toUpperCase() + record.department.slice(1)
+                            : "-"}
                         </span>
                       </div>
                     </TableCell>

@@ -69,8 +69,7 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({
               lastName
               email
               phone
-              contactRole
-              contactType
+              type
               createdAt
               updatedAt
               investmentAccountContact { accountId account { id name } }
@@ -105,9 +104,8 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({
           // Account association (2 points)
           if (contact.investmentAccountContact?.[0]?.accountId && contact.investmentAccountContact?.[0]?.account) score += 2;
 
-          // Role and type info (2 points)
-          if (contact.contactRole) score += 1;
-          if (contact.contactType) score += 1;
+          // Type info (1 point)
+          if (contact.type) score += 1;
 
           // Activity indicators (2 points)
           if (contact.investmentCommunicationChannel && contact.investmentCommunicationChannel.length > 0) score += 1;
@@ -164,12 +162,6 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({
             completed: contacts.filter((c: any) => c.accountId).length,
             total: contacts.length,
             percentage: Math.round((contacts.filter((c: any) => c.accountId).length / contacts.length) * 100)
-          },
-          {
-            metric: 'Contact Role',
-            completed: contacts.filter((c: any) => c.contactRole).length,
-            total: contacts.length,
-            percentage: Math.round((contacts.filter((c: any) => c.contactRole).length / contacts.length) * 100)
           },
           {
             metric: 'Communication Channels',

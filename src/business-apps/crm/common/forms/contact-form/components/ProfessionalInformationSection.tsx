@@ -27,7 +27,6 @@ const ProfessionalInformationSection: React.FC = () => {
     setFormValues,
     error,
     contactTypes,
-    contactRoles,
     departments,
   } = useContactFormContext();
 
@@ -148,8 +147,8 @@ const ProfessionalInformationSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Contact Type and Role - Side by side */}
-          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          {/* Contact Type */}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6">
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Contact Type
@@ -169,31 +168,6 @@ const ProfessionalInformationSection: React.FC = () => {
                   {contactTypes.map((type) => (
                     <SelectItem key={type.id} value={type.value}>
                       {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Contact Role
-              </Label>
-              <Select
-                value={formValues.contactRole}
-                onValueChange={(value) => setFormValues({ contactRole: value })}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "ContactRoleSelect"
-                )}
-              >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                  <SelectValue placeholder="Please Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {contactRoles.map((role) => (
-                    <SelectItem key={role.id} value={role.value}>
-                      {role.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
