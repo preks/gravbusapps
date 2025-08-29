@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Button,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -13,11 +12,11 @@ import {
   AlertTitle,
   AlertDescription
 } from '@newwork/nw-design-system';
+import AmountInput from './components/AmountInput';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useRequestAdvancePaymentData } from './hooks/useRequestAdvancePaymentData';
-import { formatCurrency } from './utils/formatters';
 
 interface RequestAdvancePaymentProps extends BusinessAppContextProps {
   expensePlanId?: string;
@@ -56,7 +55,6 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
 
   const {
     expensePlans,
-    currencies,
     costCenters,
     paymentMethods,
     isLoading,
@@ -152,7 +150,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     try {
       const payload = {
         advancePayment: {
-          currencyRef: formData.currency,
+          currencyRef: selectedPlan?.currencyRef || `Currency:v1:${formData.currency}`,
           amount: formData.amount,
           paymentMethod: formData.paymentMethod,
           expensePlan: formData.expensePlanId,
@@ -162,7 +160,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         event: "pse_submit"
       };
 
-      dispatchProcessContinueEvent('changeAdvancePayment', payload);
+      dispatchProcessContinueEvent('pse_submit', payload);
       onSuccess?.(formData);
     } catch (err) {
       console.error('Error submitting advance payment request:', err);
@@ -215,7 +213,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
        <div className="gba:mb-6">
          <h1 className="gba:text-2xl gba:font-bold gba:text-black gba:m-0 gba:pb-3 gba:text-center gba:flex-1 gba:flex gba:justify-center">
            {getTranslationFromI18nKeyAndLabel(
-             'lowcoder:request_advance_payment.title',
+             'lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label',
              'Request Advance Payment'
            )}
          </h1>
@@ -236,7 +234,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
          <div className="gba:mb-6 gba:bg-gray-100" data-testid="request-advance-payment-expense-plan-field">
              <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:px-3 gba:py-1 gba:rounded">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:request_advance_payment.expense_plan_label',
+                'lowcoder:create_expense_request.initial_expense_plan_select_label',
                 'Expense Plan'
               )}
               <span className="gba:text-[#707070]"> *</span>
@@ -249,8 +247,8 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
              >
                <SelectTrigger className="gba:w-full gba:h-10 gba:bg-gray-100 gba:border-none">
                  <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
-                   'lowcoder:request_advance_payment.select_expense_plan',
-                   'Select Expense Plan'
+                  'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+                  'Select Expense Plan'
                  )} />
                </SelectTrigger>
                <SelectContent>
@@ -285,27 +283,22 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
               <div className="gba:flex-1 gba:flex gba:justify-center">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <span className="gba:text-2xl gba:font-bold gba:text-black">
-                     {formatNumberFunction((selectedPlan.totalAmount || 0).toString(), "0.00[,]00")} {selectedPlan.currency?.code || 'EUR'}
+                     {formatNumberFunction((selectedPlan.totalRemainingAmount || 0).toString(), "0.00[,]00")} {selectedPlan.currency?.code || 'EUR'}
                    </span>
                   <span className="gba:text-sm gba:text-gray-500 gba:font-bold gba:mt-3">
                     {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:request_advance_payment.total_label',
+                      'lowcoder:create_expense_request.initiate_advance_payment.total',
                       'Total'
                     )}
                   </span>
                 </div>
               </div>
-                <Button 
-                 variant="outline" 
-                 size="sm"
-                 className="gba:rounded-full gba:px-8 gba:py-1 gba:bg-[#C15FB1] gba:text-white gba:border-[#C15FB1] gba:hover:bg-[#A54B95]"
-                 data-testid="request-advance-payment-trip-button"
-               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:request_advance_payment.trip_button',
-                  'Trip'
-                )}
-              </Button>
+                                                  <div 
+                   className="gba:rounded-full gba:px-8 gba:py-1 gba:bg-[#C15FB1] gba:text-white gba:border gba:border-[#C15FB1] gba:text-sm gba:font-medium"
+                   data-testid="request-advance-payment-trip-badge"
+                 >
+                  {selectedPlan?.requestType?.value || 'Trip'}
+                </div>
             </div>
           </div>
         )}
@@ -314,7 +307,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         <div className="gba:mb-4 gba:pb-2">
           <h3 className="gba:text-base gba:font-semibold gba:text-black gba:m-0" data-testid="request-advance-payment-section-header">
             {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:request_advance_payment.advance_payment_header',
+              'lowcoder:approve_expense_request.advance_payment',
               'Advance Payment'
             )}
           </h3>
@@ -325,48 +318,40 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
             <div className="gba:flex-1 gba:bg-gray-100" data-testid="request-advance-payment-amount-field">
                 <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
                {getTranslationFromI18nKeyAndLabel(
-                 'lowcoder:request_advance_payment.amount_label',
+                 'lowcoder:calculation_allowance_code_list.calculation_allowance_code_modal.current_amount_label',
                  'Amount'
                )}
                <span className="gba:text-[#707070]"> *</span>
              </label>
-                                                       <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  disabled={!selectedPlan}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:request_advance_payment.amount_placeholder',
-                    'Enter Amount'
-                  )}
-                  value={formData.amount || ''}
-                  onChange={(e) => {
-                    // Only allow changes if a plan is selected
-                    if (!selectedPlan) return;
-                    
-                    const newAmount = parseFloat(e.target.value) || 0;
-                    setFormData(prev => ({ ...prev, amount: newAmount }));
-                 
-                    // Clear validation error when amount is valid
-                    if (selectedPlan && newAmount > maxAmount) {
-                      setValidationError('Advance Payment amount can\'t be greater than Estimated Expenses and Allowances amount');
-                    } else {
-                      setValidationError(null);
-                    }
-                  }}
-                  className="gba:w-full gba:h-10 gba:border-none gba:bg-gray-100 gba:px-3 [&::-webkit-outer-spin-button]:gba:appearance-none [&::-webkit-inner-spin-button]:gba:appearance-none [&::-moz-number-spin-button]:gba:appearance-none [&::-webkit-inner-spin-button]:gba:display-none [&::-webkit-outer-spin-button]:gba:display-none"
-                  style={{ 
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'textfield'
-                  }}
-                  data-testid="request-advance-payment-amount-input"
-                />
+                 <AmountInput
+                     value={formData.amount}
+                     onChange={(newAmount) => {
+                       // Only allow changes if a plan is selected
+                       if (!selectedPlan) return;
+                       
+                       setFormData(prev => ({ ...prev, amount: newAmount }));
+                       
+                       // Validate against max amount
+                       if (selectedPlan && newAmount > maxAmount) {
+                         setValidationError(getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.amount_error', 'Advance Payment amount can\'t be greater than Estimated Expenses and Allowances amount'));
+                       } else {
+                         setValidationError(null);
+                       }
+                     }}
+                     placeholder={getTranslationFromI18nKeyAndLabel(
+                       'lowcoder:calculation_allowance_code_list.calculation_allowance_code_modal.current_amount_placeholder',
+                       'Enter Amount'
+                     )}
+                     disabled={!selectedPlan}
+                     data-testid="request-advance-payment-amount-input"
+                     required={true}
+                   />
           </div>
 
           <div className="gba:flex-1 gba:bg-gray-100" data-testid="request-advance-payment-currency-field">
                          <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded">
                {getTranslationFromI18nKeyAndLabel(
-                 'lowcoder:request_advance_payment.currency_label',
+                 'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                  'Currency'
                )}
                <span className="gba:text-[#707070]"> *</span>
@@ -383,7 +368,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
                    'Select Currency'
                  )} />
                </SelectTrigger>
-               <SelectContent>
+               <SelectContent >
                  {/* Only show the plan's currency */}
                  {formData.currency && (
                    <SelectItem key={formData.currency} value={formData.currency}>
@@ -393,14 +378,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
                </SelectContent>
              </Select>
              {/* Show prefilled currency info */}
-             {selectedPlan?.currency?.code && formData.currency === selectedPlan.currency.code && (
-               <div className="gba:mt-1 gba:px-3 gba:py-1 gba:bg-blue-50 gba:border-l-4 gba:border-blue-400 gba:text-xs gba:text-blue-700">
-                 {getTranslationFromI18nKeyAndLabel(
-                   'lowcoder:request_advance_payment.currency_prefilled_info',
-                   'Currency prefilled from selected expense plan'
-                 )}
-               </div>
-             )}
+             {selectedPlan?.currency?.code && formData.currency === selectedPlan.currency.code}
           </div>
                  </div>
 
@@ -417,7 +395,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         <div className="gba:mb-4 gba:bg-gray-100" data-testid="request-advance-payment-cost-center-field">
                      <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
              {getTranslationFromI18nKeyAndLabel(
-               'lowcoder:request_advance_payment.cost_center_label',
+               'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
                'Cost Center'
              )}
              <span className="gba:text-[#707070]"> *</span>
@@ -430,7 +408,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
            >
              <SelectTrigger className="gba:w-full gba:h-10 gba:border-none gba:bg-gray-100">
                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
-                 'lowcoder:request_advance_payment.select_cost_center',
+                 'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
                  'Select Cost Center'
                )} />
              </SelectTrigger>
@@ -459,7 +437,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         <div className="gba:mb-4 gba:bg-gray-100" data-testid="request-advance-payment-payment-method-field">
                      <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
              {getTranslationFromI18nKeyAndLabel(
-               'lowcoder:request_advance_payment.payment_method_label',
+               'lowcoder:initiate_advance_payment.select_payment_method',
                'Payment Method'
              )}
              <span className="gba:text-[#707070]"> *</span>
@@ -472,7 +450,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
           >
             <SelectTrigger className="gba:w-full gba:h-10 gba:border-none gba:bg-gray-100">
               <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:request_advance_payment.select_payment_method',
+                'lowcoder:create_expense_request.add_request_trip_details.payment_method',
                 'Select Payment Method'
               )} />
             </SelectTrigger>
@@ -490,7 +468,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         <div className="gba:mb-6" data-testid="request-advance-payment-notes-field">
             <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:px-3 gba:py-1">
              {getTranslationFromI18nKeyAndLabel(
-               'lowcoder:request_advance_payment.notes_label',
+               'lowcoder:approve_expense_request.notes_area_label',
                'Note'
              )}
            </label>
@@ -517,7 +495,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
             data-testid="request-advance-payment-cancel-button"
           >
             {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:request_advance_payment.cancel_button',
+              'lowcoder:initiate_expense_plan.cancel_button',
               'Cancel'
             )}
           </Button>
@@ -528,19 +506,9 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
             className="gba:px-6 gba:py-2 gba:bg-blue-600 gba:text-white gba:hover:bg-blue-700 gba:disabled:bg-gray-300"
             data-testid="request-advance-payment-submit-button"
           >
-            {isSubmitting ? (
-              <>
-                <Spinner size="sm" className="gba:mr-2" />
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:request_advance_payment.submitting_button',
-                  'Submitting...'
-                )}
-              </>
-            ) : (
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:request_advance_payment.submit_button',
-                'Submit'
-              )
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_absences.create_absence.submit',
+              'Submit'
             )}
           </Button>
         </div>

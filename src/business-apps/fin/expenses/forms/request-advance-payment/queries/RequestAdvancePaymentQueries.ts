@@ -1,7 +1,7 @@
 // GraphQL query for fetching expense plans by user (basic info only)
 export const GET_EXPENSE_PLANS_BY_USER = `
-  query GetExpensePlansByUser($status: [String]!, $structureId: uuid!, $userId: uuid!) {
-    ExpensePlan(where: {status: {_in: $status}, createdBy: {_eq: $userId}, isDeleted: {_eq: false}}) {
+  query GetExpensePlansByUser($status: [String]!, $structureId: uuid!, $employeeId: uuid!) {
+    ExpensePlan(where: {status: {_in: $status}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}}) {
       code
       title
       id
@@ -39,6 +39,7 @@ export const GET_EXPENSE_PLAN_DETAILS = `
         id
         code
       }
+      currencyRef
     }
   }
 `;

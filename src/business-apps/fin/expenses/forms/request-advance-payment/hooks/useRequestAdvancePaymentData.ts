@@ -28,6 +28,7 @@ export interface ExpensePlan {
     id: string;
     code: string;
   };
+  currencyRef?: string;
 }
 
 export interface Currency {
@@ -72,7 +73,7 @@ export const useRequestAdvancePaymentData = (
 
   const graphqlClient = useGraphQLClient(context.accessToken);
   const catalogClient = useCatalogManagerClient(context.accessToken);
-
+ 
   const fetchExpensePlansAndCostCenters = useCallback(async () => {
     if (!context.accessToken || !context.userInfo?.employeeDetails?.employeeId) {
       return;
@@ -80,15 +81,15 @@ export const useRequestAdvancePaymentData = (
     
     try {
       const structureId = getCurrentActiveStructureId();
-      const userId = context.userInfo.id;
+      const employeeId = context.userInfo.employeeDetails.employeeId;
 
       const response = await graphqlClient.request(GET_EXPENSE_PLANS_BY_USER, {
         status: ['APPROVED', 'ASSIGNED'],
         structureId,
-        userId
+        employeeId
       });
 
-      console.log('Raw expense plans response:', response?.ExpensePlan);
+  
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
         // Filter plans to only include APPROVED and ASSIGNED status
@@ -96,7 +97,6 @@ export const useRequestAdvancePaymentData = (
           plan.status === 'APPROVED' || plan.status === 'ASSIGNED'
         );
         setExpensePlans(filteredPlans);
-        console.log('Filtered expense plans (APPROVED/ASSIGNED only):', filteredPlans);
       } else {
         console.log('No expense plans found with APPROVED or ASSIGNED status');
       }
@@ -124,7 +124,6 @@ export const useRequestAdvancePaymentData = (
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
         const planDetails = response.ExpensePlan[0];
-        console.log('Expense plan details fetched:', planDetails);
         // Update the expense plan with detailed information
         setExpensePlans(prev => prev.map(plan => 
           plan.id === planId ? { ...plan, ...planDetails } : plan
