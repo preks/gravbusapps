@@ -71,11 +71,9 @@ export {
   useGetInvestmentReportById,
   useGetInvestmentTransactions,
   useGetInvestmentTransactionById,
-  useGetEquityInvestmentReports,
+  // NOTE: Specific report hooks removed - use useGetInvestmentReports instead
   useGetEquityInvestmentRounds,
-  useGetRealEstateInvestmentReports,
   useGetRealEstateInvestmentRentalUnits,
-  useGetLiquidFundInvestmentReports,
   
   // Integration hooks
   useInvestmentDataIntegration
@@ -99,11 +97,9 @@ export {
   GET_INVESTMENT_REPORT_BY_ID,
   GET_INVESTMENT_TRANSACTIONS,
   GET_INVESTMENT_TRANSACTION_BY_ID,
-  GET_EQUITY_INVESTMENT_REPORTS,
+  // NOTE: Specific report queries removed - all reports now use GET_INVESTMENT_REPORTS
   GET_EQUITY_INVESTMENT_ROUNDS,
-  GET_REAL_ESTATE_INVESTMENT_REPORTS,
-  GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS,
-  GET_LIQUID_FUND_INVESTMENT_REPORTS
+  GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS
 } from './queries';
 
 

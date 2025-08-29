@@ -7,7 +7,6 @@ export interface Contact {
   jobTitle?: string;
   department?: string;
   contactType?: string;
-  contactRole?: string;
   bio?: string;
   linkedinUrl?: string;
   xingUrl?: string;

@@ -11,10 +11,7 @@ import { useOpportunityListData } from "./hooks/useOpportunityListData";
 import { useOpportunityFilters } from "./hooks/useOpportunityFilters";
 import OpportunityTable from "./components/OpportunityTable";
 import { Opportunity } from "./types";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 import { Alert, Button } from "antd";
 import { startProcess } from "@/common/utils/start-process";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
@@ -348,14 +345,11 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
             label: "Add",
             "data-testid": "add-opportunity-button",
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="opportunity-list-column-visibility"
-            />,
-          ],
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'opportunity-list-column-visibility'
+          },
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

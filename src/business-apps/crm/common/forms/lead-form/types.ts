@@ -14,6 +14,7 @@ export interface LeadFormValues {
   leadStatus: string;
   leadSource: string;
   rating: string;
+  sensitive: boolean;
 
   // Contact Information
   salutation: string;

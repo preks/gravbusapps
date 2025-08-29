@@ -1,4 +1,5 @@
 // Investment-related enums based on nw_investment_relations.dbml schema
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export enum SourceTable {
   UNKNOWN_SOURCE = 'UNKNOWN_SOURCE',
@@ -50,3 +51,51 @@ export enum ReportScope {
   QUARTERLY = 'QUARTERLY',
   YEARLY = 'YEARLY'
 }
+
+// =============================
+// Translatable enum label mappers
+// =============================
+
+const humanizeEnumValue = (value: string): string => {
+  if (!value) return '';
+  const cleaned = value
+    .toLowerCase()
+    .split('_')
+    .map((part) => (part.length ? part[0].toUpperCase() + part.slice(1) : ''))
+    .join(' ');
+  // Special-case common "UNKNOWN" patterns
+  if (cleaned.startsWith('Unknown')) return 'Unknown';
+  return cleaned;
+};
+
+const buildEnumLabel = (namespace: string, value?: string | null): string => {
+  if (!value) return 'Unknown';
+  const defaultLabel = humanizeEnumValue(value);
+  return getTranslationFromI18nKeyAndLabel(
+    `crm.investment.enums.${namespace}.${value}`,
+    defaultLabel
+  );
+};
+
+export const getSourceTableLabel = (value?: SourceTable | null): string =>
+  buildEnumLabel('sourceTable', value || undefined);
+
+export const getAddressTypeLabel = (value?: AddressType | null): string =>
+  buildEnumLabel('addressType', value || undefined);
+
+export const getContactTypeLabel = (value?: ContactType | null): string =>
+  buildEnumLabel('contactType', value || undefined);
+
+export const getTaskTimingLabel = (value?: TaskTiming | null): string =>
+  buildEnumLabel('taskTiming', value || undefined);
+
+export const getTaskAssigneeTypeLabel = (
+  value?: TaskAssigneeType | null
+): string => buildEnumLabel('taskAssigneeType', value || undefined);
+
+export const getTaskHolidayPolicyLabel = (
+  value?: TaskHolidayPolicy | null
+): string => buildEnumLabel('taskHolidayPolicy', value || undefined);
+
+export const getReportScopeLabel = (value?: ReportScope | null): string =>
+  buildEnumLabel('reportScope', value || undefined);

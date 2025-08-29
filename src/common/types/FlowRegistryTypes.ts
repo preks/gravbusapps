@@ -5,6 +5,7 @@ export enum FlowContextName {
   accountEntity = "accountEntity",
   contactEntity = "contactEntity",
   opportunityEntity = "opportunityEntity",
+  updateOpportunity = "updateOpportunity",
   // Investment Relations
   investmentLeadEntity = "investmentLeadEntity",
   createInvestmentLead = "createInvestmentLead",
@@ -26,6 +27,7 @@ export enum FlowContextName {
   investmentActivityEntity = "investmentActivityEntity",
   investmentNoteEntity = "investmentNoteEntity",
   investmentDocumentEntity = "investmentDocumentEntity",
+  uploadInvestmentReport = "uploadInvestmentReport",
 
   createInvestment = "createInvestment",
   investmentEntity = "investmentEntity",
@@ -43,7 +45,8 @@ export enum FlowContextName {
   flow = 'flow',
   flowEntity = 'flowEntity',
   flowInstance = 'flowInstance',
-  taskInstance = 'taskInstance',
+  customerTaskEntity = 'customerTaskEntity',
+  createCustomerTask = 'createCustomerTask',
   documentPersonal = 'documentPersonal',
   employeeAbsenceRecord = 'employeeAbsenceRecord',
   employeePerformanceGoal = 'employeePerformanceGoal',

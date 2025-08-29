@@ -73,24 +73,38 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
   const metrics = React.useMemo(() => {
     if (!investments.length) return null;
 
-    const totalInvested = investments.reduce((sum, inv) => 
+    // Only include investments with proper groups in overall metrics
+    const validInvestments = investments.filter(inv => 
+      inv.investmentGroupLabel || inv.investmentGroup?.value
+    );
+
+    // Log data quality issues if investments without proper groups are found
+    const invalidInvestments = investments.filter(inv => 
+      !inv.investmentGroupLabel && !inv.investmentGroup?.value
+    );
+    if (invalidInvestments.length > 0) {
+      console.warn(`Found ${invalidInvestments.length} investments without proper investment groups. This indicates data quality issues.`);
+    }
+
+    const totalInvested = validInvestments.reduce((sum, inv) => 
       sum + (inv.initialInvestmentAmount || 0), 0
     );
-    const totalMarketValue = investments.reduce((sum, inv) => 
+    const totalMarketValue = validInvestments.reduce((sum, inv) => 
       sum + (inv.investmentMarketValue || 0), 0
     );
     const valueChange = totalMarketValue - totalInvested;
-    const avgROI = investments.length > 0 ? 
-      investments.reduce((sum, inv) => {
+    const avgROI = validInvestments.length > 0 ? 
+      validInvestments.reduce((sum, inv) => {
         const roi = calculateROI(
           inv.investmentMarketValue || 0, 
           inv.initialInvestmentAmount || 0
         );
         return sum + roi;
-      }, 0) / investments.length : 0;
+      }, 0) / validInvestments.length : 0;
 
-    const investmentTypes = new Set(
-      investments.map(inv => inv.investmentTypeLabel || 'Other')
+    const investmentGroups = new Set(
+      validInvestments.map(inv => inv.investmentGroupLabel || inv.investmentGroup?.value)
+        .filter(group => group) // Remove any undefined/null values
     ).size;
 
     return {
@@ -98,40 +112,71 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
       currentBookValue: formatCurrency(totalMarketValue),
       bookValueChange: `${valueChange >= 0 ? '+' : ''}${formatCurrency(valueChange)}`,
       avgExpectedROI: `${avgROI.toFixed(1)}%`,
-      totalInvestments: investments.length,
-      investmentTypes
+      totalInvestments: validInvestments.length,
+      investmentGroups
     };
   }, [investments]);
 
-  // Calculate type metrics from centralized data
-  const typeMetrics = React.useMemo(() => {
+  // Calculate investment group metrics from centralized data
+  const investmentGroupMetrics = React.useMemo(() => {
     if (!investments.length) return [];
 
-    const typeGroups = investments.reduce((groups, inv) => {
-      const type = inv.investmentTypeLabel || 'Other';
-      if (!groups[type]) groups[type] = [];
-      groups[type].push(inv);
+    // Group by investment group (Real Estate, Liquid Fund, Equity)
+    const groupGroups = investments.reduce((groups, inv) => {
+      const group = inv.investmentGroupLabel || inv.investmentGroup?.value;
+      
+      // Log investments without proper investment groups for data quality monitoring
+      if (!group) {
+        console.warn('Investment without proper group found:', {
+          id: inv.id,
+          name: inv.name,
+          investmentGroupLabel: inv.investmentGroupLabel,
+          investmentGroup: inv.investmentGroup
+        });
+        return groups; // Skip investments without proper groups
+      }
+      
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(inv);
       return groups;
     }, {} as Record<string, Investment[]>);
 
-    return Object.entries(typeGroups).map(([type, typeInvestments]) => {
-      const totalInvested = typeInvestments.reduce((sum, inv) => 
+    // Define preferred order for investment groups
+    const groupOrder = ['Real Estate', 'Equity', 'Liquid Fund', 'Liquid Funds'];
+    
+    // Only return groups that have actual investments (filter out empty groups)
+    return Object.entries(groupGroups)
+      .filter(([, groupInvestments]) => groupInvestments.length > 0)
+      .sort(([groupA], [groupB]) => {
+        const indexA = groupOrder.indexOf(groupA);
+        const indexB = groupOrder.indexOf(groupB);
+        
+        // If both groups are in the preferred order, sort by that order
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        // If only one is in the preferred order, prioritize it
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // If neither is in the preferred order, sort alphabetically
+        return groupA.localeCompare(groupB);
+      })
+      .map(([group, groupInvestments]) => {
+      const totalInvested = groupInvestments.reduce((sum, inv) => 
         sum + (inv.initialInvestmentAmount || 0), 0
       );
-      const totalMarketValue = typeInvestments.reduce((sum, inv) => 
+      const totalMarketValue = groupInvestments.reduce((sum, inv) => 
         sum + (inv.investmentMarketValue || 0), 0
       );
-      const avgROI = typeInvestments.reduce((sum, inv) => {
+      const avgROI = groupInvestments.reduce((sum, inv) => {
         const roi = calculateROI(
           inv.investmentMarketValue || 0, 
           inv.initialInvestmentAmount || 0
         );
         return sum + roi;
-      }, 0) / typeInvestments.length;
+      }, 0) / groupInvestments.length;
 
-      // Calculate subtypes based on investment group or other criteria
-      const subTypeGroups = typeInvestments.reduce((groups, inv) => {
-        const subType = inv.investmentGroup?.code || 'General';
+      // Calculate subtypes based on investment types (not investment groups)
+      const subTypeGroups = groupInvestments.reduce((groups, inv) => {
+        const subType = inv.investmentTypeLabel || inv.investmentType?.value || 'General';
         if (!groups[subType]) groups[subType] = [];
         groups[subType].push(inv);
         return groups;
@@ -143,6 +188,19 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
         );
         const percentage = totalInvested > 0 ? (subTypeTotalInvested / totalInvested) * 100 : 0;
         
+        // Log investment types with 0€ amounts for investigation (not filtering)
+        if (subTypeTotalInvested === 0) {
+          console.info(`Investment type "${subType}" in group "${group}" has 0€ invested amount. This might be legitimate (e.g., acquired for free, different investment structure). Investments:`, 
+            subTypeInvestments.map(inv => ({
+              id: inv.id,
+              name: inv.name,
+              initialInvestmentAmount: inv.initialInvestmentAmount,
+              investmentMarketValue: inv.investmentMarketValue,
+              hasMarketValue: (inv.investmentMarketValue || 0) > 0
+            }))
+          );
+        }
+        
         return {
           name: subType,
           amount: formatCurrency(subTypeTotalInvested),
@@ -150,26 +208,26 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
         };
       });
 
-      const getTypeConfig = (typeName: string) => {
-        const typeLower = typeName.toLowerCase();
-        if (typeLower.includes('equity') && !typeLower.includes('private')) {
+      const getGroupConfig = (groupName: string) => {
+        const groupLower = groupName.toLowerCase();
+        if (groupLower.includes('equity') && !groupLower.includes('private')) {
           return { icon: 'BarChart3', color: 'gba:bg-blue-500' };
-        } else if (typeLower.includes('real') || typeLower.includes('estate')) {
+        } else if (groupLower.includes('real') || groupLower.includes('estate')) {
           return { icon: 'Home', color: 'gba:bg-green-500' };
-        } else if (typeLower.includes('liquid') || typeLower.includes('fund')) {
+        } else if (groupLower.includes('liquid') || groupLower.includes('fund')) {
           return { icon: 'Banknote', color: 'gba:bg-amber-500' };
         } else {
           return { icon: 'DollarSign', color: 'gba:bg-gray-500' };
         }
       };
 
-      const config = getTypeConfig(type);
+      const config = getGroupConfig(group);
 
       return {
-        name: type,
+        name: group,
         icon: config.icon,
         color: config.color,
-        investments: typeInvestments.length,
+        investments: groupInvestments.length,
         totalInvested: formatCurrency(totalInvested),
         bookValue: formatCurrency(totalMarketValue),
         avgROI: `${avgROI.toFixed(1)}%`,
@@ -245,13 +303,13 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
             Investment Breakdown Overview
           </h2>
           <span className="gba:text-sm gba:text-gray-600">
-            Capital allocation across {metrics?.investmentTypes || 0} investment
-            types
+            Capital allocation across {metrics?.investmentGroups || 0} investment
+            groups
           </span>
         </div>
 
         <div className="gba:space-y-6">
-          {/* Investment Types Grid */}
+          {/* Investment Groups Grid */}
           <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3">
             {isLoading ? (
               <div className="gba:col-span-full gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -260,7 +318,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
             ) : error ? (
               <div className="gba:col-span-full">
                 <Alert variant="destructive">
-                  <AlertTitle>Error Loading Investment Types</AlertTitle>
+                  <AlertTitle>Error Loading Investment Groups</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                   <Button size="sm" onClick={() => window.location.reload()}>
                     Retry
@@ -268,10 +326,10 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                 </Alert>
               </div>
             ) : (
-              typeMetrics.map((type) => {
-                const typePerformance = getTypePerformance(type.name);
+              investmentGroupMetrics.map((group) => {
+                const groupPerformance = getTypePerformance(group.name);
                 return (
-                  <Card key={type.name} className="gba:h-full">
+                  <Card key={group.name} className="gba:h-full">
                     <CardHeader>
                       <div className="gba:flex gba:items-center gba:gap-3">
                         <div
@@ -280,42 +338,43 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                             const subtabMap: { [key: string]: string } = {
                               Equity: "equity",
                               "Real Estate": "real-estate",
+                              "Liquid Fund": "liquid-funds",
                               "Liquid Funds": "liquid-funds",
                             };
                             const subtab =
-                              subtabMap[type.name] ||
-                              type.name.toLowerCase().replace(" ", "-");
+                              subtabMap[group.name] ||
+                              group.name.toLowerCase().replace(" ", "-");
                             onNavigateToInvestmentType(subtab);
                           }}
-                          data-testid={`investment-type-icon-${type.name
+                          data-testid={`investment-group-icon-${group.name
                             .toLowerCase()
                             .replace(" ", "-")}`}
                         >
-                          {type.icon === "BarChart3" && (
+                          {group.icon === "BarChart3" && (
                             <BarChart3 className="gba:w-6 gba:h-6 gba:text-blue-600" />
                           )}
-                          {type.icon === "Home" && (
+                          {group.icon === "Home" && (
                             <Home className="gba:w-6 gba:h-6 gba:text-blue-600" />
                           )}
-                          {type.icon === "Briefcase" && (
+                          {group.icon === "Briefcase" && (
                             <Briefcase className="gba:w-6 gba:h-6 gba:text-blue-600" />
                           )}
-                          {type.icon === "Banknote" && (
+                          {group.icon === "Banknote" && (
                             <Banknote className="gba:w-6 gba:h-6 gba:text-blue-600" />
                           )}
                         </div>
                         <div className="gba:flex-1">
                           <CardTitle className="gba:flex gba:items-center gba:justify-between">
-                            <span>{type.name}</span>
+                            <span>{group.name}</span>
                             <div className="gba:flex gba:items-center gba:gap-1">
                               <span
                                 className={`gba:text-sm gba:font-medium ${
-                                  typePerformance >= 70
+                                  groupPerformance >= 70
                                     ? "gba:text-green-600"
                                     : "gba:text-red-600"
                                 }`}
                               >
-                                {typePerformance}%
+                                {groupPerformance}%
                               </span>
                               <span className="gba:text-xs gba:text-gray-500">
                                 performance
@@ -323,7 +382,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                             </div>
                           </CardTitle>
                           <p className="gba:text-sm gba:text-gray-600">
-                            {type.investments} investments
+                            {group.investments} investments
                           </p>
                         </div>
                       </div>
@@ -335,7 +394,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                             Total Invested
                           </p>
                           <p className="gba:text-lg gba:font-semibold">
-                            {type.totalInvested}
+                            {group.totalInvested}
                           </p>
                         </div>
                         <div>
@@ -343,7 +402,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                             Book Value
                           </p>
                           <p className="gba:text-lg gba:font-semibold">
-                            {type.bookValue}
+                            {group.bookValue}
                           </p>
                         </div>
                       </div>
@@ -355,18 +414,18 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                           </p>
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <p
-                              className={`gba:text-lg gba:font-semibold ${type.roiColor}`}
+                              className={`gba:text-lg gba:font-semibold ${group.roiColor}`}
                             >
-                              {type.avgROI}
+                              {group.avgROI}
                             </p>
                             <span
                               className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full ${
-                                typePerformance >= 70
+                                groupPerformance >= 70
                                   ? "gba:bg-green-100 gba:text-green-800"
                                   : "gba:bg-red-100 gba:text-red-800"
                               }`}
                             >
-                              {typePerformance >= 70
+                              {groupPerformance >= 70
                                 ? "Performing"
                                 : "Underperforming"}
                             </span>
@@ -376,9 +435,9 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
 
                       <div className="gba:space-y-2">
                         <p className="gba:text-sm gba:font-medium gba:text-gray-700">
-                          Sub-types
+                          Investment Types
                         </p>
-                        {type.subTypes.map((subType) => (
+                        {group.subTypes.map((subType) => (
                           <div
                             key={subType.name}
                             className="gba:flex gba:justify-between gba:items-center"

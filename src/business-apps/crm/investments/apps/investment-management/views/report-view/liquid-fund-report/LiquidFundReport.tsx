@@ -37,23 +37,24 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   'data-testid': dataTestId = 'liquid-fund-analytics'
 }) => {
   // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
+  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
 
-  // Filter states - Updated to 2023 where actual data exists
+  // Filter states - Updated to 2024 where actual data exists
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2023-01-01') // January 1st, 2023 (where actual data exists)
+    dayjs('2024-01-01') // January 1st, 2024 (where actual data exists)
   );
   const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2023-12-31') // December 31st, 2023
+    dayjs('2024-12-31') // December 31st, 2024
   );
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
   
   // Applied filters state (only updates when Apply button is clicked)
+  // LOAD DATA IMMEDIATELY - Set default applied filters to show data on initial load
   const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2023-01-01')
+    dayjs('2024-01-01') // AUTO-APPLY: Show data immediately
   );
   const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2023-12-31')
+    dayjs('2024-12-31') // AUTO-APPLY: Show data immediately
   );
   const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
 
@@ -62,11 +63,11 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
   // Create stable date strings from APPLIED filters (not current filter state)
   const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD') || '2023-01-01',
+    appliedStartDate?.format('YYYY-MM-DD') || '2024-01-01',
     [appliedStartDate?.valueOf()]
   );
   const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD') || '2023-12-31',
+    appliedEndDate?.format('YYYY-MM-DD') || '2024-12-31',
     [appliedEndDate?.valueOf()]
   );
 
@@ -89,7 +90,14 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
            selectedCurrency !== appliedCurrency;
   }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
 
-  // Create filters for Tab 1 (Bank Deposits), Tab 2 (Fixed-Term Deposits), and Tab 3 (Multiple Types)
+  // Create filters for Overview and specific investment types
+  const overviewFilters = useMemo((): AnalyticsFilters => ({
+    startDate: startDateString,
+    endDate: endDateString,
+    currency: appliedCurrency
+    // No investmentType filter to show all liquid fund reports
+  }), [startDateString, endDateString, appliedCurrency]);
+
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
@@ -196,17 +204,31 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
       {/* Analytics Tables with Sub-tabs */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
+          <TabsTrigger value="overview" data-testid={`${dataTestId}-overview`}>
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="tab1" data-testid={`${dataTestId}-tab1`}>
-            Tab 1
+            Bank Deposits
           </TabsTrigger>
           <TabsTrigger value="tab2" data-testid={`${dataTestId}-tab2`}>
-            Tab 2
+            Fixed-Term Deposits
           </TabsTrigger>
           <TabsTrigger value="tab3" data-testid={`${dataTestId}-tab3`}>
-            Tab 3
+            Multiple Types
           </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="overview" className="gba:mt-6">
+          <AnalyticsTable
+            accessToken={accessToken}
+            userInfo={userInfo}
+            filters={overviewFilters}
+            investmentType="All Liquid Fund Reports"
+            title="Liquid Fund Analytics - Overview"
+            data-testid={`${dataTestId}-overview-table`}
+          />
+        </TabsContent>
         
         <TabsContent value="tab1" className="gba:mt-6">
           <AnalyticsTable

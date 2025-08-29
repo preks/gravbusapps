@@ -1,5 +1,5 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface GetLeadByIdQueryVariables {
   id: string;
@@ -54,6 +54,11 @@ export interface GetLeadByIdResponse {
       value: string;
     };
     convertedOpportunityId: string;
+<<<<<<< Updated upstream
+    sensitive: boolean;
+=======
+    sensitive?: boolean;
+>>>>>>> Stashed changes
   }>;
 }
 
@@ -111,23 +116,27 @@ export const GET_LEAD_BY_ID = `
         value
       }
       convertedOpportunityId
+      sensitive
     }
   }
 `;
 
 export const useGetLeadById = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
-  
+
   const fetchLeadById = async (variables: GetLeadByIdQueryVariables) => {
     const query = GET_LEAD_BY_ID;
     try {
-      const result = await graphqlClient.request<GetLeadByIdResponse>(query, variables);
+      const result = await graphqlClient.request<GetLeadByIdResponse>(
+        query,
+        variables
+      );
       return result;
     } catch (error) {
-      console.error('Error fetching lead by ID:', error);
+      console.error("Error fetching lead by ID:", error);
       throw error;
     }
   };
 
   return { fetchLeadById };
-}; 
+};

@@ -13,10 +13,7 @@ import { useContactFilters } from "./hooks/useContactFilters";
 import { ContactStatisticsWithTrend } from "./components/ContactStatistics";
 import ContactTable from "./components/ContactTable";
 import { Contact } from "./types";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 import { Alert } from "antd";
 import { startProcess } from "@/common/utils/start-process";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
@@ -44,7 +41,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "name", label: "Name", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "company", label: "Account", visible: true },
-    { id: "role", label: "Role", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "created", label: "Creation Date", visible: true },
     { id: "owner", label: "Owner", visible: true },
@@ -80,7 +76,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      role: "contactRole",
       type: "contactType",
       department: "departments",
       // Note: name, contact, company, created, owner, academicTitle, birthDate, account, linkedin, xing, jobTitle don't have corresponding filters yet
@@ -326,14 +321,11 @@ const ContactList: React.FC<ContactListProps> = (context) => {
             label: "Add",
             "data-testid": "add-contact-button",
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="contact-list-column-visibility"
-            />,
-          ],
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'contact-list-column-visibility'
+          },
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

@@ -108,7 +108,6 @@ if (params.search?.trim()) {
     
     // All other fields shown in UI
     { contactType: searchPattern },
-    { contactRole: searchPattern },
     { linkedinUrl: searchPattern }
   ];
 }
@@ -117,7 +116,7 @@ if (params.search?.trim()) {
 ### Common Missing Search Fields
 - **Academic/Professional Titles**: `academicTitle.value`, `professionalTitle.value`
 - **Contact Information**: `linkedinUrl`, `xingUrl`, `website`
-- **Classification Fields**: `contactType`, `contactRole`, `accountType`
+- **Classification Fields**: `contactType`, `accountType`
 - **Status/Category Fields**: `leadStatus.value`, `leadRating.value`, `leadSource.value`
 - **Pipeline Fields**: `stage`, `salesPipelineStage.value`, `pipeline.value`
 - **Employee Names**: `ownerEmployee.displayName`, `ownerEmployee.fullName`

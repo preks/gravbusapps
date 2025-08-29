@@ -1,14 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { SalesTaskFormValues, SelectOption, EntityOption, SalesTaskContextState } from '../types';
+import { SalesTaskFormValues, EntityOption, SalesTaskContextState } from '../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useSalesTaskTypes } from '../hooks/useSalesTaskTypes';
 import { useSalesTaskPriorities } from '../hooks/useSalesTaskPriorities';
 import { useSalesTaskStatuses } from '../hooks/useSalesTaskStatuses';
 import { useSalesTaskEmployees } from '../hooks/useSalesTaskEmployees';
 import { useSalesTaskEntities } from '../hooks/useSalesTaskEntities';
-import { useFileClient } from '@/common/network/files/useFileClient';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks';
 import dayjs from 'dayjs';
 
 interface SalesTaskFormContextValue extends SalesTaskContextState {
@@ -62,16 +60,26 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
 }) => {
   const { accessToken, additionalData } = businessAppContext;
   
-  // Get task data from multiple possible payload locations (edit mode)
-  const actualTaskData = taskData 
+  // Check for update mode based on taskId in additional data
+  const taskId = additionalData?.taskId;
+  const isUpdateMode = !!taskId;
+  
+  // Customer tasks hook for fetching task data
+  const { fetchCustomerTaskById } = useCustomerTasks(businessAppContext);
+  
+  // State for fetched task data
+  const [fetchedTaskData, setFetchedTaskData] = useState<any>(null);
+  const [fetchingTask, setFetchingTask] = useState(false);
+  
+  // Get task data from multiple sources (prioritize fetched data for update mode)
+  const actualTaskData = fetchedTaskData 
+    || taskData 
     || additionalData?.taskData 
     || additionalData?.psi_taskPayload?.psi_initialParameters?.taskData;
-  const isUpdateMode = !!actualTaskData;
   
   // Search states
   const [typeSearch, setTypeSearch] = useState('');
   const [prioritySearch, setPrioritySearch] = useState('');
-  const [statusSearch, setStatusSearch] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
   
   // Check if typeRef is pre-filled from process payload (for approval requests)
@@ -83,21 +91,27 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Form state
   const [formValues, setFormValuesState] = useState<SalesTaskFormValues>({
     title: '',
+    code: '',
     taskTypeRef: processTypeRef,
     priorityRef: '',
     statusRef: 'SalesTaskStatus:v1:PENDING', // Default to "pending" status
     deadline: null,
+    templateStartDate: null,
+    startDate: null,
+    endDate: null,
     description: '',
     assignedEmployeeId: '',
+    creatorEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
+    creatorUserId: businessAppContext.userInfo?.id,
     relatedEntityId: '',
     relatedEntityType: '',
     files: [],
+    additionalProperties: {},
     ...initialValues
   });
   
   const [selectedEntity, setSelectedEntity] = useState<EntityOption | null>(null);
   const [fileList, setFileList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Data hooks
@@ -111,13 +125,58 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   );
   const { entities, loading: entitiesLoading, searchEntities } = useSalesTaskEntities(accessToken);
   
-  // Clients
-  const fileClient = useFileClient({ accessToken } as any);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  
+  // Fetch task data when in update mode
+  useEffect(() => {
+    if (isUpdateMode && taskId && !fetchedTaskData && !fetchingTask) {
+      setFetchingTask(true);
+      fetchCustomerTaskById(taskId)
+        .then((taskData) => {
+          if (taskData) {
+            console.log('✅ Fetched task data for update:', taskData);
+            setFetchedTaskData(taskData);
+          } else {
+            console.warn('⚠️ No task data found for ID:', taskId);
+            setError('Task not found');
+          }
+        })
+        .catch((error) => {
+          console.error('❌ Error fetching task data:', error);
+          setError('Failed to load task data');
+        })
+        .finally(() => {
+          setFetchingTask(false);
+        });
+    }
+  }, [isUpdateMode, taskId, fetchedTaskData, fetchingTask, fetchCustomerTaskById]);
+
   // Check if entity search should be shown
   const hasEntityId = !!(additionalData?.leadId || additionalData?.contactId || additionalData?.accountId || additionalData?.opportunityId);
   const showEntitySearch = !hasEntityId && !isUpdateMode;
+
+  // Initialize form values with entity data from additional context
+  useEffect(() => {
+    if (additionalData && !isUpdateMode) {
+      const updates: Partial<SalesTaskFormValues> = {};
+      
+      if (additionalData.leadId) {
+        updates.relatedEntityId = additionalData.leadId;
+        updates.relatedEntityType = 'lead';
+      } else if (additionalData.contactId) {
+        updates.relatedEntityId = additionalData.contactId;
+        updates.relatedEntityType = 'contact';
+      } else if (additionalData.accountId) {
+        updates.relatedEntityId = additionalData.accountId;
+        updates.relatedEntityType = 'account';
+      } else if (additionalData.opportunityId) {
+        updates.relatedEntityId = additionalData.opportunityId;
+        updates.relatedEntityType = 'opportunity';
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        setFormValuesState(prev => ({ ...prev, ...updates }));
+      }
+    }
+  }, [additionalData, isUpdateMode]);
   
   // Map options for selectors
   const mappedTaskTypes = useMemo(() =>
@@ -145,6 +204,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         displayName: employee.displayName,
         firstName: employee.firstName,
         lastName: employee.lastName,
+        userId: employee.userId,
       }
     }));
 
@@ -162,6 +222,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
             displayName: actualTaskData.assignedEmployee.displayName,
             firstName: actualTaskData.assignedEmployee.firstName,
             lastName: actualTaskData.assignedEmployee.lastName,
+            userId: actualTaskData.assignedEmployee.userId,
           }
         });
       }
@@ -180,13 +241,6 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         priorityRef: actualTaskData.priorityRef,
         statusRef: actualTaskData.statusRef
       });
-      
-      // Find catalog entry ID by matching the full reference
-      const findCatalogEntryIdByRef = (ref: string, options: any[]) => {
-        if (!ref) return '';
-        const entry = options.find(opt => opt.value === ref);
-        return entry ? entry.value : '';
-      };
 
       const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || '';
       // Robust deadline mapping: support multiple possible fields and validate date
@@ -203,15 +257,26 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
 
       const updateValues: Partial<SalesTaskFormValues> = {
         title: actualTaskData.name || '',
+        code: actualTaskData.code || '',
         taskTypeRef: actualTaskData.typeRef || '',
         priorityRef: actualTaskData.priorityRef || '',
         statusRef: actualTaskData.statusRef || 'SalesTaskStatus:v1:PENDING',
         timingType: (actualTaskData.timingType as 'DEADLINE' | 'SCHEDULED') || 'DEADLINE',
         deadline: formattedDeadline,
+        templateStartDate: actualTaskData.templateStartDate && dayjs(actualTaskData.templateStartDate).isValid()
+          ? dayjs(actualTaskData.templateStartDate).format('YYYY-MM-DDTHH:mm')
+          : null,
+        startDate: actualTaskData.startDate && dayjs(actualTaskData.startDate).isValid()
+          ? dayjs(actualTaskData.startDate).format('YYYY-MM-DDTHH:mm')
+          : null,
+        endDate: actualTaskData.endDate && dayjs(actualTaskData.endDate).isValid()
+          ? dayjs(actualTaskData.endDate).format('YYYY-MM-DDTHH:mm')
+          : null,
         description: actualTaskData.description || '',
         assignedEmployeeId: assignedId,
         id: actualTaskData.id,
         version: actualTaskData.version || 0,
+        additionalProperties: actualTaskData.additionalProperties || {},
       };
 
       // Preserve existing entity relationship
@@ -264,7 +329,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     setFormValues,
     onSubmit,
     onCancel,
-    isLoading: loading,
+    isLoading: fetchingTask,
     error,
     isUpdateMode,
     
@@ -288,7 +353,7 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     // Search functions
     searchTaskTypes: setTypeSearch,
     searchPriorities: setPrioritySearch,
-    searchStatuses: setStatusSearch,
+    searchStatuses: () => {}, // Statuses don't need search
     searchEmployees: setEmployeeSearch,
     searchEntities,
     

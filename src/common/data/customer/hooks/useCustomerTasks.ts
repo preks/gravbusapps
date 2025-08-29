@@ -13,6 +13,7 @@ import {
   GET_CUSTOMER_TASKS_BY_CONTACT_ID,
   GET_CUSTOMER_TASKS_BY_LEAD_ID,
   GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID,
+  GET_CUSTOMER_TASK_BY_ID,
   type CustomerTaskQueryVariables 
 } from '../queries/customerTaskQueries';
 
@@ -27,6 +28,10 @@ export interface CustomerTaskListQueryResponse {
 }
 
 export interface CustomerTaskByEntityQueryResponse {
+  SalesTask: BaseCustomerTask[];
+}
+
+export interface CustomerTaskByIdQueryResponse {
   SalesTask: BaseCustomerTask[];
 }
 
@@ -100,11 +105,25 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient]);
 
+  const fetchCustomerTaskById = useCallback(async (taskId: string): Promise<CustomerTask | null> => {
+    const query = GET_CUSTOMER_TASK_BY_ID(taskId);
+
+    try {
+      const result = await graphqlClient.request<CustomerTaskByIdQueryResponse>(query);
+      const tasks = result.SalesTask.map(toCustomerTask);
+      return tasks.length > 0 ? tasks[0] : null;
+    } catch (error) {
+      console.error('Error fetching customer task by ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
   return { 
     fetchCustomerTasks,
     fetchCustomerTasksByAccountId,
     fetchCustomerTasksByContactId,
     fetchCustomerTasksByLeadId,
-    fetchCustomerTasksByOpportunityId
+    fetchCustomerTasksByOpportunityId,
+    fetchCustomerTaskById
   };
 };

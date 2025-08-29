@@ -38,14 +38,7 @@ const transformAccountData = (apiAccount: AccountData): Account => {
   const city = apiAccount.addresses?.[0]?.city;
   const country = apiAccount.addresses?.[0]?.country?.value;
   const region = apiAccount.addresses?.[0]?.region?.value;
-  let location = "";
-  if (city && country) {
-    location = `${city}, ${country}`;
-  } else if (city) {
-    location = city;
-  } else if (country) {
-    location = country;
-  }
+  const location = apiAccount.geographicPresence || "";
 
   // Extract primary contact information from accountContacts
   const primaryContact = apiAccount.accountContacts?.[0]?.contact;
@@ -87,6 +80,7 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     city: city || "",
     region: region || "",
     country: country || "",
+    location,
     // Legacy billing fields for backward compatibility
     billingCity: city || "",
     billingState: region || "",
@@ -114,7 +108,7 @@ export const useAccountListData = (
     async (
       page: number,
       pageSize = 20,
-      additionalFilters?: any,
+      _additionalFilters?: any,
       overrideSortField?: string,
       overrideSortOrder?: "ASC" | "DESC" | "",
       showLoading: boolean = true
@@ -478,6 +472,9 @@ export const useAccountListData = (
           switch (sortField) {
             case "name":
               orderBy.name = sortDirection;
+              break;
+            case "geographicPresence":
+              orderBy.geographicPresence = sortDirection;
               break;
             case "website":
               orderBy.website = sortDirection;

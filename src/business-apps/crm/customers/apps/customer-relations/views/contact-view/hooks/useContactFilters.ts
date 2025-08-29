@@ -6,7 +6,6 @@ import { useGetContactOwners } from "./useGetContactOwners";
 import { useGetContacts } from "./useGetContacts";
 import { useGetContactInfoFilters } from "./useGetContactInfoFilters";
 import { useGetContactTypes } from "./useGetContactTypes";
-import { useGetContactRoles } from "./useGetContactRoles";
 import { useGetContactDepartments } from "./useGetContactDepartments";
 
 export interface FilterGroup {
@@ -54,7 +53,6 @@ export const useContactFilters = (
   const [accountSearch, setAccountSearch] = useState("");
   const [ownerSearch, setOwnerSearch] = useState("");
   const [contactTypeSearch, setContactTypeSearch] = useState("");
-  const [contactRoleSearch, setContactRoleSearch] = useState("");
   const [departmentSearch, setDepartmentSearch] = useState("");
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
@@ -91,11 +89,6 @@ export const useContactFilters = (
     error: contactTypesError,
   } = useGetContactTypes(context, contactTypeSearch);
 
-  const {
-    contactRoleOptions,
-    isLoading: isContactRolesLoading,
-    error: contactRolesError,
-  } = useGetContactRoles(context, contactRoleSearch);
 
   const {
     departmentOptions,
@@ -107,11 +100,10 @@ export const useContactFilters = (
 
   // Initialize filters from URL parameters when all data is loaded
   useEffect(() => {
-    if (!filtersInitialized && !isContactsLoading && !isAccountsLoading && !isOwnersLoading && !isContactTypesLoading && !isContactRolesLoading && !isDepartmentsLoading) {
-      // Always set initialized to true once loading is complete
+    if (!filtersInitialized && !isContactsLoading && !isAccountsLoading && !isOwnersLoading && !isContactTypesLoading && !isDepartmentsLoading) {
       setFiltersInitialized(true);
     }
-  }, [isContactsLoading, isAccountsLoading, isOwnersLoading, isContactTypesLoading, isContactRolesLoading, isDepartmentsLoading, filtersInitialized]);
+  }, [isContactsLoading, isAccountsLoading, isOwnersLoading, isContactTypesLoading, isDepartmentsLoading, filtersInitialized]);
 
 
 
@@ -196,22 +188,6 @@ export const useContactFilters = (
     [contactTypeOptions, selectedFilters, isContactTypesLoading, contactTypesError]
   );
 
-  const getContactRoleFilters = useCallback(
-    (search: string) => {
-      setTimeout(() => { setContactRoleSearch(search); }, 0);
-      return {
-        filters: (contactRoleOptions || []).map((option) => ({
-          id: `contact-role-${option.name}`,
-          label: option.name,
-          value: option.name,
-          selected: selectedFilters.includes(`contact-role-${option.name}`),
-        })),
-        loading: isContactRolesLoading,
-        error: contactRolesError,
-      };
-    },
-    [contactRoleOptions, selectedFilters, isContactRolesLoading, contactRolesError]
-  );
 
   const getDepartmentFilters = useCallback(
     (search: string) => {
@@ -291,17 +267,6 @@ export const useContactFilters = (
         backendSearch: getContactTypeFilters,
       },
       {
-        id: "contactRole",
-        title: "Contact Role",
-        filters: (contactRoleOptions || []).map((option) => ({
-          id: `contact-role-${option.name}`,
-          label: option.name,
-          value: option.name,
-          selected: selectedFilters.includes(`contact-role-${option.name}`),
-        })),
-        backendSearch: getContactRoleFilters,
-      },
-      {
         id: "departments",
         title: "Department",
         filters: (departmentOptions || []).map((option) => ({
@@ -313,7 +278,7 @@ export const useContactFilters = (
         backendSearch: getDepartmentFilters,
       },
     ],
-    [selectedFilters, contacts, contactAccounts, contactOwners, contactInfoFilters, contactTypeOptions, contactRoleOptions, departmentOptions, getContactFilters, getAccountFilters, getOwnerFilters, getContactTypeFilters, getContactRoleFilters, getDepartmentFilters]
+    [selectedFilters, contacts, contactAccounts, contactOwners, contactInfoFilters, contactTypeOptions, departmentOptions, getContactFilters, getAccountFilters, getOwnerFilters, getContactTypeFilters, getDepartmentFilters]
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
@@ -386,9 +351,6 @@ export const useContactFilters = (
           } else if (group.id === "contactType") {
             if (!filters.contactTypes) filters.contactTypes = [];
             filters.contactTypes.push(filter.value);
-          } else if (group.id === "contactRole") {
-            if (!filters.contactRoles) filters.contactRoles = [];
-            filters.contactRoles.push(filter.value);
           } else if (group.id === "departments") {
             if (!filters.departments) filters.departments = [];
             filters.departments.push(filter.value);

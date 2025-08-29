@@ -6,7 +6,7 @@ import { useCampaignFilters } from './components/campaign-list/hooks/useCampaign
 import { CampaignStatistics, CampaignsTable, AddCampaignModal } from './components';
 
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { ColumnVisibilityDropdown, ColumnConfig } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/ColumnVisibilityDropdown';
+import { ColumnConfig } from '@/components/dataController';
 import type { NewCampaignData } from './components/campaign-list/AddCampaignModal';
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes';
 import { startProcess } from '@/common/utils/start-process';
@@ -288,94 +288,82 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
 
 
 
-  // Overview Tab Component
-  const OverviewTab = () => (
-    <>
-      {/* Statistics Section */}
-      <div className="gba:mb-6" data-testid="campaign-statistics-section">
-        <CampaignStatistics
-          statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
-          isLoading={statisticsLoading}
-          error={statisticsError}
-          onRetry={refetchStatistics}
-        />
-      </div>
-
-      {/* Campaigns Table Section */}
-      <DataContainer
-        dataControllerProps={{
-          search,
-          setSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          dateRange: {
-            createdAfter: filterCreatedAfter,
-            createdBefore: filterCreatedBefore,
-            onClear: () => {
-              filterHandleCreatedDateRangeChange(undefined, undefined);
-              // Also clear start and end date ranges when clearing all
-              handleStartDateRangeChange(undefined, undefined);
-              handleEndDateRangeChange(undefined, undefined);
-            },
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Campaigns</span>
-                <span className="gba:text-gray-500">({totalCount})</span>
-              </div>
-            </div>
-          ),
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="campaigns-column-visibility"
-            />
-          ],
-          addButton: {
-            onClick: handleAddCampaign,
-            label: "Add",
-            "data-testid": "add-campaign-button",
-          },
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        dataBody={
-          <div data-testid="campaigns-table-container">
-            <CampaignsTable
-              campaigns={campaigns}
-              isLoading={isLoading}
-              error={error}
-              totalCount={totalCount}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onTableChange={handleTableChange}
-              onPaginationChange={handlePaginationChange}
-              onSortingChange={handleSortingChange}
-              onRowClick={handleCampaignRowClick}
-              accessToken={props.accessToken}
-              visibleColumns={visibleColumns}
-            />
-          </div>
-        }
-      />
-    </>
-  );
-
-
-
   return (
     <>
       <div data-testid="campaign-management-content">
-        <OverviewTab />
+        {/* Statistics Section */}
+        <div className="gba:mb-6" data-testid="campaign-statistics-section">
+          <CampaignStatistics
+            statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
+            isLoading={statisticsLoading}
+            error={statisticsError}
+            onRetry={refetchStatistics}
+          />
+        </div>
+
+        {/* Campaigns Table Section */}
+        <DataContainer
+          dataControllerProps={{
+            search,
+            setSearch,
+            debounceDelay: 500,
+            filter: selectedFilters,
+            setFilter: handleSetFilter,
+            filterLabelMap,
+            dateRange: {
+              createdAfter: filterCreatedAfter,
+              createdBefore: filterCreatedBefore,
+              onClear: () => {
+                filterHandleCreatedDateRangeChange(undefined, undefined);
+                // Also clear start and end date ranges when clearing all
+                handleStartDateRangeChange(undefined, undefined);
+                handleEndDateRangeChange(undefined, undefined);
+              },
+            },
+            listTitle: (
+              <div className="gba:flex gba:items-center gba:gap-4">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <span>Campaigns</span>
+                  <span className="gba:text-gray-500">({totalCount})</span>
+                </div>
+              </div>
+            ),
+            columnVisibility: {
+              columns: columnConfig,
+              onColumnVisibilityChange: handleColumnVisibilityChange,
+              'data-testid': 'campaigns-column-visibility'
+            },
+            addButton: {
+              onClick: handleAddCampaign,
+              label: "Add",
+              "data-testid": "add-campaign-button",
+            },
+          }}
+          dataFilterProps={{
+            filterGroups: filterGroups,
+            onFilterChange: handleFilterChange,
+          }}
+          dataBody={
+            <div data-testid="campaigns-table-container">
+              <CampaignsTable
+                campaigns={campaigns}
+                isLoading={isLoading}
+                error={error}
+                totalCount={totalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                sortField={sortField}
+                sortOrder={sortOrder}
+                onTableChange={handleTableChange}
+                onPaginationChange={handlePaginationChange}
+                onSortingChange={handleSortingChange}
+                onRowClick={handleCampaignRowClick}
+                accessToken={props.accessToken}
+                visibleColumns={visibleColumns}
+              />
+            </div>
+          }
+        />
       </div>
       
       {/* Add Campaign Modal */}

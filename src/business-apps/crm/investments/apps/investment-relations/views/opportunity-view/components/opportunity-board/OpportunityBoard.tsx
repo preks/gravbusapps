@@ -32,13 +32,15 @@ import { startProcess } from '@/common/utils/start-process';
 
 interface OpportunityBoardProps extends BusinessAppContextProps {
   // Board loads its own stages based on selected pipeline
+  dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
 }
 
 
 
 export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({ 
   accessToken,
-  userInfo
+  userInfo,
+  dealType = "INVESTMENT_DEAL" // Default to investment deals
 }) => {
   // Filter states
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
@@ -66,7 +68,8 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => {
     const variables: InvestmentOpportunityQueryVariables = {
       limit: 200, // Higher limit for board view
-      orderBy: [{ field: "createdAt", direction: "DESC" }],
+      orderBy: [{ field: "createdAt", direction: "DESC_NULLS_LAST" }],
+      dealType: dealType, // Filter by provided dealType
     };
 
     // Add pipeline filter - always filter by selected pipeline
@@ -89,7 +92,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
     // "all" mode: no employee filtering - shows all opportunities
 
     return variables;
-  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId]);
+  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId, dealType]);
 
   // Load opportunities data
   const loadData = useCallback(async () => {
@@ -266,13 +269,13 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   }, [opportunities]);
 
   // Handle drag end events
-  const handleDragEnd = useCallback((itemId: string, toStageId: string, position?: number) => {
+  const handleDragEnd = useCallback((itemId: string, toStageId: string) => {
     const opportunity = opportunities.find(op => op.id === itemId);
     if (!opportunity) return;
 
     const currentStageId = opportunity.opportunityPipelineStage?.id;
     if (currentStageId === toStageId) {
-      // Same stage - handle reordering if needed (position parameter)
+      // Same stage - handle reordering if needed
       // Note: Reordering is disabled via allowReorderWithinStage={false}
       return;
     } else {

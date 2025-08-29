@@ -80,6 +80,7 @@ export const INVESTMENT_CONTACT = `
     firstName
     lastName
     fullName
+    type
     email
     phone
     
@@ -168,7 +169,12 @@ export const INVESTMENT_ACCOUNT = `
 `;
 
 export const INVESTMENT_OPPORTUNITY_REF = `
-
+    id
+    code
+    name
+    dealType
+    estimatedAmount
+    closeDate
 `;
 
 export const INVESTMENT_OPPORTUNITY = `
@@ -180,6 +186,7 @@ export const INVESTMENT_OPPORTUNITY = `
     initialInvestmentAmount
     closeDate
     annualNetColdRent
+    dealType
     ${AUDIT_FIELDS}
     
     # Catalog relationships

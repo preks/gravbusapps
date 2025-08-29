@@ -18,13 +18,16 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { useLiquidFundAnalyticsIntegration } from '../hooks';
 import { AnalyticsRowData, AnalyticsFilters } from '../types';
 
-interface AnalyticsTableProps extends BusinessAppContextProps {
+interface AnalyticsTableProps {
+  accessToken: string;
+  userInfo?: any;
   'data-testid'?: string;
   filters: AnalyticsFilters;
   investmentType: string;
@@ -42,7 +45,6 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   // Use real data integration hook
   const {
     analyticsData,
-    totals,
     isLoading,
     error,
     totalCount,
@@ -51,12 +53,10 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     accessToken,
     userInfo,
     filters,
-    options: {
-      page: 1,
-      pageSize: 1000, // Load all available data without artificial limits
-      sortBy: 'proprietorName',
-      sortOrder: 'ASC'
-    }
+    currentPage: 1,
+    pageSize: 1000, // Load all available data without artificial limits
+    sortBy: 'proprietorName',
+    sortOrder: 'ASC'
   });
 
   const formatCurrency = (amount: number, currency: string = filters.currency || 'EUR'): string => {
@@ -121,6 +121,14 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     });
   };
 
+  // Handle investment navigation
+  const handleInvestmentClick = (investmentId: string, investmentName: string) => {
+    console.log('Investment clicked:', { investmentId, investmentName });
+    const url = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
+    console.log('Navigating to:', url);
+    navigateTo(url);
+  };
+
   const hasData = !isLoading && !error && analyticsData.length > 0;
 
   if (isLoading) {
@@ -167,8 +175,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
             <DollarSign className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
             <p className="gba:text-lg gba:font-medium gba:mb-2">No {investmentType} Data Found</p>
             <p className="gba:text-sm">
-              No liquid fund portfolios with {investmentType} type found for the selected period.
-              Try adjusting your date range or check if there are any active portfolios.
+              No liquid fund portfolios are available for {investmentType.toLowerCase()}.
             </p>
           </div>
         ) : (
@@ -219,7 +226,24 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                       className="gba:border-b gba:hover:gba:bg-gray-50"
                       data-testid={`${dataTestId}-row-${index + 1}`}
                     >
-                      <TableCell className="gba:font-medium gba:text-left gba:py-3 gba:px-4">{row.proprietorName}</TableCell>
+                      <TableCell className="gba:py-3 gba:px-4">
+                        <div className="gba:font-medium">
+                          <div>{row.proprietorName}</div>
+                          {row.investmentId ? (
+                            <button
+                              onClick={() => handleInvestmentClick(row.investmentId!, row.investmentName!)}
+                              className="gba:text-xs gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
+                              data-testid={`${dataTestId}-investment-link-${row.id}`}
+                            >
+                              🔗 {row.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
+                            </button>
+                          ) : (
+                            <div className="gba:text-xs gba:text-gray-500">
+                              ❌ {row.investmentName || 'Unknown Investment'} (No ID: {JSON.stringify(row.investmentId)})
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="gba:text-left gba:py-3 gba:px-4">
                         <Badge variant="outline">{row.originalCurrency}</Badge>
                       </TableCell>
@@ -269,33 +293,6 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                       </TableCell>
                     </TableRow>
                   ))}
-                  
-                  {/* Total Row - only show when there is data */}
-                  <TableRow className="gba:border-t-2 gba:border-gray-200 gba:bg-gray-50 gba:font-semibold">
-                    <TableCell className="gba:font-bold gba:text-left gba:py-3 gba:px-4">Total</TableCell>
-                    <TableCell colSpan={isFixedTermDeposits ? 3 : isMultipleInvestmentTypes ? 4 : 1} className="gba:text-left gba:py-3 gba:px-4"></TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.openingBalance)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.incoming)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.outgoing)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.realizedGainsLosses)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.unrealizedGainsLosses)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.closingBalance)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                      <span className="gba:text-gray-500">x%</span>
-                    </TableCell>
-                  </TableRow>
                 </>
               )}
             </TableBody>

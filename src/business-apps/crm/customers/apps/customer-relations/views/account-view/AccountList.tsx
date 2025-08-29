@@ -15,10 +15,7 @@ import { AccountTable } from "./components/AccountTable";
 import { AccountStatisticsWithTrend } from "./components/AccountStatistics";
 import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithTrend";
 
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { startProcess } from "@/common/utils/start-process";
@@ -57,20 +54,21 @@ export const AccountList: React.FC<AccountListProps> = (
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
+    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "company", label: "Account", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
-    { id: "created", label: "Creation Date", visible: true },
-    { id: "owner", label: "Owner", visible: true },
     { id: "legalForm", label: "Legal Form", visible: true },
     { id: "industry", label: "Industry", visible: true },
-    // New optional columns as requested
+    { id: "employees", label: "Size", visible: true },
+    { id: "location", label: "Location", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+    // Optional columns
     { id: "website", label: "Website", visible: false },
     { id: "country", label: "Country", visible: false },
     { id: "region", label: "Region/State", visible: false },
     { id: "city", label: "City", visible: false },
     { id: "annualRevenue", label: "Annual Revenue", visible: false },
-    { id: "employees", label: "Number of Employees", visible: false },
     { id: "foundationDate", label: "Foundation Date", visible: false },
     { id: "phone", label: "Phone", visible: false },
     { id: "email", label: "Email", visible: false },
@@ -101,6 +99,7 @@ export const AccountList: React.FC<AccountListProps> = (
       industry: "industry",
       owner: "owner",
       legalForm: "legalForm",
+      location: "location",
       // New column mappings
       website: "website",
       country: "location",
@@ -481,14 +480,11 @@ export const AccountList: React.FC<AccountListProps> = (
             label: "Add",
             "data-testid": "add-account-button",
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="account-list-column-visibility"
-            />,
-          ],
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'account-list-column-visibility'
+          },
         }}
         dataFilterProps={{
           filterGroups,

@@ -1,6 +1,6 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_LIQUID_FUND_INVESTMENT_REPORTS } from '@/common/data/investment/queries/investmentReportQueries';
+import { GET_INVESTMENT_REPORTS } from '@/common/data/investment/queries/investmentReportQueries';
 
 export type OrderByDirection = 'ASC' | 'DESC';
 
@@ -40,29 +40,44 @@ export const useGetLiquidFundInvestmentReports = (context: BusinessAppContextPro
 	};
 
 	const fetchLiquidFundInvestmentReports = async (variables: LiquidFundInvestmentReportQueryVariables = {}) => {
-		const query = GET_LIQUID_FUND_INVESTMENT_REPORTS({
+		// Query all liquid fund investment reports without investment ID filter
+		// since the relationship mapping is complex
+		const query = GET_INVESTMENT_REPORTS({
 			limit: Math.min(variables.limit || 50, 100),
 			offset: variables.offset || 0,
 			reportDateFrom: variables.reportDateFrom,
 			reportDateTo: variables.reportDateTo,
 			orderBy: variables.orderBy,
-			investmentIds: variables.investmentIds,
+			// Remove investment ID filter - load all and filter client-side
 		});
-		const result = await graphqlClient.request<{ LiquidFundInvestmentReport: any[] }>(query);
-		return result.LiquidFundInvestmentReport || [];
+		
+		const result = await graphqlClient.request<{ InvestmentReport: any[] }>(query);
+		
+		// Extract liquid fund reports from the enhanced query response
+		const investmentReports = result.InvestmentReport || [];
+		const liquidFundReports: any[] = [];
+		
+		investmentReports.forEach(investmentReport => {
+			const liquidFundData = investmentReport.liquidFundInvestmentReport || [];
+			// Filter by the specific liquid fund investment ID if provided
+			if (variables.investmentIds?.length) {
+				const filteredLiquidFundData = liquidFundData.filter((report: any) => 
+					variables.investmentIds!.includes(report.liquidFundInvestment?.id)
+				);
+				liquidFundReports.push(...filteredLiquidFundData);
+			} else {
+				liquidFundReports.push(...liquidFundData);
+			}
+		});
+		
+		return liquidFundReports;
 	};
 
 	const fetchLiquidFundInvestmentReportsCount = async (variables: LiquidFundInvestmentReportQueryVariables = {}) => {
-		const whereClause = buildWhereClause(variables);
-		const query = `
-			query GetLiquidFundInvestmentReportsCount {
-				LiquidFundInvestmentReportAggregate(${whereClause}) {
-					aggregate { count }
-				}
-			}
-		`;
-		const result = await graphqlClient.request<{ LiquidFundInvestmentReportAggregate: { aggregate: { count: number } } }>(query);
-		return result.LiquidFundInvestmentReportAggregate?.aggregate?.count || 0;
+		// For simplicity, just fetch all data and count client-side 
+		// since we need to filter by specific liquid fund investment ID
+		const reports = await fetchLiquidFundInvestmentReports(variables);
+		return reports.length;
 	};
 
 	return {

@@ -9,6 +9,7 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
+import { buildAddressLine } from "@/common/utils/addressFormatter";
 import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
@@ -59,8 +60,7 @@ const LeadFormComponent: React.FC = () => {
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
         description: toStringOrUndefined(formValues.notes),
-        sensitive:
-          formValues.sensitive === "true" || formValues.sensitive === true,
+        sensitive: formValues.sensitive,
 
         // ✅ UPDATED: Lead Information with new fields
         leadRatingRef: toStringOrUndefined(formValues.rating),
@@ -89,9 +89,7 @@ const LeadFormComponent: React.FC = () => {
         regionRef: toStringOrUndefined(formValues.region),
         locality: toStringOrUndefined(formValues.locality), // ✅ UPDATED: Use formValues.locality
         postalCode: toStringOrUndefined(formValues.postalCode),
-        addressLine: formValues.addressLine
-          ? { address: formValues.addressLine }
-          : null, // ✅ UPDATED: Single address line as jsonb
+        addressLine: buildAddressLine(formValues.addressLine),
 
         // ✅ FIXED: Conversion Information with correct API field names
         convertedAccount: toStringOrUndefined(formValues.accountId), // ✅ FIXED: API expects 'convertedAccount' not 'convertedAccountId'
@@ -172,21 +170,6 @@ const LeadFormComponent: React.FC = () => {
         investmentLead: leadPayload,
         changeMode: changeMode,
       };
-
-      // ✅ DEBUG: Log the final payload structure with correct field mapping
-      console.log("🚀 Investment Lead Payload WITH CORRECT FIELDS:", {
-        changeMode: payload.changeMode,
-        investmentLeadId: payload.investmentLead?.id,
-        sourceApp: payload.investmentLead?.sourceApp,
-        ownerEmployee: payload.investmentLead?.ownerEmployee,
-        convertedAccount: payload.investmentLead?.convertedAccount,
-        convertedContact: payload.investmentLead?.convertedContact,
-        convertedOpportunity: payload.investmentLead?.convertedOpportunity,
-        payloadKeys: Object.keys(payload),
-        investmentLeadKeys: Object.keys(payload.investmentLead || {}),
-        leadName: payload.investmentLead?.investmentName,
-        leadStatus: payload.investmentLead?.leadStatusRef,
-      });
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);

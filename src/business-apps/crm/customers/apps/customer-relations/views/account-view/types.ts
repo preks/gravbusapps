@@ -37,6 +37,8 @@ export interface Account {
   city?: string;
   region?: string;
   country?: string;
+  // Computed display field for table (city/region/country)
+  location?: string;
   sourceApp?: string;
   createdAt?: string;
   updatedAt?: string;

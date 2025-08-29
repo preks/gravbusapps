@@ -224,7 +224,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.taskInstance]}
+                        contextsArray={[FlowContextName.investmentTaskEntity]}
                         externalContextData={{ taskId: record.id, taskData: record.rawSalesTask }}
                         staticFlowData={[
                           { key: `update-task-${record.id}`, label: 'Update Task', icon: 'PiLightning', category: 'ACTION', onClick: () => startProcess({ domain: 'customer-relations', processName: 'saveSalesTask', payload: { taskData: record.rawSalesTask }, builderType: 'NATIVE_SCREEN' }) }
