@@ -2,17 +2,12 @@ import type { RcFile } from 'antd/es/upload';
 
 export interface InvestmentDocumentUploadFormProps {
   // Form behavior
-  mode?: 'modal' | 'inline';
   onSuccess?: (fileIds: string[]) => void;
   onCancel?: () => void;
   
   // Investment context
   investmentId?: string;
   showInvestmentSelector?: boolean;
-  
-  // Modal specific props
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
   
   // UI customization
   title?: string;

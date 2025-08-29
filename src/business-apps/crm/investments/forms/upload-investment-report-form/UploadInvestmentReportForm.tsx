@@ -3,11 +3,6 @@ import { Upload, message } from 'antd';
 import type { RcFile } from 'antd/es/upload';
 import { FileText, CheckCircle, Upload as UploadIcon } from 'lucide-react';
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
   Form,
   FormField,
   FormItem,
@@ -29,6 +24,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGetInvestments } from '@/common/data/investment';
 import { useInvestmentFileUpload } from './hooks/useInvestmentFileUpload';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import type { InvestmentDocumentUploadFormProps, UploadFile } from './types';
 
 const DEFAULT_ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png'];
@@ -36,17 +32,12 @@ const DEFAULT_MAX_FILES = 5;
 
 export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & InvestmentDocumentUploadFormProps> = ({
   // Form behavior props
-  mode = 'inline',
   onSuccess,
   onCancel,
   
   // Investment context props
   investmentId,
   showInvestmentSelector = true,
-  
-  // Modal specific props
-  open = false,
-  onOpenChange,
   
   // UI customization props
   title,
@@ -60,16 +51,46 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
   additionalData
 }) => {
   console.log('InvestmentDocumentUploadForm rendering with props:', { 
-    mode, 
-    open, 
     accessToken: !!accessToken,
     investmentId,
-    showInvestmentSelector 
+    showInvestmentSelector,
+    userInfo: !!userInfo,
+    additionalData: !!additionalData
+  });
+  
+  // Debug: Check if we receive investmentId from flow system
+  console.log('Flow context data (additionalData):', additionalData);
+  
+  // Extract investmentId from flow context data if not provided directly
+  const effectiveInvestmentId = investmentId || 
+    additionalData?.investmentId || 
+    additionalData?.externalContextData?.investmentId ||
+    additionalData?.context?.investmentId;
+    
+  console.log('Effective investment ID:', effectiveInvestmentId);
+  
+  // Determine if investment selector should be shown
+  // If investment is provided from external context (e.g., from investment-record screen),
+  // automatically disable the selector unless explicitly overridden
+  const isInvestmentFromExternalContext = !!(
+    additionalData?.externalContextData?.investmentId ||
+    additionalData?.context?.investmentId ||
+    additionalData?.investmentId
+  );
+  
+  const effectiveShowInvestmentSelector = isInvestmentFromExternalContext 
+    ? false 
+    : showInvestmentSelector;
+    
+  console.log('Investment selector settings:', { 
+    showInvestmentSelector, 
+    isInvestmentFromExternalContext, 
+    effectiveShowInvestmentSelector 
   });
 
   const form = useForm({
     defaultValues: {
-      investmentId: investmentId || '',
+      investmentId: effectiveInvestmentId || '',
       files: []
     },
     mode: 'onChange'
@@ -81,29 +102,51 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
   const [loadingInvestments, setLoadingInvestments] = useState(false);
   const [investmentsError, setInvestmentsError] = useState(false);
 
-  const {
-    uploadFiles,
-    isUploading,
+    const { 
+    uploadFiles, 
+    isUploading, 
     uploadProgress,
     error: uploadError,
     clearError
   } = useInvestmentFileUpload({
     accessToken,
     onSuccess: (fileIds) => {
+      console.log('Upload successful, file IDs received:', fileIds);
       setUploadSuccess(fileIds);
+      
+      // Call user's onSuccess callback
       if (onSuccess) {
         onSuccess(fileIds);
       }
       
-      // Auto-close modal after 3 seconds if in modal mode
-      if (mode === 'modal') {
-        setTimeout(() => {
-          handleClose();
-        }, 3000);
-      }
+      // Dispatch process continue event for successful upload
+      const payload = {
+        uploadedDocuments: {
+          investmentId: form.getValues('investmentId'),
+          fileIds: fileIds,
+          documentCount: fileIds.length,
+          uploadTimestamp: new Date().toISOString(),
+          documentType: 'FUND_PERFORMANCE_REPORT',
+          documentGroup: 'FINANCIAL'
+        }
+      };
+      
+      dispatchProcessContinueEvent('pse_submit', payload);
+      console.log('Process continue event dispatched:', payload);
     },
     onError: (errorMsg) => {
       console.error('Upload error:', errorMsg);
+      
+      // Optionally dispatch process event for error handling
+      const errorPayload = {
+        uploadError: {
+          investmentId: form.getValues('investmentId'),
+          errorMessage: errorMsg,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      dispatchProcessContinueEvent('pse_error', errorPayload);
     }
   });
 
@@ -115,6 +158,14 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
   } catch (error) {
     console.warn('Investment hook initialization failed, using fallback:', error);
   }
+
+  // Update form values when investmentId prop changes
+  useEffect(() => {
+    if (effectiveInvestmentId) {
+      console.log('Updating form with preselected investment ID:', effectiveInvestmentId);
+      form.setValue('investmentId', effectiveInvestmentId);
+    }
+  }, [effectiveInvestmentId, form]);
 
   // Load investments when form is displayed (same pattern as original modal)
   useEffect(() => {
@@ -149,17 +200,11 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
       }
     };
 
-    if (showInvestmentSelector && accessToken && fetchInvestments) {
+    // Load investments when selector is shown OR when we have a preselected investmentId (to display name)
+    if (accessToken && fetchInvestments && (effectiveShowInvestmentSelector || effectiveInvestmentId)) {
       loadInvestments();
     }
-  }, [showInvestmentSelector, accessToken, fetchInvestments]);
-
-  // Set investment ID if provided as prop
-  useEffect(() => {
-    if (investmentId && form.getValues().investmentId !== investmentId) {
-      form.setValue('investmentId', investmentId);
-    }
-  }, [investmentId, form]);
+  }, [effectiveShowInvestmentSelector, effectiveInvestmentId, accessToken, fetchInvestments]);
 
   const validateFile = (file: RcFile): boolean => {
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -222,9 +267,9 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
     setLoadingInvestments(false);
     setInvestmentsError(false);
     
-    if (mode === 'modal' && onOpenChange) {
-      onOpenChange(false);
-    }
+    // Dispatch process continue event for cancellation (pause)
+    dispatchProcessContinueEvent('pse_pause', null);
+    console.log('Process pause event dispatched (form cancelled)');
     
     if (onCancel) {
       onCancel();
@@ -243,43 +288,27 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
 
   // Error handling for missing access token
   if (!accessToken) {
-    const errorContent = (
-      <Alert>
-        <AlertDescription>
-          Authentication Required: Access token is required to upload documents.
-        </AlertDescription>
-      </Alert>
-    );
-
-    if (mode === 'modal') {
-      return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Error</DialogTitle>
-            </DialogHeader>
-            {errorContent}
-            <DialogFooter>
-              <Button onClick={() => onOpenChange?.(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
     return (
-      <div className="gba:p-6">
-        <h2 className="gba:text-xl gba:font-bold gba:mb-4">Error</h2>
-        {errorContent}
+      <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
+        <div className="gba:h-full gba:flex gba:flex-col">
+          <div className="gba:mb-6">
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Error</h2>
+          </div>
+          <div className="gba:flex-1">
+            <Alert>
+              <AlertDescription>
+                Authentication Required: Access token is required to upload documents.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Main form content
   const formContent = (
-    <div className="gba:space-y-4">
+    <div className="gba:space-y-6">
       {uploadSuccess.length > 0 ? (
         <div className="gba:py-8 gba:text-center" data-testid="upload-success-message">
           <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
@@ -309,8 +338,8 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
       ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} data-testid="investment-document-upload-form" className="gba:space-y-4">
-            {/* Investment Selection - Only show if showInvestmentSelector is true */}
-            {showInvestmentSelector && (
+            {/* Investment Selection - Only show if effectiveShowInvestmentSelector is true */}
+            {effectiveShowInvestmentSelector && (
               <FormField
                 control={form.control}
                 name="investmentId"
@@ -360,6 +389,31 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
               />
             )}
 
+            {/* Investment Display - Show when investment is preselected */}
+            {!effectiveShowInvestmentSelector && effectiveInvestmentId && (
+              <div className="gba:space-y-2">
+                <label className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel('investment.document.upload.selectedInvestment', 'Selected Investment')}
+                </label>
+                <div className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-md">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:h-2 gba:w-2 gba:bg-green-500 gba:rounded-full"></div>
+                    <span className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid="selected-investment-display">
+                      {(() => {
+                        // Try to find the investment name from loaded investments
+                        const foundInvestment = investments.find(inv => inv.id === effectiveInvestmentId);
+                        if (foundInvestment) {
+                          return `${foundInvestment.name || foundInvestment.businessKey || foundInvestment.id}${foundInvestment.businessKey ? ` (${foundInvestment.businessKey})` : ''}`;
+                        }
+                        // Fallback to just showing the ID
+                        return `Investment ID: ${effectiveInvestmentId}`;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* File Upload */}
             <div className="gba:space-y-2">
               <label className="gba:text-sm gba:font-medium">
@@ -386,7 +440,7 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
                 <p className="ant-upload-hint">
                   {getTranslationFromI18nKeyAndLabel(
                     'investment.document.upload.hint',
-                    `Support for PDF, Word, Excel, and text files. Maximum ${maxFiles} files. Files are uploaded directly to storage.`
+                    `Support for PDF, Word, Excel, and text files. Maximum ${maxFiles} files.`
                   )}
                 </p>
               </Upload.Dragger>
@@ -424,11 +478,12 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
 
   // Action buttons
   const actionButtons = uploadSuccess.length === 0 && (
-    <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-6">
+    <div className="gba:flex gba:gap-3">
       <Button
-        variant="outline"
+        variant="secondary"
         onClick={handleClose}
         disabled={isUploading}
+        className="gba:flex-1"
         data-testid="cancel-button"
       >
         {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
@@ -437,6 +492,8 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
         type="submit"
         onClick={form.handleSubmit(onSubmit)}
         disabled={isUploading || fileList.length === 0}
+        variant="default"
+        className="gba:flex-1"
         data-testid="upload-button"
       >
         {isUploading
@@ -449,87 +506,53 @@ export const InvestmentDocumentUploadForm: React.FC<BusinessAppContextProps & In
 
   // Error boundary wrapper
   try {
-    // Modal mode
-    if (mode === 'modal') {
-      return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className="gba:max-w-2xl" data-testid="investment-document-upload-modal">
-            <DialogHeader>
-              <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-                <FileText className="gba:h-5 gba:w-5" />
-                {title || defaultTitle}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="gba:mb-4">
-              <p className="gba:text-gray-600">
-                {description || defaultDescription}
-              </p>
-            </div>
-
-            {formContent}
-
-            {actionButtons && (
-              <DialogFooter>
-                {actionButtons}
-              </DialogFooter>
-            )}
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
-    // Inline mode
     return (
-      <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="investment-document-upload-form">
-        <div className="gba:mb-6">
-          <h2 className="gba:text-xl gba:font-bold gba:mb-2 gba:flex gba:items-center gba:gap-2">
-            <FileText className="gba:h-5 gba:w-5" />
-            {title || defaultTitle}
-          </h2>
-          <p className="gba:text-gray-600">
-            {description || defaultDescription}
-          </p>
-        </div>
+      <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:pt-6" data-testid="investment-document-upload-form">
+        <div className="gba:h-full gba:flex gba:flex-col">
+          
+          {/* Form Title */}
+          <div className="gba:mb-6">
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
+              <FileText className="gba:h-5 gba:w-5" />
+              {title || defaultTitle}
+            </h2>
+            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
+              {description || defaultDescription}
+            </p>
+          </div>
 
-        {formContent}
-        {actionButtons}
+          {/* Form Content Container - Takes up available space */}
+          <div className="gba:flex-1 gba:overflow-y-auto">
+            {formContent}
+          </div>
+
+          {/* Action Buttons - Fixed at bottom */}
+          {actionButtons && (
+            <div className="gba:pt-6 gba:border-t gba:border-gray-200">
+              {actionButtons}
+            </div>
+          )}
+        </div>
       </div>
     );
 
   } catch (error) {
     console.error('Error rendering InvestmentDocumentUploadForm:', error);
     
-    const errorFallback = (
-      <Alert>
-        <AlertDescription>
-          There was an error loading the upload form. Please try again or contact support.
-        </AlertDescription>
-      </Alert>
-    );
-
-    if (mode === 'modal') {
-      return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Component Error</DialogTitle>
-            </DialogHeader>
-            {errorFallback}
-            <DialogFooter>
-              <Button onClick={() => onOpenChange?.(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
     return (
-      <div className="gba:p-6">
-        <h2 className="gba:text-xl gba:font-bold gba:mb-4">Component Error</h2>
-        {errorFallback}
+      <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
+        <div className="gba:h-full gba:flex gba:flex-col">
+          <div className="gba:mb-6">
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Component Error</h2>
+          </div>
+          <div className="gba:flex-1">
+            <Alert>
+              <AlertDescription>
+                There was an error loading the upload form. Please try again or contact support.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
       </div>
     );
   }

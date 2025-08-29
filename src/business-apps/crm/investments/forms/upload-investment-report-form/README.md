@@ -1,10 +1,10 @@
 # Investment Document Upload Form
 
-A reusable React component for uploading investment documents to the NEWWORK platform. Supports both modal and inline modes, with flexible configuration options.
+A reusable React component for uploading investment documents to the NEWWORK platform. Designed to work with the platform's flow system for seamless integration.
 
 ## Features
 
-- ✅ **Modal & Inline Modes**: Can be used as a modal dialog or inline form
+- ✅ **Standalone Form**: Clean, standalone form without modal dependencies
 - ✅ **Investment Selection**: Optional dropdown for selecting investments
 - ✅ **File Upload**: Drag & drop support with file type validation
 - ✅ **Progress Tracking**: Real-time upload progress indicators
@@ -12,22 +12,18 @@ A reusable React component for uploading investment documents to the NEWWORK pla
 - ✅ **Internationalization**: Full i18n support with translations
 - ✅ **Type Safety**: Complete TypeScript definitions
 - ✅ **Reusable Hook**: Extracted upload logic for custom implementations
+- ✅ **Flow Integration**: Works seamlessly with platform's AppAction flow system
 
 ## Basic Usage
 
-### As Modal Dialog
+### As Standalone Form
 
 ```typescript
-import { InvestmentDocumentUploadForm } from '@/business-apps/crm/investments/forms/investment-document-upload-form';
+import { InvestmentDocumentUploadForm } from '@/business-apps/crm/investments/forms/upload-investment-report-form';
 
 const MyComponent = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
     <InvestmentDocumentUploadForm
-      mode="modal"
-      open={isOpen}
-      onOpenChange={setIsOpen}
       onSuccess={(fileIds) => {
         console.log('Uploaded files:', fileIds);
         setIsOpen(false);
@@ -69,9 +65,6 @@ const MyComponent = () => {
 
 ```typescript
 <InvestmentDocumentUploadForm
-  mode="modal"
-  open={isOpen}
-  onOpenChange={setIsOpen}
   investmentId="specific-investment-id"
   showInvestmentSelector={false} // Hide selector since investment is pre-selected
   onSuccess={(fileIds) => console.log('Uploaded:', fileIds)}
@@ -87,13 +80,10 @@ const MyComponent = () => {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `mode` | `'modal' \| 'inline'` | `'inline'` | Display mode |
 | `onSuccess` | `(fileIds: string[]) => void` | - | Called when upload succeeds |
 | `onCancel` | `() => void` | - | Called when form is cancelled |
 | `investmentId` | `string` | - | Pre-selected investment ID |
 | `showInvestmentSelector` | `boolean` | `true` | Show investment dropdown |
-| `open` | `boolean` | `false` | Modal open state (modal mode only) |
-| `onOpenChange` | `(open: boolean) => void` | - | Modal open state handler |
 | `title` | `string` | Auto-translated | Custom form title |
 | `description` | `string` | Auto-translated | Custom form description |
 | `maxFiles` | `number` | `5` | Maximum number of files |

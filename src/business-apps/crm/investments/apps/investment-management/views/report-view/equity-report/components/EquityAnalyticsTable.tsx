@@ -19,10 +19,8 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  PieChart,
-  ExternalLink
+  PieChart
 } from 'lucide-react';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEquityAnalyticsIntegration } from '../hooks';
 import { EquityAnalyticsFilters } from '../types';
@@ -122,14 +120,6 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
     );
   };
 
-  // Handle investment navigation
-  const handleInvestmentClick = (investmentId: string, investmentName: string) => {
-    console.log('Investment clicked:', { investmentId, investmentName });
-    const url = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
-    console.log('Navigating to:', url);
-    navigateTo(url);
-  };
-
   const hasData = !isLoading && !error && analyticsData.length > 0;
 
   if (isLoading) {
@@ -217,17 +207,7 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                     >
                       <TableCell className="gba:font-medium gba:text-left gba:py-3 gba:px-4">
                         <div>
-                          {row.investmentId ? (
-                            <button
-                              onClick={() => handleInvestmentClick(row.investmentId!, row.investmentName!)}
-                              className="gba:font-semibold gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
-                              data-testid={`${dataTestId}-investment-link-${row.id}`}
-                            >
-                              🔗 {row.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
-                            </button>
-                          ) : (
-                            <div className="gba:font-semibold">{row.investmentName}</div>
-                          )}
+                          <div className="gba:font-semibold">{row.investmentName}</div>
                           <div className="gba:text-sm gba:text-gray-500">{row.investmentCode}</div>
                         </div>
                       </TableCell>

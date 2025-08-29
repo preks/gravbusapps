@@ -37,7 +37,10 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   size = 'default',
   accessToken
 }) => {
+  console.log('UploadReportButton props:', { investmentId, accessToken: !!accessToken });
+  
   if (!investmentId) {
+    console.warn('UploadReportButton: No investmentId provided, not rendering button');
     return null; // Don't render if no investment ID
   }
 
