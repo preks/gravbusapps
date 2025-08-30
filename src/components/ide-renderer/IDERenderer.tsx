@@ -1,6 +1,11 @@
 import React, { useEffect } from "react";
 import { createElement } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@newwork/nw-design-system";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@newwork/nw-design-system";
 import { Alert } from "@newwork/nw-design-system";
 import { Button } from "@newwork/nw-design-system";
 import { useDynamicScreen } from "@/common/hooks/useDynamicScreen";
@@ -94,7 +99,10 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
 
   // Update dialog visibility when selectedApp changes
   React.useEffect(() => {
-    if (selectedApp && (selectedApp.type === "form" || selectedApp.type === "popup")) {
+    if (
+      selectedApp &&
+      (selectedApp.type === "form" || selectedApp.type === "popup")
+    ) {
       setDialogVisible(true);
     } else {
       setDialogVisible(false);
@@ -115,7 +123,9 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
         userInfo={userInfo}
         accessToken={accessToken}
         additionalData={additionalData}
-        key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
+        key={`${selectedApp.screenKey}-${JSON.stringify(
+          userInfo
+        )}-${accessToken}-${JSON.stringify(additionalData)}`}
       />
     );
   };
@@ -130,21 +140,31 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   }
 
   // Render forms and popups in dialog
-  if (selectedApp && (selectedApp.type === "form" || selectedApp.type === "popup")) {
+  if (
+    selectedApp &&
+    (selectedApp.type === "form" || selectedApp.type === "popup")
+  ) {
     return (
-      <Dialog open={dialogVisible} onOpenChange={(open) => !open && handleDialogClose()}>
+      <Dialog
+        open={dialogVisible}
+        onOpenChange={(open) => !open && handleDialogClose()}
+      >
         <DialogContent
           className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col"
           style={{
-            height: selectedApp.type === "form" ? "calc(100vh - 120px)" : "auto",
+            height:
+              selectedApp.type === "form" ? "calc(100vh - 120px)" : "auto",
             overflow: selectedApp.type === "form" ? "auto" : "visible",
             justifyContent: "flex-start",
-            alignItems: "center"
+            backgroundColor: "#FFFFFF",
           }}
         >
-          <div className="gba:w-full gba:flex-1 gba:flex gba:flex-col gba:items-center">
+          <DialogHeader>
+            <DialogTitle className="gba:text-lg gba:font-semibold">
+              {selectedApp.name}
+            </DialogTitle>
+          </DialogHeader>
             {renderAppContent()}
-          </div>
         </DialogContent>
       </Dialog>
     );

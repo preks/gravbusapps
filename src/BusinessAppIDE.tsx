@@ -7,12 +7,13 @@ import {
   DialogTitle,
   Label,
   Textarea,
-  Alert,
+  Toaster,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@newwork/nw-design-system";
+import { toast } from "sonner";
 import { Gear, X, Info } from "@phosphor-icons/react";
 import { IdeMainMenu, BusinessAppInfo } from "@/components/ide-main-menu";
 import { IDERenderer } from "@/components/ide-renderer";
@@ -140,14 +141,15 @@ export interface CompMeta {
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   const { domain, processName, processInstanceId, startProcessBody } = event;
-
-  // Log process event to console (replaced antd notification)
-  console.info("Process Start Event Detected", {
-    domain,
-    processName,
-    processInstanceId,
-    startProcessBody,
-  });
+  toast.success("Process Start Event Detected", {
+    description: `Domain: ${domain}, \nProcess: ${processName}${
+      processInstanceId ? `, ID: ${processInstanceId}` : ""
+    }\nProcess body: ${
+      startProcessBody ? JSON.stringify(startProcessBody) : "No process body"
+    }`,
+    position: "top-right",
+  })
+  
 };
 
 export interface BusinessAppIDEProps {
@@ -368,7 +370,57 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
 
 
+  // Recently used apps tracking - centralized tracking for both IDEStartScreen and IdeMainMenu
+  const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
+  const MAX_RECENT_APPS = 5;
+
+  const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
+    const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
+    let recentlyUsedApps: Array<{
+      name: string;
+      module: string;
+      subModule?: string;
+      screenKey: string;
+      lastUsed: number;
+    }> = [];
+    
+    if (savedRecentApps) {
+      try {
+        recentlyUsedApps = JSON.parse(savedRecentApps);
+      } catch (error) {
+        console.error("Failed to parse recent apps:", error);
+      }
+    }
+
+    const now = Date.now();
+    const existingIndex = recentlyUsedApps.findIndex(
+      (recentApp) => recentApp.screenKey === app.screenKey
+    );
+
+    if (existingIndex !== -1) {
+      recentlyUsedApps[existingIndex].lastUsed = now;
+    } else {
+      recentlyUsedApps.push({
+        name: app.name,
+        module: app.module,
+        subModule: app.subModule,
+        screenKey: app.screenKey,
+        lastUsed: now,
+      });
+    }
+
+    recentlyUsedApps = recentlyUsedApps
+      .sort((a, b) => b.lastUsed - a.lastUsed)
+      .slice(0, MAX_RECENT_APPS);
+
+    localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(recentlyUsedApps));
+    
+    // Dispatch custom event to notify other components in the same window
+    window.dispatchEvent(new CustomEvent('recentAppsUpdated'));
+  };
+
   const handleAppSelect = (app: BusinessAppInfo) => {
+    updateRecentlyUsedApps(app);
     setSelectedApp(app);
   };
 
@@ -785,7 +837,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           </DialogContent>
         </Dialog>
 
-
+                  <Toaster />
       </div>
     </UiCatalogProvider>
   );

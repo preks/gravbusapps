@@ -35,15 +35,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     onAppSelect
 }) => {
 
-    // Recently used apps tracking
-    const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
-    const MAX_RECENT_APPS = 5;
-
     const [recentlyUsedApps, setRecentlyUsedApps] = React.useState<RecentlyUsedApp[]>([]);
 
-    // Load recently used apps from localStorage on component mount
+    // Load and sync recently used apps from centralized tracking in BusinessAppIDE
     React.useEffect(() => {
-        const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
+        const savedRecentApps = localStorage.getItem("business-app-ide-recent-apps");
         if (savedRecentApps) {
             try {
                 const parsed = JSON.parse(savedRecentApps);
@@ -54,37 +50,42 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
         }
     }, []);
 
-    // Update recently used apps when an app is selected
-    const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
-        const now = Date.now();
-        const existingIndex = recentlyUsedApps.findIndex(
-            (recentApp) => recentApp.screenKey === app.screenKey
-        );
+    // Listen for changes to recently used apps
+    React.useEffect(() => {
+        const handleStorageChange = () => {
+            const savedRecentApps = localStorage.getItem("business-app-ide-recent-apps");
+            if (savedRecentApps) {
+                try {
+                    const parsed = JSON.parse(savedRecentApps);
+                    setRecentlyUsedApps(parsed);
+                } catch (error) {
+                    console.error("Failed to parse recent apps:", error);
+                }
+            }
+        };
 
-        let updatedApps = [...recentlyUsedApps];
+        // Listen for custom event when localStorage changes in the same window
+        const handleCustomStorageChange = () => {
+            handleStorageChange();
+        };
 
-        if (existingIndex !== -1) {
-            updatedApps[existingIndex].lastUsed = now;
-        } else {
-            updatedApps.push({
-                name: app.name,
-                module: app.module,
-                subModule: app.subModule,
-                screenKey: app.screenKey,
-                lastUsed: now,
-            });
-        }
+        // Initial load
+        handleStorageChange();
 
-        updatedApps = updatedApps
-            .sort((a, b) => b.lastUsed - a.lastUsed)
-            .slice(0, MAX_RECENT_APPS);
-
-        setRecentlyUsedApps(updatedApps);
-        localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(updatedApps));
-    };
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('recentAppsUpdated', handleCustomStorageChange);
+        
+        // Periodic refresh as fallback (every 5 seconds)
+        const intervalId = setInterval(handleStorageChange, 5000);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('recentAppsUpdated', handleCustomStorageChange);
+            clearInterval(intervalId);
+        };
+    }, []);
 
     const handleAppClick = (app: BusinessAppInfo) => {
-        updateRecentlyUsedApps(app);
         onAppSelect(app);
     };
 
