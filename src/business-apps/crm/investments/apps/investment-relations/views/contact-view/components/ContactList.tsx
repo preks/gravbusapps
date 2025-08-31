@@ -342,7 +342,7 @@ export const ContactList: React.FC<ContactListProps> = ({
                             data-testid={`contact-entity-button-${contact.id}`}
                             size="icon"
                             contextsArray={[
-                              FlowContextName.updateInvestmentContact,
+                              FlowContextName.investmentContactEntity,
                             ]}
                             externalContextData={{ contactId: contact.id }}
                             prefixDataTestId={`contact-entity-button`}

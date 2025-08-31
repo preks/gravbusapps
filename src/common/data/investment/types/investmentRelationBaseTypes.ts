@@ -353,7 +353,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
 // investment_activity table
 export interface BaseInvestmentActivity extends BaseEntity {
   id: string;
-  
+  version: number;
   // Common Fields (from nw_common_relations.activity)
   source?: SourceTable;
   title?: string;
@@ -362,6 +362,7 @@ export interface BaseInvestmentActivity extends BaseEntity {
   completedAt?: string; // ISO datetime string
 
   // Catalog references
+  activityTypeRef?: string;
   activityType?: CatalogEntry;
   
   // Entity references (using Ref types)

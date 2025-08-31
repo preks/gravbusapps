@@ -7,9 +7,12 @@ import { CampaignStatistics, CampaignsTable, AddCampaignModal } from './componen
 
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from '@/components/dataController';
-import type { NewCampaignData } from './components/campaign-list/AddCampaignModal';
+// Removed NewCampaignData type import as inline handler is used
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes';
-import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PlusSquareIcon } from '@phosphor-icons/react';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 
 
 
@@ -22,7 +25,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
   
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting] = useState(false);
 
   // Use the centralized campaign filters hook
   const {
@@ -54,7 +57,6 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     statistics,
     statisticsLoading,
     statisticsError,
-    refetch,
     processFiltersAndFetch,
     refetchStatistics
   } = useSalesCampaignData(props);
@@ -211,66 +213,32 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     processFiltersAndFetch
   ]);
 
-  // Add button -> start native screen process for Campaign form
-  const handleAddCampaign = useCallback(() => {
-    const currentUrl = new URL(window.location.href);
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesCampaign',
-      payload: {
-        returnUrl: currentUrl.toString(),
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  }, []);
+  // AppAction handles add via flow context
 
-  // Refresh list after process completion from native screen
-  useEffect(() => {
-    const handleProcessEvents = (event: any) => {
-      try {
-        const type = event?.type || '';
-        const detail = (event as CustomEvent)?.detail || {};
-        if (
-          type === 'com.newwork.process.taskCompletion' ||
-          type === 'process-completion' ||
-          type === 'task-completion' ||
-          (detail?.payload && detail?.event === 'pse_submit')
-        ) {
-          refetch();
-          refetchStatistics();
-        }
-      } catch (_) {}
-    };
-    window.addEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
-    window.addEventListener('process-completion', handleProcessEvents as EventListener);
-    window.addEventListener('task-completion', handleProcessEvents as EventListener);
-    window.addEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
-    return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
-      window.removeEventListener('process-completion', handleProcessEvents as EventListener);
-      window.removeEventListener('task-completion', handleProcessEvents as EventListener);
-      window.removeEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
-    };
-  }, [refetch, refetchStatistics]);
+  // Refresh list and statistics after process completion
+  useProcessCompletion({
+    onSuccess: () => {
+      processFiltersAndFetch(
+        search,
+        selectedFilters,
+        filterStartDateAfter,
+        filterStartDateBefore,
+        filterEndDateAfter,
+        filterEndDateBefore,
+        filterCreatedAfter,
+        filterCreatedBefore,
+        sortField,
+        sortOrder
+      );
+      refetchStatistics();
+    },
+  });
 
   const handleCloseModal = useCallback(() => {
     setIsAddModalOpen(false);
   }, []);
 
-  const handleSubmitCampaign = useCallback(async (campaignData: NewCampaignData) => {
-    setIsSubmitting(true);
-    try {
-      // TODO: Implement campaign creation API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Close modal and refresh data
-      setIsAddModalOpen(false);
-      refetch();
-    } catch (error) {
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [refetch]);
+  // Removed handleSubmitCampaign; creation handled via AppAction elsewhere
 
 
 
@@ -333,11 +301,22 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
               onColumnVisibilityChange: handleColumnVisibilityChange,
               'data-testid': 'campaigns-column-visibility'
             },
-            addButton: {
-              onClick: handleAddCampaign,
-              label: "Add",
-              "data-testid": "add-campaign-button",
-            },
+            actions: (
+              <AppAction
+                contextsArray={[FlowContextName.customerCampaignCreate]}
+                accessToken={props.accessToken}
+                data-testid="add-campaign-action"
+                emptyStateBehavior="hide"
+              >
+                <div
+                  className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                  data-testid="add-campaign-trigger"
+                >
+                  <PlusSquareIcon />
+                  Add
+                </div>
+              </AppAction>
+            ),
           }}
           dataFilterProps={{
             filterGroups: filterGroups,
@@ -370,7 +349,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
       <AddCampaignModal
         isOpen={isAddModalOpen}
         onClose={handleCloseModal}
-        onSubmit={handleSubmitCampaign}
+        onSubmit={async () => {}}
         isLoading={isSubmitting}
         {...props}
       />

@@ -8,7 +8,9 @@ import { debounce, DEFAULT_LOAD_DEBOUNCE_DELAY } from '@/common/data/investment'
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useTaskListData, useTaskFilters, useTaskStatistics } from './hooks';
 import { TaskTable, TaskDetails, TaskStatistics } from './components';
-import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PlusSquareIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
 
@@ -118,14 +120,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     return baseFilters;
   }, [getFilters, activeTab, userInfo]);
 
-  const handleAddTask = useCallback(() => {
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesTask',
-      payload: {},
-      builderType: 'NATIVE_SCREEN',
-    });
-  }, []);
+  
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     selected ? addFilter(filterId) : removeFilter(filterId);
@@ -323,7 +318,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     </div>
                   </div>
                 ),
-                addButton: { onClick: handleAddTask, label: 'Add', 'data-testid': 'add-task-button' },
+                actions: (
+                  <AppAction
+                    contextsArray={[FlowContextName.investmentTaskCreate]}
+                    accessToken={accessToken}
+                    data-testid="add-task-action"
+                    emptyStateBehavior="hide"
+                  >
+                    <div
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                      data-testid="add-task-trigger"
+                    >
+                      <PlusSquareIcon />
+                      Add
+                    </div>
+                  </AppAction>
+                ),
               }}
               dataFilterProps={{ filterGroups, onFilterChange: handleFilterChange }}
               dataBody={
@@ -372,7 +382,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     </div>
                   </div>
                 ),
-                addButton: { onClick: handleAddTask, label: 'Add', 'data-testid': 'add-task-button' },
+                actions: (
+                  <AppAction
+                    contextsArray={[FlowContextName.investmentTaskCreate]}
+                    accessToken={accessToken}
+                    data-testid="add-task-action"
+                    emptyStateBehavior="hide"
+                  >
+                    <div
+                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                      data-testid="add-task-trigger"
+                    >
+                      <PlusSquareIcon />
+                      Add
+                    </div>
+                  </AppAction>
+                ),
               }}
               dataFilterProps={{ filterGroups, onFilterChange: handleFilterChange }}
               dataBody={

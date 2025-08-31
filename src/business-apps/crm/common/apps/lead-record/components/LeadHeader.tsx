@@ -110,14 +110,14 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
             <AppActionButton
               data-testid="lead-record-action-button"
               size="default"
-              contextsArray={[FlowContextName.leadEntity]}
+              contextsArray={[FlowContextName.customerLeadEntity]}
               externalContextData={{
                 leadId: leadId,
               }}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyStateBehavior="hide"
+              deferMainContextRequestsUntilClick={false}
             >
               Actions
             </AppActionButton>

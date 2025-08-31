@@ -20,6 +20,7 @@ import {
   PiMegaphone,
 } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { SalesCampaign } from "./types/SalesCampaignTypes";
 // Column visibility is managed in parent to match Lead List pattern
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
@@ -431,43 +432,19 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-campaign-button-${campaign.id}`}
                           size="icon"
-                          contextsArray={[]}
-                          deferMainContextRequestsUntilClick
-                          staticFlowData={[
-                            {
-                              category: "Actions",
-                              key: "update-campaign",
-                              label: getTranslationFromI18nKeyAndLabel(
-                                "crm:campaign.update",
-                                "Update Campaign"
-                              ),
-                              onClick: () => {
-                                const currentUrl = new URL(
-                                  window.location.href
-                                );
-                                startProcess({
-                                  domain: "customer-relations",
-                                  processName: "saveSalesCampaign",
-                                  payload: {
-                                    // broad payload so native screen can detect update
-                                    changeMode: "UPDATE",
-                                    salesCampaign: { id: campaign.id },
-                                    salesCampaignId: campaign.id,
-                                    id: campaign.id,
-                                    entityId: campaign.id,
-                                    campaignId: campaign.id,
-                                    returnUrl: currentUrl.toString(),
-                                    saveSalesCampaignModelInput: {
-                                      changeMode: "UPDATE",
-                                      salesCampaign: { id: campaign.id },
-                                      returnUrl: currentUrl.toString(),
-                                    },
-                                  },
-                                  builderType: "NATIVE_SCREEN",
-                                });
-                              },
+                          contextsArray={[FlowContextName.customerCampaignEntity]}
+                          externalContextData={{
+                            campaignId: campaign.id,
+                            salesCampaign: { id: campaign.id },
+                            salesCampaignId: campaign.id,
+                            id: campaign.id,
+                            entityId: campaign.id,
+                            saveSalesCampaignModelInput: {
+                              changeMode: "UPDATE",
+                              salesCampaign: { id: campaign.id },
                             },
-                          ]}
+                          }}
+                          deferMainContextRequestsUntilClick
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
                           onClick={(e) => e.stopPropagation()}

@@ -47,7 +47,7 @@ lead-view/
 ## Integration
 
 ### AppActionButton
-- **Context**: `FlowContextName.leadEntity`
+- **Context**: `FlowContextName.customerLeadEntity`
 - **Data**: Passes `leadId` in `externalContextData`
 - **Behavior**: Disables when no actions available, defers context requests
 

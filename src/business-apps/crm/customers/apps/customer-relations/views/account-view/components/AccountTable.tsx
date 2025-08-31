@@ -585,7 +585,6 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                               <AvatarImage
                                 src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(record)}
-                                className="gba:object-cover gba:object-center"
                               />
                             )}
                             <AvatarFallback>
@@ -797,9 +796,10 @@ export const AccountTable: React.FC<AccountTableProps> = ({
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${record.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.accountEntity]}
+                          contextsArray={[FlowContextName.customerAccountEntity]}
                           externalContextData={{
                             accountId: record.id,
+                            ownerEmployeeId: record.ownerEmployee?.id,
                           }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
                           accessToken={accessToken}

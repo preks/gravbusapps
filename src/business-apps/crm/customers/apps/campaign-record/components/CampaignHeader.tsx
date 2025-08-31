@@ -3,6 +3,7 @@ import { Spinner } from '@newwork/nw-design-system';
 import { CalendarOutlined, TagOutlined } from '@ant-design/icons';
 import { Badge } from '@newwork/nw-design-system';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { CampaignHeaderProps } from '../types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import dayjs from 'dayjs';
@@ -102,12 +103,15 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
           {accessToken && (
             <AppActionButton
               data-testid="campaign-record-action-button"
-              contextsArray={[]}
+              contextsArray={[FlowContextName.customerCampaignEntity]}
+              externalContextData={{
+                campaignId: campaign.id
+              }}
               staticFlowData={[]}
               prefixDataTestId="campaign-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyStateBehavior="hide"
+              deferMainContextRequestsUntilClick={false}
             >
               Actions
             </AppActionButton>

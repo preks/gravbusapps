@@ -491,7 +491,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                             data-testid={`opportunity-entity-button-${opportunity.id}`}
                             size="icon"
                             contextsArray={[
-                              FlowContextName.updateInvestmentOpportunity,
+                              FlowContextName.investmentOpportunityEntity,
                             ]}
                             externalContextData={{
                               opportunityId: opportunity.id,
