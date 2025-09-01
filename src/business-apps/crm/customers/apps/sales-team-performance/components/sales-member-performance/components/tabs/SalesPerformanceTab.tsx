@@ -1,11 +1,11 @@
-import React from 'react';
-import { PerformanceStatistics } from '../statistics';
-import { PerformanceTrendsChart } from '../performance-trends';
-import { EntitiesOwnedSection } from '../entities';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { EntitiesOwned } from '../../types';
+import React from "react";
+import { PerformanceStatistics } from "../statistics";
+import { PerformanceTrendsChart } from "../performance-trends";
+import { EntitiesOwnedSection } from "../entities";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { EntitiesOwned } from "../../types";
 
-const DATA_TEST_ID_PREFIX = 'SalesPerformanceTab';
+const DATA_TEST_ID_PREFIX = "SalesPerformanceTab";
 
 interface SalesPerformanceTabProps extends BusinessAppContextProps {
   employeeId: string;
@@ -33,7 +33,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   ...context
 }) => {
   return (
-    <div 
+    <div
       className="gba:flex gba:flex-col gba:gap-6"
       data-testid={`${DATA_TEST_ID_PREFIX}-container`}
     >
@@ -46,14 +46,14 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
         showComparisons={showComparisons}
         {...context}
       />
-      
+
       {/* Performance Trends Chart Section */}
       <PerformanceTrendsChart
         employeeId={employeeId}
         accessToken={accessToken}
         {...context}
       />
-      
+
       {/* Entities Owned Section */}
       <EntitiesOwnedSection
         employeeId={employeeId}
@@ -65,4 +65,4 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   );
 };
 
-export default SalesPerformanceTab; 
+export default SalesPerformanceTab;
