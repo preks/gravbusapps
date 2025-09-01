@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, IconAvatar } from '@newwork/nw-design-system';
+import { formatCurrency as formatCurrencyCode } from '@/business-apps/fin/expenses/apps/manager-expenses/utils/currencyUtils';
 import * as RemixIcons from '@remixicon/react';
 import { NavigationCardProps } from '../types';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
@@ -337,12 +338,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
       switch (kpiType) {
         case 'personal':
           return { 
-            number: new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'EUR',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(stats.personalMonthlyExpenses || DEFAULT_KPI_VALUES.PERSONAL_MONTHLY_EXPENSES), 
+            number: formatCurrencyCode(stats.personalMonthlyExpenses ?? DEFAULT_KPI_VALUES.PERSONAL_MONTHLY_EXPENSES, 'EUR', 0), 
             label: 'Monthly Expenses', 
             trend: 'Personal' 
           };

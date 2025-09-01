@@ -448,12 +448,12 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           switch (kpiType) {
             case "personal":
               return {
-                value: formatCurrency(stats.monthlyExpenses || 2450),
+                value: formatCurrency(stats.monthlyExpenses),
                 label: "Monthly Expenses",
               };
             case "team":
               return {
-                value: formatNumber(stats.teamMonthlyExpenses || 849),
+                value: formatNumber(stats.teamMonthlyExpenses),
                 label: "Monthly Requests",
               };
             case "analytics":
