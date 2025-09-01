@@ -733,6 +733,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "submit-request") {
       startProcess({
@@ -741,6 +742,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "create-plan") {
       startProcess({
@@ -749,6 +751,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "request-advance") {
       startProcess({
@@ -757,6 +760,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else {
       console.log(`Quick action "${action.action}" functionality coming soon`);
