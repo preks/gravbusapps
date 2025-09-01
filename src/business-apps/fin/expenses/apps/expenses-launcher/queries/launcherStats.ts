@@ -6,7 +6,8 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
     $currentMonthEnd: timestamp, 
     $currentMonthStartTz: timestamptz, 
     $currentMonthEndTz: timestamptz, 
-    $now: timestamp
+    $now: timestamp,
+    $currency: String
   ) {
     # Unassigned expense items count
     unassignedItems: ExpenseItemAggregate(
@@ -35,14 +36,14 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
       }
     }
     
-    # Monthly expenses sum (current month in euros)
-    monthlyExpenses: ExpenseItemAggregate(
+    # Monthly expenses sum (match My Expenses: approved/verifiable requests by decision date & currency)
+    monthlyExpenses: ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        expenseDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
+        decisionDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+        currencyRef: {_eq: $currency}
       }
     ) {
       aggregate {
