@@ -128,17 +128,17 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
               ? 'gba:text-blue-700'
               : 'gba:text-gray-600';
             return (
-              <div key={r.year} className="gba:flex gba:items-center">
+              <div key={r.year} className="gba:flex gba:items-center" data-testid={`org-yoy-row-${r.year}`}>
                 <div className="gba:w-28 gba:flex gba:items-center">
                   <div className="gba:text-gray-900 gba:text-sm">{r.year}</div>
                 </div>
                 <div className="gba:flex-1 gba:px-3">
                   <div className="gba:bg-gray-100 gba:rounded">
-                    <div style={{ width: `${barPct}%`, height: 10, background: '#3b82f6', borderRadius: 6 }} />
+                    <div style={{ width: `${barPct}%`, height: 10, background: '#3b82f6', borderRadius: 6 }} data-testid={`org-yoy-bar-${r.year}`} />
                   </div>
                 </div>
-                <div className="gba:w-20 gba:text-right gba:text-sm gba:text-gray-900">{r.total}</div>
-                <div className={`gba:w-28 gba:text-right gba:text-sm ${changeTextClass}`}>{r.changePercent && r.changePercent !== 0 ? (r.changePercent > 0 ? '↗ ' : '↘ ') : ''}{r.label}</div>
+                <div className="gba:w-20 gba:text-right gba:text-sm gba:text-gray-900" data-testid={`org-yoy-total-${r.year}`}>{r.total}</div>
+                <div className={`gba:w-28 gba:text-right gba:text-sm ${changeTextClass}`} data-testid={`org-yoy-change-${r.year}`}>{r.changePercent && r.changePercent !== 0 ? (r.changePercent > 0 ? '↗ ' : '↘ ') : ''}{r.label}</div>
               </div>
             );
           })}

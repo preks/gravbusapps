@@ -12,31 +12,25 @@ export const getDateFilters = (timeFilter: string) => {
 
   switch (timeFilter) {
     case 'current-year':
-      const yearFilters = {
-        startDate: new Date(currentYear, 0, 1).toISOString(), // Jan 1
-        endDate: new Date(currentYear, 11, 31, 23, 59, 59, 999).toISOString() // Dec 31
+      // Use UTC boundaries to avoid timezone drift vs AbsenceDetails/AbsenceList
+      return {
+        startDate: new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0)).toISOString(),
+        endDate: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)).toISOString()
       };
-      return yearFilters;
 
     case 'quarter':
       const quarterStartMonth = (currentQuarter - 1) * 3;
       const quarterEndMonth = quarterStartMonth + 2;
       
-      const quarterStart = new Date(currentYear, quarterStartMonth, 1);
-      const quarterEnd = new Date(currentYear, quarterEndMonth + 1, 0, 23, 59, 59, 999);
-      
       return {
-        startDate: quarterStart.toISOString(),
-        endDate: quarterEnd.toISOString()
+        startDate: new Date(Date.UTC(currentYear, quarterStartMonth, 1, 0, 0, 0, 0)).toISOString(),
+        endDate: new Date(Date.UTC(currentYear, quarterEndMonth + 1, 0, 23, 59, 59, 999)).toISOString()
       };
 
     case 'month':
-      const monthStart = new Date(currentYear, currentMonth, 1);
-      const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
-      
       return {
-        startDate: monthStart.toISOString(),
-        endDate: monthEnd.toISOString()
+        startDate: new Date(Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)).toISOString(),
+        endDate: new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)).toISOString()
       };
 
     case 'everything':

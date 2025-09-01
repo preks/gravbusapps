@@ -36,6 +36,36 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 }) => {
   const graphQLClient = useGraphQLClient(accessToken);
 
+  // Resolve initial date range from provided props or dashboard time filter
+  const resolvedStartDate = React.useMemo(() => {
+    if (startDate) return startDate;
+    if (month) return dayjs(month).startOf('month').format('YYYY-MM-DD');
+    if (status && !startDate && !endDate) {
+      // no-op: will be handled by fallbacks below
+    }
+    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'month') {
+      return dayjs().startOf('month').format('YYYY-MM-DD');
+    }
+    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'quarter') {
+      const qStart = dayjs().startOf('quarter');
+      return qStart.format('YYYY-MM-DD');
+    }
+    return dayjs().startOf('year').format('YYYY-MM-DD');
+  }, [startDate, month, status]);
+
+  const resolvedEndDate = React.useMemo(() => {
+    if (endDate) return endDate;
+    if (month) return dayjs(month).endOf('month').format('YYYY-MM-DD');
+    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'month') {
+      return dayjs().endOf('month').format('YYYY-MM-DD');
+    }
+    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'quarter') {
+      const qEnd = dayjs().endOf('quarter');
+      return qEnd.format('YYYY-MM-DD');
+    }
+    return dayjs().endOf('year').format('YYYY-MM-DD');
+  }, [endDate, month]);
+
   // Ensure page starts at the top when navigating from dashboard
   useLayoutEffect(() => {
     try {
@@ -79,8 +109,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       }
     });
 
-    const activeStart = (currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate) ?? dayjs().startOf('year').format('YYYY-MM-DD');
-    const activeEnd = (currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate) ?? dayjs().endOf('year').format('YYYY-MM-DD');
+    const activeStart = (currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate || resolvedStartDate);
+    const activeEnd = (currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate || resolvedEndDate);
     const { startIso, endIso } = toUtcDayRangeISO(activeStart, activeEnd);
 
     return {
@@ -93,11 +123,13 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       statuses,
       employeeIds
     };
-  }, [currentFilteredData?.appliedFilters?.currentDateRange?.startDate, currentFilteredData?.appliedFilters?.currentDateRange?.endDate, currentFilteredData?.appliedFilters?.selectedFilters, startDate, endDate]);
+  }, [currentFilteredData?.appliedFilters?.currentDateRange?.startDate, currentFilteredData?.appliedFilters?.currentDateRange?.endDate, currentFilteredData?.appliedFilters?.selectedFilters, startDate, endDate, resolvedStartDate, resolvedEndDate]);
 
   // Load aggregates when filters change (date, department/status)
   const loadAggregates = useCallback(() => {
     if (!accessToken) return;
+    // Require table to seed current filters at least once to avoid mismatches until pagination/search changes
+    if (!currentFilteredData) return;
     const ef = buildEffectiveFilters();
     const normalizedStatus = status ? String(status).toUpperCase() : null;
     const effectiveStatuses = ef.statuses && ef.statuses.length > 0 ? ef.statuses : (normalizedStatus ? [normalizedStatus] : []);
@@ -174,11 +206,18 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     loadAggregates();
   }, [loadAggregates]);
 
+  // Ensure first aggregates run immediately after table seeds currentFilteredData
+  useEffect(() => {
+    if (accessToken && currentFilteredData) {
+      loadAggregates();
+    }
+  }, [accessToken, currentFilteredData, loadAggregates]);
+
   // 🎯 FILTER rawAbsences for the specific month/date range - MOVE THIS BEFORE EARLY RETURNS
   const filteredAbsencesForMonth = useMemo(() => {
     // 🔧 FIX: Use current date ranges from table if available, otherwise use props
-    const currentStartDate = currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate;
-    const currentEndDate = currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate;
+    const currentStartDate = currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate || resolvedStartDate;
+    const currentEndDate = currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate || resolvedEndDate;
     const selected = currentFilteredData?.appliedFilters?.selectedFilters || [];
     const selectedDeptIds: string[] = [];
     let includeNoDepartment = false;
@@ -215,8 +254,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     }
 
     const { startIso: rs, endIso: re } = toUtcDayRangeISO(currentStartDate, currentEndDate);
-    const rangeStart = rs ? new Date(rs) : new Date(dayjs(currentStartDate || dayjs().startOf('month').format('YYYY-MM-DD')).toISOString());
-    const rangeEnd = re ? new Date(re) : new Date(dayjs(currentEndDate || dayjs().endOf('month').format('YYYY-MM-DD')).toISOString());
+    const rangeStart = rs ? new Date(rs) : new Date(dayjs(currentStartDate).toISOString());
+    const rangeEnd = re ? new Date(re) : new Date(dayjs(currentEndDate).toISOString());
 
     // Filter absences using overlap logic AND department/status/employee filters
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
@@ -296,7 +335,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     status,
     // ✅ RESTORED: Add current date range from table to allow date filter updates
     currentFilteredData?.appliedFilters?.currentDateRange?.startDate,
-    currentFilteredData?.appliedFilters?.currentDateRange?.endDate
+    currentFilteredData?.appliedFilters?.currentDateRange?.endDate,
+    resolvedStartDate,
+    resolvedEndDate
   ]);
 
   // 🚀 PHASE 2: Dynamic analysis calculations based on current filtered table data
@@ -787,8 +828,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         initialFilters={{
-          startDate,
-          endDate,
+          startDate: resolvedStartDate,
+          endDate: resolvedEndDate,
           status,
           department,
           departmentId

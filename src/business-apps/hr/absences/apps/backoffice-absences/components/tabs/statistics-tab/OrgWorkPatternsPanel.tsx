@@ -96,8 +96,8 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             <div className="gba:text-sm gba:font-medium gba:mb-2">Day of Week Preferences</div>
             <div className="gba:space-y-2.5">
               {dayLabels.map((label, i) => (
-                <div key={label} className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:w-10 gba:text-sm gba:text-gray-700">{label}</div>
+                <div key={label} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-dow-${i}`}>
+                  <div className="gba:w-10 gba:text-sm gba:text-gray-700" data-testid={`work-patterns-dow-label-${i}`}>{label}</div>
                   {renderBar(dayCounts[i], dayPercents[i])}
                 </div>
               ))}
@@ -110,8 +110,8 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             <div className="gba:text-sm gba:font-medium gba:mb-2">Monthly Absence Patterns</div>
             <div className="gba:space-y-2.5">
               {monthLabels.map((m, i) => (
-                <div key={m} className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:w-10 gba:text-sm gba:text-gray-700">{m}</div>
+                <div key={m} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-month-${i}`}>
+                  <div className="gba:w-10 gba:text-sm gba:text-gray-700" data-testid={`work-patterns-month-label-${i}`}>{m}</div>
                   {renderBar(monthlyCounts[i], monthlyPercents[i])}
                 </div>
               ))}

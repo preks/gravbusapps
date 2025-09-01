@@ -65,7 +65,22 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
 
   // State management following manager-absences pattern
   const [search, setSearch] = useState('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  // Seed initial filters from navigation to ensure first fetch matches dashboard (especially status)
+  const seededInitialFilters = React.useMemo(() => {
+    const seeds: string[] = [];
+    if (initialFilters?.status) {
+      seeds.push(`status-${String(initialFilters.status).toUpperCase()}`);
+    }
+    if (initialFilters?.departmentId) {
+      seeds.push(`department-${initialFilters.departmentId}`);
+    }
+    if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
+      seeds.push('department-no-department');
+    }
+    return seeds;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(seededInitialFilters);
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
