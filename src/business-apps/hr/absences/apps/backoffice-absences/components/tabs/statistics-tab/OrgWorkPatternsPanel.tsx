@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getMonthlyAggregates } from '../../../utils/getMonthlyAggregates';
 
@@ -123,7 +124,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
           Seasonal Insight: Peak month {peakMonth.label} ({peakMonth.percent}% of all absences) · Lowest {lowMonth.label} ({lowMonth.percent}% of all absences). Consider staffing adjustments during peak periods.
         </div>
         <div className="gba:mt-2 gba:text-xs gba:text-gray-600" data-testid="work-patterns-status-note">
-          Statuses considered: APPROVED; values represent request counts.
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved_counts', 'Statuses considered: APPROVED; values represent request counts.')}
         </div>
       </CardContent>
     </Card>

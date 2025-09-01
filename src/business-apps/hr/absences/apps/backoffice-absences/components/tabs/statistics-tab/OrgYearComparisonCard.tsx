@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getYearRange } from '../../../utils/getYearlyDaysAggregates';
@@ -143,7 +144,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
             );
           })}
         </div>
-        <div className="gba:mt-2 gba:text-xs gba:text-gray-500">Statuses considered: APPROVED</div>
+        <div className="gba:mt-2 gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved', 'Statuses considered: APPROVED')}</div>
       </CardContent>
     </Card>
   );
