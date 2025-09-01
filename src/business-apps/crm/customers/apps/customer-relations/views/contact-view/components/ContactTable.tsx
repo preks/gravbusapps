@@ -528,7 +528,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
                             <AvatarImage
                               src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                               alt={getOwnerName(record)}
-                              className="gba:object-cover gba:object-center"
                             />
                           )}
                           <AvatarFallback>
@@ -660,7 +659,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.contactEntity]}
+                        contextsArray={[FlowContextName.customerContactEntity]}
                         externalContextData={{
                           contactId: record.id,
                         }}

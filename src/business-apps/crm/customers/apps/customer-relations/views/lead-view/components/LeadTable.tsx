@@ -585,7 +585,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                               <AvatarImage
                                 src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(record)}
-                                className="gba:object-cover gba:object-center"
                               />
                             )}
                             <AvatarFallback>
@@ -718,7 +717,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.leadEntity]}
+                          contextsArray={[FlowContextName.customerLeadEntity]}
                           externalContextData={{
                             leadId: record.id,
                           }}

@@ -154,7 +154,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     if (leadId) {
       startProcess({
         domain: 'investments', // Updated from 'customer-relations'
-        processName: 'saveInvestmentTask', // Updated from 'saveSalesTask'
+        processName: 'createInvestmentTask', // Updated naming
         payload: {
           leadId,
         },
@@ -166,7 +166,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   const handleUpdateTask = (task: SimpleTaskData) => {
     startProcess({
       domain: 'investments', // Updated from 'customer-relations'
-      processName: 'saveInvestmentTask', // Updated from 'saveSalesTask'
+      processName: 'createInvestmentTask', // Updated naming
       payload: {
         leadId: leadId,
         typeRef: task.taskType?.code || 'InvestmentTaskType:v1:GENERAL', // Updated from 'SalesTaskType:v1:GENERAL'

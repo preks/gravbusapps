@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu } from 'antd';
+import { ConfigProvider, Menu } from 'antd';
 import { Play, ArticleNyTimes, ChatCircle } from '@phosphor-icons/react';
 import { IdeMainMenuProps, BusinessAppInfo } from './types';
 
@@ -23,10 +23,7 @@ const getTypeColor = (type: 'app' | 'form' | 'popup'): string => {
   }
 };
 
-// Create URL for navigation
-const createAppURL = (app: BusinessAppInfo): string => {
-  return `#/business-app/${app.screenKey}`;
-};
+// (removed unused createAppURL)
 
 export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
   businessApps,
@@ -37,18 +34,19 @@ export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
   onOpenChange
 }) => {
   
-  const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
-    // For left-click, prevent default and handle navigation
-    event.preventDefault();
-    onAppSelect(app);
-  };
+  // (removed unused handleAppLinkClick)
+
+  const onAppSelectRef = React.useRef(onAppSelect);
+  React.useEffect(() => {
+    onAppSelectRef.current = onAppSelect;
+  }, [onAppSelect]);
 
   const createAppMenuItem = (app: BusinessAppInfo) => {
     return {
       key: app.screenKey,
       icon: <span style={{ color: getTypeColor(app.type) }}>{getTypeIcon(app.type)}</span>,
       label: app.name, // Simplified - just use the string directly
-      onClick: () => onAppSelect(app),
+      onClick: () => onAppSelectRef.current(app),
       style: {
         color: "#333333",
         fontSize: "14px"
@@ -80,52 +78,60 @@ export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
 
     return Object.entries(moduleGroups).map(([module, subModules]) => {
       const subModuleEntries = Object.entries(subModules);
+      const moduleLabel = module.toUpperCase();
+      const moduleAbbrev = module.slice(0, 4).toUpperCase();
 
-      // If there's only one sub-module and it's "default", don't create a sub-menu
-      if (
-        subModuleEntries.length === 1 &&
-        subModuleEntries[0][0] === "default"
-      ) {
-        return {
-          key: module,
-          label: module.charAt(0).toUpperCase() + module.slice(1),
-          children: subModuleEntries[0][1].map(createAppMenuItem)
-        };
-      }
-
-      const children = subModuleEntries
-        .map(([subModule, apps]) => {
-          if (subModule === "default") {
-            return apps.map(createAppMenuItem);
-          }
-
-          return {
-            key: `${module}/${subModule}`,
-            label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
-            children: apps.map(createAppMenuItem)
-          };
-        })
-        .flat();
+      const children =
+        subModuleEntries.length === 1 && subModuleEntries[0][0] === "default"
+          ? subModuleEntries[0][1].map(createAppMenuItem)
+          : subModuleEntries
+              .map(([subModule, apps]) => {
+                if (subModule === "default") {
+                  return apps.map(createAppMenuItem);
+                }
+                return {
+                  key: `${module}/${subModule}`,
+                  label: subModule.charAt(0).toUpperCase() + subModule.slice(1),
+                  children: apps.map(createAppMenuItem)
+                };
+              })
+              .flat();
 
       return {
         key: module,
-        label: module.charAt(0).toUpperCase() + module.slice(1),
+        label: moduleLabel,
+        title: moduleLabel,
+        icon: collapsed ? (
+          <span style={{ display: 'flex', width: '100%', justifyContent: 'center', textAlign: 'center' }}>
+            {moduleAbbrev}
+          </span>
+        ) : undefined,
         children
       };
     });
   };
 
+  const menuItems = React.useMemo(() => getMenuItems(), [businessApps, collapsed]);
+  const antTheme = React.useMemo(() => ({
+    components: {
+      Menu: {
+        collapsedWidth: 68,
+      },
+    },
+  }), []);
+
   return (
-    <Menu
-      mode="inline"
-      selectedKeys={selectedApp ? [selectedApp.screenKey] : []}
-      openKeys={openKeys}
-      onOpenChange={onOpenChange}
-      style={{ borderRight: 0 }}
-      items={getMenuItems()}
-      inlineCollapsed={collapsed}
-      data-testid="ide-menu"
-    />
+    <ConfigProvider theme={antTheme}>
+      <Menu
+        mode="inline"
+        selectedKeys={selectedApp ? [selectedApp.screenKey] : []}
+        openKeys={openKeys}
+        onOpenChange={onOpenChange}
+        items={menuItems}
+        inlineCollapsed={collapsed}
+        data-testid="ide-menu"
+      />
+    </ConfigProvider>
   );
 };
 

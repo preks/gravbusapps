@@ -390,7 +390,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                             data-testid={`account-update-button-${account.id}`}
                             size="icon"
                             contextsArray={[
-                              FlowContextName.updateInvestmentAccount,
+                              FlowContextName.investmentAccountEntity,
                             ]}
                             externalContextData={{ accountId: account.id }}
                             prefixDataTestId={`account-update`}

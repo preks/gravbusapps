@@ -68,7 +68,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
               <AppAction
                 contextsArray={[FlowContextName.uploadInvestmentReport]}
                 accessToken={accessToken}
-                emptyStateBehavior="enable"
+                emptyStateBehavior="hide"
                 prefixDataTestId="investment-upload-report"
               >
                 <Button

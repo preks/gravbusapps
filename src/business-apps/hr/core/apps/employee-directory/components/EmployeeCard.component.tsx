@@ -88,7 +88,6 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
                 <AvatarImage 
                   src={avatarSrcValue} 
                   alt={`${employee.firstName} ${employee.lastName}`}
-                  className="gba:object-cover gba:object-center"
                 />
               )}
               <AvatarFallback className="gba:text-sm gba:font-medium">

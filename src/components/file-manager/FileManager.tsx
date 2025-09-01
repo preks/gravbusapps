@@ -163,7 +163,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
 
         startProcess({
           domain: app === 'crm' ? 'customer-relations' : 'investments',
-          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+          processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
           payload: {
             [`${entity.type}Id`]: entity.id,
             [app === 'crm' ? 'crmDocument' : 'investmentDocument']: {
@@ -221,7 +221,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
         if (node.type !== 'folder') return;
         startProcess({
           domain: app === 'crm' ? 'customer-relations' : 'investments',
-          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+          processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
           payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: node.id },
           builderType: 'NATIVE_SCREEN',
         });
@@ -253,7 +253,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
         }
         startProcess({
           domain: app === 'crm' ? 'customer-relations' : 'investments',
-          processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+          processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
           payload: basePayload,
           builderType: 'NATIVE_SCREEN',
         });
@@ -425,7 +425,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
     // Open native screen directly with createFolder flag
     startProcess({
       domain: app === 'crm' ? 'customer-relations' : 'investments',
-      processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+      processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
       payload: { [`${entity.type}Id`]: entity.id, createFolder: true },
       builderType: 'NATIVE_SCREEN',
     });
@@ -436,7 +436,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
     if (context.accessToken) flowRegistryClient.setAccessToken(context.accessToken);
     startProcess({
       domain: app === 'crm' ? 'customer-relations' : 'investments',
-      processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+      processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
       payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: parentId },
       builderType: 'NATIVE_SCREEN',
     });
@@ -498,7 +498,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ context, entity, app =
             if (action === 'create-subfolder' && node.type === 'folder') {
               startProcess({
                 domain: app === 'crm' ? 'customer-relations' : 'investments',
-                processName: app === 'crm' ? 'createCrmDocument' : 'saveInvestmentDocument',
+                processName: app === 'crm' ? 'createCrmDocument' : 'createInvestmentDocument',
                 payload: { [`${entity.type}Id`]: entity.id, createFolder: true, parentDocument: node.id },
                 builderType: 'NATIVE_SCREEN',
               });

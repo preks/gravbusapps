@@ -15,7 +15,9 @@ import ContactTable from "./components/ContactTable";
 import { Contact } from "./types";
 import { ColumnConfig } from "@/components/dataController";
 import { Alert } from "antd";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 interface ContactListProps extends BusinessAppContextProps {
@@ -23,7 +25,7 @@ interface ContactListProps extends BusinessAppContextProps {
 }
 
 const ContactList: React.FC<ContactListProps> = (context) => {
-  const { sourceApp } = context;
+  const { sourceApp, accessToken } = context;
 
   // State management
   const [selectedContactId, setSelectedContactId] = useState<
@@ -231,14 +233,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     [contactFilters, contactListData, pageSize]
   );
 
-  const handleAddContact = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveContact",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction will handle creating a contact via flow context
 
   const handleRetryStatistics = useCallback(() => {
     contactStatistics.refetch();
@@ -316,11 +311,22 @@ const ContactList: React.FC<ContactListProps> = (context) => {
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddContact,
-            label: "Add",
-            "data-testid": "add-contact-button",
-          },
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerContactCreate]}
+              accessToken={accessToken}
+              data-testid="add-contact-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-contact-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
           columnVisibility: {
             columns: columnConfig,
             onColumnVisibilityChange: handleColumnVisibilityChange,

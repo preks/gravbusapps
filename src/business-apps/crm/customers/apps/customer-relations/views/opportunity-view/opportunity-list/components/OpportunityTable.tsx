@@ -551,7 +551,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                               <AvatarImage
                                 src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(record)}
-                                className="gba:object-cover gba:object-center"
                               />
                             )}
                             <AvatarFallback>
@@ -599,7 +598,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.updateOpportunity]}
+                          contextsArray={[FlowContextName.customerOpportunityEntity]}
                           externalContextData={{
                             opportunityId: record.id,
                           }}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -15,15 +15,16 @@ import {
 } from '@newwork/nw-design-system';
 import { Spin, Alert } from 'antd';
 import { 
-  DollarSign,
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  PieChart
+  PieChart,
+  ExternalLink
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEquityAnalyticsIntegration } from '../hooks';
 import { EquityAnalyticsFilters } from '../types';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
 interface EquityAnalyticsTableProps extends BusinessAppContextProps {
   'data-testid'?: string;
@@ -43,7 +44,6 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
   // Use real data integration hook
   const {
     analyticsData,
-    totals,
     isLoading,
     error,
     totalCount,
@@ -120,6 +120,18 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
     );
   };
 
+  const handleInvestmentClick = (investmentId: string) => {
+    try {
+      // Navigate to investment record view
+      const investmentUrl = buildPlatformUrl('/platform/irm/investment-record', {
+        investmentId: investmentId
+      });
+      navigateTo(investmentUrl);
+    } catch (error) {
+      console.error('Error navigating to investment detail:', error);
+    }
+  };
+
   const hasData = !isLoading && !error && analyticsData.length > 0;
 
   if (isLoading) {
@@ -179,11 +191,11 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Fund Manager</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Currency</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Acquisition Date</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Market Value</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">EBITDA</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Forecasted Revenue</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Unrealized Gain</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">EBITDA Margin</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Market Value</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">EBITDA</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Forecasted Revenue</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Unrealized Gain</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">EBITDA Margin</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,8 +219,22 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                     >
                       <TableCell className="gba:font-medium gba:text-left gba:py-3 gba:px-4">
                         <div>
-                          <div className="gba:font-semibold">{row.investmentName}</div>
-                          <div className="gba:text-sm gba:text-gray-500">{row.investmentCode}</div>
+                          {row.investmentId ? (
+                            <button
+                              onClick={() => handleInvestmentClick(row.investmentId!)}
+                              className="gba:text-xs gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
+                              data-testid={`${dataTestId}-investment-link-${row.id}`}
+                            >
+                              🔗 {row.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
+                            </button>
+                          ) : (
+                            <div>
+                              <div className="gba:font-medium">{row.investmentName}</div>
+                              <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                                ❌ No Investment ID Available
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="gba:text-left gba:py-3 gba:px-4">{row.fundManagerName}</TableCell>
@@ -218,44 +244,23 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                       <TableCell className="gba:text-left gba:py-3 gba:px-4">
                         {formatDate(row.acquisitionDate)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:font-semibold gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:font-medium gba:py-3 gba:px-4">
                         {formatCurrency(row.currentMarketValue, row.currency)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.currentEbitda, row.currency)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.forecastedRevenue, row.currency)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatGain(row.unrealizedGain, row.currency)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-center gba:py-3 gba:px-4">
                         {formatPercentage(row.ebitdaMargin)}
                       </TableCell>
                     </TableRow>
                   ))}
-                  
-                  {/* Total Row - only show when there is data */}
-                  <TableRow className="gba:border-t-2 gba:border-gray-200 gba:bg-gray-50 gba:font-semibold">
-                    <TableCell className="gba:font-bold gba:text-left gba:py-3 gba:px-4">Total</TableCell>
-                    <TableCell colSpan={3} className="gba:text-left gba:py-3 gba:px-4"></TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.totalMarketValue)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.totalEbitda)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatCurrency(totals.totalForecastedRevenue)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:font-mono gba:font-bold gba:py-3 gba:px-4">
-                      {formatGain(totals.totalUnrealizedGain)}
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                      {formatPercentage(totals.averageEbitdaMargin)}
-                    </TableCell>
-                  </TableRow>
                 </>
               )}
             </TableBody>

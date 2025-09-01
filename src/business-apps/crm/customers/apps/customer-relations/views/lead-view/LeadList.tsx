@@ -7,8 +7,6 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useTranslation } from "react-i18next";
-import { PageLayout } from "@/components/layout/pageLayout";
 import { DataContainer } from "@/components/layout/dataContainer";
 import { useLeadListData } from "./hooks/useLeadListData";
 import { useLeadFilters } from "./hooks/useLeadFilters";
@@ -17,9 +15,11 @@ import { LeadStatisticsWithTrend } from "./components/LeadStatistics";
 import { useLeadStatisticsWithTrend } from "./hooks/useLeadStatisticsWithTrend";
 import { ColumnConfig } from "@/components/dataController";
 
-import { PiStar, PiUsersFour, PiFunnelSimple } from "react-icons/pi";
+// removed unused icons
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { Lead } from "./types";
 import { useLeadStatisticsQueries } from "./queries/LeadStatisticsQueries";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
@@ -34,7 +34,7 @@ export interface LeadListProps extends BusinessAppContextProps {
  */
 export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   const { accessToken, sourceApp } = props;
-  const { t } = useTranslation();
+  // translation hook not needed here
 
   // Use the centralized lead filters hook
   const {
@@ -46,7 +46,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     addFilter,
     removeFilter,
     resetFilters,
-    initializeFromUrl,
+    // initializeFromUrl,
     createdAfter: filterCreatedAfter,
     createdBefore: filterCreatedBefore,
     handleDateRangeChange: filterHandleDateRangeChange,
@@ -171,6 +171,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     });
   }, [filterGroups, visibleColumns]);
 
+  // Safe accessor for filterLabelMap with broad index signature to satisfy TS
+  const getFilterLabel = (key: string): string | undefined => {
+    return (filterLabelMap as Record<string, string> | undefined)?.[key];
+  };
+
   // Initialize search from URL if not already set - ONLY ONCE
   useEffect(() => {
     if (initialParams.search && !search) {
@@ -237,15 +242,7 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     []
   );
 
-  // Handle adding a new lead
-  const handleAddLead = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "createLead",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction handles starting the lead creation process via flow context
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
@@ -342,14 +339,13 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   // Address filters - use filterLabelMap to identify the correct filter types
   // For now, use a simple approach to identify address filters by pattern matching
   const countries = selectedFilters.filter((f) => {
-    return (
-      (filterLabelMap[f] && f.match(/^[A-Z]{2,3}:|:v\d+:[A-Z]{2,3}$/)) ||
-      f.length === 2
-    ); // Country codes or catalog entries
+    const label = getFilterLabel(f);
+    return ((label && f.match(/^[A-Z]{2,3}:|:v\d+:[A-Z]{2,3}$/)) || f.length === 2);
   });
   const regions = selectedFilters.filter((f) => {
+    const label = getFilterLabel(f);
     return (
-      filterLabelMap[f] &&
+      !!label &&
       !f.includes(":") &&
       !f.includes("-") &&
       ![
@@ -369,8 +365,9 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
     ); // Region/state names
   });
   const cities = selectedFilters.filter((f) => {
+    const label = getFilterLabel(f);
     return (
-      filterLabelMap[f] &&
+      !!label &&
       !f.includes(":") &&
       !f.includes("-") &&
       ![
@@ -508,17 +505,17 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   }, []);
 
   // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedLead(null);
-  }, []);
+  // const handleCloseDetails = useCallback(() => {
+  //   setSelectedLead(null);
+  // }, []);
 
   // Handle search change
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearch(value);
-    },
-    [setSearch]
-  );
+  // const handleSearchChange = useCallback(
+  //   (value: string) => {
+  //     setSearch(value);
+  //   },
+  //   [setSearch]
+  // );
 
   // Handle pagination change
   const handlePaginationChange = useCallback(
@@ -605,11 +602,22 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddLead,
-            label: "Add",
-            "data-testid": "add-lead-button",
-          },
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerLeadCreate]}
+              accessToken={accessToken}
+              data-testid="add-lead-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-lead-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
            columnVisibility: {
             columns: columnConfig,
             onColumnVisibilityChange: handleColumnVisibilityChange,

@@ -163,7 +163,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <DollarSign className="gba:h-5 gba:w-5" />
           {title}
-          <Badge variant="outline">{totalCount} entries</Badge>
+          <Badge variant="outline">{totalCount} investments</Badge>
         </CardTitle>
         <CardDescription>
           Performance analysis for liquid funds categorized as {investmentType}
@@ -198,13 +198,13 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                     <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Interest Rate</TableHead>
                   </>
                 )}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Opening Balance</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Incoming</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Outgoing</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Realized Gains/Losses</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Unrealized Gains/Losses</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Closing Balance</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Time-weighted Performance</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Opening Balance</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Incoming</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Outgoing</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Realized Gains/Losses</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Unrealized Gains/Losses</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Closing Balance</TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">Time-weighted Performance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -270,25 +270,25 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                           </TableCell>
                         </>
                       )}
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.openingBalance)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.incoming)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.outgoing)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.realizedGainsLosses)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatCurrency(row.unrealizedGainsLosses)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:font-mono gba:font-semibold gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-right gba:font-mono gba:font-medium gba:py-3 gba:px-4">
                         {formatCurrency(row.closingBalance)}
                       </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
+                      <TableCell className="gba:text-center gba:py-3 gba:px-4">
                         {formatPerformance(row.timeWeightedPerformance)}
                       </TableCell>
                     </TableRow>

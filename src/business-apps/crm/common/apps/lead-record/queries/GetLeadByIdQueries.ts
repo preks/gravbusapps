@@ -54,11 +54,7 @@ export interface GetLeadByIdResponse {
       value: string;
     };
     convertedOpportunityId: string;
-<<<<<<< Updated upstream
-    sensitive: boolean;
-=======
     sensitive?: boolean;
->>>>>>> Stashed changes
   }>;
 }
 

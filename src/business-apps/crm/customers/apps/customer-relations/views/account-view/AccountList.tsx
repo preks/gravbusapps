@@ -18,7 +18,9 @@ import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithT
 import { ColumnConfig } from "@/components/dataController";
 
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { Account } from "./types";
 
@@ -214,15 +216,7 @@ export const AccountList: React.FC<AccountListProps> = (
     []
   );
 
-  // Handle adding a new account
-  const handleAddAccount = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveAccount",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction will handle creating an account via flow context
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
@@ -384,17 +378,17 @@ export const AccountList: React.FC<AccountListProps> = (
   }, []);
 
   // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedAccount(null);
-  }, []);
+  // const handleCloseDetails = useCallback(() => {
+  //   setSelectedAccount(null);
+  // }, []);
 
   // Handle search change
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearch(value);
-    },
-    [setSearch]
-  );
+  // const handleSearchChange = useCallback(
+  //   (value: string) => {
+  //     setSearch(value);
+  //   },
+  //   [setSearch]
+  // );
 
   // Handle pagination change
   const handlePaginationChange = useCallback(
@@ -475,11 +469,22 @@ export const AccountList: React.FC<AccountListProps> = (
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddAccount,
-            label: "Add",
-            "data-testid": "add-account-button",
-          },
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerAccountCreate]}
+              accessToken={accessToken}
+              data-testid="add-account-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-account-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
           columnVisibility: {
             columns: columnConfig,
             onColumnVisibilityChange: handleColumnVisibilityChange,
@@ -487,7 +492,7 @@ export const AccountList: React.FC<AccountListProps> = (
           },
         }}
         dataFilterProps={{
-          filterGroups,
+          filterGroups: visibleFilterGroups,
           onFilterChange: handleFilterChange,
         }}
         dataBody={

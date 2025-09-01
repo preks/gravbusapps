@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@newwork/nw-design-system';
 import { Building2, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { 
@@ -87,6 +87,7 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <Building2 className="gba:h-5 gba:w-5" />
           {title}
+          <Badge variant="outline">{totalCount} investments</Badge>
         </CardTitle>
         <div className="gba:text-sm gba:text-gray-600">
           Showing {data.length} of {totalCount} real estate reports for {propertyType.toLowerCase()}
@@ -140,18 +141,18 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                       <span className="gba:text-sm">{report.date}</span>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      <div className="gba:font-medium gba:text-green-600">
+                      <div className="gba:font-mono gba:font-medium gba:text-green-600">
                         {formatCurrency(report.annualNetColdRent, report.currency)}
                       </div>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-center">
                       <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
                         {report.occupancyPercent >= 95 ? (
-                          <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
+                          <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-600" />
                         ) : report.occupancyPercent >= 85 ? (
-                          <TrendingUp className="gba:h-4 gba:w-4 gba:text-yellow-500" />
+                          <TrendingUp className="gba:h-3 gba:w-3 gba:text-yellow-600" />
                         ) : (
-                          <TrendingDown className="gba:h-4 gba:w-4 gba:text-red-500" />
+                          <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-600" />
                         )}
                         <span className={`gba:font-medium ${
                           report.occupancyPercent >= 95 ? 'gba:text-green-600' : 
@@ -166,20 +167,20 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       {report.actualAnnualExpenses !== undefined ? (
-                        <span className="gba:text-red-600 gba:font-medium">
+                        <span className="gba:font-mono gba:font-medium gba:text-red-600">
                           -{formatCurrency(report.actualAnnualExpenses, report.currency)}
                         </span>
                       ) : (
-                        <span className="gba:text-gray-400">N/A</span>
+                        <span className="gba:font-mono gba:text-gray-400">N/A</span>
                       )}
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       {report.funding !== undefined ? (
-                        <span className="gba:font-medium gba:text-blue-600">
+                        <span className="gba:font-mono gba:font-medium gba:text-blue-600">
                           {formatCurrency(report.funding, report.currency)}
                         </span>
                       ) : (
-                        <span className="gba:text-gray-400">N/A</span>
+                        <span className="gba:font-mono gba:text-gray-400">N/A</span>
                       )}
                     </TableCell>
                   </TableRow>
