@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@newwork/nw-design-system';
+import { useNumericInput } from '../hooks/useNumericInput';
 
 interface AmountInputProps {
   value: number;
@@ -8,6 +9,9 @@ interface AmountInputProps {
   disabled?: boolean;
   'data-testid'?: string;
   required?: boolean;
+  maxValue?: number;
+  minValue?: number;
+  onValidationError?: (error: string | null) => void;
 }
 
 const AmountInput: React.FC<AmountInputProps> = ({
@@ -16,30 +20,42 @@ const AmountInput: React.FC<AmountInputProps> = ({
   placeholder = "0.00",
   disabled = false,
   'data-testid': dataTestId,
-  required = false
+  required = false,
+  maxValue,
+  minValue,
+  onValidationError
 }) => {
-  const [displayValue, setDisplayValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
-  // Update display value when prop value changes
+  // Use the custom hook for numeric input behavior
+  const {
+    displayValue,
+    handleKeyDown,
+    handleChange,
+    handlePaste,
+    setValue,
+    error
+  } = useNumericInput(value, onChange, {
+    maxDecimals: 2,
+    allowNegative: false,
+    maxValue,
+    minValue,
+    onValidationError
+  });
+
+  // Update display value when prop value changes from parent
   useEffect(() => {
-    if (!isFocused) {
-      if (value && value > 0) {
-        setDisplayValue(value.toFixed(2));
-      } else {
-        setDisplayValue('');
-      }
+    if (!isFocused && value !== parseFloat(displayValue)) {
+      setValue(value);
     }
-  }, [value, isFocused]);
+  }, [value, isFocused, displayValue, setValue]);
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true);
     
     // Show raw number when focused for easier editing
     if (value && value > 0) {
-      setDisplayValue(String(value));
-    } else {
-      setDisplayValue('');
+      setValue(value);
     }
     
     // Select all text for easier editing
@@ -51,68 +67,25 @@ const AmountInput: React.FC<AmountInputProps> = ({
   const handleBlur = () => {
     setIsFocused(false);
     
-    let cleanValue = displayValue.trim();
-    
-    // If empty, set to 0
-    if (!cleanValue) {
-      setDisplayValue('');
-      onChange(0);
-      return;
-    }
-    
-    // Parse the value
-    const parsedValue = parseFloat(cleanValue);
-    
-    if (!isNaN(parsedValue)) {
-      // If it's a whole number, add .00
-      if (Number.isInteger(parsedValue)) {
-        const formattedValue = parsedValue.toFixed(2);
-        setDisplayValue(formattedValue);
-        onChange(parseFloat(formattedValue));
-      } else {
-        // If it already has decimals, format to 2 decimal places
-        const formattedValue = parsedValue.toFixed(2);
-        setDisplayValue(formattedValue);
-        onChange(parseFloat(formattedValue));
-      }
-    } else {
-      // Invalid input, revert to previous value
-      if (value && value > 0) {
-        setDisplayValue(value.toFixed(2));
-      } else {
-        setDisplayValue('');
-      }
+    // Format the display value when losing focus
+    const numericValue = parseFloat(displayValue) || 0;
+    if (numericValue > 0) {
+      setValue(numericValue);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setDisplayValue(inputValue);
-
-    // Only allow valid number input
-    const cleanValue = inputValue.replace(/[^\d.-]/g, '');
-    
-    // Handle decimal places - limit to 2 decimal places
-    if (cleanValue.includes('.')) {
-      const parts = cleanValue.split('.');
-      if (parts[1] && parts[1].length > 2) {
-        const limitedValue = `${parts[0]}.${parts[1].substring(0, 2)}`;
-        setDisplayValue(limitedValue);
-        const parsedValue = parseFloat(limitedValue) || 0;
-        onChange(parsedValue);
-        return;
-      }
-    }
-    
-    const parsedValue = parseFloat(cleanValue) || 0;
-    onChange(parsedValue);
-  };
+  // Notify parent of validation errors
+  useEffect(() => {
+    onValidationError?.(error);
+  }, [error, onValidationError]);
 
   return (
     <Input
       type="text"
       value={displayValue}
       onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
       onFocus={handleFocus}
       onBlur={handleBlur}
       placeholder={placeholder}
@@ -126,3 +99,4 @@ const AmountInput: React.FC<AmountInputProps> = ({
 };
 
 export default AmountInput;
+
