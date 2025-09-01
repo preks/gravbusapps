@@ -60,6 +60,14 @@ export interface UseRequestAdvancePaymentDataReturn {
   fetchExpensePlanDetails: (planId: string) => Promise<void>;
 }
 
+// Constants to avoid duplication
+const FALLBACK_CURRENCIES: Currency[] = [
+  { id: 'EUR', code: 'EUR', name: 'EUR' },
+  { id: 'USD', code: 'USD', name: 'USD' },
+  { id: 'GBP', code: 'GBP', name: 'GBP' },
+  { id: 'CHF', code: 'CHF', name: 'CHF' }
+];
+
 export const useRequestAdvancePaymentData = (
   context: BusinessAppContextProps
 ): UseRequestAdvancePaymentDataReturn => {
@@ -88,8 +96,6 @@ export const useRequestAdvancePaymentData = (
         structureId,
         employeeId
       });
-
-  
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
         // Filter plans to only include APPROVED and ASSIGNED status
@@ -166,24 +172,12 @@ export const useRequestAdvancePaymentData = (
         setCurrencies(currencyOptions);
       } else {
         // Fallback to common currencies if catalog is empty
-        const fallbackCurrencies: Currency[] = [
-          { id: 'EUR', code: 'EUR', name: 'EUR' },
-          { id: 'USD', code: 'USD', name: 'USD' },
-          { id: 'GBP', code: 'GBP', name: 'GBP' },
-          { id: 'CHF', code: 'CHF', name: 'CHF' }
-        ];
-        setCurrencies(fallbackCurrencies);
+        setCurrencies(FALLBACK_CURRENCIES);
       }
     } catch (err) {
       console.error('Error fetching currencies:', err);
       // Fallback to common currencies on error
-      const fallbackCurrencies: Currency[] = [
-        { id: 'EUR', code: 'EUR', name: 'EUR' },
-        { id: 'USD', code: 'USD', name: 'USD' },
-        { id: 'GBP', code: 'GBP', name: 'GBP' },
-        { id: 'CHF', code: 'CHF', name: 'CHF' }
-      ];
-      setCurrencies(fallbackCurrencies);
+      setCurrencies(FALLBACK_CURRENCIES);
     }
   }, [catalogClient, context.accessToken]);
 

@@ -43,9 +43,9 @@ const AmountInput: React.FC<AmountInputProps> = ({
     }
     
     // Select all text for easier editing
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       e.target.select();
-    }, 0);
+    });
   };
 
   const handleBlur = () => {
