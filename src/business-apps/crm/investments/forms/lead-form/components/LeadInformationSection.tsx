@@ -9,6 +9,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Checkbox,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
@@ -53,35 +54,6 @@ const LeadInformationSection: React.FC = () => {
     searchLeadRatings,
     loadMoreLeadRatings,
   } = useLeadFormContext();
-
-  // Debug logging to understand why Investment Group works but lead fields don't
-  console.log("🔍 LeadInformationSection Debug:", {
-    leadStatusValue: formValues.leadStatus,
-    leadStatusValueType: typeof formValues.leadStatus,
-    leadStatusValueTruthy: !!formValues.leadStatus,
-    leadSourceValue: formValues.leadSource,
-    leadSourceValueType: typeof formValues.leadSource,
-    ratingValue: formValues.rating,
-    ratingValueType: typeof formValues.rating,
-    leadStatusesCount: leadStatuses?.length || 0,
-    leadSourcesCount: leadSources?.length || 0,
-    leadRatingsCount: leadRatings?.length || 0,
-    leadStatusesFirst: leadStatuses?.[0] || null,
-    leadSourcesFirst: leadSources?.[0] || null,
-    leadRatingsFirst: leadRatings?.[0] || null,
-    // Check if values match any options
-    statusMatch: leadStatuses?.find(
-      (opt) =>
-        opt.value === formValues.leadStatus || opt.id === formValues.leadStatus
-    ),
-    sourceMatch: leadSources?.find(
-      (opt) =>
-        opt.value === formValues.leadSource || opt.id === formValues.leadSource
-    ),
-    ratingMatch: leadRatings?.find(
-      (opt) => opt.value === formValues.rating || opt.id === formValues.rating
-    ),
-  });
 
   // Note: Removed accounts hook since we're using simple input instead of dropdown
 
@@ -299,26 +271,54 @@ const LeadInformationSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Rating - ✅ FIXED: Using SearchableSelect like Investment Group */}
-        <SearchableSelect
-          label="Rating"
-          name="rating"
-          value={formValues.rating}
-          placeholder={
-            formValues.rating && formValues.rating.trim()
-              ? "Search and select rating..."
-              : "Please Select..."
-          }
-          options={leadRatings}
-          loading={leadRatingsLoading}
-          hasMore={leadRatingsHasMore}
-          onSearch={searchLeadRatings}
-          onLoadMore={loadMoreLeadRatings}
-          onChange={(value) => setFormValues({ rating: value })}
-          error={null}
-          data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
-          className="gba:w-full"
-        />
+        {/* Rating and Sensitive - Same Row */}
+        <div className="gba:flex gba:gap-6 gba:items-end gba:pr-16">
+          {/* Rating Field */}
+          <div className="gba:w-80">
+            <SearchableSelect
+              label="Rating"
+              name="rating"
+              value={formValues.rating}
+              placeholder={
+                formValues.rating && formValues.rating.trim()
+                  ? "Search and select rating..."
+                  : "Please Select..."
+              }
+              options={leadRatings}
+              loading={leadRatingsLoading}
+              hasMore={leadRatingsHasMore}
+              onSearch={searchLeadRatings}
+              onLoadMore={loadMoreLeadRatings}
+              onChange={(value) => setFormValues({ rating: value })}
+              error={null}
+              data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
+              className="gba:w-full"
+            />
+          </div>
+
+          {/* Sensitive Checkbox - Same Row */}
+          <div className="gba:pb-2">
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <Checkbox
+                id="sensitive-checkbox"
+                checked={!!formValues.sensitive}
+                onCheckedChange={(checked) =>
+                  setFormValues({ sensitive: !!checked })
+                }
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "SensitiveCheckbox"
+                )}
+              />
+              <Label
+                htmlFor="sensitive-checkbox"
+                className="gba:text-sm gba:font-medium gba:text-gray-900 gba:cursor-pointer"
+              >
+                Sensitive
+              </Label>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

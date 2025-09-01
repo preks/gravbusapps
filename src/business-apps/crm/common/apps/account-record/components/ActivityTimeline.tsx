@@ -90,12 +90,45 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       const result = await fetchSalesActivities({ accountId });
       const activities = result.SalesActivity || [];
       
-      // Sort activities by createdAt in descending order (newest first)
-      const sortedActivities = activities.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
+      const sortedActivities = activities.sort((a, b) => {
+        const dateA = new Date(a.occurredAt || a.createdAt).getTime();
+        const dateB = new Date(b.occurredAt || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      // Fetch creator employee information for activities where ownerEmployee is null
+      const enhancedActivities = await Promise.all(
+        sortedActivities.map(async (activity) => {
+          if (!activity.ownerEmployee && activity.createdBy) {
+            try {
+              // Look up employee by userId
+              const employeeQuery = `
+                query GetEmployeeByUserId($userId: String!) {
+                  Employee(where: {userId: {_eq: $userId}, isDeleted: {_eq: false}}, limit: 1) {
+                    id
+                    firstName
+                    lastName
+                    displayName
+                    fullName
+                  }
+                }
+              `;
+              
+              const employeeResult = await graphqlClient.request(employeeQuery, { userId: activity.createdBy });
+              const employee = employeeResult?.Employee?.[0];
+              if (employee) {
+                return { ...activity, ownerEmployee: employee };
+              }
+            } catch (error) {
+              console.warn('Failed to fetch creator employee for activity:', activity.id, error);
+            }
+          }
+          return activity;
+        })
       );
       
-      setActivities(sortedActivities);
+      setActivities(enhancedActivities);
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
     } finally {
@@ -667,7 +700,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(activity.createdBy)}
+                          {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerEmployee 
+                            ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) 
+                            : activity.createdBy || 'Unknown User'}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (

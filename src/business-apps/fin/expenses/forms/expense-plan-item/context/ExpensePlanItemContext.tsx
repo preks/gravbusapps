@@ -161,23 +161,25 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       addCurrencyWrapper();
       const expensePlanId = 
         additionalData?.expensePlanId || 
-        additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
-      
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
       // Set expensePlanId in form
       if (expensePlanId) {
         setExpensePlanId(expensePlanId)
       }
       if (additionalData?.itemCurrency && currencies.length > 0) {
-        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency);
+        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency); 
         if (currencyToSet) {
-          form.setFieldsValue({ 
-            currency: currencyToSet.id,
-            fixedCurrency: true
-          });
+          if (typeof additionalData?.useSingleCurrency === 'boolean') {
+            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency });
+          }
+          form.setFieldsValue({ currency: currencyToSet.id });
         }
       }
-
-      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.initialParameters?.expensePlanItem;
+      else if(currencies.length > 0)
+        {
+          form.setFieldsValue({ currency: currencies[0].id });
+        }
+      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlanItem;
       if (expensePlanItemId) {
         setIsEditMode(true);
         setByEditWrapper(expensePlanItemId);

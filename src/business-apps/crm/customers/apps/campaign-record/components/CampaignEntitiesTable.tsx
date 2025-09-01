@@ -122,13 +122,13 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
   const getFlowContext = (entityType: string): FlowContextName[] => {
     switch (entityType) {
       case 'lead':
-        return [FlowContextName.leadEntity];
+        return [FlowContextName.customerLeadEntity];
       case 'account':
-        return [FlowContextName.accountEntity];
+        return [FlowContextName.customerAccountEntity];
       case 'contact':
-        return [FlowContextName.contactEntity];
+        return [FlowContextName.customerAccountEntity];
       case 'opportunity':
-        return [FlowContextName.opportunityEntity];
+        return [FlowContextName.customerOpportunityEntity];
       default:
         return [FlowContextName.flow];
     }

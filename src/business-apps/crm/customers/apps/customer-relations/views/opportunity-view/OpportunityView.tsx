@@ -3,6 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-sys
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { OpportunityList } from "./opportunity-list";
 import { OpportunityBoard } from "./opportunity-board";
+import { OpportunityStatisticsWithTrend } from "./opportunity-list/components/OpportunityStatistics";
+import { useOpportunityStatisticsWithTrend } from "./opportunity-list/hooks/useOpportunityStatisticsWithTrend";
 
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
@@ -54,8 +56,28 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     updateSubViewInUrl(tab);
   };
 
+  // Load statistics once at view level (shared across tabs)
+  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: "CRM" });
+  const handleRetryStatistics = useCallback(() => {
+    opportunityStatistics.refetch();
+  }, [opportunityStatistics]);
+
   return (
     <div data-testid="customer-opportunities-view">
+      {/* Statistics above tabs */}
+      <div data-testid="customer-opportunity-statistics" className="gba:mb-6">
+        {opportunityStatistics.trendData ? (
+          <OpportunityStatisticsWithTrend
+            trendData={opportunityStatistics.trendData}
+            isLoading={opportunityStatistics.isLoading}
+            error={opportunityStatistics.error}
+            onRetry={handleRetryStatistics}
+          />
+        ) : (
+          <div>Loading statistics...</div>
+        )}
+      </div>
+
       <Tabs value={activeSubTab} onValueChange={handleSubTabChange}>
         <TabsList className="gba:mb-4">
           <TabsTrigger value="list" data-testid="opportunities-list-tab">List View</TabsTrigger>

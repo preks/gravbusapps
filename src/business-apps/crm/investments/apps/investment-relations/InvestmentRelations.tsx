@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import ProcessEventListener from "@/common/components/process/ProcessEventListener";
+
 import { LeadView } from "./views/lead-view";
 import { AccountView } from "./views/account-view";
 import { ContactView } from "./views/contact-view";
@@ -182,8 +182,6 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
 
   return (
     <div data-testid="investment-relations-app">
-      {/* Process Event Listener for handling form submission events */}
-      <ProcessEventListener />
       <PageLayout
         headerPhosphorIcon={{
           icon: TrendUp,

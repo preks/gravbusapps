@@ -56,7 +56,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
       });
       navigateTo(url);
     } else if (area.id === "investments") {
-      const url = buildPlatformUrl("/platform/irm/investment-relations", {
+      const url = buildPlatformUrl("/platform/irm/investment-management", {
         view: "investments",
       });
       navigateTo(url);
@@ -271,7 +271,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
                 onClick={(e) =>
                   handleActionClick(
                     "leads",
-                    { salesLeadStatus: "SalesLeadStatus:v1:OPEN" },
+                    { leadStatus: "InvestmentLeadStatus:v1:OPEN" },
                     e
                   )
                 }
@@ -284,7 +284,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
                 onClick={(e) =>
                   handleActionClick(
                     "leads",
-                    { salesLeadStatus: "SalesLeadStatus:v1:CONVERTED" },
+                    { leadStatus: "InvestmentLeadStatus:v1:CONVERTED" },
                     e
                   )
                 }

@@ -6,9 +6,9 @@ import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/commo
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   // Search/sort
   { key: 'name', searchPaths: ['name', 'code', 'description'], sortPath: 'name', type: 'text' },
-  { key: 'taskType', searchPaths: ['taskType.value', 'taskType.code'], sortPath: 'taskType.code', type: 'text' },
-  { key: 'taskPriority', searchPaths: ['taskPriority.value', 'taskPriority.code'], sortPath: 'taskPriority.code', type: 'text' },
-  { key: 'taskStatus', searchPaths: ['taskStatus.value', 'taskStatus.code'], sortPath: 'taskStatus.code', type: 'text' },
+  { key: 'taskType', searchPaths: ['typeRef'], sortPath: 'typeRef', type: 'text' },
+  { key: 'taskPriority', searchPaths: ['priorityRef'], sortPath: 'priorityRef', type: 'text' },
+  { key: 'taskStatus', searchPaths: ['statusRef'], sortPath: 'statusRef', type: 'text' },
   { key: 'assignedEmployee', searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'], sortPath: 'assignedEmployee.displayName', type: 'text' },
   { key: 'creatorEmployee', searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'], sortPath: 'creatorEmployee.displayName', type: 'text' },
   { key: 'dueDate', searchPaths: ['dueDate'], type: 'date' },
@@ -17,9 +17,9 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
 
   // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'taskTypeIds', path: 'taskType.id', kind: 'inIds' },
-  { key: 'taskPriorityIds', path: 'taskPriority.id', kind: 'inIds' },
-  { key: 'taskStatusIds', path: 'taskStatus.id', kind: 'inIds' },
+  { key: 'taskTypeIds', path: 'typeRef', kind: 'inStrings' },
+  { key: 'taskPriorityIds', path: 'priorityRef', kind: 'inStrings' },
+  { key: 'taskStatusIds', path: 'statusRef', kind: 'inStrings' },
   { key: 'assignedEmployeeIds', path: 'assignedEmployee.id', kind: 'inIds' },
   { key: 'creatorEmployeeIds', path: 'creatorEmployee.id', kind: 'inIds' },
   { key: 'timingTypes', path: 'taskTiming', kind: 'inStrings' },
@@ -64,7 +64,7 @@ export interface CustomerTaskQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -160,7 +160,6 @@ export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
           code
           firstName
           lastName
-          fullName
         }
       }
     }
@@ -212,6 +211,28 @@ export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): str
           code
           name
         }
+      }
+    }
+  `;
+};
+
+// Get Customer Task by ID for editing
+export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
+  return `
+    query GetCustomerTaskById {
+      SalesTask(
+        where: { 
+          id: { _eq: "${taskId}" }, 
+          isDeleted: { _eq: false } 
+        }
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references (full for editing)
+        account { ${CUSTOMER_ACCOUNT_REF} }
+        contact { ${CUSTOMER_CONTACT_REF} }
+        lead { ${CUSTOMER_LEAD_REF} }
+        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
       }
     }
   `;

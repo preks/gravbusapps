@@ -3,7 +3,6 @@ import {
   Avatar,
   AvatarFallback,
   Button,
-  Badge,
   Table,
   TableHeader,
   TableBody,
@@ -24,7 +23,6 @@ import {
   PiArrowUp,
   PiArrowDown,
   PiBriefcase,
-  PiOfficeChair,
   PiGlobe,
 } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
@@ -60,11 +58,11 @@ const DATA_TEST_ID_PREFIX = "ContactTable";
 const ContactTable: React.FC<ContactTableProps> = ({
   contacts,
   loading,
-  error,
-  hasMore,
-  loadMore,
-  loadPage,
-  retry,
+  error: _error,
+  hasMore: _hasMore,
+  loadMore: _loadMore,
+  loadPage: _loadPage,
+  retry: _retry,
   total,
   currentPage,
   pageSize,
@@ -74,7 +72,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
   onPaginationChange,
   onSortingChange,
   selectedContactId,
-  onEdit,
+  onEdit: _onEdit,
   accessToken,
   sourceApp,
   visibleColumns,
@@ -203,20 +201,20 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Company
+                      Account
                       {renderSortIcon("accountId")}
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('role') && (
+                {isColumnVisible('department') && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("contactRole")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-role-header`}
+                    onClick={() => handleSort("department")}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-department-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Role
-                      {renderSortIcon("contactRole")}
+                      Department
+                      {renderSortIcon("department")}
                     </div>
                   </TableHead>
                 )}
@@ -328,18 +326,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('department') && (
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("department")}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-department-header`}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      Department
-                      {renderSortIcon("department")}
-                    </div>
-                  </TableHead>
-                )}
+                
                 <TableHead
                   className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
@@ -352,10 +339,11 @@ const ContactTable: React.FC<ContactTableProps> = ({
               {contacts.map((record) => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
                     selectedContactId === record.id ? "gba:bg-blue-50" : ""
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                  onClick={() => handleRowClick(record)}
                 >
                   {isColumnVisible('name') && (
                     <TableCell
@@ -481,19 +469,21 @@ const ContactTable: React.FC<ContactTableProps> = ({
                     )}
                   </TableCell>
                   )}
-                  {isColumnVisible('role') && (
+                  {isColumnVisible('department') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-role-cell-${record.id}`}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-department-cell-${record.id}`}
                     >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiBriefcase size={14} className="gba:text-purple-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.contactRole}>
-                          {record.contactRole || "-"}
+                      <div className="gba:flex gba:items-center">
+                        <span className="gba:text-sm gba:truncate" title={record.department}>
+                          {record.department
+                            ? record.department.charAt(0).toUpperCase() + record.department.slice(1)
+                            : "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
+                  {/* Role cell removed */}
                   {isColumnVisible('type') && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
@@ -523,8 +513,17 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
                     >
                     {record.ownerEmployee ? (
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Avatar size="sm">
+                      <div
+                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const empId = record.ownerEmployee?.id;
+                          if (empId) {
+                            navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                          }
+                        }}
+                      >
+                        <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
                           {record.ownerEmployee?.pictureThumbnail && (
                             <AvatarImage
                               src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
@@ -548,9 +547,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
                         </div>
                       </div>
                     ) : (
-                      <span className="gba:text-gray-400 gba:text-sm">
-                        No owner
-                      </span>
+                      <span className="gba:text-gray-400 gba:text-sm">No owner</span>
                     )}
                   </TableCell>
                   )}
@@ -653,34 +650,22 @@ const ContactTable: React.FC<ContactTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('department') && (
-                    <TableCell
-                      className="gba:py-4 gba:px-6"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-department-cell-${record.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiOfficeChair size={14} className="gba:text-orange-600" />
-                        <span className="gba:text-sm gba:truncate" title={record.department}>
-                          {record.department || "-"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  )}
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.contactEntity]}
+                        contextsArray={[FlowContextName.customerContactEntity]}
                         externalContextData={{
                           contactId: record.id,
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
                         accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}
                       />

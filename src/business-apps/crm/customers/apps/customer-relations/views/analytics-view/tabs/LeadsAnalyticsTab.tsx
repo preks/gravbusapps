@@ -873,11 +873,12 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 <Legend
                   verticalAlign="bottom"
                   height={40}
-                  formatter={(value, entry) =>
-                    `${(entry as unknown as LeadsBySourceData).source} (${
-                      (entry as unknown as LeadsBySourceData).count
-                    })`
-                  }
+                  formatter={(value, entry: any) => {
+                    const payload = entry.payload;
+                    return `${payload?.source || "Unknown"} (${
+                      payload?.count || 0
+                    })`;
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -925,11 +926,12 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 <Legend
                   verticalAlign="bottom"
                   height={40}
-                  formatter={(value, entry) =>
-                    `${
-                      (entry as unknown as LeadsBySourceTypeData).sourceType
-                    } (${(entry as unknown as LeadsBySourceTypeData).count})`
-                  }
+                  formatter={(value, entry: any) => {
+                    const payload = entry.payload;
+                    return `${payload?.sourceType || "Unknown"} (${
+                      payload?.count || 0
+                    })`;
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -977,11 +979,12 @@ export const LeadsAnalyticsTab: React.FC<LeadsAnalyticsTabProps> = ({
                 <Legend
                   verticalAlign="bottom"
                   height={40}
-                  formatter={(value, entry) =>
-                    `${(entry as unknown as LeadsByStatusData).status} (${
-                      (entry as unknown as LeadsByStatusData).count
-                    })`
-                  }
+                  formatter={(value, entry: any) => {
+                    const payload = entry.payload;
+                    return `${payload?.status || "Unknown"} (${
+                      payload?.count || 0
+                    })`;
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>

@@ -18,7 +18,6 @@ export interface ContactData {
   jobTitle: string;
   department?: string;
   contactType?: string;
-  contactRole?: string;
   pictureUrl?: string;
   linkedinUrl?: string;
   xingUrl?: string;
@@ -82,7 +81,6 @@ export const GET_CONTACTS_DATA = `
       jobTitle
       department
       contactType
-      contactRole
       pictureUrl
       linkedinUrl
       xingUrl

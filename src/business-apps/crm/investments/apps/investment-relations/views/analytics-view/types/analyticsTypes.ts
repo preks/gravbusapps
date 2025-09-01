@@ -49,6 +49,11 @@ export interface LeadsAnalytics {
     count: number;
     percentage: number;
   }[];
+  leadsBySourceType: {
+    sourceType: string;
+    count: number;
+    percentage: number;
+  }[];
   leadsByRating: {
     rating: string;
     count: number;

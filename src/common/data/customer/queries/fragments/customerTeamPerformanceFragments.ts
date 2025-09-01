@@ -367,7 +367,6 @@ export const CUSTOMER_ACTIVITY_WITH_PERFORMANCE = `
       code
       firstName
       lastName
-      fullName
     }
     lead {
       id

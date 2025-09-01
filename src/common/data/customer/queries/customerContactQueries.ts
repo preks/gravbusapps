@@ -8,6 +8,8 @@ import {
   CUSTOMER_CRM_DOCUMENT 
 } from './fragments/customerRelationFragments';
 
+import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
+
 export interface CustomerContactQueryVariables {
   ids?: string[];
   search?: string;
@@ -31,7 +33,7 @@ export interface CustomerContactQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -97,8 +99,12 @@ export const GET_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables =
   const offset = variables.offset || 0;
   const where = buildCustomerContactWhereCondition(variables);
   const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ fullName: ASC }]';
+    ? `orderBy: [${variables.orderBy.map(o => {
+        if (o.field === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`;
+        if (o.field === 'account') return `{ account: { name: ${o.direction} } }`;
+        return `{ ${o.field}: ${o.direction} }`;
+      }).join(', ')}]`
+    : 'orderBy: [{ createdAt: DESC }]';
 
   return `
     query GetCustomerContacts {
@@ -108,7 +114,16 @@ export const GET_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables =
         ${orderByClause}
         ${where}
       ) {
-        ${CUSTOMER_CONTACT}
+        id
+        code
+        firstName
+        lastName
+        email
+        birthDate
+        ${AUDIT_FIELDS}
+        academicTitle { id code value }
+        language { id code value }
+        ownerEmployee { id firstName lastName displayName pictureThumbnail picture }
       }
       CustomerContactAggregate: ContactAggregate(${where}) { aggregate { count } }
     }
@@ -136,23 +151,18 @@ export const SEARCH_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariable
           _and: [ { _or: [
             { firstName: { _ilike: "%${search}%" } },
             { lastName: { _ilike: "%${search}%" } },
-            { fullName: { _ilike: "%${search}%" } },
             { email: { _ilike: "%${search}%" } },
             { code: { _ilike: "%${search}%" } }
           ] } ]
         }
         limit: ${limit}
-        orderBy: [{ fullName: ASC }]
+        orderBy: [{ createdAt: DESC }]
       ) {
         id
         code
         firstName
         lastName
-        fullName
         email
-        phone
-        jobPosition
-        department
       }
     }
   `;
@@ -177,7 +187,6 @@ export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
           code
           firstName
           lastName
-          fullName
         }
       }
     }
@@ -203,7 +212,6 @@ export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string
           code
           firstName
           lastName
-          fullName
         }
       }
     }
@@ -229,7 +237,6 @@ export const GET_CUSTOMER_NOTES_BY_CONTACT_ID = (contactId: string): string => {
           code
           firstName
           lastName
-          fullName
         }
       }
     }

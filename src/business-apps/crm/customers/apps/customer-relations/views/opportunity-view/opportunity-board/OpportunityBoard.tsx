@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react";
 import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners, DragOverEvent, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { Switch, Radio, Select, Spin } from "antd";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  RadioGroup,
+  RadioGroupItem,
+  Label
+} from "@newwork/nw-design-system";
 import { useKanbanStore } from "./lib/kanban-store";
 import { 
   KanbanColumn, 
@@ -10,7 +19,7 @@ import {
   EmployeeSelector 
 } from "./components";
 import OpportunityRecord from "@/business-apps/crm/common/apps/opportunity-record/OpportunityRecord";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+// import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useSalesPipelines } from "./hooks/useSalesPipelines";
 import { usePipelineStages } from "./hooks/usePipelineStages";
 import { FIXED_STAGES } from "./lib/stages";
@@ -32,7 +41,7 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
   const { 
     stages, 
     opportunities, 
-    moveOpportunity, 
+    // moveOpportunity, 
     moveOpportunityToStage,
     moveOpportunityToPosition,
     reorderOpportunities,
@@ -262,54 +271,65 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
           <div className="gba:text-2xl gba:font-semibold">Opportunities Board</div>
         </div>
         
-        <div className="gba:flex gba:flex-col gba:gap-4 sm:gba:flex-row sm:gba:items-center">
-          <div className="gba:flex gba:items-center gba:gap-4" data-testid="opportunity-filter-radio">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-700 gba:dark:text-gray-300">
-              Filter by:
-            </span>
-            <Radio.Group
-              value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value)}
-              size="small"
-            >
-              <Radio value="my">My Opportunities</Radio>
-              <Radio value="all">All Opportunities</Radio>
-              <Radio value="selected">Selected Employees</Radio>
-            </Radio.Group>
+        {/* Filters aligned to investment view */}
+        <div className="gba:mb-6 gba:p-4 gba:bg-gray-50 gba:rounded-lg">
+          <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
+            {/* Opportunity Filter */}
+            <div className="gba:flex gba:flex-col gba:gap-2">
+              <Label className="gba:text-sm gba:font-medium">Filter by:</Label>
+              <RadioGroup
+                value={filterMode}
+                onValueChange={(value) => setFilterMode(value as 'my' | 'all' | 'selected')}
+                className="gba:flex gba:gap-4"
+              >
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <RadioGroupItem value="my" id="my-opportunities-board" />
+                  <Label htmlFor="my-opportunities-board">My Opportunities</Label>
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <RadioGroupItem value="all" id="all-opportunities-board" />
+                  <Label htmlFor="all-opportunities-board">All Opportunities</Label>
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <RadioGroupItem value="selected" id="selected-employees-board" />
+                  <Label htmlFor="selected-employees-board">Selected Employees</Label>
+                </div>
+              </RadioGroup>
+            </div>
           </div>
-          
-          <div className="gba:flex gba:items-center gba:gap-2" data-testid="pipeline-filter-container">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-700 gba:dark:text-gray-300">
-              Pipeline:
-            </span>
-            <Select
-              value={selectedPipelineId}
-              onChange={setSelectedPipelineId}
-              placeholder="All Pipelines"
-              allowClear
-              style={{ minWidth: 200 }}
-              size="small"
-              loading={pipelinesLoading}
-              data-testid="pipeline-filter-select"
-              notFoundContent={pipelinesLoading ? <Spin size="small" /> : 'No pipelines found'}
-            >
-              {pipelines.map((pipeline) => (
-                <Select.Option key={pipeline.id} value={pipeline.id} data-testid={`pipeline-option-${pipeline.id}`}>
-                  {pipeline.value}
-                </Select.Option>
-              ))}
-            </Select>
+
+          <div className="gba:mt-4 gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
+            {/* Pipeline Selection */}
+            <div className="gba:flex gba:flex-col gba:gap-2" data-testid="pipeline-filter-container">
+              <Label className="gba:text-sm gba:font-medium">Pipeline:</Label>
+              <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
+                <SelectTrigger className="gba:w-48" data-testid="pipeline-filter-select">
+                  <SelectValue placeholder={pipelinesLoading ? 'Loading...' : 'All Pipelines'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Employee Selection - Only show when "Selected Employees" is chosen */}
+            {filterMode === 'selected' && (
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                <Label className="gba:text-sm gba:font-medium">Employees:</Label>
+                <EmployeeSelector
+                  {...{ accessToken, userInfo, employeeId }}
+                  sourceApp={sourceApp}
+                  selectedEmployeeIds={selectedEmployeeIds}
+                  onEmployeeSelectionChange={setSelectedEmployeeIds}
+                  disabled={filterMode !== 'selected'}
+                />
+              </div>
+            )}
           </div>
-          
-          {filterMode === 'selected' && (
-            <EmployeeSelector
-              {...{ accessToken, userInfo, employeeId }}
-              sourceApp={sourceApp}
-              selectedEmployeeIds={selectedEmployeeIds}
-              onEmployeeSelectionChange={setSelectedEmployeeIds}
-              disabled={filterMode !== 'selected'}
-            />
-          )}
         </div>
       </div>
       
@@ -324,7 +344,8 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
           {stagesLoading && selectedPipelineId ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full">
               <div className="gba:text-center">
-                <Spin size="large" />
+                {/* Loading spinner can be handled by design system Spinner if needed */}
+                <div>Loading...</div>
                 <p className="gba:mt-4 gba:text-gray-500">Loading pipeline stages...</p>
               </div>
             </div>

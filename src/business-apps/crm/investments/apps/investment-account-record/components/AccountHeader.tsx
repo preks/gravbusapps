@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { Tags, User, Edit } from 'lucide-react';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../hooks/useAccountData';
 import type { InvestmentAccount } from '@/common/data/investment/types';
 
@@ -70,15 +71,15 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
             <AppActionButton
               data-testid="investment-account-record-action-button"
               size="default"
-              contextsArray={[]}
+              contextsArray={[FlowContextName.investmentAccountEntity]}
               externalContextData={{
                 accountId: accountId
               }}
               staticFlowData={[]}
               prefixDataTestId="investment-account-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyStateBehavior="hide"
+              deferMainContextRequestsUntilClick={false}
             >
               Actions
             </AppActionButton>

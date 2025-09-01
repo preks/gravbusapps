@@ -72,7 +72,6 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
-        currency: "Currency:v1:EUR",
         reimbursable: true,
       }}
     >

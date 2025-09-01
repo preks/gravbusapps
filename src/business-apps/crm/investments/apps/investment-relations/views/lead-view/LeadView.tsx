@@ -8,6 +8,7 @@ import type { InvestmentLeadQueryVariables } from "@/common/data/investment/quer
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { LeadStatistics } from "./components/LeadStatistics";
 import { LeadList } from "./components/LeadList";
+import { ColumnConfig } from "@/components/dataController";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { PlusSquareIcon } from "@phosphor-icons/react";
@@ -18,14 +19,64 @@ export interface LeadViewProps extends BusinessAppContextProps {}
 export const LeadView: React.FC<LeadViewProps> = (context) => {
   const { accessToken } = context;
 
+  // Read initial filters/search from URL synchronously
+  const getInitialFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && filters.push(`${prefix}:${v}`));
+    };
+    pushAll("leadStatus", "status");
+    pushAll("leadRating", "rating");
+    pushAll("leadSource", "source");
+    pushAll("owner", "owner");
+    pushAll("country", "country");
+    pushAll("region", "region");
+    pushAll("city", "city");
+    pushAll("company", "company");
+    pushAll("contact", "contact");
+    const search = urlParams.get("search") || "";
+    return { search, filters };
+  };
+  const initial = getInitialFromUrl();
+
   // State management
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
+
+  // Column visibility configuration
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: "Actions", visible: true, disabled: true },
+    { id: "lead", label: "Lead", visible: true },
+    { id: "contact", label: "Contact Info", visible: true },
+    { id: "address", label: "Address", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "rating", label: "Rating", visible: true },
+    { id: "source", label: "Source", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
+
   const {
     filterGroups,
     filterLabelMap,
@@ -50,6 +101,7 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   const queryVariables: InvestmentLeadQueryVariables = useMemo(() => {
     const filterVars: Partial<InvestmentLeadQueryVariables> = {};
     const statusIds: string[] = [];
+    const statusCodes: string[] = [];
     const ownerIds: string[] = [];
     const ratingIds: string[] = [];
     const sourceIds: string[] = [];
@@ -60,7 +112,10 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     const contactFullNames: string[] = [];
     let sensitive: boolean | undefined = undefined;
     selectedFilters.forEach((f) => {
-      if (f.startsWith("status:")) statusIds.push(f.slice(7));
+      if (f.startsWith("status:")) {
+        const val = f.slice(7);
+        if (val.includes(":")) statusCodes.push(val); else statusIds.push(val);
+      }
       else if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
       else if (f.startsWith("rating:")) ratingIds.push(f.slice(7));
       else if (f.startsWith("source:")) sourceIds.push(f.slice(7));
@@ -73,6 +128,13 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       else if (f === "sensitive:false") sensitive = false;
     });
     if (statusIds.length) filterVars.leadStatusIds = statusIds;
+    if (statusCodes.length) {
+      const normalized = statusCodes.map((c) => {
+        const parts = String(c).split(":");
+        return parts.length ? parts[parts.length - 1] : String(c);
+      });
+      (filterVars as any).leadStatusCodes = normalized;
+    }
     if (ownerIds.length) filterVars.ownerEmployeeIds = ownerIds;
     if (ratingIds.length) (filterVars as any).leadRatingIds = ratingIds;
     if (sourceIds.length) (filterVars as any).leadSourceIds = sourceIds;
@@ -87,7 +149,19 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
-      orderBy: [{ field: sortField, direction: sortOrder }],
+      ...(sortField && sortOrder
+        ? {
+            orderBy: (
+              sortField === 'leadCombined'
+                ? [
+                    { field: 'firstName', direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' },
+                    { field: 'lastName', direction: 'ASC_NULLS_LAST' },
+                    { field: 'companyName', direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' },
+                  ]
+                : [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
+            ) as any,
+          }
+        : {}),
       ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
       ...(createdBefore ? { createdAtTo: createdBefore } : {}),
       ...filterVars,
@@ -209,37 +283,7 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     };
   }, [loadData, refreshStats]);
 
-  // Initialize from URL parameters (search and common filters)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialFilters: string[] = [];
-
-    const pushAll = (key: string, prefix: string) => {
-      urlParams.getAll(key).forEach((v) => {
-        if (v) initialFilters.push(`${prefix}:${v}`);
-      });
-    };
-
-    // Basic filters (IDs)
-    pushAll("leadStatus", "status");
-    pushAll("leadRating", "rating");
-    pushAll("leadSource", "source");
-    pushAll("owner", "owner");
-    pushAll("country", "country");
-    // Value-based filters
-    pushAll("region", "region");
-    pushAll("city", "city");
-    // Company and contact
-    pushAll("company", "company");
-    pushAll("contact", "contact"); // expects First|Last
-
-    if (initialFilters.length) {
-      setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
-    }
-
-    const search = urlParams.get("search");
-    if (search) setSearchTerm(search);
-  }, []);
+  // (Initial values already applied above)
 
   // Handle search
   const handleSearch = useCallback((value: string) => {
@@ -255,10 +299,17 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   // Handle sorting
   const handleSort = useCallback(
     (field: string) => {
-      if (sortField === field) {
-        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-      } else {
+      if (sortField !== field) {
         setSortField(field);
+        setSortOrder("ASC");
+        return;
+      }
+      if (sortOrder === "ASC") {
+        setSortOrder("DESC");
+      } else if (sortOrder === "DESC") {
+        setSortField("");
+        setSortOrder("");
+      } else {
         setSortOrder("ASC");
       }
     },
@@ -269,6 +320,33 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
     setSelectedFilters(filters);
     setCurrentPage(1);
   }, []);
+
+  // Sync selected filters and search to URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const setList = (key: string, values: string[]) => {
+      urlParams.delete(key);
+      values.forEach((v) => urlParams.append(key, v));
+    };
+
+    const collect = (prefix: string) => selectedFilters.filter((f) => f.startsWith(`${prefix}:`)).map((f) => f.slice(prefix.length + 1));
+
+    setList("leadStatus", collect("status"));
+    setList("leadRating", collect("rating"));
+    setList("leadSource", collect("source"));
+    setList("owner", collect("owner"));
+    setList("country", collect("country"));
+    setList("region", collect("region"));
+    setList("city", collect("city"));
+    setList("company", collect("company"));
+    setList("contact", collect("contact"));
+
+    if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [selectedFilters, searchTerm]);
 
   // const toggleDataFilter = useCallback(() => {
   //   setShowDataFilter(prev => !prev);
@@ -320,16 +398,21 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
           filterLabelMap,
           listTitle: "Leads",
           listAmount: totalCount,
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'investment-leads-column-visibility'
+          },
           actions: (
             <AppAction
               contextsArray={[FlowContextName.createInvestmentLead]}
               accessToken={accessToken}
-              data-testid="add-lead-action"
+              data-testid="add-lead-action-wrapper"
               emptyStateBehavior="hide"
             >
               <button
                 className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="add-lead-action"
+                data-testid="add-lead-button"
                 type="button"
               >
                 <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
@@ -358,8 +441,9 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
             onPageChange={handlePageChange}
             onSort={handleSort}
             sortField={sortField}
-            sortOrder={sortOrder}
+            sortOrder={sortOrder as "ASC" | "DESC"}
             onClearFilters={() => setSelectedFilters([])}
+            visibleColumns={visibleColumns}
             {...context}
           />
         }

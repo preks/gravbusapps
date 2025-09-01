@@ -75,8 +75,11 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     // If we don't have any additionalData yet (rare), show a minimal loader to avoid empty page
     if (!additionalData) {
       return (
-        <div data-testid={formatDataTestId(prefixDataTestId, 'Loading')}>
-          <Spinner />
+        <div 
+          className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
+          data-testid={formatDataTestId(prefixDataTestId, 'Loading')}
+        >
+          <Spinner size="lg" />
         </div>
       );
     }
@@ -84,9 +87,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     // If we don't have feedback data, show error
     if (!feedbackData) {
       return (
-        <div data-testid={formatDataTestId(prefixDataTestId, 'Error')}>
-          <div style={{ padding: 'var(--nw-spacing-lg)', textAlign: 'center' }}>
-            {getTranslationFromI18nKeyAndLabel('feedback.approval.noData', 'No feedback data available')}
+        <div 
+          className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
+          data-testid={formatDataTestId(prefixDataTestId, 'Error')}
+        >
+          <div className="gba:bg-white gba:max-w-md gba:w-full gba:p-6 gba:text-center">
+            <div className="gba:text-red-500 gba:text-lg gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('feedback.approval.noData', 'No feedback data available')}
+            </div>
           </div>
         </div>
       );
@@ -95,9 +103,9 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
     return (
       <div
         data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full gba:p-4"
+        className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
       >
-        <div className="gba:bg-white gba:max-w-md gba:w-full">
+        <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
           {/* Modal Header */}
           <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -108,7 +116,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({
           </div>
 
           {/* Modal Content */}
-          <div className="gba:p-4 gba:space-y-4">
+          <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
             {/* From Section */}
             <div className="gba:space-y-2">
               <div className="gba:flex gba:items-center gba:gap-2">

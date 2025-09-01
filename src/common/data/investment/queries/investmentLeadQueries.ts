@@ -22,8 +22,11 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'academicTitleIds', path: 'academicTitle.id', kind: 'inIds' },
   { key: 'salutationIds', path: 'salutation.id', kind: 'inIds' },
   { key: 'leadStatusIds', path: 'leadStatus.id', kind: 'inIds' },
+  { key: 'leadStatusCodes', path: 'leadStatus.code', kind: 'inStrings' },
   { key: 'leadSourceIds', path: 'leadSource.id', kind: 'inIds' },
+  { key: 'leadSourceCodes', path: 'leadSource.code', kind: 'inStrings' },
   { key: 'leadRatingIds', path: 'leadRating.id', kind: 'inIds' },
+  { key: 'leadRatingCodes', path: 'leadRating.code', kind: 'inStrings' },
   { key: 'industryClassIds', path: 'industryClass.id', kind: 'inIds' },
   { key: 'companySizeIds', path: 'companySize.id', kind: 'inIds' },
   {
@@ -74,8 +77,11 @@ export interface InvestmentLeadQueryVariables {
   academicTitleIds?: string[];
   salutationIds?: string[];
   leadStatusIds?: string[];
+  leadStatusCodes?: string[];
   leadSourceIds?: string[];
+  leadSourceCodes?: string[];
   leadRatingIds?: string[];
+  leadRatingCodes?: string[];
   industryClassIds?: string[];
   companySizeIds?: string[];
   ownerEmployeeIds?: string[];
@@ -92,7 +98,7 @@ export interface InvestmentLeadQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
 import { Button, Checkbox } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -70,15 +70,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
     submitActionTripData, 
     setEmployeeRuleId, 
     updateTripFormValidation,
-    skipAdvancePayment,
-    setSkipAdvancePayment
+    requestAdvancePayment,
+    setRequestAdvancePayment
   } = useExpensePlanWizardContext();
   const { userInfo } = props;
   
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
-      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.psi_initialParameters.expenseItems;
     }
     return [];
   };
@@ -117,6 +117,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   const [endLocation, setEndLocation] = useState<LocationData>(initialEndLocation);
   
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
+  const lastAbsenceCheckKeyRef = useRef<string | null>(null);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
   
@@ -150,7 +151,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
       }
       
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
-      
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId;
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message', 
@@ -160,8 +161,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         return false;
       }
       
-      if (ruleData.id) {
-        setEmployeeRuleId(ruleData.id);
+      if (ruleDataValue) {
+        setEmployeeRuleId(ruleDataValue);
       }
       
       return true;
@@ -210,6 +211,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
       
       const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
       const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      let finalStartDate = startTimeValue;
+      let finalEndDate = endTimeValue;
+      try {
+        if (finalStartDate && finalEndDate && new Date(finalStartDate).getTime() > new Date(finalEndDate).getTime()) {
+          const temporaryValue = finalStartDate;
+          finalStartDate = finalEndDate;
+          finalEndDate = temporaryValue;
+        }
+      } catch {}
       
       const variables = {
         employeeId: employeeId,
@@ -218,9 +228,19 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         statusArray: EXCLUDED_STATUSES,
         planId: expenseId,
         activeUserLocale,
-        startTimeValue,
-        endTimeValue
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
       };
+      const dedupeKey = JSON.stringify({
+        employeeId,
+        expenseId,
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
+      });
+      if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        return;
+      }
+      lastAbsenceCheckKeyRef.current = dedupeKey;
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
         const overlapWarning = getOverlapWarningMessage(response, expenseId);
@@ -534,12 +554,12 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,skipAdvancePayment);
+    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,requestAdvancePayment);
   };
 
   const handleNext = () => {
     if (validateTripForm()) {
-     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,skipAdvancePayment);
+     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,requestAdvancePayment);
     }
   };
 
@@ -761,9 +781,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           {/* Skip Advance Payment Checkbox */}
           <div className="gba:font-medium gba:py-4 [&_label]:flex [&_label]:flex-row-reverse" data-testid="skip-advance-payment-container">
             <Checkbox
-              value={skipAdvancePayment}
+              value={requestAdvancePayment}
               name={"skip-advance-payment-checkbox"}
-              onChange={(e) =>setSkipAdvancePayment(e.value as boolean || false)}
+              onChange={(e) =>setRequestAdvancePayment(e.value as boolean || false)}
               data-testid="skip-advance-payment-checkbox"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment')}

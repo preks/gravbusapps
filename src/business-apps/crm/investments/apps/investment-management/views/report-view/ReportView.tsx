@@ -3,11 +3,17 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Button
 } from '@newwork/nw-design-system';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { BarChart3, TrendingUp, Building2, PieChart, Upload } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
+import { RealEstateReport } from './real-estate-report/RealEstateReport';
+import { EquityReport } from './equity-report/EquityReport';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 export interface ReportViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -17,10 +23,12 @@ export interface ReportViewProps extends BusinessAppContextProps {
 export const ReportView: React.FC<ReportViewProps> = ({
   accessToken,
   userInfo,
+  additionalData,
   initialSubTab = 'liquid-fund',
   onSubTabChange
 }) => {
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   // Update URL when tab changes
   useEffect(() => {
@@ -56,9 +64,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 Analyze investment performance and portfolio metrics
               </p>
             </div>
+            <div>
+              <AppAction
+                contextsArray={[FlowContextName.uploadInvestmentReport]}
+                accessToken={accessToken}
+                emptyStateBehavior="hide"
+                prefixDataTestId="investment-upload-report"
+              >
+                <Button
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="upload-document-button"
+                >
+                  <Upload className="gba:h-4 gba:w-4" />
+                  {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
+                </Button>
+              </AppAction>
+            </div>
           </div>
           
-          <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-1 gba:max-w-md">
+          <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-3 gba:max-w-2xl">
             <TabsTrigger 
               value="liquid-fund" 
               className="gba:flex gba:items-center gba:gap-2"
@@ -66,6 +90,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
             >
               <TrendingUp className="gba:h-4 gba:w-4" />
               Liquid Fund
+            </TabsTrigger>
+            <TabsTrigger 
+              value="real-estate" 
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="real-estate-analytics-tab"
+            >
+              <Building2 className="gba:h-4 gba:w-4" />
+              Real Estate
+            </TabsTrigger>
+            <TabsTrigger 
+              value="equity" 
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="equity-analytics-tab"
+            >
+              <PieChart className="gba:h-4 gba:w-4" />
+              Equity
             </TabsTrigger>
           </TabsList>
         </div>
@@ -76,6 +116,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               data-testid="liquid-fund-analytics"
+            />
+          </TabsContent>
+          
+          <TabsContent value="real-estate" className="gba:h-full gba:mt-0">
+            <RealEstateReport
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid="real-estate-analytics"
+            />
+          </TabsContent>
+          
+          <TabsContent value="equity" className="gba:h-full gba:mt-0">
+            <EquityReport
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid="equity-analytics"
             />
           </TabsContent>
         </div>

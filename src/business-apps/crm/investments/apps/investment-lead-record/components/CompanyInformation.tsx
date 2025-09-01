@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card } from 'antd';
-import { Lead } from '../types';
+import { formatAddress, AddressLine } from '@/common/utils/addressFormatter';
 
 interface CompanyInformationProps {
   lead: Lead;
@@ -49,8 +49,14 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {lead.addressLine || '-'}
+                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827', whiteSpace: 'pre-line' }}>
+                  {formatAddress({
+                    addressLine: (lead as any).addressLine as AddressLine,
+                    locality: (lead as any).locality as string,
+                    postalCode: (lead as any).postalCode as string,
+                    region: (lead as any).region?.value as string,
+                    country: (lead as any).country?.value as string
+                  }) || '-'}
                 </div>
               </div>
             </div>

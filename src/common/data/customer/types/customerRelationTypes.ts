@@ -57,9 +57,13 @@ export interface CustomerOpportunity extends BaseCustomerOpportunity {
   // Computed display fields only
   displayName: string;
   currencyLabel?: string;
-  opportunityPipelineLabel?: string;
-  opportunityPipelineStageLabel?: string;
-  opportunityStatusLabel?: string;
+  opportunityPipelineLabel?: string; // label for normalized pipeline
+  opportunityPipelineStageLabel?: string; // label for normalized stage
+  opportunityStatusLabel?: string; // label for normalized status
+  // Normalized catalog fields for UI consumption
+  opportunityPipeline?: import('@/common/network/graphql/commonTypes').CatalogEntry;
+  opportunityPipelineStage?: import('@/common/network/graphql/commonTypes').CatalogEntry;
+  opportunityStatus?: import('@/common/network/graphql/commonTypes').CatalogEntry;
   ownerDisplayName?: string;
 }
 
@@ -76,6 +80,10 @@ export interface CustomerTask extends BaseCustomerTask {
   formattedDueDate?: string;
   formattedStartDate?: string;
   formattedEndDate?: string;
+  accountDisplayName?: string;
+  contactDisplayName?: string;
+  leadDisplayName?: string;
+  opportunityDisplayName?: string;
 }
 
 // Enhanced CustomerActivity type with computed fields
@@ -86,6 +94,10 @@ export interface CustomerActivity extends BaseCustomerActivity {
   ownerDisplayName?: string;
   formattedOccurredAt?: string;
   formattedCompletedAt?: string;
+  accountDisplayName?: string;
+  contactDisplayName?: string;
+  leadDisplayName?: string;
+  opportunityDisplayName?: string;
   
   // Performance computed fields
   performanceCategoryLabel?: string;

@@ -8,7 +8,7 @@ import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
 import { Employee } from '../hooks/useGetEmployeesReport';
 import { SortConfig } from '../utils/sortUtils';
-import { formatDataTestId } from '@/modules/orgchart/utils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 
 // Initialize the required plugins
 dayjs.extend(weekday);

@@ -13,6 +13,9 @@ export * from './investmentLeadQueries';
 // Investment Opportunity Queries
 export * from './investmentOpportunityQueries';
 
+// Investment Activity Queries
+export * from './investmentActivityQueries';
+
 // Core Investment Queries (with specializations)
 export * from './investmentQueries';
 

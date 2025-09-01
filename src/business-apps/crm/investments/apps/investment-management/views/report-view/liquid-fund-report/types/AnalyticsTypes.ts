@@ -81,6 +81,9 @@ export interface AnalyticsRowData {
   // Additional fields for Fixed-Term Deposits
   maturityDate?: string;
   interestRate?: number;
+  // Investment navigation fields
+  investmentId?: string;
+  investmentName?: string;
   // Additional fields for Multiple Investment Types (Tab 3)
   depositName?: string;
   isin?: string;

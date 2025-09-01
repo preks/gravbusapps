@@ -216,13 +216,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
     },
   ];
 
-  const contactRoles = [
-    { id: "primary", value: "primary", label: "Primary Contact" },
-    { id: "secondary", value: "secondary", label: "Secondary Contact" },
-    { id: "decision-maker", value: "decision-maker", label: "Decision Maker" },
-    { id: "influencer", value: "influencer", label: "Influencer" },
-    { id: "champion", value: "champion", label: "Champion" },
-  ];
 
   const departments = [
     { id: "sales", value: "sales", label: "Sales" },
@@ -309,23 +302,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 
   const searchContactsFunction = useCallback(
     (searchTerm: string = "") => {
-      console.log(
-        "🔍 [Contact SearchFunction] Called with term:",
-        `"${searchTerm}"`,
-        {
-          contactsLength: contacts.length,
-          isInitialContactLoadComplete,
-          currentContactSearch,
-        }
-      );
-
-      // If search term is empty and we don't have contacts loaded, reload initial contacts
       if (
         !searchTerm.trim() &&
         contacts.length === 0 &&
         isInitialContactLoadComplete
       ) {
-        console.log("Empty contact search - reloading initial contacts");
         if (accessToken && graphQLClient) {
           fetchContactsPaginated("", true).catch((error) => {
             console.error("Error reloading initial contacts:", error);
@@ -359,23 +340,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 
   // Effect to trigger contact search when debounced contact search term changes
   useEffect(() => {
-    console.log("Contact debounced effect check:", {
-      isInitialContactLoadComplete,
-      debouncedContactSearch: `"${debouncedContactSearch}"`,
-      currentContactSearch: `"${currentContactSearch}"`,
-      different: debouncedContactSearch !== currentContactSearch,
-    });
-
     // Only run if initial load is complete and search term actually changed
     if (
       isInitialContactLoadComplete &&
       debouncedContactSearch !== currentContactSearch
     ) {
-      console.log(
-        "🔍 Contact debounced search triggered:",
-        `"${debouncedContactSearch}"`
-      );
-
       setCurrentContactSearch(debouncedContactSearch);
       setContactsOffset(0);
       setContactsHasMore(true);
@@ -384,15 +353,10 @@ const ContactSection: React.FC<ContactSectionProps> = ({
         // If search is empty, load initial 20 contacts without clearing the array first
         // If search has a term, clear and search
         if (debouncedContactSearch.trim() === "") {
-          console.log("🔄 Empty contact search - loading initial 20 contacts");
           fetchContactsPaginated("", true).catch((error) => {
             console.error("Error loading initial contacts:", error);
           });
         } else {
-          console.log(
-            "🔄 [Location Contact] Clearing contacts for search:",
-            debouncedContactSearch
-          );
           setContacts([]);
           fetchContactsPaginated(debouncedContactSearch, true).catch(
             (error) => {
@@ -415,16 +379,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   useEffect(() => {
     const loadInitialContacts = async () => {
       if (!accessToken || !graphQLClient) return;
-
-      console.log("Loading initial contacts...", {
-        accessToken: !!accessToken,
-        graphQLClient: !!graphQLClient,
-      });
-
-      // Reset state and load initial contacts
-      console.log(
-        "🔄 [Location Contact] Clearing contacts in loadInitialContacts"
-      );
       setContactsOffset(0);
       setContactsHasMore(true);
       setContacts([]);
@@ -441,20 +395,10 @@ const ContactSection: React.FC<ContactSectionProps> = ({
           const contacts = response.Contact;
           const totalCount = response.ContactAggregate.aggregate.count;
 
-          console.log(
-            `Initial contact load: Got ${contacts.length} contacts from query response`
-          );
-
           setContacts(contacts);
           setContactsTotal(totalCount);
           setContactsHasMore(contacts.length === 20);
           setContactsOffset(contacts.length);
-
-          console.log(
-            "Contacts loaded, user can now select from:",
-            contacts.length,
-            "options"
-          );
         }
       } catch (error) {
         console.error("Error loading initial contacts:", error);
@@ -466,17 +410,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 
     loadInitialContacts();
   }, [accessToken, graphQLClient]);
-
-  // Debug effect to track when contacts state changes
-  useEffect(() => {
-    console.log("📊 Contacts state changed:", {
-      length: contacts.length,
-      names: contacts
-        .map((contact: any) => `${contact.firstName} ${contact.lastName}`)
-        .slice(0, 3),
-      timestamp: new Date().toLocaleTimeString(),
-    });
-  }, [contacts]);
 
   // Address form renderer
   const renderAddressForm = (prefix: string, label: string) => (
@@ -714,17 +647,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                   value={selectedContact}
                   placeholder="Search and select a contact..."
                   options={(() => {
-                    console.log("🔍 [Contact Options] Building options:", {
-                      contactsLength: contacts.length,
-                      contactsLoading,
-                      currentContactSearch: `"${currentContactSearch}"`,
-                      contacts: contacts
-                        .map(
-                          (contact: any) =>
-                            `${contact.firstName} ${contact.lastName}`
-                        )
-                        .slice(0, 5),
-                    });
                     return contacts.map((contact: any) => ({
                       id: contact.id,
                       value: contact.id,
@@ -739,7 +661,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                   onSearch={searchContactsFunction}
                   onLoadMore={loadMoreContacts}
                   onChange={(value: string) => {
-                    console.log("Contact selected:", value);
                     setSelectedContact(value);
                   }}
                   data-testid="contact-select"
@@ -973,16 +894,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                           "Search and select company..."
                         )}
                         options={(() => {
-                          console.log(
-                            "🔍 [Contact Company Options] Building options:",
-                            {
-                              accountsLength: simpleAccounts.length,
-                              accountsLoading: simpleAccountsLoading,
-                              accounts: simpleAccounts
-                                .map((account: any) => account?.name)
-                                .slice(0, 5), // First 5 names only
-                            }
-                          );
                           return simpleAccounts.map((account: any) => ({
                             id: account.id,
                             value: account.id,
@@ -995,7 +906,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                         hasMore={simpleAccountsHasMore}
                         onLoadMore={loadMoreSimpleAccounts}
                         onChange={(value: string) => {
-                          console.log("Contact company selected:", value);
                           form.setFieldsValue({ contactCompanyId: value });
                         }}
                         error={simpleAccountsError}
@@ -1200,30 +1110,6 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                       />
                     </Form.Item>
                   </div>
-                  {/* Contact Role */}
-                  <div>
-                    <Form.Item
-                      name="contactRole"
-                      label={getTranslationFromI18nKeyAndLabel(
-                        "crm:contact.contactRole",
-                        "Contact Role"
-                      )}
-                    >
-                      <SearchableSelect
-                        name="contactRole"
-                        value={form.getFieldValue("contactRole")}
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          "crm:contact.selectContactRole",
-                          "Select Contact Role"
-                        )}
-                        options={contactRoles as any}
-                        onChange={(value) => {
-                          form.setFieldsValue({ contactRole: value });
-                        }}
-                        data-testid="contact-role-select"
-                      />
-                    </Form.Item>
-                  </div>
                 </div>
               </div>
 
@@ -1274,26 +1160,9 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                     )}
                     <span className="gba:text-red-500 gba:ml-1">*</span>
                   </Label>
-                  <OwnerSelector
-                    value={form.getFieldValue("contactOwnerEmployee") || ""}
-                    onChange={(value: string) => {
-                      console.log("🔍 Contact Owner Selected:", value);
-                      form.setFieldsValue({ contactOwnerEmployee: value });
-                    }}
-                    employees={contactEmployeePositions as any}
-                    loading={contactEmployeePositionsLoading}
-                    hasMore={contactEmployeePositionsHasMore}
-                    onLoadMore={loadMoreContactEmployeePositions}
-                    onSearch={(searchTerm: string) => {
-                      searchContactEmployeePositions(searchTerm);
-                    }}
-                    error={contactEmployeePositionsError}
-                    dataTestId="contact-owner-select"
-                  />
-                  {/* Hidden input to ensure form captures the value */}
                   <Form.Item
                     name="contactOwnerEmployee"
-                    style={{ display: "none" }}
+                    style={{ margin: 0 }}
                     rules={[
                       {
                         required: true,
@@ -1304,7 +1173,23 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                       },
                     ]}
                   >
-                    <input type="hidden" />
+                    <OwnerSelector
+                      value={form.getFieldValue("contactOwnerEmployee") || ""}
+                      onChange={(value: string) => {
+                        form.setFieldsValue({ contactOwnerEmployee: value });
+                        // Force form to update
+                        form.validateFields(["contactOwnerEmployee"]);
+                      }}
+                      employees={contactEmployeePositions as any}
+                      loading={contactEmployeePositionsLoading}
+                      hasMore={contactEmployeePositionsHasMore}
+                      onLoadMore={loadMoreContactEmployeePositions}
+                      onSearch={(searchTerm: string) => {
+                        searchContactEmployeePositions(searchTerm);
+                      }}
+                      error={contactEmployeePositionsError}
+                      dataTestId="contact-owner-select"
+                    />
                   </Form.Item>
                 </div>
               </div>

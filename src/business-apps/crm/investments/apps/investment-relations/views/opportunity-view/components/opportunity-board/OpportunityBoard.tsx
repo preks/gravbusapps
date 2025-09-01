@@ -32,13 +32,15 @@ import { startProcess } from '@/common/utils/start-process';
 
 interface OpportunityBoardProps extends BusinessAppContextProps {
   // Board loads its own stages based on selected pipeline
+  dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
 }
 
 
 
 export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({ 
   accessToken,
-  userInfo
+  userInfo,
+  dealType = "INVESTMENT_DEAL" // Default to investment deals
 }) => {
   // Filter states
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
@@ -66,7 +68,8 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => {
     const variables: InvestmentOpportunityQueryVariables = {
       limit: 200, // Higher limit for board view
-      orderBy: [{ field: "createdAt", direction: "DESC" }],
+      orderBy: [{ field: "createdAt", direction: "DESC_NULLS_LAST" }],
+      dealType: dealType, // Filter by provided dealType
     };
 
     // Add pipeline filter - always filter by selected pipeline
@@ -89,7 +92,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
     // "all" mode: no employee filtering - shows all opportunities
 
     return variables;
-  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId]);
+  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId, dealType]);
 
   // Load opportunities data
   const loadData = useCallback(async () => {
@@ -266,13 +269,13 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   }, [opportunities]);
 
   // Handle drag end events
-  const handleDragEnd = useCallback((itemId: string, toStageId: string, position?: number) => {
+  const handleDragEnd = useCallback((itemId: string, toStageId: string) => {
     const opportunity = opportunities.find(op => op.id === itemId);
     if (!opportunity) return;
 
     const currentStageId = opportunity.opportunityPipelineStage?.id;
     if (currentStageId === toStageId) {
-      // Same stage - handle reordering if needed (position parameter)
+      // Same stage - handle reordering if needed
       // Note: Reordering is disabled via allowReorderWithinStage={false}
       return;
     } else {
@@ -304,7 +307,6 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
         payload: {
           opportunityId: itemId,
           targetStageRef: toStageId,
-          ...(position !== undefined && { position })
         },
         builderType: 'NATIVE_SCREEN',
       });
@@ -368,14 +370,12 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
               </div>
             </RadioGroup>
           </div>
-
-          {/* Pipeline Selection */}
+        </div>
+        <div className="gba:mt-4 gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
+          {/* Pipeline Selection on second line */}
           <div className="gba:flex gba:flex-col gba:gap-2">
             <Label className="gba:text-sm gba:font-medium">Pipeline:</Label>
-            <Select
-              value={selectedPipelineId}
-              onValueChange={handlePipelineChange}
-            >
+            <Select value={selectedPipelineId} onValueChange={handlePipelineChange}>
               <SelectTrigger className="gba:w-48">
                 <SelectValue placeholder="Select Pipeline" />
               </SelectTrigger>

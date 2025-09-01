@@ -14,7 +14,7 @@ import AdditionalInformationSection from "./AdditionalInformationSection";
 const prefixDataTestId = "InvestmentOpportunityForm";
 
 const OpportunityFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } =
+  const { formValues, onSubmit, onCancel, isLoading, error, businessAppContext } =
     useOpportunityFormContext();
 
   // Check if all mandatory fields are filled for Investment Opportunity
@@ -38,6 +38,10 @@ const OpportunityFormComponent: React.FC = () => {
     try {
       await onSubmit(formValues);
 
+      // Determine dealType: default to "INVESTMENT_DEAL" unless business context provides one
+      const contextDealType = businessAppContext.additionalData?.dealType;
+      const finalDealType = contextDealType || formValues.dealType || "INVESTMENT_DEAL";
+
       // Prepare comprehensive investment opportunity payload following the API structure
       const investmentOpportunityPayload: any = {
         sourceApp: "IRM",
@@ -47,7 +51,7 @@ const OpportunityFormComponent: React.FC = () => {
         investmentName: toStringOrUndefined(formValues.name), // Same as name for investment context
         code: toStringOrUndefined(formValues.code),
         businessKey: toStringOrUndefined(formValues.businessKey),
-        dealType: toStringOrUndefined(formValues.dealType),
+        dealType: finalDealType,
 
         // Financial information
         estimatedAmount: formValues.estimatedAmount
@@ -106,6 +110,9 @@ const OpportunityFormComponent: React.FC = () => {
         account: toStringOrUndefined(
           formValues.accountId || formValues.account
         ),
+
+        // Record state (convert back to lowercase for API)
+        recordState: toStringOrUndefined(formValues.recordState)?.toLowerCase(),
 
         // Additional properties (empty object as per API)
         additionalProperties: {},

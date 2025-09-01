@@ -108,7 +108,8 @@ const transformOverviewData = (
     totalCounts: {
       leads: leads.InvestmentLeadAggregate?.aggregate?.count || 0,
       accounts: accounts.InvestmentAccountAggregate?.aggregate?.count || 0,
-      opportunities: opportunities.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+      opportunities:
+        opportunities.InvestmentOpportunityAggregate?.aggregate?.count || 0,
       contacts: contacts.InvestmentContactAggregate?.aggregate?.count || 0,
     },
     recentActivity: {
@@ -124,7 +125,9 @@ const transformOverviewData = (
       newAccountsThisWeek: (accounts.InvestmentAccount || []).filter(
         (account: any) => new Date(account.createdAt) > oneWeekAgo
       ).length,
-      accountsWithWonOpportunitiesThisWeek: (accounts.InvestmentAccount || []).filter(
+      accountsWithWonOpportunitiesThisWeek: (
+        accounts.InvestmentAccount || []
+      ).filter(
         (account: any) =>
           new Date(account.createdAt) > oneWeekAgo &&
           (opportunities.InvestmentOpportunity || []).some(
@@ -134,10 +137,12 @@ const transformOverviewData = (
                 opp.opportunityStatus?.value?.toLowerCase().includes("won"))
           )
       ).length,
-      newOpportunitiesThisWeek: (opportunities.InvestmentOpportunity || []).filter(
-        (opp: any) => new Date(opp.createdAt) > oneWeekAgo
-      ).length,
-      wonOpportunitiesThisWeek: (opportunities.InvestmentOpportunity || []).filter(
+      newOpportunitiesThisWeek: (
+        opportunities.InvestmentOpportunity || []
+      ).filter((opp: any) => new Date(opp.createdAt) > oneWeekAgo).length,
+      wonOpportunitiesThisWeek: (
+        opportunities.InvestmentOpportunity || []
+      ).filter(
         (opp: any) =>
           new Date(opp.createdAt) > oneWeekAgo &&
           (opp.opportunityStatus?.code === "WON" ||
@@ -146,13 +151,16 @@ const transformOverviewData = (
       newContactsThisWeek: (contacts.InvestmentContact || []).filter(
         (contact: any) => new Date(contact.createdAt) > oneWeekAgo
       ).length,
-      contactsRelatedToWonAccountsThisWeek: (contacts.InvestmentContact || []).filter(
+      contactsRelatedToWonAccountsThisWeek: (
+        contacts.InvestmentContact || []
+      ).filter(
         (contact: any) =>
           new Date(contact.createdAt) > oneWeekAgo &&
           contact.investmentAccountContact?.[0]?.accountId &&
           (opportunities.InvestmentOpportunity || []).some(
             (opp: any) =>
-              opp.accountId === contact.investmentAccountContact?.[0]?.accountId &&
+              opp.accountId ===
+                contact.investmentAccountContact?.[0]?.accountId &&
               (opp.opportunityStatus?.code === "WON" ||
                 opp.opportunityStatus?.value?.toLowerCase().includes("won"))
           )
@@ -190,6 +198,15 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
       totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0,
   }));
 
+  // Group by source type
+  const sourceTypeGroups = groupByField(leads, "leadSourceType");
+  const leadsBySourceType = sourceTypeGroups.map((group) => ({
+    sourceType: group.key || "Unknown",
+    count: group.count,
+    percentage:
+      totalLeads > 0 ? Math.round((group.count / totalLeads) * 100) : 0,
+  }));
+
   // Group by rating
   const ratingGroups = groupByField(leads, "leadRating", "value");
   const leadsByRating = ratingGroups.map((group) => ({
@@ -218,6 +235,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
     totalLeads,
     leadsByStatus,
     leadsBySource,
+    leadsBySourceType,
     leadsByRating,
     leadsByCompanySize,
     leadsOverTime,
@@ -346,7 +364,8 @@ const transformAccountsData = (
 
 const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
   const opportunities = data.InvestmentOpportunity || [];
-  const totalOpportunities = data.InvestmentOpportunityAggregate?.aggregate?.count || 0;
+  const totalOpportunities =
+    data.InvestmentOpportunityAggregate?.aggregate?.count || 0;
   const totalValue = opportunities.reduce(
     (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
     0
@@ -436,7 +455,15 @@ const transformContactsData = (data: any): ContactsAnalytics => {
     contacts.filter((c: any) => c.investmentAccountContact?.[0]?.account),
     "investmentAccountContact",
     undefined
-  ).map(g => ({ key: (contacts.find((c:any)=> (c.investmentAccountContact?.[0]?.account?.name) && c.investmentAccountContact?.[0]?.account?.name === g.key)?.investmentAccountContact?.[0]?.account?.name) || g.key, count: g.count }));
+  ).map((g) => ({
+    key:
+      contacts.find(
+        (c: any) =>
+          c.investmentAccountContact?.[0]?.account?.name &&
+          c.investmentAccountContact?.[0]?.account?.name === g.key
+      )?.investmentAccountContact?.[0]?.account?.name || g.key,
+    count: g.count,
+  }));
   const contactsByAccount = accountGroups
     .sort((a, b) => b.count - a.count)
     .slice(0, 10)
