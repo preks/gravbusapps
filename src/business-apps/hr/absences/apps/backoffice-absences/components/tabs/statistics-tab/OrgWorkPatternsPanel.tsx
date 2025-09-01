@@ -88,13 +88,13 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
   return (
     <Card>
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base">Work Patterns</CardTitle>
+        <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.work_patterns_title', 'Work Patterns')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0">
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
           {/* Day of Week Preferences */}
           <div>
-            <div className="gba:text-sm gba:font-medium gba:mb-2">Day of Week Preferences</div>
+            <div className="gba:text-sm gba:font-medium gba:mb-2">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.work_patterns_dow', 'Day of Week Preferences')}</div>
             <div className="gba:space-y-2.5">
               {dayLabels.map((label, i) => (
                 <div key={label} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-dow-${i}`}>
@@ -103,12 +103,21 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
                 </div>
               ))}
             </div>
-            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">Most common: {dayLabels[dayPercents.indexOf(Math.max(...dayPercents))]} ({Math.max(...dayPercents)}% of all absences)</div>
+            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">{
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_hub.work_patterns_most_common',
+                `Most common: ${dayLabels[dayPercents.indexOf(Math.max(...dayPercents))]} (${Math.max(...dayPercents)}% of all absences)`,
+                {
+                  day: dayLabels[dayPercents.indexOf(Math.max(...dayPercents))],
+                  percent: Math.max(...dayPercents)
+                }
+              )
+            }</div>
           </div>
 
           {/* Monthly Absence Patterns */}
           <div>
-            <div className="gba:text-sm gba:font-medium gba:mb-2">Monthly Absence Patterns</div>
+            <div className="gba:text-sm gba:font-medium gba:mb-2">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.work_patterns_monthly', 'Monthly Absence Patterns')}</div>
             <div className="gba:space-y-2.5">
               {monthLabels.map((m, i) => (
                 <div key={m} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-month-${i}`}>
@@ -117,11 +126,33 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
                 </div>
               ))}
             </div>
-            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">Peak season: {peakMonth.label} ({peakMonth.percent}% of all absences) · Lowest: {lowMonth.label} ({lowMonth.percent}% of all absences)</div>
+            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">{
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_hub.work_patterns_peak_low',
+                `Peak season: ${peakMonth.label} (${peakMonth.percent}% of all absences) · Lowest: ${lowMonth.label} (${lowMonth.percent}% of all absences)`,
+                {
+                  peak: peakMonth.label,
+                  peakPercent: peakMonth.percent,
+                  low: lowMonth.label,
+                  lowPercent: lowMonth.percent
+                }
+              )
+            }</div>
           </div>
         </div>
         <div className="gba:mt-4 gba:text-xs gba:bg-blue-50 gba:border gba:border-blue-100 gba:rounded gba:p-3" data-testid="work-patterns-seasonal-insight">
-          Seasonal Insight: Peak month {peakMonth.label} ({peakMonth.percent}% of all absences) · Lowest {lowMonth.label} ({lowMonth.percent}% of all absences). Consider staffing adjustments during peak periods.
+          {
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.work_patterns_seasonal_insight',
+              `Seasonal Insight: Peak month ${peakMonth.label} (${peakMonth.percent}% of all absences) · Lowest ${lowMonth.label} (${lowMonth.percent}% of all absences). Consider staffing adjustments during peak periods.`,
+              {
+                peak: peakMonth.label,
+                peakPercent: peakMonth.percent,
+                low: lowMonth.label,
+                lowPercent: lowMonth.percent
+              }
+            )
+          }
         </div>
         <div className="gba:mt-2 gba:text-xs gba:text-gray-600" data-testid="work-patterns-status-note">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved_counts', 'Statuses considered: APPROVED; values represent request counts.')}

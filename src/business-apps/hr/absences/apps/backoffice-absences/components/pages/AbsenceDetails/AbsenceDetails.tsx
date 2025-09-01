@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect } fro
 import dayjs from 'dayjs';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceList } from '../../tabs/absence-list-tab/AbsenceList/AbsenceList';
 import { DashboardData } from '../../../types';
@@ -530,7 +531,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           </Button>
         </div>
         <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-          <div className="gba:text-gray-600">Loading absence details...</div>
+          <div className="gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading_absence_details', 'Loading absence details...')}</div>
         </div>
       </div>
     );
@@ -547,7 +548,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           </Button>
         </div>
         <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg gba:p-4">
-          <div className="gba:text-red-800 gba:font-medium">Error loading absence details</div>
+          <div className="gba:text-red-800 gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading_absence_details', 'Error loading absence details')}</div>
           <div className="gba:text-red-600 gba:text-sm gba:mt-1">{dashboardData.error}</div>
         </div>
       </div>
@@ -640,49 +641,49 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
             <Card data-testid="details-kpi-total-days">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Total Days</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_days', 'Total Days')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-days-value">
                   {dynamicAnalysis.totalDays}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-total-requests">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Total Requests</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_requests', 'Total Requests')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-requests-value">
                   {dynamicAnalysis.totalRequests}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-employees">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Employees</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.employees', 'Employees')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-employees-value">
                   {dynamicAnalysis.uniqueEmployees}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-avg-days-per-employee">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Avg Days/Employee</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_employee', 'Avg Days/Employee')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-avg-days-per-employee-value">
                   {dynamicAnalysis.avgDaysPerEmployee}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Filtered Results</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
               </div>
@@ -770,7 +771,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             {/* Performance Card */}
             <Card>
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Performance</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.performance', 'Performance')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-xs gba:text-gray-600 gba:space-y-1">
@@ -783,7 +784,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             {/* Status Distribution Card */}
             <Card>
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Status Distribution</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.status_distribution', 'Status Distribution')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 {Object.keys(dynamicAnalysis.statusBreakdown).length > 0 ? (
@@ -795,7 +796,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     ))}
           </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">No status data</div>
+                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_status_data', 'No status data')}</div>
                 )}
               </CardContent>
             </Card>
@@ -803,7 +804,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             {/* Department Distribution Card */}
             <Card>
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">Department Distribution</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.department_distribution', 'Department Distribution')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 {Object.keys(dynamicAnalysis.departmentBreakdown).length > 0 ? (
@@ -815,7 +816,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     ))}
               </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">No department data</div>
+                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_department_data', 'No department data')}</div>
                 )}
               </CardContent>
             </Card>

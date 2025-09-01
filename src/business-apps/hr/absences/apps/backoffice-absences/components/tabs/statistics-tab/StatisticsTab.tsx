@@ -188,7 +188,7 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
         </div>
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-leave-type-distribution">
           <Card>
-            <CardHeader className="gba:pb-2"><CardTitle className="gba:text-sm">Leave Type Distribution by Year ({currentYear})</CardTitle></CardHeader>
+            <CardHeader className="gba:pb-2"><CardTitle className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.leave_type_title', `Leave Type Distribution by Year (${currentYear})`, { year: currentYear })}</CardTitle></CardHeader>
             <CardContent className="gba:pt-0">
               <div className="gba:flex gba:flex-col gba:gap-2.5">
                 {Object.keys(typeCounts).length === 0 ? (

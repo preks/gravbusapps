@@ -112,7 +112,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
   return (
     <Card data-testid="org-year-comparison-card">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base">Year-over-Year Comparison</CardTitle>
+        <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.yoy_title', 'Year-over-Year Comparison')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0">
         <div className="gba:space-y-2.5">
