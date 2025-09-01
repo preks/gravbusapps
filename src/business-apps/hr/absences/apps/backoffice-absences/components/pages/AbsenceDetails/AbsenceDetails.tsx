@@ -8,6 +8,7 @@ import { DashboardData } from '../../../types';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getOverlapAggregates } from '../../../utils/getOverlapAggregates';
 import { toUtcDayRangeISO } from '../../../utils/dateUtils';
+import { getOverlapStatusBreakdown, OverlapStatusResult } from '../../../utils/getOverlapStatusBreakdown';
 
 interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string;
@@ -46,6 +47,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   const [serverTotalRequests, setServerTotalRequests] = useState<number | null>(null);
   const [serverTotalDays, setServerTotalDays] = useState<number | null>(null);
   const [serverUniqueEmployees, setServerUniqueEmployees] = useState<number | null>(null);
+  const [serverStatusBreakdown, setServerStatusBreakdown] = useState<OverlapStatusResult | null>(null);
 
   // 🚀 PHASE 2: Track current filtered data for dynamic analysis
   const [currentFilteredData, setCurrentFilteredData] = useState<{
@@ -55,34 +57,107 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     appliedFilters: any;
   } | null>(null);
 
+  // Build effective filters for server/local calculations
+  const buildEffectiveFilters = useCallback(() => {
+    const selected = currentFilteredData?.appliedFilters?.selectedFilters || [];
+    const departmentIds: string[] = [];
+    let includeNoDepartment = false;
+    const statuses: string[] = [];
+    const employeeIds: string[] = [];
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+    selected.forEach((token: string) => {
+      if (token.startsWith('department-')) {
+        const id = token.replace('department-', '');
+        if (id === 'no-department') includeNoDepartment = true;
+        else if (id) departmentIds.push(id);
+      } else if (token.startsWith('status-')) {
+        const s = token.replace('status-', '');
+        if (s) statuses.push(s.toUpperCase());
+      } else if (token && uuidRegex.test(token)) {
+        employeeIds.push(token);
+      }
+    });
+
+    const activeStart = (currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate) ?? dayjs().startOf('year').format('YYYY-MM-DD');
+    const activeEnd = (currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate) ?? dayjs().endOf('year').format('YYYY-MM-DD');
+    const { startIso, endIso } = toUtcDayRangeISO(activeStart, activeEnd);
+
+    return {
+      activeStart,
+      activeEnd,
+      startIso: startIso || dayjs(activeStart).startOf('day').toISOString(),
+      endIso: endIso || dayjs(activeEnd).endOf('day').toISOString(),
+      departmentIds,
+      includeNoDepartment,
+      statuses,
+      employeeIds
+    };
+  }, [currentFilteredData?.appliedFilters?.currentDateRange?.startDate, currentFilteredData?.appliedFilters?.currentDateRange?.endDate, currentFilteredData?.appliedFilters?.selectedFilters, startDate, endDate]);
+
   // Load aggregates when filters change (date, department/status)
   const loadAggregates = useCallback(() => {
     if (!accessToken) return;
+    const ef = buildEffectiveFilters();
+    const normalizedStatus = status ? String(status).toUpperCase() : null;
+    const effectiveStatuses = ef.statuses && ef.statuses.length > 0 ? ef.statuses : (normalizedStatus ? [normalizedStatus] : []);
 
-    // Determine active date range from table filters if available, otherwise from props
-    const activeStart = (currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate) ?? dayjs().startOf('year').format('YYYY-MM-DD');
-    const activeEnd = (currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate) ?? dayjs().endOf('year').format('YYYY-MM-DD');
-
-    const { startIso, endIso } = toUtcDayRangeISO(activeStart, activeEnd);
+    // Determine effective department filtering strategy
+    const hasDynamicDept = (ef.departmentIds && ef.departmentIds.length > 0) || ef.includeNoDepartment;
     (async () => {
       try {
         const result = await getOverlapAggregates(graphQLClient, {
-          startIso: startIso || dayjs(activeStart).startOf('day').toISOString(),
-          endIso: endIso || dayjs(activeEnd).endOf('day').toISOString(),
-          departmentId: departmentId || null,
-          departmentName: department || null,
-          status: status || null
+          startIso: ef.startIso,
+          endIso: ef.endIso,
+          // Only apply navigation-provided dept when no dynamic dept filters are active
+          departmentId: hasDynamicDept ? undefined as any : (departmentId || null),
+          departmentName: hasDynamicDept ? undefined as any : (department || null),
+          departmentIds: ef.departmentIds.length > 0 ? ef.departmentIds : undefined,
+          includeNoDepartment: ef.includeNoDepartment || undefined,
+          statuses: effectiveStatuses.length > 0 ? effectiveStatuses : undefined,
+          employeeIds: ef.employeeIds.length > 0 ? ef.employeeIds : undefined,
+          groupIds: (currentFilteredData?.appliedFilters?.selectedFilters || [])
+            .filter((t: string) => t.startsWith('group-'))
+            .map((t: string) => t.replace('group-', '')),
+          status: !effectiveStatuses.length && normalizedStatus ? normalizedStatus : undefined
         });
         setServerTotalRequests(result.totalRequests);
         setServerTotalDays(result.totalDays);
         setServerUniqueEmployees(result.distinctEmployees);
+
+        // Align Status Distribution with dashboard via server aggregates
+        const singleStatus = effectiveStatuses.length === 1 ? effectiveStatuses[0] : null;
+        const statusRes = await getOverlapStatusBreakdown(graphQLClient, {
+          startIso: ef.startIso,
+          endIso: ef.endIso,
+          // Dept rules: prefer exact dynamic selection; if none selected, fall back to navigation department
+          departmentId: (ef.departmentIds.length === 1 ? ef.departmentIds[0] : undefined) || (hasDynamicDept ? null : (departmentId || null)),
+          departmentName: hasDynamicDept ? null : (department || null),
+          departmentIds: ef.departmentIds.length > 0 ? ef.departmentIds : undefined,
+          includeNoDepartment: ef.includeNoDepartment || undefined,
+          employeeIds: ef.employeeIds.length > 0 ? ef.employeeIds : undefined,
+          status: singleStatus
+        });
+        setServerStatusBreakdown(statusRes);
       } catch (e) {
         setServerTotalRequests(null);
         setServerTotalDays(null);
         setServerUniqueEmployees(null);
+        setServerStatusBreakdown(null);
       }
     })();
-  }, [accessToken, graphQLClient, departmentId, department, status, startDate, endDate, currentFilteredData?.appliedFilters?.currentDateRange?.startDate, currentFilteredData?.appliedFilters?.currentDateRange?.endDate]);
+  }, [
+    accessToken,
+    graphQLClient,
+    departmentId,
+    department,
+    status,
+    startDate,
+    endDate,
+    currentFilteredData?.appliedFilters?.currentDateRange?.startDate,
+    currentFilteredData?.appliedFilters?.currentDateRange?.endDate,
+    JSON.stringify(currentFilteredData?.appliedFilters?.selectedFilters || [])
+  ]);
 
   // 🚀 PHASE 2: Callback to receive filtered data from AbsenceList
   const handleDataChange = useCallback((data: {
@@ -104,6 +179,24 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     // 🔧 FIX: Use current date ranges from table if available, otherwise use props
     const currentStartDate = currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate;
     const currentEndDate = currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate;
+    const selected = currentFilteredData?.appliedFilters?.selectedFilters || [];
+    const selectedDeptIds: string[] = [];
+    let includeNoDepartment = false;
+    const selectedStatuses: string[] = [];
+    const selectedEmployeeIds: string[] = [];
+
+    selected.forEach((token: string) => {
+      if (token.startsWith('department-')) {
+        const id = token.replace('department-', '');
+        if (id === 'no-department') includeNoDepartment = true;
+        else if (id) selectedDeptIds.push(id);
+      } else if (token.startsWith('status-')) {
+        const s = token.replace('status-', '');
+        if (s) selectedStatuses.push(s.toUpperCase());
+      } else if (token && token.length > 0 && !token.includes('-')) {
+        selectedEmployeeIds.push(token);
+      }
+    });
     
     if (!currentStartDate || !currentEndDate || !dashboardData.rawAbsences) {
       return { 
@@ -125,7 +218,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     const rangeStart = rs ? new Date(rs) : new Date(dayjs(currentStartDate || dayjs().startOf('month').format('YYYY-MM-DD')).toISOString());
     const rangeEnd = re ? new Date(re) : new Date(dayjs(currentEndDate || dayjs().endOf('month').format('YYYY-MM-DD')).toISOString());
 
-    // Filter absences using overlap logic AND department filter
+    // Filter absences using overlap logic AND department/status/employee filters
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
       const absenceStart = new Date(absence.startDate);
       const absenceEnd = new Date(absence.endDate);
@@ -134,22 +227,27 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       // absence start <= month end AND absence end >= month start
       const dateOverlaps = absenceStart <= rangeEnd && absenceEnd >= rangeStart;
       
-      // Apply department filter if provided
-      if (department) {
-        const employeeDepartment = absence.employee?.employeePosition?.organizationalUnit?.name;
-        
-        // Special handling for "No Department" case
+      // Determine effective department logic: prefer dynamic selections; else navigation prop
+      const employeeDepartment = absence.employee?.employeePosition?.organizationalUnit;
+      if (selectedDeptIds.length > 0 || includeNoDepartment) {
+        const deptMatch = (selectedDeptIds.length > 0 && employeeDepartment?.id && selectedDeptIds.includes(employeeDepartment.id))
+          || (includeNoDepartment && (!employeeDepartment || !employeeDepartment.id));
+        if (!deptMatch) return false;
+      } else if (department) {
+        const deptName = employeeDepartment?.name;
         if (department === 'NO_DEPARTMENT_SPECIAL') {
-          return dateOverlaps && (!employeeDepartment || employeeDepartment.trim() === '');
+          if (deptName && deptName.trim() !== '') return false;
         } else {
-          return dateOverlaps && employeeDepartment === department;
+          if (deptName !== department) return false;
         }
       }
       
-      // Apply status filter if provided  
-      if (status) {
-        return dateOverlaps && absence.status === status;
-      }
+      // Apply status filter (dynamic or navigation)
+      const effectiveStatusSet = new Set(selectedStatuses.length > 0 ? selectedStatuses : (status ? [String(status).toUpperCase()] : []));
+      if (effectiveStatusSet.size > 0 && !effectiveStatusSet.has(String(absence.status || '').toUpperCase())) return false;
+
+      // Apply employee filter if present
+      if (selectedEmployeeIds.length > 0 && !selectedEmployeeIds.includes(absence.employee?.id)) return false;
       
       return dateOverlaps;
     });
@@ -234,21 +332,40 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     const filteredAbsences = sourceData;
 
     // Calculate core metrics
-    // Always use server aggregates for KPIs to ensure single source of truth
-    const totalRequests = serverTotalRequests ?? (typeof currentFilteredData?.total === 'number' ? currentFilteredData.total : 0);
-    const totalDays = serverTotalDays ?? 0;
-    const uniqueEmployees = serverUniqueEmployees ?? 0;
+    // Prefer server aggregates; if missing/zero, fall back to current list to avoid stale zeros
+    const localTotalRequests = typeof currentFilteredData?.total === 'number' ? currentFilteredData.total : filteredAbsences.length;
+    const localTotalDays = filteredAbsences.reduce((sum: number, a: any) => sum + (Number(a.effectiveDays) || 0), 0);
+    const localUniqueEmployees = Array.from(new Set((filteredAbsences || []).map((a: any) => a?.employee?.id).filter(Boolean))).length;
+
+    const totalRequests = serverTotalRequests && serverTotalRequests > 0 ? serverTotalRequests : localTotalRequests;
+    const totalDays = serverTotalDays && serverTotalDays > 0 ? serverTotalDays : localTotalDays;
+    const uniqueEmployees = serverUniqueEmployees && serverUniqueEmployees > 0 ? serverUniqueEmployees : localUniqueEmployees;
 
     // Calculate averages
     const avgDaysPerEmployee = uniqueEmployees > 0 ? Math.round((totalDays / uniqueEmployees) * 100) / 100 : 0;
     const avgDaysPerRequest = totalRequests > 0 ? Math.round((totalDays / totalRequests) * 100) / 100 : 0;
 
-    // Status breakdown from current filtered data
-    const statusBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
-      const status = absence.status || 'Unknown';
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
+    // Status breakdown: prefer server aggregate for parity with dashboard, fallback to local
+    let statusBreakdown: Record<string, number> = {};
+    if (serverStatusBreakdown) {
+      statusBreakdown = {
+        APPROVED: serverStatusBreakdown.APPROVED.count,
+        PENDING: serverStatusBreakdown.PENDING.count,
+        REJECTED: serverStatusBreakdown.REJECTED.count,
+        CANCELLED: serverStatusBreakdown.CANCELLED.count
+      };
+      Object.keys(statusBreakdown).forEach((k) => {
+        if (!statusBreakdown[k as keyof typeof statusBreakdown]) {
+          delete statusBreakdown[k as keyof typeof statusBreakdown];
+        }
+      });
+    } else {
+      statusBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
+        const s = absence.status || 'Unknown';
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+      }, {});
+    }
 
     // Department breakdown from current filtered data
     const departmentBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
@@ -283,7 +400,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     JSON.stringify(currentFilteredData?.appliedFilters || {}),
     serverTotalRequests,
     serverTotalDays,
-    serverUniqueEmployees
+    serverUniqueEmployees,
+    JSON.stringify(serverStatusBreakdown || null)
   ]);
 
   // 🎯 Dynamic UI Labels - Show current filter state

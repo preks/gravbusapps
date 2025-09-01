@@ -100,21 +100,24 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
     );
   }
   
-  const absenceReport = filteredReports.find(report => 
-    report.title === 'Absence Reports'
-  );
+  // Fallback static report when mapping service is unavailable
+  const defaultReport: Report = {
+    id: 'absence-overview-default',
+    title: 'Absence Overview',
+    description: 'Open Absence Overview in platform',
+    icon: <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />,
+    category: 'Platform',
+    favorite: false,
+    url: '/platform/landing_screen/srn_absenceOverviewEntryScreen'
+  };
 
-  if (!absenceReport) {
-    return (
-      <div className="gba:p-4" data-testid="absence-reports-not-found">
-        <Alert>
-          <div>
-            <h4 className="gba:font-medium">No Absence Overview found</h4>
-          </div>
-        </Alert>
-      </div>
-    );
-  }
+  const absenceReport = filteredReports.find((report) =>
+    report.url === '/platform/landing_screen/srn_absenceOverviewEntryScreen' ||
+    report.title === 'Absence Overview' ||
+    report.title === 'Absence Reports'
+  ) || defaultReport;
+
+  // absenceReport always exists (defaults to static card)
 
   return (
     <div className="gba:bg-white gba:rounded-lg gba:border gba:border-gray-200" data-testid="absence-reports-container">

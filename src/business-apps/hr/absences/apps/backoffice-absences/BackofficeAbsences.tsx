@@ -5,7 +5,7 @@ import { PageLayout } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 
 // 🚀 OPTIMIZED: Using new organized tab structure following manager-absences pattern
-import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab } from './components/tabs';
+import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab, StatisticsTab } from './components/tabs';
 import { AbsenceDetails, EntitlementsDetails } from './components/pages';
 import { useDashboardData } from './hooks/useDashboardData';
 import { AbsenceDetailsFilter } from './types';
@@ -105,6 +105,11 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
       icon: <PiCalendarBlank className="w-5 h-5" />,
     },
     {
+      key: 'statistics',
+      label: 'Statistics',
+      icon: <PiChartBar className="w-5 h-5" />,
+    },
+    {
       key: 'reports',
       label: 'Reports',
       icon: <PiChartBar className="w-5 h-5" />,
@@ -147,6 +152,14 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
         return (
           <ReportsTab 
             accessToken={accessToken} 
+            userInfo={userInfo}
+            dashboardData={dashboardData}
+          />
+        );
+      case 'statistics':
+        return (
+          <StatisticsTab
+            accessToken={accessToken}
             userInfo={userInfo}
             dashboardData={dashboardData}
           />

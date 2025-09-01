@@ -8,7 +8,13 @@ export interface OverlapAggregateInput {
   endIso: string;
   departmentId?: string | null;
   departmentName?: string | null; // fallback only
-  status?: string | null;
+  status?: string | null; // single status (backwards compatible)
+  // Enhanced filters (optional)
+  departmentIds?: string[]; // multiple departments by ID
+  includeNoDepartment?: boolean; // include employees with no department
+  statuses?: string[]; // multiple statuses
+  employeeIds?: string[]; // specific employees
+  groupIds?: string[]; // absence group parentEntryIds
 }
 
 export interface OverlapAggregateResult {
@@ -27,7 +33,7 @@ export const getOverlapAggregates = async (
   client: GraphQLRequester,
   params: OverlapAggregateInput
 ): Promise<OverlapAggregateResult> => {
-  const { startIso, endIso, departmentId, departmentName, status } = params;
+  const { startIso, endIso, departmentId, departmentName, status, departmentIds, includeNoDepartment, statuses, employeeIds, groupIds } = params;
 
   const where: any = {
     _and: [
@@ -37,6 +43,7 @@ export const getOverlapAggregates = async (
     ]
   };
 
+  // Department filtering (single legacy fields)
   if (departmentId) {
     where._and.push({ employee: { employeePosition: { organizationalUnit: { id: { _eq: departmentId } } } } });
   } else if (departmentName === 'NO_DEPARTMENT_SPECIAL') {
@@ -45,8 +52,39 @@ export const getOverlapAggregates = async (
     where._and.push({ employee: { employeePosition: { organizationalUnit: { name: { _eq: departmentName } } } } });
   }
 
+  // Department filtering (enhanced multi-select)
+  if ((departmentIds && departmentIds.length > 0) || includeNoDepartment) {
+    const deptOr: any[] = [];
+    if (departmentIds && departmentIds.length > 0) {
+      deptOr.push({ organizationalUnit: { id: { _in: departmentIds } } });
+    }
+    if (includeNoDepartment) {
+      deptOr.push({ organizationalUnit: { _isNull: true } });
+    }
+    if (deptOr.length > 0) {
+      where._and.push({ employee: { employeePosition: { _or: deptOr } } });
+    }
+  }
+
   if (status) {
     where._and.push({ status: { _eq: status } });
+  }
+  if (statuses && statuses.length > 0) {
+    where._and.push({ status: { _in: statuses } });
+  }
+
+  // Employee filtering
+  if (employeeIds && employeeIds.length > 0) {
+    if (where.employee) {
+      where.employee = { ...where.employee, id: { _in: employeeIds } };
+    } else {
+      where.employee = { id: { _in: employeeIds } };
+    }
+  }
+
+  // Group filtering (type.parentEntryId)
+  if (groupIds && groupIds.length > 0) {
+    where._and.push({ type: { parentEntryId: { _in: groupIds } } });
   }
 
   const query = `

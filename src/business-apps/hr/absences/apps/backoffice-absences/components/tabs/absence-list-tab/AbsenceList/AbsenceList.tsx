@@ -460,7 +460,10 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     }
     
     // Add filters
-    const statusFilters = selectedFilters.filter(f => f.startsWith('status-')).map(f => f.replace('status-', ''));
+    const statusFilters = selectedFilters
+      .filter(f => f.startsWith('status-'))
+      .map(f => f.replace('status-', ''))
+      .map(s => String(s).toUpperCase());
     const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''));
     const departmentFilters = selectedFilters.filter(f => f.startsWith('department-')).map(f => f.replace('department-', ''));
     const employeeFilters = selectedFilters.filter(f => !f.startsWith('status-') && !f.startsWith('group-') && !f.startsWith('department-'));
@@ -609,8 +612,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   // ✅ FIX: Handle initialFilters.status (missing logic for pie chart drill-down)
   useEffect(() => {
     if (initialFilters?.status) {
-      const statusFilter = `status-${initialFilters.status}`;
-      
+      const statusFilter = `status-${String(initialFilters.status).toUpperCase()}`;
       setSelectedFilters(prev => {
         if (!prev.includes(statusFilter)) {
           const newFilters = [...prev, statusFilter];
