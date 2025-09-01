@@ -23,12 +23,12 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
       }
     }
     
-    # Pending expense requests (in approval status)
+    # Pending expense requests (status PENDING)
     pendingRequests: ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId}, 
         isDeleted: {_eq: false},
-        status: {_eq: "IN_APPROVAL"}
+        status: {_eq: "PENDING"}
       }
     ) {
       aggregate {
@@ -93,11 +93,11 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
       }
     }
     
-    # Pending finance requests (Verification Required status - for finance)
+    # Pending finance requests (status PENDING - for finance)
     pendingFinanceRequests: ExpenseRequestAggregate(
       where: {
         isDeleted: {_eq: false},
-        status: {_eq: "VERIFIED"}
+        status: {_eq: "PENDING"}
       }
     ) {
       aggregate {
