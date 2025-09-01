@@ -72,10 +72,12 @@ export const getOverlapStatusBreakdown = async (
   }
 
   // If a specific status filter is provided, we only count that status and return others as 0
-  const whereApproved: any = { _and: [...baseAnd, ...(status && status !== 'APPROVED' ? [{ id: { _eq: '__none__' } }] : [{ status: { _eq: 'APPROVED' } }])] };
-  const wherePending: any = { _and: [...baseAnd, ...(status && status !== 'PENDING' ? [{ id: { _eq: '__none__' } }] : [{ status: { _eq: 'PENDING' } }])] };
-  const whereRejected: any = { _and: [...baseAnd, ...(status && status !== 'REJECTED' ? [{ id: { _eq: '__none__' } }] : [{ status: { _eq: 'REJECTED' } }])] };
-  const whereCancelled: any = { _and: [...baseAnd, ...(status && status !== 'CANCELLED' ? [{ id: { _eq: '__none__' } }] : [{ status: { _eq: 'CANCELLED' } }])] };
+  // Use a type-safe contradiction clause to force zero results when we exclude a status
+  const impossibleClause = { _and: [{ id: { _isNull: true } }, { id: { _isNull: false } }] };
+  const whereApproved: any = { _and: [...baseAnd, ...(status && status !== 'APPROVED' ? [impossibleClause] : [{ status: { _eq: 'APPROVED' } }])] };
+  const wherePending: any = { _and: [...baseAnd, ...(status && status !== 'PENDING' ? [impossibleClause] : [{ status: { _eq: 'PENDING' } }])] };
+  const whereRejected: any = { _and: [...baseAnd, ...(status && status !== 'REJECTED' ? [impossibleClause] : [{ status: { _eq: 'REJECTED' } }])] };
+  const whereCancelled: any = { _and: [...baseAnd, ...(status && status !== 'CANCELLED' ? [impossibleClause] : [{ status: { _eq: 'CANCELLED' } }])] };
 
   const query = `
     query StatusBreakdown(

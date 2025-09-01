@@ -1,18 +1,41 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getMonthlyAggregates } from '../../../utils/getMonthlyAggregates';
 
 interface OrgWorkPatternsPanelProps {
   absences: any[];
+  accessToken?: string;
 }
 
 const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences }) => {
+export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences, accessToken }) => {
   const currentYear = dayjs().year();
+  const graphQLClient = useGraphQLClient(accessToken as any);
+  const [monthlyServer, setMonthlyServer] = useState<number[] | null>(null);
 
-  const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, totalDaysCount, peakMonth, lowMonth } = useMemo(() => {
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        if (!accessToken) return;
+        const { byMonthCount } = await getMonthlyAggregates(graphQLClient, currentYear);
+        if (mounted) {
+          setMonthlyServer(byMonthCount);
+        }
+      } catch (e) {
+        if (mounted) {
+          setMonthlyServer(null);
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, [graphQLClient, accessToken, currentYear]);
+
+  const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, peakMonth, lowMonth } = useMemo(() => {
     const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED');
 
     const dayCounts = Array(7).fill(0);
@@ -32,10 +55,11 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
     });
 
     const dayTotal = dayCounts.reduce((s:number,c:number)=>s+c,0) || 1;
-    const monthlyTotal = monthCounts.reduce((s:number,c:number)=>s+c,0) || 1;
+    const baseMonthCounts = monthlyServer ?? monthCounts;
+    const monthlyTotal = baseMonthCounts.reduce((s:number,c:number)=>s+c,0) || 1;
 
     const dayPercents = dayCounts.map((c:number)=> Math.round((c/dayTotal)*100));
-    const monthlyPercents = monthCounts.map((c:number)=> Math.round((c/monthlyTotal)*100));
+    const monthlyPercents = baseMonthCounts.map((c:number)=> Math.round((c/monthlyTotal)*100));
 
     const peakIdx = monthCounts.indexOf(Math.max(...monthCounts));
     const lowIdx = monthCounts.indexOf(Math.min(...monthCounts));
@@ -43,9 +67,8 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
     return {
       dayCounts,
       dayPercents,
-      monthlyCounts: monthCounts,
+      monthlyCounts: baseMonthCounts,
       monthlyPercents,
-      totalDaysCount: dayTotal,
       peakMonth: { label: monthLabels[peakIdx], percent: monthlyPercents[peakIdx] },
       lowMonth: { label: monthLabels[lowIdx], percent: monthlyPercents[lowIdx] }
     };
@@ -96,8 +119,11 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             <div className="gba:text-xs gba:text-gray-500 gba:mt-2">Peak season: {peakMonth.label} ({peakMonth.percent}% of all absences) · Lowest: {lowMonth.label} ({lowMonth.percent}% of all absences)</div>
           </div>
         </div>
-        <div className="gba:mt-4 gba:text-xs gba:bg-blue-50 gba:border gba:border-blue-100 gba:rounded gba:p-3">
-          Seasonal Insight: Summer months (Jun–Aug) show higher absence rates; consider staffing adjustments during peak periods.
+        <div className="gba:mt-4 gba:text-xs gba:bg-blue-50 gba:border gba:border-blue-100 gba:rounded gba:p-3" data-testid="work-patterns-seasonal-insight">
+          Seasonal Insight: Peak month {peakMonth.label} ({peakMonth.percent}% of all absences) · Lowest {lowMonth.label} ({lowMonth.percent}% of all absences). Consider staffing adjustments during peak periods.
+        </div>
+        <div className="gba:mt-2 gba:text-xs gba:text-gray-600" data-testid="work-patterns-status-note">
+          Statuses considered: APPROVED; values represent request counts.
         </div>
       </CardContent>
     </Card>

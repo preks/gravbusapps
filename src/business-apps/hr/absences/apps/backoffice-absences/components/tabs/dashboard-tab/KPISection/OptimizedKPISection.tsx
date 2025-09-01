@@ -162,7 +162,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   const handlePieChartClick = (data: any) => {
     if (!onNavigateToDetails || !data) return;
     
-    const status = data.status;
+    const status = String(data.status || '').toUpperCase();
     const dateRange = getDateRangeForTimeFilter();
     
     // Navigate to absence details with status and date filters

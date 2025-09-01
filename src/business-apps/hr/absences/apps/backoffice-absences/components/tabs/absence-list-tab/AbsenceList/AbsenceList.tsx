@@ -1171,42 +1171,95 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
         dataBody={
           <div data-testid="backoffice-absence-table-container">
             <AbsenceTable />
-            {/* Pagination Footer */}
-            <div 
-              className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4"
-              data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-            >
-              <div className="gba:text-sm" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                {total > 0 ? (
-                  <span>
-                    Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, total)} of {total}
-                  </span>
-                ) : (
-                  <span>Showing 0-0 of 0</span>
-                )}
-              </div>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handlePaginationChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-prev-button`}
-                >
-                  Prev
-                </Button>
-                <div className="gba:text-sm" data-testid={`${DATA_TEST_ID_PREFIX}-current-page`}>
-                  Page {currentPage}
+            {/* Pagination Footer - match manager absences design */}
+            {total > pageSize ? (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+                <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => handlePaginationChange(currentPage + 1)}
-                  disabled={currentPage * pageSize >= total}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-next-button`}
-                >
-                  Next
-                </Button>
+                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
+                    Page {currentPage} of {Math.ceil(total / pageSize)}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePaginationChange(1)}
+                      disabled={currentPage === 1}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to first page</span>
+                      ⟨⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePaginationChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to previous page</span>
+                      ⟨
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePaginationChange(currentPage + 1)}
+                      disabled={currentPage >= Math.ceil(total / pageSize)}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to next page</span>
+                      ⟩
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="gba:h-8 gba:w-8 gba:p-0"
+                      onClick={() => handlePaginationChange(Math.ceil(total / pageSize))}
+                      disabled={currentPage >= Math.ceil(total / pageSize)}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+                    >
+                      <span className="gba:sr-only">Go to last page</span>
+                      ⟩⟩
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {`${total} absences`}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         }
       />
