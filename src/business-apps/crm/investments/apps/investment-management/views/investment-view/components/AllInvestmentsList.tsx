@@ -203,7 +203,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`all-investment-update`}
                         accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick={true}
                         onClick={(e) => e.stopPropagation()}
                       />

@@ -8,7 +8,7 @@ import {
   EquityDetails,
   EquityInvestmentReports
 } from './components';
-import { CompanyInformation, ContactDetails } from '../shared';
+import { CompanyInformation, ContactDetails, UploadReportButton } from '../shared';
 import { DocumentManager, useDocumentDataController } from '@/components/document-manager';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -100,6 +100,29 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
+            {/* Reports Header with Upload Button */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.title', 'Investment Reports')}
+                </h3>
+                <p className="gba:text-sm gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.description', 'View and manage performance reports and financial documents')}
+                </p>
+              </div>
+              <UploadReportButton
+                investmentId={equityData?.investment?.id}
+                onUploadSuccess={(fileIds) => {
+                  console.log('Upload successful, file IDs:', fileIds);
+                  // Could trigger refresh of reports here if needed
+                }}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+              />
+            </div>
+
+            {/* Existing Reports Display */}
             {equityData?.equityInvestment?.id && (
               <EquityInvestmentReports
                 equityInvestmentId={equityData.equityInvestment.id}

@@ -10,7 +10,8 @@
     "publish:screen": "node ./scripts/publish-dev-screen.js",
     "publish:prod:screens": "npm run build:prod && node ./scripts/publish-prod-screens.js",
     "serve": "vite serve --port 5001 --strictPort",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@ant-design/charts": "^2.3.0",
@@ -19,7 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "^7.10.11",
-    "@newwork/nw-design-system": "^0.0.1-128",
+    "@newwork/nw-design-system": "^0.0.1-168",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.26.1",
     "clsx": "^2.1.1",
@@ -53,6 +54,8 @@
     "cors": "^2.8.5",
     "cross-env": "^7.0.3",
     "eslint": "^9.25.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "express": "^5.1.0",
@@ -63,6 +66,7 @@
     "postcss": "^8.5.5",
     "tw-animate-css": "^1.3.6",
     "uuid": "^10.0.0",
+    "typescript-eslint": "^8.11.0",
     "vite": "^6.3.5",
     "webpack-manifest-plugin": "^5.0.1",
     "yargs": "^17.7.2"

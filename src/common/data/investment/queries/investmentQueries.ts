@@ -2,6 +2,7 @@
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
+import { INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -23,7 +24,7 @@ export interface InvestmentQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -153,10 +154,7 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           }
         }
         investmentOpportunity {
-          id
-          code
-          name
-          
+          ${INVESTMENT_OPPORTUNITY_REF}
         }
         
         # Equity Investment specialization

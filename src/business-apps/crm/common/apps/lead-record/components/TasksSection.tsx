@@ -3,6 +3,8 @@ import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd'
 import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetSalesTasks, SalesTaskData } from '../queries/SalesTaskQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
@@ -158,18 +160,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     };
   }, [leadId]);
 
-  const handleAddTaskClick = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+
 
   const handleUpdateTask = (task: SalesTaskData) => {
     startProcess({
@@ -291,14 +282,21 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
+        <AppAction
+          accessToken={context.accessToken}
+          contextsArray={[FlowContextName.createCustomerTask]}
+          externalContextData={{ leadId }}
+          prefixDataTestId="lead-tasks"
+          emptyStateBehavior="enable"
         >
-          Add Task
-        </Button>
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

@@ -5,6 +5,7 @@ import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
 import { fetchEmployeeRule, fetchExpensePlanAndItems } from '../queries/ExpensePlanWizardQueries';
+import { getExpenseRulePkData } from '../../expense-request-wizard/ExpenseRequestWizardQueries';
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
 import { LocationData } from '../../expense-request-wizard/utils/types';
@@ -33,8 +34,8 @@ export interface ExpensePlanWizardContextProps {
   submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any, event: string, skipStep?: boolean) => boolean;
   showExpenseItem: boolean;
   setShowExpenseItem: (show: boolean) => void;
-  expenseItemParams: { expensePlanId?: string; itemCurrency?: string };
-  setExpenseItemParams: (params: { expensePlanId?: string; itemCurrency?: string }) => void;
+  expenseItemParams: { expensePlanId?: string; itemCurrency?: string; useSingleCurrency?: boolean };
+  setExpenseItemParams: (params: { expensePlanId?: string; itemCurrency?: string; useSingleCurrency?: boolean }) => void;
   showCreateItem: () => void;
   hideExpenseItem: (shouldRefetch?: boolean) => void;
   refetchExpenseData: () => Promise<void>;
@@ -44,8 +45,8 @@ export interface ExpensePlanWizardContextProps {
   setPayloadItemsLoaded: (loaded: boolean) => void;
   payloadItemIds: string[];
   setPayloadItemIds: (ids: string[]) => void;
-  skipAdvancePayment: boolean;
-  setSkipAdvancePayment: (skip: boolean) => void;
+  requestAdvancePayment: boolean;
+  setRequestAdvancePayment: (skip: boolean) => void;
 }
 
 /**
@@ -85,7 +86,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   
   // New state for ExpenseItem integration
   const [showExpenseItem, setShowExpenseItem] = useState<boolean>(false);
-  const [expenseItemParams, setExpenseItemParams] = useState<{ expensePlanId?: string; itemCurrency?: string }>({});
+  const [expenseItemParams, setExpenseItemParams] = useState<{ expensePlanId?: string; itemCurrency?: string; useSingleCurrency?: boolean }>({});
   // State for deleted items that need to persist across navigation
   const [deletedItems, setDeletedItems] = useState<any[]>([]);
   // State to track if payload items have been loaded
@@ -93,7 +94,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([]);
   // State for skip advance payment
-  const [skipAdvancePayment, setSkipAdvancePayment] = useState<boolean>(false);
+  const [requestAdvancePayment, setRequestAdvancePayment] = useState<boolean>(false);
   const graphqlClient = useGraphqlClient(accessToken);
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
 
@@ -159,6 +160,9 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       }
       
       setExpensePlanData(response);
+      // Ensure currentCurrency reflects freshly loaded plan data
+      const refreshedCurrencyId = response?.ExpensePlanByPk?.currency?.id || response?.ExpensePlanByPk?.currencyRef || null;
+      setCurrentCurrency(refreshedCurrencyId);
     } catch (error) {
       showToast(
         getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense plan data"),
@@ -275,16 +279,33 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   
   // Function to show expense item component with the necessary parameters
   const showCreateItem = () => {
-    if (expensePlanData?.ExpensePlanByPk) {
-      // Set the parameters for the ExpenseItem component
-      setExpenseItemParams({
-        expensePlanId: expensePlanData.ExpensePlanByPk.id,
-        itemCurrency: currentCurrency || (expensePlanData.ExpensePlanItem?.[0]?.currencyRef || "")
-      });
-      
-      // Show the ExpenseItem component
+    if (!employeeRuleId) return;
+    (async () => {
+      try {
+        const expenseRuleId = employeeRuleId;
+        const activeUserLocale = getCurrentActiveUserLocale();
+        let useSingleCurrencyValue: boolean | undefined = undefined;
+        let ruleCurrencyId: string | undefined = undefined;
+        if (expenseRuleId) {
+          const ruleResp = await graphqlClient.request(getExpenseRulePkData, { expenseRuleId, activeUserLocale });
+          useSingleCurrencyValue = ruleResp?.ExpenseRuleByPk?.useSingleCurrency;
+          ruleCurrencyId = ruleResp?.ExpenseRuleByPk?.currency?.id;
+        }
+        const currencyToSet = currentCurrency || (expensePlanData.ExpensePlanItem?.[0]?.currencyRef || "")
+        setExpenseItemParams({
+          expensePlanId: expensePlanData.ExpensePlanByPk.id,
+          itemCurrency: useSingleCurrencyValue ? (currencyToSet || ruleCurrencyId) : currencyToSet,
+          useSingleCurrency: !!useSingleCurrencyValue
+        });
+      } catch {
+        setExpenseItemParams({
+          expensePlanId: expensePlanData.ExpensePlanByPk.id,
+          itemCurrency: currentCurrency || (expensePlanData.ExpensePlanItem?.[0]?.currencyRef || ""),
+          useSingleCurrency: false
+        });
+      }
       setShowExpenseItem(true);
-    }
+    })();
   };
   
   // Function to hide expense item component and return to wizard
@@ -333,8 +354,8 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
     payloadItemIds,
     setPayloadItemIds,
     // Skip advance payment state
-    skipAdvancePayment,
-    setSkipAdvancePayment,
+    requestAdvancePayment,
+    setRequestAdvancePayment,
   };
 
   return (

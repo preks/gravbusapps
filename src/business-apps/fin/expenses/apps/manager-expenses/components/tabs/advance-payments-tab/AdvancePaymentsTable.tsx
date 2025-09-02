@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent, Alert } from '@newwork/nw-design-system';
-import { PiCheck, PiX } from 'react-icons/pi';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Alert, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import Pill from '@/components/pill/Pill';
-import AdvancePaymentDetails from './AdvancePaymentDetails';
-import { useMainViewAdvancePayments, type AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
-import { getAdvancePaymentStatusDisplay } from '../../../utils';
-import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 import { formatCurrency } from '../../../utils/currencyUtils';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
+import { useMainViewAdvancePayments } from '../../../hooks/useMainViewAdvancePayments';
+import { getAdvancePaymentStatusDisplay } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments';
+import AdvancePaymentDetails from './AdvancePaymentDetails';
+import Pill from '@/components/pill/Pill';
 
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
@@ -24,7 +25,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the advance payment filters hook for filter management
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the advance payment filters hook with accessToken and managerId for dynamic currency data
   const {
     searchTerm,
     setSearchTerm,
@@ -33,7 +37,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
-  } = useAdvancePaymentFilters();
+    currencyFilter,
+  } = useAdvancePaymentFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
 
   // Local state management
   const [selectedPayment, setSelectedPayment] = useState<AdvancePaymentItem | null>(null);
@@ -53,21 +61,24 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     rejecting,
     approvePayment,
     rejectPayment,
+    sorting,
+    updateSorting,
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize,
     searchTerm: searchTerm,
     currentStatusFilter: statusFilter || undefined,
     currentPage,
+    currentCurrencyFilter: currencyFilter,
   });
   
   // Filter payments based on search and status (already handled by the hook)
   const filteredPayments = useMemo(() => payments, [payments]);
 
-  // Handle table pagination and sorting changes
-  const handleTableChange = useCallback((pagination: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
+  // Handle page size changes
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1);
   }, []);
 
   const handleApprovePayment = useCallback(async (paymentId: string) => {
@@ -110,33 +121,96 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
 
     return (
-      <div>
+      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto">
           <Table data-testid="advance-payments-table">
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[8%]"></TableHead>
-                <TableHead className="gba:w-[25%]">
-                  Expense Plan
+                <TableHead 
+                  className="gba:w-[25%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.title')}
+                  data-testid="advance-payments-title-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Expense Plan</span>
+                    {sorting.field === 'expensePlan.title' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Start Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.startDate')}
+                  data-testid="advance-payments-start-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Start Date</span>
+                    {sorting.field === 'expensePlan.startDate' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  End Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.endDate')}
+                  data-testid="advance-payments-end-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>End Date</span>
+                    {sorting.field === 'expensePlan.endDate' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  Employee
+                <TableHead 
+                  className="gba:w-[20%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('expensePlan.employee.fullName')}
+                  data-testid="advance-payments-employee-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Employee</span>
+                    {sorting.field === 'expensePlan.employee.fullName' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Creation Date
+                <TableHead 
+                  className="gba:w-[15%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('createdAt')}
+                  data-testid="advance-payments-creation-date-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Creation Date</span>
+                    {sorting.field === 'createdAt' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%] gba:text-right">
-                  Amount
+                <TableHead 
+                  className="gba:w-[18%] gba:text-right gba:cursor-pointer" 
+                  onClick={() => updateSorting('amount')}
+                  data-testid="advance-payments-amount-header"
+                >
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
+                    <span>Amount</span>
+                    {sorting.field === 'amount' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%]">
-                  Status
+                <TableHead 
+                  className="gba:w-[18%] gba:cursor-pointer" 
+                  onClick={() => updateSorting('status')}
+                  data-testid="advance-payments-status-header"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span>Status</span>
+                    {sorting.field === 'status' && (
+                      sorting.order === 'ASC' ? <ArrowUpOutlined /> : <ArrowDownOutlined />
+                    )}
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -212,9 +286,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     }
                   })() : 'N/A'}
                 </TableCell>
-                <TableCell className="gba:text-right">
+                <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
                   <span className="gba:font-medium gba:text-sm">
-                    {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currency || 'EUR') : 'N/A'}
+                    {typeof record.amount === 'number' ? formatCurrency(
+                      record.amount, 
+                      (record.currencyRef || currencyFilter || '').replace('Currency:v1:', '')
+                    ) : 'N/A'}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -226,8 +303,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         </Table>
         </div>
         
-        {/* Pagination */}
-        {totalCount > pageSize && (
+        {/* Pagination - Always show when there are records */}
+        {totalCount > 0 && (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid="advance-payments-pagination">
             <div className="gba:text-sm gba:text-gray-600" data-testid="advance-payments-pagination-info">
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} advance payments`}
@@ -237,11 +314,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 <p className="gba:text-sm gba:font-medium">Rows per page</p>
                 <select
                   value={pageSize}
-                  onChange={(e) => {
-                    const newPageSize = Number(e.target.value);
-                    setPageSize(newPageSize);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="advance-payments-page-size-select"
                 >
@@ -263,7 +336,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-first-page-button"
                 >
                   <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
+                  ⟪⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -273,7 +346,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-previous-page-button"
                 >
                   <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
+                  ⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -283,7 +356,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-next-page-button"
                 >
                   <span className="gba:sr-only">Go to next page</span>
-                  ⟩
+                  ⟫
                 </Button>
                 <Button
                   variant="outline"
@@ -293,7 +366,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-last-page-button"
                 >
                   <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
+                  ⟫⟫
                 </Button>
               </div>
             </div>

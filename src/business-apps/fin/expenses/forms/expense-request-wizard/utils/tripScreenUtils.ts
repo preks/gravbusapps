@@ -296,12 +296,12 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   if (!array) return null;
   
   const filteredArray = array.filter(item => item.pointType === pointType);
-  const objectToCheckTime = new Date(objectToCheck.tripDateTime).getTime();
-  
-  return filteredArray.find(item => {
-    const itemTime = new Date(item.tripDateTime).getTime();
+
+  const objectToCheckKey = dayjs(objectToCheck.tripDateTime).format('YYYY-MM-DDTHH:mm');
+  const found = filteredArray.find(item => {
+    const itemKey = dayjs(item.tripDateTime).format('YYYY-MM-DDTHH:mm');
     return item.address === objectToCheck.address &&
-      itemTime === objectToCheckTime &&
+      itemKey === objectToCheckKey &&
       item.pointType === objectToCheck.pointType &&
       item.tripDirection === objectToCheck.tripDirection &&
       item.costCenterId === objectToCheck.costCenter &&
@@ -311,6 +311,56 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
       item.expenseRequestId === objectToCheck.expenseRequest &&
       item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail;
   }) || null;
+  if (found) {
+    const merged: TripData = {
+      ...objectToCheck,
+      id: found.id,
+      version: found.version
+    } as TripData;
+    return merged;
+  }
+
+  return null;
+};
+
+/**
+ * Preserve existing trip ids/versions when the number of computed trips matches existing trips.
+ * This is a fallback for backend matching issues: if counts align, we map by pointType and tripOrder
+ * and copy id/version from existing to the corresponding new trips.
+ */
+const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
+  if (!existingTrips || !Array.isArray(existingTrips)) return newTrips;
+  if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips;
+
+  if (existingTrips.length !== newTrips.length) return newTrips;
+
+  const result = newTrips.map(trip => ({ ...trip }));
+
+  const pointTypes = Array.from(new Set([
+    ...existingTrips.map(t => t.pointType),
+    ...newTrips.map(t => t.pointType)
+  ]));
+
+  pointTypes.forEach((type) => {
+    const existingGroup = existingTrips
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    const incomingGroup = result
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
+      for (let i = 0; i < incomingGroup.length; i += 1) {
+        incomingGroup[i].id = existingGroup[i].id;
+        incomingGroup[i].version = existingGroup[i].version;
+      }
+    }
+  });
+
+  return result;
 };
 
 export const handleTripSubmitAction = (
@@ -359,9 +409,9 @@ export const handleTripSubmitAction = (
     });
   }
   const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
-  if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-    expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+  if (expenseRequestData.additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+    expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
         version: item.version,
@@ -398,10 +448,14 @@ export const handleTripSubmitAction = (
     });
   }
 
-  (logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialRequest.expenseRequestTrip || [])
-  };
+  // Fallback: if counts match, preserve ids/versions by pointType and tripOrder alignment
+  const finalTrips = (Array.isArray(initialRequest.expenseRequestTrip) && verifiedTrips)
+    ? preserveTripIdsIfCountsMatch(initialRequest.expenseRequestTrip, arrayWithExistingTrips)
+    : arrayWithExistingTrips;
 
+  (logObject as LogObject).expenseRequestTrips = {
+    expenseTrips: verifiedTrips ? finalTrips : (initialRequest.expenseRequestTrip || [])
+  };
   if (dispatchProcessContinueEventIfEnabled) {
     return dispatchProcessContinueEventIfEnabled(event, logObject);
   } else {
@@ -441,7 +495,7 @@ export const setByExternalCustomComponent = (
   setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
   setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
 ) => {
-  const localExpenseData = expenseData?.ExpenseRequestByPk
+  const localExpenseData = expenseData?.ExpenseRequestByPk || expenseData?.ExpensePlanByPk
   let tripData = [];
   if(localExpenseData?.expenseRequestTrip && Array.isArray(localExpenseData.expenseRequestTrip) && 
   localExpenseData.expenseRequestTrip.length !== 0)
@@ -456,7 +510,6 @@ export const setByExternalCustomComponent = (
       return;
     }
   try {
-    
     // Find start point
     const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT');
     if (startPoint) {
@@ -572,9 +625,8 @@ export const setLocalitiesDefault = (expenseRequestData: any,
           ...prevLocation,
           location: localityToSet
         }));
-        
-        setLocationsAreSynced(true);
       }
+      setLocationsAreSynced(true);
     } catch (error) {
       
     }

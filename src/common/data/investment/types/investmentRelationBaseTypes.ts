@@ -4,6 +4,17 @@ import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTy
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
 import type { ContactType, AddressType, SourceTable, TaskTiming, TaskAssigneeType, TaskHolidayPolicy } from './investmentEnums';
 
+// Forward declaration for InvestmentRef to avoid circular dependencies
+export interface InvestmentRef {
+  id: string;
+  code?: string;
+  name: string;
+  isin?: string;
+  initialInvestmentAmount?: number;
+  totalInvestmentAmount?: number;
+  investmentMarketValue?: number;
+}
+
 // Forward declarations for reference types to avoid circular dependencies
 export interface InvestmentAccountRef {
   id: string;
@@ -46,6 +57,7 @@ export interface InvestmentOpportunityRef {
   id: string;
   code: string;
   name: string;
+  dealType?: string;
 }
 
 export interface InvestmentLeadRef {
@@ -213,8 +225,12 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   // Entity references (using Ref types)
   ownerEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
+  
+  // Related investments (bidirectional relationship)
+  investment?: InvestmentRef[]; // List of investments related to this opportunity
 
   // Domain Specific Fields
+  dealType?: string; // INVESTMENT_DEAL, DIVESTMENT_DEAL, etc.
   investmentName?: string;
   investmentGroup?: CatalogEntry;
   investmentType?: CatalogEntry;
@@ -337,7 +353,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
 // investment_activity table
 export interface BaseInvestmentActivity extends BaseEntity {
   id: string;
-  
+  version: number;
   // Common Fields (from nw_common_relations.activity)
   source?: SourceTable;
   title?: string;
@@ -346,6 +362,7 @@ export interface BaseInvestmentActivity extends BaseEntity {
   completedAt?: string; // ISO datetime string
 
   // Catalog references
+  activityTypeRef?: string;
   activityType?: CatalogEntry;
   
   // Entity references (using Ref types)

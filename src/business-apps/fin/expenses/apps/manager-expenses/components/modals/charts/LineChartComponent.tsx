@@ -13,6 +13,7 @@ interface LineChartProps {
   lineDataKey?: string;
   lineColor?: string;
   height?: number;
+  currency?: string;
 }
 
 /**
@@ -24,7 +25,8 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   xAxisDataKey = 'date',
   lineDataKey = 'value',
   lineColor = '#52c41a',
-  height = 300
+  height = 300,
+  currency = 'EUR'
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -71,7 +73,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
               <Tooltip 
-                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")} ${currency}`, 'Amount']}
                 labelFormatter={(label) => `${label}`}
               />
               <Line 

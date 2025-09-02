@@ -9,8 +9,9 @@ import {
   RealEstateInvestmentReports
 } from './components';
 import { DocumentManager, useDocumentDataController } from '@/components/document-manager';
-import { CompanyInformation, ContactDetails } from '../shared';
+import { CompanyInformation, ContactDetails, UploadReportButton } from '../shared';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface RealEstateRecordComponentProps extends BusinessAppContextProps {
   investmentId?: string;
@@ -88,6 +89,29 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
             </div>
           </TabsContent>
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
+            {/* Reports Header with Upload Button */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.title', 'Investment Reports')}
+                </h3>
+                <p className="gba:text-sm gba:text-gray-600">
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.reports.description', 'View and manage performance reports and financial documents')}
+                </p>
+              </div>
+              <UploadReportButton
+                investmentId={realEstateData?.investment?.id}
+                onUploadSuccess={(fileIds) => {
+                  console.log('Upload successful, file IDs:', fileIds);
+                  // Could trigger refresh of reports here if needed
+                }}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+              />
+            </div>
+
+            {/* Existing Reports Display */}
             {realEstateData?.realEstateInvestment?.id && (
               <RealEstateInvestmentReports
                 realEstateInvestmentId={realEstateData.realEstateInvestment.id}

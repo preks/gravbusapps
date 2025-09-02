@@ -19,7 +19,7 @@ import {
 } from '@newwork/nw-design-system';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
-import { formatDataTestId } from '@/modules/orgchart/utils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
@@ -178,7 +178,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             <AvatarImage 
               src={avatarSrc} 
               alt={`${employee.firstName} ${employee.lastName}`}
-              className="gba:object-cover gba:object-center"
             />
           )}
           <AvatarFallback className="gba:text-xs gba:font-medium">{initials}</AvatarFallback>

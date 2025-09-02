@@ -394,7 +394,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={handleSubmit}
+          onClick={(e) => { e.stopPropagation(); handleSubmit(); }}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}

@@ -12,6 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Checkbox,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
@@ -334,36 +335,72 @@ const LeadInformationSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Rating like Country */}
-        <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-            Rating
-          </Label>
-          <Select
-            value={formValues.rating}
-            onValueChange={(value) => setFormValues({ rating: value })}
-            onOpenChange={setIsRatingOpen}
-            data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
-          >
-            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-              <SelectValue placeholder="Please Select..." />
-            </SelectTrigger>
-            <SelectContent
-              className="gba:max-h-[200px] gba:overflow-y-auto"
-              style={{ maxHeight: "200px", overflowY: "auto" }}
-            >
-              {leadRatings.map((option, index) => (
-                <SelectItem key={`${option.id}-${index}`} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-              {leadRatingsLoading && (
-                <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
-                  🔄 Loading more ratings...
-                </div>
-              )}
-            </SelectContent>
-          </Select>
+        {/* Rating and Sensitive - Same Row */}
+        <div className="gba:flex gba:gap-6 gba:items-end gba:pr-16">
+          {/* Rating Field */}
+          <div className="gba:w-80">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Rating
+              </Label>
+              <Select
+                value={formValues.rating}
+                onValueChange={(value) => setFormValues({ rating: value })}
+                onOpenChange={setIsRatingOpen}
+                data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
+              >
+                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                  <SelectValue placeholder="Please Select..." />
+                </SelectTrigger>
+                <SelectContent
+                  className="gba:max-h-[200px] gba:overflow-y-auto"
+                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                >
+                  {leadRatings.map((option, index) => (
+                    <SelectItem
+                      key={`${option.id}-${index}`}
+                      value={option.value}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                  {leadRatingsLoading && (
+                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
+                      🔄 Loading more ratings...
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Sensitive Checkbox - Same Row */}
+          <div className="gba:pb-2">
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <Checkbox
+                id="sensitive-checkbox"
+                checked={!!formValues.sensitive}
+                onCheckedChange={(checked) => {
+                  console.log("🔄 CRM Form - Sensitive checkbox changed:", {
+                    previousValue: formValues.sensitive,
+                    newValue: checked,
+                    checkedState: !!checked,
+                  });
+                  setFormValues({ sensitive: !!checked });
+                }}
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "SensitiveCheckbox"
+                )}
+              />
+              <Label
+                htmlFor="sensitive-checkbox"
+                className="gba:text-sm gba:font-medium gba:text-gray-900 gba:cursor-pointer"
+              >
+                Sensitive
+              </Label>
+            </div>
+          </div>
         </div>
 
         {/* Sales Campaign Section */}

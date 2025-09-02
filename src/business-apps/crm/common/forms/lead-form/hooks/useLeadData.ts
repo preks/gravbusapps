@@ -57,6 +57,7 @@ export const useLeadData = ({
         leadStatus: lead.leadStatusRef || lead.leadStatus?.id || "",
         leadSource: lead.leadSourceRef || lead.leadSource?.id || "",
         rating: lead.leadRatingRef || lead.leadRating?.id || "",
+        sensitive: lead.sensitive || false,
 
         // Campaign Information
         salesCampaignId: lead.salesCampaignId || lead.salesCampaign?.id || "",

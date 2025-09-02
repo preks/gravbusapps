@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Switch } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { buildFilterGroups } from '@/common/network/graphql/queryHelpers';
 import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/queries/investmentLeadQueries';
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
-import { DateRangeFilter } from "@/business-apps/crm/common/components/lead-list/components/DateRangeFilter";
+import { DateRangeFilter } from "@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter";
 
 interface OwnerItem { id: string; name: string; }
 interface StatusItem { id: string; code?: string; value?: string; }
@@ -181,7 +182,7 @@ export const useInvestmentLeadFilters = (
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ country?: CountryItem }> }>(query);
       (res.InvestmentLead || []).forEach(r => { if (r.country?.id) map.set(r.country.id, r.country); });
       setCountries(Array.from(map.values()));
-    } catch (e) { setCountries([]); setErrorCountries(e as Error);} finally { setLoadingCountries(false); }
+    } catch (e) { setCountries([]); setErrorCountries(e as Error); } finally { setLoadingCountries(false); }
   }, [context.accessToken, graphqlClient]);
 
   // Regions (strings from CatalogEntry.value)
@@ -198,7 +199,7 @@ export const useInvestmentLeadFilters = (
         if (val) values.add(val);
       });
       setRegions(Array.from(values));
-    } catch (e) { setRegions([]); setErrorRegions(e as Error);} finally { setLoadingRegions(false); }
+    } catch (e) { setRegions([]); setErrorRegions(e as Error); } finally { setLoadingRegions(false); }
   }, [context.accessToken, graphqlClient]);
 
   // Cities (locality)
@@ -212,7 +213,7 @@ export const useInvestmentLeadFilters = (
       const res = await graphqlClient.request<{ InvestmentLead: Array<{ locality?: string }> }>(query);
       (res.InvestmentLead || []).forEach(r => { if (r.locality?.trim()) set.add(r.locality.trim()); });
       setCities(Array.from(set));
-    } catch (e) { setCities([]); setErrorCities(e as Error);} finally { setLoadingCities(false); }
+    } catch (e) { setCities([]); setErrorCities(e as Error); } finally { setLoadingCities(false); }
   }, [context.accessToken, graphqlClient]);
 
   useEffect(() => {
@@ -238,9 +239,8 @@ export const useInvestmentLeadFilters = (
     countries.forEach(c => { map[`country:${c.id}`] = c.code || c.value || 'Country'; });
     regions.forEach(r => { map[`region:${r}`] = r; });
     cities.forEach(c => { map[`city:${c}`] = c; });
-    // Sensitivity boolean filter labels
+    // High Priority toggle label (on state only)
     map['sensitive:true'] = 'Sensitive';
-    map['sensitive:false'] = 'Not Sensitive';
     return map;
   }, [owners, statuses, ratings, sources, contacts, companies, countries, regions, cities]);
 
@@ -263,29 +263,44 @@ export const useInvestmentLeadFilters = (
     const statusFilters = statuses.map(s => ({ id: `status:${s.id}`, label: s.code || s.value || "Status" }));
     const ratingFilters = ratings.map(r => ({ id: `rating:${r.id}`, label: r.code || r.value || 'Rating' }));
     const sourceFilters = sources.map(s => ({ id: `source:${s.id}`, label: s.code || s.value || 'Source' }));
-    const contactFilters = contacts.map(c => ({ id: `contact:${c.firstName}|${c.lastName}` , label: `${c.firstName} ${c.lastName}`.trim() || 'Unknown' }));
+    const contactFilters = contacts.map(c => ({ id: `contact:${c.firstName}|${c.lastName}`, label: `${c.firstName} ${c.lastName}`.trim() || 'Unknown' }));
     const companyFilters = companies.map(c => ({ id: `company:${c.name}`, label: c.name }));
     const countryFilters = countries.map(c => ({ id: `country:${c.id}`, label: c.code || c.value || 'Country' }));
     const regionFilters = regions.map(r => ({ id: `region:${r}`, label: r }));
     const cityFilters = cities.map(c => ({ id: `city:${c}`, label: c }));
 
+    const isSensitive = selectedFilters.includes('sensitive:true');
+
     return [
       {
-        id: 'sensitivity',
-        title: 'Sensitivity',
-        filters: toFilters([
-          { id: 'sensitive:true', label: 'Sensitive' },
-          { id: 'sensitive:false', label: 'Not Sensitive' }
-        ]),
+        id: 'sensitive',
+        title: 'Sensitive',
+        // Use custom component with design-system Switch to act as a toggle
+        customComponent: React.createElement(
+          'div',
+          { className: 'gba:flex gba:items-center gba:gap-3 gba:px-2' },
+          React.createElement(Switch as any, {
+            checked: isSensitive,
+            onCheckedChange: (checked: boolean) => {
+              setSelectedFilters(
+                checked
+                  ? [...selectedFilters, 'sensitive:true']
+                  : selectedFilters.filter((f) => f !== 'sensitive:true')
+              );
+            },
+            'data-testid': 'investment-leads-high-priority-switch',
+          }),
+          React.createElement('span', { className: 'gba:text-sm' }, 'Sensitive')
+        ),
         hideSearch: true,
-      },
+      } as any,
       {
         id: 'leadContacts',
         title: 'Lead Contact',
         filters: toFilters(contactFilters),
         backendSearch: (search: string) => {
           if (search !== lastContactSearchRef.current) { lastContactSearchRef.current = search; void loadContacts(search); }
-          const filtered = contactFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = contactFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingContacts, error: errorContacts };
         }
       },
@@ -295,7 +310,7 @@ export const useInvestmentLeadFilters = (
         filters: toFilters(companyFilters),
         backendSearch: (search: string) => {
           if (search !== lastCompanySearchRef.current) { lastCompanySearchRef.current = search; void loadCompanies(search); }
-          const filtered = companyFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = companyFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingCompanies, error: errorCompanies };
         }
       },
@@ -305,7 +320,7 @@ export const useInvestmentLeadFilters = (
         filters: toFilters(countryFilters),
         backendSearch: (search: string) => {
           if (search !== lastCountrySearchRef.current) { lastCountrySearchRef.current = search; void loadCountries(search); }
-          const filtered = countryFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = countryFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingCountries, error: errorCountries };
         }
       },
@@ -315,7 +330,7 @@ export const useInvestmentLeadFilters = (
         filters: toFilters(regionFilters),
         backendSearch: (search: string) => {
           if (search !== lastRegionSearchRef.current) { lastRegionSearchRef.current = search; void loadRegions(search); }
-          const filtered = regionFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = regionFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingRegions, error: errorRegions };
         }
       },
@@ -325,7 +340,7 @@ export const useInvestmentLeadFilters = (
         filters: toFilters(cityFilters),
         backendSearch: (search: string) => {
           if (search !== lastCitySearchRef.current) { lastCitySearchRef.current = search; void loadCities(search); }
-          const filtered = cityFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = cityFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingCities, error: errorCities };
         }
       },
@@ -354,7 +369,7 @@ export const useInvestmentLeadFilters = (
             // Fire and forget; result stored in state
             void loadOwners(search);
           }
-          const filtered = ownerFilters.filter(f => f.label.toLowerCase().includes((search||"").toLowerCase()));
+          const filtered = ownerFilters.filter(f => f.label.toLowerCase().includes((search || "").toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingOwners, error: errorOwners };
         }
       },
@@ -367,7 +382,7 @@ export const useInvestmentLeadFilters = (
             lastStatusSearchRef.current = search;
             void loadStatuses(search);
           }
-          const filtered = statusFilters.filter(f => f.label.toLowerCase().includes((search||"").toLowerCase()));
+          const filtered = statusFilters.filter(f => f.label.toLowerCase().includes((search || "").toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingStatuses, error: errorStatuses };
         }
       },
@@ -380,7 +395,7 @@ export const useInvestmentLeadFilters = (
             lastRatingSearchRef.current = search;
             void loadCatalog({ catalogIdentifier: 'InvestmentLeadRating' }, { search }, setRatings, (v) => setLoadingRatings(v), setErrorRatings);
           }
-          const filtered = ratingFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = ratingFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingRatings, error: errorRatings };
         }
       },
@@ -393,7 +408,7 @@ export const useInvestmentLeadFilters = (
             lastSourceSearchRef.current = search;
             void loadCatalog({ catalogIdentifier: 'InvestmentLeadSource' }, { search }, setSources, (v) => setLoadingSources(v), setErrorSources);
           }
-          const filtered = sourceFilters.filter(f => f.label.toLowerCase().includes((search||'').toLowerCase()));
+          const filtered = sourceFilters.filter(f => f.label.toLowerCase().includes((search || '').toLowerCase()));
           return { filters: toFilters(filtered), loading: loadingSources, error: errorSources };
         }
       }

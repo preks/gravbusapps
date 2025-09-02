@@ -4,7 +4,8 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
   query GetMainViewExpensePlans(
     $where: ExpensePlanBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpensePlanOrderBy!]
   ) {
     ExpensePlanAggregate(where: $where) {
       aggregate {
@@ -14,7 +15,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {planDate: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id
@@ -52,7 +53,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
 
 // Query for expense plan statistics in the main view
 export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
-  query GetMainViewExpensePlanStatistics($managerId: uuid!) {
+  query GetMainViewExpensePlanStatistics($managerId: uuid!, $currencyRef: String) {
     allPlansStats: ExpensePlanAggregate(
       where: {
         employee: {
@@ -78,7 +79,8 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
           }
         },
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"}
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {

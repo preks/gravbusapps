@@ -1,17 +1,19 @@
 // Investment Account Queries - Complete queries without custom fragments
 // Using only common fragments: CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT_ACCOUNT, INVESTMENT_CONTACT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
 import { INVESTMENT_REF } from './fragments/investmentFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
 
 export interface InvestmentAccountQueryVariables {
   ids?: string[];
   search?: string;
   industryClassIds?: string[];
+  industryClassCodes?: string[];
   companySizeIds?: string[];
+  companySizeCodes?: string[];
   legalFormIds?: string[];
+  legalFormCodes?: string[];
   accountAnnualRevenueBandIds?: string[];
+  accountAnnualRevenueBandCodes?: string[];
   ownerEmployeeIds?: string[];
   names?: string[];
   geographicPresenceValues?: string[];
@@ -33,7 +35,7 @@ export interface InvestmentAccountQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -62,17 +64,29 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
   if (variables.industryClassIds?.length) {
     andConditions.push(`{ industryClass: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } } }`);
   }
+  if (variables.industryClassCodes?.length) {
+    andConditions.push(`{ industryClass: { code: { _in: [${variables.industryClassCodes.map(c => `"${c}"`).join(', ')}] } } }`);
+  }
 
   if (variables.companySizeIds?.length) {
     andConditions.push(`{ companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } } }`);
+  }
+  if (variables.companySizeCodes?.length) {
+    andConditions.push(`{ companySize: { code: { _in: [${variables.companySizeCodes.map(c => `"${c}"`).join(', ')}] } } }`);
   }
 
   if (variables.legalFormIds?.length) {
     andConditions.push(`{ legalForm: { id: { _in: [${variables.legalFormIds.map(id => `"${id}"`).join(', ')}] } } }`);
   }
+  if (variables.legalFormCodes?.length) {
+    andConditions.push(`{ legalForm: { code: { _in: [${variables.legalFormCodes.map(c => `"${c}"`).join(', ')}] } } }`);
+  }
 
   if (variables.accountAnnualRevenueBandIds?.length) {
     andConditions.push(`{ accountAnnualRevenueBand: { id: { _in: [${variables.accountAnnualRevenueBandIds.map(id => `"${id}"`).join(', ')}] } } }`);
+  }
+  if (variables.accountAnnualRevenueBandCodes?.length) {
+    andConditions.push(`{ accountAnnualRevenueBand: { code: { _in: [${variables.accountAnnualRevenueBandCodes.map(c => `"${c}"`).join(', ')}] } } }`);
   }
 
   if (variables.ownerEmployeeIds?.length) {
@@ -150,14 +164,14 @@ export const GET_INVESTMENT_ACCOUNTS = (variables: InvestmentAccountQueryVariabl
     ? `orderBy: [${variables.orderBy.map(o => {
         const f = o.field;
         if (f === 'legalForm' || f === 'industryClass' || f === 'companySize' || f === 'accountAnnualRevenueBand') {
-          return `{ ${f}: { code: ${o.direction} } }`;
+          return `{ ${f}: { value: ${o.direction} } }`;
         }
         if (f === 'ownerEmployee') {
           return `{ ownerEmployee: { displayName: ${o.direction} } }`;
         }
         return `{ ${f}: ${o.direction} }`;
       }).join(', ')}]`
-    : 'orderBy: [{ name: ASC }]';
+    : 'orderBy: [{ name: ASC_NULLS_LAST }]';
 
   return `
     query GetInvestmentAccounts {

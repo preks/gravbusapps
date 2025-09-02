@@ -1,19 +1,27 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { useCurrencyStore } from '../store/useCurrencyStore';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useExpenseRequestCurrencies } from './useExpenseRequestCurrencies';
 
-// Define expense request status types - updated to match the correct options
-export enum ExpenseRequestStatus {
-  DRAFT = 'DRAFT',
-  IN_APPROVAL = 'IN_APPROVAL',
-  VERIFICATION_REQUIRED = 'VERIFICATION_REQUIRED',
-  REVISION_REQUIRED = 'REVISION_REQUIRED',
-  BOOKING_REQUIRED = 'BOOKING_REQUIRED',
-  TRANSFER_REQUIRED = 'TRANSFER_REQUIRED',
-  PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
-  PAID = 'PAID',
-  CLOSED = 'CLOSED'
-}
+// Import the ExpenseStatus enum to ensure consistency with backend values
+import { ExpenseStatus } from '../utils';
+
+// Map the backend ExpenseStatus enum values to UI-friendly status values
+export const ExpenseRequestStatusMap = {
+  [ExpenseStatus.CREATED]: 'draft',
+  [ExpenseStatus.PENDING]: 'in_approval',
+  [ExpenseStatus.APPROVED]: 'verification_required',
+  [ExpenseStatus.REJECTED]: 'revision_required',
+  [ExpenseStatus.VERIFIED]: 'booking_required',
+  [ExpenseStatus.BOOKED]: 'transfer_required',
+  [ExpenseStatus.TRANSFERRED]: 'payment_required',
+  [ExpenseStatus.PAID]: 'paid',
+  [ExpenseStatus.CLOSED]: 'closed',
+  [ExpenseStatus.PREPARED]: 'prepared',
+  [ExpenseStatus.RETURNED]: 'returned',
+  [ExpenseStatus.DISCARDED]: 'discarded',
+};
 
 // Interface for request filter
 export interface ExpenseRequestFilter {
@@ -24,6 +32,11 @@ export interface ExpenseRequestFilter {
 }
 
 // Interface for the return type of useExpenseRequestFilters
+export interface UseExpenseRequestFiltersProps {
+  accessToken?: string;
+  managerId?: string;
+}
+
 export interface UseExpenseRequestFiltersReturn {
   search: string;
   setSearch: (search: string) => void;
@@ -33,68 +46,117 @@ export interface UseExpenseRequestFiltersReturn {
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
   getFilters: () => ExpenseRequestFilter;
+  // Currency filter related properties
+  currencyFilter: string;
+  setCurrencyFilter: (currency: string) => void;
+  // DataFilter component integration
+  handleDataFilterChange: (filterId: string, isSelected: boolean) => void;
+  // Loading state for currency data
+  currenciesLoading: boolean;
 }
 
 /**
  * Hook to manage filter selection for expense requests
  */
-export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
+export const useExpenseRequestFilters = ({
+  accessToken,
+  managerId
+}: UseExpenseRequestFiltersProps = {}): UseExpenseRequestFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  // Default to 'in_approval' (maps to PENDING) as per requirements
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([ExpenseRequestStatusMap[ExpenseStatus.PENDING]]);
+  
+  // Use the global currency store
+  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
+  
+  // Fetch dynamic currency data if accessToken and managerId are provided
+  const { 
+    availableCurrencies: dynamicCurrencies, 
+    isLoading: currenciesLoading 
+  } = useExpenseRequestCurrencies({
+    accessToken: accessToken || '',
+    managerId: managerId || ''
+  });
 
   // Define these as constants for stable references
   const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
   const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
   
+  // Map the filter IDs to user-friendly display labels
   const statusLabelMap: Record<string, string> = {
-    [ExpenseRequestStatus.DRAFT]: 'Draft',
-    [ExpenseRequestStatus.IN_APPROVAL]: 'Approval Required',
-    [ExpenseRequestStatus.VERIFICATION_REQUIRED]: 'Verification Required',
-    [ExpenseRequestStatus.REVISION_REQUIRED]: 'Revision Required',
-    [ExpenseRequestStatus.BOOKING_REQUIRED]: 'Booking Required',
-    [ExpenseRequestStatus.TRANSFER_REQUIRED]: 'Transfer Required',
-    [ExpenseRequestStatus.PAYMENT_REQUIRED]: 'Payment Required',
-    [ExpenseRequestStatus.PAID]: 'Paid',
-    [ExpenseRequestStatus.CLOSED]: 'Closed'
+    'draft': 'Draft (Created)',
+    'in_approval': 'In Approval (Pending)',
+    'verification_required': 'Verification Required',
+    'revision_required': 'Revision Required (Rejected)',
+    'booking_required': 'Booking Required',
+    'transfer_required': 'Transfer Required',
+    'payment_required': 'Payment Required',
+    'paid': 'Paid',
+    'closed': 'Closed',
+    'prepared': 'Prepared',
+    'returned': 'In Revision (Returned)',
+    'discarded': 'Discarded',
+    'transferred': 'In Transit (Transferred)'
   };
 
   // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(() => [
-    {
-      id: 'timePeriod',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
-      filters: [
-        { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
-        { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
-        { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
-      ],
-      selectionMode: 'single'
-    },
-    {
-      id: 'requestType',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
-      filters: [
-        { id: 'general', label: 'General Expense', selected: selectedFilters.includes('general') },
-        { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
-      ],
-      selectionMode: 'single'
-    },
-    {
+  const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    // Always use dynamic currencies first, even if loading
+    // This ensures the filter shows the correct currencies from the beginning
+    const availableCurrencies = dynamicCurrencies.length > 0
+      ? dynamicCurrencies
+      : ['EUR', 'USD']; // Minimal fallback list
+    // Create the status filter group using the ExpenseStatus enum values
+    const statusGroup: DataFilterGroup = {
       id: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status', 'Status'),
-      filters: Object.values(ExpenseRequestStatus).map(status => {
-        const id = status.toLowerCase();
-        return { 
-          id, 
-          label: statusLabelMap[status],
-          selected: selectedFilters.includes(id) 
+      title: getTranslationFromI18nKeyAndLabel('expense_request_status_filter_title', 'Status'),
+      filters: Object.entries(ExpenseRequestStatusMap).map(([_, uiStatus]) => {
+        return {
+          id: uiStatus,
+          label: statusLabelMap[uiStatus] || uiStatus,
+          selected: selectedFilters.includes(uiStatus),
+          group: 'statusGroup'
         };
-      }),
-      selectionMode: 'multiple'
-    }
-  ], [selectedFilters]);
-  
+      })
+    };
+
+    // Create the time period filter group
+    const timePeriodGroup: DataFilterGroup = {
+      id: 'timePeriod',
+      title: getTranslationFromI18nKeyAndLabel('expense_request_time_period_filter_title', 'Time Period'),
+      filters: TIME_PERIOD_OPTIONS.map(period => ({
+        id: period,
+        label: getTranslationFromI18nKeyAndLabel(`lowcoder:team_expenses_page.dashboard_tab.last_${period}`, `Last ${period}`),
+        selected: selectedFilters.includes(period)
+      }))
+    };
+
+    // Create the request type filter group
+    const requestTypeGroup: DataFilterGroup = {
+      id: 'requestType',
+      title: getTranslationFromI18nKeyAndLabel('expense_request_type_filter_title', 'Request Type'),
+      filters: REQUEST_TYPE_OPTIONS.map(type => ({
+        id: type,
+        label: type === 'general' ? 'General Expense' : 'Trip',
+        selected: selectedFilters.includes(type)
+      }))
+    };
+    
+    // Create the currency filter group
+    const currencyGroup: DataFilterGroup = {
+      id: 'currency',
+      title: getTranslationFromI18nKeyAndLabel('expense_request_currency_filter_title', 'Currency'),
+      filters: availableCurrencies.map(currency => ({
+        id: currency,
+        label: currency,
+        selected: currency === primaryCurrency
+      }))
+    };
+
+    return [statusGroup, timePeriodGroup, requestTypeGroup, currencyGroup];
+  }, [selectedFilters, primaryCurrency]);
+
   // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
@@ -112,37 +174,51 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     
     return labelMap;
   }, []);
-  
+
   // Add a filter to the selected filters
   const addFilter = useCallback((filterId: string) => {
-    // For time period filters, ensure only one is selected at a time
-    if (TIME_PERIOD_OPTIONS.includes(filterId)) {
-      setSelectedFilters(prev => {
-        const newFilters = prev.filter(f => !TIME_PERIOD_OPTIONS.includes(f));
-        return [...newFilters, filterId];
-      });
-    } else {
-      setSelectedFilters(prev => [...prev, filterId]);
+    // Check if this is a currency filter - expanded to include RON and other common currencies
+    const currencyOptions = ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    
+    if (currencyOptions.includes(filterId)) {
+      // Handle currency filter selection
+      setPrimaryCurrency(filterId);
+      return;
     }
-  }, []);
-  
-  // Remove a filter from the selected filters
+    
+    // Handle status filters
+    if (!selectedFilters.includes(filterId)) {
+      setSelectedFilters([...selectedFilters, filterId]);
+    }
+  }, [selectedFilters, setPrimaryCurrency]);
+
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(id => id !== filterId));
-  }, []);
-  
+    // Check if this is a currency filter (EUR, USD, GBP)
+    const currencyOptions = ['EUR', 'USD', 'GBP'];
+    
+    if (currencyOptions.includes(filterId)) {
+      // Don't remove currency filter, just ignore
+      return;
+    }
+    
+    // Handle status filters
+    setSelectedFilters(selectedFilters.filter(id => id !== filterId));
+  }, [selectedFilters]);
+
   // Convert selected filters to the API filter format
   const getFilters = useCallback((): ExpenseRequestFilter => {
     const filters: ExpenseRequestFilter = {};
     
     // Handle status filters, mapping UI status values to backend database values
-    let statusFilters = selectedFilters
-      .filter(filter => {
-        const validStatuses = Object.values(ExpenseRequestStatus).map(s => s.toLowerCase());
-        const isValid = validStatuses.includes(filter);
-        console.log(`Filter validation - ${filter}: ${isValid} (valid statuses: ${validStatuses.join(', ')})`);
-        return isValid;
-      });
+    const sLower = selectedFilters.map(s => s.toLowerCase());
+    // Use let instead of const since we'll be reassigning this variable
+    let statusFilters = sLower.filter(s => {
+      if (s.includes('draft')) return true;
+      if (Object.values(ExpenseRequestStatusMap).some(status => s === status.toLowerCase())) return true;
+      if (TIME_PERIOD_OPTIONS.includes(s)) return false;
+      if (REQUEST_TYPE_OPTIONS.includes(s)) return false;
+      return false;
+    });
 
     // Map UI status values to database status values
     console.log('Filter mapping - selected filters:', selectedFilters);
@@ -217,6 +293,15 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     return filters;
   }, [selectedFilters]);
   
+  // Handle filter changes from DataFilter component
+  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    if (isSelected) {
+      addFilter(filterId);
+    } else {
+      removeFilter(filterId);
+    }
+  }, [addFilter, removeFilter]);
+
   return {
     search,
     setSearch,
@@ -226,5 +311,9 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     addFilter,
     removeFilter,
     getFilters,
+    currencyFilter: primaryCurrency,
+    setCurrencyFilter: setPrimaryCurrency,
+    handleDataFilterChange,
+    currenciesLoading,
   };
 };

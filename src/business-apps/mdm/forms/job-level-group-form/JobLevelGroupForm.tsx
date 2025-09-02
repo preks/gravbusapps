@@ -1,7 +1,22 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { JobLevel } from '../job-level/JobLevelForm';
+import React from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { JobLevel } from "../../apps/job-structure-data";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import {
+  JOB_LEVEL_GROUP_CATALOG,
+  JOB_LEVEL_GROUP_VERSION,
+} from "../../apps/compensation-data/hooks/useJobLevelGroups";
 
 export interface JobLevelGroup {
   id: string;
@@ -12,97 +27,112 @@ export interface JobLevelGroup {
 }
 
 export interface JobLevelGroupFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<JobLevelGroup>;
-  onSubmit?: (values: Partial<JobLevelGroup>) => void;
+  jobLevelGroup?: Partial<JobLevelGroup>;
   onCancel?: () => void;
   prefixDataTestId?: string;
+  childAddButton: React.ReactNode;
+  refetch: () => void;
+  accessToken: string;
 }
 
 const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
-  initialValues,
-  onSubmit,
+  jobLevelGroup,
   onCancel,
   prefixDataTestId,
+  childAddButton,
+  refetch,
+  accessToken,
 }) => {
-  const [form] = Form.useForm();
+  const dataTestId = formatDataTestId(prefixDataTestId, "JobLevelGroupForm");
+  const catalogClient = useCatalogManagerClient(accessToken);
 
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues);
+  const handleSubmit = async (values: any) => {
+    const payload = {
+      ...(jobLevelGroup ? { id: jobLevelGroup.id } : {}),
+      code: values.code,
+      value: values.name,
+      additionalValue1: values.description,
+      translations: [],
+    };
+
+    if (jobLevelGroup) {
+      await catalogClient.updateCatalogEntry(jobLevelGroup.id ?? "", payload);
     } else {
-      form.resetFields();
+      await catalogClient.createCatalogEntry(
+        JOB_LEVEL_GROUP_CATALOG,
+        JOB_LEVEL_GROUP_VERSION,
+        payload
+      );
     }
-  }, [form, initialValues]);
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      if (onSubmit) {
-        onSubmit(values);
-      }
-    } catch (error) {
-      console.error('Form validation error:', error);
-    }
-  };
-
-  const handleCancel = () => {
-    form.resetFields();
-    if (onCancel) {
-      onCancel();
-    }
+    refetch();
   };
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      className="gba:mt-4"
-      data-testid={`${prefixDataTestId || ''}-JobLevelGroupForm`}
+    <FormWrapperModal
+      childAddButton={childAddButton}
+      title={jobLevelGroup ? "Edit Job Level Group" : "Create Job Level Group"}
+      description="Configure job level group details and career path information"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      defaultValues={jobLevelGroup || {}}
+      isEditing={!!jobLevelGroup}
+      dataTestId={dataTestId}
     >
-      <Form.Item
+      <FormField
         name="name"
-        label="Group Name"
-        rules={[{ required: true, message: 'Please enter group name' }]}
-      >
-        <Input placeholder="e.g., Software Engineering, Management, Sales" />
-      </Form.Item>
-      <Form.Item
-        name="code"
-        label="Code"
-        rules={[{ required: true, message: 'Please enter code' }]}
-      >
-        <Input placeholder="e.g., SWE, MGT, SALES" />
-      </Form.Item>
-      <Form.Item
-        name="description"
-        label="Description"
-      >
-        <Input.TextArea 
-          placeholder="Describe the career path and role types in this group"
-          rows={3}
-        />
-      </Form.Item>
+        rules={{ required: "Please enter group name" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Group Name</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., Software Engineering, Management, Sales"
+                {...field}
+                data-testid={`${dataTestId}-name-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
-        <Form.Item>
-          <Button 
-            onClick={handleCancel}
-            data-testid={`${prefixDataTestId || ''}-JobLevelGroupForm-CancelButton`}
-          >
-            Cancel
-          </Button>
-        </Form.Item>
-        <Form.Item>
-          <Button 
-            type="primary" 
-            onClick={handleSubmit}
-            data-testid={`${prefixDataTestId || ''}-JobLevelGroupForm-SubmitButton`}
-          >
-            Save
-          </Button>
-        </Form.Item>
-      </div>
-    </Form>
+      <FormField
+        name="code"
+        rules={{ required: "Please enter code" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Code</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., SWE, MGT, SALES"
+                {...field}
+                data-testid={`${dataTestId}-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Describe the career path and role types in this group"
+                rows={3}
+                {...field}
+                data-testid={`${dataTestId}-description-textarea`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </FormWrapperModal>
   );
 };
 

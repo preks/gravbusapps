@@ -8,7 +8,7 @@ import { Spin, Alert, DatePicker } from 'antd';
 import { CalendarIcon, FilterIcon, RotateCcwIcon, TrendingDownIcon, TrendingUpIcon, MinusIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_REAL_ESTATE_INVESTMENT_REPORTS } from '@/common/data/investment/queries/investmentReportQueries';
+import { GET_INVESTMENT_REPORTS } from '@/common/data/investment/queries/investmentReportQueries';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 const { RangePicker } = DatePicker;
@@ -37,18 +37,33 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
     setIsLoading(true);
     setError(null);
     try {
-      const query = GET_REAL_ESTATE_INVESTMENT_REPORTS({
+      // Query all real estate investment reports without investment ID filter
+      // since the relationship mapping is complex
+      const query = GET_INVESTMENT_REPORTS({
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
         orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC' }],
         reportDateFrom: dateRange?.[0]?.format('YYYY-MM-DD') || undefined,
         reportDateTo: dateRange?.[1]?.format('YYYY-MM-DD') || undefined,
-        investmentIds: [realEstateInvestmentId]
+        // Remove investment ID filter - load all and filter client-side
       });
-      const res = await client.request<{ RealEstateInvestmentReport: any[] }>(query);
-      const data = res.RealEstateInvestmentReport || [];
-      setReports(data);
-      setTotal(data.length);
+      const res = await client.request<{ InvestmentReport: any[], InvestmentReportAggregate: { aggregate: { count: number } } }>(query);
+      
+      // Extract real estate reports from the enhanced query response
+      const investmentReports = res.InvestmentReport || [];
+      const realEstateReports: any[] = [];
+      
+      investmentReports.forEach(investmentReport => {
+        const realEstateData = investmentReport.realEstateInvestmentReport || [];
+        // Filter by the specific real estate investment ID
+        const filteredRealEstateData = realEstateData.filter((report: any) => 
+          report.realEstateInvestment?.id === realEstateInvestmentId
+        );
+        realEstateReports.push(...filteredRealEstateData);
+      });
+      
+      setReports(realEstateReports);
+      setTotal(realEstateReports.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reports');
     } finally {

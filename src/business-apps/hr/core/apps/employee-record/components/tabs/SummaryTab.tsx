@@ -16,11 +16,12 @@ import {
   PiCalendarX,
   PiCheckCircle,
   PiSignIn,
-  PiSignOut
+  PiSignOut,
+  PiDotsThreeVertical
 } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UserInfoProps } from '@/common/BusinessAppContext';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { AppActionMenu } from '@/components/app-action-menu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from 'antd';
 import { Tooltip } from 'antd';
@@ -141,7 +142,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
         {/* Action Button */}
         {useMemo(() => (
           <div>
-            <AppActionButton 
+            <AppActionMenu 
               data-testid="employee-actions-button"
               contextsArray={[FlowContextName.employeeEntity]}
               externalContextData={{
@@ -155,11 +156,14 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
               deferMainContextRequestsUntilClick={false}
               emptyStateBehavior="hide"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:hr_employee.action",
-                "Actions"
-              )}
-            </AppActionButton>
+              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:hr_employee.action",
+                  "Actions"
+                )}
+              </div>
+            </AppActionMenu>
           </div>
         ), [employee?.id, employee?.employeePosition?.supervisor?.id, employee?.employeePosition?.organizationalUnitId, accessToken])}
       </div>
@@ -499,11 +503,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                           </span>
                         </Button>
                       </Tooltip>
-                      <AppActionButton
+                      <AppActionMenu
                         data-testid="request-absence-button"
-
-                        size="sm"
-                        className="gba:flex-[2]"
                         contextsArray={[FlowContextName.employeeAbsenceRecord]}
                         externalContextData={{
                           employeeId: employee.id,
@@ -512,10 +513,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                         prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
-                        <span className="gba:text-xs gba:md:text-sm gba:truncate gba:block gba:text-center">
-                          Request Absence
-                        </span>
-                      </AppActionButton>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                          <PiCalendarX className="gba:h-4 gba:w-4" />
+                          <span className="gba:text-xs gba:md:text-sm gba:truncate">
+                            Request Absence
+                          </span>
+                        </div>
+                      </AppActionMenu>
                     </div>
                   </div>
                 )}

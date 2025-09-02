@@ -7,23 +7,43 @@ import type { InvestmentAccountQueryVariables } from "@/common/data/investment/q
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AccountStatistics } from "./components/AccountStatistics";
 import { AccountList } from "./components/AccountList";
+import { ColumnConfig } from "@/components/dataController";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useInvestmentAccountFilters } from "./hooks/useInvestmentAccountFilters";
 
-export interface AccountViewProps extends BusinessAppContextProps {}
+export interface AccountViewProps extends BusinessAppContextProps { }
 
 export const AccountView: React.FC<AccountViewProps> = (context) => {
   const { accessToken } = context;
 
+  // Read initial filters/search from URL (before first render)
+  const getInitialFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && filters.push(`${prefix}:${v}`));
+    };
+    pushAll("owner", "owner");
+    pushAll("industry", "industry");
+    pushAll("legalForm", "legalForm");
+    pushAll("companySize", "companySize");
+    pushAll("annualRevenueBand", "annualRevenueBand");
+    pushAll("company", "company");
+    pushAll("location", "location");
+    const search = urlParams.get("search") || "";
+    return { search, filters };
+  };
+  const initial = getInitialFromUrl();
+
   // State management
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
 
   // Hooks for data fetching
@@ -41,6 +61,35 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Column visibility configuration
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: "Actions", visible: true, disabled: true },
+    { id: "account", label: "Account", visible: true },
+    { id: "contact", label: "Contact Info", visible: true },
+    { id: "location", label: "Location", visible: true },
+    { id: "industry", label: "Industry", visible: true },
+    { id: "legalForm", label: "Legal Form", visible: true },
+    { id: "size", label: "Company Size", visible: false },
+    { id: "revenue", label: "Revenue", visible: false },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   // Build query variables
   const queryVariables: InvestmentAccountQueryVariables = useMemo(() => {
@@ -63,10 +112,26 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
 
     selectedFilters.forEach((f) => {
       if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
-      else if (f.startsWith("industry:")) industryIds.push(f.slice(9));
-      else if (f.startsWith("legalForm:")) legalFormIds.push(f.slice(10));
-      else if (f.startsWith("companySize:")) sizeIds.push(f.slice(12));
-      else if (f.startsWith("annualRevenueBand:")) revenueIds.push(f.slice(18));
+      else if (f.startsWith("industry:")) {
+        const val = f.slice(9);
+        if (val.includes(":")) (vars as any).industryClassCodes = [...(vars as any).industryClassCodes || [], val.split(":").pop()!];
+        else industryIds.push(val);
+      }
+      else if (f.startsWith("legalForm:")) {
+        const val = f.slice(10);
+        if (val.includes(":")) (vars as any).legalFormCodes = [...(vars as any).legalFormCodes || [], val.split(":").pop()!];
+        else legalFormIds.push(val);
+      }
+      else if (f.startsWith("companySize:")) {
+        const val = f.slice(12);
+        if (val.includes(":")) (vars as any).companySizeCodes = [...(vars as any).companySizeCodes || [], val.split(":").pop()!];
+        else sizeIds.push(val);
+      }
+      else if (f.startsWith("annualRevenueBand:")) {
+        const val = f.slice(18);
+        if (val.includes(":")) (vars as any).accountAnnualRevenueBandCodes = [...(vars as any).accountAnnualRevenueBandCodes || [], val.split(":").pop()!];
+        else revenueIds.push(val);
+      }
       else if (f.startsWith("company:")) names.push(f.slice(8));
       else if (f.startsWith("location:")) geoPresence.push(f.slice(9));
       else if (f === "has:website") hasWebsite = true;
@@ -91,7 +156,9 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
-      orderBy: [{ field: sortField, direction: sortOrder }],
+      ...(sortField && sortOrder
+        ? { orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] as any }
+        : {}),
       ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
       ...(createdBefore ? { createdAtTo: createdBefore } : {}),
       ...(hasWebsite ? { hasWebsite: true } : {}),
@@ -229,10 +296,17 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   // Handle sorting
   const handleSort = useCallback(
     (field: string) => {
-      if (sortField === field) {
-        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-      } else {
+      if (sortField !== field) {
         setSortField(field);
+        setSortOrder("ASC");
+        return;
+      }
+      if (sortOrder === "ASC") {
+        setSortOrder("DESC");
+      } else if (sortOrder === "DESC") {
+        setSortField("");
+        setSortOrder("");
+      } else {
         setSortOrder("ASC");
       }
     },
@@ -243,6 +317,33 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     setSelectedFilters(filters);
     setCurrentPage(1);
   }, []);
+
+  // (Initial values already taken from URL above)
+
+  // Sync selected filters and search to URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const setList = (key: string, values: string[]) => {
+      urlParams.delete(key);
+      values.forEach((v) => urlParams.append(key, v));
+    };
+
+    const collect = (prefix: string) => selectedFilters.filter((f) => f.startsWith(`${prefix}:`)).map((f) => f.slice(prefix.length + 1));
+
+    setList("owner", collect("owner"));
+    setList("industry", collect("industry"));
+    setList("legalForm", collect("legalForm"));
+    setList("companySize", collect("companySize"));
+    setList("annualRevenueBand", collect("annualRevenueBand"));
+    setList("company", collect("company"));
+    setList("location", collect("location"));
+
+    if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [selectedFilters, searchTerm]);
 
   // Loading state
   if (isLoading && accounts.length === 0) {
@@ -303,6 +404,11 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
               </div>
             </div>
           ),
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'investment-accounts-column-visibility'
+          },
           actions: (
             <AppAction
               contextsArray={[FlowContextName.createInvestmentAccount]}
@@ -310,18 +416,13 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
               data-testid="add-account-action"
               emptyStateBehavior="hide"
             >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="add-account-action"
-                type="button"
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-account-trigger"
               >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  <PlusSquareIcon />
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
+                <PlusSquareIcon />
+                Add
+              </div>
             </AppAction>
           ),
         }}
@@ -341,8 +442,9 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
             onPageChange={handlePageChange}
             onSort={handleSort}
             sortField={sortField}
-            sortOrder={sortOrder}
+            sortOrder={sortOrder as any}
             onClearFilters={() => setSelectedFilters([])}
+            visibleColumns={visibleColumns}
             {...context}
           />
         }

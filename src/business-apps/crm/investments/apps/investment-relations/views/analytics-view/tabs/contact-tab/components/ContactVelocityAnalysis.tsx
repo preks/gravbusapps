@@ -8,21 +8,11 @@ import {
 } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import {
-  ContactsOutlined,
-  TeamOutlined,
-  BankOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import { ContactInsightsCharts } from "./ContactInsightsCharts";
+import { ContactsOutlined, TeamOutlined, BankOutlined } from "@ant-design/icons";
+import ContactInsightsCharts from "./ContactInsightsCharts";
 
 interface ContactInsightsData {
   totalContacts: number;
-  contactsByRole: {
-    role: string;
-    count: number;
-    percentage: number;
-  }[];
   contactsByType: {
     type: string;
     count: number;
@@ -35,7 +25,6 @@ interface ContactInsightsData {
   recentContacts: {
     id: string;
     name: string;
-    role: string;
     accountName?: string;
     createdDate: string;
     daysSinceCreated: number;
@@ -72,8 +61,7 @@ export const ContactVelocityAnalysis: React.FC<
               firstName
               lastName
               email
-              contactRole
-              contactType
+              type
               createdAt
               investmentAccountContact { account { id name } accountId }
             }
@@ -87,25 +75,9 @@ export const ContactVelocityAnalysis: React.FC<
         // Process contact insights
         const totalContacts = contacts.length;
 
-        // Group contacts by role
-        const roleGroups = contacts.reduce((acc: any, contact: any) => {
-          const role = contact.contactRole || "Unknown";
-          acc[role] = (acc[role] || 0) + 1;
-          return acc;
-        }, {});
-
-        const contactsByRole = Object.entries(roleGroups)
-          .map(([role, count]: [string, any]) => ({
-            role,
-            count,
-            percentage: Math.round((count / totalContacts) * 100),
-          }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8);
-
         // Group contacts by type
         const typeGroups = contacts.reduce((acc: any, contact: any) => {
-          const type = contact.contactType || "Unknown";
+          const type = contact.type || "Unknown";
           acc[type] = (acc[type] || 0) + 1;
           return acc;
         }, {});
@@ -145,7 +117,6 @@ export const ContactVelocityAnalysis: React.FC<
           return {
             id: contact.id,
             name: `${contact.firstName || ""} ${contact.lastName || ""}`.trim(),
-            role: contact.contactRole || "Unknown",
             accountName: contact.investmentAccountContact?.[0]?.account?.name,
             createdDate: contact.createdAt,
             daysSinceCreated,
@@ -154,7 +125,6 @@ export const ContactVelocityAnalysis: React.FC<
 
         setInsightsData({
           totalContacts,
-          contactsByRole,
           contactsByType,
           contactsByAccount,
           recentContacts,
@@ -218,18 +188,6 @@ export const ContactVelocityAnalysis: React.FC<
             </div>
           </div>
 
-          <div className="gba:p-4 gba:bg-green-50 gba:rounded-lg gba:border gba:border-green-200">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <UserOutlined className="gba:text-green-600" />
-              <span className="gba:text-sm gba:font-medium gba:text-green-600">
-                Contact Roles
-              </span>
-            </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-green-900">
-              {insightsData.contactsByRole.length}
-            </div>
-          </div>
-
           <div className="gba:p-4 gba:bg-purple-50 gba:rounded-lg gba:border gba:border-purple-200">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <TeamOutlined className="gba:text-purple-600" />
@@ -260,10 +218,7 @@ export const ContactVelocityAnalysis: React.FC<
         </div>
 
         {/* Charts Row */}
-        <ContactInsightsCharts
-          contactsByRole={insightsData.contactsByRole}
-          contactsByType={insightsData.contactsByType}
-        />
+        <ContactInsightsCharts contactsByType={insightsData.contactsByType} />
 
         {/* Top Accounts and Recent Contacts */}
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
@@ -316,10 +271,11 @@ export const ContactVelocityAnalysis: React.FC<
                       <h5 className="gba:font-medium gba:text-gray-900 gba:text-sm">
                         {contact.name}
                       </h5>
-                      <p className="gba:text-xs gba:text-gray-600 gba:mt-1">
-                        {contact.role}{" "}
-                        {contact.accountName && `• ${contact.accountName}`}
-                      </p>
+                      {contact.accountName && (
+                        <p className="gba:text-xs gba:text-gray-600 gba:mt-1">
+                          {contact.accountName}
+                        </p>
+                      )}
                     </div>
                     <div className="gba:text-right">
                       <Badge variant="outline">

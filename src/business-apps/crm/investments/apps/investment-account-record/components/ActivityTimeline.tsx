@@ -124,7 +124,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       // Pre-fill task with approval type, let user select from managers
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentTask',
+        processName: 'createInvestmentTask',
         payload: {
           accountId,
           typeRef: 'InvestmentTaskType:v1:APPROVAL', // Correct catalog format
