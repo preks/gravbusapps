@@ -11,6 +11,10 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
 } from "@newwork/nw-design-system";
 import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
@@ -471,10 +475,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   ]);
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <>
       <DataContainer
         contentBackground="white"
-        floatingDetails={true}
         dataControllerProps={{
           search: searchTerm,
           setSearch: setSearchTerm,
@@ -504,25 +507,34 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         }}
         hideFilter={false}
         dataBody={renderDataBody()}
-        dataDetails={
-          selectedPayment
-            ? {
-                title: "Advance Payment Details",
-                content: (
-                  <AdvancePaymentDetails
-                    payment={selectedPayment}
-                    onApprove={handleApprovePayment}
-                    onReject={handleRejectPayment}
-                    {...contextProps}
-                  />
-                ),
-                onClose: () => setSelectedPayment(null),
-              }
-            : undefined
-        }
         data-testid="advance-payments-container"
       />
-    </div>
+
+      {/* Advance Payment Details Sheet */}
+      <Sheet open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
+        <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedPayment?.expensePlan?.title ||
+                getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:advance_payment_details.title",
+                  "Advance Payment Details",
+                )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedPayment && (
+              <AdvancePaymentDetails
+                payment={selectedPayment}
+                onApprove={handleApprovePayment}
+                onReject={handleRejectPayment}
+                {...contextProps}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 
