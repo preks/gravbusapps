@@ -5,10 +5,7 @@ import {
   GET_MAIN_VIEW_EXPENSE_PLANS,
   GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS,
 } from "../queries/mainViewExpensePlans";
-import {
-  APPROVE_EXPENSE_PLAN,
-  REJECT_EXPENSE_PLAN,
-} from "../queries/expensePlans";
+import { APPROVE_EXPENSE_PLAN, REJECT_EXPENSE_PLAN } from "../queries/expensePlans";
 import { env } from "@/common/env/EnvUtils";
 
 export interface ExpensePlan {
@@ -24,6 +21,18 @@ export interface ExpensePlan {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  employeeDocument?: {
+    file: string;
+    fileSize: number;
+    id: string;
+    description: string;
+    mimeType: string;
+    name: string;
+    type: string;
+    employee: {
+      id: string;
+    };
+  } | null;
   employee: {
     id: string;
     displayName?: string;
@@ -101,8 +110,7 @@ export interface SortConfig {
   order: SortOrder;
 }
 
-interface UseMainViewExpensePlansProps
-  extends Partial<BusinessAppContextProps> {
+interface UseMainViewExpensePlansProps extends Partial<BusinessAppContextProps> {
   pageSize?: number;
   searchTerm?: string;
   currentStatusFilter?: string[] | null;
@@ -124,9 +132,7 @@ export const useMainViewExpensePlans = ({
   const hookId = useMemo(() => Math.random().toString(36).substring(7), []);
 
   // Get managerId from userInfo or use a fallback for development
-  const managerId =
-    userInfo?.employeeDetails?.employeeId ||
-    "00000000-0000-0000-0000-000000000000";
+  const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -137,9 +143,7 @@ export const useMainViewExpensePlans = ({
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
-  const [planStats, setPlanStats] = useState<ExpensePlanStatistics | null>(
-    null
-  );
+  const [planStats, setPlanStats] = useState<ExpensePlanStatistics | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<Error | null>(null);
 
@@ -165,15 +169,12 @@ export const useMainViewExpensePlans = ({
     async (
       forceFilter?: string[] | null,
       forceCurrencyFilter?: string | null,
-      forceSortConfig?: SortConfig
+      forceSortConfig?: SortConfig,
     ) => {
       // Use forced filter or current filter - this prevents stale closure issues
-      const activeFilter =
-        forceFilter !== undefined ? forceFilter : currentStatusFilter;
+      const activeFilter = forceFilter !== undefined ? forceFilter : currentStatusFilter;
       const activeCurrencyFilter =
-        forceCurrencyFilter !== undefined
-          ? forceCurrencyFilter
-          : currentCurrencyFilter;
+        forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
       const activeSortConfig = forceSortConfig || sorting;
       const offset = (currentPage - 1) * pageSize;
       const searchValue = searchTerm ? `%${searchTerm}%` : "%%";
@@ -191,8 +192,7 @@ export const useMainViewExpensePlans = ({
       // Skip if parameters haven't changed
       if (
         lastFetchParams.current &&
-        JSON.stringify(lastFetchParams.current) ===
-          JSON.stringify(currentFetchParams)
+        JSON.stringify(lastFetchParams.current) === JSON.stringify(currentFetchParams)
       ) {
         return;
       }
@@ -201,17 +201,13 @@ export const useMainViewExpensePlans = ({
       lastFetchParams.current = currentFetchParams;
 
       if (!accessToken) {
-        setError(
-          new Error("Access token not found. Cannot fetch expense plans.")
-        );
+        setError(new Error("Access token not found. Cannot fetch expense plans."));
         setLoading(false);
         return;
       }
 
       if (!managerId) {
-        setError(
-          new Error("Manager ID not found. Cannot fetch expense plans.")
-        );
+        setError(new Error("Manager ID not found. Cannot fetch expense plans."));
         setLoading(false);
         return;
       }
@@ -264,20 +260,17 @@ export const useMainViewExpensePlans = ({
           orderBy,
         };
 
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              query: GET_MAIN_VIEW_EXPENSE_PLANS,
-              variables,
-            }),
-          }
-        );
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_MAIN_VIEW_EXPENSE_PLANS,
+            variables,
+          }),
+        });
 
         const result = await response.json();
 
@@ -292,26 +285,20 @@ export const useMainViewExpensePlans = ({
         // Map currency information from currencyRef field (for display purposes)
         filteredPlans = filteredPlans.map((plan) => ({
           ...plan,
-          currency: plan.currencyRef
-            ? plan.currencyRef.replace("Currency:v1:", "")
-            : "EUR",
+          currency: plan.currencyRef ? plan.currencyRef.replace("Currency:v1:", "") : "EUR",
         }));
 
         // Apply status filtering client-side
         if (activeFilter && activeFilter.length > 0) {
           const beforeFilterCount = filteredPlans.length;
-          filteredPlans = filteredPlans.filter((plan) =>
-            activeFilter.includes(plan.status)
-          );
+          filteredPlans = filteredPlans.filter((plan) => activeFilter.includes(plan.status));
           const afterFilterCount = filteredPlans.length;
         } else {
         }
 
         // Filter by employee if specified
         if (employeeFilter) {
-          filteredPlans = filteredPlans.filter(
-            (plan) => plan.employee?.id === employeeFilter
-          );
+          filteredPlans = filteredPlans.filter((plan) => plan.employee?.id === employeeFilter);
         }
 
         setPlans(filteredPlans || []);
@@ -319,11 +306,7 @@ export const useMainViewExpensePlans = ({
         setTotalCount(filteredPlans?.length || 0);
       } catch (err) {
         console.error("Error fetching expense plans:", err);
-        setError(
-          err instanceof Error
-            ? err
-            : new Error("Failed to fetch expense plans")
-        );
+        setError(err instanceof Error ? err : new Error("Failed to fetch expense plans"));
       } finally {
         setLoading(false);
       }
@@ -339,7 +322,7 @@ export const useMainViewExpensePlans = ({
       hookId,
       currentCurrencyFilter,
       sorting,
-    ]
+    ],
   );
 
   // Effect to fetch plans when dependencies change
@@ -368,9 +351,7 @@ export const useMainViewExpensePlans = ({
 
       // Use forced currency filter or current filter
       const activeCurrencyFilter =
-        forceCurrencyFilter !== undefined
-          ? forceCurrencyFilter
-          : currentCurrencyFilter;
+        forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
 
       // Check if this is a duplicate request with the same parameters
       if (
@@ -392,23 +373,20 @@ export const useMainViewExpensePlans = ({
           ? `Currency:v1:${activeCurrencyFilter}`
           : "Currency:v1:EUR"; // Default to EUR if no currency filter
 
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS,
+            variables: {
+              managerId,
+              currencyRef: currencyRefValue,
             },
-            body: JSON.stringify({
-              query: GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS,
-              variables: {
-                managerId,
-                currencyRef: currencyRefValue,
-              },
-            }),
-          }
-        );
+          }),
+        });
         const result = await response.json();
 
         if (result.errors) {
@@ -419,26 +397,22 @@ export const useMainViewExpensePlans = ({
 
         const stats = {
           totalCount: data.allPlansStats?.aggregate.totalCount || 0,
-          sumTotalAmount:
-            data.allPlansStats?.aggregate.sum?.totalAmount || null,
+          sumTotalAmount: data.allPlansStats?.aggregate.sum?.totalAmount || null,
           pendingCount: data.pendingPlansStats?.aggregate.pendingCount || 0,
-          pendingAmount:
-            data.pendingAmountStats?.aggregate.sum?.totalAmount || null,
+          pendingAmount: data.pendingAmountStats?.aggregate.sum?.totalAmount || null,
         };
 
         setPlanStats(stats);
       } catch (err) {
         console.error("Error fetching expense plan statistics:", err);
         setStatsError(
-          err instanceof Error
-            ? err
-            : new Error("Failed to fetch expense plan statistics")
+          err instanceof Error ? err : new Error("Failed to fetch expense plan statistics"),
         );
       } finally {
         setStatsLoading(false);
       }
     },
-    [accessToken, managerId, currentCurrencyFilter]
+    [accessToken, managerId, currentCurrencyFilter],
   );
 
   // Effect to debounce statistics fetch
@@ -477,24 +451,21 @@ export const useMainViewExpensePlans = ({
 
       setApproving(true);
       try {
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: APPROVE_EXPENSE_PLAN,
+            variables: {
+              planId,
+              approverEmployeeId: managerId,
+              comments: comments ?? null,
             },
-            body: JSON.stringify({
-              query: APPROVE_EXPENSE_PLAN,
-              variables: {
-                planId,
-                approverEmployeeId: managerId,
-                comments: comments ?? null,
-              },
-            }),
-          }
-        );
+          }),
+        });
 
         const result = await response.json();
 
@@ -520,7 +491,7 @@ export const useMainViewExpensePlans = ({
       fetchPlanStatistics,
       currentStatusFilter,
       currentCurrencyFilter,
-    ]
+    ],
   );
 
   // Function to reject expense plan
@@ -530,24 +501,21 @@ export const useMainViewExpensePlans = ({
 
       setRejecting(true);
       try {
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: REJECT_EXPENSE_PLAN,
+            variables: {
+              planId,
+              rejectorEmployeeId: managerId,
+              reason,
             },
-            body: JSON.stringify({
-              query: REJECT_EXPENSE_PLAN,
-              variables: {
-                planId,
-                rejectorEmployeeId: managerId,
-                reason,
-              },
-            }),
-          }
-        );
+          }),
+        });
 
         const result = await response.json();
 
@@ -573,7 +541,7 @@ export const useMainViewExpensePlans = ({
       fetchPlanStatistics,
       currentStatusFilter,
       currentCurrencyFilter,
-    ]
+    ],
   );
 
   // Function to update sorting configuration

@@ -30,6 +30,18 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
       currencyRef
       createdAt
       updatedAt
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
+      }
       employee {
         id
         displayName

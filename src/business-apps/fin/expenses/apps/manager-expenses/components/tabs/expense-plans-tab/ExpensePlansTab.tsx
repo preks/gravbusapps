@@ -3,12 +3,8 @@ import { PiFileText } from "react-icons/pi";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer";
-import {
-  ExpensePlan,
-  useMainViewExpensePlans,
-} from "../../../hooks/useMainViewExpensePlans";
+import { ExpensePlan, useMainViewExpensePlans } from "../../../hooks/useMainViewExpensePlans";
 import { useExpensePlanFilters } from "../../../hooks/useExpensePlanFilters";
-import { ExpenseStatus } from "../../../utils";
 import ExpensePlanStatisticsDisplay from "./ExpensePlanStatistics";
 import ExpensePlansTable from "./ExpensePlansTable";
 import ExpensePlanDetails from "./ExpensePlanDetails";
@@ -24,7 +20,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       accessToken: props.accessToken,
       userInfo: props.userInfo,
     }),
-    [props.accessToken, props.userInfo]
+    [props.accessToken, props.userInfo],
   );
 
   // Get managerId from userInfo for currency filtering
@@ -46,12 +42,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   });
 
   // Use the statistics-only hook to get KPI data without interfering with table data
-  const { planStats, statsLoading, statsError, approvePlan, rejectPlan } =
-    useMainViewExpensePlans({
-      ...contextProps,
-      currentCurrencyFilter: primaryCurrency, // Use primaryCurrency from filters hook
-      statisticsOnly: true, // This prevents race conditions with the table data
-    });
+  const { planStats, statsLoading, statsError } = useMainViewExpensePlans({
+    ...contextProps,
+    currentCurrencyFilter: primaryCurrency, // Use primaryCurrency from filters hook
+    statisticsOnly: true, // This prevents race conditions with the table data
+  });
 
   // Use the main data hook to fetch expense plans data
   const {
@@ -85,40 +80,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setSelectedPlan(null);
   }, []);
 
-  // Handle approve plan
-  const handleApprovePlan = useCallback(
-    async (planId: string) => {
-      try {
-        await approvePlan(planId, ""); // Default empty comments - could be enhanced with modal later
-        setSelectedPlan(null); // Close details panel after successful approval
-      } catch (error) {
-        // Error handling is done inside approvePlan function
-        console.error("Failed to approve plan:", error);
-      }
-    },
-    [approvePlan]
-  );
-
-  // Handle reject plan
-  const handleRejectPlan = useCallback(
-    async (planId: string) => {
-      try {
-        await rejectPlan(planId, "Rejected via details panel"); // Default reason - could be enhanced with modal later
-        setSelectedPlan(null); // Close details panel after successful rejection
-      } catch (error) {
-        // Error handling is done inside rejectPlan function
-        console.error("Failed to reject plan:", error);
-      }
-    },
-    [rejectPlan]
-  );
-
   // Handle search term changes
   const handleSearchChange = useCallback(
     (search: string) => {
       setSearchTerm(search);
     },
-    [setSearchTerm]
+    [setSearchTerm],
   );
 
   // No need for separate status filter handler as we use handleDataFilterChange
@@ -156,36 +123,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           setSearch: handleSearchChange,
           setFilter: (newFilters) => {
             // Convert filters to string IDs for comparison
-            const currentFilters = statusFilter.map(
-              (status) => status as unknown as string
-            );
-            const incomingFilters = newFilters.map(
-              (status) => status as unknown as string
-            );
+            const currentFilters = statusFilter.map((status) => status as unknown as string);
+            const incomingFilters = newFilters.map((status) => status as unknown as string);
 
             // Find filters to remove and add
-            const filtersToRemove = currentFilters.filter(
-              (f) => !incomingFilters.includes(f)
-            );
-            const filtersToAdd = incomingFilters.filter(
-              (f) => !currentFilters.includes(f)
-            );
+            const filtersToRemove = currentFilters.filter((f) => !incomingFilters.includes(f));
+            const filtersToAdd = incomingFilters.filter((f) => !currentFilters.includes(f));
 
             // Apply filter changes
-            filtersToRemove.forEach((filter) =>
-              handleDataFilterChange(filter, false)
-            );
-            filtersToAdd.forEach((filter) =>
-              handleDataFilterChange(filter, true)
-            );
+            filtersToRemove.forEach((filter) => handleDataFilterChange(filter, false));
+            filtersToAdd.forEach((filter) => handleDataFilterChange(filter, true));
           },
-          addButton: {
-            onClick: () => {
-              // TODO: Implement add plan functionality
-            },
-            label: "Add",
-            "data-testid": "add-expense-plan-button",
-          },
+
           filterLabelMap: filterLabelMap,
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
@@ -193,7 +142,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 <span>
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:backoffice_expense_landing_page.plan_info_pl",
-                    "Plans"
+                    "Plans",
                   )}
                 </span>
                 <span className="gba:text-gray-500">(x)</span>
@@ -238,11 +187,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                 content: (
                   <ExpensePlanDetails
                     {...contextProps}
-                    plan={selectedPlan}
-                    onApprove={handleApprovePlan}
-                    onReject={handleRejectPlan}
-                    {...contextProps}
-                    // @ts-ignore - Component expects these props but TypeScript doesn't recognize them
+                    selectedItem={selectedPlan}
+                    onClose={handleCloseDetails}
                   />
                 ),
                 onClose: handleCloseDetails,
