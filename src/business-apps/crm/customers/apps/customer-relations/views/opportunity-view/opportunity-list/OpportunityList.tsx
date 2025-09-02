@@ -11,12 +11,11 @@ import { useOpportunityListData } from "./hooks/useOpportunityListData";
 import { useOpportunityFilters } from "./hooks/useOpportunityFilters";
 import OpportunityTable from "./components/OpportunityTable";
 import { Opportunity } from "./types";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 import { Alert, Button } from "antd";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 interface OpportunityListProps extends BusinessAppContextProps {
@@ -24,7 +23,7 @@ interface OpportunityListProps extends BusinessAppContextProps {
 }
 
 const OpportunityList: React.FC<OpportunityListProps> = (context) => {
-  const { sourceApp } = context;
+  const { sourceApp, accessToken } = context;
 
   // State management
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<
@@ -256,14 +255,7 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
     [opportunityFilters]
   );
 
-  const handleAddOpportunity = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveOpportunity",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction will handle creating an opportunity via flow context
 
   // statistics retry handled at view level
 
@@ -343,19 +335,27 @@ const OpportunityList: React.FC<OpportunityListProps> = (context) => {
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddOpportunity,
-            label: "Add",
-            "data-testid": "add-opportunity-button",
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerOpportunityCreate]}
+              accessToken={accessToken}
+              data-testid="add-opportunity-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-opportunity-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'opportunity-list-column-visibility'
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="opportunity-list-column-visibility"
-            />,
-          ],
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

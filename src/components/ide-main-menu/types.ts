@@ -11,9 +11,9 @@ export interface IdeMainMenuProps {
   businessApps: BusinessAppInfo[];
   selectedApp?: BusinessAppInfo | null;
   collapsed: boolean;
-  openKeys: string[];
+  openKeys?: string[];
   onAppSelect: (app: BusinessAppInfo) => void;
-  onOpenChange: (keys: string[]) => void;
+  onOpenChange?: (keys: string[]) => void;
 }
 
 export interface MenuItemGroup {

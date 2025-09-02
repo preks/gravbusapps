@@ -74,7 +74,6 @@ export interface ContactContextState {
 
   // ✅ REMOVED: Fields not relevant for InvestmentContact
   // contactTypes: SelectOption[]; // Not in InvestmentContact
-  // contactRoles: SelectOption[]; // Not in InvestmentContact
   // accounts: SelectOption[]; // Handled differently in InvestmentContact
 }
 

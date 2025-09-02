@@ -239,15 +239,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
           {employee.extraInfo?.organizationalUnit || "No Unit"}
         </div>
       </div>
-
-      {/* Selection indicator */}
-      {cachedSelectedOption &&
-        (cachedSelectedOption.value === employee.value ||
-          cachedSelectedOption.id === employee.id) && (
-          <div className="gba:w-4 gba:h-4 gba:bg-blue-500 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-            <div className="gba:w-1.5 gba:h-1.5 gba:bg-white gba:rounded-full"></div>
-          </div>
-        )}
     </div>
   );
 

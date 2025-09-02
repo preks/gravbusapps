@@ -70,9 +70,10 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
   accessToken,
   sourceApp,
   visibleColumns,
-  }) => {
+}) => {
   // Helper function to check if a column is visible
-  const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId);
+  const isColumnVisible = (columnId: string) =>
+    visibleColumns.includes(columnId);
 
   const formatCurrency = (
     amount: number | undefined,
@@ -191,7 +192,14 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 
   const getStageColor = (
     alternativeCode?: string
-  ): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+  ):
+    | "default"
+    | "secondary"
+    | "destructive"
+    | "outline"
+    | "success"
+    | "warning"
+    | "info" => {
     if (!alternativeCode) return "outline";
     switch (alternativeCode.toUpperCase()) {
       case "DISCOVERY":
@@ -222,7 +230,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                {isColumnVisible('opportunity') && (
+                {isColumnVisible("opportunity") && (
                   <TableHead
                     className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("name")}
@@ -234,7 +242,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('value') && (
+                {isColumnVisible("value") && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("estimatedAmount")}
@@ -246,7 +254,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('winRate') && (
+                {isColumnVisible("winRate") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("winningChance")}
@@ -258,7 +266,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('pipeline') && (
+                {isColumnVisible("pipeline") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("pipeline")}
@@ -270,7 +278,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('stage') && (
+                {isColumnVisible("stage") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("stage")}
@@ -282,7 +290,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('status') && (
+                {isColumnVisible("status") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("status")}
@@ -294,7 +302,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('closeDate') && (
+                {isColumnVisible("closeDate") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("closeDate")}
@@ -306,7 +314,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('account') && (
+                {isColumnVisible("account") && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("accountId")}
@@ -318,7 +326,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('owner') && (
+                {isColumnVisible("owner") && (
                   <TableHead
                     className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("ownerEmployeeId")}
@@ -330,15 +338,17 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {isColumnVisible('createdAt') && (
+                {isColumnVisible("createdAt") && (
                   <TableHead
                     className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                     onClick={() => handleSort("createdAt")}
                   >
-                    <div className="gba:flex gba:items-center">Created {renderSortIcon("createdAt")}</div>
+                    <div className="gba:flex gba:items-center">
+                      Created {renderSortIcon("createdAt")}
+                    </div>
                   </TableHead>
                 )}
-                {isColumnVisible('actions') && (
+                {isColumnVisible("actions") && (
                   <TableHead
                     className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
@@ -352,12 +362,13 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
               {data.map((record) => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
                     selectedOpportunityId === record.id ? "gba:bg-blue-50" : ""
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                  onClick={() => handleRowClick(record)}
                 >
-                  {isColumnVisible('opportunity') && (
+                  {isColumnVisible("opportunity") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-cell-${record.id}`}
@@ -376,9 +387,12 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                         >
                           {record.name}
                         </div>
-                        {record.account && !isColumnVisible('account') && (
+                        {record.account && !isColumnVisible("account") && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
-                            <Building2 size={12} className="gba:text-gray-400" />
+                            <Building2
+                              size={12}
+                              className="gba:text-gray-400"
+                            />
                             <span
                               className="gba:truncate"
                               title={record.account.name}
@@ -390,7 +404,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('value') && (
+                  {isColumnVisible("value") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${record.id}`}
@@ -412,7 +426,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       )}
                     </TableCell>
                   )}
-                  {isColumnVisible('winRate') && (
+                  {isColumnVisible("winRate") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${record.id}`}
@@ -422,49 +436,68 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                           record.winningChance
                         )}
                       >
-                        {record.winningChance ? `${record.winningChance}%` : "0%"}
+                        {record.winningChance
+                          ? `${record.winningChance}%`
+                          : "0%"}
                       </Badge>
                     </TableCell>
                   )}
-                  {isColumnVisible('pipeline') && (
+                  {isColumnVisible("pipeline") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-pipeline-cell-${record.id}`}
                     >
-                      <div className="gba:text-sm gba:truncate" title={record.opportunityPipeline?.value}>
-                        {record.opportunityPipeline?.value || record.opportunityPipeline?.code || "-"}
+                      <div
+                        className="gba:text-sm gba:truncate"
+                        title={record.opportunityPipeline?.value}
+                      >
+                        {record.opportunityPipeline?.value ||
+                          record.opportunityPipeline?.code ||
+                          "-"}
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('stage') && (
+                  {isColumnVisible("stage") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${record.id}`}
                     >
                       {record.opportunityPipelineStage ? (
-                        <Badge variant={getStageColor(record.opportunityPipelineStage?.alternativeCode)}>
-                          {record.opportunityPipelineStage?.value || record.opportunityPipelineStage?.code || "-"}
+                        <Badge
+                          variant={getStageColor(
+                            record.opportunityPipelineStage?.alternativeCode
+                          )}
+                        >
+                          {record.opportunityPipelineStage?.value ||
+                            record.opportunityPipelineStage?.code ||
+                            "-"}
                         </Badge>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
                   )}
-                  {isColumnVisible('status') && (
+                  {isColumnVisible("status") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
                     >
                       {record.opportunityStatus ? (
-                        <Badge variant={getBadgeVariantFromCatalog(record.opportunityStatus)}>
-                          {record.opportunityStatus?.value || record.opportunityStatus?.code || "-"}
+                        <Badge
+                          variant={getBadgeVariantFromCatalog(
+                            record.opportunityStatus
+                          )}
+                        >
+                          {record.opportunityStatus?.value ||
+                            record.opportunityStatus?.code ||
+                            "-"}
                         </Badge>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
                   )}
-                  {isColumnVisible('closeDate') && (
+                  {isColumnVisible("closeDate") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-close-date-cell-${record.id}`}
@@ -472,85 +505,106 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       {record.closeDate ? (
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">{formatDate(record.closeDate)}</span>
+                          <span className="gba:text-sm">
+                            {formatDate(record.closeDate)}
+                          </span>
                         </div>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
                   )}
-                  {isColumnVisible('account') && (
+                  {isColumnVisible("account") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-account-cell-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                        <span className="gba:text-sm gba:truncate" title={record.account?.name}>
+                        <span
+                          className="gba:text-sm gba:truncate"
+                          title={record.account?.name}
+                        >
                           {record.account?.name || "-"}
                         </span>
                       </div>
                     </TableCell>
                   )}
-                  {isColumnVisible('owner') && (
+                  {isColumnVisible("owner") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-owner-cell-${record.id}`}
                     >
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Avatar size="sm">
-                          {record.ownerEmployee?.pictureThumbnail && (
-                            <AvatarImage
-                              src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
-                              alt={getOwnerName(record)}
-                            />
-                          )}
-                          <AvatarFallback>
-                            {getOwnerName(record) !== "-"
-                              ? getOwnerName(record)
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
-                                  .toUpperCase()
-                              : "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">
-                            {getOwnerName(record)}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                  )}
-                  {isColumnVisible('createdAt') && (
-                    <TableCell className="gba:py-4 gba:px-6">
-                      {record.createdAt ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">{formatDate(record.createdAt)}</span>
+                      {record.ownerEmployee ? (
+                        <div
+                          className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const empId = record.ownerEmployee?.id;
+                            if (empId) {
+                              navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                            }
+                          }}
+                        >
+                          <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+                            {record.ownerEmployee?.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
+                                alt={getOwnerName(record)}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {getOwnerName(record) !== "-"
+                                ? getOwnerName(record)
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                : "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex gba:flex-col">
+                            <span className="gba:font-medium gba:text-sm">
+                              {getOwnerName(record)}
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
                   )}
-                  {isColumnVisible('actions') && (
+                  {isColumnVisible("createdAt") && (
+                    <TableCell className="gba:py-4 gba:px-6">
+                      {record.createdAt ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                          <span className="gba:text-sm">
+                            {formatDate(record.createdAt)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {isColumnVisible("actions") && (
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.opportunityEntity]}
+                          contextsArray={[FlowContextName.customerOpportunityEntity]}
                           externalContextData={{
                             opportunityId: record.id,
                           }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
                           accessToken={accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                           onClick={(e) => e.stopPropagation()}
                         />

@@ -64,7 +64,7 @@ export interface InvestmentTaskQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -116,5 +116,20 @@ export const GET_INVESTMENT_TASKS = (variables: InvestmentTaskQueryVariables = {
     }
   `;
 };
+
+// Get a single Investment Task by ID
+export const GET_INVESTMENT_TASK_BY_ID = `
+  query GetInvestmentTaskById($id: uuid!) {
+    InvestmentTask(where: { id: { _eq: $id } }, limit: 1) {
+      ${INVESTMENT_TASK}
+
+      # Entity references (minimal for display and mapping)
+      account { ${INVESTMENT_ACCOUNT_REF} }
+      contact { ${INVESTMENT_CONTACT_REF} }
+      lead { id code firstName lastName }
+      opportunity { id code name }
+    }
+  }
+`;
 
 

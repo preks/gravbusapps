@@ -14,6 +14,7 @@ import { useGetCountries } from "./useGetCountries";
 import { useGetRegions } from "./useGetRegions";
 import { useGetCities } from "./useGetCities";
 import { DateRangeFilter } from "../components/DateRangeFilter";
+import { Switch } from "@newwork/nw-design-system";
 
 // DataFilter interfaces to match DataContainer expectations
 export interface DataFilter {
@@ -725,6 +726,28 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   // Create filter groups with backend search functions in the requested order
   const filterGroups: DataFilterGroup[] = [
     {
+      id: "sensitive",
+      title: "Sensitive",
+      // Use design system Switch as a toggle instead of checkbox
+      customComponent: React.createElement(
+        'div',
+        { className: 'gba:flex gba:items-center gba:gap-3 gba:px-2' },
+        React.createElement(Switch as any, {
+          checked: selectedFilters.includes('sensitive:true'),
+          onCheckedChange: (checked: boolean) => {
+            setSelectedFilters(
+              checked
+                ? [...selectedFilters, 'sensitive:true']
+                : selectedFilters.filter((f) => f !== 'sensitive:true')
+            );
+          },
+          'data-testid': 'customer-leads-high-priority-switch',
+        }),
+        React.createElement('span', { className: 'gba:text-sm' }, 'Sensitive')
+      ),
+      hideSearch: true,
+    } as any,
+    {
       id: "leadContacts",
       title: "Lead Contact",
       filters: contactFilterOptions,
@@ -800,6 +823,8 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   // Create a label mapping for filters to support filter management functions
   const filterLabelMap = useMemo(() => {
     return {
+      // Sensitivity labels
+      "sensitive:true": "Sensitive",
       ...Object.fromEntries(stableOptions.leadStatusOptions.map((o) => [o.id, o.name])),
       ...Object.fromEntries(stableOptions.leadRatingOptions.map((o) => [o.id, o.name])),
       ...Object.fromEntries(stableOptions.leadSourceOptions.map((o) => [o.id, o.name])),

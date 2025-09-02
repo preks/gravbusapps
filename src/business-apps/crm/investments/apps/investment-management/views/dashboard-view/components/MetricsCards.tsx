@@ -16,7 +16,7 @@ interface InvestmentMetrics {
   bookValueChange: string;
   avgExpectedROI: string;
   totalInvestments: number;
-  investmentTypes: number;
+  investmentGroups: number;
 }
 
 interface MetricsCardsProps extends BusinessAppContextProps {
@@ -75,7 +75,7 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({
       prefix: <DollarOutlined />,
       color: "#1890ff",
       span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
-      description: `Across ${metrics.investmentTypes} investment types`,
+      description: `Across ${metrics.investmentGroups} investment groups`,
     },
     {
       key: "current-book-value",
@@ -102,7 +102,7 @@ const MetricsCards: React.FC<MetricsCardsProps> = ({
       prefix: <AppstoreOutlined />,
       color: "#faad14",
       span: { xs: 24, sm: 12, md: 6, lg: 6, xl: 6 },
-      description: `${metrics.investmentTypes} different types`,
+      description: `${metrics.investmentGroups} different groups`,
     },
   ];
 

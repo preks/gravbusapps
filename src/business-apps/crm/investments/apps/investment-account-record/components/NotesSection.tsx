@@ -198,7 +198,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
     if (accountId) {
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentNote',
+        processName: 'createInvestmentNote',
         payload: {
           accountId,
         },

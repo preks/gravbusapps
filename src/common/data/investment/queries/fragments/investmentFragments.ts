@@ -4,7 +4,7 @@ import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeF
 
 export const INVESTMENT_REF=`
     id
-    core
+    code
     name
     isin
     initialInvestmentAmount

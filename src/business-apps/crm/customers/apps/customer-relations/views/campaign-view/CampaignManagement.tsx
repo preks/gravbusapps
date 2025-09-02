@@ -6,10 +6,13 @@ import { useCampaignFilters } from './components/campaign-list/hooks/useCampaign
 import { CampaignStatistics, CampaignsTable, AddCampaignModal } from './components';
 
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { ColumnVisibilityDropdown, ColumnConfig } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/ColumnVisibilityDropdown';
-import type { NewCampaignData } from './components/campaign-list/AddCampaignModal';
+import { ColumnConfig } from '@/components/dataController';
+// Removed NewCampaignData type import as inline handler is used
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes';
-import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { PlusSquareIcon } from '@phosphor-icons/react';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 
 
 
@@ -22,7 +25,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
   
   // Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting] = useState(false);
 
   // Use the centralized campaign filters hook
   const {
@@ -54,7 +57,6 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     statistics,
     statisticsLoading,
     statisticsError,
-    refetch,
     processFiltersAndFetch,
     refetchStatistics
   } = useSalesCampaignData(props);
@@ -211,66 +213,32 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
     processFiltersAndFetch
   ]);
 
-  // Add button -> start native screen process for Campaign form
-  const handleAddCampaign = useCallback(() => {
-    const currentUrl = new URL(window.location.href);
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesCampaign',
-      payload: {
-        returnUrl: currentUrl.toString(),
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  }, []);
+  // AppAction handles add via flow context
 
-  // Refresh list after process completion from native screen
-  useEffect(() => {
-    const handleProcessEvents = (event: any) => {
-      try {
-        const type = event?.type || '';
-        const detail = (event as CustomEvent)?.detail || {};
-        if (
-          type === 'com.newwork.process.taskCompletion' ||
-          type === 'process-completion' ||
-          type === 'task-completion' ||
-          (detail?.payload && detail?.event === 'pse_submit')
-        ) {
-          refetch();
-          refetchStatistics();
-        }
-      } catch (_) {}
-    };
-    window.addEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
-    window.addEventListener('process-completion', handleProcessEvents as EventListener);
-    window.addEventListener('task-completion', handleProcessEvents as EventListener);
-    window.addEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
-    return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessEvents as EventListener);
-      window.removeEventListener('process-completion', handleProcessEvents as EventListener);
-      window.removeEventListener('task-completion', handleProcessEvents as EventListener);
-      window.removeEventListener('com.newwork.process.continue', handleProcessEvents as EventListener);
-    };
-  }, [refetch, refetchStatistics]);
+  // Refresh list and statistics after process completion
+  useProcessCompletion({
+    onSuccess: () => {
+      processFiltersAndFetch(
+        search,
+        selectedFilters,
+        filterStartDateAfter,
+        filterStartDateBefore,
+        filterEndDateAfter,
+        filterEndDateBefore,
+        filterCreatedAfter,
+        filterCreatedBefore,
+        sortField,
+        sortOrder
+      );
+      refetchStatistics();
+    },
+  });
 
   const handleCloseModal = useCallback(() => {
     setIsAddModalOpen(false);
   }, []);
 
-  const handleSubmitCampaign = useCallback(async (campaignData: NewCampaignData) => {
-    setIsSubmitting(true);
-    try {
-      // TODO: Implement campaign creation API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Close modal and refresh data
-      setIsAddModalOpen(false);
-      refetch();
-    } catch (error) {
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [refetch]);
+  // Removed handleSubmitCampaign; creation handled via AppAction elsewhere
 
 
 
@@ -288,101 +256,100 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = (pro
 
 
 
-  // Overview Tab Component
-  const OverviewTab = () => (
-    <>
-      {/* Statistics Section */}
-      <div className="gba:mb-6" data-testid="campaign-statistics-section">
-        <CampaignStatistics
-          statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
-          isLoading={statisticsLoading}
-          error={statisticsError}
-          onRetry={refetchStatistics}
-        />
-      </div>
-
-      {/* Campaigns Table Section */}
-      <DataContainer
-        dataControllerProps={{
-          search,
-          setSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          dateRange: {
-            createdAfter: filterCreatedAfter,
-            createdBefore: filterCreatedBefore,
-            onClear: () => {
-              filterHandleCreatedDateRangeChange(undefined, undefined);
-              // Also clear start and end date ranges when clearing all
-              handleStartDateRangeChange(undefined, undefined);
-              handleEndDateRangeChange(undefined, undefined);
-            },
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Campaigns</span>
-                <span className="gba:text-gray-500">({totalCount})</span>
-              </div>
-            </div>
-          ),
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="campaigns-column-visibility"
-            />
-          ],
-          addButton: {
-            onClick: handleAddCampaign,
-            label: "Add",
-            "data-testid": "add-campaign-button",
-          },
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleFilterChange,
-        }}
-        dataBody={
-          <div data-testid="campaigns-table-container">
-            <CampaignsTable
-              campaigns={campaigns}
-              isLoading={isLoading}
-              error={error}
-              totalCount={totalCount}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onTableChange={handleTableChange}
-              onPaginationChange={handlePaginationChange}
-              onSortingChange={handleSortingChange}
-              onRowClick={handleCampaignRowClick}
-              accessToken={props.accessToken}
-              visibleColumns={visibleColumns}
-            />
-          </div>
-        }
-      />
-    </>
-  );
-
-
-
   return (
     <>
       <div data-testid="campaign-management-content">
-        <OverviewTab />
+        {/* Statistics Section */}
+        <div className="gba:mb-6" data-testid="campaign-statistics-section">
+          <CampaignStatistics
+            statistics={statistics || { totalCampaigns: 0, activeCampaigns: 0, completedCampaigns: 0, averageDuration: 0 }}
+            isLoading={statisticsLoading}
+            error={statisticsError}
+            onRetry={refetchStatistics}
+          />
+        </div>
+
+        {/* Campaigns Table Section */}
+        <DataContainer
+          dataControllerProps={{
+            search,
+            setSearch,
+            debounceDelay: 500,
+            filter: selectedFilters,
+            setFilter: handleSetFilter,
+            filterLabelMap,
+            dateRange: {
+              createdAfter: filterCreatedAfter,
+              createdBefore: filterCreatedBefore,
+              onClear: () => {
+                filterHandleCreatedDateRangeChange(undefined, undefined);
+                // Also clear start and end date ranges when clearing all
+                handleStartDateRangeChange(undefined, undefined);
+                handleEndDateRangeChange(undefined, undefined);
+              },
+            },
+            listTitle: (
+              <div className="gba:flex gba:items-center gba:gap-4">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <span>Campaigns</span>
+                  <span className="gba:text-gray-500">({totalCount})</span>
+                </div>
+              </div>
+            ),
+            columnVisibility: {
+              columns: columnConfig,
+              onColumnVisibilityChange: handleColumnVisibilityChange,
+              'data-testid': 'campaigns-column-visibility'
+            },
+            actions: (
+              <AppAction
+                contextsArray={[FlowContextName.customerCampaignCreate]}
+                accessToken={props.accessToken}
+                data-testid="add-campaign-action"
+                emptyStateBehavior="hide"
+              >
+                <div
+                  className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                  data-testid="add-campaign-trigger"
+                >
+                  <PlusSquareIcon />
+                  Add
+                </div>
+              </AppAction>
+            ),
+          }}
+          dataFilterProps={{
+            filterGroups: filterGroups,
+            onFilterChange: handleFilterChange,
+          }}
+          dataBody={
+            <div data-testid="campaigns-table-container">
+              <CampaignsTable
+                campaigns={campaigns}
+                isLoading={isLoading}
+                error={error}
+                totalCount={totalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                sortField={sortField}
+                sortOrder={sortOrder}
+                onTableChange={handleTableChange}
+                onPaginationChange={handlePaginationChange}
+                onSortingChange={handleSortingChange}
+                onRowClick={handleCampaignRowClick}
+                accessToken={props.accessToken}
+                visibleColumns={visibleColumns}
+              />
+            </div>
+          }
+        />
       </div>
       
       {/* Add Campaign Modal */}
       <AddCampaignModal
         isOpen={isAddModalOpen}
         onClose={handleCloseModal}
-        onSubmit={handleSubmitCampaign}
+        onSubmit={async () => {}}
         isLoading={isSubmitting}
         {...props}
       />

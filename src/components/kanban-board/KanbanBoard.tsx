@@ -20,6 +20,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   ...props
 }) => {
   const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
+  const [sourceStage, setSourceStage] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
   const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null);
@@ -41,6 +42,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     );
     
     setActiveItem(draggedItem || null);
+    setSourceStage(draggedItem?.stageId || null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -56,7 +58,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       // Check if we're hovering over a stage (column)
       const stage = stages.find(s => s.id === overId);
       if (stage) {
-        setDragOverStage(overId);
+        // Only show feedback if this is not the source stage
+        if (stage.id !== sourceStage) {
+          setDragOverStage(overId);
+        } else {
+          setDragOverStage(null);
+        }
         setDragOverItem(null);
         setInsertPosition(null);
       } else {
@@ -66,15 +73,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           const overStageId = overItem.stageId;
           const activeStageId = activeItem.stageId;
           
-          setDragOverStage(overStageId || null);
-          
-          // If dragging to a different column, enable insertion positioning
-          if (activeStageId !== overStageId) {
-            setDragOverItem(overId);
-            // For simplicity, we'll insert after the hovered card
-            setInsertPosition('after');
+          // Only show feedback if this is not the source stage
+          if (overStageId !== sourceStage) {
+            setDragOverStage(overStageId || null);
+            // No insertion lines - we'll show "Drop here" card at first position instead
+            setDragOverItem(null);
+            setInsertPosition(null);
           } else {
-            // Same column - no visual feedback when reordering is disabled
+            // In source stage - no visual feedback
+            setDragOverStage(null);
             setDragOverItem(null);
             setInsertPosition(null);
           }
@@ -99,6 +106,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setDragOverItem(null);
     setInsertPosition(null);
     setActiveItem(null);
+    setSourceStage(null);
     
     if (!over || active.id === over.id) {
       return;
@@ -198,6 +206,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               isDragging={activeItem !== null}
               dragOverItem={dragOverItem}
               insertPosition={insertPosition}
+              sourceStageId={sourceStage}
             />
           ))}
         </div>

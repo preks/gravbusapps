@@ -183,7 +183,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
               {...dataControllerProps}
             />
           )}
-          <div className={cn("gba:min-h-0 gba:overflow-auto", { 'gba:bg-gray-50': contentBackground === 'gray', 'gba:bg-white': contentBackground === 'white' })} data-testid="data-container-body">
+          <div className={cn("gba:min-h-[400px] gba:overflow-auto", { 'gba:bg-gray-50': contentBackground === 'gray', 'gba:bg-white': contentBackground === 'white' })} data-testid="data-container-body">
             {dataBody}
           </div>
         </div>

@@ -1,37 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Table,
   Button,
+  Card,
+  CardContent,
   Input,
-  Space,
-  Typography,
-  message,
-  Modal,
-  Form,
-  Spin,
-  Tag,
-  Divider,
-  Descriptions,
-} from "antd";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+  Spinner,
+  DataTable,
+  Icon,
+  Badge,
+} from "@newwork/nw-design-system";
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  FileTextOutlined,
-  CodeOutlined,
-  GlobalOutlined,
-  TagOutlined,
-  DollarOutlined,
-} from "@ant-design/icons";
+  EyeIcon,
+  ArrowsDownUpIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+  FileCodeIcon,
+  TagIcon,
+  InfoIcon,
+} from "@phosphor-icons/react";
+import { ColumnDef } from "@tanstack/react-table";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { useUserLocale } from "@/common/locale/useUserLocale";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title } = Typography;
+import CardTabHeaderComponent from "../../../generic-components/card";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import ContractTypeForm from "@/business-apps/mdm/forms/contract-type-form/ContractTypeForm";
+import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
+import { useGetContractTypesData } from "../../queries/ContractTypesQueries";
+import { toast } from "sonner";
 
 export interface ContractType {
   id: string;
@@ -51,113 +49,63 @@ export interface ContractTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const DATA_TEST_ID_PREFIX = "ContractTypesTab";
+
 const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
   accessToken,
   prefixDataTestId,
-  userInfo,
 }) => {
   const { t } = useTranslation();
   const userLocale = useUserLocale() ?? "en-US";
   const catalogClient = useCatalogManagerClient(accessToken);
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+
+  const { fetchContractTypes } = useGetContractTypesData(
+    catalogClient,
+    userLocale
+  );
 
   const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingType, setEditingType] = useState<ContractType | null>(null);
   const [selectedType, setSelectedType] = useState<ContractType | null>(null);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const [form] = Form.useForm();
 
-  const fetchContractTypes = async () => {
+  const loadContractTypes = async () => {
     try {
       setLoading(true);
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: "ContractType",
-          version: "v1",
-        },
-        {
-          limit: 100,
-          offset: 0,
-          returnTotalRecords: true,
-          localeCode: userLocale,
-          ...(searchTerm ? { searchCriteria: searchTerm } : {}),
-        }
-      );
 
-      if (response.data) {
-        const types: ContractType[] = response.data.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode,
-          additionalValue1: entry.additionalValue1,
-          additionalValue2: entry.additionalValue2,
-          additionalValue3: entry.additionalValue3,
-          translations: entry.translations || [],
-        }));
-        setContractTypes(types);
-      }
+      const types = (await fetchContractTypes()) ?? [];
+      setContractTypes(types);
     } catch (error) {
-      console.error("Error fetching contract types:", error);
-      message.error("Failed to load contract types");
+      toast.error("Failed to load contract types");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchContractTypes();
+    if (selectedType) {
+      const newContractType = contractTypes.find(
+        (contractType) => contractType.id === selectedType.id
+      );
+
+      if (newContractType) {
+        setSelectedType(newContractType);
+      }
+    }
+  }, [contractTypes]);
+
+  useEffect(() => {
+    loadContractTypes();
   }, [searchTerm, userLocale]);
 
-  const handleAdd = () => {
-    setEditingType(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeContractType",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleEdit = (record: ContractType) => {
-    setEditingType(record);
-    // Just set the state for the drawer, no process needed
-  };
-
-  const handleDrawerEdit = (record: ContractType) => {
-    // When editing from drawer button, start the process
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeContractType",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        contractType: record,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
   const handleDelete = async (record: ContractType) => {
-    Modal.confirm({
-      title: "Delete Contract Type",
-      content: `Are you sure you want to delete "${record.value}"?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        try {
-          // Note: Actual delete implementation would depend on the catalog API
-          message.success("Contract type deleted successfully");
-          fetchContractTypes();
-        } catch (error) {
-          console.error("Error deleting contract type:", error);
-          message.error("Failed to delete contract type");
-        }
-      },
-    });
+    await catalogClient.deleteCatalogEntry(record.id);
+
+    setContractTypes((prev) =>
+      prev.filter((contractType) => contractType.id !== record.id)
+    );
   };
 
   const handleViewDetails = (record: ContractType) => {
@@ -165,259 +113,283 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({
     setIsDrawerVisible(true);
   };
 
-  const handleDrawerClose = () => {
-    setIsDrawerVisible(false);
-    setSelectedType(null);
+  const drawerItems = useMemo(() => {
+    if (!selectedType) return [];
+    const items = [
+      {
+        icon: <InfoIcon />,
+        title: "Basic Information",
+        items: [
+          {
+            label: "Name",
+            value: selectedType.value,
+          },
+          {
+            label: "Code",
+            value: selectedType.code || "-",
+          },
+          {
+            label: "ID",
+            value: selectedType.id,
+          },
+        ],
+        verticalTable: true,
+      },
+      {
+        icon: <InfoIcon />,
+        title: "Additional Values",
+        items: [
+          {
+            label: "Additional Value 1",
+            value: selectedType.additionalValue1,
+          },
+          {
+            label: "Additional Value 2",
+            value: selectedType.additionalValue2 || "-",
+          },
+          {
+            label: "Additional Value 3",
+            value: selectedType.additionalValue3 || "-",
+          },
+        ],
+      },
+    ];
+
+    selectedType.alternativeCode &&
+      items[1].items.push({
+        label: "Alternative Code",
+        value: `Alt: ${selectedType.alternativeCode}`,
+      });
+
+    return items;
+  }, [selectedType]);
+
+  const renderContractTypesTable = () => {
+    const columns: ColumnDef<ContractType>[] = [
+      {
+        accessorKey: "code",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const code = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "value",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Name
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const name = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <div className="gba:font-semibold">{name as string}</div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "alternativeCode",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Alternative Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const alternativeCode = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              {(alternativeCode as string) ?? "-"}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <div className="gba:flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleViewDetails(row.original)}
+              data-testid={`${dataTestId}-view-contract-type-${row.original.id}`}
+            >
+              <EyeIcon className="gba:h-4 gba:w-4" />
+            </Button>
+            <ContractTypeForm
+              childAddButton={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <PencilSimpleLineIcon />
+                </Button>
+              }
+              refetch={loadContractTypes}
+              accessToken={accessToken}
+              prefixDataTestId={prefixDataTestId}
+              contractType={row.original}
+            />
+            <DeleteButton
+              onDelete={() => handleDelete(row.original)}
+              itemName={row.original.value}
+              itemTitle="Employment Type"
+            />
+          </div>
+        ),
+      },
+    ];
+
+    const dataTable = contractTypes.map((contractType) => ({
+      id: contractType.id,
+      code: contractType.code,
+      value: contractType.value,
+      alternativeCode: contractType.alternativeCode,
+    }));
+
+    return (
+      <DataTable
+        defaultDataSetId="contract-types"
+        dataSets={[
+          {
+            id: "contract-types",
+            label: "Contract Types",
+            data: dataTable,
+            columns: columns,
+          },
+        ]}
+      />
+    );
   };
 
-  const columns = [
-    {
-      title: "Code",
-      dataIndex: "code",
-      key: "code",
-      width: 120,
-      sorter: (a: ContractType, b: ContractType) =>
-        a.code.localeCompare(b.code),
-    },
-    {
-      title: "Name",
-      dataIndex: "value",
-      key: "value",
-      sorter: (a: ContractType, b: ContractType) =>
-        a.value.localeCompare(b.value),
-    },
-    {
-      title: "Alternative Code",
-      dataIndex: "alternativeCode",
-      key: "alternativeCode",
-      width: 150,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      render: (_: any, record: ContractType) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div
-      data-testid={`${prefixDataTestId || ""}-ContractTypesTab`}
-      style={{
-        background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
-        minHeight: "100%",
-        padding: "24px",
-      }}
-    >
-      <div style={{ marginBottom: "24px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <Title level={3} style={{ margin: 0 }}>
-            {t("hr.contract_types", "Contract Types")}
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ""}-ContractTypesTab-AddButton`}
-          >
-            Add Contract Type
-          </Button>
-        </div>
-
-        <Input
-          placeholder="Search contract types..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: "300px" }}
-          allowClear
-          data-testid={`${prefixDataTestId || ""}-ContractTypesTab-SearchInput`}
-        />
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={contractTypes}
-          rowKey="id"
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} contract types`,
-          }}
-          data-testid={`${prefixDataTestId || ""}-ContractTypesTab-Table`}
-          style={{ background: "white", borderRadius: "8px" }}
-          onRow={(record) => ({
-            onClick: () => handleViewDetails(record),
-            className: "gba:cursor-pointer",
-            "data-testid": `${
-              prefixDataTestId || ""
-            }-ContractTypesTab-TableRow-${record.id}`,
-          })}
+    <Card data-testid={`${dataTestId}`} className="gba:overflow-hidden">
+      {!loading && (
+        <CardTabHeaderComponent
+          addButton={
+            <ContractTypeForm
+              childAddButton={
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  data-testid={`${dataTestId}-add-button`}
+                >
+                  <PlusIcon /> Add Contract Type
+                </Button>
+              }
+              refetch={loadContractTypes}
+              accessToken={accessToken}
+              prefixDataTestId={prefixDataTestId}
+            />
+          }
+          cardTitle={`${t("hr.contract_types", "Contract Types")} (${
+            contractTypes.length
+          })`}
+          cardDescription="Manage contract types and their classifications. Contract types define the employment agreements and terms."
         />
       )}
 
-      <DataDetailsDrawer
-        title="Contract Type Details"
-        icon={<FileTextOutlined />}
-        open={isDrawerVisible}
-        onClose={handleDrawerClose}
-        width={600}
-        placement="right"
-        dataTestId={`${prefixDataTestId || ""}-ContractTypesTab-Drawer`}
-        footer={
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            {selectedType && (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  handleDrawerEdit(selectedType);
-                  handleDrawerClose();
-                }}
-              >
-                Edit
-              </Button>
-            )}
-            <Button onClick={handleDrawerClose}>Close</Button>
+      <CardContent>
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+          <Input
+            placeholder="Search contract types..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="gba:pl-10"
+            data-testid={`${dataTestId}-search-input`}
+          />
+        </div>
+
+        {loading && contractTypes.length === 0 ? (
+          <div
+            data-testid={`${dataTestId}`}
+            className="gba:flex gba:justify-center gba:items-center gba:h-64"
+          >
+            <Spinner />
           </div>
-        }
-      >
-        {selectedType && (
-          <div className="gba:space-y-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
-                  {selectedType.value}
-                </h3>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Tag color="blue" className="gba:px-2">
-                    <CodeOutlined /> {selectedType.code || "-"}
-                  </Tag>
-                  {selectedType.alternativeCode && (
-                    <Tag color="green" className="gba:px-2">
-                      Alt: {selectedType.alternativeCode}
-                    </Tag>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Divider className="gba:my-3" />
-
-            <Descriptions
-              title="Basic Information"
-              bordered
-              size="small"
-              column={1}
-            >
-              <Descriptions.Item label="ID">
-                <span className="gba:text-gray-600 gba:font-mono gba:text-xs">
-                  {selectedType.id}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Code">
-                <Tag color="blue" icon={<CodeOutlined />}>
-                  {selectedType.code || "-"}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Value">
-                {selectedType.value || "-"}
-              </Descriptions.Item>
-              {selectedType.alternativeCode && (
-                <Descriptions.Item label="Alternative Code">
-                  {selectedType.alternativeCode}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-
-            <Descriptions
-              title="Additional Values"
-              bordered
-              size="small"
-              column={1}
-            >
-              <Descriptions.Item label="Additional Value 1">
-                {selectedType.additionalValue1 ? (
-                  <Tag
-                    color="purple"
-                    icon={<DollarOutlined />}
-                    className="gba:px-2"
-                  >
-                    {selectedType.additionalValue1}
-                  </Tag>
-                ) : (
-                  "-"
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="Additional Value 2">
-                {selectedType.additionalValue2 || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Additional Value 3">
-                {selectedType.additionalValue3 || "-"}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {selectedType.translations?.length > 0 && (
-              <Descriptions
-                title="Translations"
-                bordered
-                size="small"
-                column={1}
-              >
-                {selectedType.translations.map((translation, index) => (
-                  <Descriptions.Item
-                    key={index}
-                    label={
-                      <span>
-                        <GlobalOutlined /> {translation.localeCode}
-                      </span>
-                    }
-                  >
-                    {translation.value}
-                  </Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
-
-            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">
-              <p className="gba:text-xs gba:text-gray-500 gba:mb-0">
-                <TagOutlined className="gba:mr-1" /> This contract type can be
-                used to classify employees and job positions.
-              </p>
-            </div>
+        ) : (
+          <div className="gba:overflow-hidden">
+            {renderContractTypesTable()}
           </div>
         )}
-      </DataDetailsDrawer>
-    </div>
+
+        {selectedType && (
+          <SheetWrapperComponent
+            prefixDataTestId={dataTestId}
+            isDrawerVisible={isDrawerVisible}
+            onOpenChange={(openStatus) => {
+              if (!openStatus) {
+                setSelectedType(null);
+              }
+              setIsDrawerVisible(openStatus);
+            }}
+            title="Contract Type Details"
+            titleIcon={FileCodeIcon}
+            drawerItems={drawerItems}
+            extraContent={
+              <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
+                This contract type can be used to classify employees and job
+                positions.
+              </div>
+            }
+            footerButtons={[
+              <ContractTypeForm
+                childAddButton={
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <PencilSimpleLineIcon /> Edit
+                  </Button>
+                }
+                refetch={loadContractTypes}
+                accessToken={accessToken}
+                prefixDataTestId={prefixDataTestId}
+                contractType={selectedType}
+                isDrawerActive={true}
+              />,
+            ]}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

@@ -17,7 +17,6 @@ interface ContactQueryResult {
   jobTitle: string;
   department?: string;
   contactType?: string;
-  contactRole?: string;
   pictureUrl?: string;
   linkedinUrl?: string;
   xingUrl?: string;
@@ -81,7 +80,6 @@ const GET_CONTACT_BY_ID = `
       jobTitle
       department
       contactType
-      contactRole
       workExperienceYears
       pictureUrl
       linkedinUrl
@@ -149,9 +147,7 @@ export const useContactData = ({
           salesCampaign: contact.salesCampaign,
           salesCampaignId: contact.salesCampaignId,
           originalContactType: contact.contactType,
-          originalContactRole: contact.contactRole,
           mappedContactType: contact?.contactType || "",
-          mappedContactRole: contact?.contactRole || "",
           fullContact: contact,
         });
 
@@ -176,7 +172,6 @@ export const useContactData = ({
           jobTitle: contact?.jobTitle || "",
           department: contact?.department || "",
           contactType: contact?.contactType || "", // Use actual database value
-          contactRole: contact?.contactRole || "", // Use actual database value
           workExperienceYears: contact?.workExperienceYears
             ? String(contact?.workExperienceYears)
             : "",

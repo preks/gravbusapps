@@ -64,7 +64,7 @@ export interface CustomerTaskQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -211,6 +211,28 @@ export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): str
           code
           name
         }
+      }
+    }
+  `;
+};
+
+// Get Customer Task by ID for editing
+export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
+  return `
+    query GetCustomerTaskById {
+      SalesTask(
+        where: { 
+          id: { _eq: "${taskId}" }, 
+          isDeleted: { _eq: false } 
+        }
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references (full for editing)
+        account { ${CUSTOMER_ACCOUNT_REF} }
+        contact { ${CUSTOMER_CONTACT_REF} }
+        lead { ${CUSTOMER_LEAD_REF} }
+        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
       }
     }
   `;

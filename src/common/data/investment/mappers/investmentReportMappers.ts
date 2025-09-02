@@ -14,7 +14,9 @@ import {
   BaseRealEstateInvestmentRentalUnit,
   RealEstateInvestmentRentalUnit,
   BaseLiquidFundInvestmentReport,
-  LiquidFundInvestmentReport
+  LiquidFundInvestmentReport,
+  BaseInvestmentRoleReport,
+  InvestmentRoleReport
 } from '../types';
 
 /**
@@ -34,8 +36,20 @@ export function toInvestmentReport(base: BaseInvestmentReport): InvestmentReport
   // Create computed display name
   const displayName = `${investmentDisplayName || 'Investment'} - ${scopeLabel} Report (${base.date})`;
 
+  // Transform nested specific report relationships using their respective mappers
+  const equityInvestmentReport = base.equityInvestmentReport?.map(report => toEquityInvestmentReport(report));
+  const liquidFundInvestmentReport = base.liquidFundInvestmentReport?.map(report => toLiquidFundInvestmentReport(report));
+  const realEstateInvestmentReport = base.realEstateInvestmentReport?.map(report => toRealEstateInvestmentReport(report));
+  const investmentRoleReport = base.investmentRoleReport?.map(report => toInvestmentRoleReport(report));
+
   return {
     ...base,
+    
+    // Include enhanced nested reports
+    equityInvestmentReport,
+    liquidFundInvestmentReport,
+    realEstateInvestmentReport,
+    investmentRoleReport,
     
     // Only include fields defined in InvestmentReport interface
     displayName,
@@ -150,5 +164,19 @@ export function toLiquidFundInvestmentReport(base: BaseLiquidFundInvestmentRepor
     scopeLabel,
     investmentLiquidFundTypeLabel,
     interestPaymentFrequencyLabel
+  };
+}
+
+/**
+ * Transform BaseInvestmentRoleReport to InvestmentRoleReport (enhanced with computed fields)
+ */
+export function toInvestmentRoleReport(base: BaseInvestmentRoleReport): InvestmentRoleReport {
+  const displayName = `Role Report ${base.displayOrder || base.id}`;
+  const investmentRoleLabel = base.investmentRole?.value || base.investmentRole?.code;
+
+  return {
+    ...base,
+    displayName,
+    investmentRoleLabel
   };
 }

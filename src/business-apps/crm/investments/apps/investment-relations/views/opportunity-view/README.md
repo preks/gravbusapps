@@ -47,7 +47,7 @@ opportunity-view/
 ## Integration
 
 ### AppActionButton
-- **Context**: `FlowContextName.opportunityEntity`
+- **Context**: `FlowContextName.customerOpportunityEntity`
 - **Data**: Passes `opportunityId` in `externalContextData`
 - **Behavior**: Disables when no actions available, defers context requests
 

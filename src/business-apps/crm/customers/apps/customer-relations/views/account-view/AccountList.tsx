@@ -15,13 +15,12 @@ import { AccountTable } from "./components/AccountTable";
 import { AccountStatisticsWithTrend } from "./components/AccountStatistics";
 import { useAccountStatisticsWithTrend } from "./hooks/useAccountStatisticsWithTrend";
 
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { Account } from "./types";
 
@@ -57,20 +56,21 @@ export const AccountList: React.FC<AccountListProps> = (
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
+    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "company", label: "Account", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
-    { id: "created", label: "Creation Date", visible: true },
-    { id: "owner", label: "Owner", visible: true },
     { id: "legalForm", label: "Legal Form", visible: true },
     { id: "industry", label: "Industry", visible: true },
-    // New optional columns as requested
+    { id: "employees", label: "Size", visible: true },
+    { id: "location", label: "Location", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+    // Optional columns
     { id: "website", label: "Website", visible: false },
     { id: "country", label: "Country", visible: false },
     { id: "region", label: "Region/State", visible: false },
     { id: "city", label: "City", visible: false },
     { id: "annualRevenue", label: "Annual Revenue", visible: false },
-    { id: "employees", label: "Number of Employees", visible: false },
     { id: "foundationDate", label: "Foundation Date", visible: false },
     { id: "phone", label: "Phone", visible: false },
     { id: "email", label: "Email", visible: false },
@@ -101,6 +101,7 @@ export const AccountList: React.FC<AccountListProps> = (
       industry: "industry",
       owner: "owner",
       legalForm: "legalForm",
+      location: "location",
       // New column mappings
       website: "website",
       country: "location",
@@ -215,15 +216,7 @@ export const AccountList: React.FC<AccountListProps> = (
     []
   );
 
-  // Handle adding a new account
-  const handleAddAccount = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveAccount",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction will handle creating an account via flow context
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
@@ -385,17 +378,17 @@ export const AccountList: React.FC<AccountListProps> = (
   }, []);
 
   // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedAccount(null);
-  }, []);
+  // const handleCloseDetails = useCallback(() => {
+  //   setSelectedAccount(null);
+  // }, []);
 
   // Handle search change
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearch(value);
-    },
-    [setSearch]
-  );
+  // const handleSearchChange = useCallback(
+  //   (value: string) => {
+  //     setSearch(value);
+  //   },
+  //   [setSearch]
+  // );
 
   // Handle pagination change
   const handlePaginationChange = useCallback(
@@ -476,22 +469,30 @@ export const AccountList: React.FC<AccountListProps> = (
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddAccount,
-            label: "Add",
-            "data-testid": "add-account-button",
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerAccountCreate]}
+              accessToken={accessToken}
+              data-testid="add-account-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-account-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'account-list-column-visibility'
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="account-list-column-visibility"
-            />,
-          ],
         }}
         dataFilterProps={{
-          filterGroups,
+          filterGroups: visibleFilterGroups,
           onFilterChange: handleFilterChange,
         }}
         dataBody={

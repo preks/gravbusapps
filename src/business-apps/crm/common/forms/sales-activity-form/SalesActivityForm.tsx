@@ -9,10 +9,11 @@ import { useFileClient } from '@/common/network/files/useFileClient';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { ActivitySegment } from '@/common/components/common-relations/form-segments';
 
 export interface SalesActivityFormProps extends BusinessAppContextProps {}
 
-const { TextArea } = Input;
+// Removed unused TextArea destructure to satisfy linter
 
 const initialValues = {
   activityTypeRef: '',
@@ -245,7 +246,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
           version: 0,
           activityTypeRef: values.activityTypeRef,
           title: values.title,
-          occuredAt: values.date ? dayjs(values.date).toISOString() : null,
+          occurredAt: values.date ? dayjs(values.date).toISOString() : null,
           ...(additionalData?.leadId && { lead: additionalData.leadId }),
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
@@ -271,7 +272,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
     setFileList(newFileList);
   };
 
-  const beforeUpload = (file: File) => {
+  const beforeUpload = (_file: File) => {
     // Prevent automatic upload - we handle it manually
     return false;
   };
@@ -295,75 +296,91 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         <h2 className="gba:text-xl gba:!font-bold gba:mb-4 gba:text-center gba:!text-[20px]" data-testid="form-title">
           {getTranslationFromI18nKeyAndLabel('crm:salesActivity.newActivity', 'New Activity')}
         </h2>
-        <div className="gba:mb-4 gba:font-semibold" data-testid="core-details-label">
-          {getTranslationFromI18nKeyAndLabel('crm:salesActivity.coreDetails', 'Core Details')}
-        </div>
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Name')}
-          name="title"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.titleRequired', 'Name is required') }]}
-        >
-          <Input data-testid="name-input" className="gba:w-full" maxLength={100} />
-        </Form.Item>
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
-          name="activityTypeRef"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.typeRequired', 'Type is required') }]}
-        >
-          <Select
-            data-testid="type-select"
-            className="gba:w-full"
-            showSearch
-            filterOption={false}
-            notFoundContent={typeLoading ? <Spin size="small" /> : null}
-            onSearch={setTypeSearch}
-            optionLabelProp="label"
-          >
-            {mappedTypeOptions.map(opt => (
-              <Select.Option key={opt.value} value={opt.value} label={opt.label}>
-                {opt.label}
-              </Select.Option>
-            ))}
-          </Select>
-        </Form.Item>
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date')}
-          name="date"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.dateRequired', 'Date is required') }]}
-        >
-          <DatePicker data-testid="date-input" className="gba:w-full" style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
-          name="description"
-          rules={[{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionRequired', 'Description is required') }]}
-        >
-          <Input.TextArea
-            data-testid="description-input"
-            className="gba:w-full"
-            rows={4}
-            maxLength={500}
-            placeholder={getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionPlaceholder', 'Enter activity description...')}
-          />
-        </Form.Item>
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')}
-          name="files"
-        >
-          <Upload.Dragger
-            data-testid="file-upload"
-            fileList={fileList}
-            onChange={handleFileChange}
-            beforeUpload={beforeUpload}
-            maxCount={1}
-            className="gba:w-full"
-          >
-            <p className="gba:mb-2">
-              <UploadOutlined />
-            </p>
-            <p>{getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFileButton', 'Click or drag file to upload')}</p>
-          </Upload.Dragger>
-        </Form.Item>
+
+        <ActivitySegment
+          titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Name')}
+          typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
+          dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date')}
+          descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')}
+          typeOptions={mappedTypeOptions}
+          typeLoading={typeLoading}
+          onTypeSearch={setTypeSearch}
+          renderTextField={({ name, label, required, ['data-testid']: dtid }) => (
+            <Form.Item
+              label={label}
+              name={name}
+              rules={required ? [{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.titleRequired', 'Name is required') }] : []}
+            >
+              <Input data-testid={dtid} className="gba:w-full" maxLength={100} />
+            </Form.Item>
+          )}
+          renderSelectField={({ name, label, options, loading, onSearch, required, ['data-testid']: dtid }) => (
+            <Form.Item
+              label={label}
+              name={name}
+              rules={required ? [{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.typeRequired', 'Type is required') }] : []}
+            >
+              <Select
+                data-testid={dtid}
+                className="gba:w-full"
+                showSearch
+                filterOption={false}
+                notFoundContent={loading ? <Spin size="small" /> : null}
+                onSearch={onSearch}
+                optionLabelProp="label"
+              >
+                {options.map(opt => (
+                  <Select.Option key={opt.value} value={opt.value} label={opt.label}>
+                    {opt.label}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+          renderDateField={({ name, label, required, ['data-testid']: dtid }) => (
+            <Form.Item
+              label={label}
+              name={name}
+              rules={required ? [{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.dateRequired', 'Date is required') }] : []}
+            >
+              <DatePicker data-testid={dtid} className="gba:w-full" style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+          renderTextareaField={({ name, label, required, ['data-testid']: dtid }) => (
+            <Form.Item
+              label={label}
+              name={name}
+              rules={required ? [{ required: true, message: getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionRequired', 'Description is required') }] : []}
+            >
+              <Input.TextArea
+                data-testid={dtid}
+                className="gba:w-full"
+                rows={4}
+                maxLength={500}
+                placeholder={getTranslationFromI18nKeyAndLabel('crm:salesActivity.descriptionPlaceholder', 'Enter activity description...')}
+              />
+            </Form.Item>
+          )}
+          renderFileField={({ ['data-testid']: dtid }) => (
+            <Form.Item label={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')} name="files">
+              <Upload.Dragger
+                data-testid={dtid}
+                fileList={fileList}
+                onChange={handleFileChange}
+                beforeUpload={beforeUpload}
+                maxCount={1}
+                className="gba:w-full"
+              >
+                <p className="gba:mb-2">
+                  <UploadOutlined />
+                </p>
+                <p>{getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFileButton', 'Click or drag file to upload')}</p>
+              </Upload.Dragger>
+            </Form.Item>
+          )}
+        />
+
         <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
           <Button
             data-testid="cancel-button"

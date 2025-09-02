@@ -1,5 +1,4 @@
 import { getCurrentActiveStructureId as  WindowUtilsGetCurrentActiveStructureId, getPlatformContext as WindowUtilsGetPlatformContext } from "./windowUtils";
-
 export interface ProcessStartInfo {
   domain: string;
   processName: string;

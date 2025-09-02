@@ -183,6 +183,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     leadStatus: "",
     leadSource: "",
     rating: "",
+    sensitive: false,
 
     // Contact Information
     salutation: "",
@@ -524,21 +525,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       businessAppContext.additionalData?.leadId ||
       businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
         ?.leadId;
-
-    console.log("👤 Auto-selection check:", {
-      hasCurrentUserEmployee: !!currentUserEmployee,
-      currentUserEmployeeId: currentUserEmployee?.employeeId,
-      formOwner: formValues.owner,
-      autoSelectionDone: autoSelectionDone.current,
-      currentLeadId: currentLeadId,
-      hasLeadData: !!leadData,
-      shouldAutoSelect:
-        currentUserEmployee &&
-        !formValues.owner &&
-        !autoSelectionDone.current &&
-        !currentLeadId &&
-        !leadData,
-    });
 
     // Only auto-select if:
     // 1. We have current user employee data

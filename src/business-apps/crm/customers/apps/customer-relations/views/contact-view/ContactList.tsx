@@ -13,12 +13,11 @@ import { useContactFilters } from "./hooks/useContactFilters";
 import { ContactStatisticsWithTrend } from "./components/ContactStatistics";
 import ContactTable from "./components/ContactTable";
 import { Contact } from "./types";
-import {
-  ColumnVisibilityDropdown,
-  ColumnConfig,
-} from "./components/ColumnVisibilityDropdown";
+import { ColumnConfig } from "@/components/dataController";
 import { Alert } from "antd";
-import { startProcess } from "@/common/utils/start-process";
+import { AppAction } from "@/components/app-action/AppAction";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 interface ContactListProps extends BusinessAppContextProps {
@@ -26,7 +25,7 @@ interface ContactListProps extends BusinessAppContextProps {
 }
 
 const ContactList: React.FC<ContactListProps> = (context) => {
-  const { sourceApp } = context;
+  const { sourceApp, accessToken } = context;
 
   // State management
   const [selectedContactId, setSelectedContactId] = useState<
@@ -44,7 +43,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "name", label: "Name", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "company", label: "Account", visible: true },
-    { id: "role", label: "Role", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "created", label: "Creation Date", visible: true },
     { id: "owner", label: "Owner", visible: true },
@@ -54,7 +52,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     { id: "linkedin", label: "LinkedIn Profile", visible: false },
     { id: "xing", label: "Xing Profile", visible: false },
     { id: "jobTitle", label: "Job Title", visible: false },
-    { id: "department", label: "Department", visible: false },
+    { id: "department", label: "Department", visible: true },
   ]);
 
   // Get visible columns for passing to table
@@ -80,7 +78,6 @@ const ContactList: React.FC<ContactListProps> = (context) => {
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      role: "contactRole",
       type: "contactType",
       department: "departments",
       // Note: name, contact, company, created, owner, academicTitle, birthDate, account, linkedin, xing, jobTitle don't have corresponding filters yet
@@ -236,14 +233,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     [contactFilters, contactListData, pageSize]
   );
 
-  const handleAddContact = useCallback(() => {
-    startProcess({
-      domain: "customer-relations",
-      processName: "saveContact",
-      builderType: "NATIVE_SCREEN",
-      payload: {},
-    });
-  }, []);
+  // AppAction will handle creating a contact via flow context
 
   const handleRetryStatistics = useCallback(() => {
     contactStatistics.refetch();
@@ -321,19 +311,27 @@ const ContactList: React.FC<ContactListProps> = (context) => {
               </div>
             </div>
           ),
-          addButton: {
-            onClick: handleAddContact,
-            label: "Add",
-            "data-testid": "add-contact-button",
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.customerContactCreate]}
+              accessToken={accessToken}
+              data-testid="add-contact-action"
+              emptyStateBehavior="hide"
+            >
+              <div
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                data-testid="add-contact-trigger"
+              >
+                <PlusSquareIcon />
+                Add
+              </div>
+            </AppAction>
+          ),
+          columnVisibility: {
+            columns: columnConfig,
+            onColumnVisibilityChange: handleColumnVisibilityChange,
+            'data-testid': 'contact-list-column-visibility'
           },
-          actions: [
-            <ColumnVisibilityDropdown
-              key="column-visibility"
-              columns={columnConfig}
-              onColumnVisibilityChange={handleColumnVisibilityChange}
-              data-testid="contact-list-column-visibility"
-            />,
-          ],
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,

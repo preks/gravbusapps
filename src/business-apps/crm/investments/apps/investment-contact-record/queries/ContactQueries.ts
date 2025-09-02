@@ -12,7 +12,6 @@ export interface ContactData {
   linkedinUrl?: string;
   xingUrl?: string;
   bio?: string;
-  contactRole?: string;
   contactType?: string;
   version?: number;
   academicTitle?: {
@@ -60,7 +59,6 @@ export const GET_CONTACT_BY_ID = `
       linkedinUrl
       xingUrl
       bio
-      contactRole
       contactType
       version
       academicTitle {

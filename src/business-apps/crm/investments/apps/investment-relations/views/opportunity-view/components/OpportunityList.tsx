@@ -36,6 +36,7 @@ export interface OpportunityListProps extends BusinessAppContextProps {
   onSort: (field: string) => void;
   sortField: string;
   sortOrder: "ASC" | "DESC";
+  visibleColumns?: string[];
 }
 
 export const OpportunityList: React.FC<OpportunityListProps> = ({
@@ -48,6 +49,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
   onSort,
   sortField,
   sortOrder,
+  visibleColumns = ["actions", "opportunity", "amount", "pipeline", "stage", "status", "closeDate", "account", "owner", "created"],
   ...context
 }) => {
   const { accessToken } = context;
@@ -185,113 +187,132 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("name")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Opportunity
-                    {sortField === "name" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("estimatedAmount")}
-                >
-                  <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                    Amount
-                    {sortField === "estimatedAmount" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("opportunityPipeline")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Pipeline
-                    {sortField === "opportunityPipeline" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("opportunityPipelineStage")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Stage
-                    {sortField === "opportunityPipelineStage" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("opportunityStatus")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Status
-                    {sortField === "opportunityStatus" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("closeDate")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Close Date
-                    {sortField === "closeDate" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("accountId")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Account
-                    {sortField === "accountId" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("ownerEmployeeId")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Owner
-                    {sortField === "ownerEmployeeId" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
-                  onClick={() => onSort("createdAt")}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    Created
-                    {sortField === "createdAt" && (
-                      <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="gba:w-[60px]"></TableHead>
+                {visibleColumns.includes("opportunity") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("name")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Opportunity
+                      {sortField === "name" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("amount") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("estimatedAmount")}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+                      Amount
+                      {sortField === "estimatedAmount" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("pipeline") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("opportunityPipeline")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Pipeline
+                      {sortField === "opportunityPipeline" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("stage") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("opportunityPipelineStage")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Stage
+                      {sortField === "opportunityPipelineStage" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("status") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("opportunityStatus")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Status
+                      {sortField === "opportunityStatus" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("closeDate") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("closeDate")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Close Date
+                      {sortField === "closeDate" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("account") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("accountId")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Account
+                      {sortField === "accountId" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("owner") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("ownerEmployeeId")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Owner
+                      {sortField === "ownerEmployeeId" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("created") && (
+                  <TableHead
+                    className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
+                    onClick={() => onSort("createdAt")}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      Created
+                      {sortField === "createdAt" && sortOrder && (
+                        <span>{sortOrder === "ASC" ? "↑" : "↓"}</span>
+                      )}
+                    </div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes("actions") && (
+                  <TableHead className="gba:w-[60px]"></TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {opportunities.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="gba:text-center gba:py-8">
+                  <TableCell colSpan={visibleColumns.length} className="gba:text-center gba:py-8">
                     <div className="gba:text-gray-500">
                       No opportunities available.
                     </div>
@@ -305,156 +326,185 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     className="gba:cursor-pointer gba:hover:gba:bg-gray-50 gba:transition-colors"
                     onClick={() => handleRowClick(opportunity.id)}
                   >
-                    <TableCell>
-                      <div>
-                        <div className="gba:font-medium">
-                          {opportunity.name}
+                    {visibleColumns.includes("opportunity") && (
+                      <TableCell>
+                        <div>
+                          <div className="gba:font-medium">
+                            {opportunity.name}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:text-right">
-                      {opportunity.estimatedAmount ? (
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(
-                              opportunity.estimatedAmount,
-                              opportunity.currency?.code
-                            )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("amount") && (
+                      <TableCell className="gba:text-right">
+                        {opportunity.estimatedAmount ? (
+                          <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                            <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                              {formatCurrencyNumberOnly(
+                                opportunity.estimatedAmount,
+                                opportunity.currency?.code
+                              )}
+                            </span>
+                            <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                              {getCurrencySymbol(opportunity.currency?.code)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("pipeline") && (
+                      <TableCell>
+                        {opportunity.opportunityPipeline ? (
+                          <span className="gba:text-sm" data-testid={`investment-opportunity-pipeline-${opportunity.id}`}>
+                            {opportunity.opportunityPipelineLabel ||
+                              opportunity.opportunityPipeline?.value ||
+                              opportunity.opportunityPipeline?.code ||
+                              "-"}
                           </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(opportunity.currency?.code)}
-                          </span>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("stage") && (
+                      <TableCell>
+                        {opportunity.opportunityPipelineStage ? (
+                          <Badge 
+                            variant={getStageColor(opportunity.opportunityPipelineStage?.alternativeCode)}
+                            data-testid={`investment-opportunity-stage-${opportunity.id}`}
+                          >
+                            {opportunity.opportunityPipelineStageLabel ||
+                              opportunity.opportunityPipelineStage?.value ||
+                              opportunity.opportunityPipelineStage?.code ||
+                              "-"}
+                          </Badge>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("status") && (
+                      <TableCell>
+                        {opportunity.opportunityStatus ? (
+                          <Badge 
+                            variant={getStatusColor(opportunity.opportunityStatus?.alternativeCode)}
+                            data-testid={`investment-opportunity-status-${opportunity.id}`}
+                          >
+                            {opportunity.opportunityStatusLabel ||
+                              opportunity.opportunityStatus?.value ||
+                              opportunity.opportunityStatus?.code ||
+                              "-"}
+                          </Badge>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("closeDate") && (
+                      <TableCell>
+                        {opportunity.closeDate ? (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                            <span className="gba:text-sm">
+                              {formatDate(opportunity.closeDate)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("account") && (
+                      <TableCell>
+                        {opportunity.account ? (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                            <span className="gba:text-sm">
+                              {opportunity.account.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("owner") && (
+                      <TableCell>
+                        {opportunity.ownerEmployee ? (
+                          <div
+                            className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                            data-testid={`investment-opportunity-owner-link-${opportunity.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const empId = opportunity.ownerEmployee?.id;
+                              if (empId) {
+                                navigateTo(`/platform/employee-record?employeeId=${empId}`);
+                              }
+                            }}
+                          >
+                            <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+                              {opportunity.ownerEmployee.pictureThumbnail && (
+                                <AvatarImage
+                                  src={`data:image/gif;base64,${opportunity.ownerEmployee.pictureThumbnail}`}
+                                  alt={getOwnerName(opportunity)}
+                                />
+                              )}
+                              <AvatarFallback>
+                                {getOwnerName(opportunity) !== "-"
+                                  ? getOwnerName(opportunity)
+                                      .split(" ")
+                                      .map((n: string) => n[0])
+                                      .join("")
+                                      .toUpperCase()
+                                  : "O"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="gba:text-sm">
+                              {getOwnerName(opportunity)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("created") && (
+                      <TableCell>
+                        {opportunity.createdAt ? (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
+                            <span className="gba:text-sm">
+                              {formatDate(opportunity.createdAt)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes("actions") && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            data-testid={`opportunity-entity-button-${opportunity.id}`}
+                            size="icon"
+                            contextsArray={[
+                              FlowContextName.investmentOpportunityEntity,
+                            ]}
+                            externalContextData={{
+                              opportunityId: opportunity.id,
+                            }}
+                            prefixDataTestId={`opportunity-entity-update`}
+                            accessToken={accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick={true}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         </div>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {opportunity.opportunityPipeline ? (
-                        <span className="gba:text-sm" data-testid={`investment-opportunity-pipeline-${opportunity.id}`}>
-                          {opportunity.opportunityPipelineLabel ||
-                            opportunity.opportunityPipeline?.value ||
-                            opportunity.opportunityPipeline?.code ||
-                            "-"}
-                        </span>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.opportunityPipelineStage ? (
-                        <Badge 
-                          variant={getStageColor(opportunity.opportunityPipelineStage?.alternativeCode)}
-                          data-testid={`investment-opportunity-stage-${opportunity.id}`}
-                        >
-                          {opportunity.opportunityPipelineStageLabel ||
-                            opportunity.opportunityPipelineStage?.value ||
-                            opportunity.opportunityPipelineStage?.code ||
-                            "-"}
-                        </Badge>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.opportunityStatus ? (
-                        <Badge 
-                          variant={getStatusColor(opportunity.opportunityStatus?.alternativeCode)}
-                          data-testid={`investment-opportunity-status-${opportunity.id}`}
-                        >
-                          {opportunity.opportunityStatusLabel ||
-                            opportunity.opportunityStatus?.value ||
-                            opportunity.opportunityStatus?.code ||
-                            "-"}
-                        </Badge>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.closeDate ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">
-                            {formatDate(opportunity.closeDate)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.account ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">
-                            {opportunity.account.name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.ownerEmployee ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Avatar size="sm">
-                            {opportunity.ownerEmployee.pictureThumbnail && (
-                              <AvatarImage
-                                src={`data:image/gif;base64,${opportunity.ownerEmployee.pictureThumbnail}`}
-                                alt={getOwnerName(opportunity)}
-                              />
-                            )}
-                            <AvatarFallback>
-                              {getOwnerName(opportunity) !== "-"
-                                ? getOwnerName(opportunity)
-                                    .split(" ")
-                                    .map((n: string) => n[0])
-                                    .join("")
-                                    .toUpperCase()
-                                : "O"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="gba:text-sm">
-                            {getOwnerName(opportunity)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {opportunity.createdAt ? (
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                          <span className="gba:text-sm">
-                            {formatDate(opportunity.createdAt)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="gba:text-gray-400">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`opportunity-entity-button-${opportunity.id}`}
-                          size="icon"
-                          contextsArray={[
-                            FlowContextName.updateInvestmentOpportunity,
-                          ]}
-                          externalContextData={{
-                            opportunityId: opportunity.id,
-                          }}
-                          prefixDataTestId={`opportunity-entity-update`}
-                          accessToken={accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick={true}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

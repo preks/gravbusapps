@@ -53,6 +53,7 @@ export interface KanbanColumnProps {
   isDragging?: boolean;
   dragOverItem?: string | null;
   insertPosition?: 'before' | 'after' | null;
+  sourceStageId?: string | null;
 }
 
 export interface KanbanCardProps {
@@ -60,4 +61,5 @@ export interface KanbanCardProps {
   onClick?: (id: string) => void;
   renderContent?: (item: KanbanItem) => React.ReactNode;
   className?: string;
+  isInSourceColumn?: boolean;
 }

@@ -17,7 +17,6 @@ interface UseContactListDataParams {
   context: BusinessAppContextProps;
   sourceApp?: string;
   contactTypes?: string[];
-  contactRoles?: string[];
   departments?: string[];
   jobTitles?: string[];
   contacts?: ContactFilter[];
@@ -39,7 +38,6 @@ const transformContactData = (apiContact: ContactData): Contact => {
     jobTitle: apiContact.jobTitle || "",
     department: apiContact.department || "",
     contactType: apiContact.contactType || "",
-    contactRole: apiContact.contactRole || "",
     bio: apiContact.bio || "",
     linkedinUrl: apiContact.linkedinUrl?.trim() || "",
     xingUrl: apiContact.xingUrl?.trim() || "",
@@ -135,8 +133,7 @@ export const useContactListData = (
               { department: searchPattern }, // Added: displayed in department
               { linkedinUrl: searchPattern }, // Added: displayed in contact info
               { xingUrl: searchPattern }, // Added: displayed in contact info
-              { contactType: searchPattern }, // Added: displayed in type & role
-              { contactRole: searchPattern }, // Added: displayed in type & role
+              { contactType: searchPattern },
               { academicTitle: { value: searchPattern } }, // Added: displayed in contact name
               { account: { name: searchPattern } },
               { ownerEmployee: { firstName: searchPattern } },
@@ -149,11 +146,6 @@ export const useContactListData = (
         // Add contact type filtering
         if (params.contactTypes && params.contactTypes.length > 0) {
           andConditions.push({ contactType: { _in: params.contactTypes } });
-        }
-
-        // Add contact role filtering
-        if (params.contactRoles && params.contactRoles.length > 0) {
-          andConditions.push({ contactRole: { _in: params.contactRoles } });
         }
 
         // Add department filtering
@@ -338,11 +330,6 @@ export const useContactListData = (
               overrideSortOrder === "ASC"
                 ? "ASC_NULLS_LAST"
                 : "DESC_NULLS_LAST";
-          } else if (overrideSortField === "contactRole") {
-            orderBy.contactRole =
-              overrideSortOrder === "ASC"
-                ? "ASC_NULLS_LAST"
-                : "DESC_NULLS_LAST";
           } else if (overrideSortField === "contactType") {
             orderBy.contactType =
               overrideSortOrder === "ASC"
@@ -406,9 +393,6 @@ export const useContactListData = (
               params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "department") {
             orderBy.department =
-              params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (params.sortField === "contactRole") {
-            orderBy.contactRole =
               params.sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (params.sortField === "contactType") {
             orderBy.contactType =

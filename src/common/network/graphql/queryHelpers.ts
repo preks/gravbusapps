@@ -7,7 +7,7 @@
 
 export interface SortInput {
   field: string;
-  direction: 'ASC' | 'DESC';
+  direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
 }
 
 // ==========================================

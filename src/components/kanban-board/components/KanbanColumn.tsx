@@ -13,6 +13,7 @@ export function KanbanColumn({
   isDragging = false,
   dragOverItem = null,
   insertPosition = null,
+  sourceStageId = null,
 }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: stage.id,
@@ -59,28 +60,9 @@ export function KanbanColumn({
           strategy={verticalListSortingStrategy}
         >
           <div className="gba:space-y-2">
-            {items.map((item) => (
-              <div key={item.id}>
-                {/* Show insertion indicator when dragging over this item from another column */}
-                {dragOverItem === item.id && insertPosition === 'before' && (
-                  <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mb-2" />
-                )}
-                
-                <KanbanCard 
-                  item={item}
-                  renderContent={renderCard ? (_) => renderCard(item) : undefined}
-                />
-                
-                {/* Show insertion indicator after this item */}
-                {dragOverItem === item.id && insertPosition === 'after' && (
-                  <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mt-2" />
-                )}
-              </div>
-            ))}
-            
-            {/* Drop indicator when dragging over empty column */}
-            {isDraggedOver && isDragging && items.length === 0 && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:h-20 gba:bg-blue-100 gba:dark:bg-blue-900/30 gba:border-2 gba:border-dashed gba:border-blue-400 gba:rounded-lg gba:transition-all gba:duration-200">
+            {/* Show "Drop here" card at first position for target columns (not source) */}
+            {isDraggedOver && isDragging && stage.id !== sourceStageId && (
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-20 gba:bg-blue-100 gba:dark:bg-blue-900/30 gba:border-2 gba:border-dashed gba:border-blue-400 gba:rounded-lg gba:transition-all gba:duration-200 gba:mb-2">
                 <div className="gba:text-blue-600 gba:dark:text-blue-400 gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
                   <svg className="gba:w-4 gba:h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -90,10 +72,14 @@ export function KanbanColumn({
               </div>
             )}
             
-            {/* Drop indicator when dragging over column with cards */}
-            {isDraggedOver && isDragging && items.length > 0 && !dragOverItem && (
-              <div className="gba:h-1 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse" />
-            )}
+            {items.map((item) => (
+              <KanbanCard 
+                key={item.id}
+                item={item}
+                renderContent={renderCard ? (_) => renderCard(item) : undefined}
+                isInSourceColumn={stage.id === sourceStageId}
+              />
+            ))}
             
             {/* Empty state when no items and not dragging */}
             {items.length === 0 && (!isDragging || !isDraggedOver) && (

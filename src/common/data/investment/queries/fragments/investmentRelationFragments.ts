@@ -60,6 +60,16 @@ export const INVESTMENT_LEAD = `
         }
 `;
 
+export const INVESTMENT_LEAD_REF = `
+    id
+    code
+    firstName
+    lastName
+    companyName
+    email
+    phoneNumber
+`;
+
 export const INVESTMENT_CONTACT_REF = `
     id
     code
@@ -80,6 +90,7 @@ export const INVESTMENT_CONTACT = `
     firstName
     lastName
     fullName
+    type
     email
     phone
     
@@ -168,7 +179,12 @@ export const INVESTMENT_ACCOUNT = `
 `;
 
 export const INVESTMENT_OPPORTUNITY_REF = `
-
+    id
+    code
+    name
+    dealType
+    estimatedAmount
+    closeDate
 `;
 
 export const INVESTMENT_OPPORTUNITY = `
@@ -180,6 +196,7 @@ export const INVESTMENT_OPPORTUNITY = `
     initialInvestmentAmount
     closeDate
     annualNetColdRent
+    dealType
     ${AUDIT_FIELDS}
     
     # Catalog relationships
@@ -232,6 +249,10 @@ export const INVESTMENT_TASK = `
     assignedEmployee {
       ${EMPLOYEE_REF}
     }
+
+    # User references
+    creatorUserId
+    assignedUserId
 `;
 
 export const INVESTMENT_ACTIVITY = `
@@ -250,6 +271,20 @@ export const INVESTMENT_ACTIVITY = `
     # Employee references
     ownerEmployee {
       ${EMPLOYEE_REF}
+    }
+    
+    # Entity references
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    contact {
+      ${INVESTMENT_CONTACT_REF}
+    }
+    opportunity {
+      ${INVESTMENT_OPPORTUNITY_REF}
+    }
+    lead {
+      ${INVESTMENT_LEAD_REF}
     }
 `;
 

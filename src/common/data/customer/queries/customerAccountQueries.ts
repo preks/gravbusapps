@@ -32,7 +32,7 @@ export interface CustomerAccountQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 

@@ -15,6 +15,7 @@ import type { InvestmentOpportunityQueryVariables } from "@/common/data/investme
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { OpportunityStatistics } from "./components/OpportunityStatistics";
 import { OpportunityList } from "./components/OpportunityList";
+import { ColumnConfig } from "@/components/dataController";
 import { OpportunityBoard } from "./components/opportunity-board/OpportunityBoard";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
@@ -30,11 +31,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
   // Board view filters have been moved to the OpportunityBoard component
   // List view only needs basic filtering
@@ -51,6 +53,35 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Column visibility configuration
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: "Actions", visible: true, disabled: true },
+    { id: "opportunity", label: "Opportunity", visible: true },
+    { id: "amount", label: "Amount", visible: true },
+    { id: "pipeline", label: "Pipeline", visible: true },
+    { id: "stage", label: "Stage", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "closeDate", label: "Close Date", visible: true },
+    { id: "account", label: "Account", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   const {
     filterGroups,
@@ -70,7 +101,10 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
-      orderBy: [{ field: sortField, direction: sortOrder }],
+      dealType: "INVESTMENT_DEAL", // Fixed filter for investment opportunities only
+      ...(sortField && sortOrder
+        ? { orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] as any }
+        : {}),
       ...(closeAfter ? { closeDateFrom: closeAfter } : {}),
       ...(closeBefore ? { closeDateTo: closeBefore } : {}),
     };
@@ -246,10 +280,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   // Handle sorting
   const handleSort = useCallback(
     (field: string) => {
-      if (sortField === field) {
-        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-      } else {
+      if (sortField !== field) {
         setSortField(field);
+        setSortOrder("ASC");
+        return;
+      }
+      if (sortOrder === "ASC") {
+        setSortOrder("DESC");
+      } else if (sortOrder === "DESC") {
+        setSortField("");
+        setSortOrder("");
+      } else {
         setSortOrder("ASC");
       }
     },
@@ -260,6 +301,51 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     setSelectedFilters(filters);
     setCurrentPage(1);
   }, []);
+
+  // Initialize from URL parameters (search and common filters)
+  useEffect(() => {
+    if (initializedFromUrl) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && initialFilters.push(`${prefix}:${v}`));
+    };
+    pushAll("owner", "owner");
+    pushAll("stage", "stage");
+    pushAll("pipeline", "pipeline");
+    pushAll("account", "account");
+    pushAll("status", "status");
+
+    if (initialFilters.length) {
+      setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
+    }
+    const search = urlParams.get("search");
+    if (search) setSearchTerm(search);
+    setInitializedFromUrl(true);
+  }, [initializedFromUrl]);
+
+  // Sync selected filters and search to URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const setList = (key: string, values: string[]) => {
+      urlParams.delete(key);
+      values.forEach((v) => urlParams.append(key, v));
+    };
+
+    const collect = (prefix: string) => selectedFilters.filter((f) => f.startsWith(`${prefix}:`)).map((f) => f.slice(prefix.length + 1));
+
+    setList("owner", collect("owner"));
+    setList("stage", collect("stage"));
+    setList("pipeline", collect("pipeline"));
+    setList("account", collect("account"));
+    setList("status", collect("status"));
+
+    if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [selectedFilters, searchTerm]);
 
   // const toggleDataFilter = useCallback(() => {
   //   setShowDataFilter(prev => !prev);
@@ -336,6 +422,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                   </div>
                 </div>
               ),
+              columnVisibility: {
+                columns: columnConfig,
+                onColumnVisibilityChange: handleColumnVisibilityChange,
+                'data-testid': 'investment-opportunities-column-visibility'
+              },
               actions: (
                 <AppAction
                   contextsArray={[FlowContextName.createInvestmentOpportunity]}
@@ -372,7 +463,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                 onPageChange={handlePageChange}
                 onSort={handleSort}
                 sortField={sortField}
-                sortOrder={sortOrder}
+                sortOrder={sortOrder || "ASC"}
+                visibleColumns={visibleColumns}
                 {...context}
               />
             }

@@ -23,6 +23,7 @@ interface LeadListDataProps {
   cities: string[];
   createdAfter?: string;
   createdBefore?: string;
+  sensitive?: boolean;
   sortField?: string;
   sortOrder?: "ASC" | "DESC" | "";
   accessToken: string;
@@ -62,6 +63,7 @@ export const useLeadListData = ({
   cities = [],
   createdAfter,
   createdBefore,
+  sensitive,
   sortField = "createdAt",
   sortOrder = "DESC",
   accessToken,
@@ -337,6 +339,11 @@ export const useLeadListData = ({
           conditions.push({ createdAt: { _lte: createdBefore } });
         }
 
+        // Sensitivity filter (boolean)
+        if (typeof sensitive === "boolean") {
+          conditions.push({ sensitive: { _eq: sensitive } });
+        }
+
         // Combine base where with conditions
         const where =
           conditions.length > 0
@@ -382,6 +389,20 @@ export const useLeadListData = ({
                   : "DESC_NULLS_LAST",
               lastName: "ASC_NULLS_LAST",
             };
+          } else if (overrideSortField === "leadCombined") {
+            // Priority: contact name first (firstName, lastName), fallback companyName
+            orderBy.contact = {
+              firstName:
+                overrideSortOrder === "ASC"
+                  ? "ASC_NULLS_LAST"
+                  : "DESC_NULLS_LAST",
+              lastName: "ASC_NULLS_LAST",
+            } as any;
+            // Also include companyName as secondary
+            (orderBy as any).companyName =
+              overrideSortOrder === "ASC"
+                ? "ASC_NULLS_LAST"
+                : "DESC_NULLS_LAST";
           } else if (overrideSortField === "createdAt") {
             orderBy.createdAt =
               overrideSortOrder === "ASC"
@@ -445,6 +466,11 @@ export const useLeadListData = ({
               overrideSortOrder === "ASC"
                 ? "ASC_NULLS_LAST"
                 : "DESC_NULLS_LAST";
+          } else if (overrideSortField === "sensitive") {
+            orderBy.sensitive =
+              overrideSortOrder === "ASC"
+                ? "ASC_NULLS_LAST"
+                : "DESC_NULLS_LAST";
           }
         } else if (sortField && sortField !== "") {
           if (sortField === "accountName") {
@@ -470,6 +496,14 @@ export const useLeadListData = ({
                 sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
               lastName: "ASC_NULLS_LAST",
             };
+          } else if (sortField === "leadCombined") {
+            orderBy.contact = {
+              firstName:
+                sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
+              lastName: "ASC_NULLS_LAST",
+            } as any;
+            (orderBy as any).companyName =
+              sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           } else if (sortField === "createdAt") {
             orderBy.createdAt =
               sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
@@ -506,6 +540,9 @@ export const useLeadListData = ({
             };
           } else if (sortField === "city") {
             orderBy.city =
+              sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
+          } else if (sortField === "sensitive") {
+            orderBy.sensitive =
               sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
           }
         }
@@ -549,6 +586,7 @@ export const useLeadListData = ({
       createdAfter,
       createdBefore,
       sourceApp,
+      sensitive,
     ]
   );
 

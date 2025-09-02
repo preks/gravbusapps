@@ -22,6 +22,7 @@ import {
 import { useFeedbackForm } from '../context/FeedbackFormContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import EmployeeSearchableSelect from '../../lead-form/components/EmployeeSearchableSelect';
 
 const prefixDataTestId = "FeedbackForm";
 
@@ -38,6 +39,7 @@ const FeedbackFormComponent: React.FC = () => {
     employees,
     employeesLoading,
     employeesError,
+    searchEmployees,
     getEmployeeById,
     preSelectedEmployee,
     preSelectedEmployeeLoading,
@@ -92,27 +94,23 @@ const FeedbackFormComponent: React.FC = () => {
 
   return (
     <div 
-      className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full gba:p-4"
+      className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
       data-testid={formatDataTestId(prefixDataTestId, "Container")}
     >
-        <div className="gba:bg-white gba:max-w-md gba:w-full gba:shadow-lg gba:rounded-lg">
-          {/* Modal Header */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                {getTranslationFromI18nKeyAndLabel('feedback.form.title', 'Give Feedback')}
-              </h2>
-            </div>
+      <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
+        {/* Modal Header */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+              {getTranslationFromI18nKeyAndLabel('feedback.form.title', 'Give Feedback')}
+            </h2>
           </div>
+        </div>
 
         {/* Modal Content */}
-        <div className="gba:p-4 gba:space-y-4">
+        <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
             {/* Employee Selection Section */}
             <div className="gba:space-y-2">
-              <Label htmlFor="employee-select" className="gba:text-sm gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('feedback.form.employee.label', 'Employee')} *
-              </Label>
-              
               {/* Show loading state for pre-selected employee */}
               {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
                 <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-gray-50 gba:rounded-lg">
@@ -168,37 +166,35 @@ const FeedbackFormComponent: React.FC = () => {
                   )}
                 </div>
               ) : (!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading ? (
-                 <select
-                   id="employee-select"
-                   name="employee"
-                   value={formValues.employeeId || ''}
-                   onChange={(e) => handleEmployeeChange(e.target.value)}
-                   className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-lg gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent"
-                   data-testid={formatDataTestId(prefixDataTestId, "EmployeeSelect")}
-                 >
-                     <option value="">
-                       {getTranslationFromI18nKeyAndLabel('feedback.form.employee.placeholder', 'Select an employee...')}
-                     </option>
-                     {employeesLoading ? (
-                       <option disabled>
-                         {getTranslationFromI18nKeyAndLabel('feedback.form.employee.loading', 'Loading employees...')}
-                       </option>
-                     ) : employeesError ? (
-                       <option disabled className="gba:text-red-500">
-                         {employeesError}
-                       </option>
-                     ) : employees.length === 0 ? (
-                       <option disabled>
-                         {getTranslationFromI18nKeyAndLabel('feedback.form.employee.empty', 'No employees found')}
-                       </option>
-                     ) : (
-                       employees.map((employee) => (
-                         <option key={employee.id} value={employee.id}>
-                           {employee.name} {employee.jobTitle && `(${employee.jobTitle})`}
-                         </option>
-                       ))
-                     )}
-                   </select>
+                <EmployeeSearchableSelect
+                  label={getTranslationFromI18nKeyAndLabel('feedback.form.employee.label', 'Employee')}
+                  name="employee-select"
+                  value={formValues.employeeId}
+                  placeholder={getTranslationFromI18nKeyAndLabel('feedback.form.employee.placeholder', 'Select an employee...')}
+                  options={employees.map(emp => ({
+                    id: emp.id,
+                    value: emp.id,
+                    name: emp.name,
+                    label: emp.name,
+                    jobTitle: emp.jobTitle,
+                    department: emp.department,
+                    pictureThumbnail: emp.pictureThumbnail,
+                    userId: emp.userId,
+                    extraInfo: {
+                      jobPosition: emp.jobTitle,
+                      organizationalUnit: emp.department,
+                      pictureThumbnail: emp.pictureThumbnail,
+                      userId: emp.userId
+                    }
+                  }))}
+                  loading={employeesLoading}
+                  onSearch={searchEmployees}
+                  onChange={handleEmployeeChange}
+                  data-testid={formatDataTestId(prefixDataTestId, "EmployeeSelect")}
+                  error={employeesError}
+                  required={true}
+                  className="gba:w-full"
+                />
               ) : null}
             </div>
 

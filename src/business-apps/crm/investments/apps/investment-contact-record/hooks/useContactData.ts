@@ -20,7 +20,6 @@ export interface Contact {
   linkedinUrl?: string;
   xingUrl?: string;
   bio?: string;
-  contactRole?: string;
   contactType?: string;
   version: string;
   academicTitle?: {
@@ -81,7 +80,6 @@ export const useContactData = (contactId: string, accessToken: string) => {
           linkedinUrl: rawContactData.linkedinUrl || '',
           xingUrl: rawContactData.xingUrl || '',
           bio: rawContactData.bio || '',
-          contactRole: rawContactData.contactRole || '',
           contactType: rawContactData.contactType || '',
           version: rawContactData.version?.toString() || '1',
           academicTitle: rawContactData.academicTitle ? {
