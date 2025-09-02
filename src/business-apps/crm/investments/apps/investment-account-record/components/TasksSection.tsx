@@ -160,7 +160,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
     if (accountId) {
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentTask',
+        processName: 'createInvestmentTask',
         payload: {
           accountId,
         },
@@ -172,7 +172,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
   const handleUpdateTask = (task: TaskData) => {
     startProcess({
       domain: 'investments',
-      processName: 'saveInvestmentTask',
+      processName: 'createInvestmentTask',
       payload: {
         accountId: accountId,
         typeRef: task.taskType?.id || 'InvestmentTaskType:v1:GENERAL',

@@ -156,6 +156,8 @@ export const CUSTOMER_LEAD = `
 
 export const CUSTOMER_TASK = `
     id
+    version
+    additionalProperties
     code
     name
     description
@@ -163,6 +165,7 @@ export const CUSTOMER_TASK = `
     startDate
     dueDate
     endDate
+    templateStartDate
     ${AUDIT_FIELDS}
     
     # Reference fields
@@ -171,12 +174,23 @@ export const CUSTOMER_TASK = `
     statusRef
     timingType
     
+    # User references
+    creatorUserId
+    assignedUserId
+    
     # Employee references
     creatorEmployee {
       ${EMPLOYEE_REF}
     }
     assignedEmployee {
       ${EMPLOYEE_REF}
+    }
+    
+    # Task template reference
+    salesTaskTemplate {
+      id
+      code
+      name
     }
 `;
 

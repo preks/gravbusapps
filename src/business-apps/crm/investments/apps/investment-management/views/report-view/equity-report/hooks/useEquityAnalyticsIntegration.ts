@@ -63,7 +63,14 @@ export const useEquityAnalyticsIntegration = ({
     const equityReports = investmentReport.equityInvestmentReport || [];
     
     return equityReports.map((equityReport: any) => {
-      const investment = investmentReport.investment || equityReport.equityInvestment?.investment;
+      // Try to get investment data from multiple sources
+      const mainInvestment = investmentReport.investment;
+      const equityInvestment = equityReport.equityInvestment?.investment;
+      
+      // Use whichever has investment type data, prioritizing equity investment
+      const investment = equityInvestment?.investmentType ? equityInvestment : mainInvestment;
+      
+
       
       // Extract currency from investment or use default
       const currency = targetCurrency || investmentReport.currency?.value || 'EUR';
@@ -86,6 +93,10 @@ export const useEquityAnalyticsIntegration = ({
         currency: currency,
         acquisitionDate: investment?.acquisitionDate || '',
         foundationDate: equityReport.equityInvestment?.foundationDate || '',
+        // Investment type data for filtering (only from main investment data)
+        investmentType: investment?.investmentType?.code,
+        investmentTypeValue: investment?.investmentType?.value,
+        investmentGroupCode: investment?.investmentGroup?.code,
         // Financial metrics
         currentMarketValue: equityReport.marketValue || 0,
         currentEbitda: equityReport.ebitdaAmount || 0,
@@ -151,14 +162,11 @@ export const useEquityAnalyticsIntegration = ({
         offset,
         orderBy: [{
           field: 'date', // Sort by report date instead of investment-specific fields
-          direction: sortOrder
-        }] as Array<{ field: string; direction: 'ASC' | 'DESC' }>
+          direction: (sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST') as 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+        }]
       };
 
-      console.log('Equity Enhanced Query Parameters:', filterParams);
-
       const response = await fetchInvestmentReports(filterParams);
-      console.log('Equity Enhanced Response:', response);
 
       // Enhanced query returns: { InvestmentReport: [...], InvestmentReportAggregate: {...} }
       const investmentReports = response.InvestmentReport || [];
@@ -170,14 +178,19 @@ export const useEquityAnalyticsIntegration = ({
         allAnalyticsData.push(...equityData);
       });
       
+
+
       // Filter by investment type if specified
       const filteredData = filters.investmentType && filters.investmentType !== 'all'
         ? allAnalyticsData.filter(item => {
-            // Filter based on equity investment type or investment type
-            return item.investmentName?.toLowerCase().includes(filters.investmentType!.toLowerCase()) ||
-                   item.investmentCode?.toLowerCase().includes(filters.investmentType!.toLowerCase());
+            // Filter based on actual investment type code
+            // Only include items that have the matching investment type AND belong to EQUITY group
+            return item.investmentType === filters.investmentType && 
+                   item.investmentGroupCode === 'EQUITY';
           })
-        : allAnalyticsData;
+        : allAnalyticsData; // For overview, show all equity reports (don't filter by group for now)
+      
+
       
       // Apply pagination to filtered results (since we're doing client-side filtering)
       const startIndex = (page - 1) * pageSize;
@@ -213,7 +226,7 @@ export const useEquityAnalyticsIntegration = ({
           averageEbitdaMargin: 0
         }
       }));
-      console.error('Error loading equity analytics data:', err);
+
     }
   }, [
     fetchInvestmentReports,

@@ -40,6 +40,7 @@ export interface JobLevelGroup {
   jobLevels: JobLevel[];
   jobLevelCount: number;
   color: string; // for UI display
+  version?: string;
 }
 
 // Job Family interfaces - supports hierarchical structure

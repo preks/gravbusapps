@@ -65,7 +65,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
 
   return (
     <div 
-      className="gba:flex gba:items-center gba:justify-center gba:min-h-screen gba:w-full"
+      className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:bg-white gba:max-w-md gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
@@ -94,10 +94,10 @@ const FeedbackRequestFormComponent: React.FC = () => {
           <div className="gba:space-y-2">
             {!hasPreSelectedEmployee && !isPreSelectedEmployeeCurrentUser ? (
               <EmployeeSearchableSelect
-                label={getTranslationFromI18nKeyAndLabel('feedback.request.selectEmployee', 'Select Employee')}
+                label={getTranslationFromI18nKeyAndLabel('feedback.request.requestFrom', 'Request feedback from...')}
                 name="employee-select"
                 value={formValues.employeeId}
-                placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.searchPlaceholder', 'Search employees...')}
+                placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.selectPlaceholder', 'Select employee')}
                 options={employees.map(emp => ({
                   id: emp.id,
                   value: emp.id,
@@ -106,7 +106,13 @@ const FeedbackRequestFormComponent: React.FC = () => {
                   jobTitle: emp.jobTitle,
                   department: emp.department,
                   pictureThumbnail: emp.pictureThumbnail,
-                  userId: emp.userId
+                  userId: emp.userId,
+                  extraInfo: {
+                    jobPosition: emp.jobTitle,
+                    organizationalUnit: emp.department,
+                    pictureThumbnail: emp.pictureThumbnail,
+                    userId: emp.userId
+                  }
                 }))}
                 loading={employeesLoading}
                 onSearch={handleEmployeeSearch}
@@ -114,6 +120,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
                 data-testid={formatDataTestId(prefixDataTestId, 'EmployeeSelect')}
                 error={employeesError}
                 required={true}
+                className="gba:w-full"
               />
             ) : (
               <div className="gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border">

@@ -421,7 +421,7 @@ export const LeadList: React.FC<LeadListProps> = ({
                               data-testid={`investment-lead-update-button-${lead.id}`}
                               size="icon"
                               contextsArray={[
-                                FlowContextName.updateInvestmentLead,
+                                FlowContextName.investmentLeadEntity,
                               ]}
                               externalContextData={{ leadId: lead.id }}
                               prefixDataTestId={`investment-lead-update`}

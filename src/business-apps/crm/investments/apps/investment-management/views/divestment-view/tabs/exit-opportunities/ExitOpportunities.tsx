@@ -249,7 +249,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             <OpportunityBoard
               accessToken={accessToken}
               userInfo={userInfo}
-              dealType="DINVESTMENT_DEAL"
+              dealType="DIVESTMENT_DEAL"
             />
           </TabsContent>
         </Tabs>

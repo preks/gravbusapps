@@ -528,7 +528,6 @@ const ContactTable: React.FC<ContactTableProps> = ({
                             <AvatarImage
                               src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                               alt={getOwnerName(record)}
-                              className="gba:object-cover gba:object-center"
                             />
                           )}
                           <AvatarFallback>
@@ -654,18 +653,19 @@ const ContactTable: React.FC<ContactTableProps> = ({
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${record.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.contactEntity]}
+                        contextsArray={[FlowContextName.customerContactEntity]}
                         externalContextData={{
                           contactId: record.id,
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
                         accessToken={accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick
                         onClick={(e) => e.stopPropagation()}
                       />

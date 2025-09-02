@@ -5,7 +5,6 @@ import {
   Input,
   Label,
   Button,
-  Checkbox,
   Select,
   SelectContent,
   SelectItem,
@@ -42,34 +41,6 @@ const ContactInformationSection: React.FC = () => {
     academicTitlesHasMore,
     loadMoreAcademicTitles,
   } = useLeadFormContext();
-
-  // ✅ DEBUG: Add debug logging for form values
-  useEffect(() => {
-    console.log("🔍 ContactInformationSection Debug - Form Values:", {
-      salutation: formValues.salutation,
-      academicTitle: formValues.academicTitle,
-      salutationsCount: salutations?.length || 0,
-      academicTitlesCount: academicTitles?.length || 0,
-      // Check if values match any options
-      salutationMatch: salutations?.find(
-        (opt) =>
-          opt.value === formValues.salutation ||
-          opt.id === formValues.salutation
-      ),
-      academicTitleMatch: academicTitles?.find(
-        (opt) =>
-          opt.value === formValues.academicTitle ||
-          opt.id === formValues.academicTitle
-      ),
-      salutationsFirst: salutations?.[0] || null,
-      academicTitlesFirst: academicTitles?.[0] || null,
-    });
-  }, [
-    formValues.salutation,
-    formValues.academicTitle,
-    salutations,
-    academicTitles,
-  ]);
 
   const emailError =
     formValues.email && !validateEmail(formValues.email)
@@ -319,29 +290,6 @@ const ContactInformationSection: React.FC = () => {
             {emailError && (
               <p className="gba:text-sm gba:text-red-600">{emailError}</p>
             )}
-          </div>
-
-          {/* Sensitive Data Flag */}
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <Checkbox
-              id="sensitive-data"
-              checked={
-                formValues.sensitive === true || formValues.sensitive === "true"
-              }
-              onCheckedChange={(checked) =>
-                setFormValues({ sensitive: checked })
-              }
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "SensitiveDataCheckbox"
-              )}
-            />
-            <Label
-              htmlFor="sensitive-data"
-              className="gba:text-sm gba:font-medium gba:text-gray-900 gba:cursor-pointer"
-            >
-              Sensitive Data
-            </Label>
           </div>
         </CardContent>
       )}

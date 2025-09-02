@@ -1,16 +1,4 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Card,
-  Button,
-  Tooltip,
-  Modal,
-  message,
-  Typography,
-  Spin,
-  Alert,
-} from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import React, { useMemo } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import type {
   JobLevelVisualization as EnhancedJobLevel,
@@ -18,9 +6,30 @@ import type {
   PayGradeVisualization as EnhancedPayGrade,
 } from "../../types";
 import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title, Text } = Typography;
+import {
+  Card,
+  CardContent,
+  Button,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+} from "@newwork/nw-design-system";
+import { useRestClient } from "@/common/network/rest/useRestClient";
+import { env } from "@/common/env/EnvUtils";
+import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
+import PayGradeForm from "@/business-apps/mdm/forms/pay-grade-form";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import JobLevelForm from "@/business-apps/mdm/forms/job-level-form";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import {
+  XCircleIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+} from "@phosphor-icons/react";
 
 // Re-export types from integration hook for consistency
 export type PayGrade = EnhancedPayGrade;
@@ -31,18 +40,20 @@ export interface PayGradesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const DATA_TEST_ID_PREFIX = "PayGradesTab";
+
 // Mock data removed - now using real data from useCompensationDataIntegration
 
 const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+  const { prefixDataTestId } = context;
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // Use real data integration
   const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
     useCompensationDataIntegration(context);
-
-  const [editingPayGrade, setEditingPayGrade] = useState<PayGrade | null>(null);
-  const [insertAfterGrade, setInsertAfterGrade] = useState<string | null>(null);
+  const restClient = useRestClient(
+    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
+  );
 
   const formatCurrency = (
     amount: number,
@@ -64,72 +75,65 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
     }).format(amount);
   };
 
+  // Memoize job levels lookup to prevent unnecessary recalculations
+  const jobLevelsByPayGradeAndGroup = useMemo(() => {
+    const lookup = new Map<string, EnhancedJobLevel[]>();
+
+    jobLevels.forEach((jobLevel) => {
+      const key = `${jobLevel.payGradeId}-${jobLevel.jobLevelGroupId}`;
+      if (!lookup.has(key)) {
+        lookup.set(key, []);
+      }
+      lookup.get(key)!.push(jobLevel);
+    });
+
+    return lookup;
+  }, [jobLevels]);
+
   const getJobLevelsByPayGradeAndGroup = (
     payGradeId: string,
     groupId: string
   ) => {
-    return jobLevels.filter(
-      (jl) => jl.payGradeId === payGradeId && jl.jobLevelGroupId === groupId
+    const key = `${payGradeId}-${groupId}`;
+    return jobLevelsByPayGradeAndGroup.get(key) || [];
+  };
+
+  const handleDeletePayGrade = async (payGrade: PayGrade) => {
+    await restClient.post(
+      "/employee/saveCompensationBand",
+      {
+        changeMode: "DELETE",
+        compensationBand: {
+          id: payGrade.id,
+          version: payGrade.version,
+        },
+      },
+      {
+        headers: { Authorization: `Bearer ${context.accessToken}` },
+      }
     );
+
+    await refetch();
   };
 
-  const handleAddPayGrade = (afterGradeId?: string) => {
-    setEditingPayGrade(null);
-    setInsertAfterGrade(afterGradeId || null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changePayGrade",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  // Memoize sorted data to prevent unnecessary re-renders
+  const sortedPayGrades = useMemo(
+    () => [...payGrades].sort((a, b) => a.minSalary - b.minSalary),
+    [payGrades]
+  ); // Lowest grades first, will be at bottom with flex-reverse
 
-  const handleEditPayGrade = (payGrade: PayGrade) => {
-    setEditingPayGrade(payGrade);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changePayGrade",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        payGrade,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-    setInsertAfterGrade(null);
-  };
-
-  const handleDeletePayGrade = (payGrade: PayGrade) => {
-    Modal.confirm({
-      title: "Delete Pay Grade",
-      content: `Are you sure you want to delete "${payGrade.name}" (${payGrade.code})?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        // TODO: Implement API call to delete pay grade
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        // Optionally refetch data
-        await refetch();
-      },
-    });
-  };
-
-  const sortedPayGrades = [...payGrades].sort((a, b) => a.order - b.order); // Lowest grades first, will be at bottom with flex-reverse
-  const sortedJobLevelGroups = [...jobLevelGroups].sort(
-    (a, b) => a.order - b.order
+  const sortedJobLevelGroups = useMemo(
+    () => [...jobLevelGroups].sort((a, b) => a.order - b.order),
+    [jobLevelGroups]
   );
 
-  if (isLoading) {
+  if (sortedPayGrades.length === 0 && isLoading) {
     return (
       <div
         data-testid={`${prefixDataTestId}-PayGradesTab`}
         className="gba:flex gba:justify-center gba:items-center gba:h-64"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     );
   }
@@ -138,16 +142,19 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
     return (
       <div data-testid={`${prefixDataTestId}-PayGradesTab`} className="gba:p-4">
         <Alert
-          message="Error Loading Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" danger onClick={() => refetch()}>
+          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
+          variant="destructive"
+        >
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <XCircleIcon className="h-4 w-4" />
+            Error Loading Data
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
               Retry
             </Button>
-          }
-        />
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -155,32 +162,26 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
   return (
     <div data-testid={`${prefixDataTestId}-PayGradesTab`}>
       <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
-        <div className="gba:flex gba:flex-col gba:space-y-1.5 gba:p-6 gba:border-b">
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <div>
-              <Title
-                level={2}
-                className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight gba:mb-1"
-              >
-                Pay Grade Overview
-              </Title>
-              <Text className="gba:text-sm gba:text-muted-foreground">
-                Pay grade distribution across career bands. Each row represents
-                a pay grade level, showing which groups are assigned to each
-                grade.
-              </Text>
-            </div>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => handleAddPayGrade()}
-            >
-              Add Pay Grade
-            </Button>
-          </div>
-        </div>
+        <CardTabHeaderComponent
+          addButton={
+            <PayGradeForm
+              prefixDataTestId={prefixDataTestId}
+              accessToken={context.accessToken}
+              refetch={refetch}
+              childAddButton={
+                <Button className="gba:flex gba:justify-center gba:items-center">
+                  <PlusIcon /> Add Pay Grade
+                </Button>
+              }
+              payGradeLevel={sortedPayGrades.length + 1}
+            />
+          }
+          cardTitle="Pay Grade Overview"
+          cardDescription="Pay grade distribution across career bands. Each row represents a
+            pay grade level, showing which groups are assigned to each grade."
+        />
 
-        <div className="gba:relative">
+        <CardContent className="gba:relative">
           {/* Matrix Rows */}
           <div className="gba:flex gba:flex-col-reverse gba:gap-1">
             {sortedPayGrades.map((payGrade) => (
@@ -197,29 +198,27 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                     >
                       {payGrade.name}
                     </span>
-                    <div className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:gap-1 gba:flex-shrink-0">
-                      <Button
-                        size="small"
-                        type="text"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditPayGrade(payGrade)}
-                        className="gba:p-1 gba:h-6 gba:w-6"
+                    <div className="gba:flex gba:gap-1 gba:flex-shrink-0">
+                      <PayGradeForm
+                        prefixDataTestId={prefixDataTestId}
+                        accessToken={context.accessToken}
+                        refetch={refetch}
+                        childAddButton={
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gba:!p-0 gba:h-6 gba:w-6"
+                          >
+                            <PencilSimpleLineIcon />
+                          </Button>
+                        }
+                        payGradeLevel={payGrade.payGrade}
+                        payGrade={payGrade}
                       />
-                      <Button
-                        size="small"
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeletePayGrade(payGrade)}
-                        className="gba:p-1 gba:h-6 gba:w-6"
-                      />
-                      <Button
-                        size="small"
-                        type="text"
-                        icon={<PlusOutlined />}
-                        onClick={() => handleAddPayGrade(payGrade.id)}
-                        className="gba:p-1 gba:h-6 gba:w-6"
-                        title="Add pay grade after this one"
+                      <DeleteButton
+                        onDelete={() => handleDeletePayGrade(payGrade)}
+                        itemName={`${payGrade.name} ${payGrade.code}`}
+                        itemTitle="Pay Grade"
                       />
                     </div>
                   </div>
@@ -243,10 +242,18 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                           <div className="gba:flex gba:gap-1 gba:w-full gba:h-full">
                             {jobLevelsInCell.map(
                               (jobLevel: EnhancedJobLevel) => (
-                                <Tooltip
-                                  key={jobLevel.id}
-                                  title={
-                                    <div>
+                                <Tooltip key={jobLevel.id}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={`${group.color} gba:rounded gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium gba:transition-colors hover:gba:opacity-80`}
+                                    >
+                                      <span className="gba:text-center gba:leading-tight gba:drop-shadow-sm">
+                                        {jobLevel.name}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <div className="gba:flex gba:flex-col gba:gap-0.5 gba:text-sm">
                                       <div className="gba:font-bold">
                                         {jobLevel.name}
                                       </div>
@@ -273,22 +280,32 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                                         )}
                                       </div>
                                     </div>
-                                  }
-                                  placement="top"
-                                >
-                                  <div
-                                    className={`${group.color} gba:rounded gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium gba:cursor-pointer gba:transition-colors hover:gba:opacity-80`}
-                                  >
-                                    <span className="gba:text-center gba:leading-tight gba:drop-shadow-sm">
-                                      {jobLevel.name}
-                                    </span>
-                                  </div>
+                                  </TooltipContent>
                                 </Tooltip>
                               )
                             )}
                           </div>
                         ) : (
-                          <div className="gba:w-full gba:h-full gba:bg-gray-200 gba:rounded gba:opacity-40"></div>
+                          <JobLevelForm
+                            childAddButton={
+                              <button
+                                className="gba:w-full gba:h-full gba:bg-gray-200 gba:rounded gba:opacity-40 hover:gba:bg-gray-300 gba:transition-colors"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                data-testid={`${dataTestId}-add-job-level-${payGrade.id}-${group.id}`}
+                                title={`Add job level for ${group.name} in ${payGrade.name}`}
+                              ></button>
+                            }
+                            refetch={refetch}
+                            groupId={group.id}
+                            accessToken={context.accessToken}
+                            prefixDataTestId={dataTestId}
+                            compensationBands={payGrades}
+                            defaultValues={{
+                              compensationBandId: payGrade.id,
+                            }}
+                          />
                         )}
                       </div>
                     );
@@ -332,7 +349,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
             <div className="gba:w-48"></div>{" "}
             {/* Empty space for salary range column */}
           </div>
-        </div>
+        </CardContent>
       </Card>
     </div>
   );

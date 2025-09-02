@@ -96,7 +96,8 @@ export const useExpenseDashboardStats = (context: BusinessAppContextProps): Expe
         currentMonthEnd: currentMonthEndISO,
         currentMonthStartTz: currentMonthStartISO,
         currentMonthEndTz: currentMonthEndISO,
-        now: now.toISOString()
+        now: now.toISOString(),
+        currency: 'Currency:v1:EUR'
       });
 
       const newStats: ExpenseDashboardStats = {

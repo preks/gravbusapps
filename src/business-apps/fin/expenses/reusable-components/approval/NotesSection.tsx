@@ -23,7 +23,8 @@ const NotesSection: React.FC<NotesSectionProps> = ({
         placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_placeholder', 'No Notes')}
         value={description || ''}
         disabled
-        className="gba:bg-transparent gba:border-none gba:text-muted-foreground gba:resize-none gba:p-2 gba:text-xs gba:bg-gray-100"
+        className="gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none"
+        style={{ backgroundColor: '#f3f4f6' }}
         data-testid={`${prefixDataTestId}-notes-textarea`}
       />
     </div>

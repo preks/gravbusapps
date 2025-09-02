@@ -34,15 +34,6 @@ export const useInvestmentLeadData = ({
   // Function to map investment lead data to form values
   const mapLeadToFormValues = useCallback(
     (lead: InvestmentLeadQueryResult): Partial<LeadFormValues> => {
-      console.log("🔄 Mapping InvestmentLead data to form values. Country data:", {
-        countryRef: lead.countryRef,
-        countryObject: lead.country,
-        countryId: lead.country?.id,
-        regionRef: lead.regionRef,
-        regionObject: lead.region,
-        regionId: lead.region?.id
-      });
-
       const mappedValues = {
         // System fields
         id: lead.id,
@@ -75,6 +66,7 @@ export const useInvestmentLeadData = ({
         leadStatus: lead.leadStatusRef || lead.leadStatus?.id || "",
         leadSource: lead.leadSourceRef || lead.leadSource?.id || "",
         rating: lead.leadRatingRef || lead.leadRating?.id || "",
+        sensitive: lead.sensitive || false,
 
         // Notes - ✅ ADDED: Map description to notes field
         notes: lead.description || "",
@@ -123,7 +115,7 @@ export const useInvestmentLeadData = ({
         country: mappedValues.country,
         region: mappedValues.region,
         locality: mappedValues.locality,
-        addressLine: mappedValues.addressLine
+        addressLine: mappedValues.addressLine,
       });
 
       return mappedValues;

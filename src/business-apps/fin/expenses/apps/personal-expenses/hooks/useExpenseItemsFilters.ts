@@ -214,7 +214,8 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     setSelectedFilters([]);
     setExpenseDateRange(null);
     setAmountRange(null);
-  }, []);
+    setSearch(''); // Also clear the search state
+  }, [setSearch]);
 
   // Remove filter function that handles amount range
   const removeFilter = useCallback((filterId: string) => {
@@ -246,6 +247,7 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
       setSelectedFilters([]);
       setExpenseDateRange(null);
       setAmountRange(null);
+      setSearch(''); // Also clear the search state
       return;
     }
     
@@ -264,7 +266,7 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     if (!newRangeFilters.includes('expenseDateRange')) {
       setExpenseDateRange(null);
     }
-  }, []);
+  }, [setSearch]);
 
   // Status filter change handler for card interactions
   const onStatusFilterChange = useCallback((status: string, selected: boolean) => {

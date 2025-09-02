@@ -168,6 +168,17 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
           equityInvestment {
             id
             foundationDate
+            investment {
+              id
+              code
+              name
+              investmentType {
+                ${CATALOG_ENTRY}
+              }
+              investmentGroup {
+                ${CATALOG_ENTRY}
+              }
+            }
           }
         }
         

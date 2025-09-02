@@ -113,8 +113,8 @@ export const DEAL_TYPES: SelectOption[] = [
     name: "Investment Deal",
   },
   {
-    id: "DINVESTMENT_DEAL",
-    value: "DINVESTMENT_DEAL",
+    id: "DIVESTMENT_DEAL",
+    value: "DIVESTMENT_DEAL",
     label: "Divestment Deal",
     name: "Divestment Deal",
   },

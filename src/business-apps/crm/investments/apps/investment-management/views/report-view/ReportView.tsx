@@ -12,7 +12,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
 import { RealEstateReport } from './real-estate-report/RealEstateReport';
 import { EquityReport } from './equity-report/EquityReport';
-import { InvestmentDocumentUploadForm } from '../../../../forms/investment-document-upload-form';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 export interface ReportViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -64,14 +65,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </p>
             </div>
             <div>
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="gba:flex gba:items-center gba:gap-2"
-                data-testid="upload-document-button"
+              <AppAction
+                contextsArray={[FlowContextName.uploadInvestmentReport]}
+                accessToken={accessToken}
+                emptyStateBehavior="hide"
+                prefixDataTestId="investment-upload-report"
               >
-                <Upload className="gba:h-4 gba:w-4" />
-                {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
-              </Button>
+                <Button
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="upload-document-button"
+                >
+                  <Upload className="gba:h-4 gba:w-4" />
+                  {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
+                </Button>
+              </AppAction>
             </div>
           </div>
           
@@ -129,21 +136,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
           </TabsContent>
         </div>
       </Tabs>
-
-      {/* Upload Report Modal */}
-      <InvestmentDocumentUploadForm
-        mode="modal"
-        open={uploadDialogOpen}
-        onOpenChange={setUploadDialogOpen}
-        onSuccess={(fileIds: string[]) => {
-          console.log('Documents uploaded successfully with IDs:', fileIds);
-          setUploadDialogOpen(false);
-        }}
-        showInvestmentSelector={true}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        additionalData={additionalData}
-      />
     </div>
   );
 };

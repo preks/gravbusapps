@@ -219,7 +219,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             <AvatarImage 
               src={avatarSrc} 
               alt={`${firstName} ${lastName}`}
-              className="gba:object-cover gba:object-center"
             />
           )}
           <AvatarFallback className="gba:text-xs gba:font-medium">{initials}</AvatarFallback>

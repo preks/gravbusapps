@@ -551,7 +551,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                               <AvatarImage
                                 src={`data:image/gif;base64,${record.ownerEmployee.pictureThumbnail}`}
                                 alt={getOwnerName(record)}
-                                className="gba:object-cover gba:object-center"
                               />
                             )}
                             <AvatarFallback>
@@ -593,18 +592,19 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                     <TableCell
                       className="gba:py-4 gba:px-6"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${record.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.updateOpportunity]}
+                          contextsArray={[FlowContextName.customerOpportunityEntity]}
                           externalContextData={{
                             opportunityId: record.id,
                           }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
                           accessToken={accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                           onClick={(e) => e.stopPropagation()}
                         />

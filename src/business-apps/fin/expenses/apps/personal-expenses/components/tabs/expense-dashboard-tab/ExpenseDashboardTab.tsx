@@ -11,6 +11,7 @@ import {
 } from './components';
 import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
 
@@ -41,7 +42,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       {
         key: 'current-month-expenses',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.current_month_expenses','Current Month Expenses'),
-        value: formatNumberFunction(currentTotal.toString()) + '€',
+        value: formatCurrencyDisplay(currentTotal, 'EUR'),
         prefix: <PiCurrencyCircleDollar />,
         color: isPositiveChange ? '#cf1322' : '#3f8600',
         valueIsString: true,
@@ -55,7 +56,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       {
         key: 'pending-payouts',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts','Pending Payouts'),
-        value: stats?.pendingPayouts + '€'|| 0,
+        value: formatCurrencyDisplay(stats?.pendingPayouts || 0, 'EUR'),
         prefix: <PiCurrencyCircleDollar />,
         color: '#1890ff',
         valueIsString: true,

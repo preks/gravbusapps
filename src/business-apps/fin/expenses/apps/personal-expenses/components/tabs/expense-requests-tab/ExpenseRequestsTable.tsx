@@ -30,6 +30,7 @@ import { startProcess } from '@/common/utils/start-process';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -477,8 +478,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right">
                           {(() => {
-                            const currencyCode = record.currency?.code || '';
-                            const formattedAmount = record.reimbursableAmount && record.reimbursableAmount !== 0 ? `${formatNumberFunction(String(record.reimbursableAmount ?? '0'))} ${currencyCode}` : '-';
+                            const formattedAmount = record.reimbursableAmount && record.reimbursableAmount !== 0 ? 
+                              formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code) : '-';
                             
                             return (
                               <div data-testid={`reimbursable-amount-${record.id}`}>
@@ -492,7 +493,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                             const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
                             // Use expense plan currency if available, otherwise fall back to main currency
                             const currencyCode = advanceAmountValue && advanceAmountValue !== 0  ?  record.currency?.code  : '';
-                            const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? `${formatNumberFunction(String(advanceAmountValue))} ${currencyCode}` : "-";
+                            const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? 
+                              formatCurrencyDisplay(advanceAmountValue, record.currency?.code) : "-";
                             return (
                               <div data-testid={`total-amount-${record.id}`}>
                                 {formattedAmount}
