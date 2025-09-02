@@ -5,6 +5,7 @@ import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaym
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean;
@@ -137,8 +138,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for') + ' ' + currentMonthName,
-      value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))}`,
-      suffix: '€',
+      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), 'EUR')}`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },

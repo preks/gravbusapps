@@ -22,7 +22,7 @@ import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
-import { getAdvancePaymentStatusDisplay } from '../../../utils';
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
@@ -400,14 +400,14 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-amount-cell">
                             {record.expensePlan?.totalAmount ? 
-                              `${formatNumberFunction(record.expensePlan.totalAmount.toString(), "0.00[,]00")} ${record.expensePlan?.currency?.code ?? 'EUR'}` : 
-                              '0.00 EUR'
+                              formatCurrencyDisplay(record.expensePlan.totalAmount, record.expensePlan?.currency?.code ?? 'EUR') : 
+                                                              formatCurrencyDisplay(0, 'EUR')
                             }
                           </div>
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-advance-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-advance-cell">
-                            {formatNumberFunction(record.amount?.toString() ?? '0', "0.00[,]00")} {record.currency?.code ?? 'EUR'}
+                            {formatCurrencyDisplay(record.amount, record.currency?.code ?? 'EUR')}
                           </div>
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}>

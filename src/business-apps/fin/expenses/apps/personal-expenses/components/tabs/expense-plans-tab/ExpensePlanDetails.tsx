@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
-import { getExpensePlanStatusDisplay } from '../../../utils';
+import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import dayjs from 'dayjs';
@@ -30,15 +30,6 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   onClose
 }) => {
   if (!selectedItem) return null;
-  
-  // Helper function to format currency
-  const formatCurrency = (amount: number) => {
-    let currencySymbol = '€'; // Default to Euro symbol
-    if (selectedItem.currency?.value) {
-      currencySymbol = selectedItem.currency.value === 'European euro' ? '€' : selectedItem.currency.value.charAt(0);
-    }
-    return `${currencySymbol}${amount.toFixed(2)}`;
-  };
   
   // Get trip type
   const getTripType = () => {
@@ -181,10 +172,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {typeof selectedItem.totalAmount === 'number' ? 
-                  `${formatNumberFunction(String(selectedItem.totalAmount))} ${selectedItem.currency?.code || '-'}` : 
-                  '-'
-                }
+                {formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)}
               </span>
             </div>
             
@@ -194,7 +182,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
                 </span>
                 <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                  {`${formatNumberFunction(String(selectedItem.advancePaymentPaidAmount))} ${selectedItem.currency?.code || '-'}`}
+                  {formatCurrencyDisplay(selectedItem.advancePaymentPaidAmount, selectedItem.currency?.code)}
                 </span>
               </div>
             )}

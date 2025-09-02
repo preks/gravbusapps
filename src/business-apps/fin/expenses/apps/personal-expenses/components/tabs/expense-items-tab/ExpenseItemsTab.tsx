@@ -53,7 +53,9 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     expenseDateRange,
     amountRange,
     setAmountRange,
-    onStatusFilterChange
+    onStatusFilterChange,
+    search,
+    setSearch
   } = useExpenseItemsFilters(availableStatuses);
 
   // Use the selectedFilters from the hook which already includes date range and amount range
@@ -589,7 +591,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       {...contextProps}
       onAddExpenseItem={handleAddExpenseItem}
       // Pass the shared filter state to ensure toggle works
-      selectedFilters={finalFilters}
+      selectedFilters={selectedFilters} // Use the hook's complete filter state instead of finalFilters
       addFilter={addFilter}
       removeFilter={removeFilter}
       clearFilters={clearFilters}

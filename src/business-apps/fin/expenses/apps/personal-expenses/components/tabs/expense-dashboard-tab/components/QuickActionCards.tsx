@@ -69,14 +69,14 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   const actionCards = [
     {
       id: 'plan-trip',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense','Submit a Plan'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_plan','Submit a Plan'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense_description','Plan a new Business Trip.'),
       icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_plan_approval','Request plan approval'),
         getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label','Request Advance Payment'),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.track_submission_status','Track Submission Status')],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense','New Business Trip'),
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add_plan','Plan a new Business Trip'),
       buttonIcon: <PlusCircleOutlined />,
       buttonAction: handlePlanTrip
     },
