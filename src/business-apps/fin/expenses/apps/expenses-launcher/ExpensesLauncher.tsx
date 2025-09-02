@@ -40,7 +40,7 @@ import {
   Plus,
   Sliders,
 } from "@phosphor-icons/react";
-import { formatCurrency as formatCurrencyCode } from "@/business-apps/fin/expenses/apps/manager-expenses/utils/currencyUtils";
+import { formatCurrencyLocalized } from "@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils";
 
 interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
@@ -87,9 +87,9 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   const showManagerView = hasManagerPermissions() && !hasFinancePermissions();
   const showEmployeeView = !hasManagerPermissions() && !hasFinancePermissions();
 
-  // Format currency as currency code (e.g., "EUR 2,450") to match team expenses
+  // Format currency localized with code placement per locale
   const formatCurrency = (amount: number): string => {
-    return formatCurrencyCode(amount, "EUR", 0);
+    return formatCurrencyLocalized(amount, "EUR", 0);
   };
 
   const formatNumber = (num: number): string => {
