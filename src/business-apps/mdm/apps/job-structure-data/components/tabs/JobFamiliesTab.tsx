@@ -1,246 +1,83 @@
-import React, { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Card,
-  Tree,
-  Button,
-  Space,
-  Typography,
-  Tag,
-  Input,
-  Modal,
-  message,
-  Tooltip,
-  Empty,
-  Descriptions,
-  Divider,
-  List,
-  Avatar,
-} from "antd";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  ExpandAltOutlined,
-  CompressOutlined,
-  FolderOutlined,
-  FolderOpenOutlined,
-  CloseOutlined,
-  InfoCircleOutlined,
-  ApartmentOutlined,
-  GlobalOutlined,
-  CodeOutlined,
-  BranchesOutlined,
-  PartitionOutlined,
-  NodeIndexOutlined,
-  SisternodeOutlined,
-} from "@ant-design/icons";
-import type { DataNode } from "antd/es/tree";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useJobFamilies } from "../../hooks";
 import { JobFamily } from "../../types";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title, Text } = Typography;
-const { Search } = Input;
+import {
+  Card,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+  TreeView,
+  Badge,
+  TreeViewAction,
+} from "@newwork/nw-design-system";
+import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import JobFamilyForm from "@/business-apps/mdm/forms/job-family-form";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import {
+  GlobeIcon,
+  InfoIcon,
+  TreeStructureIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+  FolderSimpleIcon,
+  GraphIcon,
+  FileCodeIcon,
+  XCircleIcon,
+  FolderIcon,
+  EyeIcon,
+  TrashIcon,
+  CopyIcon,
+} from "@phosphor-icons/react";
+import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
 
 export interface JobFamiliesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const DATA_TEST_ID_PREFIX = "JobFamiliesTab";
+
 const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+  const { prefixDataTestId, accessToken } = context;
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
-  const {
-    rootFamilies,
-    expandedIds,
-    isLoading,
-    error,
-    refetch,
-    expandToLevel,
-    collapseAll,
-    setExpandedIds,
-    getFamilyById,
-    searchFamilies,
-  } = useJobFamilies(context);
+  const { rootFamilies, isLoading, error, refetch, getFamilyById } =
+    useJobFamilies(context);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editingFamily, setEditingFamily] = useState<JobFamily | null>(null);
-  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<JobFamily | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [isRemoveFamilyOpen, setIsRemoveFamilyOpen] = useState(false);
+  const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false);
 
-  // Convert JobFamily to Ant Design Tree DataNode
-  const convertToTreeData = (families: JobFamily[]): DataNode[] => {
-    return families.map((family) => ({
-      key: family.id,
-      title: (
-        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
-          <div className="gba:flex gba:items-center gba:space-x-3">
-            <div>
-              <Text strong className="gba:text-base">
-                {family.name}
-              </Text>
-              <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                <Tag color="blue" className="gba:text-xs">
-                  {family.code}
-                </Tag>
-                {family.children.length > 0 && (
-                  <Tag color="green" className="gba:text-xs">
-                    {family.children.length} children
-                  </Tag>
-                )}
-                <Tag color="orange" className="gba:text-xs">
-                  Level {family.level}
-                </Tag>
-              </div>
-              {family.description && (
-                <Text
-                  type="secondary"
-                  className="gba:text-sm gba:block gba:mt-1"
-                >
-                  {family.description}
-                </Text>
-              )}
-            </div>
-          </div>
-          <Space size="small" onClick={(e) => e.stopPropagation()}>
-            <Tooltip title="Add Child Family">
-              <Button
-                type="text"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() => handleAddChild(family.id)}
-                data-testid={`${prefixDataTestId}-add-child-${family.id}`}
-              />
-            </Tooltip>
-            <Tooltip title="Edit Family">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleEditFamily(family)}
-                data-testid={`${prefixDataTestId}-edit-family-${family.id}`}
-              />
-            </Tooltip>
-            <Tooltip title="Delete Family">
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteFamily(family)}
-                data-testid={`${prefixDataTestId}-delete-family-${family.id}`}
-              />
-            </Tooltip>
-          </Space>
-        </div>
-      ),
-      icon:
-        family.children.length > 0 ? (
-          expandedIds.has(family.id) ? (
-            <FolderOpenOutlined />
-          ) : (
-            <FolderOutlined />
-          )
-        ) : (
-          <FolderOutlined />
-        ),
-      children:
-        family.children.length > 0
-          ? convertToTreeData(family.children)
-          : undefined,
-      isLeaf: family.children.length === 0,
-    }));
+  const catalogClient = useCatalogManagerClient(accessToken);
+
+  useEffect(() => {
+    if (selectedFamily) {
+      const newFamily = getFamilyById(selectedFamily.id);
+
+      if (newFamily) {
+        setSelectedFamily(newFamily);
+      }
+    }
+  }, [rootFamilies]);
+
+  const handleDeleteFamily = async (family: JobFamily) => {
+    await catalogClient.deleteCatalogEntry(family.id);
+
+    refetch();
+    setIsRemoveFamilyOpen(false);
+    setSelectedFamily(null);
   };
 
-  const handleAdd = () => {
-    setEditingFamily(null);
-    setSelectedParentId(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobFamily",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleAddChild = (parentId: string) => {
-    setEditingFamily(null);
-    setSelectedParentId(parentId);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobFamily",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        parentId: parentId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleEditFamily = (family: JobFamily) => {
-    setEditingFamily(family);
-    setSelectedParentId(family.parentId || null);
-    // No process started for regular edit from table
-  };
-  
-  const handleDrawerEditFamily = (family: JobFamily) => {
-    // When editing from drawer button, start the process
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobFamily",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        jobFamily: family,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleDeleteFamily = (family: JobFamily) => {
-    const hasChildren = family.hasChildren;
-    const title = "Delete Job Family";
-    const content = hasChildren
-      ? `Are you sure you want to delete "${family.name}"? This will also delete all child families.`
-      : `Are you sure you want to delete job family "${family.name}"?`;
-
-    Modal.confirm({
-      title,
-      content,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        await refetch();
-      },
-    });
-  };
-
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-  };
-
-  const handleExpand = (expandedKeys: React.Key[]) => {
-    // Directly set the expanded IDs to match the tree component
-    const newExpandedIds = new Set(expandedKeys.map((key) => key.toString()));
-    setExpandedIds(newExpandedIds);
-  };
-
-  // Filter tree data based on search
   // Handle job family selection and drawer open/close
   const handleFamilySelect = useCallback(
-    (selectedKeys: React.Key[], info: any) => {
+    (selectedKeys: string) => {
       if (selectedKeys.length === 0) return;
-      const family = getFamilyById(selectedKeys[0].toString());
+      const family = getFamilyById(selectedKeys.toString());
       if (family) {
         setSelectedFamily(family);
         setDrawerVisible(true);
@@ -249,366 +86,400 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
     [getFamilyById]
   );
 
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerVisible(false);
-    setTimeout(() => {
-      setSelectedFamily(null);
-    }, 300); // Clear selected family after drawer close animation completes
-  }, []);
+  const nodes = useMemo(() => {
+    return rootFamilies.map((family) => ({
+      id: family.id,
+      values: {
+        code: family.code,
+        name: family.name,
+        level: family.level,
+        status: family.isActive ? (
+          <Badge variant="success">Active</Badge>
+        ) : (
+          <Badge variant="destructive">Inactive</Badge>
+        ),
+        description: family.description ?? "-",
+      },
+      icon: FolderIcon,
+      children: [],
+    }));
+  }, [rootFamilies]);
 
-  const getFilteredTreeData = () => {
-    if (!searchQuery.trim()) {
-      return convertToTreeData(rootFamilies);
+  const treeColumns = [
+    { key: "name", header: "Name", sortable: true, align: "left" as const },
+    { key: "code", header: "Code", sortable: true, align: "center" as const },
+    { key: "level", header: "Level", sortable: true, align: "center" as const },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      align: "center" as const,
+    },
+    {
+      key: "description",
+      header: "Description",
+      sortable: true,
+      align: "center" as const,
+    },
+  ];
+
+  const treeActions: TreeViewAction[] = [
+    {
+      id: "view-root-family",
+      label: "View Job Family",
+      icon: EyeIcon,
+      onClick: (node) => {
+        handleFamilySelect(node?.id ?? "");
+      },
+      variant: "ghost" as const,
+      size: "sm" as const,
+    },
+    {
+      id: "edit-root-family",
+      label: "Edit Job Family",
+      icon: PencilSimpleLineIcon,
+      onClick: (node) => {
+        const family = getFamilyById(node?.id ?? "");
+        if (family) {
+          setSelectedFamily(family);
+          setIsEditFamilyOpen(true);
+        }
+      },
+      variant: "ghost" as const,
+      size: "sm" as const,
+    },
+    {
+      id: "remove-root-family",
+      label: "Remove Job Family",
+      icon: TrashIcon,
+      onClick: (node) => {
+        const family = getFamilyById(node?.id ?? "");
+        if (family) {
+          setSelectedFamily(family);
+          setIsRemoveFamilyOpen(true);
+        }
+      },
+      variant: "ghost" as const,
+      size: "sm" as const,
+    },
+  ];
+
+  const drawerItems = useMemo(() => {
+    if (!selectedFamily) return [];
+    const items = [
+      {
+        icon: <InfoIcon />,
+        title: "Basic Information",
+        items: [
+          {
+            label: "Name",
+            value: selectedFamily.name ?? "-",
+          },
+          {
+            label: "Code",
+            value: <Badge variant="info">{selectedFamily.code || "N/A"}</Badge>,
+          },
+          {
+            label: "Description",
+            value: selectedFamily?.description ?? "-",
+          },
+          {
+            label: "Hierarchy Level",
+            value: `Level ${selectedFamily.level}  ${
+              selectedFamily.level === 0 ? " (Root)" : ""
+            }`,
+          },
+        ],
+      },
+      {
+        icon: <TreeStructureIcon />,
+        title: "Hierarchy Information",
+        verticalTable: true,
+        items: [
+          {
+            label: "Parent Family",
+            value: selectedFamily.parentFamily
+              ? selectedFamily.parentFamily.code && (
+                  <Badge variant="info">
+                    {selectedFamily.parentFamily.code}
+                  </Badge>
+                )
+              : "No parent (Root level)",
+          },
+          {
+            label: "Child Families",
+            value:
+              selectedFamily.children.length > 0 ? (
+                <div className="gba:flex gba:flex-col gba:gap-2">
+                  {selectedFamily.children.map((child) => (
+                    <div className="gba:flex gba:items-center gba:space-x-2 gba:w-full">
+                      <div>
+                        <GraphIcon className="gba:text-green-500" />
+                      </div>
+                      <div className="gba:w-full gba:flex gba:items-center gba:justify-between gba:gap-2 gba:overflow-hidden">
+                        <div className="gba:flex-1 gba:flex gba:gap-1 gba:items-center gba:overflow-hidden gba:truncate">
+                          <p className="gba:font-medium gba:overflow-hidden gba:truncate">
+                            {child.name}
+                          </p>
+                          {child.code && (
+                            <Badge variant="info" className="gba:max-w-2/3">
+                              {child.code}
+                            </Badge>
+                          )}
+                        </div>
+                        {child.children.length > 0 && (
+                          <Badge variant="success">
+                            {child.children.length} children
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="gba:text-center gba:py-8 gba:flex gba:flex-col gba:items-center gba:justify-center">
+                  <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
+                  <p className="gba:font-normal gba:text-gray-500">
+                    No child families
+                  </p>
+                </div>
+              ),
+          },
+        ],
+      },
+      {
+        icon: <GlobeIcon />,
+        title: "Additional Information",
+        verticalTable: true,
+        items: [
+          {
+            label: "ID",
+            value: (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
+                <p className="gba:font-medium gba:truncate">
+                  {selectedFamily.id}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedFamily.id);
+                  }}
+                  data-testid={`${dataTestId}-copy-children-text`}
+                >
+                  <CopyIcon className="gba:h-4 gba:w-4 gba:text-blue-400" />
+                </Button>
+              </div>
+            ),
+          },
+          {
+            label: "Status",
+            value: (
+              <Badge
+                variant={selectedFamily.isActive ? "success" : "destructive"}
+              >
+                {selectedFamily.isActive ? "Active" : "Inactive"}
+              </Badge>
+            ),
+          },
+        ],
+      },
+    ];
+
+    if (selectedFamily.parentEntryId) {
+      items[2].items.push({
+        label: "Parent ID",
+        value: (
+          <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
+            <p className="gba:font-medium gba:truncate">
+              {selectedFamily.parentEntryId}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(selectedFamily.parentEntryId!);
+              }}
+              data-testid={`${dataTestId}-copy-children-text`}
+            >
+              <CopyIcon className="gba:h-4 gba:w-4 gba:text-blue-400" />
+            </Button>
+          </div>
+        ),
+      });
     }
 
-    const matchingFamilies = searchFamilies(searchQuery);
-    const filteredRoots = rootFamilies.filter((root) =>
-      matchingFamilies.some(
-        (match) => match.id === root.id || match.id.startsWith(root.id)
-      )
-    );
+    if (selectedFamily.children.length > 0) {
+      items[2].items.push({
+        label: "Child Count",
+        value: (
+          <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+            <TreeStructureIcon className="gba:text-blue-500" />
+            <p className="gba:font-medium">
+              {selectedFamily?.children?.length}
+            </p>
+            <p className="gba:font-normal gba:text-gray-500">direct children</p>
+          </div>
+        ),
+      });
+    }
 
-    return convertToTreeData(filteredRoots);
-  };
+    return items;
+  }, [selectedFamily]);
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center">
-        <Typography.Text type="danger">
-          Error loading job families: {error}
-        </Typography.Text>
-        <div className="gba:mt-4">
-          <Button onClick={refetch}>Retry</Button>
-        </div>
+      <div data-testid={`${prefixDataTestId}-PayGradesTab`} className="gba:p-4">
+        <Alert
+          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
+          variant="destructive"
+        >
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <XCircleIcon className="h-4 w-4" />
+            Error Loading Data
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (isLoading && rootFamilies.length === 0) {
+    return (
+      <div
+        data-testid={`${dataTestId}`}
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+      >
+        <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
-        <div>
-          <Title level={3} className="gba:mb-2">
-            Job Families
-          </Title>
-          <Text type="secondary">
-            Manage job families in a hierarchical structure. Job families help
-            categorize and organize different types of roles.
-          </Text>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAdd}
-          data-testid={`${prefixDataTestId}-add-root-family`}
-        >
-          Add Root Family
-        </Button>
-      </div>
-
-      <div className="gba:mb-4 gba:flex gba:items-center gba:space-x-4">
-        <Search
-          placeholder="Search job families..."
-          allowClear
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          onSearch={handleSearch}
-          style={{ width: 300 }}
-          prefix={<SearchOutlined />}
+    <Card>
+      {!isLoading && (
+        <CardTabHeaderComponent
+          addButton={
+            <JobFamilyForm
+              childAddButton={
+                <Button
+                  variant="default"
+                  onClick={(event) => event.stopPropagation()}
+                  data-testid={`${dataTestId}-add-root-family`}
+                >
+                  <PlusIcon /> Add Root Family
+                </Button>
+              }
+              prefixDataTestId={dataTestId}
+              loading={isLoading}
+              accessToken={context.accessToken}
+              refetch={refetch}
+            />
+          }
+          cardTitle={`Job Families (${rootFamilies.length})`}
+          cardDescription="Manage job families in a hierarchical structure. Job families help
+            categorize and organize different types of roles."
         />
-        <Space>
-          <Tooltip title="Expand All Levels">
-            <Button
-              icon={<ExpandAltOutlined />}
-              onClick={() => expandToLevel(3)}
-              data-testid={`${prefixDataTestId}-expand-all`}
-            >
-              Expand All
-            </Button>
-          </Tooltip>
-          <Tooltip title="Collapse All">
-            <Button
-              icon={<CompressOutlined />}
-              onClick={collapseAll}
-              data-testid={`${prefixDataTestId}-collapse-all`}
-            >
-              Collapse All
-            </Button>
-          </Tooltip>
-        </Space>
-      </div>
+      )}
 
-      <Card className="gba:min-h-96">
+      <div className="gba:min-h-96">
         {rootFamilies.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <div>
-                <Text type="secondary">No job families found</Text>
-                <div className="gba:mt-2">
+          <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+            <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
+            <p className="gba:font-normal gba:text-gray-500">
+              No job families found
+            </p>
+            <div className="gba:mt-2">
+              <JobFamilyForm
+                childAddButton={
                   <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
+                    variant="default"
+                    onClick={(event) => event.stopPropagation()}
+                    data-testid={`${prefixDataTestId}-add-root-family`}
                   >
-                    Create First Job Family
+                    <PlusIcon /> Create First Job Family
                   </Button>
-                </div>
-              </div>
-            }
-          />
-        ) : isLoading ? (
-          <div className="gba:text-center gba:py-8">
-            <Typography.Text>Loading job families...</Typography.Text>
+                }
+                prefixDataTestId={`${prefixDataTestId}`}
+                loading={isLoading}
+                accessToken={context.accessToken}
+                refetch={refetch}
+              />
+            </div>
           </div>
         ) : (
-          <Tree
-            showIcon
-            showLine={{ showLeafIcon: false }}
-            expandedKeys={Array.from(expandedIds)}
-            onExpand={handleExpand}
-            onSelect={handleFamilySelect}
-            treeData={getFilteredTreeData()}
-            className="gba:job-families-tree"
-            blockNode
+          <TreeView
+            data={nodes}
+            columns={treeColumns}
+            className="gba:px-6"
+            searchPlaceholder="Search job families..."
+            showSelectColumn={false}
+            actions={treeActions}
+            multipleSelection={false}
           />
         )}
-      </Card>
+      </div>
+      {selectedFamily && isRemoveFamilyOpen && (
+        <DeleteButton
+          onDelete={() => handleDeleteFamily(selectedFamily)}
+          itemName={selectedFamily?.name}
+          itemTitle="Job Family"
+          open={isRemoveFamilyOpen}
+          setOpen={setIsRemoveFamilyOpen}
+          showCancelButton={false}
+        />
+      )}
+      {selectedFamily && isEditFamilyOpen && (
+        <JobFamilyForm
+          jobFamily={selectedFamily}
+          prefixDataTestId={`${prefixDataTestId}`}
+          loading={isLoading}
+          accessToken={context.accessToken}
+          refetch={refetch}
+          open={isEditFamilyOpen}
+          setOpen={setIsEditFamilyOpen}
+        />
+      )}
 
-      {/* Job Family Details Drawer */}
-      <DataDetailsDrawer
-        title="Job Family Details"
-        icon={<FolderOutlined className="gba:text-blue-500" />}
-        placement="right"
-        onClose={handleCloseDrawer}
-        open={drawerVisible}
-        width={450}
-        dataTestId={`${prefixDataTestId || ""}-JobFamiliesTab-Drawer`}
-        className="gba:text-base"
-        footer={
-          selectedFamily && (
-            <div className="gba:flex gba:gap-2">
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  handleDrawerEditFamily(selectedFamily);
-                  handleCloseDrawer();
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-JobFamiliesTab-EditButton`}
-              >
-                Edit
-              </Button>
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  handleAddChild(selectedFamily.id);
-                  handleCloseDrawer();
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-JobFamiliesTab-AddChildButton`}
-              >
-                Add Child
-              </Button>
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => {
-                  handleCloseDrawer();
-                  handleDeleteFamily(selectedFamily);
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-JobFamiliesTab-DeleteButton`}
-              >
-                Delete
-              </Button>
-            </div>
-          )
-        }
-      >
-        {selectedFamily && (
-          <div className="gba:space-y-6">
-            {/* Basic Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <InfoCircleOutlined /> Basic Information
-                </span>
+      {selectedFamily && (
+        <SheetWrapperComponent
+          prefixDataTestId={dataTestId}
+          isDrawerVisible={drawerVisible}
+          onOpenChange={(openStatus) => {
+            if (!openStatus) {
+              setSelectedFamily(null);
+            }
+            setDrawerVisible(openStatus);
+          }}
+          title="Job Function Details"
+          titleIcon={FileCodeIcon}
+          drawerItems={drawerItems}
+          footerButtons={[
+            <JobFamilyForm
+              childAddButton={
+                <Button
+                  data-testid={`${
+                    prefixDataTestId || ""
+                  }-JobFamiliesTab-EditButton`}
+                >
+                  <PencilSimpleLineIcon /> Edit
+                </Button>
               }
-              className="gba:shadow-sm"
-            >
-              <Descriptions column={1} size="small" layout="vertical">
-                <Descriptions.Item label="Name">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Text strong className="gba:text-lg">
-                      {selectedFamily.name || "-"}
-                    </Text>
-                  </div>
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Code">
-                  <Tag color="blue">{selectedFamily.code || "-"}</Tag>
-                </Descriptions.Item>
-
-                {selectedFamily.description && (
-                  <Descriptions.Item label="Description">
-                    {selectedFamily.description}
-                  </Descriptions.Item>
-                )}
-
-                <Descriptions.Item label="Hierarchy Level">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <NodeIndexOutlined className="gba:text-gray-500" />
-                    <Text>
-                      Level {selectedFamily.level}
-                      {selectedFamily.level === 0 ? " (Root)" : ""}
-                    </Text>
-                  </div>
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-
-            {/* Hierarchy Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <ApartmentOutlined /> Hierarchy Information
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-3">
-                {selectedFamily.parentFamily ? (
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Parent Family
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                      <FolderOutlined className="gba:text-blue-500" />
-                      <Text strong>{selectedFamily.parentFamily.name}</Text>
-                      {selectedFamily.parentFamily.code && (
-                        <Tag color="blue" className="gba:text-xs">
-                          {selectedFamily.parentFamily.code}
-                        </Tag>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Parent Family
-                    </div>
-                    <Text type="secondary">No parent (Root level)</Text>
-                  </div>
-                )}
-
-                <Divider className="gba:my-3" />
-
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500 gba:mb-2">
-                    Child Families
-                  </div>
-                  {selectedFamily.children.length > 0 ? (
-                    <List
-                      size="small"
-                      dataSource={selectedFamily.children}
-                      renderItem={(child) => (
-                        <List.Item className="gba:py-2 gba:px-3 gba:rounded-md gba:bg-gray-50">
-                          <div className="gba:flex gba:items-center gba:space-x-2 gba:w-full">
-                            <SisternodeOutlined className="gba:text-green-500" />
-                            <div className="gba:flex-1">
-                              <Text strong>{child.name}</Text>
-                              {child.code && (
-                                <Tag
-                                  color="blue"
-                                  className="gba:ml-2 gba:text-xs"
-                                >
-                                  {child.code}
-                                </Tag>
-                              )}
-                            </div>
-                            {child.children.length > 0 && (
-                              <Tag color="green" className="gba:text-xs">
-                                {child.children.length} children
-                              </Tag>
-                            )}
-                          </div>
-                        </List.Item>
-                      )}
-                    />
-                  ) : (
-                    <Empty
-                      description="No child families"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      className="gba:my-2"
-                    />
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            {/* Additional Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <GlobalOutlined /> Additional Information
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-4">
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Family ID</div>
-                  <div className="gba:mt-1">
-                    <Text copyable>{selectedFamily.id}</Text>
-                  </div>
-                </div>
-
-                {selectedFamily.parentEntryId && (
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Parent ID
-                    </div>
-                    <div className="gba:mt-1">
-                      <Text copyable>{selectedFamily.parentEntryId}</Text>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Status</div>
-                  <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                    <Tag color={selectedFamily.isActive ? "green" : "red"}>
-                      {selectedFamily.isActive ? "Active" : "Inactive"}
-                    </Tag>
-                  </div>
-                </div>
-
-                {selectedFamily.hasChildren && (
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Child Count
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                      <PartitionOutlined className="gba:text-blue-500" />
-                      <Text strong className="gba:text-lg">
-                        {selectedFamily.children.length}
-                      </Text>
-                      <Text type="secondary">direct children</Text>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Action buttons moved to footer */}
-          </div>
-        )}
-      </DataDetailsDrawer>
-    </div>
+              jobFamily={selectedFamily}
+              prefixDataTestId={`${prefixDataTestId}`}
+              loading={isLoading}
+              accessToken={context.accessToken}
+              refetch={refetch}
+              isDrawerActive={true}
+            />,
+          ]}
+        />
+      )}
+    </Card>
   );
 };
 

@@ -1,149 +1,231 @@
-import React, { useEffect } from 'react';
-import { Form, Input, InputNumber, Select, Button } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+  Combobox,
+} from "@newwork/nw-design-system";
+import { CompensationBand } from "../../apps/compensation-data";
+import { useRestClient } from "@/common/network/rest/useRestClient";
+import { env } from "@/common/env/EnvUtils";
+import { JobLevel } from "../../apps/job-structure-data";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
-export interface JobLevel {
-  id: string;
-  name: string;
-  code: string;
-  level: number;
-  experienceYears?: number;
-  description?: string;
-  compensationBandId?: string;
-  groupId: string;
-}
+const DATA_TEST_ID_PREFIX = "JobLevelForm";
 
 export interface JobLevelFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<JobLevel>;
-  onSubmit?: (values: Partial<JobLevel>) => void;
+  jobLevel?: JobLevel;
   onCancel?: () => void;
   prefixDataTestId?: string;
+  childAddButton: React.ReactNode;
+  compensationBands: CompensationBand[];
+  groupId: string;
+  refetch: () => void;
+  defaultValues?: Record<string, any>;
+  isDrawerActive?: boolean;
 }
 
 const JobLevelForm: React.FC<JobLevelFormProps> = ({
-  initialValues,
-  onSubmit,
+  jobLevel,
   onCancel,
   prefixDataTestId,
+  childAddButton,
+  compensationBands,
+  groupId,
+  accessToken,
+  refetch,
+  defaultValues = {},
+  isDrawerActive = false,
 }) => {
-  const [form] = Form.useForm();
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+  const restClient = useRestClient(
+    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
+  );
 
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues);
-    } else {
-      form.resetFields();
-    }
-  }, [form, initialValues]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: any) => {
     try {
-      const values = await form.validateFields();
-      if (onSubmit) {
-        onSubmit(values);
-      }
-    } catch (error) {
-      console.error('Form validation error:', error);
-    }
-  };
+      setLoading(true);
 
-  const handleCancel = () => {
-    form.resetFields();
-    if (onCancel) {
-      onCancel();
+      const payload = {
+        changeMode: "INSERT",
+        jobLevel: {
+          code: values.code,
+          name: values.name,
+          jobLevelGroupRef: groupId,
+          ...(values.description ? { description: values.description } : {}),
+          ...(values.experienceYears
+            ? { heirarchyOrder: values.experienceYears }
+            : {}),
+          compensationBand:
+            values.compensationBandId && values.compensationBandId.trim() !== ""
+              ? values.compensationBandId
+              : null,
+          ...(jobLevel ? { version: jobLevel.version, id: jobLevel.id } : {}),
+        },
+      };
+
+      await restClient.post("/employee/saveJobLevel", payload, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      refetch();
+    } catch (error) {
+      console.error("Form validation error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      className="gba:mt-4"
-      data-testid={`${prefixDataTestId || ''}-JobLevelForm`}
+    <FormWrapperModal
+      childAddButton={childAddButton}
+      title={jobLevel ? "Edit Job Level" : "Create Job Level"}
+      description="Configure job level details and requirements"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      defaultValues={
+        jobLevel
+          ? {
+              ...jobLevel,
+              compensationBand:
+                jobLevel.compensationBandId ||
+                jobLevel.compensationBand?.id ||
+                "",
+            }
+          : {
+              ...defaultValues,
+            }
+      }
+      isEditing={!!jobLevel}
+      loading={loading}
+      dataTestId={dataTestId}
+      isDrawerActive={isDrawerActive}
     >
-      <Form.Item
+      <FormField
         name="name"
-        label="Job Level Name"
-        rules={[{ required: true, message: 'Please enter job level name' }]}
-      >
-        <Input placeholder="e.g., Senior Software Engineer, Engineering Manager" />
-      </Form.Item>
-      <Form.Item
-        name="code"
-        label="Code"
-        rules={[{ required: true, message: 'Please enter code' }]}
-      >
-        <Input placeholder="e.g., SSE, EM" />
-      </Form.Item>
-      <Form.Item
-        name="level"
-        label="Level Number"
-        rules={[{ required: true, message: 'Please enter level number' }]}
-      >
-        <InputNumber 
-          min={1} 
-          max={20} 
-          placeholder="1-20" 
-          className="gba:w-full"
-        />
-      </Form.Item>
-      <Form.Item
-        name="experienceYears"
-        label="Experience Required (Years)"
-      >
-        <InputNumber 
-          min={0} 
-          max={30} 
-          placeholder="Years of experience"
-          className="gba:w-full"
-        />
-      </Form.Item>
-      <Form.Item
-        name="description"
-        label="Description"
-      >
-        <Input.TextArea 
-          placeholder="Describe the responsibilities and requirements for this level"
-          rows={3}
-        />
-      </Form.Item>
-      <Form.Item
-        name="compensationBandId"
-        label="Compensation Band"
-      >
-        <Select 
-          placeholder="Select compensation band (optional)"
-          allowClear
-        >
-          <Select.Option value="band1">AZ1 - Entry Level</Select.Option>
-          <Select.Option value="band2">AZ2 - Junior</Select.Option>
-          <Select.Option value="band3">AZ3 - Mid Level</Select.Option>
-          <Select.Option value="band4">K/T1 - Senior</Select.Option>
-          <Select.Option value="band5">K/T2 - Principal</Select.Option>
-          <Select.Option value="band6">K/T3 - Staff</Select.Option>
-        </Select>
-      </Form.Item>
+        rules={{ required: "Please enter job level name" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Job Level Name</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., Senior Software Engineer, Engineering Manager"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-      <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
-        <Form.Item>
-          <Button 
-            onClick={handleCancel}
-            data-testid={`${prefixDataTestId || ''}-JobLevelForm-CancelButton`}
-          >
-            Cancel
-          </Button>
-        </Form.Item>
-        <Form.Item>
-          <Button 
-            type="primary" 
-            onClick={handleSubmit}
-            data-testid={`${prefixDataTestId || ''}-JobLevelForm-SubmitButton`}
-          >
-            Save
-          </Button>
-        </Form.Item>
-      </div>
-    </Form>
+      <FormField
+        name="code"
+        rules={{ required: "Please enter code" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Code</FormLabel>
+            <FormControl>
+              <Input placeholder="e.g., SSE, EM" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="level"
+        rules={{ required: "Please enter level number" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Level Number</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                placeholder="1-20"
+                className="gba:w-full"
+                {...field}
+                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="experienceYears"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Experience Required (Years)</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                min={0}
+                max={30}
+                placeholder="Years of experience"
+                className="gba:w-full"
+                {...field}
+                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Describe the responsibilities and requirements for this level"
+                rows={3}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="compensationBand"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Compensation Band</FormLabel>
+            <FormControl>
+              <Combobox
+                key={`combobox-${field.value || "empty"}`}
+                options={compensationBands.map((band) => ({
+                  value: band.id,
+                  label: band.name || "",
+                }))}
+                value={field.value || ""}
+                onValueChange={field.onChange}
+                placeholder="Select compensation band (optional)"
+                searchPlaceholder="Search compensation bands..."
+                emptyText="No compensation bands found"
+                className="gba:!w-full"
+                data-testid={`${dataTestId}-compensation-band-combobox`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </FormWrapperModal>
   );
 };
 

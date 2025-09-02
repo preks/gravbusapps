@@ -1,105 +1,184 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTranslation } from 'react-i18next';
-import type { ContractType } from '../../apps/employment-data';
+import React from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import type { ContractType } from "../../apps/employment-data";
+import {
+  CONTRACT_TYPE_CATALOG,
+  CONTRACT_TYPE_VERSION,
+} from "@/business-apps/hr/core/forms/job-position/hooks/useContractTypes";
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
-  initialValues?: ContractType;
-  onSubmit?: (values: any) => Promise<void>;
+  contractType?: Partial<ContractType>;
+  onCancel?: () => void;
+  childAddButton: React.ReactNode;
+  refetch: () => void;
+  accessToken: string;
+  isDrawerActive?: boolean;
 }
 
-export const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
+const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   prefixDataTestId,
-  initialValues,
-  onSubmit
+  contractType,
+  onCancel,
+  childAddButton,
+  refetch,
+  accessToken,
+  isDrawerActive,
 }) => {
-  const [form] = Form.useForm();
-  const { t } = useTranslation('master-data');
-  
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues);
+  const dataTestId = formatDataTestId(prefixDataTestId, "ContractTypeForm");
+  const catalogClient = useCatalogManagerClient(accessToken);
+
+  const handleSubmit = async (data: any) => {
+    const payload = {
+      ...(contractType ? { id: contractType.id } : {}),
+      code: data.code,
+      value: data.value,
+      alternativeCode: data.alternativeCode,
+      additionalValue1: data.additionalValue1,
+      additionalValue2: data.additionalValue3,
+      additionalValue3: data.additionalValue3,
+      translations: [],
+    };
+    if (contractType) {
+      await catalogClient.updateCatalogEntry(contractType.id ?? "", payload);
     } else {
-      form.resetFields();
+      await catalogClient.createCatalogEntry(
+        CONTRACT_TYPE_CATALOG,
+        CONTRACT_TYPE_VERSION,
+        payload
+      );
     }
-  }, [form, initialValues]);
-  
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      if (onSubmit) {
-        await onSubmit(values);
-      }
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
+
+    refetch();
   };
-  
-  const handleCancel = () => {
-    form.resetFields();
-  };
+
   return (
-      <Form
-        form={form}
-        layout="vertical"
-        data-testid={`${prefixDataTestId || ''}-ContractTypesTab-Form`}
-        className="gba:w-full"
-      >
-        <Form.Item
-          label={t('forms.contractType.fields.code.label', { defaultValue: 'Code' })}
-          name="code"
-          rules={[{ required: true, message: t('forms.contractType.fields.code.validation', { defaultValue: 'Please enter contract type code' }) }]}
-        >
-          <Input placeholder={t('forms.contractType.fields.code.placeholder', { defaultValue: 'Enter code' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.contractType.fields.name.label', { defaultValue: 'Name' })}
-          name="name"
-          rules={[{ required: true, message: t('forms.contractType.fields.name.validation', { defaultValue: 'Please enter contract type name' }) }]}
-        >
-          <Input placeholder={t('forms.contractType.fields.name.placeholder', { defaultValue: 'Enter name' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.contractType.fields.alternativeCode.label', { defaultValue: 'Alternative Code' })}
-          name="alternativeCode"
-        >
-          <Input placeholder={t('forms.contractType.fields.alternativeCode.placeholder', { defaultValue: 'Enter alternative code (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.contractType.fields.additionalValue1.label', { defaultValue: 'Additional Value 1' })}
-          name="additionalValue1"
-        >
-          <Input placeholder={t('forms.contractType.fields.additionalValue1.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.contractType.fields.additionalValue2.label', { defaultValue: 'Additional Value 2' })}
-          name="additionalValue2"
-        >
-          <Input placeholder={t('forms.contractType.fields.additionalValue2.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.contractType.fields.additionalValue3.label', { defaultValue: 'Additional Value 3' })}
-          name="additionalValue3"
-        >
-          <Input placeholder={t('forms.contractType.fields.additionalValue3.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
-          <Button onClick={handleCancel}>
-            {t('forms.common.buttons.cancel', { defaultValue: 'Cancel' })}
-          </Button>
-          <Button type="primary" onClick={handleSave}>
-            {initialValues ? t('forms.common.buttons.update', { defaultValue: 'Update' }) : t('forms.common.buttons.create', { defaultValue: 'Create' })}
-          </Button>
-        </div>
-      </Form>
+    <FormWrapperModal
+      childAddButton={childAddButton}
+      title={contractType ? "Edit Contract Type" : "Create Contract Type"}
+      description="Configure contract type details and additional information"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      defaultValues={contractType || {}}
+      isEditing={!!contractType}
+      dataTestId={dataTestId}
+      isDrawerActive={isDrawerActive}
+    >
+      <FormField
+        name="code"
+        rules={{ required: "Please enter contract type code" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Code</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter code"
+                {...field}
+                data-testid={`${dataTestId}-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="value"
+        rules={{ required: "Please enter contract type name" }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Name</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter name"
+                {...field}
+                data-testid={`${dataTestId}-name-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="alternativeCode"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Alternative Code</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter alternative code (optional)"
+                {...field}
+                data-testid={`${dataTestId}-alternative-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue1"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Additional Value 1</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter additional value (optional)"
+                {...field}
+                data-testid={`${dataTestId}-additional-value1-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue2"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Additional Value 2</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter additional value (optional)"
+                {...field}
+                data-testid={`${dataTestId}-additional-value2-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue3"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Additional Value 3</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="Enter additional value (optional)"
+                {...field}
+                data-testid={`${dataTestId}-additional-value3-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </FormWrapperModal>
   );
 };
 
