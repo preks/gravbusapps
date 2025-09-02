@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { Button, Card } from '@newwork/gravity-ui-catalog';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Tabs, Pagination, Spin } from 'antd';
 import {
@@ -35,6 +34,8 @@ import {
   getCatalogValue,
 } from '../../../../../../../common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { AppActionMenu } from '@/components/app-action-menu';
+import { PiPencilSimple } from 'react-icons/pi';
 
 // Types for absence data
 interface AbsenceListCardAbsence {
@@ -272,9 +273,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         
         {/* Request Absence Button */}
         <div>
-          <AppActionButton
+          <AppActionMenu
             data-testid="employee-absence-request-button"
-            variant="primary"
             contextsArray={[FlowContextName.employeeAbsenceRecord]}
             externalContextData={{
               employeeId: employee.id,
@@ -284,8 +284,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             prefixDataTestId="employee-absence-request"
             accessToken={accessToken}
           >
-            Request Absence
-          </AppActionButton>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+              <PiPencilSimple className="gba:h-5 gba:w-5" />
+              Request Absence
+            </div>
+          </AppActionMenu>
         </div>
       </div>
 

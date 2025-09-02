@@ -1,12 +1,8 @@
 import React from 'react';
 import { Card, CardContent, IconAvatar } from '@newwork/nw-design-system';
-import * as RemixIcons from '@remixicon/react';
 import { QuickActionButtonProps } from '../types';
 
 const QuickActionButton: React.FC<QuickActionButtonProps> = ({ action, onClick }) => {
-  // Get the icon component dynamically
-  const IconComponent = (RemixIcons as any)[action.icon] || RemixIcons.RiQuestionLine;
-
   const handleClick = () => {
     onClick(action);
   };
@@ -31,7 +27,7 @@ const QuickActionButton: React.FC<QuickActionButtonProps> = ({ action, onClick }
       <CardContent className="gba:p-6 gba:text-center gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center">
         <div className="gba:mb-4 gba:transition-all gba:duration-200 group-hover:gba:scale-110">
           <IconAvatar
-            icon={IconComponent}
+            icon={action.icon}
             variant="default"
             size="md"
             data-testid={`quick-action-icon-${action.id}`}

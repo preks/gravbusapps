@@ -1,7 +1,7 @@
 // Shared types for compensation data will be added here
 // e.g., common interfaces, enums, type utilities
 
-import { CatalogEntry } from '@/common/types/CatalogTypes';
+import { CatalogEntry } from "@/common/types/CatalogTypes";
 
 // Compensation Band interfaces
 export interface CompensationBand {
@@ -101,6 +101,7 @@ export interface PayGradeVisualization {
     value: string;
   };
   order: number;
+  version: number;
 }
 
 export interface JobLevelGroupVisualization {
@@ -111,7 +112,7 @@ export interface JobLevelGroupVisualization {
   category: string; // Will map from code or use default
   color: string; // Will assign colors based on order
   order: number;
-  additionalValue1?: string;
+  description?: string;
   additionalValue2?: string;
   additionalValue3?: string;
 }
@@ -125,6 +126,5 @@ export interface JobLevelVisualization {
   compensationBandId: string;
   level: number;
   heirarchyOrder: number;
+  version: number;
 }
-
-export {}; 

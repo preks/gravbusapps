@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
-import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -18,6 +18,9 @@ import { useAiSummary } from '../hooks/useAiSummary';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { Button } from '@newwork/nw-design-system';
 
 const { Text } = Typography;
 
@@ -154,24 +157,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     };
   }, [leadId]);
 
-  const handleAddActivity = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'saveInvestmentActivity',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+
 
   const handleAddNote = () => {
     if (leadId) {
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentNote',
+        processName: 'createInvestmentNote',
         payload: {
           leadId,
         },
@@ -184,7 +176,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     if (leadId) {
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentTask',
+        processName: 'createInvestmentTask',
         payload: {
           leadId,
         },
@@ -244,7 +236,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const handleUpdateTask = (task: InvestmentTask) => {
     startProcess({
       domain: 'investments',
-      processName: 'saveInvestmentTask',
+      processName: 'createInvestmentTask',
       payload: {
         leadId: leadId,
         typeRef: task.taskType?.id || 'InvestmentTaskType:v1:APPROVAL',
@@ -309,7 +301,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     if (leadId) {
       startProcess({
         domain: 'investments',
-        processName: 'saveInvestmentTask',
+        processName: 'createInvestmentTask',
         payload: {
           leadId,
           typeRef: 'InvestmentTaskType:v1:APPROVAL',
@@ -437,14 +429,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 />
               )}
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.createInvestmentActivity]}
+              accessToken={context.accessToken}
+              externalContextData={{ leadId : leadId }}
+              prefixDataTestId="add-activity"
+
+              emptyStateBehavior="hide"
             >
-              Add Activity
-            </Button>
+              <Button
+                variant="default"
+                data-testid="add-activity-button"
+              >
+                <PlusCircleOutlined />
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -462,9 +462,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadActivities}>
-                    Retry
-                  </Button>
+                                  <Button size="sm" onClick={loadActivities}>
+                  Retry
+                </Button>
                 }
               />
             )}
@@ -514,19 +514,29 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
                       <div style={{ position: 'absolute', top: '0', right: '0' }}>
+                        <AppAction
+                          contextsArray={[FlowContextName.investmentActivityEntity]}
+                          externalContextData={{ leadId, activityId: activity.id }}
+                          prefixDataTestId={`edit-activity-${activity.id}`}
+                          accessToken={context.accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                        >
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            style={{ marginRight: '4px' }}
+                          >
+                            <EditOutlined />
+                          </Button>
+                        </AppAction>
                         <Button
-                          type="text"
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => handleAddActivity()}
-                          style={{ marginRight: '4px' }}
-                        />
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<CloseOutlined />}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteActivity(activity)}
-                        />
+                        >
+                          <CloseOutlined />
+                        </Button>
                       </div>
                     </div>
                   </Timeline.Item>
@@ -555,11 +565,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               Notes
             </div>
             <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
+              variant="default"
               onClick={handleAddNote}
               data-testid="add-note-button"
             >
+              <PlusCircleOutlined />
               Add Note
             </Button>
           </div>
@@ -592,11 +602,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               Approval Tasks
             </div>
             <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
+              variant="default"
               onClick={handleRequestApproval}
               data-testid="request-approval-button"
             >
+              <PlusCircleOutlined />
               Request Approval
             </Button>
           </div>
@@ -615,7 +625,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadApprovalTasks}>
+                  <Button size="sm" onClick={loadApprovalTasks}>
                     Retry
                   </Button>
                 }
@@ -658,18 +668,20 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       </div>
                       <div style={{ position: 'absolute', top: '0', right: '0' }}>
                         <Button
-                          type="text"
-                          size="small"
-                          icon={<EditOutlined />}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleUpdateTask(task)}
                           style={{ marginRight: '4px' }}
-                        />
+                        >
+                          <EditOutlined />
+                        </Button>
                         <Button
-                          type="text"
-                          size="small"
-                          icon={<CloseOutlined />}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDeleteTask(task)}
-                        />
+                        >
+                          <CloseOutlined />
+                        </Button>
                       </div>
                     </div>
                   </Timeline.Item>
@@ -698,12 +710,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               AI Summary
             </div>
             <Button
-              type="primary"
-              icon={<RobotOutlined />}
+              variant="default"
               onClick={() => generateSummary()}
-              loading={aiSummaryState?.type === 'loading'}
+              disabled={aiSummaryState?.type === 'loading'}
               data-testid="generate-summary-button"
             >
+              <RobotOutlined />
               Generate Summary
             </Button>
           </div>
@@ -725,7 +737,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                  showIcon
                  style={{ marginBottom: '16px' }}
                  action={
-                   <Button size="small" onClick={() => generateSummary()}>
+                   <Button size="sm" onClick={() => generateSummary()}>
                      Retry
                    </Button>
                  }

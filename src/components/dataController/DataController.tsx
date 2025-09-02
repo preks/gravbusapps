@@ -11,6 +11,25 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { DataControllerActions } from "./DataControllerActions";
 
 /**
+ * Column configuration interface for table column visibility
+ */
+export interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  disabled?: boolean; // For columns that can't be hidden (like Actions)
+}
+
+/**
+ * Column visibility configuration for DataController
+ */
+export interface ColumnVisibilityConfig {
+  columns: ColumnConfig[];
+  onColumnVisibilityChange: (columnId: string, visible: boolean) => void;
+  'data-testid'?: string;
+}
+
+/**
  * PlusSquareIcon - SVG icon for the Add button.
  */
 export const PlusSquareIcon: React.FC<{ className?: string }> = ({
@@ -89,6 +108,10 @@ export interface DataControllerProps {
     createdBefore?: string;
     onClear?: () => void;
   };
+  /**
+   * Optional column visibility configuration. When provided, a column visibility dropdown will be automatically added to the actions.
+   */
+  columnVisibility?: ColumnVisibilityConfig;
 }
 
 export const DataController: React.FC<Readonly<DataControllerProps>> = ({
@@ -108,6 +131,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   addButton,
   hideFilter = false,
   dateRange,
+  columnVisibility,
 }) => {
   const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -258,7 +282,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
         </div>
 
         {/* Right: Actions (memoized to avoid unnecessary re-renders) */}
-        {(addButton || actions) && (
+        {(addButton || actions || columnVisibility) && (
           <DataControllerActions
             addButton={useMemo(() => {
               if (!addButton) return undefined;
@@ -268,6 +292,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               };
             }, [addButton])}
             actions={actions}
+            columnVisibility={columnVisibility}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   LauncherLayout,
@@ -40,6 +40,7 @@ import {
   Plus,
   Sliders,
 } from "@phosphor-icons/react";
+import { formatCurrencyLocalized } from "@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils";
 
 interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
@@ -58,24 +59,37 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     canManageBudgets,
     canManageExpensePolicy,
     isFeatureVisible,
+    getAccessibleFeatures,
+    getAllPermissions,
   } = useExpensePermissions(
     context.userInfo?.employeeDetails?.employeeId || "",
     context.accessToken || ""
   );
+
+  // Local permission debug log (always print once when ready)
+  useEffect(() => {
+    if (!permissionsLoading) {
+      // eslint-disable-next-line no-console
+      console.log("[ExpensesLauncher][permissions]", {
+        canViewPersonalExpenses: canViewPersonalExpenses(),
+        canViewTeamExpenses: canViewTeamExpenses(),
+        canApproveExpenses: canApproveExpenses(),
+        hasManagerPermissions: hasManagerPermissions(),
+        hasFinancePermissions: hasFinancePermissions(),
+        accessibleFeatures: getAccessibleFeatures(),
+        raw: getAllPermissions?.(),
+      });
+    }
+  }, [permissionsLoading]);
 
   // Determine UI layout based on permissions (following HR pattern)
   const showFinanceView = hasFinancePermissions();
   const showManagerView = hasManagerPermissions() && !hasFinancePermissions();
   const showEmployeeView = !hasManagerPermissions() && !hasFinancePermissions();
 
-  // Format currency and numbers
+  // Format currency localized with code placement per locale
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+    return formatCurrencyLocalized(amount, "EUR", 0);
   };
 
   const formatNumber = (num: number): string => {
@@ -99,7 +113,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         },
         {
           id: "pending-finance-requests",
-          title: "Pending Requests",
+          title: "Pending Verification",
           value: isLoading ? "..." : formatNumber(stats.pendingFinanceRequests),
           color: "default",
         },
@@ -452,12 +466,12 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           switch (kpiType) {
             case "personal":
               return {
-                value: formatCurrency(stats.monthlyExpenses || 2450),
+                value: formatCurrency(stats.monthlyExpenses),
                 label: "Monthly Expenses",
               };
             case "team":
               return {
-                value: formatNumber(stats.teamMonthlyExpenses || 849),
+                value: formatNumber(stats.teamMonthlyExpenses),
                 label: "Monthly Requests",
               };
             case "analytics":
@@ -733,6 +747,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "submit-request") {
       startProcess({
@@ -741,6 +756,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "create-plan") {
       startProcess({
@@ -749,6 +765,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "request-advance") {
       startProcess({
@@ -757,6 +774,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else {
       console.log(`Quick action "${action.action}" functionality coming soon`);

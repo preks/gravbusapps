@@ -1,2 +1,2 @@
-export { IdeMainMenu, default } from './IdeMainMenu';
-export type * from './types';
+export { default as IdeMainMenu } from './IdeMainMenu';
+export type { IdeMainMenuProps, BusinessAppInfo, MenuItemGroup, MenuItem } from './types';

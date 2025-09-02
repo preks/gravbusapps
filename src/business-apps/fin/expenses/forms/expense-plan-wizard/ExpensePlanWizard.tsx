@@ -52,15 +52,14 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     showExpenseItem,
     expenseItemParams,
     hideExpenseItem,
-    skipAdvancePayment,
-    setSkipAdvancePayment
+    setRequestAdvancePayment
   } = useExpensePlanWizardContext();
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
-  const { hasPastDates } = useExpensePlanDateValidation();
   const [titleValue, setTitleValue] = useState<string>('');
   const [titleError, setTitleError] = useState<string>('');
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false);
+  const [itemsCount, setItemsCount] = useState<number>(0);
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
 
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
@@ -72,21 +71,27 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     }
   }, [expensePlanData, setCurrentTitle, additionalData]);
 
-  // Update currency when expensePlanData changes
+  // Update currency when expensePlanData changes: prefer plan currency, fallback to item currency
   useEffect(() => {
-    if (expensePlanData?.ExpensePlanByPk?.currencyRef) {
-      setCurrentCurrency(expensePlanData.ExpensePlanByPk.currencyRef);
-    } else if (expensePlanData?.ExpensePlanItem && expensePlanData.ExpensePlanItem.length > 0) {
+    const planCurrency = expensePlanData?.ExpensePlanByPk?.currencyRef 
+      || expensePlanData?.ExpensePlanByPk?.currency?.id;
+
+    if (planCurrency) {
+      setCurrentCurrency(planCurrency);
+      return;
+    }
+
+    if (expensePlanData?.ExpensePlanItem && expensePlanData.ExpensePlanItem.length > 0) {
       const firstItem = expensePlanData.ExpensePlanItem[0];
-      if (firstItem && firstItem.currencyRef) {
-        setCurrentCurrency(firstItem.currencyRef);
-      } else {
-        setCurrentCurrency(null);
-      }
+      setCurrentCurrency(firstItem?.currencyRef || null);
     } else {
       setCurrentCurrency(null);
     }
-  }, [expensePlanData?.ExpensePlanByPk?.currencyRef, expensePlanData?.ExpensePlanItem, setCurrentCurrency,additionalData]);
+  }, [
+    expensePlanData?.ExpensePlanByPk?.currencyRef,
+    expensePlanData?.ExpensePlanByPk?.currency?.id,
+    expensePlanData?.ExpensePlanItem
+  ]);
 
   useEffect(() => {
     const handleFooterUpdate = (event: any) => {
@@ -96,6 +101,9 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         }
         if (typeof event.detail.selectedItemCount === 'number') {
           setSelectedItemCount(event.detail.selectedItemCount);
+        }
+        if (typeof event.detail.itemsCount === 'number') {
+          setItemsCount(event.detail.itemsCount);
         }
       }
     };
@@ -150,7 +158,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
 
   // useEffect for screen navigation based on data
   useEffect(() => {
-    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setSkipAdvancePayment, currentScreen)
+    setInitialScreen(additionalData,expensePlanData,isTrip,setCurrentScreen,setRequestAdvancePayment, currentScreen)
   }, [expensePlanData, isTrip, loading, additionalData]);
 
   const navigateToNextScreen = () => {
@@ -176,6 +184,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   };
   
   const navigateToPreviousScreen = () => {
+    let skipStep =false
+    if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
+      skipStep = true
+    }
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
@@ -194,10 +206,10 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
         }
         break;
       case SCREEN_NAMES_ENUM.SUMMARY_TAB:
-        if(!isTrip)
+        if(!skipStep)
           setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
           else
-        setCurrentScreen(SCREEN_NAMES_ENUM.PAYMENT_TAB);
+        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB);
         break;
       default:
         break;
@@ -482,6 +494,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                   variant="outline" 
                   style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}
                   data-testid="expense-plan-wizard-save-button"
+                  disabled={(currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0)}
                   onClick={() => {
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const saveEvent = new CustomEvent('expense-plan-save-trip');
@@ -509,6 +522,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                   disabled={(
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
+                    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && false) // TODO: Add validation logic
                   )}
                   onClick={() => {

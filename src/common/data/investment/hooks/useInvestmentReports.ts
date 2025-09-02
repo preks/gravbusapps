@@ -3,21 +3,13 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import type { 
-  ReportScope,
   BaseInvestmentReport,
-  InvestmentReport,
   BaseInvestmentTransaction,
-  InvestmentTransaction,
   BaseEquityInvestmentReport,
-  EquityInvestmentReport,
   BaseEquityInvestmentRound,
-  EquityInvestmentRound,
   BaseRealEstateInvestmentReport,
-  RealEstateInvestmentReport,
   BaseRealEstateInvestmentRentalUnit,
-  RealEstateInvestmentRentalUnit,
-  BaseLiquidFundInvestmentReport,
-  LiquidFundInvestmentReport
+  BaseLiquidFundInvestmentReport
 } from '../types';
 
 // Use the new query imports
@@ -26,11 +18,9 @@ import {
   GET_INVESTMENT_REPORT_BY_ID,
   GET_INVESTMENT_TRANSACTIONS,
   GET_INVESTMENT_TRANSACTION_BY_ID,
-  GET_EQUITY_INVESTMENT_REPORTS,
+  // NOTE: Specific report queries removed - all reports now use GET_INVESTMENT_REPORTS
   GET_EQUITY_INVESTMENT_ROUNDS,
-  GET_REAL_ESTATE_INVESTMENT_REPORTS,
   GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS,
-  GET_LIQUID_FUND_INVESTMENT_REPORTS,
   type InvestmentReportQueryVariables,
   type InvestmentTransactionQueryVariables,
   type EquityInvestmentRoundQueryVariables,
@@ -39,13 +29,7 @@ import {
 
 // Use the mapper functions
 import { 
-  toInvestmentReport,
-  toInvestmentTransaction,
-  toEquityInvestmentReport,
-  toEquityInvestmentRound,
-  toRealEstateInvestmentReport,
-  toRealEstateInvestmentRentalUnit,
-  toLiquidFundInvestmentReport
+  toInvestmentReport
 } from '../mappers';
 
 // Note: Query variables are now imported from queries module
@@ -224,30 +208,13 @@ export const useGetInvestmentTransactionById = (context: BusinessAppContextProps
 // SPECIALIZED REPORT HOOKS
 // =============================================================================
 
-// Hook for getting equity investment reports
-export const useGetEquityInvestmentReports = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchEquityInvestmentReports = useCallback(async (variables: any = {}) => {
-    const query = GET_EQUITY_INVESTMENT_REPORTS(variables);
-    
-    try {
-      const result = await graphqlClient.request<EquityInvestmentReportQueryResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching equity investment reports:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
-
-  return { fetchEquityInvestmentReports };
-};
+// NOTE: useGetEquityInvestmentReports removed - use useGetInvestmentReports instead
 
 // Hook for getting equity investment rounds
 export const useGetEquityInvestmentRounds = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchEquityInvestmentRounds = useCallback(async (variables: any = {}) => {
+  const fetchEquityInvestmentRounds = useCallback(async (variables: EquityInvestmentRoundQueryVariables = {}) => {
     const query = GET_EQUITY_INVESTMENT_ROUNDS(variables);
     
     try {
@@ -262,30 +229,13 @@ export const useGetEquityInvestmentRounds = (context: BusinessAppContextProps) =
   return { fetchEquityInvestmentRounds };
 };
 
-// Hook for getting real estate investment reports
-export const useGetRealEstateInvestmentReports = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchRealEstateInvestmentReports = useCallback(async (variables: any = {}) => {
-    const query = GET_REAL_ESTATE_INVESTMENT_REPORTS(variables);
-    
-    try {
-      const result = await graphqlClient.request<RealEstateInvestmentReportQueryResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching real estate investment reports:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
-
-  return { fetchRealEstateInvestmentReports };
-};
+// NOTE: useGetRealEstateInvestmentReports removed - use useGetInvestmentReports instead
 
 // Hook for getting real estate investment rental units
 export const useGetRealEstateInvestmentRentalUnits = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchRealEstateInvestmentRentalUnits = useCallback(async (variables: any = {}) => {
+  const fetchRealEstateInvestmentRentalUnits = useCallback(async (variables: RealEstateInvestmentRentalUnitQueryVariables = {}) => {
     const query = GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS(variables);
     
     try {
@@ -300,21 +250,4 @@ export const useGetRealEstateInvestmentRentalUnits = (context: BusinessAppContex
   return { fetchRealEstateInvestmentRentalUnits };
 };
 
-// Hook for getting liquid fund investment reports
-export const useGetLiquidFundInvestmentReports = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchLiquidFundInvestmentReports = useCallback(async (variables: any = {}) => {
-    const query = GET_LIQUID_FUND_INVESTMENT_REPORTS(variables);
-    
-    try {
-      const result = await graphqlClient.request<LiquidFundInvestmentReportQueryResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching liquid fund investment reports:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
-
-  return { fetchLiquidFundInvestmentReports };
-};
+// NOTE: useGetLiquidFundInvestmentReports removed - use useGetInvestmentReports instead

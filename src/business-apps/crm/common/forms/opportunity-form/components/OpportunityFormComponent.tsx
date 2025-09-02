@@ -78,12 +78,19 @@ const OpportunityFormComponent: React.FC = () => {
         ownerEmployee: toStringOrUndefined(formValues.owner),
       };
 
-      const changeMode = "INSERT";
+      // Use UPDATE mode if editing existing opportunity, INSERT for new opportunity
+      const changeMode = formValues.id ? "UPDATE" : "INSERT";
 
       const payload = {
         opportunity: opportunityPayload,
         changeMode: changeMode,
       };
+
+      // Add id and version for UPDATE mode
+      if (changeMode === "UPDATE" && formValues.id) {
+        opportunityPayload.id = formValues.id;
+        opportunityPayload.version = formValues.version;
+      }
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);

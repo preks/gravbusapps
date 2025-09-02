@@ -54,7 +54,7 @@ export const DocumentActions: React.FC<DocumentActionProps> = ({
   const handleEdit = () => {
     startProcess({
       domain: 'investments',
-      processName: 'saveInvestmentDocument',
+      processName: 'createInvestmentDocument',
       payload: {
         [`${entityType}Id`]: entityId,
         investmentDocument: {

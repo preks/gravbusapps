@@ -1,5 +1,12 @@
 // Customer Lead Queries - using shared fragments
-import { CUSTOMER_LEAD, CUSTOMER_ACCOUNT_REF } from './fragments/customerRelationFragments';
+import { 
+  CUSTOMER_LEAD, 
+  CUSTOMER_ACCOUNT_REF, 
+  CUSTOMER_TASK, 
+  CUSTOMER_SALES_ACTIVITY, 
+  CUSTOMER_CRM_NOTE, 
+  CUSTOMER_CRM_DOCUMENT 
+} from './fragments/customerRelationFragments';
 
 export interface CustomerLeadQueryVariables {
   ids?: string[];
@@ -25,7 +32,7 @@ export interface CustomerLeadQueryVariables {
   offset?: number;
   orderBy?: Array<{
     field: string;
-    direction: 'ASC' | 'DESC';
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
   }>;
 }
 
@@ -50,11 +57,11 @@ export const buildCustomerLeadWhereCondition = (variables: CustomerLeadQueryVari
   }
 
   if (variables.academicTitleIds?.length) whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`;
-  if (variables.salutationIds?.length) whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`;
+  // salutation catalog may not exist on Lead in this schema
   if (variables.leadStatusIds?.length) whereClause += `, leadStatus: { id: { _in: [${variables.leadStatusIds.map(id => `"${id}"`).join(', ')}] } }`;
   if (variables.leadSourceIds?.length) whereClause += `, leadSource: { id: { _in: [${variables.leadSourceIds.map(id => `"${id}"`).join(', ')}] } }`;
   if (variables.leadRatingIds?.length) whereClause += `, leadRating: { id: { _in: [${variables.leadRatingIds.map(id => `"${id}"`).join(', ')}] } }`;
-  if (variables.industryClassIds?.length) whereClause += `, industryClass: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } }`;
+  // industryClass not available in Lead schema (per MCP)
   if (variables.companySizeIds?.length) whereClause += `, companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } }`;
   if (variables.ownerEmployeeIds?.length) whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`;
   if (variables.conversionDateFrom) whereClause += `, conversionDate: { _gte: "${variables.conversionDateFrom}" }`;
@@ -129,6 +136,110 @@ export const SEARCH_CUSTOMER_LEADS = (variables: CustomerLeadQueryVariables): st
         sensitive
         email
         companyName
+      }
+    }
+  `;
+};
+
+// Get Customer Tasks by Lead ID
+export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerTasksByLeadId {
+      SalesTask(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_TASK}
+
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Activities by Lead ID
+export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerActivitiesByLeadId {
+      SalesActivity(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_SALES_ACTIVITY}
+
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Notes by Lead ID
+export const GET_CUSTOMER_NOTES_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerNotesByLeadId {
+      CrmNote(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_NOTE}
+        
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
+      }
+    }
+  `;
+};
+
+// Get Customer Documents by Lead ID
+export const GET_CUSTOMER_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
+  return `
+    query GetCustomerDocumentsByLeadId {
+      CrmDocument(
+        where: { 
+          lead: { id: { _eq: "${leadId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${CUSTOMER_CRM_DOCUMENT}
+        
+        # Entity references
+        lead {
+          id
+          code
+          firstName
+          lastName
+          email
+        }
       }
     }
   `;

@@ -308,10 +308,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
           const newAccounts = response.Account;
           const totalCount = response.AccountAggregate.aggregate.count;
 
-          console.log(
-            `Search: Got ${newAccounts.length} distinct account names`
-          );
-
           setAccounts((prevAccounts) =>
             resetOffset ? newAccounts : [...prevAccounts, ...newAccounts]
           );
@@ -321,11 +317,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
           // Let user manually select account - no auto-selection
           if (resetOffset && newAccounts.length > 0) {
-            console.log(
-              "Search results loaded:",
-              newAccounts.length,
-              "accounts available for selection"
-            );
           }
         }
       } catch (error) {
@@ -336,15 +327,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
     },
     [accessToken, accountsOffset, graphQLClient]
   );
-
-  // Debug effect to track when accounts state changes
-  useEffect(() => {
-    console.log("📊 Accounts state changed:", {
-      length: accounts.length,
-      names: accounts.map((acc: any) => acc?.name).slice(0, 3),
-      timestamp: new Date().toLocaleTimeString(),
-    });
-  }, [accounts]);
 
   // Function to handle account selection and get owner employee ID
   const handleAccountSelection = useCallback(
@@ -359,12 +341,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
         const ownerEmployeeId =
           selectedAccountData?.ownerEmployee?.id || undefined;
 
-        console.log("🔍 Account selected:", {
-          accountId,
-          ownerEmployeeId,
-          selectedAccountData: selectedAccountData?.name,
-        });
-
         // Call the callback with both account ID and owner employee ID
         onSelectedAccountChange(accountId, ownerEmployeeId);
       } else if (onSelectedAccountChange) {
@@ -377,13 +353,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
   const searchAccountsFunction = useCallback(
     (searchTerm: string = "") => {
-      console.log("🔍 [SearchFunction] Called with term:", `"${searchTerm}"`, {
-        accountsLength: accounts.length,
-        isInitialLoadComplete,
-        currentAccountSearch,
-      });
-
-      // Set the search term - the debounced effect will handle the actual API call
       setAccountSearchTerm(searchTerm);
     },
     [accounts.length, isInitialLoadComplete, currentAccountSearch]
@@ -403,13 +372,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   // Effect to trigger search when debounced search term changes
   useEffect(() => {
     if (debouncedAccountSearch !== currentAccountSearch) {
-      console.log(
-        "🔍 [Effect] Debounced search term changed:",
-        `"${debouncedAccountSearch}"`,
-        "Previous:",
-        `"${currentAccountSearch}"`
-      );
-
       setCurrentAccountSearch(debouncedAccountSearch);
       setAccountsOffset(0);
       fetchAccountsPaginated(debouncedAccountSearch, true);
@@ -421,7 +383,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
     const loadInitialAccounts = async () => {
       if (!accessToken || !graphQLClient || isInitialLoadComplete) return;
 
-      console.log("🔧 Loading initial accounts...");
       await fetchAccountsPaginated("", true);
       setIsInitialLoadComplete(true);
     };
@@ -664,13 +625,6 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                 value={selectedAccount}
                 placeholder="Search and select an account..."
                 options={(() => {
-                  console.log("🔍 SearchableSelect render check:", {
-                    accountsLength: accounts.length,
-                    accountsLoading,
-                    isInitialLoadComplete,
-                    currentAccountSearch: `"${currentAccountSearch}"`,
-                    accounts: accounts.map((acc: any) => acc?.name).slice(0, 5), // First 5 names only
-                  });
                   return accounts.map((acc: any) => ({
                     id: acc.id,
                     value: acc.id,
@@ -1198,30 +1152,9 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                   )}
                   <span className="gba:text-red-500 gba:ml-1">*</span>
                 </Label>
-                <OwnerSelector
-                  value={form.getFieldValue("accountOwnerEmployee") || ""}
-                  onChange={(value: string) => {
-                    console.log("🔍 Account Owner Selected:", value);
-                    form.setFieldsValue({ accountOwnerEmployee: value });
-                    console.log(
-                      "🔍 Form values after setting:",
-                      form.getFieldsValue()
-                    );
-                  }}
-                  employees={accountEmployeePositions as any}
-                  loading={accountEmployeePositionsLoading}
-                  hasMore={accountEmployeePositionsHasMore}
-                  onLoadMore={loadMoreAccountEmployeePositions}
-                  onSearch={(searchTerm: string) => {
-                    searchAccountEmployeePositions(searchTerm);
-                  }}
-                  error={accountEmployeePositionsError}
-                  dataTestId="account-owner-select"
-                />
-                {/* Hidden input to ensure form captures the value */}
                 <Form.Item
                   name="accountOwnerEmployee"
-                  style={{ display: "none" }}
+                  style={{ margin: 0 }}
                   rules={[
                     {
                       required: true,
@@ -1232,7 +1165,22 @@ const AccountSection: React.FC<AccountSectionProps> = ({
                     },
                   ]}
                 >
-                  <input type="hidden" />
+                  <OwnerSelector
+                    value={form.getFieldValue("accountOwnerEmployee") || ""}
+                    onChange={(value: string) => {
+                      form.setFieldsValue({ accountOwnerEmployee: value });
+                      form.validateFields(["accountOwnerEmployee"]);
+                    }}
+                    employees={accountEmployeePositions as any}
+                    loading={accountEmployeePositionsLoading}
+                    hasMore={accountEmployeePositionsHasMore}
+                    onLoadMore={loadMoreAccountEmployeePositions}
+                    onSearch={(searchTerm: string) => {
+                      searchAccountEmployeePositions(searchTerm);
+                    }}
+                    error={accountEmployeePositionsError}
+                    dataTestId="account-owner-select"
+                  />
                 </Form.Item>
               </div>
             </div>

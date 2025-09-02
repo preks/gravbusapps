@@ -47,7 +47,7 @@ contact-view/
 ## Integration
 
 ### AppActionButton
-- **Context**: `FlowContextName.contactEntity`
+- **Context**: `FlowContextName.customerAccountEntity`
 - **Data**: Passes `contactId` in `externalContextData`
 - **Behavior**: Disables when no actions available, defers context requests
 

@@ -1,59 +1,147 @@
 export enum FlowContextName {
+  // Human Resources
   employeeEntity = "employeeEntity",
   jobPositionEntity = "jobPositionEntity",
-  leadEntity = "leadEntity",
-  accountEntity = "accountEntity",
-  contactEntity = "contactEntity",
-  opportunityEntity = "opportunityEntity",
+
+
+  // Customer Relations
+
+  /// Customer Leads
+  leadEntity = "custopmerLeadEntity", // TODO: Obsolete
+  customerLeadEntity = "customerLeadEntity",
+  customerLeadCreate = "customerLeadCreate",
+
+  /// Customer Accounts
+  accountEntity = "customerAccountEntity", // TODO: Obsolete
+  customerAccountEntity = "customerAccountEntity", // TODO: Check
+  customerAccountCreate = "customerAccountCreate", // TODO: Replace startProcess
+  customerAccountUpdate = "customerAccountUpdate", // TODO: Replace startProcess
+
+  /// Customer Contacts
+  contactEntity = "customerContactEntity", // TODO: Rename
+  customerContactEntity = "customerContactEntity",
+  customerContactCreate = "customerContactCreate", // TODO: Replace startProcess
+  customerContactUpdate = "customerContactUpdate", // TODO: Replace startProcess
+
+  /// Customer Opportunities
+  opportunityEntity = "customerOpportunityEntity", // TODO: Obsolete
+  customerOpportunityEntity = "customerOpportunityEntity",
+  customerOpportunityCreate = "customerOpportunityCreate", // TODO: Replace startProcess
+  customerOpportunityUpdate = "customerOpportunityUpdate", // TODO: Replace startProcess
+
+  transitionOpportunityStage = "transitionOpportunityStage",
+  saveOpportunityStageConditionStatus='saveOpportunityStageConditionStatus',
+
+  /// Customer Campaigns
+  customerCampaignEntity = "customerCampaignEntity",
+  customerCampaignCreate = "customerCampaignCreate",
+  customerCampaignUpdate = "customerCampaignUpdate",
+
+  /// Customer Activities
+  customerActivityEntity = "customerActivityEntity",
+  customerActivityCreate = "customerActivityCreate",
+  customerActivityUpdate = "customerActivityUpdate",
+
+  /// Customer Documents
+  createCustomerDocument = "customerDocumentCreate",
+  
+
+  customerTaskEntity = 'customerTaskEntity',
+  createCustomerTask = 'customerTaskCreate',
+
+
   // Investment Relations
+
+  /// Investment Leads
   investmentLeadEntity = "investmentLeadEntity",
-  createInvestmentLead = "createInvestmentLead",
-  updateInvestmentLead = "updateInvestmentLead",
+  createInvestmentLead = "investmentLeadCreate",
+  updateInvestmentLead = "investmentLeadUpdate",
 
+  /// Investment Accounts
   investmentAccountEntity = "investmentAccountEntity",
-  createInvestmentAccount = "createInvestmentAccount",
-  updateInvestmentAccount = "updateInvestmentAccount",
+  createInvestmentAccount = "investmentAccountCreate",
+  updateInvestmentAccount = "investmentAccountUpdate",
 
+  /// Investment Contacts
   investmentContactEntity = "investmentContactEntity",
-  createInvestmentContact = "createInvestmentContact",
-  updateInvestmentContact = "updateInvestmentContact",
+  createInvestmentContact = "investmentContactCreate",
+  updateInvestmentContact = "investmentContactUpdate",
 
+  /// Investment Opportunities
   investmentOpportunityEntity = "investmentOpportunityEntity",
-  createInvestmentOpportunity = "createInvestmentOpportunity",
-  updateInvestmentOpportunity = "updateInvestmentOpportunity",
+  createInvestmentOpportunity = "investmentOpportunityCreate",
+  updateInvestmentOpportunity = "investmentOpportunityUpdate",
+  investmentOpportunityStageTransition = "investmentOpportunityStageTransition",
+
+
+  /// Investment Activities
+
+  investmentActivityEntity = "investmentActivityEntity",
+  createInvestmentActivity = "investmentActivityCreate",
+
+  /// Investment Tasks
 
   investmentTaskEntity = "investmentTaskEntity",
-  investmentActivityEntity = "investmentActivityEntity",
-  investmentNoteEntity = "investmentNoteEntity",
-  investmentDocumentEntity = "investmentDocumentEntity",
+  investmentTaskCreate = "investmentTaskCreate",
+  investmentTaskUpdate = "investmentTaskUpdate",
+  /// Investment Notes
 
-  createInvestment = "createInvestment",
+  investmentNoteEntity = "investmentNoteEntity",
+  
+  /// Investment Documents
+  investmentDocumentEntity = "investmentDocumentEntity",
+  investmentDocumentCreate = "investmentDocumentCreate",
+  investmentDocumentUpdate = "investmentDocumentUpdate",
+
+  /// Investments
+  createInvestment = "investmentCreate", // TODO: Obsolete
+  investmentCreate = "investmentCreate", // TODO: Replace startProcess
   investmentEntity = "investmentEntity",
 
-  equityInvestmentEntity = "equityInvestmentEntity",
-  privateEquityInvestmentEntity = "privateEquityInvestmentEntity",
-  realEstateInvestmentEntity = "realEstateInvestmentEntity",
-  liquidFundInvestmentEntity = "liquidFundInvestmentEntity",
+  equityInvestmentEntity = "equityInvestmentEntity", // TODO: Check
+  privateEquityInvestmentEntity = "privateEquityInvestmentEntity", // TODO: Check
+  realEstateInvestmentEntity = "realEstateInvestmentEntity", // TODO: Check
+  liquidFundInvestmentEntity = "liquidFundInvestmentEntity", // TODO: Check
 
-  //
-  expenseItems = "expenseItems",
-  expensePlans = "expensePlans",
-  expenseRequests = "expenseRequests",
-  advancePayments = "advancePayments",
-  employeeExpenses = "employeeExpenses",
-  catalog = "catalog",
-  flow = "flow",
-  flowEntity = "flowEntity",
-  flowInstance = "flowInstance",
-  taskInstance = "taskInstance",
-  documentPersonal = "documentPersonal",
-  employeeAbsenceRecord = "employeeAbsenceRecord",
-  employeePerformanceGoal = "employeePerformanceGoal",
-  employeeGiveFeedback = "employeeGiveFeedback",
-  employeeRequestFeedback = "employeeRequestFeedback",
-  employeeSkills = "employeeSkills",
-  employeeProfilePicture = "employeeProfilePicture",
-  saveOpportunityStageConditionStatus = "saveOpportunityStageConditionStatus",
+  /// Investment Reports
+  uploadInvestmentReport = "uploadInvestmentReport",
+  investmentReportEntity = "investmentReportEntity", // Integrate
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  expenseItems = 'expenseItems',
+  expensePlans = 'expensePlans',
+  expenseRequests = 'expenseRequests',
+  advancePayments = 'advancePayments',
+  employeeExpenses = 'employeeExpenses',
+  catalog = 'catalog',
+  flow = 'flow',
+  flowEntity = 'flowEntity',
+  flowInstance = 'flowInstance',
+
+  documentPersonal = 'documentPersonal',
+  employeeAbsenceRecord = 'employeeAbsenceRecord',
+  employeePerformanceGoal = 'employeePerformanceGoal',
+  employeeGiveFeedback = 'employeeGiveFeedback',
+  employeeRequestFeedback = 'employeeRequestFeedback',
+  employeeSkills = 'employeeSkills',
+  employeeProfilePicture = 'employeeProfilePicture',
+
   updateEmployeePersonalData = "updateEmployeePersonalData",
   updateEmployeeAddress = "updateEmployeeAddress",
   updateEmployeeCommunication = "updateEmployeeCommunication",
@@ -63,10 +151,10 @@ export enum FlowContextName {
   updateEmployeeSkill = "updateEmployeeSkill",
   updateEmployeeWorkingCondition = "updateEmployeeWorkingCondition",
   updateEmployeeWorkingHours = "updateEmployeeWorkingHours",
-  updateAccount = "updateAccount",
-  transitionOpportunityStage = "transitionOpportunityStage",
+
   createEmployee = "createEmployee",
   createJobPosition = "createJobPosition",
+
 }
 
 export type ContextData = {

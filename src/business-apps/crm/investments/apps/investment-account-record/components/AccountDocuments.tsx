@@ -156,7 +156,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
     // Open the native DocumentUploadForm in update mode by passing crmDocument in payload
     startProcess({
       domain: 'investments',
-      processName: 'saveInvestmentDocument',
+      processName: 'createInvestmentDocument',
       payload: {
         accountId,
         investmentDocument: {
@@ -851,7 +851,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
               variant="outline"
               onClick={() => startProcess({
                 domain: 'investments',
-                processName: 'saveInvestmentDocument',
+                processName: 'createInvestmentDocument',
                 payload: {
                   accountId,
                 },
@@ -866,7 +866,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
                variant="outline"
                onClick={() => startProcess({
                  domain: 'investments',
-                 processName: 'saveInvestmentDocument',
+                 processName: 'createInvestmentDocument',
                  payload: {
                    accountId,
                    createFolder: true
@@ -1091,7 +1091,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
                                     e.stopPropagation();
                                     startProcess({
                                       domain: 'investments',
-                                      processName: 'saveInvestmentDocument',
+                                      processName: 'createInvestmentDocument',
                                       payload: {
                                         accountId,
                                         ...(node.folderId ? { parentDocument: node.folderId } : {}),
@@ -1112,7 +1112,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
                                     e.stopPropagation();
                                     startProcess({
                                       domain: 'investments',
-                                      processName: 'saveInvestmentDocument',
+                                      processName: 'createInvestmentDocument',
                                       payload: {
                                         accountId,
                                         createFolder: true,
@@ -1295,7 +1295,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
               addButton: {
                 onClick: () => startProcess({
                   domain: 'investments',
-                  processName: 'saveInvestmentDocument',
+                  processName: 'createInvestmentDocument',
                   payload: {
                     accountId,
                   },

@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Employee } from '../../hooks/useEmployeeData';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { Empty, Progress } from 'antd';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { Employee } from '../../hooks/useEmployeeData';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
@@ -68,8 +68,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
           </div>
         </div>
         {isSelfView && (
-        <AppActionButton
-          variant="ghost"
+        <AppActionMenu
           data-testid="employee-skills-edit-button"
           contextsArray={[FlowContextName.updateEmployeeSkill]}
           externalContextData={{
@@ -78,8 +77,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
           prefixDataTestId="employee-skills-edit"
           accessToken={accessToken}
           autoExecuteSingleAction={true}
-          icon={<PiPencilSimple />}
-        />
+        >
+          <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+            <PiPencilSimple className="gba:cursor-pointer" />
+            Edit Skills
+          </div>
+        </AppActionMenu>
         )}
       </div>
 

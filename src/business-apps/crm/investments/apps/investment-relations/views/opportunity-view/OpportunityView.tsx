@@ -4,27 +4,18 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  RadioGroup,
-  RadioGroupItem,
-  Label,
   Spinner,
   Alert,
   Button,
 } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
-import { useGenericPipelines } from "@/components/kanban-board/hooks/useGenericPipelines";
-import { useGenericPipelineStages } from "@/components/kanban-board/hooks/useGenericPipelineStages";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
 import type { InvestmentOpportunityQueryVariables } from "@/common/data/investment/queries/investmentOpportunityQueries";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { OpportunityStatistics } from "./components/OpportunityStatistics";
 import { OpportunityList } from "./components/OpportunityList";
+import { ColumnConfig } from "@/components/dataController";
 import { OpportunityBoard } from "./components/opportunity-board/OpportunityBoard";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
@@ -34,37 +25,26 @@ import { useInvestmentOpportunityFilters } from "./hooks/useInvestmentOpportunit
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
 export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
-  const { accessToken, userInfo } = context;
+  const { accessToken } = context;
 
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sortField, setSortField] = useState("");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
-  // Filter states
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("all");
-  const [opportunityFilter, setOpportunityFilter] = useState<
-    "my" | "all" | "selected"
-  >("all");
-  const [selectedEmployeeIds] = useState<string[]>([]);
+  // Board view filters have been moved to the OpportunityBoard component
+  // List view only needs basic filtering
 
   // Hooks for data fetching
   const { fetchInvestmentOpportunities } =
     useGetInvestmentOpportunities(context);
-  const { pipelines } = useGenericPipelines(
-    accessToken,
-    "InvestmentOpportunityPipeline"
-  );
-  const { stages, isLoading: isLoadingStages } = useGenericPipelineStages(
-    accessToken,
-    "InvestmentOpportunityPipelineStage",
-    selectedPipelineId === "all" ? undefined : selectedPipelineId
-  );
+  // Board view loads its own stages based on selected pipeline
 
   // Data state
   const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>(
@@ -73,6 +53,35 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Column visibility configuration
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: "Actions", visible: true, disabled: true },
+    { id: "opportunity", label: "Opportunity", visible: true },
+    { id: "amount", label: "Amount", visible: true },
+    { id: "pipeline", label: "Pipeline", visible: true },
+    { id: "stage", label: "Stage", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "closeDate", label: "Close Date", visible: true },
+    { id: "account", label: "Account", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "created", label: "Creation Date", visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   const {
     filterGroups,
@@ -92,7 +101,10 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
-      orderBy: [{ field: sortField, direction: sortOrder }],
+      dealType: "INVESTMENT_DEAL", // Fixed filter for investment opportunities only
+      ...(sortField && sortOrder
+        ? { orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] as any }
+        : {}),
       ...(closeAfter ? { closeDateFrom: closeAfter } : {}),
       ...(closeBefore ? { closeDateTo: closeBefore } : {}),
     };
@@ -134,28 +146,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       const max = Math.max(
         ...amountRanges.map((r) => r.max ?? Number.MAX_SAFE_INTEGER)
       );
-      variables.estimatedAmountBetween = [min, max];
+      variables.forecastedProfitBetween = [min, max];
     }
-    if (chanceRanges.length) {
-      const cmin = Math.min(...chanceRanges.map((r) => r.min ?? 0));
-      const cmax = Math.max(...chanceRanges.map((r) => r.max ?? 100));
-      variables.winningChanceBetween = [cmin, cmax];
-    }
+    // Note: winningChance filtering not supported in current schema
 
-    // Add pipeline filter from selector
-    if (selectedPipelineId !== "all") {
-      variables.pipelineIds = [selectedPipelineId];
-    }
-
-    // Add employee filter
-    if (opportunityFilter === "my" && userInfo?.employeeDetails?.employeeId) {
-      variables.ownerEmployeeIds = [userInfo.employeeDetails.employeeId];
-    } else if (
-      opportunityFilter === "selected" &&
-      selectedEmployeeIds.length > 0
-    ) {
-      variables.ownerEmployeeIds = selectedEmployeeIds;
-    }
+    // Board view handles its own filtering - list view only uses DataContainer filters
 
     return variables;
   }, [
@@ -165,10 +160,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     sortField,
     sortOrder,
     selectedFilters,
-    selectedPipelineId,
-    opportunityFilter,
-    userInfo?.employeeDetails?.employeeId,
-    selectedEmployeeIds,
     closeAfter,
     closeBefore,
   ]);
@@ -289,10 +280,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   // Handle sorting
   const handleSort = useCallback(
     (field: string) => {
-      if (sortField === field) {
-        setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
-      } else {
+      if (sortField !== field) {
         setSortField(field);
+        setSortOrder("ASC");
+        return;
+      }
+      if (sortOrder === "ASC") {
+        setSortOrder("DESC");
+      } else if (sortOrder === "DESC") {
+        setSortField("");
+        setSortOrder("");
+      } else {
         setSortOrder("ASC");
       }
     },
@@ -304,24 +302,56 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
     setCurrentPage(1);
   }, []);
 
+  // Initialize from URL parameters (search and common filters)
+  useEffect(() => {
+    if (initializedFromUrl) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && initialFilters.push(`${prefix}:${v}`));
+    };
+    pushAll("owner", "owner");
+    pushAll("stage", "stage");
+    pushAll("pipeline", "pipeline");
+    pushAll("account", "account");
+    pushAll("status", "status");
+
+    if (initialFilters.length) {
+      setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
+    }
+    const search = urlParams.get("search");
+    if (search) setSearchTerm(search);
+    setInitializedFromUrl(true);
+  }, [initializedFromUrl]);
+
+  // Sync selected filters and search to URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    const setList = (key: string, values: string[]) => {
+      urlParams.delete(key);
+      values.forEach((v) => urlParams.append(key, v));
+    };
+
+    const collect = (prefix: string) => selectedFilters.filter((f) => f.startsWith(`${prefix}:`)).map((f) => f.slice(prefix.length + 1));
+
+    setList("owner", collect("owner"));
+    setList("stage", collect("stage"));
+    setList("pipeline", collect("pipeline"));
+    setList("account", collect("account"));
+    setList("status", collect("status"));
+
+    if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [selectedFilters, searchTerm]);
+
   // const toggleDataFilter = useCallback(() => {
   //   setShowDataFilter(prev => !prev);
   // }, []);
 
-  // Handle pipeline selection
-  const handlePipelineChange = useCallback((pipelineId: string) => {
-    setSelectedPipelineId(pipelineId);
-    setCurrentPage(1);
-  }, []);
-
-  // Handle opportunity filter change
-  const handleOpportunityFilterChange = useCallback(
-    (filter: "my" | "all" | "selected") => {
-      setOpportunityFilter(filter);
-      setCurrentPage(1);
-    },
-    []
-  );
+  // Board view handles its own filtering - handlers removed
 
   // Loading state
   if (isLoading && opportunities.length === 0) {
@@ -365,62 +395,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
         <OpportunityStatistics {...context} />
       </div>
 
-      {/* Filters and Pipeline Selection */}
-      <div className="gba:mb-6 gba:p-4 gba:bg-gray-50 gba:rounded-lg">
-        <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
-          {/* Opportunity Filter */}
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <Label className="gba:text-sm gba:font-medium">Filter by:</Label>
-            <RadioGroup
-              value={opportunityFilter}
-              onValueChange={handleOpportunityFilterChange}
-              className="gba:flex gba:gap-4"
-            >
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="my" id="my-opportunities" />
-                <Label htmlFor="my-opportunities">My Opportunities</Label>
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="all" id="all-opportunities" />
-                <Label htmlFor="all-opportunities">All Opportunities</Label>
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem value="selected" id="selected-employees" />
-                <Label htmlFor="selected-employees">Selected Employees</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Pipeline Selection */}
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <Label className="gba:text-sm gba:font-medium">Pipeline:</Label>
-            <Select
-              value={selectedPipelineId}
-              onValueChange={handlePipelineChange}
-            >
-              <SelectTrigger className="gba:w-48">
-                <SelectValue placeholder="Select Pipeline" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Pipelines</SelectItem>
-                {pipelines?.map((pipeline) => (
-                  <SelectItem key={pipeline.id} value={pipeline.id}>
-                    {pipeline.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+      {/* Filters moved to Board View tab */}
 
       {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="gba:w-full"
-      >
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="gba:mb-2">
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="board">Board View</TabsTrigger>
         </TabsList>
@@ -443,6 +422,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                   </div>
                 </div>
               ),
+              columnVisibility: {
+                columns: columnConfig,
+                onColumnVisibilityChange: handleColumnVisibilityChange,
+                'data-testid': 'investment-opportunities-column-visibility'
+              },
               actions: (
                 <AppAction
                   contextsArray={[FlowContextName.createInvestmentOpportunity]}
@@ -479,7 +463,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                 onPageChange={handlePageChange}
                 onSort={handleSort}
                 sortField={sortField}
-                sortOrder={sortOrder}
+                sortOrder={sortOrder || "ASC"}
+                visibleColumns={visibleColumns}
                 {...context}
               />
             }
@@ -488,10 +473,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
 
         <TabsContent value="board" className="gba:mt-6">
           <OpportunityBoard
-            opportunities={opportunities}
-            stages={stages || []}
-            isLoading={isLoading}
-            isLoadingStages={isLoadingStages}
             {...context}
           />
         </TabsContent>

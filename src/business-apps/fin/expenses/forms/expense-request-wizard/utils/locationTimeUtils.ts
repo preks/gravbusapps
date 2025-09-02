@@ -75,12 +75,28 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
   const { minDate, maxDate, minTime, maxTime } = limits;
   const { departureDate, departureTime } = location;
   
-  // If no date, nothing to validate
-  if (!departureDate) return location;
+  // If no date, ensure time is also cleared
+  if (!departureDate) {
+    return {
+      ...location,
+      departureTime: undefined
+    };
+  }
   
   // Check if date is within limits
-  const isDateValid = (!minDate || departureDate >= minDate) && 
-                     (!maxDate || departureDate <= maxDate);
+  // If time is not selected, compare only by calendar day to avoid timezone side-effects
+  let isDateValid: boolean;
+  if (!departureTime) {
+    const toYMD = (d?: Date) => (d ? (d.getFullYear() * 10000) + ((d.getMonth() + 1) * 100) + d.getDate() : null);
+    const dep = toYMD(departureDate);
+    const min = toYMD(minDate);
+    const max = toYMD(maxDate);
+    const minOk = (min === null) || (dep !== null && dep >= min);
+    const maxOk = (max === null) || (dep !== null && dep <= max);
+    isDateValid = minOk && maxOk;
+  } else {
+    isDateValid = (!minDate || departureDate >= minDate) && (!maxDate || departureDate <= maxDate);
+  }
   
   // If date is invalid, clear both date and time
   if (!isDateValid) {
@@ -138,19 +154,21 @@ export const combineDateTimeToISOString = (
 ): string => {
   if (!date && !time) {
     if (fallbackDate) {
-      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00Z";
+      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00";
     }
     return "";
   }
   
   // If we only have time, return time as string
   if (!date && time) {
-    return dayjs(time).format("HH:mm:ss");
+    const dateString = dayjs(time).format("YYYY-MM-DD");
+    const timeString = dayjs(time).format("HH:mm:ss")
+    return `${dateString}T${timeString}`;
   }
   
   // If we only have date, return date as ISO string
   if (date && !time) {
-    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00Z";
+    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00";
   }
   
   // If we have both, combine them
@@ -158,5 +176,5 @@ export const combineDateTimeToISOString = (
   const timeString = dayjs(time).format("HH:mm:ss");
   
   // Create ISO string from combined date and time
-  return `${dateString}T${timeString}Z`;
+  return `${dateString}T${timeString}`;
 };

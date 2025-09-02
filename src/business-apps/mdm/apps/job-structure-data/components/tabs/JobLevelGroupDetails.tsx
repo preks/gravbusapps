@@ -1,34 +1,41 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Card,
-  Collapse,
-  Table,
-  Button,
-  Space,
-  Typography,
-  Tag,
-  Tooltip,
-  Modal,
-  message,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  RightOutlined,
-  UserOutlined,
-  TeamOutlined,
-} from "@ant-design/icons";
+import React, { useMemo, useState } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useJobLevels } from "../../hooks";
 import { JobLevel, JobLevelGroup } from "../../types";
-import { startProcess } from "@/common/utils/start-process";
 import { calculateJobLevelInGroup } from "../../utils/levelCalculations";
+import {
+  CardContent,
+  Card,
+  Accordion,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  DataTable,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  Badge,
+  Icon,
+} from "@newwork/nw-design-system";
+import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
+import JobLevelForm from "@/business-apps/mdm/forms/job-level-form";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import { useRestClient } from "@/common/network/rest/useRestClient";
+import { env } from "@/common/env/EnvUtils";
+import { ColumnDef } from "@tanstack/react-table";
+import JobLevelGroupForm from "@/business-apps/mdm/forms/job-level-group-form";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import {
+  XCircleIcon,
+  ArrowsDownUpIcon,
+  UsersIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+} from "@phosphor-icons/react";
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+const DATA_TEST_ID_PREFIX = "JobLevelGroupDetails";
 
 export interface JobLevelGroupDetailsProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -38,378 +45,434 @@ export interface JobLevelGroupDetailsProps extends BusinessAppContextProps {
 export type { JobLevel, JobLevelGroup } from "../../types";
 
 const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+  const { prefixDataTestId, userInfo, accessToken } = context;
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+  const restClient = useRestClient(
+    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
+  );
+  const catalogClient = useCatalogManagerClient(accessToken);
 
-  const { jobLevelGroups, isLoading, error, refetch } = useJobLevels(context);
-  const [activeKeys, setActiveKeys] = useState<string[]>([]);
-  const [modalType, setModalType] = useState<"group" | "level">("group");
-  const [editingGroup, setEditingGroup] = useState<JobLevelGroup | null>(null);
-  const [editingLevel, setEditingLevel] = useState<JobLevel | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const { jobLevelGroups, compensationBands, isLoading, error, refetch } =
+    useJobLevels(context);
+  const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
 
-  const handleCollapseChange = (keys: string | string[]) => {
-    setActiveKeys(Array.isArray(keys) ? keys : [keys]);
-  };
-
-  const handleAddGroup = () => {
-    setModalType("group");
-    setEditingGroup(null);
-    setEditingLevel(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobLevelGroup",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleEditGroup = (group: JobLevelGroup) => {
-    setModalType("group");
-    setEditingGroup(group);
-    setEditingLevel(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobLevelGroup",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        jobLevelGroup: group,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-  
-
-  const handleAddLevel = (groupId: string) => {
-    setModalType("level");
-    setEditingGroup(null);
-    setEditingLevel(null);
-    setSelectedGroupId(groupId);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobLevel",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        groupId: groupId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleEditLevel = (level: JobLevel, groupId: string) => {
-    setModalType("level");
-    setEditingGroup(null);
-    setEditingLevel(level);
-    setSelectedGroupId(groupId);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeJobLevel",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        jobLevel: level,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
-
-  const handleDelete = (
+  const handleDelete = async (
     type: "group" | "level",
     item: JobLevelGroup | JobLevel
   ) => {
-    const title =
-      type === "group" ? "Delete Job Level Group" : "Delete Job Level";
-    const content =
-      type === "group"
-        ? `Are you sure you want to delete "${item.name}"? This will also delete all associated job levels.`
-        : `Are you sure you want to delete job level "${item.name}"?`;
+    const isJobLevel = type === "level";
 
-    Modal.confirm({
-      title,
-      content,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        message.warning(
-          `Delete functionality will be implemented with process API integration`
-        );
-        await refetch();
-      },
-    });
+    if (isJobLevel) {
+      await restClient.post(
+        `/employee/${isJobLevel ? "saveJobLevel" : ""}`,
+        {
+          changeMode: "DELETE",
+          jobLevel: {
+            id: item.id,
+            version: item.version ?? 0,
+          },
+        },
+        {
+          headers: { Authorization: `Bearer ${context.accessToken}` },
+        }
+      );
+    } else {
+      await catalogClient.deleteCatalogEntry(item.id);
+    }
+
+    await refetch();
   };
 
   const renderJobLevelTable = (group: JobLevelGroup) => {
-    const columns = [
+    const columns: ColumnDef<any>[] = [
       {
-        title: "Level",
-        key: "level",
-        width: 80,
-        sorter: (a: JobLevel, b: JobLevel) => {
-          const aLevel = calculateJobLevelInGroup(a, group) ?? 999;
-          const bLevel = calculateJobLevelInGroup(b, group) ?? 999;
-          return aLevel - bLevel;
-        },
-        render: (_: any, record: JobLevel) => {
-          const calculatedLevel = calculateJobLevelInGroup(record, group);
-          return calculatedLevel !== undefined ? (
-            <Tag color="blue" className="gba:font-mono">
-              {calculatedLevel}
-            </Tag>
+        accessorKey: "level",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Level
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const level = getValue();
+          return level !== undefined ? (
+            <Badge variant="info" className="gba:font-mono">
+              {level as string}
+            </Badge>
           ) : (
-            <Tag color="gray">Not assigned</Tag>
+            <Badge variant="secondary">Not assigned</Badge>
           );
         },
       },
       {
-        title: "Code",
-        dataIndex: "code",
-        key: "code",
-        width: 120,
-        sorter: (a: JobLevel, b: JobLevel) =>
-          (a.code || "").localeCompare(b.code || ""),
-      },
-      {
-        title: "Name",
-        dataIndex: "displayName",
-        key: "displayName",
-        sorter: (a: JobLevel, b: JobLevel) =>
-          a.displayName.localeCompare(b.displayName),
-        render: (text: string, record: JobLevel) => (
-          <div>
-            <div className="gba:font-semibold">{text}</div>
-            {record.description && (
-              <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                {record.description}
-              </div>
-            )}
-          </div>
+        accessorKey: "code",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
         ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const code = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+            </div>
+          );
+        },
       },
       {
-        title: "Compensation Band",
-        key: "compensationBand",
-        width: 180,
-        render: (_: any, record: JobLevel) =>
-          record.compensationBand ? (
-            <Tag color="green" className="gba:px-3 gba:py-1">
-              {record.compensationBand.name}
-            </Tag>
+        accessorKey: "name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Name
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const name = getValue();
+          return (
+            <div>
+              <div className="gba:font-semibold">{name as string}</div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "compensationBand",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Compensation Band
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const compensationBand = getValue();
+          return compensationBand ? (
+            <Badge variant="success" className="gba:px-3 gba:py-1">
+              {compensationBand as string}
+            </Badge>
           ) : (
-            <Tag color="gray">Not assigned</Tag>
-          ),
+            <Badge variant="secondary">Not assigned</Badge>
+          );
+        },
       },
       {
-        title: "Experience Required",
-        dataIndex: "experienceYears",
-        key: "experienceYears",
-        width: 150,
-        render: (years?: number) =>
-          years !== undefined ? (
-            <Tooltip title={`${years} years of experience required`}>
-              <Tag color="orange">{years}+ years</Tag>
+        accessorKey: "experienceYears",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Experience Required
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const years = getValue();
+          return years !== undefined ? (
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge variant="warning">{years as string}+ years</Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {`${years} years of experience required`}
+              </TooltipContent>
             </Tooltip>
           ) : (
-            <Tag color="gray">Not specified</Tag>
-          ),
+            <Badge variant="secondary">Not specified</Badge>
+          );
+        },
       },
       {
-        title: "Actions",
-        key: "actions",
-        width: 120,
-        render: (_: any, record: JobLevel) => (
-          <Space size="small">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEditLevel(record, group.id)}
-              data-testid={`${prefixDataTestId}-edit-level-${record.id}`}
-            />
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete("level", record)}
-              data-testid={`${prefixDataTestId}-delete-level-${record.id}`}
-            />
-          </Space>
-        ),
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => {
+          const record = row.original;
+          return (
+            <div className="gba:flex">
+              <JobLevelForm
+                childAddButton={
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    data-testid={`${dataTestId}-edit-level-${record.id}`}
+                  >
+                    <PencilSimpleLineIcon className="gba:h-4 gba:w-4" />
+                  </Button>
+                }
+                jobLevel={record}
+                refetch={refetch}
+                groupId={group.id}
+                accessToken={context.accessToken}
+                prefixDataTestId={dataTestId}
+                compensationBands={compensationBands}
+              />
+
+              <DeleteButton
+                onDelete={() => handleDelete("level", record)}
+                itemName={record.name}
+                itemTitle={"Job Level"}
+              />
+            </div>
+          );
+        },
       },
     ];
 
+    const dataTable = group.jobLevels.map((jobLevel) => ({
+      id: jobLevel.id,
+      level: calculateJobLevelInGroup(jobLevel, group),
+      code: jobLevel.code,
+      name: jobLevel.name,
+      description: jobLevel.description,
+      compensationBand: jobLevel.compensationBand?.name,
+      compensationBandId: jobLevel.compensationBand?.id,
+      version: jobLevel.version,
+      experienceYears: jobLevel.experienceYears,
+    }));
+
     return (
-      <Table
-        columns={columns}
-        dataSource={group.jobLevels}
-        rowKey="id"
-        pagination={false}
-        size="small"
-        className="gba:mb-4"
-        locale={{
-          emptyText: (
-            <div className="gba:text-center gba:py-8 gba:text-gray-500">
-              <UserOutlined className="gba:text-2xl gba:mb-2" />
-              <div>No job levels defined for this group</div>
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() => handleAddLevel(group.id)}
-                className="gba:mt-2"
-              >
-                Add First Level
-              </Button>
-            </div>
-          ),
-        }}
+      <DataTable
+        defaultDataSetId="simple-users"
+        dataSets={[
+          {
+            id: "simple-users",
+            label: "Job Levels",
+            data: dataTable,
+            columns: columns,
+          },
+        ]}
       />
     );
   };
 
-  const renderGroupHeader = (group: JobLevelGroup) => (
-    <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
-      <div className="gba:flex gba:items-center gba:space-x-3">
-        <div>
-          <Title level={5} className="gba:mb-0">
-            {group.name}
-          </Title>
-          <div className="gba:flex gba:items-center gba:space-x-4 gba:mt-1">
-            <Text type="secondary" className="gba:text-sm">
-              Code: {group.code}
-            </Text>
-            <Tag color="blue" icon={<TeamOutlined />}>
-              {group.jobLevelCount} levels
-            </Tag>
-          </div>
-        </div>
-      </div>
-      <Space>
+  // Custom icon function that renders JobLevelForm
+  const JobLevelFormIcon = ({ groupId }: { groupId: string }) => (
+    <JobLevelForm
+      childAddButton={
         <Button
-          type="text"
-          size="small"
-          icon={<PlusOutlined />}
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.stopPropagation();
-            handleAddLevel(group.id);
+            setAccordionValue((prev) => {
+              if (prev.includes(groupId)) {
+                return prev;
+              }
+              return [...prev, groupId];
+            });
           }}
-          data-testid={`${prefixDataTestId}-add-level-${group.id}`}
+          data-testid={`${dataTestId}-add-level-${groupId}`}
         >
-          Add Level
+          <PlusIcon className="gba:h-4 gba:w-4" />
         </Button>
-        <Button
-          type="text"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleEditGroup(group);
-          }}
-          data-testid={`${prefixDataTestId}-edit-group-${group.id}`}
-        />
-        <Button
-          type="text"
-          size="small"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete("group", group);
-          }}
-          data-testid={`${prefixDataTestId}-delete-group-${group.id}`}
-        />
-      </Space>
-    </div>
+      }
+      refetch={refetch}
+      groupId={groupId}
+      accessToken={context.accessToken}
+      prefixDataTestId={dataTestId}
+      compensationBands={compensationBands}
+    />
   );
 
-  const renderGroupSummary = (group: JobLevelGroup) => (
-    <div className="gba:bg-gray-50 gba:p-4 gba:rounded-lg gba:mb-4">
-      <div>
-        <Text strong>Description:</Text>
-        <div className="gba:mt-1 gba:text-sm gba:text-gray-600">
-          {group.description || "No description provided"}
-        </div>
-      </div>
-    </div>
+  const JobLevelGroupFormIcon = ({ group }: { group: JobLevelGroup }) => (
+    <JobLevelGroupForm
+      childAddButton={
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          data-testid={`${dataTestId}-edit-level-${group.id}`}
+        >
+          <PencilSimpleLineIcon className="gba:h-4 gba:w-4" />
+        </Button>
+      }
+      jobLevelGroup={group}
+      refetch={refetch}
+      accessToken={context.accessToken}
+      prefixDataTestId={dataTestId}
+    />
+  );
+
+  const groupItems = useMemo(
+    () =>
+      jobLevelGroups.map((group) => ({
+        id: group.id,
+        title: group.name,
+        description: `Code: ${group.code}`,
+        badgeText: `${group.jobLevelCount} levels`,
+        badgeVariant: "info" as const,
+        buttons: [
+          {
+            icon: () => (
+              <Tooltip>
+                <TooltipTrigger>
+                  <JobLevelFormIcon groupId={group.id} />
+                </TooltipTrigger>
+                <TooltipContent>Add Job Level</TooltipContent>
+              </Tooltip>
+            ),
+            onClick: () => {},
+          },
+          {
+            icon: () => (
+              <Tooltip>
+                <TooltipTrigger>
+                  <JobLevelGroupFormIcon group={group} />
+                </TooltipTrigger>
+                <TooltipContent>Edit Job Level Group</TooltipContent>
+              </Tooltip>
+            ),
+            onClick: () => {},
+          },
+          {
+            icon: () => (
+              <Tooltip>
+                <TooltipTrigger>
+                  <DeleteButton
+                    onDelete={() => handleDelete("group", group)}
+                    itemName={group.name}
+                    itemTitle="Job Level Group"
+                  />
+                </TooltipTrigger>
+                <TooltipContent>Delete Job Level Group</TooltipContent>
+              </Tooltip>
+            ),
+            onClick: () => {},
+          },
+        ],
+        contentDescription: group.description,
+        content: (
+          <div className="gba:space-y-4">{renderJobLevelTable(group)}</div>
+        ),
+      })),
+    [
+      jobLevelGroups,
+      userInfo?.employeeDetails.employeeId,
+      refetch,
+      context.accessToken,
+      dataTestId,
+      compensationBands,
+    ]
   );
 
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Typography.Text type="danger">
-          Error loading job level groups: {error}
-        </Typography.Text>
-        <div className="gba:mt-4">
-          <Button onClick={refetch}>Retry</Button>
-        </div>
+        <Alert
+          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
+          variant="destructive"
+        >
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <Icon icon={XCircleIcon} />
+            Error Loading Data
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div>
-          <Title level={3} className="gba:mb-2">
-            Job Level Groups & Career Paths
-          </Title>
-          <Text type="secondary">
-            Manage job levels organized by career groups and progression paths
-          </Text>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAddGroup}
-          data-testid={`${prefixDataTestId}-add-group`}
-        >
-          Add Job Level Group
-        </Button>
-      </div>
-
-      {jobLevelGroups.length === 0 && !isLoading ? (
-        <Card className="gba:text-center gba:py-12">
-          <TeamOutlined className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-          <Title level={4} type="secondary">
-            No Job Level Groups Found
-          </Title>
-          <Text type="secondary">
-            Create your first job level group to start organizing career paths
-          </Text>
-          <div className="gba:mt-4">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddGroup}
-            >
-              Create First Group
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <Collapse
-          activeKey={activeKeys}
-          onChange={handleCollapseChange}
-          className="gba:bg-white"
-          expandIcon={({ isActive }) =>
-            isActive ? <DownOutlined /> : <RightOutlined />
+    <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
+      {!isLoading && (
+        <CardTabHeaderComponent
+          addButton={
+            <JobLevelGroupForm
+              childAddButton={
+                <Button
+                  variant="default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  data-testid={`${dataTestId}-add-group`}
+                >
+                  <PlusIcon className="gba:h-4 gba:w-4" /> Add Job Level Group
+                </Button>
+              }
+              refetch={refetch}
+              accessToken={context.accessToken}
+              prefixDataTestId={dataTestId}
+            />
           }
-        >
-          {jobLevelGroups.map((group) => (
-            <Panel
-              key={group.id}
-              header={renderGroupHeader(group)}
-              className="gba:mb-4"
-            >
-              {renderGroupSummary(group)}
-              {renderJobLevelTable(group)}
-            </Panel>
-          ))}
-        </Collapse>
+          cardTitle={`Job Level Groups & Career Paths (${jobLevelGroups.length})`}
+          cardDescription="Manage job levels organized by career groups and progression paths"
+        />
       )}
-    </div>
+
+      <CardContent className="gba:relative">
+        {jobLevelGroups.length === 0 && !isLoading ? (
+          <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+            <UsersIcon className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
+            <h1 className="gba:font-bold gba:text-xl">
+              No Job Level Groups Found
+            </h1>
+            <h2 className="gba:text-gray-500 gba:text-base">
+              Create your first job level group to start organizing career paths
+            </h2>
+            <div className="gba:mt-4">
+              <JobLevelGroupForm
+                childAddButton={
+                  <Button
+                    variant="default"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    data-testid={`${dataTestId}-add-group`}
+                  >
+                    <PlusIcon className="gba:h-4 gba:w-4" /> Create First Group
+                  </Button>
+                }
+                refetch={refetch}
+                accessToken={context.accessToken}
+                prefixDataTestId={dataTestId}
+              />
+            </div>
+          </div>
+        ) : (
+          <Accordion
+            className="gba:w-full"
+            value={accordionValue}
+            onValueChange={(value) => setAccordionValue(value)}
+            items={groupItems}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

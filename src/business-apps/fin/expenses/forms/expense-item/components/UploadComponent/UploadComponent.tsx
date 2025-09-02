@@ -92,11 +92,11 @@ const { t } = useTranslation();
     lastUploadTimestampRef.current = now;
     setIsHandlingUpload(true);
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       handleFileUpload(files).finally(() => {
         setIsHandlingUpload(false);
       });
-    }, 0);
+    });
   }, [handleFileUpload, isHandlingUpload, isProcessingFiles]);
 
   const handleModalConfirm = useCallback((keepExisting: boolean) => {
@@ -283,7 +283,7 @@ const { t } = useTranslation();
         </Upload>
       ) : (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }} data-testid="files-flex-container">
-          <div style={{ width: '100%' }} data-testid="file-list-row">
+          <div style={{ width: '100%' }} data-testid="file-list-row" className="gba:[&_.ant-upload-list-item-name]:flex">
             <Upload
               listType="text"
               fileList={fileList}

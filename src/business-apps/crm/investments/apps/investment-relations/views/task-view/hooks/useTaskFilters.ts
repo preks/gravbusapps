@@ -2,9 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTaskEmployees } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskEmployees';
-import { useTaskCatalogs } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskCatalogs';
-import { useTaskReferenceCounts } from '../../../../../../customers/apps/customer-relations/components/views/task-view/hooks/useTaskReferenceCounts';
+import { useInvestmentTasks } from '@/common/data/investment/hooks';
 
 export interface DataFilter {
   id: string;
@@ -32,16 +30,33 @@ export interface TaskFilters {
 }
 
 export const useTaskFilters = (context: BusinessAppContextProps & { sourceApp?: string }) => {
-  const sourceApp = context.sourceApp || 'IRM';
 
   const [search, setSearch] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>();
 
-  const { employees } = useTaskEmployees({ accessToken: context.accessToken });
-  const { statuses, priorities, types } = useTaskCatalogs({ accessToken: context.accessToken, sourceApp: sourceApp === 'IRM' ? 'IRM' : 'CRM' });
-  const { counts } = useTaskReferenceCounts({ accessToken: context.accessToken, sourceApp });
+  const { fetchInvestmentTaskFilterValues } = useInvestmentTasks({ accessToken: context.accessToken });
+  const [statuses, setStatuses] = useState<Array<{ id: string; code?: string; value: string }>>([]);
+  const [priorities, setPriorities] = useState<Array<{ id: string; code?: string; value: string }>>([]);
+  const [types, setTypes] = useState<Array<{ id: string; code?: string; value: string }>>([]);
+  const [employees, setEmployees] = useState<Array<{ id: string; displayName: string }>>([]);
+  const [counts, setCounts] = useState<{ opportunity: number; account: number; lead: number; contact: number }>({ opportunity: 0, account: 0, lead: 0, contact: 0 });
+
+  const loadFilterValues = useCallback(async () => {
+    try {
+      const res = await fetchInvestmentTaskFilterValues({ limit: 1000, offset: 0 });
+      setStatuses(res.statuses);
+      setPriorities(res.priorities);
+      setTypes(res.types);
+      setEmployees(res.assignees);
+      setCounts(res.referenceCounts);
+    } catch (e) {
+      // non-fatal for filters
+    }
+  }, [fetchInvestmentTaskFilterValues]);
+
+  React.useEffect(() => { loadFilterValues(); }, [loadFilterValues]);
 
   const taskStatusFilters: DataFilter[] = useMemo(() => {
     const dynamic = statuses.map(status => ({

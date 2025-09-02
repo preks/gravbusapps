@@ -45,7 +45,7 @@ const MyComponent: React.FC = () => {
       entityType="account"
       context={{
         accessToken: "your-access-token",
-        flowContexts: ["accountEntity"]
+        flowContexts: ["customerAccountEntity"]
       }}
       dataController={dataController}
       onDocumentUpdate={() => console.log('Document updated')}

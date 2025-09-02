@@ -108,10 +108,14 @@ export const useAppActionData = (
   const combinedData = [...(config.staticFlowData ?? []), ...flowData];
 
   // Calculate whether to show loading state
-  const shouldShowLoading = isLoading || 
-    (!!config.deferMainContextRequestsUntilClick && 
-     combinedData.length === 0 && 
-     !hasDeferredFetchAttempted);
+  // If staticFlowData is provided, we never show the loading overlay
+  const hasStaticData = (config.staticFlowData?.length ?? 0) > 0;
+  const shouldShowLoading = !hasStaticData && (
+    isLoading ||
+    (!!config.deferMainContextRequestsUntilClick &&
+      combinedData.length === 0 &&
+      !hasDeferredFetchAttempted)
+  );
 
   // Translations
   const translations = {

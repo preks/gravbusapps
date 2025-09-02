@@ -8,6 +8,7 @@ import {
   CompassOutlined 
 } from '@ant-design/icons';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface ExpensePlanStatisticsProps {
   plans: any[];
@@ -139,8 +140,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     {
       key: 'total-estimated',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for') + ' ' + currentMonthName,
-      value: `${formatNumberFunction(String(totalEstimated ?? '0'))}`,
-      suffix: '€',
+      value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), 'EUR')}`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
