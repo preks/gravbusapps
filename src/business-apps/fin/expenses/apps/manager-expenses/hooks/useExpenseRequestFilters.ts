@@ -107,6 +107,7 @@ export const useExpenseRequestFilters = ({
     currencies.add("EUR");
     currencies.add("USD");
     currencies.add("GBP");
+    currencies.add("RON");
 
     return Array.from(currencies);
   }, [localMostUsedCurrency]);
