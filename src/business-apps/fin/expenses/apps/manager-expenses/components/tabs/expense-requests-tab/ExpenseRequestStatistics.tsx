@@ -1,10 +1,9 @@
-import React from 'react';
-import { Clock, FileText } from '@phosphor-icons/react';
-import { useCurrencyStore } from '../../../store/useCurrencyStore';
-import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatCurrency } from '../../../utils/currencyUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from "react";
+import { Clock, FileText, CurrencyDollar } from "@phosphor-icons/react";
+import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
+import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import { formatCurrency } from "../../../utils/currencyUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface ExpenseRequestStatisticsProps {
   requestStats: ExpenseRequestStatisticsData | null;
@@ -12,6 +11,7 @@ interface ExpenseRequestStatisticsProps {
   requestStatsError: string | null;
   fetchRequestStatistics: () => Promise<void>;
   currencyFilter?: string | null;
+  addFilter: (filter: string) => void;
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -20,64 +20,99 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsError,
   fetchRequestStatistics,
   currencyFilter,
+  addFilter,
 }) => {
-  // Use the global currency store
-  const { primaryCurrency } = useCurrencyStore();
-  
-  // Use the currency filter if available, otherwise fall back to primary currency
-  const displayCurrency = currencyFilter || primaryCurrency;
-  
-  // Calculate total requests count (pending + approved + rejected)
-  const totalRequests = requestStats ? 
-    requestStats.pendingCount + requestStats.approvedCount + requestStats.rejectedCount : 0;
+  const displayCurrency = currencyFilter || "EUR";
 
-  // Transform stat cards to widget items
-  const widgets: WidgetItem[] = requestStats ? [
-    {
-      key: 'pending-requests',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.pending_requests_btn', 'Pending Requests'),
-      value: requestStats.pendingCount,
-      color: '#faad14',
-      prefix: <Clock />,
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval', 'Waiting for approval')
-    },
-    {
-      key: 'pending-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.pending_amount', 'Pending Amount'),
-      value: requestStats.pendingAmount ? formatCurrency(requestStats.pendingAmount, displayCurrency) : `${displayCurrency} 0,00`,
-      color: '#faad14',
-      prefix: <span className="gba:font-medium" data-testid="expense-request-stats-pending-currency-code">{displayCurrency}</span>,
-      valueIsString: true,
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds', 'Total pending funds')
-    },
-    {
-      key: 'total-requests',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted', 'Total Requests (Submitted)'),
-      value: totalRequests,
-      color: '#1890ff',
-      prefix: <FileText />,
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests', 'All submitted requests')
-    },
-    {
-      key: 'total-submitted-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount', 'Total Submitted Amount'),
-      value: requestStats.totalSubmittedAmount ? formatCurrency(requestStats.totalSubmittedAmount, displayCurrency) : `${displayCurrency} 0,00`,
-      color: '#3f8600',
-      prefix: <span className="gba:font-medium" data-testid="expense-request-stats-total-currency-code">{displayCurrency}</span>,
-      valueIsString: true,
-      span: { xs: 24, sm: 12, md: 6, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests', 'All expense requests')
-    }
-  ] : [];
+  const widgets: WidgetItem[] = requestStats
+    ? [
+        {
+          key: "pending-requests",
+          title: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_management_hub_manager.pending_requests_btn",
+            "Pending Requests"
+          ),
+          value: requestStats.pendingCount,
+          color: "#faad14",
+
+          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          description: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval",
+            "Waiting for approval"
+          ),
+          onClick: () => {
+            addFilter("PENDING");
+          },
+        },
+        {
+          key: "pending-amount",
+          title: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.pending_amount",
+            "Pending Amount"
+          ),
+          value: formatCurrency(
+            requestStats.pendingAmount || 0,
+            displayCurrency
+          ),
+          color: "#52c41a",
+
+          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          description: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.approved_verified_booked_transferred",
+            "Approved, verified, booked, transferred"
+          ),
+          valueIsString: true,
+        },
+        {
+          key: "total-requests-submitted",
+          title: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted",
+            "Total Requests Submitted"
+          ),
+          value: requestStats.totalRequestsSubmitted,
+          color: "#1890ff",
+
+          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          description: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.all_statuses_except_rejected_discarded_created",
+            "All statuses except rejected, discarded, created"
+          ),
+          onClick: () => {
+            // Apply all status filters except rejected, discarded, created
+            addFilter("PENDING");
+            addFilter("APPROVED");
+            addFilter("VERIFIED");
+            addFilter("BOOKED");
+            addFilter("TRANSFERRED");
+          },
+        },
+        {
+          key: "total-submitted-amount",
+          title: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount",
+            "Total Submitted Amount"
+          ),
+          value: formatCurrency(
+            requestStats.totalSubmittedAmount || 0,
+            displayCurrency
+          ),
+          color: "#722ed1",
+
+          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          description: getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_requests_tab.all_statuses_except_rejected_discarded_created",
+            "All statuses except rejected, discarded, created"
+          ),
+          valueIsString: true,
+        },
+      ]
+    : [];
 
   return (
     <WidgetGroup
       widgets={widgets}
       isLoading={requestStatsLoading}
-      error={requestStatsError ? 'Failed to load statistics' : undefined}
+      error={requestStatsError ? "Failed to load statistics" : undefined}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
       emptyText="No expense request statistics available."

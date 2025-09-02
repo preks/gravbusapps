@@ -209,7 +209,76 @@ export const REJECT_EXPENSE_REQUEST = `
 `;
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!, $currencyRef: String) {
+  query GetExpenseRequestStatistics($employeeId: uuid!) {
+  pendingRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "PENDING"}
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  pendingAmount: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  totalSubmittedAmount: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+}
+`;
+
+export const GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY = `
+  query GetExpenseRequestStatisticsWithCurrency($employeeId: uuid!, $currencyRef: String!) {
   pendingRequests: ExpenseRequestAggregate(
     where: {
       employee: {
@@ -224,12 +293,9 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  approvedRequests: ExpenseRequestAggregate(
+  pendingAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -237,18 +303,33 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "APPROVED"},
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]},
+      currencyRef: {_eq: $currencyRef}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
       currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  rejectedRequests: ExpenseRequestAggregate(
+  totalSubmittedAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -256,26 +337,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "REJECTED"},
-      currencyRef: {_eq: $currencyRef}
-    }
-  ) {
-    aggregate {
-      count
-      sum {
-        totalAmount
-      }
-    }
-  }
-  allSubmittedRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
       currencyRef: {_eq: $currencyRef}
     }
   ) {
