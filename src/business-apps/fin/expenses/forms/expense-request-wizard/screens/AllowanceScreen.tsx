@@ -33,7 +33,7 @@ interface AllowanceScreenProps extends BusinessAppContextProps {
  * @returns AllowanceScreen component
  */
 const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
-  const { accessToken, userInfo } = props;
+  const { accessToken, userInfo, additionalData } = props;
   const graphQLClient = useGraphqlClient(accessToken);
   const { 
     employeeRuleId, 
@@ -46,6 +46,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
   
   const [, setTravelRegionsData] = useState<any>(null);
   const [, setCostCentersData] = useState<any>(null);
+  const [deductionsData, setDeductionsData] = useState<any[]>([]);
+  const [hasDeductions, setHasDeductions] = useState<boolean>(false);
   const [defaultCostCenter, setDefaultCostCenter] = useState<string>("");
   const [defaultProject, setDefaultProject] = useState<string>("");
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
@@ -54,7 +56,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [structureIdArray, setStructureIdArray] = useState<string[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-  const itemListLimit = 4;
+  const itemListLimit = 3;
   
   useEffect(() => {
     const fetchTravelRegionsAndCostCenters = async () => {
@@ -66,9 +68,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         const travelRegionsResponse = await graphQLClient.request(getTravelRegionsAndUser, {
           expenseRuleId: employeeRuleId,
           employeeId: employeeIdValue,
-          activeUserLocale: locale
+          activeUserLocale: locale,
+          expenseRequestId: additionalData?.psi_taskPayload?.expenseRequest?.id
         });
-        
+        setDeductionsData(travelRegionsResponse.TravelBreakdown || []);
         setTravelRegionsData(travelRegionsResponse);
         if (travelRegionsResponse?.EmployeePosition && 
             travelRegionsResponse.EmployeePosition.length > 0 && 
@@ -105,6 +108,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     
     fetchTravelRegionsAndCostCenters();
   }, [employeeRuleId, graphQLClient, userInfo?.employeeDetails?.employeeId]);
+
+  useEffect(() => {
+    // Determine if deductions exist
+    const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0;
+    setHasDeductions(anyDeductions);
+  }, [deductionsData]);
   
   useEffect(() => {
     if (!expenseRequestData?.ExpenseRequestByPk) return;
@@ -118,6 +127,31 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
       setDefaultProject(requestProject.project.id || "");
     }
     
+    const getDeductionForDate = (date: string) => {
+      const match = (deductionsData || []).find((d: any) => d.expenseDate === date);
+      return match ? {
+        id: match.id,
+        version: match.version,
+        deductionDay: null,
+        breakfast: match.breakfast,
+        lunch: match.lunch,
+        dinner: match.dinner,
+        overnight: match.overnight
+      } : null;
+    };
+
+    const getDeductionByDate = (date: string) => {
+      return (arrDeductions || []).find((d: any) => d.expenseDate === date) || null;
+    };
+
+    const arrDeductions = (allowanceData || []).map((item: any) => {
+      const deduction = getDeductionForDate(item.expenseDate);
+      return deduction ? {
+        expenseDate: item.expenseDate,
+        ...deduction
+      } : null;
+    }).filter(Boolean) as any[];
+
     const processedData = allowanceData.map((element) => {
       let updatedElement = { ...element };
       
@@ -144,6 +178,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         ? allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId 
         : null;
       
+      // Attach deductionDay if hasDeductions is true
+      if (hasDeductions) {
+        updatedElement.deductionDay = getDeductionByDate(updatedElement.expenseDate) || null;
+      } else {
+        updatedElement.deductionDay = null;
+      }
       return updatedElement;
     }).sort((a:any, b:any) => {
       const positionA = a.itemOrder ?? 0;
@@ -162,7 +202,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
       updateStructureIdArrayFromListData(processedData);
     }
     
-  }, [expenseRequestData, defaultCostCenter]);
+  }, [expenseRequestData, defaultCostCenter, deductionsData, hasDeductions]);
   
   const handleToggleCollapse = (index: number) => {
     setCollapsedStates(prev => ({
@@ -230,6 +270,39 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
       return newArray;
     });
   };
+
+  const handleDeductionsChange = (index: number, deductions: string[]) => {
+    setListDataArray(prev => {
+      const newArray = [...prev];
+      const current = { ...newArray[index] };
+
+      // Update string list for compatibility
+      current.deductions = deductions;
+
+      // Ensure deductionDay exists when toggling
+      if (!current.deductionDay) {
+        current.deductionDay = {
+          id: null,
+          version: 0,
+          breakfast: false,
+          lunch: false,
+          dinner: false,
+          overnight: false
+        };
+      }
+
+      const setFromList = (key: 'breakfast'|'lunch'|'dinner'|'overnight') => {
+        current.deductionDay[key] = deductions.includes(key);
+      };
+      setFromList('breakfast');
+      setFromList('lunch');
+      setFromList('dinner');
+      setFromList('overnight');
+
+      newArray[index] = current;
+      return newArray;
+    });
+  };
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -277,6 +350,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           currentTitle,
           listDataArray,
           expenseRequestData,
+          deductionsData,
           EVENTS.SAVE
         );
         dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
@@ -292,6 +366,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           currentTitle,
           listDataArray,
           expenseRequestData,
+          deductionsData,
           EVENTS.NEXT
         );
         dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
@@ -331,6 +406,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
                 projects={projects}
                 defaultProject={defaultProject}
                 onProjectChange={handleProjectChange}
+                onDeductionsChange={handleDeductionsChange}
+                hasDeductions={hasDeductions}
               />
             ))}
           </div>

@@ -20,6 +20,8 @@ interface AllowanceContainerProps {
   projects: any[];
   defaultProject?: string;
   onProjectChange: (index: number, value: string | undefined) => void;
+  onDeductionsChange?: (index: number, deductions: string[]) => void;
+  hasDeductions?: boolean;
 }
 
 /**
@@ -35,9 +37,57 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   onCostCenterChange,
   projects,
   defaultProject,
-  onProjectChange
+  onProjectChange,
+  onDeductionsChange,
+  hasDeductions
 }) => {
   const dateToDisplay = item.allowanceDate || item.expenseDate;
+  const selectedDeductions: string[] = Array.isArray(item?.deductions) ? item.deductions : [];
+
+  const deductionOptions = [
+    {
+      key: 'breakfast',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_deduction.expense_deduction_modal.breakfast_title',
+        'Breakfast'
+      ),
+      icon: ICONS.BREAKFAST_DEDUCTION_ICON
+    },
+    {
+      key: 'lunch',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_deduction.expense_deduction_modal.lunch_title',
+        'Lunch'
+      ),
+      icon: ICONS.LUNCH_DEDUCTION_ICON
+    },
+    {
+      key: 'dinner',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_deduction.expense_deduction_modal.dinner_title',
+        'Dinner'
+      ),
+      icon: ICONS.DINNER_DEDUCTION_ICON
+    },
+    {
+      key: 'overnight',
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_deduction.expense_deduction_modal.overnight_allowance',
+        'Overnight Allowance'
+      ),
+      icon: ICONS.OVERNIGHT_DEDUCTION_ICON
+    }
+  ];
+
+  const toggleDeduction = (deductionKey: string) => {
+    const current = new Set<string>(selectedDeductions);
+    if (current.has(deductionKey)) {
+      current.delete(deductionKey);
+    } else {
+      current.add(deductionKey);
+    }
+    onDeductionsChange?.(index, Array.from(current));
+  };
   
   return (
     <div className="gba:flex gba:flex-col gba:w-[100%]" data-testid={`allowance-container-${index}`}>
@@ -141,6 +191,66 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               return undefined;
             })()}
           />
+
+          {/* Deductions Section */}
+          {hasDeductions ? (
+          <div className="gba:flex gba:flex-col" data-testid={`allowance-deductions-section-${index}`}>
+            <span
+              className="gba:font-semibold gba:text-black gba:text-base gba:py-3"
+              data-testid={`allowance-deductions-title-${index}`}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_deduction.deductions_modal',
+                'Deductions'
+              )}
+            </span>
+
+            <div
+              className="gba:grid gba:mt-4"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fit, minmax(0, 100px))',
+                gap: '20px',
+                justifyContent: 'space-between',
+                alignItems: 'stretch'
+              }}
+              data-testid={`allowance-deductions-buttons-${index}`}
+            >
+              {deductionOptions.map((option) => {
+                const isSelected = selectedDeductions.includes(option.key);
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => toggleDeduction(option.key)}
+                    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:bg-[#F7F7F7] gba:text-black gba:text-base gba:p-2 gba:rounded-none gba:box-border gba:font-bold"
+                    style={{
+                      border: isSelected ? '2px solid black' : '2px solid transparent',
+                      width: '100%',
+                      height: 'auto',
+                      maxWidth: '100px',
+                      maxHeight: '100px',
+                      aspectRatio: '1 / 1'
+                    }}
+                    data-testid={`allowance-deduction-button-${option.key}-${index}`}
+                  >
+                    <img
+                      src={option.icon}
+                      alt={option.label}
+                      className="gba:w-6 gba:h-6 gba:mb-1"
+                      data-testid={`allowance-deduction-icon-${option.key}-${index}`}
+                    />
+                    <span
+                      style={{ display: 'block', overflowWrap: 'break-word', whiteSpace: 'normal' }}
+                      data-testid={`allowance-deduction-label-${option.key}-${index}`}
+                    >
+                      {option.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          ) : null}
         </div>
       )}
     </div>

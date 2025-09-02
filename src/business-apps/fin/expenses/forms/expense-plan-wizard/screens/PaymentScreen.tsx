@@ -248,6 +248,33 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     setAdvancePaymentError(advancePaymentErrorValue);
   };
 
+  const handleAmountBlur = () => {
+    const currentValue = form.getFieldValue('amount');
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return;
+    }
+    const normalized = String(currentValue)
+      .replace(/[^0-9,.-]/g, '')
+      .replace(/,(?=\d{1,2}$)/, '.')
+      .replace(/,/g, '');
+
+    const num = parseFloat(normalized);
+    if (isNaN(num)) {
+      return;
+    }
+    const platformFormatted = formatNumberFunction(String(num), "0.00[,]00");
+    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+
+    const finalDisplay = platformFormatted && platformFormatted !== String(num)
+      ? platformFormatted
+      : intlFormatted;
+
+    form.setFieldsValue({ amount: finalDisplay });
+  };
+
   // Validation functions
   const validateAmount = (value: string) => {
     if (!value || value.trim() === '') {
@@ -424,6 +451,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                       form.setFieldsValue({ amount: formattedValue });
                       handleAmountChange(field);
                     }}
+                    onBlur={handleAmountBlur}
                     required={true}
                   />
               </Form.Item>

@@ -608,7 +608,7 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:
   }
 }
 `
-export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid,$activeUserLocale: String) {
+export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!, $expenseRequestId: uuid) {
   AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
     id
     travelRegionRef
@@ -640,6 +640,21 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
     EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     structureId
     costCenterId
+  }
+      TravelBreakdown(where: {expenseRequestId: {_eq: $expenseRequestId}, isDeleted: {_eq: false}}){
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
   }
 }`
 
