@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   LauncherLayout,
@@ -59,10 +59,28 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     canManageBudgets,
     canManageExpensePolicy,
     isFeatureVisible,
+    getAccessibleFeatures,
+    getAllPermissions,
   } = useExpensePermissions(
     context.userInfo?.employeeDetails?.employeeId || "",
     context.accessToken || ""
   );
+
+  // Local permission debug log (always print once when ready)
+  useEffect(() => {
+    if (!permissionsLoading) {
+      // eslint-disable-next-line no-console
+      console.log("[ExpensesLauncher][permissions]", {
+        canViewPersonalExpenses: canViewPersonalExpenses(),
+        canViewTeamExpenses: canViewTeamExpenses(),
+        canApproveExpenses: canApproveExpenses(),
+        hasManagerPermissions: hasManagerPermissions(),
+        hasFinancePermissions: hasFinancePermissions(),
+        accessibleFeatures: getAccessibleFeatures(),
+        raw: getAllPermissions?.(),
+      });
+    }
+  }, [permissionsLoading]);
 
   // Determine UI layout based on permissions (following HR pattern)
   const showFinanceView = hasFinancePermissions();
