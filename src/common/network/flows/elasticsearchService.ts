@@ -13,10 +13,25 @@ export class ElasticsearchService {
   private config: ElasticsearchConfig;
 
   constructor() {
+    let elasticsearchUsername = '';
+    let elasticsearchPassword = '';
+
+    try {
+      elasticsearchUsername = env('ELASTICSEARCH_USERNAME') || '';
+    } catch (error) {
+      elasticsearchUsername = '';
+    }
+    
+    try {
+      elasticsearchPassword = env('ELASTICSEARCH_PASSWORD') || '';
+    } catch (error) {
+      elasticsearchPassword = '';
+    }
+
     this.config = {
       endpoint: env('NEXT_PUBLIC_ELASTICSEARCH_ENDPOINT') || 'http://localhost:9200',
-      username: env('ELASTICSEARCH_USERNAME'),
-      password: env('ELASTICSEARCH_PASSWORD')
+      username: elasticsearchUsername,
+      password: elasticsearchPassword
     };
   }
 
