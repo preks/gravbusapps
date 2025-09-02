@@ -19,7 +19,9 @@ export const formatCurrencyLocalized = (
   });
 
   const formatted = formatter.format(value);
-  const isTrailingCode = locale.startsWith('de') || locale.startsWith('ro');
+  // Trailing code for German and Romanian locales only (exact primary language match)
+  // Valid matches: "de", "de-DE", "de_AT", "ro", "ro-RO" etc.
+  const isTrailingCode = /^(de|ro)(?:[-_]|$)/i.test(locale);
   return isTrailingCode ? `${formatted} ${currencyCode}` : `${currencyCode} ${formatted}`;
 };
 
