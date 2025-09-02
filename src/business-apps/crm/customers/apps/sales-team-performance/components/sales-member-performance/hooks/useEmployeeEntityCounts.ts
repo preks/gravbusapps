@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 interface EntityCounts {
   leads: number;

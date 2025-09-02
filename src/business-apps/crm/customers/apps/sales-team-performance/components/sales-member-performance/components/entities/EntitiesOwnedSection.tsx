@@ -12,7 +12,6 @@ import {
 } from "@newwork/nw-design-system";
 import { PiUsers } from "react-icons/pi";
 import { EntitiesOwned, EntityType } from "../../types";
-import { LeadsTable } from "./index";
 import { EmployeeAccountsTab } from "./EmployeeAccountsTab";
 import { EmployeeContactsTab } from "./EmployeeContactsTab";
 import { EmployeeLeadsTab } from "./EmployeeLeadsTab";
@@ -30,9 +29,9 @@ interface EntitiesOwnedSectionProps {
 
 export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
   employeeId,
-  entitiesOwned,
+  entitiesOwned: _entitiesOwned,
   accessToken,
-  isLoading = false,
+  isLoading: _isLoading = false,
 }) => {
   const [activeEntityTab, setActiveEntityTab] = useState<EntityType>("leads");
   const [leadsTotal, setLeadsTotal] = useState<number>(0);
@@ -58,6 +57,15 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
       setAccountsTotal(initialCounts.accounts);
     }
   }, [initialCounts, countsLoading]);
+
+  // Reset state when employeeId changes (ensures data is specific to selected employee)
+  useEffect(() => {
+    setActiveEntityTab("leads");
+    setLeadsTotal(0);
+    setContactsTotal(0);
+    setOpportunitiesTotal(0);
+    setAccountsTotal(0);
+  }, [employeeId]);
 
   // Get count for each entity type
   const entityCounts = {
@@ -117,6 +125,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
 
   return (
     <Card
+      key={`entities-owned-${employeeId}`}
       className="gba:w-full"
       data-testid={`${DATA_TEST_ID_PREFIX}-container`}
     >
@@ -168,6 +177,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               data-testid={`${DATA_TEST_ID_PREFIX}-content-leads`}
             >
               <EmployeeLeadsTab
+                key={`leads-tab-${employeeId}`}
                 employeeId={employeeId}
                 accessToken={accessToken}
                 onTotalChange={handleLeadsTotalChange}
@@ -180,6 +190,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               data-testid={`${DATA_TEST_ID_PREFIX}-content-contacts`}
             >
               <EmployeeContactsTab
+                key={`contacts-tab-${employeeId}`}
                 employeeId={employeeId}
                 accessToken={accessToken}
                 onTotalChange={handleContactsTotalChange}
@@ -192,6 +203,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               data-testid={`${DATA_TEST_ID_PREFIX}-content-opportunities`}
             >
               <EmployeeOpportunitiesTab
+                key={`opportunities-tab-${employeeId}`}
                 employeeId={employeeId}
                 accessToken={accessToken}
                 onTotalChange={handleOpportunitiesTotalChange}
@@ -204,6 +216,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               data-testid={`${DATA_TEST_ID_PREFIX}-content-accounts`}
             >
               <EmployeeAccountsTab
+                key={`accounts-tab-${employeeId}`}
                 employeeId={employeeId}
                 accessToken={accessToken}
                 onTotalChange={handleAccountsTotalChange}

@@ -143,7 +143,7 @@ const transformActivityData = (
   return {
     id: apiActivity.id || "",
     title: apiActivity.title || apiActivity.description || "Untitled Activity",
-    activityType: apiActivity.activityType?.value,
+    activityType: apiActivity.activityType || { value: "Unknown" },
     reference: {
       entityType,
       entityId,
@@ -161,7 +161,8 @@ const transformActivityData = (
         "",
       displayName: apiActivity.ownerEmployee?.fullName || "",
     },
-    source: apiActivity.activityType?.value,
+    type: apiActivity.activityType?.value || "Unknown",
+    source: apiActivity.activityType?.value || "Unknown",
   };
 };
 
@@ -171,7 +172,6 @@ interface UseEmployeeActivitiesDataProps {
   sortField?: string;
   sortOrder?: "ASC" | "DESC";
   accessToken: string;
-  userInfo?: any; // Add userInfo to get the user ID for createdBy comparisons
 }
 
 interface UseEmployeeActivitiesDataReturn {
@@ -195,7 +195,6 @@ export const useEmployeeActivitiesData = ({
   sortField = "createdAt",
   sortOrder = "DESC",
   accessToken,
-  userInfo,
 }: UseEmployeeActivitiesDataProps): UseEmployeeActivitiesDataReturn => {
   const [activities, setActivities] = useState<SalesActivity[]>([]);
   const [total, setTotal] = useState(0);
@@ -295,7 +294,7 @@ export const useEmployeeActivitiesData = ({
 
         const variables: EmployeeActivitiesQueryVariables = {
           employeeId,
-          userId: userInfo?.id, // Pass user ID for createdBy comparisons
+          // userId: userInfo?.id, // Remove this to only show activities for the selected employee
           offset,
           limit: safePageSize,
           orderBy: [orderBy],
@@ -328,7 +327,11 @@ export const useEmployeeActivitiesData = ({
         //   });
         // }
 
-        setActivities(result?.SalesActivity || []);
+        // Transform the activities using the helper function
+        const transformedActivities = (result?.SalesActivity || []).map(
+          transformActivityData
+        );
+        setActivities(transformedActivities);
         // Use the filtered count for accurate pagination
         setTotal(result.SalesActivityAggregate.aggregate.count);
         setCurrentPage(targetPage);

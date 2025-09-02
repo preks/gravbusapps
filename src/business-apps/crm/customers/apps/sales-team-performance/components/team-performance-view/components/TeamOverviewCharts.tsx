@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,7 +7,7 @@ import {
   Spinner,
   Alert,
   Button,
-} from '@newwork/nw-design-system';
+} from "@newwork/nw-design-system";
 import {
   PieChart,
   Pie,
@@ -19,39 +19,45 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
   Line,
   ComposedChart,
   Area,
   Legend,
-} from 'recharts';
+} from "recharts";
 import {
   PiChartPie,
   PiChartBar,
   PiTrendUp,
   PiUsers,
-  PiCalendar,
   PiTarget,
-} from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { SalesTeamMember } from '../../sales-members-list/types';
-import { useTeamAnalyticsData } from '../hooks/useTeamAnalyticsData';
-import dayjs from 'dayjs';
+} from "react-icons/pi";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { SalesTeamMember } from "../../sales-members-list/types";
+import { useTeamAnalyticsData } from "../hooks/useTeamAnalyticsData";
+import dayjs from "dayjs";
 
-const DATA_TEST_ID_PREFIX = 'TeamOverviewCharts';
+const DATA_TEST_ID_PREFIX = "TeamOverviewCharts";
 
 interface TeamOverviewChartsProps extends BusinessAppContextProps {
   teamMembers: SalesTeamMember[];
 }
 
 // Chart color palette
-const CHART_COLORS = ['#1677ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96', '#13c2c2', '#fadb14'];
+const CHART_COLORS = [
+  "#1677ff",
+  "#52c41a",
+  "#fa8c16",
+  "#722ed1",
+  "#eb2f96",
+  "#13c2c2",
+  "#fadb14",
+];
 const ACTIVITY_TYPE_COLORS = {
-  'Call': '#52c41a',      // Green
-  'Email': '#1677ff',     // Blue  
-  'Meeting': '#fa8c16',   // Orange
-  'Task': '#722ed1',      // Purple
-  'Other': '#8c8c8c',     // Gray
+  Call: "#52c41a", // Green
+  Email: "#1677ff", // Blue
+  Meeting: "#fa8c16", // Orange
+  Task: "#722ed1", // Purple
+  Other: "#8c8c8c", // Gray
 };
 
 export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
@@ -62,29 +68,23 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
   // Get employee IDs for data fetching
   const employeeIds = useMemo(() => {
     const memberIds = teamMembers
-      .map(member => member.employeeId || member.id)
+      .map((member) => member.employeeId || member.id)
       .filter((id): id is string => !!id);
-    
+
     const managerIds = teamMembers
-      .map(member => member.manager?.id)
+      .map((member) => member.manager?.id)
       .filter((id): id is string => !!id);
-    
+
     return Array.from(new Set([...memberIds, ...managerIds]));
   }, [teamMembers]);
 
   // Use the specialized analytics data hook (no query limits for comprehensive data)
-  const {
-    activities,
-    total,
-    loading,
-    error,
-    loadAnalyticsData,
-    retry,
-  } = useTeamAnalyticsData({
-    employeeIds,
-    accessToken,
-    userInfo,
-  });
+  const { activities, total, loading, error, loadAnalyticsData, retry } =
+    useTeamAnalyticsData({
+      employeeIds,
+      accessToken,
+      userInfo,
+    });
 
   // Load data when component mounts
   useEffect(() => {
@@ -98,7 +98,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     if (!activities.length) return [];
 
     const typeCounts = activities.reduce((acc, activity) => {
-      const type = activity.activityType?.value || 'Other';
+      const type = activity.activityType?.value || "Other";
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -106,7 +106,9 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     return Object.entries(typeCounts).map(([name, value]) => ({
       name,
       value,
-      color: ACTIVITY_TYPE_COLORS[name as keyof typeof ACTIVITY_TYPE_COLORS] || ACTIVITY_TYPE_COLORS.Other,
+      color:
+        ACTIVITY_TYPE_COLORS[name as keyof typeof ACTIVITY_TYPE_COLORS] ||
+        ACTIVITY_TYPE_COLORS.Other,
     }));
   }, [activities]);
 
@@ -115,14 +117,14 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     if (!activities.length) return [];
 
     const memberCounts = activities.reduce((acc, activity) => {
-      const memberName = activity.ownerEmployee?.fullName || 'Unknown';
+      const memberName = activity.ownerEmployee?.fullName || "Unknown";
       acc[memberName] = (acc[memberName] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     return Object.entries(memberCounts)
       .map(([name, activities]) => ({
-        name: name.split(' ')[0], // First name only for space
+        name: name.split(" ")[0], // First name only for space
         fullName: name,
         activities,
       }))
@@ -135,10 +137,10 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     if (!activities.length) return [];
 
     const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = dayjs().subtract(29 - i, 'days');
+      const date = dayjs().subtract(29 - i, "days");
       return {
-        date: date.format('MMM DD'),
-        fullDate: date.format('YYYY-MM-DD'),
+        date: date.format("MMM DD"),
+        fullDate: date.format("YYYY-MM-DD"),
         activities: 0,
         calls: 0,
         emails: 0,
@@ -147,27 +149,27 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
       };
     });
 
-    activities.forEach(activity => {
+    activities.forEach((activity) => {
       if (!activity.createdAt) return;
-      
-      const activityDate = dayjs(activity.createdAt).format('YYYY-MM-DD');
-      const dayData = last30Days.find(day => day.fullDate === activityDate);
-      
+
+      const activityDate = dayjs(activity.createdAt).format("YYYY-MM-DD");
+      const dayData = last30Days.find((day) => day.fullDate === activityDate);
+
       if (dayData) {
         dayData.activities += 1;
-        
-        const type = activity.activityType?.value || 'Other';
+
+        const type = activity.activityType?.value || "Other";
         switch (type.toLowerCase()) {
-          case 'call':
+          case "call":
             dayData.calls += 1;
             break;
-          case 'email':
+          case "email":
             dayData.emails += 1;
             break;
-          case 'meeting':
+          case "meeting":
             dayData.meetings += 1;
             break;
-          case 'task':
+          case "task":
             dayData.tasks += 1;
             break;
         }
@@ -182,12 +184,14 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     if (!activities.length) return [];
 
     const entityCounts = activities.reduce((acc, activity) => {
-      let entityType = 'Other';
-      if (activity.account?.name) entityType = 'Account';
-      else if (activity.contact?.firstName || activity.contact?.lastName) entityType = 'Contact';
-      else if (activity.lead?.name || activity.lead?.contact) entityType = 'Lead';
-      else if (activity.opportunity?.name) entityType = 'Opportunity';
-      
+      let entityType = "Other";
+      if (activity.account?.name) entityType = "Account";
+      else if (activity.contact?.firstName || activity.contact?.lastName)
+        entityType = "Contact";
+      else if (activity.lead?.name || activity.lead?.contact)
+        entityType = "Lead";
+      else if (activity.opportunity?.name) entityType = "Opportunity";
+
       acc[entityType] = (acc[entityType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -197,19 +201,6 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
       value,
       color: CHART_COLORS[index % CHART_COLORS.length],
     }));
-  }, [activities]);
-
-  // Activity Completion Rate Data
-  const completionData = useMemo(() => {
-    if (!activities.length) return [];
-
-    const completed = activities.filter(activity => activity.occurredAt).length;
-    const notCompleted = activities.length - completed;
-
-    return [
-      { name: 'Completed', value: completed, color: '#52c41a' },
-      { name: 'Not Specified', value: notCompleted, color: '#ff4d4f' },
-    ];
   }, [activities]);
 
   // Loading state
@@ -254,7 +245,10 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
     return (
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
         <CardContent className="gba:text-center gba:p-8">
-          <PiChartPie size={48} className="gba:text-gray-400 gba:mx-auto gba:mb-4" />
+          <PiChartPie
+            size={48}
+            className="gba:text-gray-400 gba:mx-auto gba:mb-4"
+          />
           <h3 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
             No Activity Data
           </h3>
@@ -267,10 +261,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
   }
 
   return (
-    <div 
-      className="gba:space-y-6"
-      data-testid={DATA_TEST_ID_PREFIX}
-    >
+    <div className="gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
       {/* Section Header */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
         <PiChartBar className="gba:text-blue-600" size={24} />
@@ -303,13 +294,15 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
                   outerRadius={120}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                  label={({ name, percent }) =>
+                    `${name} ${percent ? (percent * 100).toFixed(1) : "0"}%`
+                  }
                 >
                   {activityTypesData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, name) => [value, 'Activities']} />
+                <Tooltip formatter={(value) => [value, "Activities"]} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -325,11 +318,14 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={memberActivityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <BarChart
+                data={memberActivityData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value, name, props) => [value, 'Activities']} />
+                <Tooltip formatter={(value) => [value, "Activities"]} />
                 <Bar dataKey="activities" fill="#1677ff" />
               </BarChart>
             </ResponsiveContainer>
@@ -349,38 +345,41 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={activityTimelineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <ComposedChart
+                data={activityTimelineData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="activities" 
-                  fill="#1677ff" 
+                <Area
+                  type="monotone"
+                  dataKey="activities"
+                  fill="#1677ff"
                   fillOpacity={0.3}
                   stroke="#1677ff"
                   name="Total Activities"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="calls" 
-                  stroke="#52c41a" 
+                <Line
+                  type="monotone"
+                  dataKey="calls"
+                  stroke="#52c41a"
                   name="Calls"
                   strokeWidth={2}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="emails" 
-                  stroke="#1677ff" 
+                <Line
+                  type="monotone"
+                  dataKey="emails"
+                  stroke="#1677ff"
                   name="Emails"
                   strokeWidth={2}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="meetings" 
-                  stroke="#fa8c16" 
+                <Line
+                  type="monotone"
+                  dataKey="meetings"
+                  stroke="#fa8c16"
                   name="Meetings"
                   strokeWidth={2}
                 />
@@ -407,58 +406,19 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({
                   outerRadius={120}
                   paddingAngle={5}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                  label={({ name, percent }) =>
+                    `${name} ${percent ? (percent * 100).toFixed(1) : "0"}%`
+                  }
                 >
                   {entityTypesData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, name) => [value, 'Activities']} />
+                <Tooltip formatter={(value) => [value, "Activities"]} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Third Row - Completion Rate */}
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        {/* Activity Completion Rate */}
-        <Card data-testid={`${DATA_TEST_ID_PREFIX}-completion-chart`}>
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <PiCalendar className="gba:text-indigo-600" size={20} />
-              Activity Completion Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={completionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent, value }) => `${name}: ${value} (${(percent * 100).toFixed(1)}%)`}
-                >
-                  {completionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name) => [value, 'Activities']} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="gba:text-center gba:mt-4">
-              <p className="gba:text-sm gba:text-gray-600">
-                Activities with specified occurrence dates vs. those without
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-
       </div>
     </div>
   );
