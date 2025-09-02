@@ -1,106 +1,232 @@
-import React, { useEffect } from 'react';
-import { Form, Input, Button } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { EmploymentType } from '../../apps/employment-data';
-import { useTranslation } from 'react-i18next';
+import React from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@newwork/nw-design-system";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import type { EmploymentType } from "../../apps/employment-data";
+import { useTranslation } from "react-i18next";
+import { EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION } from "@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes";
 
 export interface EmploymentTypeFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
-  initialValues?: EmploymentType;
-  onSubmit?: (values: any) => Promise<void>;
+  employmentType?: EmploymentType;
+  onCancel?: () => void;
+  childAddButton: React.ReactNode;
+  refetch: () => void;
+  accessToken: string;
+  isDrawerActive?: boolean;
 }
 
-export const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
+const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
   prefixDataTestId,
-  initialValues,
-  onSubmit
+  employmentType,
+  onCancel,
+  childAddButton,
+  refetch,
+  accessToken,
+  isDrawerActive,
 }) => {
-  const [form] = Form.useForm();
-  const { t } = useTranslation('master-data');
-  
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues);
+  const { t } = useTranslation("master-data");
+  const dataTestId = formatDataTestId(prefixDataTestId, "EmploymentTypeForm");
+  const catalogClient = useCatalogManagerClient(accessToken);
+
+  const handleSubmit = async (values: any) => {
+    const payload = {
+      ...(employmentType ? { id: employmentType.id } : {}),
+      code: values.code,
+      value: values.value,
+      alternativeCode: values.alternativeCode,
+      additionalValue1: values.additionalValue1,
+      additionalValue2: values.additionalValue2,
+      additionalValue3: values.additionalValue3,
+      translations: [],
+    };
+
+    if (employmentType) {
+      await catalogClient.updateCatalogEntry(employmentType.id ?? "", payload);
     } else {
-      form.resetFields();
+      await catalogClient.createCatalogEntry(
+        EMPLOYMENT_TYPE_CATALOG,
+        EMPLOYMENT_TYPE_VERSION,
+        payload
+      );
     }
-  }, [form, initialValues]);
-  
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      if (onSubmit) {
-        await onSubmit(values);
-      }
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
+
+    refetch();
   };
-  
-  const handleCancel = () => {
-    form.resetFields();
-  };
-  
+
   return (
-      <Form
-        form={form}
-        layout="vertical"
-        data-testid={`${prefixDataTestId || ''}-EmploymentTypesTab-Form`}
-        className="gba:w-full"
-      >
-        <Form.Item
-          label={t('forms.employmentType.fields.code.label', { defaultValue: 'Code' })}
-          name="code"
-          rules={[{ required: true, message: t('forms.employmentType.fields.code.validation', { defaultValue: 'Please enter employment type code' }) }]}
-        >
-          <Input placeholder={t('forms.employmentType.fields.code.placeholder', { defaultValue: 'Enter code' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.employmentType.fields.name.label', { defaultValue: 'Name' })}
-          name="value"
-          rules={[{ required: true, message: t('forms.employmentType.fields.name.validation', { defaultValue: 'Please enter employment type name' }) }]}
-        >
-          <Input placeholder={t('forms.employmentType.fields.name.placeholder', { defaultValue: 'Enter name' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.employmentType.fields.alternativeCode.label', { defaultValue: 'Alternative Code' })}
-          name="alternativeCode"
-        >
-          <Input placeholder={t('forms.employmentType.fields.alternativeCode.placeholder', { defaultValue: 'Enter alternative code (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.employmentType.fields.additionalValue1.label', { defaultValue: 'Additional Value 1' })}
-          name="additionalValue1"
-        >
-          <Input placeholder={t('forms.employmentType.fields.additionalValue1.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.employmentType.fields.additionalValue2.label', { defaultValue: 'Additional Value 2' })}
-          name="additionalValue2"
-        >
-          <Input placeholder={t('forms.employmentType.fields.additionalValue2.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <Form.Item
-          label={t('forms.employmentType.fields.additionalValue3.label', { defaultValue: 'Additional Value 3' })}
-          name="additionalValue3"
-        >
-          <Input placeholder={t('forms.employmentType.fields.additionalValue3.placeholder', { defaultValue: 'Enter additional value (optional)' })} />
-        </Form.Item>
-        
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:mt-4">
-          <Button onClick={handleCancel}>
-            {t('forms.common.buttons.cancel', { defaultValue: 'Cancel' })}
-          </Button>
-          <Button type="primary" onClick={handleSave}>
-            {initialValues ? t('forms.common.buttons.update', { defaultValue: 'Update' }) : t('forms.common.buttons.create', { defaultValue: 'Create' })}
-          </Button>
-        </div>
-      </Form>
+    <FormWrapperModal
+      childAddButton={childAddButton}
+      title={employmentType ? "Edit Employment Type" : "Create Employment Type"}
+      description="Configure employment type details and additional information"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      defaultValues={employmentType || {}}
+      isEditing={!!employmentType}
+      dataTestId={dataTestId}
+      isDrawerActive={isDrawerActive}
+    >
+      <FormField
+        name="code"
+        rules={{
+          required: t("forms.employmentType.fields.code.validation", {
+            defaultValue: "Please enter employment type code",
+          }),
+        }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.code.label", {
+                defaultValue: "Code",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t("forms.employmentType.fields.code.placeholder", {
+                  defaultValue: "Enter code",
+                })}
+                {...field}
+                data-testid={`${dataTestId}-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="value"
+        rules={{
+          required: t("forms.employmentType.fields.name.validation", {
+            defaultValue: "Please enter employment type name",
+          }),
+        }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.name.label", {
+                defaultValue: "Name",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t("forms.employmentType.fields.name.placeholder", {
+                  defaultValue: "Enter name",
+                })}
+                {...field}
+                data-testid={`${dataTestId}-name-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="alternativeCode"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.alternativeCode.label", {
+                defaultValue: "Alternative Code",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t(
+                  "forms.employmentType.fields.alternativeCode.placeholder",
+                  { defaultValue: "Enter alternative code (optional)" }
+                )}
+                {...field}
+                data-testid={`${dataTestId}-alternative-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue1"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.additionalValue1.label", {
+                defaultValue: "Additional Value 1",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t(
+                  "forms.employmentType.fields.additionalValue1.placeholder",
+                  { defaultValue: "Enter additional value (optional)" }
+                )}
+                {...field}
+                data-testid={`${dataTestId}-additional-value1-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue2"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.additionalValue2.label", {
+                defaultValue: "Additional Value 2",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t(
+                  "forms.employmentType.fields.additionalValue2.placeholder",
+                  { defaultValue: "Enter additional value (optional)" }
+                )}
+                {...field}
+                data-testid={`${dataTestId}-additional-value2-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="additionalValue3"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t("forms.employmentType.fields.additionalValue3.label", {
+                defaultValue: "Additional Value 3",
+              })}
+            </FormLabel>
+            <FormControl>
+              <Input
+                placeholder={t(
+                  "forms.employmentType.fields.additionalValue3.placeholder",
+                  { defaultValue: "Enter additional value (optional)" }
+                )}
+                {...field}
+                data-testid={`${dataTestId}-additional-value3-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </FormWrapperModal>
   );
 };
 

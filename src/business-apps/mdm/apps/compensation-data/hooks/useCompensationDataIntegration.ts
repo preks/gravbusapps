@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   useGetCompensationBandData,
   CompensationBand,
 } from "../queries/CompensationBandQueries";
-import {
-  useGetJobLevelData,
-} from "../../job-structure-data/queries/JobLevelQueries";
+import { useGetJobLevelData } from "../../job-structure-data/queries/JobLevelQueries";
 import { useJobLevelGroups } from "./useJobLevelGroups";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { CatalogEntry } from "@/common/types/CatalogTypes";
@@ -96,6 +94,7 @@ export const useCompensationDataIntegration = (
               : band.minSalary || band.maxSalary || 0,
           currency,
           order: band.payGrade || index + 1,
+          version: band.version ?? 0,
         };
       })
       .sort((a, b) => a.order - b.order);
@@ -126,7 +125,7 @@ export const useCompensationDataIntegration = (
           category,
           color: GROUP_COLORS[index % GROUP_COLORS.length],
           order: index + 1,
-          additionalValue1: group.additionalValue1,
+          description: group.additionalValue1,
           additionalValue2: group.additionalValue2,
           additionalValue3: group.additionalValue3,
         };
@@ -147,11 +146,13 @@ export const useCompensationDataIntegration = (
           level.compensationBandId || level.compensationBand?.id,
         level: level.level || 1,
         heirarchyOrder: level.heirarchyOrder || 0,
+        version: level.version || 0,
+        displayName: level.name || level.code || "Unknown",
       }))
       .filter((level) => level.jobLevelGroupId && level.compensationBandId);
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!context.accessToken) {
       setData((prev) => ({
         ...prev,
@@ -161,15 +162,9 @@ export const useCompensationDataIntegration = (
       }));
       return;
     }
-
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      console.log(
-        "Fetching compensation data with token:",
-        context.accessToken.substring(0, 20) + "..."
-      );
-
       // Fetch all data in parallel
       const [compensationBandsResult, jobLevelsResult, jobLevelGroupsResult] =
         await Promise.all([
@@ -186,11 +181,7 @@ export const useCompensationDataIntegration = (
             offset: 0,
           }),
         ]);
-
-      console.log("Raw compensation bands result:", compensationBandsResult);
-      console.log("Raw job levels result:", jobLevelsResult);
-      console.log("Raw job level groups result:", jobLevelGroupsResult);
-
+     
       // Transform the data
       const transformedPayGrades = transformCompensationBands(
         compensationBandsResult.compensationBands || []
@@ -202,9 +193,7 @@ export const useCompensationDataIntegration = (
         jobLevelsResult.jobLevels || []
       );
 
-      console.log("Transformed pay grades:", transformedPayGrades);
-      console.log("Transformed job level groups:", transformedJobLevelGroups);
-      console.log("Transformed job levels:", transformedJobLevels);
+     
 
       setData((prev) => ({
         ...prev,
@@ -224,11 +213,11 @@ export const useCompensationDataIntegration = (
         error: `Failed to load compensation data: ${errorMessage}`,
       }));
     }
-  };
+  }, [context.accessToken])
 
-  const refetch = async () => {
-    await fetchData();
-  };
+  const refetch = useCallback(() => {
+    return fetchData();
+  }, [fetchData]);
 
   // Auto-fetch on mount if enabled (default: true)
   useEffect(() => {

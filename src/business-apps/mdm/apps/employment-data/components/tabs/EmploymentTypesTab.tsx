@@ -1,36 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Table,
   Button,
   Input,
-  Space,
-  Typography,
-  message,
-  Modal,
-  Form,
-  Spin,
-  Tag,
-  Divider,
-  Descriptions,
-} from "antd";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  IdcardOutlined,
-  CodeOutlined,
-  GlobalOutlined,
-  TagOutlined,
-} from "@ant-design/icons";
+  Card,
+  Spinner,
+  Icon,
+  DataTable,
+  CardContent,
+  Badge,
+} from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
 import { useUserLocale } from "@/common/locale/useUserLocale";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title } = Typography;
+import CardTabHeaderComponent from "../../../generic-components/card";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import EmploymentTypeForm from "@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm";
+import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
+import {
+  ArrowsDownUpIcon,
+  EyeIcon,
+  IdentificationCardIcon,
+  InfoIcon,
+  PencilSimpleLineIcon,
+  PlusIcon,
+  TagIcon,
+} from "@phosphor-icons/react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useGetEmploymentTypesData } from "../../queries/EmploymentTypesQueries";
+import { toast } from "sonner";
 
 export interface EmploymentType {
   id: string;
@@ -50,113 +49,115 @@ export interface EmploymentTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const DATA_TEST_ID_PREFIX = "EmploymentTypesTab";
+
 const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
   accessToken,
   prefixDataTestId,
-  userInfo,
 }) => {
   const { t } = useTranslation();
   const userLocale = useUserLocale() ?? "en-US";
   const catalogClient = useCatalogManagerClient(accessToken);
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+
+  const { fetchEmploymentTypes } = useGetEmploymentTypesData(
+    catalogClient,
+    userLocale
+  );
 
   const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingType, setEditingType] = useState<EmploymentType | null>(null);
   const [selectedType, setSelectedType] = useState<EmploymentType | null>(null);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const [form] = Form.useForm();
 
-  const fetchEmploymentTypes = async () => {
+  const loadEmploymentTypes = async () => {
     try {
       setLoading(true);
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: "EmploymentType",
-          version: "v1",
-        },
-        {
-          limit: 100,
-          offset: 0,
-          returnTotalRecords: true,
-          localeCode: userLocale,
-          ...(searchTerm ? { searchCriteria: searchTerm } : {}),
-        }
-      );
 
-      if (response.data) {
-        const types: EmploymentType[] = response.data.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode,
-          additionalValue1: entry.additionalValue1,
-          additionalValue2: entry.additionalValue2,
-          additionalValue3: entry.additionalValue3,
-          translations: entry.translations || [],
-        }));
-        setEmploymentTypes(types);
-      }
+      const types = (await fetchEmploymentTypes()) ?? [];
+      setEmploymentTypes(types);
     } catch (error) {
-      console.error("Error fetching employment types:", error);
-      message.error("Failed to load employment types");
+      toast.error("Failed to load employment types");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchEmploymentTypes();
+    if (selectedType) {
+      const newEmploymentType = employmentTypes.find(
+        (employmentType) => employmentType.id === selectedType.id
+      );
+
+      if (newEmploymentType) {
+        setSelectedType(newEmploymentType);
+      }
+    }
+  }, [employmentTypes]);
+
+  useEffect(() => {
+    loadEmploymentTypes();
   }, [searchTerm, userLocale]);
 
-  const handleAdd = () => {
-    setEditingType(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeEmploymentType",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  const drawerItems = useMemo(() => {
+    if (!selectedType) return [];
+    const items = [
+      {
+        icon: <InfoIcon />,
+        title: "Basic Information",
+        items: [
+          {
+            label: "Name",
+            value: selectedType.value,
+          },
+          {
+            label: "Code",
+            value: selectedType.code || "-",
+          },
 
-  const handleEdit = (record: EmploymentType) => {
-    setEditingType(record);
-    // Just set the state for the drawer, no process needed
-  };
-  
-  const handleDrawerEdit = (record: EmploymentType) => {
-    // When editing from drawer button, start the process
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeEmploymentType",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        employmentType: record,
+          {
+            label: "ID",
+            value: selectedType.id,
+          },
+        ],
       },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+      {
+        icon: <InfoIcon />,
+        title: "Additional Values",
+        items: [
+          {
+            label: "Additional Value 1",
+            value: selectedType.additionalValue1 ?? "-",
+          },
+          {
+            label: "Additional Value 2",
+            value: selectedType.additionalValue2 || "-",
+          },
+
+          {
+            label: "Additional Value 3",
+            value: selectedType.additionalValue3,
+          },
+        ],
+      },
+    ];
+
+    selectedType.alternativeCode &&
+      items[0].items.push({
+        label: "Alternative Code",
+        value: selectedType.alternativeCode,
+      });
+
+    return items;
+  }, [selectedType]);
 
   const handleDelete = async (record: EmploymentType) => {
-    Modal.confirm({
-      title: "Delete Employment Type",
-      content: `Are you sure you want to delete "${record.value}"?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        try {
-          // Note: Actual delete implementation would depend on the catalog API
-          message.success("Employment type deleted successfully");
-          fetchEmploymentTypes();
-        } catch (error) {
-          console.error("Error deleting employment type:", error);
-          message.error("Failed to delete employment type");
-        }
-      },
-    });
+    await catalogClient.deleteCatalogEntry(record.id);
+
+    setEmploymentTypes((prev) =>
+      prev.filter((employmentType) => employmentType.id !== record.id)
+    );
   };
 
   const handleViewDetails = (record: EmploymentType) => {
@@ -164,253 +165,236 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
     setIsDrawerVisible(true);
   };
 
-  const handleDrawerClose = () => {
-    setIsDrawerVisible(false);
-    setSelectedType(null);
+  const renderEmploymentTypesTable = () => {
+    const columns: ColumnDef<EmploymentType>[] = [
+      {
+        accessorKey: "code",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const code = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "value",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Name
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const name = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <div className="gba:font-semibold">{name as string}</div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "alternativeCode",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Alternative Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const alternativeCode = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              {(alternativeCode as string) ?? "-"}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <div className="gba:flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleViewDetails(row.original)}
+              data-testid={`${dataTestId}-view-contract-type-${row.original.id}`}
+            >
+              <EyeIcon className="gba:h-4 gba:w-4" />
+            </Button>
+            <EmploymentTypeForm
+              childAddButton={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  data-testid={`${dataTestId}-edit-button`}
+                >
+                  <Icon icon={PencilSimpleLineIcon} />
+                </Button>
+              }
+              refetch={loadEmploymentTypes}
+              accessToken={accessToken}
+              prefixDataTestId={prefixDataTestId}
+              employmentType={row.original}
+            />
+            <DeleteButton
+              onDelete={() => handleDelete(row.original)}
+              itemName={row.original.value}
+              itemTitle="Employment Type"
+            />
+          </div>
+        ),
+      },
+    ];
+
+    const dataTable = employmentTypes.map((employmentType) => ({
+      id: employmentType.id,
+      code: employmentType.code,
+      value: employmentType.value,
+      alternativeCode: employmentType.alternativeCode,
+    }));
+
+    return (
+      <DataTable
+        defaultDataSetId="employment-types"
+        dataSets={[
+          {
+            id: "employment-types",
+            label: "Employment Types",
+            data: dataTable,
+            columns: columns,
+          },
+        ]}
+      />
+    );
   };
 
-  const columns = [
-    {
-      title: "Code",
-      dataIndex: "code",
-      key: "code",
-      width: 120,
-      sorter: (a: EmploymentType, b: EmploymentType) =>
-        a.code.localeCompare(b.code),
-    },
-    {
-      title: "Name",
-      dataIndex: "value",
-      key: "value",
-      sorter: (a: EmploymentType, b: EmploymentType) =>
-        a.value.localeCompare(b.value),
-    },
-    {
-      title: "Alternative Code",
-      dataIndex: "alternativeCode",
-      key: "alternativeCode",
-      width: 150,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      render: (_: any, record: EmploymentType) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div
-      data-testid={`${prefixDataTestId || ""}-EmploymentTypesTab`}
-      style={{
-        background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
-        minHeight: "100%",
-        padding: "24px",
-      }}
-    >
-      <div style={{ marginBottom: "24px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <Title level={3} style={{ margin: 0 }}>
-            {t("hr.employment_types", "Employment Types")}
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${
-              prefixDataTestId || ""
-            }-EmploymentTypesTab-AddButton`}
-          >
-            Add Employment Type
-          </Button>
-        </div>
-
-        <Input
-          placeholder="Search employment types..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: "300px" }}
-          allowClear
-          data-testid={`${
-            prefixDataTestId || ""
-          }-EmploymentTypesTab-SearchInput`}
-        />
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <Table
-          columns={columns}
-          dataSource={employmentTypes}
-          rowKey="id"
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} employment types`,
-          }}
-          data-testid={`${prefixDataTestId || ""}-EmploymentTypesTab-Table`}
-          style={{ background: "white", borderRadius: "8px" }}
-          onRow={(record) => ({
-            onClick: () => handleViewDetails(record),
-            className: "gba:cursor-pointer",
-            "data-testid": `${
-              prefixDataTestId || ""
-            }-EmploymentTypesTab-TableRow-${record.id}`,
-          })}
+    <Card>
+      {!loading && (
+        <CardTabHeaderComponent
+          addButton={
+            <EmploymentTypeForm
+              childAddButton={
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  data-testid={`${dataTestId}-add-button`}
+                >
+                  <Icon icon={PlusIcon} /> Add Employment Type
+                </Button>
+              }
+              refetch={loadEmploymentTypes}
+              accessToken={accessToken}
+              prefixDataTestId={prefixDataTestId}
+            />
+          }
+          cardTitle={`${t("hr.employment_types", "Employment Types")} (${
+            employmentTypes.length
+          })`}
+          cardDescription="Manage employment types to classify different types of employment relationships."
         />
       )}
 
-      <DataDetailsDrawer
-        title="Employment Type Details"
-        icon={<IdcardOutlined />}
-        open={isDrawerVisible}
-        onClose={handleDrawerClose}
-        width={600}
-        placement="right"
-        dataTestId={`${prefixDataTestId || ""}-EmploymentTypesTab-Drawer`}
-        footer={
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            {selectedType && (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  handleDrawerEdit(selectedType);
-                  handleDrawerClose();
-                }}
-              >
-                Edit
-              </Button>
-            )}
-            <Button onClick={handleDrawerClose}>Close</Button>
+      <CardContent>
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+          <Input
+            placeholder="Search employment types..."
+            value={searchTerm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchTerm(e.target.value)
+            }
+            className="gba:pl-10 gba:!w-80"
+            data-testid={`${dataTestId}-search-input`}
+          />
+        </div>
+
+        {loading && employmentTypes.length === 0 ? (
+          <div
+            data-testid={`${dataTestId}-loading`}
+            className="gba:flex gba:justify-center gba:items-center gba:h-64"
+          >
+            <Spinner />
           </div>
-        }
-      >
-        {selectedType && (
-          <div className="gba:space-y-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
-                  {selectedType.value}
-                </h3>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Tag color="blue" className="gba:px-2">
-                    <CodeOutlined /> {selectedType.code || "-"}
-                  </Tag>
-                  {selectedType.alternativeCode && (
-                    <Tag color="green" className="gba:px-2">
-                      Alt: {selectedType.alternativeCode}
-                    </Tag>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Divider className="gba:my-3" />
-
-            <Descriptions
-              title="Basic Information"
-              bordered
-              size="small"
-              column={1}
-            >
-              <Descriptions.Item label="ID">
-                <span className="gba:text-gray-600 gba:font-mono gba:text-xs">
-                  {selectedType.id}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Code">
-                <Tag color="blue" icon={<CodeOutlined />}>
-                  {selectedType.code || "-"}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Value">
-                {selectedType.value || "-"}
-              </Descriptions.Item>
-              {selectedType.alternativeCode && (
-                <Descriptions.Item label="Alternative Code">
-                  {selectedType.alternativeCode}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-
-            <Descriptions
-              title="Additional Values"
-              bordered
-              size="small"
-              column={1}
-            >
-              <Descriptions.Item label="Additional Value 1">
-                {selectedType.additionalValue1 || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Additional Value 2">
-                {selectedType.additionalValue2 || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Additional Value 3">
-                {selectedType.additionalValue3 || "-"}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {selectedType.translations?.length > 0 && (
-              <Descriptions
-                title="Translations"
-                bordered
-                size="small"
-                column={1}
-              >
-                {selectedType.translations.map((translation, index) => (
-                  <Descriptions.Item
-                    key={index}
-                    label={
-                      <span>
-                        <GlobalOutlined /> {translation.localeCode}
-                      </span>
-                    }
-                  >
-                    {translation.value}
-                  </Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
-
-            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">
-              <p className="gba:text-xs gba:text-gray-500 gba:mb-0">
-                <TagOutlined className="gba:mr-1" /> This employment type can be
-                used to classify employees and job profiles.
-              </p>
-            </div>
+        ) : (
+          <div className="gba:overflow-hidden">
+            {renderEmploymentTypesTable()}
           </div>
         )}
-      </DataDetailsDrawer>
-    </div>
+
+        {selectedType && (
+          <SheetWrapperComponent
+            prefixDataTestId={dataTestId}
+            isDrawerVisible={isDrawerVisible}
+            onOpenChange={(openStatus) => {
+              if (!openStatus) {
+                setSelectedType(null);
+              }
+              setIsDrawerVisible(openStatus);
+            }}
+            title="Employment Type Details"
+            titleIcon={IdentificationCardIcon}
+            drawerItems={drawerItems}
+            extraContent={
+              <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
+                This employment type can be used to classify employees and job
+                profiles.
+              </div>
+            }
+            footerButtons={[
+              <EmploymentTypeForm
+                childAddButton={
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    data-testid={`${dataTestId}-edit-button`}
+                  >
+                    <Icon icon={PencilSimpleLineIcon} /> Edit
+                  </Button>
+                }
+                refetch={loadEmploymentTypes}
+                accessToken={accessToken}
+                prefixDataTestId={prefixDataTestId}
+                employmentType={selectedType}
+                isDrawerActive={true}
+              />,
+            ]}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
