@@ -70,6 +70,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
           addFilter={addFilter}
+          removeFilter={removeFilter}
+          selectedFilters={selectedFilters}
         />
       </div>
 
