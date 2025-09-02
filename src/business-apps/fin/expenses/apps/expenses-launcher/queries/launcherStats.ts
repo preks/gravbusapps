@@ -93,11 +93,11 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
       }
     }
     
-    # Pending finance requests (status PENDING - for finance)
+    # Pending finance requests (Verification Required status - for finance)
     pendingFinanceRequests: ExpenseRequestAggregate(
       where: {
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"}
+        status: {_eq: "VERIFIED"}
       }
     ) {
       aggregate {

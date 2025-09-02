@@ -113,7 +113,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         },
         {
           id: "pending-finance-requests",
-          title: "Pending Requests",
+          title: "Pending Verification",
           value: isLoading ? "..." : formatNumber(stats.pendingFinanceRequests),
           color: "default",
         },
