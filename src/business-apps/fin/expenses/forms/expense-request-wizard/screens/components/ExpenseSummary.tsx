@@ -2,6 +2,7 @@ import React from 'react';
 import { Divider } from 'antd';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
 
+
 interface ExpenseSummaryProps {
   requestData: any;
 }
@@ -19,9 +20,9 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
   const whatToDisplay = () => {
     const displayObject = {
       displayExpenses: true,
-      displayAdvance: true,
-      displayNonReimbursable: true,
-      displayRemaining: true
+      displayAdvance: false,
+      displayNonReimbursable: false,
+      displayRemaining: false
     };
 
     if (
@@ -134,13 +135,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
   let currentSectionIndex = 0;
 
   return (
-    <div className="gba:expense-summary-container gba:mt-4" data-testid="expense-summary-container">
-      <Divider className="gba:mb-4" data-testid="expense-summary-divider" />
-      
+    <div className="gba:px-2 [&_.ant-divider-horizontal]:my-6" data-testid="expense-summary-container">
+      {(displayObject.displayExpenses || displayObject.displayAdvance 
+      || displayObject.displayNonReimbursable || displayObject.displayRemaining) && (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
+)}
       {displayObject.displayExpenses && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-expenses"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -155,21 +157,21 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
           {requestData.expensePlan && (
             <div className="gba:text-right">
               {parseFloat(values.differenceRequestPlan) > 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-yellow-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#ffc61a]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned')}
                 </span>
               )}
               
               {parseFloat(values.differenceRequestPlan) < 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-green-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned')}
                 </span>
               )}
               
               {parseFloat(values.differenceRequestPlan) === 0 && (
-                <span className="gba:text-sm gba:font-bold gba:text-green-500">
+                <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
                   {formatNumberFunction(Math.abs(values.differenceRequestPlan).toString(), "0.00[,]00")} {values.differenceCurrency} {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.comparison_with_plan_equal', 'Equals planned amount')}
                 </span>
@@ -184,14 +186,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayAdvance && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-advance"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-purple-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
             {values.advancePayment.amount !=0 && "-"}{formatNumberFunction(values.advancePayment.amount, "0.00[,]00")} {values.advancePayment.currency}
             </span>
           </div>
@@ -203,14 +205,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayNonReimbursable && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-non-reimbursable"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.non_reimbursable', 'Not Reimbursable Amount')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-purple-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
               {values.nonReimbursable.amount !=0 && "-"}{formatNumberFunction(values.nonReimbursable.amount, "0.00[,]00")} {values.nonReimbursable.currency}
             </span>
           </div>
@@ -222,14 +224,14 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayRemaining && (
         <>
         <div 
-          className="gba:expense-summary-item" 
+          className="gba:min-h-[40px] gba:py-[0.5rem]" 
           data-testid="expense-summary-remaining"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:font-normal">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}
             </span>
-            <span className="gba:text-sm gba:font-bold gba:text-green-600">
+            <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
               {formatNumberFunction(values.remainingAmount.amount, "0.00[,]00")} {values.remainingAmount.currency}
             </span>
           </div>

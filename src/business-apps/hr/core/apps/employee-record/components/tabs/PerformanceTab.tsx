@@ -7,10 +7,11 @@ import { Card } from '@newwork/gravity-ui-catalog';
 import { Empty, Spin } from 'antd';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { employeePerformanceQuery } from '../../queries/performanceQueries';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { PiPencilSimple } from 'react-icons/pi';
 
 interface PerformanceTabProps {
   employee: Employee;
@@ -25,6 +26,7 @@ interface PerformanceTabProps {
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
   id: string;
   description?: string;
+  version?: number;
 }
 
 /**
@@ -156,19 +158,22 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         
         {isSelfView && (
           <div>
-            <AppActionButton
-              data-testid="add-goal-button"
-              variant="primary"
+            <AppActionMenu
+              data-testid="employee-goal-add-button"
               contextsArray={[FlowContextName.employeePerformanceGoal]}
               externalContextData={{
                 employeeId: employee?.id
               }}
-              prefixDataTestId="add-goal"
+              prefixDataTestId="employee-goal-add"
               accessToken={accessToken}
               autoExecuteSingleAction={true}
+              deferMainContextRequestsUntilClick={true}
             >
-              Set New Goal
-            </AppActionButton>
+              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                <PiPencilSimple />
+                Set New Goal
+              </div>
+            </AppActionMenu>
           </div>
         )}
       </div>
@@ -234,21 +239,28 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     
                     {/* Edit button at the bottom right */}
                     <div className="gba:flex gba:justify-end gba:mt-4">
-                      <AppActionButton
-                        variant="secondary"
-                        data-testid={`edit-goal-button-${goal.id}`}
+                      <AppActionMenu
+                        data-testid={`employee-goal-edit-button-${goal.id}`}
                         contextsArray={[FlowContextName.employeePerformanceGoal]}
                         externalContextData={{
                           employeeId: employee?.id,
-                          goalId: goal.id
+                          goalId: goal.id,
+                          title: goal.title,
+                          startDate: goal.startDate,
+                          dueDate: goal.dueDate,
+                          completionDate: goal.completionDate,
+                          progressPercent: goal.progressPercent,
+                          status: goal.status,
+                          version: goal.version
                         }}
-                        prefixDataTestId="edit-goal"
+                        prefixDataTestId={`employee-goal-edit-${goal.id}`}
                         accessToken={accessToken}
                         className="gba:text-sm gba:py-1 gba:px-3"
                         autoExecuteSingleAction={true}
+                        deferMainContextRequestsUntilClick={true}
                       >
                         Edit
-                      </AppActionButton>
+                      </AppActionMenu>
                     </div>
                   </Card>
                 );

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { Tags, User, Edit } from 'lucide-react';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../hooks/useAccountData';
 
 interface AccountHeaderProps {
@@ -68,17 +69,16 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
           {accessToken && (
             <AppActionButton
               data-testid="account-record-action-button"
-              variant="primary"
-              size="md"
-              contextsArray={[]}
+              size="default"
+              contextsArray={[FlowContextName.customerAccountEntity]}
               externalContextData={{
                 accountId: accountId
               }}
               staticFlowData={[]}
               prefixDataTestId="account-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enabled"
-              deferMainContextRequestsUntilClick
+              emptyStateBehavior="hide"
+              deferMainContextRequestsUntilClick={false}
             >
               Actions
             </AppActionButton>

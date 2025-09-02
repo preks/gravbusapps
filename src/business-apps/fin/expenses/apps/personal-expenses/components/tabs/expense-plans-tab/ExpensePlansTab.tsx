@@ -8,6 +8,7 @@ import { useExpensePlanWidgetFilters, getActiveWidgetFromFilters } from '../../.
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import dayjs from 'dayjs';
 import { ExpenseStatus } from '../../../utils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -18,6 +19,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const [pageSize, setPageSize] = useState(20);
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [destinationFilter, setDestinationFilter] = useState<string | null>(null);
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+  // Add sorting state for server-side sorting
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | null>('descend');
 
   const {
     filterGroups,
@@ -30,19 +35,22 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     getFilters,
     setStartDateRange,
     setEndDateRange,
-    setPlanDateRange
+    setPlanDateRange,
+    filterLabelMap,
+    addFilter,
+    removeFilter
   } = useExpensePlanFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
   const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props);
 
-  // Combine widget and table filters
-  const finalFilters = useExpensePlanWidgetFilters(selectedFilters, activeWidget);
-
+ 
   // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
     const expectedActiveWidget = getActiveWidgetFromFilters(selectedFilters);
-    if (expectedActiveWidget !== activeWidget) {
+    // Don't deactivate top-destinations widget based on status filters alone
+    // since destination filtering is handled separately
+    if (expectedActiveWidget !== activeWidget && activeWidget !== 'top-destinations') {
       setActiveWidget(expectedActiveWidget);
     }
   }, [selectedFilters, activeWidget]);
@@ -57,10 +65,18 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
-    const newActiveWidget = activeWidget === widgetKey ? null : widgetKey;
+    const isDeactivating = activeWidget === widgetKey;
+    const newActiveWidget = isDeactivating ? null : widgetKey;
     setActiveWidget(newActiveWidget);
+   
+    // If deactivating (clicking the same widget again), clear all filters
+    if (isDeactivating) {
+      clearFilters();
+      setDestinationFilter(null);
+      return;
+    }
     
-    // Clear existing filters for all widget activations
+    // Clear existing filters when switching to a different widget
     clearFilters();
     
     // Clear destination filter for all widgets except top-destinations
@@ -110,6 +126,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         // Set destination filter
         if (statistics.topDestination && statistics.topDestination !== 'N/A') {
           setDestinationFilter(statistics.topDestination);
+        } else {
+          setDestinationFilter(null);
         }
         break;
       case null:
@@ -119,24 +137,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter, statistics.topDestination, setStartDateRange, setEndDateRange]);
 
-  // Handle destination filter changes
-  const handleDestinationFilterChange = useCallback((destination: string | null) => {
-    setDestinationFilter(destination);
-  }, [activeWidget]);
 
-  // Handle clearing all filters (widget + table)
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    setFilters(filters);
+
+  // Wrapper for clear all filters without parameters (for ExpensePlansTable clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
     setActiveWidget(null);
     setDestinationFilter(null);
-    // Also clear search and date ranges when clearing all filters
-    if (filters.length === 0) {
-      setSearch('');
-      setStartDateRange(null);
-      setEndDateRange(null);
-      setPlanDateRange(null);
-    }
-  }, [setFilters, setSearch, setStartDateRange, setEndDateRange, setPlanDateRange]);
+  }, [setFilters]);
 
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback((baseFilters: any) => {
@@ -161,7 +170,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         filters._and = [planDateCondition];
       }
     }
-    
+  
     // Add top-destinations widget filters
     if (activeWidget === 'top-destinations' && destinationFilter && destinationFilter !== 'N/A') {
       const destinationCondition = {
@@ -170,7 +179,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           travelRegion: {
             _or: [
               { value: { _eq: destinationFilter } },
-              { translations: { value: { _eq: destinationFilter } } }
+              { translations: { value: { _eq: destinationFilter } } },
+              { code: { _eq: destinationFilter } }
             ]
           }
         }
@@ -185,52 +195,99 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     
     return filters;
   }, [activeWidget, destinationFilter]);
-
+ 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const baseFilters = getFilters();
-    return buildWidgetFilters(baseFilters);
+    const finalFilters = buildWidgetFilters(baseFilters);
+    return finalFilters;
   }, [getFilters, buildWidgetFilters]);
 
-  // Only fetch when filters, page, or pageSize change
+  // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
     fetchItems(
       memoizedFilters,
       currentPage,
-      pageSize
+      pageSize,
+      sortField,
+      sortOrder
     );
-  }, [fetchItems, currentPage, pageSize, memoizedFilters]);
+  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder]);
 
   useEffect(() => {
     fetchStatistics();
   }, [fetchStatistics]);
 
-  // Create filter label map for proper display labels
-  const filterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {};
-    
-    // Map status values to their display labels
-    const statusLabels = {
-      [ExpenseStatus.PREPARED]: 'Prepared',
-      [ExpenseStatus.CREATED]: 'Draft (Created)',
-      [ExpenseStatus.PENDING]: 'In Approval (Pending)',
-      [ExpenseStatus.ASSIGNED]: 'Assigned',
-      [ExpenseStatus.APPROVED]: 'Approved',
-      [ExpenseStatus.REJECTED]: 'Revision Required (Rejected)',
-      [ExpenseStatus.VERIFIED]: 'In Transit (Verified)',
-      [ExpenseStatus.BOOKED]: 'In Transit (Booked)',
-      [ExpenseStatus.PAID]: 'Paid',
-      [ExpenseStatus.CLOSED]: 'Closed',
-      [ExpenseStatus.TRANSFERRED]: 'In Transit (Transferred)',
+
+  // Process completion event listener for refreshing data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('ExpensePlansTab: Process completion event received:', event.type, event.detail);
+        if (event.detail?.resolution === 'success') {
+          console.log('ExpensePlansTab: Refreshing data after successful process completion');
+          
+          // Refresh plans data
+          if (props.accessToken && props.userInfo?.employeeDetails?.employeeId) {
+            fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder);
+          }
+          
+          // Refresh statistics
+          fetchStatistics();
+          
+          // Reset active widget to force refresh of statistics
+          setActiveWidget(null);
+          
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
     };
-    
-    // Add all status mappings
-    Object.entries(statusLabels).forEach(([status, label]) => {
-      labelMap[status] = label;
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
-    
-    return labelMap;
-  }, []);
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, sortField, sortOrder, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
+
 
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
@@ -256,9 +313,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [props.onContentHeaderChange, contentHeader]);
 
+  // Enhanced table change handler for server-side sorting
   const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
+    
+    // Handle sorting for server-side sorting
+    if (sorter && sorter.field) {
+      setSortField(sorter.field);
+      setSortOrder(sorter.order);
+    } else {
+      // Reset to default sorting (creation date descending)
+      setSortField('createdAt');
+      setSortOrder('descend');
+    }
   }, []);
 
   return (
@@ -273,12 +341,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       onTableChange={handleTableChange}
       search={search}
       onSearchChange={setSearch}
-      selectedFilters={finalFilters}
-      setFilters={handleClearAllFilters}
+      selectedFilters={selectedFilters}
+      setFilters={setFilters}
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
-      clearFilters={clearFilters}
+      clearFilters={handleClearAllFiltersNoParams}
       filterLabelMap={filterLabelMap}
+      addFilter={addFilter}
+      removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

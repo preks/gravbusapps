@@ -36,7 +36,6 @@ src/business-apps/crm/common/forms/contact-form/
 - **Job Title** (jobTitle) - Text input
 - **Department** (department) - Dropdown: Sales, Marketing, Engineering, etc.
 - **Contact Type** (contactType) - Dropdown: Primary, Secondary, Technical, etc.
-- **Contact Role** (contactRole) - Dropdown: Decision Maker, Influencer, etc.
 - **Work Experience Years** (workExperienceYears) - Number input
 
 ### Contact Information Section
@@ -77,7 +76,6 @@ Based on the Contact entity from GraphQL schema, the form maps to these key fiel
   jobTitle: String
   academicTitleRef: String (→ CatalogEntry)
   languageRef: String (→ CatalogEntry)
-  contactRole: String
   contactType: String
   department: String
   bio: String

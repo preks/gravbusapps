@@ -95,16 +95,15 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
           {accessToken && (
             <AppActionButton
               data-testid="opportunity-record-action-button"
-              variant="primary"
-              size="md"
-              contextsArray={[FlowContextName.opportunityEntity]}
+              size="lg"
+              contextsArray={[FlowContextName.customerOpportunityEntity]}
               externalContextData={{
                 opportunityId: opportunityId
               }}
               prefixDataTestId="opportunity-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="enabled"
-              deferMainContextRequestsUntilClick
+              emptyStateBehavior="hide"
+              deferMainContextRequestsUntilClick={false}
             >
               Actions
             </AppActionButton>

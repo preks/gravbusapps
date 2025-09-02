@@ -1,38 +1,19 @@
 import React, { useState, useEffect } from "react";
-import {
-  Button,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Alert,
-  AlertTitle,
-  AlertDescription
-} from "@newwork/nw-design-system";
+import { Button, Alert, AlertTitle, AlertDescription } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
 import { PageLayout } from "@newwork/nw-design-system";
-import {
-  DashboardOutlined,
-  BarChartOutlined,
-  PieChartOutlined,
-  TeamOutlined,
-  BankOutlined,
-  ContactsOutlined,
-  DollarCircleOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined
-} from "@ant-design/icons";
-import { Handshake } from "@phosphor-icons/react";
+import { Handshake, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { LeadList } from "@/business-apps/crm/common/components/lead-list";
-import { AccountList } from "@/business-apps/crm/common/components/account-list";
-import { ContactList } from "@/business-apps/crm/common/components/contact-list";
-import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
-import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
-import { OverviewTab } from "./components/views/customer-analytics/components/OverviewTab";
-import { PipelineDetailsTab } from "./components/views/customer-analytics/components/PipelineDetailsTab";
-import { useSalesDashboard } from "./components/views/customer-analytics/hooks/useSalesDashboard";
-import { DateRange } from "./components/views/customer-analytics/types/dashboardTypes";
+import { LeadList } from "./views/lead-view";
+import { AccountList } from "./views/account-view";
+import { ContactList } from "./views/contact-view";
+import { OpportunityView } from "./views/opportunity-view";
+import { DashboardView } from "./views/dashboard-view";
+import { SalesDashboard } from "./views/analytics-view";
+import { useSalesDashboard } from "./views/dashboard-view/hooks/useSalesDashboard";
+import { DateRange } from "./views/dashboard-view/types/dashboardTypes";
+import CampaignManagement from "./views/campaign-view/CampaignManagement";
+import { TaskView } from "./views/task-view";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
@@ -42,32 +23,42 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <DashboardOutlined />,
+      icon: <House />,
       label: "Dashboard"
     },
     {
+      key: 'tasks',
+      icon: <List />,
+      label: "Tasks"
+    },
+    {
       key: "leads",
-      icon: <TeamOutlined />,
+      icon: <UsersThree />,
       label: "Leads"
     },
     {
       key: "accounts",
-      icon: <BankOutlined />,
+      icon: <Buildings />,
       label: "Accounts"
     },
     {
       key: "contacts",
-      icon: <ContactsOutlined />,
+      icon: <Users />,
       label: "Contacts"
     },
     {
       key: "opportunities",
-      icon: <DollarCircleOutlined />,
+      icon: <CurrencyDollar />,
       label: "Opportunities"
     },
     {
+      key: "campaigns",
+      icon: <Megaphone />,
+      label: "Campaigns"
+    },
+    {
       key: "analytics",
-      icon: <DashboardOutlined />,
+      icon: <ChartBar />,
       label: "Analytics"
     }
   ];
@@ -89,26 +80,8 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     return viewOptions[0].key;
   };
 
-  // Get initial subView from URL for opportunities tab
-  const getInitialSubView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subViewFromUrl = urlParams.get("subView");
-
-    // Map URL subView values to internal tab values
-    if (subViewFromUrl === "pipeline") {
-      return "board";
-    } else if (subViewFromUrl === "list") {
-      return "list";
-    }
-
-    // Default to list view
-    return "list";
-  };
-
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [dashboardSubTab, setDashboardSubTab] = useState<string>("overview");
-  const [opportunitiesSubTab, setOpportunitiesSubTab] =
-    useState<string>(getInitialSubView());
+  // Sub-view is now handled inside OpportunityView
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
@@ -145,6 +118,13 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       urlParams.delete("leadStatus");
     }
 
+    // Clear campaign-specific parameters when switching away from campaigns view
+    if (view !== "campaigns" && (urlParams.has("campaignId") || urlParams.has("mainTab") || urlParams.has("recordTab"))) {
+      urlParams.delete("campaignId");
+      urlParams.delete("mainTab");  
+      urlParams.delete("recordTab");
+    }
+
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
     window.history.replaceState({}, "", newUrl);
   };
@@ -156,25 +136,14 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     }
     setActiveTab(key);
     
-    // If switching to opportunities, include current subView in URL
-    if (key === "opportunities") {
-      updateUrl(key, opportunitiesSubTab);
-    } else {
-      updateUrl(key);
-    }
-  };
-
-  const handleOpportunitiesSubTabChange = (subTab: string) => {
-    setOpportunitiesSubTab(subTab);
-    // Update URL with new subView when tab changes
-    updateUrl(activeTab, subTab);
+    updateUrl(key);
   };
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      updateUrl(activeTab, activeTab === "opportunities" ? opportunitiesSubTab : undefined);
+      updateUrl(activeTab);
     }
   }, []);
 
@@ -182,9 +151,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   useEffect(() => {
     const handlePopState = () => {
       const newView = getInitialView();
-      const newSubView = getInitialSubView();
       setActiveTab(newView);
-      setOpportunitiesSubTab(newSubView);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -220,62 +187,36 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
     }
 
     return (
-      <Tabs value={dashboardSubTab} onValueChange={setDashboardSubTab}>
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="overview" data-testid="overview-tab">
-            <BarChartOutlined className="gba:mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="pipelines" data-testid="pipelines-tab">
-            <PieChartOutlined className="gba:mr-2" />
-            Pipeline Details
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <OverviewTab
-            pipelines={pipelines}
-            dateRange={dateRange}
-            {...context}
-          />
-        </TabsContent>
-        <TabsContent value="pipelines">
-          <PipelineDetailsTab
-            pipelines={pipelines}
-            dateRange={dateRange}
-            {...context}
-          />
-        </TabsContent>
-      </Tabs>
+      <DashboardView
+        pipelines={pipelines}
+        dateRange={dateRange}
+        {...context}
+      />
+    );
+  };
+
+  const renderAnalyticsContent = () => {
+    return (
+      <div data-testid="analytics-tab-content">
+        <SalesDashboard {...context} />
+      </div>
     );
   };
 
   const renderOpportunitiesContent = () => {
-    return (
-      <Tabs value={opportunitiesSubTab} onValueChange={handleOpportunitiesSubTabChange}>
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="list" data-testid="opportunities-list-tab">
-            <UnorderedListOutlined className="gba:mr-2" />
-            List View
-          </TabsTrigger>
-          <TabsTrigger value="board" data-testid="opportunities-board-tab">
-            <AppstoreOutlined className="gba:mr-2" />
-            Board View
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="list">
-          <OpportunityList {...context} sourceApp="CRM" />
-        </TabsContent>
-        <TabsContent value="board">
-          <OpportunityBoard {...context} sourceApp="CRM" />
-        </TabsContent>
-      </Tabs>
-    );
+    return <OpportunityView {...context} />;
   };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
         return renderDashboardContent();
+      case "tasks":
+        return (
+          <div data-testid="tasks-tab-content">
+            <TaskView {...context} />
+          </div>
+        );
       case "leads":
         return (
           <div data-testid="leads-tab-content">
@@ -294,10 +235,16 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
             <ContactList {...context} sourceApp="CRM" />
           </div>
         );
+      case "campaigns":
+        return (
+          <div data-testid="campaigns-tab-content">
+            <CampaignManagement {...context} />
+          </div>
+        );
       case "opportunities":
         return renderOpportunitiesContent();
       case "analytics":
-        return renderDashboardContent();
+        return renderAnalyticsContent();
       default:
         return null;
     }

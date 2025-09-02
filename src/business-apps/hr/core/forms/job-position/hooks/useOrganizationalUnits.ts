@@ -59,7 +59,6 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
   const loadMore = useCallback(async () => {
     if (loading || !hasMore || !accessToken || !client || !structureId) return;
 
-    console.log('Loading organizational units with search:', currentSearch);
     setLoading(true);
     setError(null);
 
@@ -71,9 +70,7 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
         search: currentSearch
       };
 
-      console.log('Organizational units query variables:', variables);
       const data = await fetchOrganizationalUnitData(client, variables);
-      console.log('Organizational units data received:', data);
       
       const newUnits = data.OrganizationalUnit || [];
       const newSelectOptions = newUnits.map(convertToSelectOption);
@@ -97,7 +94,6 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
   const initialLoad = useCallback(async () => {
     if (loading || !accessToken || !client || !structureId) return;
 
-    console.log('Initial load of organizational units');
     setLoading(true);
     setError(null);
     setOrganizationalUnits([]);
@@ -113,9 +109,7 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
         search: currentSearch
       };
 
-      console.log('Initial organizational units query variables:', variables);
       const data = await fetchOrganizationalUnitData(client, variables);
-      console.log('Initial organizational units data received:', data);
       
       const newUnits = data.OrganizationalUnit || [];
       const newSelectOptions = newUnits.map(convertToSelectOption);
@@ -135,7 +129,6 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
 
   // Search organizational units
   const searchUnits = useCallback((searchTerm?: string) => {
-    console.log('searchUnits called with:', searchTerm);
     setCurrentSearch(searchTerm);
     setOrganizationalUnits([]);
     setOffset(0);
@@ -153,16 +146,7 @@ export const useOrganizationalUnits = ({ accessToken, structureId, search }: Use
 
   // Initial load - simplified to avoid circular dependencies
   useEffect(() => {
-    console.log('useOrganizationalUnits initial load check:', {
-      accessToken: !!accessToken,
-      client: !!client,
-      structureId,
-      organizationalUnitsLength: organizationalUnits.length,
-      loading
-    });
-    
     if (accessToken && client && structureId && organizationalUnits.length === 0 && !loading) {
-      console.log('Triggering initial load of organizational units');
       initialLoad();
     }
   }, [accessToken, client, structureId, organizationalUnits.length, loading, initialLoad]);

@@ -1,1 +1,1 @@
-//export { PlatformActionButton } from './AppActionButton';
+export { AppActionButton } from './AppActionButton';

@@ -1,10 +1,17 @@
+export interface Address {
+  id: string; // Unique identifier for the address
+  addressType: string; // "BILLING", "SHIPPING", "OFFICE", "UNKNOWN_ADDRESS", etc.
+  addressLines: string[]; // Dynamic array of address lines
+  postalCode: string;
+  city: string;
+  region: string;
+  country: string;
+}
+
 export interface AccountFormValues {
   // Account Information
   owner: string;
-  accountType: string;
-  accountStatus: string;
-  priority: string;
-  
+
   // Company Information
   accountName: string;
   parentAccount: string;
@@ -12,13 +19,19 @@ export interface AccountFormValues {
   industry: string;
   website: string;
   description: string;
-  
+
+  // Campaign Information
+  salesCampaignId: string; // Campaign ID for backend
+
   // Contact Information
   phone: string;
   email: string;
   fax: string;
-  
-  // Address Information
+
+  // Dynamic Addresses Information
+  addresses: Address[];
+
+  // Legacy Address Information (for backward compatibility)
   country: string;
   region: string;
   addressLine1: string;
@@ -27,22 +40,22 @@ export interface AccountFormValues {
   addressLine4: string;
   postalCode: string;
   city: string;
-  
+
   // Financial Information
   annualRevenue: string;
   numberOfEmployees: string;
   currency: string;
-  
+
   // Additional Information
   timeZone: string;
   foundationDate: string;
   tickerSymbol: string;
   sicCode: string;
-  
+
   // System fields
   id?: string;
   version?: number;
-  
+
   // Legacy fields for backward compatibility
   address?: string;
   state?: string;
@@ -68,11 +81,8 @@ export interface AccountContextState {
   // Loading states
   isLoading: boolean;
   error: string | null;
-  
+
   // Data collections
-  accountTypes: SelectOption[];
-  accountStatuses: SelectOption[];
-  priorities: SelectOption[];
   employeePositions: SelectOption[];
   legalForms: SelectOption[];
   industries: SelectOption[];
@@ -80,4 +90,4 @@ export interface AccountContextState {
   currencies: SelectOption[];
   timeZones: SelectOption[];
   numberOfEmployeesOptions: SelectOption[];
-} 
+}

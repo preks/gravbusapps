@@ -6,10 +6,25 @@ import { Card } from "@newwork/nw-design-system";
 
 interface KeyInsightsSectionProps {
   absences: AbsenceListCardAbsence[];
+  overrides?: {
+    plannedPct?: number;
+    unplannedPct?: number;
+    avgDaysPerRequest?: number;
+    approvalRatePct?: number;
+    vacationCount?: number;
+    sickCount?: number;
+  };
+  /** When true, do not use local calculations as fallback; render error/placeholder */
+  disableLocalCalc?: boolean;
+  /** Optional error text to display when overrides are missing */
+  errorMessage?: string;
 }
 
 const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   absences,
+  overrides,
+  disableLocalCalc = false,
+  errorMessage
 }) => {
   const total = absences.length;
   const planned = absences.filter((a) => {
@@ -23,7 +38,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
     const num = parseFloat(a.duration);
     return !isNaN(num) && num > 0;
   });
-  const avg = absencesWithDuration.length
+  const avgLocal = absencesWithDuration.length
     ? (
         absencesWithDuration.reduce(
           (sum, a) => sum + parseFloat(a.duration),
@@ -35,7 +50,10 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   const approved = absences.filter(
     (a) => (a.status || "").toLowerCase() === "approved"
   ).length;
-  const approvalRate = total ? Math.round((approved / total) * 100) : 0;
+  const approvalRate = overrides?.approvalRatePct ?? (disableLocalCalc ? 0 : (total ? Math.round((approved / total) * 100) : 0));
+  const avg = (overrides?.avgDaysPerRequest ?? (disableLocalCalc ? 0 : Number(avgLocal))).toString();
+  const plannedPctFinal = overrides?.plannedPct ?? (disableLocalCalc ? undefined : plannedPct);
+  const unplannedPctFinal = overrides?.unplannedPct ?? (disableLocalCalc ? undefined : unplannedPct);
 
   return (
     <div
@@ -62,16 +80,24 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           className="gba:text-3xl gba:font-bold gba:text-gray-900"
           data-testid="planned-absences-value"
         >
-          {plannedPct}%
+          {plannedPctFinal}%
         </div>
         <div
           className="gba:text-xs gba:text-gray-500"
           data-testid="planned-absences-sub"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.vs_unplanned",
-            `vs ${unplannedPct}% unplanned (sick leave)`,
-            { unplannedPct }
+          {errorMessage ? (
+            <span className="gba:text-red-600" data-testid="planned-absences-error">{errorMessage}</span>
+          ) : overrides?.vacationCount !== undefined && overrides?.sickCount !== undefined ? (
+            <span data-testid="planned-absences-breakdown">
+              {overrides.vacationCount} requests vacation vs {overrides.sickCount} requests sick
+            </span>
+          ) : (
+            getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.vs_unplanned",
+              `vs ${unplannedPctFinal ?? 0}% unplanned (sick leave)`,
+              { unplannedPct: unplannedPctFinal ?? 0 }
+            )
           )}
         </div>
       </Card>
@@ -102,8 +128,8 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           data-testid="avg-days-sub"
         >
           {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.efficient_leave_planning",
-            "Efficient leave planning"
+            "lowcoder:absence_hub.avg_days_scope",
+            "Based on APPROVED requests"
           )}
         </div>
       </Card>
@@ -134,8 +160,8 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           data-testid="approval-rate-sub"
         >
           {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:absence_hub.excellent_planning_and_timing",
-            "Excellent planning & timing"
+            "lowcoder:absence_hub.approval_status_scope",
+            "Statuses considered: APPROVED vs ALL STATUSES"
           )}
         </div>
       </Card>

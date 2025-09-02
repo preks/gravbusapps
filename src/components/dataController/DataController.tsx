@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -7,6 +7,27 @@ import {
   PiXCircle,
   PiX,
 } from "react-icons/pi";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { DataControllerActions } from "./DataControllerActions";
+
+/**
+ * Column configuration interface for table column visibility
+ */
+export interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  disabled?: boolean; // For columns that can't be hidden (like Actions)
+}
+
+/**
+ * Column visibility configuration for DataController
+ */
+export interface ColumnVisibilityConfig {
+  columns: ColumnConfig[];
+  onColumnVisibilityChange: (columnId: string, visible: boolean) => void;
+  'data-testid'?: string;
+}
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
@@ -87,6 +108,10 @@ export interface DataControllerProps {
     createdBefore?: string;
     onClear?: () => void;
   };
+  /**
+   * Optional column visibility configuration. When provided, a column visibility dropdown will be automatically added to the actions.
+   */
+  columnVisibility?: ColumnVisibilityConfig;
 }
 
 export const DataController: React.FC<Readonly<DataControllerProps>> = ({
@@ -98,7 +123,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   filter = [],
   setFilter,
   filterLabelMap,
-  placeholder = "Search...",
+  placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
   listTitle,
   listIcon,
   listAmount,
@@ -106,6 +131,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   addButton,
   hideFilter = false,
   dateRange,
+  columnVisibility,
 }) => {
   const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -172,11 +198,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     return '';
   }, []);
 
-  // Helper function to format text with only first letter uppercase
-  const formatFilterText = (text: string): string => {
-    if (!text) return text;
-    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-  };
+  //
 
   // Check if date range filter is active
   const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
@@ -185,7 +207,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4" data-testid="data-controller-container">
       <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2" data-testid="data-controller-main-bar">
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:shrink-0" data-testid="data-controller-left-section">
+        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0" data-testid="data-controller-left-section">
           {!hideFilter && (
             <>
               <button
@@ -209,9 +231,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   )}
                 </div>
               </button>
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700" data-testid="data-controller-filter-label">
-                Filter
-              </span>
+
             </>
           )}
           {!showSearchInput ? (
@@ -238,9 +258,6 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                 placeholder={placeholder}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                onBlur={(e) => {
-                  if (!e.target.value) setShowSearchInput(false);
-                }}
                 data-testid="data-controller-search-input"
               />
             </div>
@@ -264,53 +281,19 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
         </div>
 
-        {/* Right: Actions */}
-        {(addButton || actions) && (
-          // All actions including Add are right-aligned (ml-auto)
-          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end" data-testid="data-controller-actions-section">
-            {/* Add Button: match design, no frame, no background, icon left, label right */}
-            {addButton && (
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                onClick={addButton.onClick}
-                data-testid={addButton["data-testid"] || "data-controller-add-button"}
-                type="button"
-              >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  {addButton.icon ?? <PlusSquareIcon />}
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  {addButton.label}
-                </span>
-              </button>
-            )}
-            {actions &&
-              (Array.isArray(actions) ? (
-                actions.map((action, idx) => {
-                  // Try to use a stable key if possible
-                  let key = idx;
-                  if (
-                    React.isValidElement(action) &&
-                    action.props?.["data-testid"]
-                  ) {
-                    key = action.props["data-testid"];
-                  }
-                  return (
-                    <div
-                      key={key}
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1"
-                      data-testid={`data-controller-action-${idx}`}
-                    >
-                      {action}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:bg-black/[0.04] gba:gap-1" data-testid="data-controller-single-action">
-                  {actions}
-                </div>
-              ))}
-          </div>
+        {/* Right: Actions (memoized to avoid unnecessary re-renders) */}
+        {(addButton || actions || columnVisibility) && (
+          <DataControllerActions
+            addButton={useMemo(() => {
+              if (!addButton) return undefined;
+              return {
+                ...addButton,
+                icon: addButton.icon ?? <PlusSquareIcon />,
+              };
+            }, [addButton])}
+            actions={actions}
+            columnVisibility={columnVisibility}
+          />
         )}
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}
@@ -319,10 +302,10 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           {/* Date range filter pill */}
           {hasDateRangeFilter && (
             <div
-              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100"
+              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100 gba:max-w-80 gba:break-words gba:filter-pill"
               data-testid="data-controller-date-range-filter"
             >
-              <span className="gba:text-blue-800">
+              <span className="gba:text-blue-800 gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">
                 {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
               </span>
               <button
@@ -342,12 +325,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           {filter && filter.length > 0 && setFilter && filter.map((val) => (
             <div
               key={val}
-              className="gba:flex gba:h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100"
+              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100 gba:max-w-80 gba:break-words gba:filter-pill"
               data-testid={`data-controller-filter-pill-${val}`}
             >
-              <span>{filterLabelMap?.[val] ?? val}</span>
+              <span className="gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">{filterLabelMap?.[val] ?? val}</span>
               <button
-                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors"
+                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors gba:flex-shrink-0"
                 onClick={() => setFilter(filter.filter((f) => f !== val))}
                 aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
                 tabIndex={0}
@@ -369,7 +352,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             type="button"
             data-testid="data-controller-clear-all-filters-button"
           >
-            <span>Clear all filters</span>
+            <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear_all_filters_btn','Clear all filters')}</span>
             <span className="gba:flex gba:items-center gba:justify-center">
               <PiXCircle size={16} />
             </span>

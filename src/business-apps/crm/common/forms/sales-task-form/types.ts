@@ -1,12 +1,19 @@
 export interface SalesTaskFormValues {
   // Core task details
   title: string;
+  code?: string;
   taskTypeRef: string;
   priorityRef: string;
+  statusRef: string;
   timingType?: 'DEADLINE' | 'SCHEDULED';
   deadline: string | null;
+  templateStartDate?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   description: string;
   assignedEmployeeId: string;
+  creatorEmployeeId?: string;
+  creatorUserId?: string;
   
   // Related entity selection
   relatedEntityId: string;
@@ -18,6 +25,7 @@ export interface SalesTaskFormValues {
   // System fields
   id?: string;
   version?: number;
+  additionalProperties?: any;
 }
 
 export interface SelectOption {
@@ -57,6 +65,7 @@ export interface SalesTaskContextState {
   // Data collections
   taskTypes: SelectOption[];
   priorities: SelectOption[];
+  statuses: SelectOption[];
   employees: SelectOption[];
   entities: EntityOption[];
   
@@ -87,9 +96,12 @@ export interface SalesTaskSubmissionPayload {
     typeRef: string;
     name: string;
     priorityRef: string;
-    deadline: string | null;
+    statusRef: string;
+    dueDate: string | null;
     description: string;
     assignedEmployee?: string;
+    creatorEmployeeId?: string;
+    creatorUserId?: string;
     lead?: string;
     contact?: string;
     account?: string;

@@ -4,4 +4,4 @@
  */
 
 export { DataController, PlusSquareIcon } from './DataController';
-export type { DataControllerProps } from './DataController';
+export type { DataControllerProps, ColumnConfig, ColumnVisibilityConfig } from './DataController';

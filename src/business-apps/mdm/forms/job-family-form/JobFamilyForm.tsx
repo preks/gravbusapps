@@ -1,7 +1,20 @@
-import React from 'react';
-import { Button, Form, Input } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
+import React from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import FormWrapperModal from "@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal";
+import {
+  Input,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+} from "@newwork/nw-design-system";
+import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import {
+  JOB_FAMILY_CATALOG,
+  JOB_FAMILY_VERSION,
+} from "@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters";
 export interface JobFamily {
   id: string;
   name: string;
@@ -12,117 +25,162 @@ export interface JobFamily {
 }
 
 export interface JobFamilyFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<JobFamily>;
-  onSubmit?: (values: Partial<JobFamily>) => void;
+  childAddButton?: React.ReactNode;
+  jobFamily?: Partial<JobFamily>;
   onCancel?: () => void;
   selectedParentId?: string | null;
   selectedParentName?: string;
-  prefixDataTestId?: string;
+  prefixDataTestId: string;
+  loading?: boolean;
+  refetch: () => void;
+  isDrawerActive?: boolean;
+  open?: boolean;
+  setOpen?: (open: boolean) => void;
 }
 
 const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
-  initialValues,
-  onSubmit,
+  childAddButton,
+  jobFamily,
   onCancel,
   selectedParentId,
   selectedParentName,
   prefixDataTestId,
+  loading = false,
+  accessToken,
+  refetch,
+  isDrawerActive = false,
+  open,
+  setOpen,
 }) => {
-  const [form] = Form.useForm();
+  const catalogClient = useCatalogManagerClient(accessToken);
 
-  React.useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue({
-        name: initialValues.name || '',
-        code: initialValues.code || '',
-        description: initialValues.description || '',
-      });
-    } else {
-      form.resetFields();
-    }
-  }, [form, initialValues]);
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: any) => {
     try {
-      const values = await form.validateFields();
-      if (onSubmit) {
-        onSubmit(values);
+      const payload = {
+        ...(jobFamily ? { id: jobFamily.id } : {}),
+        code: values.code,
+        value: values.name,
+        additionalValue1: values.description,
+        translations: [],
+      };
+
+      if (jobFamily) {
+        await catalogClient.updateCatalogEntry(jobFamily.id ?? "", payload);
+      } else {
+        await catalogClient.createCatalogEntry(
+          JOB_FAMILY_CATALOG,
+          JOB_FAMILY_VERSION,
+          payload
+        );
       }
+
+      refetch();
     } catch (error) {
-      console.error('Form validation error:', error);
+      console.error("Error saving Job Family:", error);
+    } finally {
+      setOpen?.(false);
     }
   };
 
-  const handleCancel = () => {
-    form.resetFields();
-    if (onCancel) {
-      onCancel();
-    }
-  };
+  const defaultValues = jobFamily
+    ? {
+        name: jobFamily.name || "",
+        code: jobFamily.code || "",
+        description: jobFamily.description || "",
+      }
+    : {};
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      className="gba-mt-4"
-      data-testid={`${prefixDataTestId || ''}-JobFamilyForm`}
+    <FormWrapperModal
+      childAddButton={childAddButton}
+      title={jobFamily ? "Edit Job Family" : "Create Job Family"}
+      description={
+        jobFamily
+          ? "Update the job family information"
+          : "Create a new job family to organize related job roles"
+      }
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      defaultValues={defaultValues}
+      isEditing={!!jobFamily}
+      loading={loading}
+      dataTestId={`${prefixDataTestId}-form-modal`}
+      isDrawerActive={isDrawerActive}
+      open={open}
+      setOpen={setOpen}
     >
-      <Form.Item
+      <FormField
         name="name"
-        label="Family Name"
-        rules={[{ required: true, message: 'Please enter family name' }]}
-      >
-        <Input placeholder="e.g., Engineering, Sales, Marketing" />
-      </Form.Item>
-      
-      <Form.Item
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Name</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., Engineering, Sales, Marketing"
+                {...field}
+                data-testid={`${prefixDataTestId}-name-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
         name="code"
-        label="Code"
-        rules={[{ required: true, message: 'Please enter code' }]}
-      >
-        <Input placeholder="e.g., ENG, SALES, MKT" />
-      </Form.Item>
-      
-      <Form.Item
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Code</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., ENG, SALES, MKT"
+                {...field}
+                data-testid={`${prefixDataTestId}-code-input`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
         name="description"
-        label="Description"
-      >
-        <Input.TextArea 
-          placeholder="Describe this job family and the types of roles it contains"
-          rows={3}
-        />
-      </Form.Item>
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Describe this job family and the types of roles it contains"
+                rows={3}
+                {...field}
+                data-testid={`${prefixDataTestId}-description-textarea`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {selectedParentId && (
-        <Form.Item label="Parent Family">
-          <Input 
-            value={selectedParentName || 'Unknown'} 
-            disabled 
-            placeholder="This will be a child of the selected family"
-          />
-        </Form.Item>
+        <FormField
+          name="parentFamily"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Parent Family</FormLabel>
+              <FormControl>
+                <Input
+                  value={selectedParentName || "Unknown"}
+                  disabled
+                  placeholder="This will be a child of the selected family"
+                  data-testid={`${prefixDataTestId}-parent-family-input`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       )}
-
-      <div className="gba-flex gba-justify-end gba-gap-2 gba-mt-4">
-        <Form.Item>
-          <Button 
-            onClick={handleCancel}
-            data-testid={`${prefixDataTestId || ''}-JobFamilyForm-CancelButton`}
-          >
-            Cancel
-          </Button>
-        </Form.Item>
-        <Form.Item>
-          <Button 
-            type="primary" 
-            onClick={handleSubmit}
-            data-testid={`${prefixDataTestId || ''}-JobFamilyForm-SubmitButton`}
-          >
-            Save
-          </Button>
-        </Form.Item>
-      </div>
-    </Form>
+    </FormWrapperModal>
   );
 };
 

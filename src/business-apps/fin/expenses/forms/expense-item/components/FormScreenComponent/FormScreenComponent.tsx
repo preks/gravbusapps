@@ -103,15 +103,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         currency: "Currency:v1:EUR",
       }}
     >
-      <div className={`gba:formUploadContainer`} data-testid="form-upload-container">
+      <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent 
           fileList={fileList} 
           setFileList={setFileList} 
         />
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="title-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className="gba:mb-4" data-testid="title-field-container">
+        <div className="gba:relative">
           <Form.Item
             name="title"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
@@ -133,8 +133,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="date-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className="gba:mb-4" data-testid="date-field-container">
+        <div className="gba:relative">
           <Form.Item
             shouldUpdate
             name="date"
@@ -176,8 +176,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="multi-position-switch-container">
-        <div className={`gba:relativePosition`}>
+      <div className="gba:mb-4" data-testid="multi-position-switch-container">
+        <div className="gba:relative">
           <div>
             <Switch
               label={t(
@@ -251,6 +251,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       {multiPosition && (
         <Button 
           variant="ghost" 
+          className="gba:flex gba:!justify-start"
           onClick={handleAddPosition}
           data-testid="add-position-button"
           disabled={isProcessingFiles}
@@ -269,36 +270,40 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       {multiPosition && (
         <Row
           gutter={16}
-          className={`gba:marginTop16 gba:marginBottom16`}
+          className="gba:mt-4 gba:mb-4"
           data-testid="total-row"
         >
           <Col span={12} data-testid="total-amount-col">
-            <Form.Item className={`gba:marginBottom0`} data-testid="total-amount-form-item">
-              <InputField
-                label={t(
-                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
-                  "Amount"
-                )}
-                name="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                className="gba:no-spinner"
-                data-testid="total-amount-input"
-                value={calculateTotal().toFixed(2)}
-                placeholder={t(
-                  "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
-                  "Enter Amount"
-                )}
-                required={true}
-              />
+            <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
+                <InputField
+                  label={t(
+                    "lowcoder:create_expense_item.change_expense_item_container.current_amount_label",
+                    "Amount"
+                  )}
+                  className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  data-testid="total-amount-input"
+                  value={calculateTotal().toFixed(2)}
+                  placeholder={t(
+                    "lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder",
+                    "Enter Amount"
+                  )}
+                  required={true}
+                />
             </Form.Item>
           </Col>
           <Col span={12} data-testid="total-currency-col">
             <Form.Item
               name="currency"
               rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule', 'Please select a currency') }]}
-              className={`gba:marginBottom0`}
+              className="gba:mb-0"
               data-testid="total-currency-form-item"
             >
               <SelectField
@@ -338,7 +343,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Form.Item
           name="expenseRequestId"
           rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}
-          className={`gba:marginBottom16`}
+          className="gba:mb-4"
           data-testid="expense-request-container"
         >
           <SelectField
@@ -377,20 +382,22 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         className="gba:mt-[30px] gba:mb-[30px]"
         data-testid="form-divider"
       />
-      <div className="gba:actionButtonsContainer" data-testid="expense-item-actions">
+      <div className="gba:flex gba:justify-between gba:py-4" style={{ width: '100%' }} data-testid="expense-item-actions">
         <Button
           variant="outline" 
           onClick={handleCancel}
-          className="gba:cancelButton"
+          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+          style={{ borderRadius: '22px', height: '40px' }}
           data-testid="cancel-button"
         >
           {t("lowcoder:create_expense_request.initiate_cancel_button", "Cancel")}
         </Button>
         <Button
           variant="primary"
-          onClick={handleSubmit}
+          onClick={(e) => { e.stopPropagation(); handleSubmit(); }}
           disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
-          className="gba:submitButton"
+          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+          style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
         >
           {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}

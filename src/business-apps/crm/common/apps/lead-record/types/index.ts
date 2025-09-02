@@ -11,7 +11,12 @@ export interface Opportunity {
   id: string;
   name: string;
   value: number;
-  stage: "Discovery" | "Proposal" | "Negotiation" | "Closed Won" | "Closed Lost";
+  stage:
+    | "Discovery"
+    | "Proposal"
+    | "Negotiation"
+    | "Closed Won"
+    | "Closed Lost";
   probability: number;
   expectedCloseDate: string;
   owner: string;
@@ -35,6 +40,7 @@ export interface Lead {
   status: string;
   leadName: string;
   version: string;
+  sensitive?: boolean;
   statusRef?: string;
   source: {
     id: string;
@@ -44,6 +50,7 @@ export interface Lead {
   };
   sourceRef: string;
   rating: string;
+  sensitive: boolean;
   industryRef?: string;
   industry: {
     value?: string;
@@ -71,10 +78,10 @@ export interface Lead {
   ownerEmployee: {
     firstName: string;
     lastName: string;
-  }
+  };
   ownerOrganization: {
     name: string;
-  }
+  };
   annualRevenueRef?: string;
   annualRevenue?: {
     value?: string;
@@ -83,12 +90,14 @@ export interface Lead {
     code?: string;
   };
   regionRef?: string;
-  legalForm?: string | {
-    value?: string;
-    type?: string;
-    id?: string;
-    code?: string;
-  };
+  legalForm?:
+    | string
+    | {
+        value?: string;
+        type?: string;
+        id?: string;
+        code?: string;
+      };
   legalFormRef?: string;
   accountId: string;
   account?: {
@@ -169,4 +178,4 @@ export interface ReferenceData {
   code: string;
   value: string;
   alternativeCode?: string;
-} 
+}

@@ -30,6 +30,14 @@ export const getMaxLimits = (destinations: LocationData[], endLocation: Location
   ): DateTimeLimits => {
     const indexOfCurrentDestination = destinations.findIndex((dest) => dest.id === currentDestination.id);
   
+    if (destinations.length === 1) {
+      return {
+        minDate: startLocation.departureDate,
+        minTime: startLocation.departureTime,
+        maxDate: endLocation.departureDate,
+        maxTime: endLocation.departureTime,
+      };
+    }
     const destinationsBeforeCurrent = destinations.slice(0, indexOfCurrentDestination);
     const destinationsAfterCurrent = destinations.slice(indexOfCurrentDestination + 1);
   
@@ -67,12 +75,28 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
   const { minDate, maxDate, minTime, maxTime } = limits;
   const { departureDate, departureTime } = location;
   
-  // If no date, nothing to validate
-  if (!departureDate) return location;
+  // If no date, ensure time is also cleared
+  if (!departureDate) {
+    return {
+      ...location,
+      departureTime: undefined
+    };
+  }
   
   // Check if date is within limits
-  const isDateValid = (!minDate || departureDate >= minDate) && 
-                     (!maxDate || departureDate <= maxDate);
+  // If time is not selected, compare only by calendar day to avoid timezone side-effects
+  let isDateValid: boolean;
+  if (!departureTime) {
+    const toYMD = (d?: Date) => (d ? (d.getFullYear() * 10000) + ((d.getMonth() + 1) * 100) + d.getDate() : null);
+    const dep = toYMD(departureDate);
+    const min = toYMD(minDate);
+    const max = toYMD(maxDate);
+    const minOk = (min === null) || (dep !== null && dep >= min);
+    const maxOk = (max === null) || (dep !== null && dep <= max);
+    isDateValid = minOk && maxOk;
+  } else {
+    isDateValid = (!minDate || departureDate >= minDate) && (!maxDate || departureDate <= maxDate);
+  }
   
   // If date is invalid, clear both date and time
   if (!isDateValid) {
@@ -120,19 +144,31 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
  * Combines date and time into an ISO string
  * @param date - Date object or string
  * @param time - Time as Date object or string
- * @returns ISO string representation of the combined date and time, or empty string if both are missing
+ * @param fallbackDate - Optional fallback date when both date and time are missing
+ * @returns ISO string representation of the combined date and time, or fallback date if provided, or empty string if all are missing
  */
-export const combineDateTimeToISOString = (date: Date | undefined, time: Date | undefined): string => {
-  if (!date && !time) return "";
+export const combineDateTimeToISOString = (
+  date: Date | undefined, 
+  time: Date | undefined, 
+  fallbackDate?: Date | string
+): string => {
+  if (!date && !time) {
+    if (fallbackDate) {
+      return dayjs(fallbackDate).format("YYYY-MM-DD") + "T00:00:00";
+    }
+    return "";
+  }
   
   // If we only have time, return time as string
   if (!date && time) {
-    return dayjs(time).format("HH:mm:ss");
+    const dateString = dayjs(time).format("YYYY-MM-DD");
+    const timeString = dayjs(time).format("HH:mm:ss")
+    return `${dateString}T${timeString}`;
   }
   
   // If we only have date, return date as ISO string
   if (date && !time) {
-    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00Z";
+    return dayjs(date).format("YYYY-MM-DD") + "T00:00:00";
   }
   
   // If we have both, combine them
@@ -140,5 +176,5 @@ export const combineDateTimeToISOString = (date: Date | undefined, time: Date | 
   const timeString = dayjs(time).format("HH:mm:ss");
   
   // Create ISO string from combined date and time
-  return `${dateString}T${timeString}Z`;
+  return `${dateString}T${timeString}`;
 };

@@ -1,77 +1,140 @@
-import React, { useState } from 'react';
-import { useContactFormContext } from '../context/ContactFormContext';
-import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React, { useState } from "react";
+import { useContactFormContext } from "../context/ContactFormContext";
+import {
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+  CardContent,
+  Button,
+  Alert,
+  AlertDescription,
+} from "@newwork/nw-design-system";
+import { PiCaretDown, PiCaretUp } from "react-icons/pi";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
-const prefixDataTestId = 'ContactForm';
+const prefixDataTestId = "ContactForm";
 
 const ProfessionalInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  
+
   const {
     formValues,
     setFormValues,
     error,
     contactTypes,
-    contactRoles,
     departments,
   } = useContactFormContext();
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
-      <button
-        type="button"
+    <Card
+      className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
+      style={{
+        border: "0",
+        borderWidth: "0",
+        borderStyle: "none",
+        borderColor: "transparent",
+        boxShadow: "none",
+        padding: "0",
+        background: "transparent",
+      }}
+    >
+      <Button
+        variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-orange-200 gba:to-amber-200 gba:hover:from-orange-300 gba:hover:to-amber-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
-
-        data-testid={formatDataTestId(prefixDataTestId, 'ProfessionalInfoToggle')}
-      >
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-          <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
-          Professional Information
-        </h3>
-        {isExpanded ? (
-          <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
-        ) : (
-          <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-500" />
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        style={{
+          background: "linear-gradient(to right, #fed7aa, #fdba74)",
+          transition: "all 0.3s ease",
+          border: "0",
+          borderWidth: "0",
+          borderStyle: "none",
+          borderColor: "transparent",
+          outline: "none",
+          outlineWidth: "0",
+          outlineStyle: "none",
+          boxShadow: "none",
+          borderRadius: "12px",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #fdba74, #fb923c)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background =
+            "linear-gradient(to right, #fed7aa, #fdba74)";
+        }}
+        data-testid={formatDataTestId(
+          prefixDataTestId,
+          "ProfessionalInfoToggle"
         )}
-      </button>
-      
+      >
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+          <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
+          <span className="gba:font-medium gba:text-gray-900">
+            Professional Information
+          </span>
+        </div>
+        <div className="gba:flex gba:items-center">
+          {isExpanded ? (
+            <PiCaretUp className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          ) : (
+            <PiCaretDown className="gba:w-4 gba:h-4 gba:text-gray-700" />
+          )}
+        </div>
+      </Button>
+
       {isExpanded && (
-        <div className="gba:p-6 gba:space-y-6">
+        <CardContent
+          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          style={{
+            border: "0",
+            borderWidth: "0",
+            borderStyle: "none",
+            borderColor: "transparent",
+            padding: "16px",
+            marginTop: "0",
+          }}
+        >
           {error && (
-            <div className="gba:text-red-700 gba:text-sm gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg">
-              {error}
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           {/* Job Title */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
               Job Title
-            </label>
+            </Label>
             <Input
-              id="jobTitle"
               name="jobTitle"
               value={formValues.jobTitle}
               onChange={(e) => setFormValues({ jobTitle: e.target.value })}
               placeholder="Please Enter..."
-              data-testid={formatDataTestId(prefixDataTestId, 'JobTitleInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, "JobTitleInput")}
             />
           </div>
 
           {/* Department */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
               Department
-            </label>
+            </Label>
             <Select
               value={formValues.department}
               onValueChange={(value) => setFormValues({ department: value })}
-              data-testid={formatDataTestId(prefixDataTestId, 'DepartmentSelect')}
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "DepartmentSelect"
+              )}
             >
-              <SelectTrigger>
+              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent>
@@ -84,18 +147,21 @@ const ProfessionalInformationSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Contact Type and Role - Side by side */}
-          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          {/* Contact Type */}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
                 Contact Type
-              </label>
+              </Label>
               <Select
                 value={formValues.contactType}
                 onValueChange={(value) => setFormValues({ contactType: value })}
-                data-testid={formatDataTestId(prefixDataTestId, 'ContactTypeSelect')}
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "ContactTypeSelect"
+                )}
               >
-                <SelectTrigger>
+                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -107,51 +173,34 @@ const ProfessionalInformationSection: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-                Contact Role
-              </label>
-              <Select
-                value={formValues.contactRole}
-                onValueChange={(value) => setFormValues({ contactRole: value })}
-                data-testid={formatDataTestId(prefixDataTestId, 'ContactRoleSelect')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Please Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {contactRoles.map((role) => (
-                    <SelectItem key={role.id} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {/* Work Experience Years */}
-          <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
               Work Experience (Years)
-            </label>
+            </Label>
             <Input
-              id="workExperienceYears"
               name="workExperienceYears"
               type="number"
               min="0"
               max="50"
               value={formValues.workExperienceYears}
-              onChange={(e) => setFormValues({ workExperienceYears: e.target.value })}
+              onChange={(e) =>
+                setFormValues({ workExperienceYears: e.target.value })
+              }
               placeholder="Please Enter..."
-              data-testid={formatDataTestId(prefixDataTestId, 'WorkExperienceInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(
+                prefixDataTestId,
+                "WorkExperienceInput"
+              )}
             />
           </div>
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
-export default ProfessionalInformationSection; 
+export default ProfessionalInformationSection;

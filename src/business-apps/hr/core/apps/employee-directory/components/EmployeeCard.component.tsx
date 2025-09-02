@@ -8,7 +8,7 @@ import {
   PiBuildingsBold,
   PiOfficeChairBold
 } from 'react-icons/pi';
-import { Avatar, Button } from '@newwork/gravity-ui-catalog';
+import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 /**
@@ -45,8 +45,6 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
   const avatarSrcValue = employee.profilePicture
     ? `data:image/gif;base64,${employee.profilePicture}`
     : undefined;
-
-  const avatarContentTypeValue = employee.profilePicture ? 'image' : 'initials';
   const profileUrl = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id });
   const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat();
   
@@ -75,7 +73,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
     navigateTo(profileUrl);
   }, [profileUrl]);
   return (
-    <div className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-md gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-lg' : 'gba:!border-gray-100'}`}>
+    <div className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-lg gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-xl' : 'gba:!border-gray-100'}`}>
       {/* The card itself - fixed height for consistency */}
       <div
         className="gba:flex gba:flex-col gba:p-4 gba:transition-all gba:duration-300 gba:group-hover:!blur-sm gba:group-focus-within:!blur-sm"
@@ -85,19 +83,17 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
         <div className="gba:flex gba:mb-3">
           {/* Profile Picture */}
           <div className="gba:mr-3">
-            <Avatar
-              src={avatarSrcValue}
-              initials={initialsValue}
-              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
-              contentType={avatarContentTypeValue}
-              alt={`${employee.firstName} ${employee.lastName}`}
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              size="lg"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              shape="rounded"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              appearance="gradient"
-            />
+            <Avatar className="gba:w-12 gba:h-12">
+              {avatarSrcValue && (
+                <AvatarImage 
+                  src={avatarSrcValue} 
+                  alt={`${employee.firstName} ${employee.lastName}`}
+                />
+              )}
+              <AvatarFallback className="gba:text-sm gba:font-medium">
+                {initialsValue}
+              </AvatarFallback>
+            </Avatar>
           </div>
 
           {/* Name, job title, and org unit */}
@@ -163,36 +159,40 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
     <div className="gba:flex gba:gap-2">
       <Button
         variant="ghost"
-        size="lg"
-        icon={<PiChatBold size={24} />}
+        size="icon"
         onClick={onChat}
         aria-label="Chat"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
-      />
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+      >
+        <PiChatBold size={24} />
+      </Button>
       <Button
         variant="ghost"
-        size="lg"
-        icon={<PiPhoneBold size={24} />}
+        size="icon"
         onClick={onCall}
         aria-label="Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
-      />
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+      >
+        <PiPhoneBold size={24} />
+      </Button>
       <Button
         variant="ghost"
-        size="lg"
-        icon={<PiVideoCameraBold size={24} />}
+        size="icon"
         onClick={onVideoCall}
         aria-label="Video Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
-      />
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+      >
+        <PiVideoCameraBold size={24} />
+      </Button>
       <Button
         variant="ghost"
-        size="lg"
-        icon={<PiUserBold size={24} />}
+        size="icon"
         onClick={onProfile}
         aria-label="Go to Profile"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md"
-      />
+        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+      >
+        <PiUserBold size={24} />
+      </Button>
     </div>
   </div>
 );

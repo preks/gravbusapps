@@ -15,7 +15,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  // Use the advance payment filters hook
+  // Table refresh trigger state
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+  
+  // Use the enhanced advance payment filters hook
   const {
     searchTerm,
     setSearchTerm,
@@ -28,6 +31,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
+    selectedFilters,
+    setFilters,
+    removeFilter,
+    clearFilters,
   } = useAdvancePaymentFilters();
 
   // Create memoized content header with statistics component
@@ -55,13 +62,77 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     handleDataFilterChange(filterId, selected);
   }, [handleDataFilterChange]);
 
-  // Handle clearing all filters
-  const clearAllFilters = useCallback(() => {
-    setSearchTerm('');
-    setStatusFilter([]);
-    setAmountRange(null);
-    setAdvanceRange(null);
-  }, [setSearchTerm, setStatusFilter, setAmountRange, setAdvanceRange]);
+  // Handle clearing all filters with proper coordination
+  const handleClearAllFilters = useCallback((filters: string[]) => {
+    // If clearing all filters (empty array), use the proper clearFilters function
+    if (filters.length === 0) {
+      clearFilters(); // This properly clears all filters including ranges
+    } else {
+      // Otherwise, set specific filters
+      setFilters(filters);
+    }
+  }, [clearFilters, setFilters]);
+
+  // Wrapper for clear all filters without parameters (for table clearFilters prop)
+  const handleClearAllFiltersNoParams = useCallback(() => {
+    // Use the enhanced setFilters which handles clearing all filters properly
+    setFilters([]);
+  }, [setFilters]);
+
+  // Process completion event listener to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        if (event.detail?.resolution === 'success') {
+          // Trigger table refresh by updating a state that forces re-render
+          setTableRefreshTrigger(prev => prev + 1);
+          
+          return;
+        }
+      } catch (err) {
+        console.error('Error handling process completion:', err);
+      }
+    };
+
+    const handleAllEvents = (event: any) => {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleProcessCompletion(event);
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+    });
+
+    const originalDispatchEvent = window.dispatchEvent;
+    window.dispatchEvent = function(event: Event) {
+      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
+        handleAllEvents(event);
+      }
+      return originalDispatchEvent.call(this, event);
+    };
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+      });
+      
+      window.dispatchEvent = originalDispatchEvent;
+    };
+  }, []);
 
   return (
     <AdvancePaymentsTable
@@ -69,16 +140,16 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       search={searchTerm}
       onSearchChange={handleSearchChange}
       activeFilter={statusFilter} // Pass raw status values - DataController will handle display
-      onFilterChange={(filter) => {
-        // Update status filter when pills are removed
-        setStatusFilter(filter);
-      }}
-      onClearFilters={clearAllFilters}
+      onFilterChange={setFilters} // Use enhanced setFilters for individual filter removal
+      onClearFilters={handleClearAllFiltersNoParams} // Use wrapper for clear all
       filterGroups={filterGroups}
       handleFilterChange={handleFilterChange}
       filterLabelMap={filterLabelMap}
       amountRange={amountRange}
       advanceRange={advanceRange}
+      selectedFilters={selectedFilters}
+      removeFilter={removeFilter}
+      tableRefreshTrigger={tableRefreshTrigger}
     />
   );
 };

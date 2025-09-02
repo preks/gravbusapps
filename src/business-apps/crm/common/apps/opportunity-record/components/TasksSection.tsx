@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
@@ -32,8 +33,17 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     
     try {
       const result = await fetchSalesTasks({ opportunityId });
+      
+      // Filter out approval tasks - they should only appear in the Approvals tab
+      const nonApprovalTasks = (result.SalesTask || []).filter(task => {
+        const isApprovalTask = task.typeRef === 'SalesTaskType:v1:APPROVAL' || 
+                              task.typeRef?.toLowerCase() === 'approval' ||
+                              task.typeRef?.split(':').pop()?.toLowerCase() === 'approval';
+        return !isApprovalTask;
+      });
+      
       // Sort tasks by createdAt in descending order (newest first)
-      const sortedTasks = (result.SalesTask || []).sort((a, b) => 
+      const sortedTasks = nonApprovalTasks.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
@@ -131,18 +141,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     };
   }, [opportunityId]);
 
-  const handleAddTaskClick = () => {
-    if (opportunityId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          opportunityId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+
 
   const handleDeleteTask = (task: SalesTaskData) => {
     Modal.confirm({
@@ -224,14 +223,21 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
+        <AppAction
+          accessToken={context.accessToken}
+          contextsArray={[FlowContextName.createCustomerTask]}
+          externalContextData={{ opportunityId }}
+          prefixDataTestId="opportunity-tasks"
+          emptyStateBehavior="enable"
         >
-          Add Task
-        </Button>
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

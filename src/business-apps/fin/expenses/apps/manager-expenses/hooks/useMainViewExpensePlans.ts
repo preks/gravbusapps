@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { message } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
@@ -74,11 +74,21 @@ interface ExpensePlanStatisticsResponse {
   };
 }
 
-interface UseMainViewExpensePlansProps extends BusinessAppContextProps {
+export type SortField = 'createdAt' | 'startDate' | 'endDate' | 'totalAmount' | 'status' | 'title' | 'employee.fullName';
+export type SortOrder = 'ASC' | 'DESC';
+
+export interface SortConfig {
+  field: SortField;
+  order: SortOrder;
+}
+
+interface UseMainViewExpensePlansProps extends Partial<BusinessAppContextProps> {
   pageSize?: number;
   searchTerm?: string;
   currentStatusFilter?: string[] | null;
+  currentCurrencyFilter?: string | null;
   statisticsOnly?: boolean; // If true, only fetch statistics, skip main data
+  sortConfig?: SortConfig;
 }
 
 export const useMainViewExpensePlans = ({
@@ -87,7 +97,9 @@ export const useMainViewExpensePlans = ({
   pageSize = 10,
   searchTerm,
   currentStatusFilter,
+  currentCurrencyFilter,
   statisticsOnly = false,
+  sortConfig = { field: 'createdAt', order: 'DESC' },
 }: UseMainViewExpensePlansProps) => {
   const hookId = useMemo(() => Math.random().toString(36).substring(7), []);
   console.log(`🔥🔥🔥 HOOK-${hookId} INITIALIZED:`, { statisticsOnly, currentStatusFilter, searchTerm });
@@ -101,28 +113,74 @@ export const useMainViewExpensePlans = ({
   // Get managerId from userInfo or use a fallback for development
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
       
-    const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [plans, setPlans] = useState<ExpensePlan[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [sorting, setSorting] = useState<SortConfig>(sortConfig);
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null); 
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
   const [planStats, setPlanStats] = useState<ExpensePlanStatistics | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<Error | null>(null);
+  
+  // Reference to store the last fetch parameters to prevent duplicate fetches
+  const lastFetchParams = useRef<{
+    filter: string[] | null;
+    currencyFilter: string | null;
+    sortConfig: SortConfig;
+    page: number;
+    pageSize: number;
+    searchTerm: string;
+  } | null>(null);
+  
+  // Reference for stats debounce timer
+  const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+  
+  // Reference to store the last stats fetch parameters
+  const lastStatsFetchParams = useRef<{
+    currencyFilter: string | null;
+  } | null>(null);
 
-  const fetchPlans = useCallback(async (forceFilter?: string[] | null) => {
+  const fetchPlans = useCallback(async (forceFilter?: string[] | null, forceCurrencyFilter?: string | null, forceSortConfig?: SortConfig) => {
     // Use forced filter or current filter - this prevents stale closure issues
     const activeFilter = forceFilter !== undefined ? forceFilter : currentStatusFilter;
-    const timestamp = new Date().getTime();
+    const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
+    const activeSortConfig = forceSortConfig || sorting;
+    const offset = (currentPage - 1) * pageSize;
+    const searchValue = searchTerm ? `%${searchTerm}%` : '%%';
+    
     console.log(`📊 FETCHPLANS START HOOK-${hookId}:`, { 
       'activeFilter (will be used)': activeFilter, 
       'forceFilter (passed in)': forceFilter,
       'currentStatusFilter (from props)': currentStatusFilter,
-      'pageSize': pageSize
+      'currentCurrencyFilter (from props)': currentCurrencyFilter,
+      'activeCurrencyFilter (will be used)': activeCurrencyFilter,
+      'pageSize': pageSize,
+      'sorting': activeSortConfig
     });
+    
+    // Check if we already fetched with these exact parameters to prevent duplicate fetches
+    const currentFetchParams = {
+      filter: activeFilter || null, // Ensure it's never undefined
+      currencyFilter: activeCurrencyFilter || null, // Ensure it's never undefined
+      sortConfig: activeSortConfig,
+      page: currentPage,
+      pageSize,
+      searchTerm: searchTerm || ''
+    };
+    
+    // Skip if parameters haven't changed
+    if (lastFetchParams.current && 
+        JSON.stringify(lastFetchParams.current) === JSON.stringify(currentFetchParams)) {
+      console.log(`📊 SKIPPING DUPLICATE FETCH HOOK-${hookId}`);
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastFetchParams.current = currentFetchParams;
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch expense plans.'));
@@ -140,13 +198,8 @@ export const useMainViewExpensePlans = ({
     setError(null);
 
     try {
-      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
-      const offset = (currentPage - 1) * pageSize;
-      
-
-      
       // Build the where clause for filtering
-      const whereClause: any = {
+      const whereClause: Record<string, any> = {
         employee: {
           employeePosition: {
             supervisorEmployeeId: { _eq: managerId }
@@ -154,6 +207,11 @@ export const useMainViewExpensePlans = ({
         },
         isDeleted: { _eq: false }
       };
+
+      // Add currency filter if specified
+      if (activeCurrencyFilter) {
+        whereClause.currencyRef = { _eq: `Currency:v1:${activeCurrencyFilter}` };
+      }
 
       // Add search functionality
       if (searchTerm && searchTerm.trim() !== '') {
@@ -169,6 +227,7 @@ export const useMainViewExpensePlans = ({
         'activeFilter': activeFilter,
         'forceFilter': forceFilter, 
         'currentStatusFilter': currentStatusFilter,
+        'currentCurrencyFilter': currentCurrencyFilter,
         'activeFilter type': typeof activeFilter,
         'activeFilter length': activeFilter?.length,
         'is activeFilter array': Array.isArray(activeFilter)
@@ -181,15 +240,28 @@ export const useMainViewExpensePlans = ({
       } else {
         console.log(`❌ NO FILTER APPLIED HOOK-${hookId} - activeFilter:`, activeFilter, 'length:', activeFilter?.length);
       }
-
+      
+      // Build the orderBy configuration based on the sort field and order
+      const orderBy: Record<string, any>[] = [];
+      
+      // Handle nested fields like 'employee.fullName'
+      if (activeSortConfig.field.includes('.')) {
+        const [parent, child] = activeSortConfig.field.split('.');
+        orderBy.push({ [parent]: { [child]: activeSortConfig.order } });
+      } else {
+        orderBy.push({ [activeSortConfig.field]: activeSortConfig.order });
+      }
+      
       const variables = {
         where: whereClause,
         limit: pageSize,
-        offset
+        offset,
+        orderBy
       };
       
       // Show the critical where clause being sent to GraphQL
       console.log(`📊 GRAPHQL WHERE CLAUSE HOOK-${hookId}:`, JSON.stringify(variables.where, null, 2));
+      console.log(`📊 GRAPHQL ORDER BY HOOK-${hookId}:`, JSON.stringify(variables.orderBy, null, 2));
         
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -222,7 +294,7 @@ export const useMainViewExpensePlans = ({
       const data = result.data as ExpensePlanResponse;
       const returnedStatuses = data.ExpensePlan?.map(p => p.status) || [];
       const uniqueStatuses = [...new Set(returnedStatuses)];
-      const responseTimestamp = new Date().getTime();
+
       
       console.log(`📊 API RESPONSE FROM HOOK-${hookId}:`, {
         'FILTER REQUESTED': activeFilter,
@@ -275,35 +347,65 @@ export const useMainViewExpensePlans = ({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, hookId]);
+  }, [accessToken, managerId, currentPage, pageSize, searchTerm, currentStatusFilter, employeeFilter, hookId, currentCurrencyFilter, sorting]);
 
+  // Effect to fetch plans when dependencies change
   useEffect(() => {
     console.log(`🔥🔥🔥 USEEFFECT TRIGGERED HOOK-${hookId}:`, {
       'statisticsOnly': statisticsOnly,
       'currentStatusFilter': currentStatusFilter,
       'fetchPlans exists': !!fetchPlans,
-      'dependencies changed': 'fetchPlans, statisticsOnly, hookId, currentStatusFilter'
+      'dependencies changed': 'fetchPlans, statisticsOnly, hookId, currentStatusFilter, sorting'
     });
     
     if (!statisticsOnly) {
       console.log(`📊 MAIN DATA FETCH HOOK-${hookId}: Calling fetchPlans(${JSON.stringify(currentStatusFilter)})`);
-      fetchPlans(currentStatusFilter); // Pass current filter to prevent stale closure
+      fetchPlans(currentStatusFilter, currentCurrencyFilter, sorting); // Pass current filter to prevent stale closure
     } else {
       console.log(`✅ STATISTICS ONLY HOOK-${hookId}: SKIPPING fetchPlans() - this prevents race condition!`);
     }
-  }, [fetchPlans, statisticsOnly, hookId, currentStatusFilter]);
-
-  const fetchPlanStatistics = useCallback(async () => {
+  }, [fetchPlans, statisticsOnly, hookId, currentStatusFilter, currentCurrencyFilter, sorting, currentPage, pageSize, searchTerm]);
+  
+  // Detailed filter vs result analysis
+  const analyzeFilterResults = (filter: string[], data: any) => {
+    if (filter && filter.length > 0 && data && data.ExpensePlan) {
+      const matchingRecords = data.ExpensePlan?.filter((plan: any) => filter.includes(plan.status)) || [];
+      const nonMatchingRecords = data.ExpensePlan?.filter((plan: any) => !filter.includes(plan.status)) || [];
+      console.log('🔥 FILTER ANALYSIS:', {
+        'requested statuses': filter,
+        'matching records': matchingRecords.length,
+        'non-matching records': nonMatchingRecords.length,
+        'non-matching statuses': [...new Set(nonMatchingRecords.map((p: any) => p.status))]
+      });
+    }
+  };
+  
+  // Function to fetch plan statistics
+  const fetchPlanStatistics = useCallback(async (forceCurrencyFilter?: string | null) => {
     if (!accessToken || !managerId) {
-      setStatsError(new Error('Missing required parameters'));
-      setStatsLoading(false);
+      console.log('Missing accessToken or managerId for statistics fetch');
       return;
     }
-
+    
+    // Use forced currency filter or current filter
+    const activeCurrencyFilter = forceCurrencyFilter !== undefined ? forceCurrencyFilter : currentCurrencyFilter;
+    
+    // Check if this is a duplicate request with the same parameters
+    if (lastStatsFetchParams.current && 
+        lastStatsFetchParams.current.currencyFilter === activeCurrencyFilter) {
+      console.log('Skipping duplicate statistics fetch with same parameters:', { activeCurrencyFilter });
+      return;
+    }
+    
+    // Update last fetch parameters
+    lastStatsFetchParams.current = { currencyFilter: activeCurrencyFilter || null };
+    
     setStatsLoading(true);
     setStatsError(null);
-
     try {
+      const currencyRefValue = activeCurrencyFilter ? `Currency:v1:${activeCurrencyFilter}` : null;
+      console.log(`Fetching expense plan statistics with currency filter: ${activeCurrencyFilter || 'none'}`);
+      
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -312,7 +414,10 @@ export const useMainViewExpensePlans = ({
         },
         body: JSON.stringify({
           query: GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS,
-          variables: { managerId }
+          variables: { 
+            managerId,
+            currencyRef: currencyRefValue
+          }
         })
       });
       const result = await response.json();
@@ -322,8 +427,6 @@ export const useMainViewExpensePlans = ({
       }
       
       const data = result.data as ExpensePlanStatisticsResponse;
-      
-
       
       setPlanStats({
         totalCount: data.allPlansStats?.aggregate.totalCount || 0,
@@ -337,24 +440,38 @@ export const useMainViewExpensePlans = ({
     } finally {
       setStatsLoading(false);
     }
-  }, [accessToken, managerId]);
-
+  }, [accessToken, managerId, currentCurrencyFilter]);
+  
+  // Effect to debounce statistics fetch
   useEffect(() => {
     const timestamp = new Date().getTime();
-    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Calling fetchPlanStatistics() - statisticsOnly:`, statisticsOnly);
-    fetchPlanStatistics();
-  }, [fetchPlanStatistics, statisticsOnly, hookId]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
+    console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Debouncing fetchPlanStatistics() - statisticsOnly:`, statisticsOnly, 'with currency filter:', currentCurrencyFilter);
+    
+    // Clear any existing timer
+    if (statsDebounceTimer.current) {
+      clearTimeout(statsDebounceTimer.current);
+    }
+    
+    // Set a new timer to debounce the fetch
+    statsDebounceTimer.current = setTimeout(() => {
+      console.log(`🔥 [${timestamp}] STATISTICS FETCH HOOK-${hookId}: Executing debounced fetchPlanStatistics()`);
+      fetchPlanStatistics();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function to clear the timer if the component unmounts
+    return () => {
+      if (statsDebounceTimer.current) {
+        clearTimeout(statsDebounceTimer.current);
+      }
+    };
+  }, [fetchPlanStatistics, statisticsOnly, currentCurrencyFilter, hookId]);
+  
+  // Function to approve expense plan
   const approvePlan = useCallback(async (planId: string, comments?: string) => {
     if (!accessToken || !managerId) return;
 
     setApproving(true);
     try {
-  
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
         headers: {
@@ -373,23 +490,23 @@ export const useMainViewExpensePlans = ({
 
       const result = await response.json();
       
-      
       if (result.errors) {
         console.error('GraphQL errors in approve plan:', result.errors);
         throw new Error(result.errors[0].message);
       }
 
       message.success('Expense plan approved successfully');
-      fetchPlans(currentStatusFilter); // Pass current filter to refresh with same filter
-      fetchPlanStatistics();
+      fetchPlans(currentStatusFilter, currentCurrencyFilter); // Pass current filters to refresh with same filters
+      fetchPlanStatistics(currentCurrencyFilter);
     } catch (err) {
       console.error('Error approving expense plan:', err);
       message.error('Failed to approve expense plan');
     } finally {
       setApproving(false);
     }
-  }, [accessToken, managerId, fetchPlans, fetchPlanStatistics]);
+  }, [accessToken, managerId, fetchPlans, fetchPlanStatistics, currentStatusFilter, currentCurrencyFilter]);
 
+  // Function to reject expense plan
   const rejectPlan = useCallback(async (planId: string, reason: string) => {
     if (!accessToken || !managerId) return;
 
@@ -410,25 +527,54 @@ export const useMainViewExpensePlans = ({
           }
         })
       });
+      
+      const result = await response.json();
+      
+      if (result.errors) {
+        console.error('GraphQL errors in reject plan:', result.errors);
+        throw new Error(result.errors[0].message);
+      }
 
       message.success('Expense plan rejected successfully');
-      fetchPlans(currentStatusFilter); // Pass current filter to refresh with same filter
-      fetchPlanStatistics();
+      fetchPlans(currentStatusFilter, currentCurrencyFilter); // Pass current filters to refresh with same filters
+      fetchPlanStatistics(currentCurrencyFilter);
     } catch (err) {
       console.error('Error rejecting expense plan:', err);
       message.error('Failed to reject expense plan');
     } finally {
       setRejecting(false);
     }
-  }, [accessToken, managerId, fetchPlans, fetchPlanStatistics]);
+  }, [accessToken, managerId, fetchPlans, fetchPlanStatistics, currentStatusFilter, currentCurrencyFilter]);
 
+  // Function to update sorting configuration
+  const updateSorting = useCallback((field: SortField) => {
+    setSorting(prevSorting => {
+      // If clicking on the same field, toggle the order
+      if (prevSorting.field === field) {
+        return {
+          field,
+          order: prevSorting.order === 'ASC' ? 'DESC' : 'ASC'
+        };
+      }
+      // If clicking on a new field, default to DESC order
+      return {
+        field,
+        order: 'DESC'
+      };
+    });
+    // Reset to first page when sorting changes
+    setCurrentPage(1);
+  }, []);
+  
   return {
+    plans,
     loading,
     error,
-    plans,
     totalCount,
     currentPage,
-    setCurrentPage: handlePageChange,
+    setCurrentPage,
+    employeeFilter,
+    setEmployeeFilter,
     approving,
     rejecting,
     approvePlan,
@@ -436,8 +582,7 @@ export const useMainViewExpensePlans = ({
     planStats,
     statsLoading,
     statsError,
-    fetchPlanStatistics,
-    setEmployeeFilter,
-    employeeFilter
+    sorting,
+    updateSorting
   };
 };

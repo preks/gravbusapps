@@ -2,8 +2,8 @@ import React from 'react';
 import { Card } from 'antd';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext';
-import { WorkingConditionKpiResult } from '../../hooks/useWorkingConditionForecast';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast';
 
 interface CompanySalaryForecastChartProps extends BusinessAppContextProps {
   kpiData: WorkingConditionKpiResult;

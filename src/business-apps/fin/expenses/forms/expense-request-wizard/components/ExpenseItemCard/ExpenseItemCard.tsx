@@ -39,10 +39,10 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
       className="gba:p-0 gba:overflow-hidden gba:rounded-none" 
       data-testid={`expense-item-card-${id}`}
     >
-      <div className="gba:p-10 gba:flex gba:flex-row gba:justify-between gba:box-border gba:min-h-[120px]">
+      <div className="gba:p-10 gba:flex gba:flex-row gba:justify-between gba:items-stretch gba:box-border gba:min-h-[120px]">
         <div className="gba:flex gba:flex-col">
           <div className="gba:text-sm" data-testid={`expense-item-type-${id}`}>
-            {expenseGroup}{expenseType && ":"}{expenseType}
+            {expenseGroup}{expenseType && ": "}{expenseType}
           </div>
           <div className="gba:text-[18px] gba:font-bold gba:mt-[10px]" data-testid={`expense-item-title-${id}`}>
             {title}
@@ -66,13 +66,13 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
             </div>
           )}
         </div>
-        <div className="gba:flex gba:flex-col gba:items-end gba:h-full gba:w-1/4 gba:justify-between h-auto">
+        <div className="gba:flex gba:flex-col gba:self-stretch gba:w-1/4">
           <div>
             {onDelete && (
-              <div className="gba:w-full gba:flex gba:justify-end">
+              <div className="gba:w-[100%] gba:flex gba:justify-end">
                 <button 
                   className="gba:flex gba:items-center gba:justify-center gba:bg-[#F7F7F7] gba:rounded-full gba:w-8 gba:h-8 gba:p-0 gba:border-none gba:cursor-pointer"
-                  onClick={() => onDelete(id)}
+                  onClick={(e) => { e.stopPropagation(); onDelete(id); }}
                   data-testid={`delete-item-button-${id}`}
                 >
                   <img src={ICONS.DELETE} alt="Delete" className="gba:w-4 gba:h-4" />
@@ -80,7 +80,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
               </div>
             )}
           </div>
-          <div className="gba:text-[18px] gba:font-bold" data-testid={`expense-item-amount-${id}`}>
+          <div className="gba:text-[18px] gba:font-bold gba:mt-auto justify:end" style={{alignSelf: "flex-end"}} data-testid={`expense-item-amount-${id}`}>
             {formatNumberFunction(amount)} {currency}
           </div>
         </div>

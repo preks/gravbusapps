@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FileOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useAccountData } from "./hooks/useAccountData";
@@ -9,7 +9,8 @@ import { CompanyInformation } from "./components/CompanyInformation";
 import { ContactInformation } from "./components/ContactInformation";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
-import { AccountOpportunities, AccountDocuments } from "./components";
+import { AccountOpportunities } from "./components";
+import { FileManager } from "@/components/file-manager";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -23,11 +24,6 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   const [activeTab, setActiveTab] = useState('overview');
 
   const { account: accountData, loading: dataLoading, error: dataError, refetchAccountData } = useAccountData(accountId, props.accessToken);
-
-  // Get source from URL parameters to determine back navigation text
-  const source = useMemo(() => {
-    return new URLSearchParams(window.location.search).get('source');
-  }, []);
 
   const getBackButtonText = () => {
     return 'Back to Accounts';
@@ -129,7 +125,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
               Opportunities
             </TabsTrigger>
             <TabsTrigger value="documents" data-testid="documents-tab">
-              <FolderOpenOutlined className="gba:mr-2" />
+              <FileOutlined className="gba:mr-2" />
               Documents
             </TabsTrigger>
           </TabsList>
@@ -179,11 +175,14 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           </TabsContent>
 
           <TabsContent value="documents" data-testid="documents-content">
-            <AccountDocuments 
-              accountId={accountId} 
-              context={props} 
+            <FileManager
+              context={props}
+              entity={{ type: 'account', id: accountId }}
+              ui={{ title: 'Documents' }}
+              data-testid="account-file-manager"
             />
           </TabsContent>
+
         </Tabs>
       </div>
     </div>
@@ -198,7 +197,12 @@ interface AccountRecordProps extends BusinessAppContextProps {
 
 const AccountRecord: React.FC<AccountRecordProps> = (props) => {
   const accountId = useMemo(() => {
-    return props.accountId || new URLSearchParams(window.location.search).get('accountId');
+    const fromProps = props.accountId;
+    const fromQuery = new URLSearchParams(window.location.search).get('accountId');
+    if (fromProps) return fromProps;
+    if (fromQuery) return fromQuery;
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    return isLocal ? '79e8f1a9-f9cd-4135-b03e-008b7589b41c' : undefined;
   }, [props.accountId]);
 
   const source = useMemo(() => {

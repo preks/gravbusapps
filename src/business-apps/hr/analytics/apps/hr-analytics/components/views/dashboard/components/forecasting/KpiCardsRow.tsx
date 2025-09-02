@@ -1,10 +1,10 @@
 import React from 'react';
 import { Card, Spin } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext';
-import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../hooks/useWorkingConditionForecast';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast';
 
-import { useTotalPayroll } from '../../hooks/useTotalPayroll';
+import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll';
 
 interface KpiCardsRowProps extends BusinessAppContextProps {
   kpiData: WorkingConditionKpiResult;

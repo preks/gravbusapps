@@ -6,6 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ADDRESS_TYPES_ENUM, PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants';
 import { mergeUniqueById } from '../../../utils/functionUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { EVENTS } from '../../../utils/constants';
 
 /**
  * Prepares trip data for saving
@@ -73,7 +74,8 @@ export const createTripLogObject = (
       startDate: startTripDateTime || initialRequest.startDate || "",
       endDate: endTripDateTime || initialRequest.endDate || "",
       expenseRule: employeeRuleId || "",
-      version: initialRequest.version || "",
+      version: initialRequest.version || 0,
+      description:initialRequest.description || "",
       costCenter: initialRequest.costCenterId || "",
       employee: initialRequest.employeeId || "",
       expensePlan: initialRequest.expensePlanId || "",
@@ -81,7 +83,7 @@ export const createTripLogObject = (
       status: initialRequest.status,
       requestDate: initialRequest.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest.requestTypeRef,
-      additionalProperties: initialRequest.additionalProperties,
+      additionalProperties: initialRequest.additionalProperties || {},
       currencyRef: currentCurrency || initialRequest.currency?.id
     }
   };
@@ -190,7 +192,7 @@ export const transformTrips = (startLocation: LocationData, destinations: Locati
  * @param expenseRulesData - Expense rules data
  * @returns Region rule detail or undefined
  */
-const findRegionRuleDetail = (travelRegionRef: string, expenseRulesData: any): any => {
+export const findRegionRuleDetail = (travelRegionRef: string, expenseRulesData: any): any => {
   if (!expenseRulesData?.AllowanceRegionRuleDetail) return undefined;
 
   const hasHomeRegionRule = expenseRulesData.homeRegionRule?.length > 0;
@@ -294,12 +296,12 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   if (!array) return null;
   
   const filteredArray = array.filter(item => item.pointType === pointType);
-  const objectToCheckTime = new Date(objectToCheck.tripDateTime).getTime();
-  
-  return filteredArray.find(item => {
-    const itemTime = new Date(item.tripDateTime).getTime();
+
+  const objectToCheckKey = dayjs(objectToCheck.tripDateTime).format('YYYY-MM-DDTHH:mm');
+  const found = filteredArray.find(item => {
+    const itemKey = dayjs(item.tripDateTime).format('YYYY-MM-DDTHH:mm');
     return item.address === objectToCheck.address &&
-      itemTime === objectToCheckTime &&
+      itemKey === objectToCheckKey &&
       item.pointType === objectToCheck.pointType &&
       item.tripDirection === objectToCheck.tripDirection &&
       item.costCenterId === objectToCheck.costCenter &&
@@ -309,6 +311,56 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
       item.expenseRequestId === objectToCheck.expenseRequest &&
       item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail;
   }) || null;
+  if (found) {
+    const merged: TripData = {
+      ...objectToCheck,
+      id: found.id,
+      version: found.version
+    } as TripData;
+    return merged;
+  }
+
+  return null;
+};
+
+/**
+ * Preserve existing trip ids/versions when the number of computed trips matches existing trips.
+ * This is a fallback for backend matching issues: if counts align, we map by pointType and tripOrder
+ * and copy id/version from existing to the corresponding new trips.
+ */
+const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
+  if (!existingTrips || !Array.isArray(existingTrips)) return newTrips;
+  if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips;
+
+  if (existingTrips.length !== newTrips.length) return newTrips;
+
+  const result = newTrips.map(trip => ({ ...trip }));
+
+  const pointTypes = Array.from(new Set([
+    ...existingTrips.map(t => t.pointType),
+    ...newTrips.map(t => t.pointType)
+  ]));
+
+  pointTypes.forEach((type) => {
+    const existingGroup = existingTrips
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    const incomingGroup = result
+      .filter(t => t.pointType === type)
+      .slice()
+      .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+
+    if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
+      for (let i = 0; i < incomingGroup.length; i += 1) {
+        incomingGroup[i].id = existingGroup[i].id;
+        incomingGroup[i].version = existingGroup[i].version;
+      }
+    }
+  });
+
+  return result;
 };
 
 export const handleTripSubmitAction = (
@@ -320,7 +372,8 @@ export const handleTripSubmitAction = (
   employeeRuleId: string,
   currentTitle: string,
   currentCurrency: string | null,
-  event:string
+  event:string,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   const initialRequest = expenseRequestData?.ExpenseRequestByPk;
   if (!initialRequest) {
@@ -334,30 +387,44 @@ export const handleTripSubmitAction = (
     return false;
   }
   const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency,event);
-  const requestItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
+  const requestItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
     expenseRequestData.ExpenseItem.forEach((item: any) => {
       if (item) {
         requestItems.push({
           id: item.id,
+          version: item.version,
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
-          expenseRequest: initialRequest.id || ''
+          expenseRequest: initialRequest.id || '',
+          costCenter: item.costCenterId || '',
+          project: item.projectId || '',
+          expenseGroupRef: item.expenseGroupRef || '',
+          source: item.source || '',
+          expenseClassRef: item.expenseClassRef || '',
+          autoCalculated: item.autoCalculated || false
         });
       }
     });
   }
-  const additionalItems: Array<{id: string, code: string, title: string, ruleId: string, expenseRequest: string}> = [];
-  if (expenseRequestData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-    expenseRequestData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+  const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
+  if (expenseRequestData.additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+      Array.isArray(expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+    expenseRequestData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
+        version: item.version,
         code: item.code || '',
         title: item.title || '',
         ruleId: item.expenseRuleId || '',
-        expenseRequest: initialRequest.id || ''
+        expenseRequest: initialRequest.id || '',
+        costCenter: item.costCenterId || '',
+        project: item.projectId || '',
+        expenseGroupRef: item.expenseGroupRef || '',
+        source: item.source || '',
+        expenseClassRef: item.expenseClassRef || '',
+        autoCalculated: item.autoCalculated || false
       });
     });
   }
@@ -381,12 +448,20 @@ export const handleTripSubmitAction = (
     });
   }
 
-  (logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialRequest.expenseRequestTrip || [])
-  };
+  // Fallback: if counts match, preserve ids/versions by pointType and tripOrder alignment
+  const finalTrips = (Array.isArray(initialRequest.expenseRequestTrip) && verifiedTrips)
+    ? preserveTripIdsIfCountsMatch(initialRequest.expenseRequestTrip, arrayWithExistingTrips)
+    : arrayWithExistingTrips;
 
-  dispatchProcessContinueEvent(event, logObject);
-  return true;
+  (logObject as LogObject).expenseRequestTrips = {
+    expenseTrips: verifiedTrips ? finalTrips : (initialRequest.expenseRequestTrip || [])
+  };
+  if (dispatchProcessContinueEventIfEnabled) {
+    return dispatchProcessContinueEventIfEnabled(event, logObject);
+  } else {
+    dispatchProcessContinueEvent(event, logObject);
+    return true;
+  }
 };
 
 
@@ -414,21 +489,27 @@ export const getValidLocality = (employeeAddresses: any[]) => {
  * @param setEndLocation - Function to set end location
  */
 export const setByExternalCustomComponent = (
-  expenseRequestData: any,
+  expenseData: any,
   expenseRulesData: any,
   setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
   setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
   setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
 ) => {
-  if (!expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || 
-      !Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) || 
-      expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length === 0) {
-    return;
-  }
-
+  const localExpenseData = expenseData?.ExpenseRequestByPk || expenseData?.ExpensePlanByPk
+  let tripData = [];
+  if(localExpenseData?.expenseRequestTrip && Array.isArray(localExpenseData.expenseRequestTrip) && 
+  localExpenseData.expenseRequestTrip.length !== 0)
+    tripData = localExpenseData.expenseRequestTrip;
+    else 
+    {if(localExpenseData?.expensePlan && localExpenseData?.expensePlan?.expenseRequestTrip 
+      && Array.isArray(localExpenseData.expensePlan.expenseRequestTrip) && 
+    localExpenseData.expensePlan.expenseRequestTrip.length !== 0)
+    tripData = localExpenseData.expensePlan.expenseRequestTrip;}
+    if(tripData.length === 0)
+    {
+      return;
+    }
   try {
-    const tripData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
-    
     // Find start point
     const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT');
     if (startPoint) {
@@ -448,7 +529,23 @@ export const setByExternalCustomComponent = (
       .filter((trip: any) => trip.pointType === 'DESTINATION_POINT')
       .sort((a: any, b: any) => a.tripOrder - b.tripOrder);
     
-    if (destinationPoints.length > 0) {
+      if(destinationPoints.length === 1) {
+        const singleDestination = destinationPoints[0];
+        const isAbroad = checkIfAbroad(singleDestination.travelRegionRef, expenseRulesData);
+        const formattedSingleDestination = {
+            id: `destination-${0}`,
+            name: '',
+            location: singleDestination.address || '',
+            departureDate: undefined,
+            departureTime: undefined,
+            isCollapsed: false,
+            travelRegionRef: singleDestination.travelRegionRef || '',
+            isAbroad
+          };
+        setDestinations([formattedSingleDestination]);
+      }
+      else
+         if (destinationPoints.length > 0) {
       const formattedDestinations = destinationPoints.map((destination: any, index: number) => {
         const isAbroad = checkIfAbroad(destination.travelRegionRef, expenseRulesData);
         return {
@@ -464,7 +561,7 @@ export const setByExternalCustomComponent = (
       });
       
       setDestinations(formattedDestinations);
-    }
+            }
     
     // Find end point
     const endPoint = tripData.find((trip: any) => trip.pointType === 'END_POINT');
@@ -528,10 +625,88 @@ export const setLocalitiesDefault = (expenseRequestData: any,
           ...prevLocation,
           location: localityToSet
         }));
-        
-        setLocationsAreSynced(true);
       }
+      setLocationsAreSynced(true);
     } catch (error) {
       
     }
   };
+
+  export const getLatestRejectComment = (expenseRequestData: any) => {
+    if (expenseRequestData && 
+        expenseRequestData.ExpenseRequestByPk && 
+        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
+      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
+        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
+      
+      return filteredArray && filteredArray.length > 0 ? 
+        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
+        null;
+    }
+    return null;
+  };
+
+  export const setInitialScreen =(additionalData:any,
+    expenseRequestData: any,
+    isTrip:boolean,
+    setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
+    currentScreen?: string)=>{
+
+    const stepKey = additionalData?.psi_taskPayload?.stepKey
+    if(stepKey){
+      let targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
+      
+      if(stepKey.includes(EVENTS.SAVE)){
+        switch(stepKey){
+          case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE:
+            targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE:
+            targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.SAVE:
+            targetScreen = SCREEN_NAMES_ENUM.ALLOWANCE_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE:
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
+            break;
+          default:
+            targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
+            break;
+        }
+      }
+      else if(stepKey.includes(EVENTS.NEXT)){
+        switch(stepKey){
+          case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT:
+            targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
+            targetScreen = isTrip ? SCREEN_NAMES_ENUM.ALLOWANCE_TAB : SCREEN_NAMES_ENUM.SUMMARY_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + EVENTS.NEXT:
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
+            break;
+          case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT:
+            targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
+            break;
+          default:
+            targetScreen = SCREEN_NAMES_ENUM.LOAD_TAB;
+            break;
+        }
+      }
+      
+      // Only change screen if we're not already on the target screen
+      if (currentScreen !== targetScreen) {
+        setCurrentScreen(targetScreen);
+      }
+    }
+    else
+    {
+      if (expenseRequestData) {
+        const defaultScreen = isTrip ? SCREEN_NAMES_ENUM.TRIPS_TAB : SCREEN_NAMES_ENUM.ITEMS_TAB;
+        if (currentScreen !== defaultScreen) {
+          setCurrentScreen(defaultScreen);
+        }
+      }
+    }
+  }

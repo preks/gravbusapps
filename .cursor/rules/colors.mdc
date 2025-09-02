@@ -1,6 +1,4 @@
 ---
-description: Color and Design Token Usage Guidelines for NEWWORK Design System
-globs: ["**/*.tsx", "**/*.ts", "**/*.jsx", "**/*.js"]
 alwaysApply: true
 ---
 
@@ -37,13 +35,17 @@ style={{ color: 'red', backgroundColor: 'blue' }}
 style={{ color: 'hsl(220, 91%, 54%)' }}
 ```
 
-### ❌ FORBIDDEN - Tailwind Color Classes:
+### ❌ FORBIDDEN - Tailwind Color Classes (INCLUDING gba: PREFIXED):
 ```tsx
-// ❌ NEVER use Tailwind color utility classes
+// ❌ NEVER use Tailwind color utility classes - INCLUDING gba: prefixed ones
 className="text-red-500 bg-blue-400 border-gray-300"
+className="gba:text-gray-700 gba:bg-blue-500 gba:border-red-400"  // STILL FORBIDDEN!
+className="hover:gba:bg-green-500 focus:gba:text-blue-600"
 className="from-purple-400 to-pink-400"
 className="hover:bg-green-500 focus:text-blue-600"
 ```
+
+**⚠️ CRITICAL**: Adding `gba:` prefix does NOT make Tailwind color classes acceptable!
 
 ### ❌ FORBIDDEN - Hardcoded Spacing/Sizing:
 ```tsx
@@ -52,6 +54,7 @@ style={{ padding: '16px', margin: '24px', gap: '8px' }}
 
 // ❌ NEVER use Tailwind spacing classes
 className="p-4 m-6 gap-2 px-8 py-3 mt-5 mb-7"
+className="gba:p-4 gba:m-6 gba:gap-2 gba:px-8 gba:py-3"  // STILL FORBIDDEN!
 ```
 
 ### ❌ FORBIDDEN - Hardcoded Shadows/Effects:
@@ -61,6 +64,7 @@ style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }}
 
 // ❌ NEVER use Tailwind shadow classes  
 className="shadow-lg shadow-xl drop-shadow-md"
+className="gba:shadow-lg gba:shadow-xl gba:drop-shadow-md"  // STILL FORBIDDEN!
 ```
 
 ---
@@ -73,30 +77,31 @@ className="shadow-lg shadow-xl drop-shadow-md"
 ```tsx
 // ✅ ALWAYS use design token variables
 style={{ 
-  color: 'var(--color-primary-500)',
-  backgroundColor: 'var(--color-surface-primary)',
-  borderColor: 'var(--color-border-default)'
+  color: 'var(--nw-color-primary-500)',
+  backgroundColor: 'var(--nw-color-surface-primary)',
+  borderColor: 'var(--nw-color-border-default)'
 }}
 
 // ✅ Common color tokens
 style={{
   // Primary colors
-  backgroundColor: 'var(--color-primary-500)',
-  borderColor: 'var(--color-primary-600)',
+  backgroundColor: 'var(--nw-color-primary-500)',
+  borderColor: 'var(--nw-color-primary-600)',
   
   // Surface colors
-  backgroundColor: 'var(--color-surface-primary)',
-  backgroundColor: 'var(--color-surface-secondary)',
+  backgroundColor: 'var(--nw-color-surface-primary)',
+  backgroundColor: 'var(--nw-color-surface-secondary)',
   
   // Text colors
-  color: 'var(--color-on-primary)',
-  color: 'var(--color-text-primary)',
-  color: 'var(--color-text-secondary)',
+  color: 'var(--nw-color-on-primary)',
+  color: 'var(--nw-color-text-primary)',
+  color: 'var(--nw-color-text-secondary)',
+  color: 'var(--nw-muted-foreground)',
   
   // Status colors
-  backgroundColor: 'var(--color-success-500)',
-  backgroundColor: 'var(--color-danger-500)',
-  backgroundColor: 'var(--color-warning-500)',
+  backgroundColor: 'var(--nw-color-success-500)',
+  backgroundColor: 'var(--nw-color-danger-500)',
+  backgroundColor: 'var(--nw-color-warning-500)',
 }}
 ```
 
@@ -104,19 +109,19 @@ style={{
 ```tsx
 // ✅ ALWAYS use spacing tokens
 style={{
-  padding: 'var(--spacing-md)',      // Instead of padding: '16px'
-  margin: 'var(--spacing-lg)',       // Instead of margin: '24px'  
-  gap: 'var(--spacing-sm)',          // Instead of gap: '8px'
-  paddingLeft: 'var(--spacing-xl)',  // Instead of paddingLeft: '32px'
+  padding: 'var(--nw-spacing-md)',      // Instead of padding: '16px'
+  margin: 'var(--nw-spacing-lg)',       // Instead of margin: '24px'  
+  gap: 'var(--nw-spacing-sm)',          // Instead of gap: '8px'
+  paddingLeft: 'var(--nw-spacing-xl)',  // Instead of paddingLeft: '32px'
 }}
 
 // ✅ Common spacing tokens
 style={{
-  padding: 'var(--spacing-xs)',  // 4px
-  padding: 'var(--spacing-sm)',  // 8px  
-  padding: 'var(--spacing-md)',  // 16px
-  padding: 'var(--spacing-lg)',  // 24px
-  padding: 'var(--spacing-xl)',  // 32px
+  padding: 'var(--nw-spacing-xs)',  // 4px
+  padding: 'var(--nw-spacing-sm)',  // 8px  
+  padding: 'var(--nw-spacing-md)',  // 16px
+  padding: 'var(--nw-spacing-lg)',  // 24px
+  padding: 'var(--nw-spacing-xl)',  // 32px
 }}
 ```
 
@@ -124,11 +129,11 @@ style={{
 ```tsx
 // ✅ ALWAYS use shadow tokens
 style={{
-  boxShadow: 'var(--shadow-sm)',     // Small shadows
-  boxShadow: 'var(--shadow-md)',     // Medium shadows
-  boxShadow: 'var(--shadow-lg)',     // Large shadows
-  borderRadius: 'var(--border-radius-md)',
-  borderWidth: 'var(--border-width-thin)',
+  boxShadow: 'var(--nw-shadow-sm)',     // Small shadows
+  boxShadow: 'var(--nw-shadow-md)',     // Medium shadows
+  boxShadow: 'var(--nw-shadow-lg)',     // Large shadows
+  borderRadius: 'var(--nw-border-radius-md)',
+  borderWidth: 'var(--nw-border-width-thin)',
 }}
 ```
 
@@ -156,6 +161,31 @@ style={{
 
 ---
 
+## 👩‍💻 DEVELOPER WORKFLOW (MANDATORY)
+
+### Before Making ANY Color/Styling Changes:
+
+1. **STOP**: Do NOT proceed without MCP tools
+2. **FETCH**: Use `project-get-design-tokens` 
+3. **SEARCH**: Use `project-search-design-tokens` for specific needs
+4. **IMPLEMENT**: Use only `var(--nw-token)` format
+5. **VERIFY**: No `gba:text-*`, `gba:bg-*`, `gba:border-*` classes
+6. **TEST**: Ensure styling works across themes
+
+### 🚫 If MCP Server Unavailable:
+- **DO NOT PROCEED** with color/styling work
+- **WAIT** until MCP server is configured
+- **NO EXCEPTIONS** - this is not optional tooling
+
+### ✅ Pre-Change Checklist (MANDATORY):
+- [ ] ✅ Used `project-get-design-tokens` before adding ANY color/styling
+- [ ] ✅ Used `project-search-design-tokens` for specific needs  
+- [ ] ✅ Used `project-get-token-recommendations` for context
+- [ ] ✅ Verified NO Tailwind classes (including `gba:text-*`, `gba:bg-*`, etc.)
+- [ ] ✅ All styling uses `var(--nw-token)` format
+
+---
+
 ## 🔧 MANDATORY MCP WORKFLOW
 
 **REQUIRED PROCESS: Before adding ANY styling, the AI agent MUST:**
@@ -176,15 +206,29 @@ style={{
 
 // ✅ RESULT:
 <button style={{
-  backgroundColor: 'var(--color-primary-500)',
-  color: 'var(--color-on-primary)',
-  padding: 'var(--spacing-md)',
-  borderRadius: 'var(--border-radius-md)',
-  border: 'var(--border-width-thin) solid var(--color-primary-600)'
+  backgroundColor: 'var(--nw-color-primary-500)',
+  color: 'var(--nw-color-on-primary)',
+  padding: 'var(--nw-spacing-md)',
+  borderRadius: 'var(--nw-border-radius-md)',
+  border: 'var(--nw-border-width-thin) solid var(--nw-color-primary-600)'
 }}>
   Click me
 </button>
 ```
+
+---
+
+## 🛡️ MANDATORY MCP SERVER ENFORCEMENT
+
+**🔥 ZERO TOLERANCE POLICY**: If MCP server tools are not used before styling work, the change is INVALID.
+
+### 🚨 CODE REVIEW REJECTION CRITERIA:
+- Any `gba:text-{color}` classes → REJECT
+- Any `gba:bg-{color}` classes → REJECT  
+- Any `gba:border-{color}` classes → REJECT
+- Any `gba:shadow-{size}` classes → REJECT
+- Any hardcoded color values → REJECT
+- Missing MCP tool usage evidence → REJECT
 
 ---
 
@@ -194,6 +238,7 @@ style={{
 
 ### Red Flags (MCP Server Not Active):
 - Suggestions for `className="bg-blue-500"`
+- Suggestions for `className="gba:text-gray-700"`
 - Suggestions for `style={{ color: '#3b82f6' }}`
 - Suggestions for `padding: '16px'`
 - Suggestions for `className="text-red-600 p-4 shadow-lg"`
@@ -201,7 +246,7 @@ style={{
 
 ### Expected Behavior (MCP Server Active):
 - Auto-detection: "🎨 IMPORTANT: Use design tokens for styling!"
-- Token suggestions: `var(--color-primary-500)`, `var(--spacing-md)`
+- Token suggestions: `var(--nw-color-primary-500)`, `var(--nw-spacing-md)`
 - Anti-pattern warnings: "❌ DON'T use bg-blue-500"
 - Proper recommendations: CSS custom properties only
 
@@ -221,6 +266,7 @@ className="overflow-hidden text-ellipsis whitespace-nowrap"
 
 // ❌ FORBIDDEN: Any utilities with colors/spacing
 className="p-4 m-2 bg-blue-500 text-white shadow-lg" // NO!
+className="gba:p-4 gba:m-2 gba:bg-blue-500 gba:text-white gba:shadow-lg" // NO!
 ```
 
 ---
@@ -228,10 +274,10 @@ className="p-4 m-2 bg-blue-500 text-white shadow-lg" // NO!
 ## 🛡️ ENFORCEMENT RULES
 
 1. **MCP Server MANDATORY**: Must be active for ALL color/styling work
-2. **CSS Tokens ONLY**: All colors, spacing, shadows must use `var(--token)`
+2. **CSS Tokens ONLY**: All colors, spacing, shadows must use `var(--nw-token)`
 3. **NO Hardcoded Values**: Zero tolerance for hex codes, px values, Tailwind classes
-4. **Component Variants PREFERRED**: Use semantic variants when available
-5. **Layout Utilities ACCEPTABLE**: Only pure layout classes, no styling utilities
+4. **NO gba: Color Classes**: `gba:text-*`, `gba:bg-*`, `gba:border-*` are forbidden
+5. **Component Variants PREFERRED**: Use semantic variants when available
+6. **Layout Utilities ACCEPTABLE**: Only pure layout classes, no styling utilities
 
 **🔥 REMEMBER: The `@newwork/nw-design-system` CSS tokens handle all styling - let them do their job through the MCP server!**
-

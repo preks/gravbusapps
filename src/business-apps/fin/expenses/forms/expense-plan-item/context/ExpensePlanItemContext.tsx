@@ -33,6 +33,7 @@ import {
 import { showToast } from "../../../utils/notificationUtils";
 import { handleSubmit, handleCancel, handleExpenseGroupChange, handleExpenseTypeChange, handleCurrencyChange } from "../services/eventHandlers";
 import { DEFAULT_EMPLOYEE_ID } from "../../expense-item/constants/constants";
+import { useProcessEventState } from "@/business-apps/fin/expenses/utils/useProcessEventState";
 
 interface ExpensePlanItemContextProps {
   form: any;
@@ -51,6 +52,8 @@ interface ExpensePlanItemContextProps {
 
   employeeRuleId: string | null | object;
   expenseRuleError: string | null;
+  itemValues: { id: string; version: string | number } | null;
+  additionalData?: any;
 
   handleSubmit: () => Promise<void>;
   handleCancel: () => void;
@@ -59,13 +62,14 @@ interface ExpensePlanItemContextProps {
   handleCurrencyChange: (currencyId: string) => Promise<void>;
   fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
   fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
+  setInitialItemValues: (id: string, version: string | number) => void;
 }
 
 interface ExpensePlanItemProviderProps {
   children: ReactNode;
   accessToken: string;
   userInfo?: any;
-  additionalData?: { [k: string]: any };
+  additionalData?: any;
 }
 
 export const ExpensePlanItemContext = createContext<
@@ -79,12 +83,13 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   additionalData,
 }): React.ReactNode => {
   const { t } = useTranslation();
+  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData);
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
-
+  const [expensePlanId,setExpensePlanId] = useState<string>("");
   const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>([]);
   const [expenseTypes, setExpenseTypes] = useState<{
     [classId: string]: ExpenseType[];
@@ -101,6 +106,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
   const [rerunRule, setRerunRule] = useState<boolean>(false);
+  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
@@ -152,9 +158,28 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
   useEffect(() => {
     if (catalogueDataResponse && accessToken && !expenseRuleError) {
-      addRequestsWrapper();
-      // Check if we're in edit mode
-      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+      addCurrencyWrapper();
+      const expensePlanId = 
+        additionalData?.expensePlanId || 
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
+      // Set expensePlanId in form
+      if (expensePlanId) {
+        setExpensePlanId(expensePlanId)
+      }
+      if (additionalData?.itemCurrency && currencies.length > 0) {
+        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency); 
+        if (currencyToSet) {
+          if (typeof additionalData?.useSingleCurrency === 'boolean') {
+            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency });
+          }
+          form.setFieldsValue({ currency: currencyToSet.id });
+        }
+      }
+      else if(currencies.length > 0)
+        {
+          form.setFieldsValue({ currency: currencies[0].id });
+        }
+      const expensePlanItemId = additionalData?.expensePlanItemId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlanItem;
       if (expensePlanItemId) {
         setIsEditMode(true);
         setByEditWrapper(expensePlanItemId);
@@ -170,7 +195,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     }
   },[currentSelectedDate])
 
-  const addRequestsWrapper = () => {
+  const addCurrencyWrapper = () => {
     try {
       const transformedCurrencies = transformCurrencies(
         catalogueDataResponse?.data?.currency || []
@@ -373,6 +398,9 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         return;
       }
 
+      // Set initial item values for edit mode
+      setInitialItemValues(item.id, item.version);
+
       // Prefill form fields
       form.setFieldsValue({
         title: item.title,
@@ -449,10 +477,14 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       generalDataResponse,
       catalogueDataResponse,
       setLoading,
+      expensePlanId,
       accessToken,
       userInfo,
       additionalData,
-      setIsEditMode
+      setIsEditMode,
+      itemValues || undefined,
+      getIsProcessEventDispatched,
+      dispatchProcessContinueEventIfEnabled
     );
   };
 
@@ -487,6 +519,10 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     );
   };
 
+  const setInitialItemValues = (id: string, version: string | number) => {
+    setItemValues({ id, version });
+  };
+
   const contextValue: ExpensePlanItemContextProps = {
     form,
     loading,
@@ -502,6 +538,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     currencies,
     employeeRuleId,
     expenseRuleError,
+    itemValues,
+    additionalData,
     handleSubmit: handleSubmitWrapper,
     handleCancel: handleCancelWrapper,
     handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
@@ -509,6 +547,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
+    setInitialItemValues: setInitialItemValues,
   };
 
   return (

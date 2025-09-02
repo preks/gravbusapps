@@ -6,86 +6,8 @@ import { ExpensePlanItemProps } from "./types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { showToast } from "../../utils/notificationUtils";
-import "../expense-item/ExpenseItem.css";
 
 const { Title } = Typography;
-
-interface ExpensePlanItemContentProps {
-  onClose?: (shouldRefetch?: boolean) => void;
-}
-
-const ExpensePlanItemContent: React.FC<ExpensePlanItemContentProps> = ({ onClose }) => {
-  const {
-    form,
-    loading,
-    expenseGroups,
-    expenseTypes,
-    customFields,
-    costCenters,
-    currencies,
-    handleSubmit,
-    handleCancel,
-    handleExpenseGroupChange,
-    handleExpenseTypeChange,
-    handleCurrencyChange,
-    isEditMode,
-  } = useExpensePlanItem();
-
-  const handleCancelWithCallback = () => {
-    handleCancel();
-    if (onClose) {
-      onClose(false);
-    }
-  };
-
-  const handleSubmitWithCallback = async () => {
-    try {
-      await handleSubmit();
-      if (onClose) {
-        onClose(true);
-      }
-    } catch (error) {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_summary_request.no_expense_items",
-          "No expense items created"
-        ),
-        "error"
-      );
-    }
-  };
-
-  return (
-    <div className={`gba:mainContainer`} data-testid="expense-plan-item-main-container">
-      <div className={`gba:headerContainer`} data-testid="expense-plan-item-header-container">
-        <div className={`gba:titleContainer`} data-testid="expense-plan-item-title-container">
-          <Title level={4} className={`gba:headerTitle`} data-testid="expense-plan-item-header-title">
-            {isEditMode
-              ? getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
-              : getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
-            }
-          </Title>
-        </div>
-      </div>
-      <Divider className={`gba:headerDivider`} data-testid="expense-plan-item-header-divider" />
-
-      <ExpensePlanItemForm
-        form={form}
-        expenseGroups={expenseGroups}
-        expenseTypes={expenseTypes}
-        customFields={customFields}
-        costCenters={costCenters}
-        currencies={currencies}
-        handleSubmit={handleSubmitWithCallback}
-        handleCancel={handleCancelWithCallback}
-        handleExpenseGroupChange={handleExpenseGroupChange}
-        handleExpenseTypeChange={handleExpenseTypeChange}
-        handleCurrencyChange={handleCurrencyChange}
-        loading={loading}
-      />
-    </div>
-  );
-};
 
 const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> = ({ 
   accessToken, 
@@ -94,12 +16,117 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
   onClose 
 }) => {
 
+  const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
+
+    return {
+      ...additionalData,
+      expensePlanId: additionalData?.expensePlanId,
+      itemCurrency: additionalData?.itemCurrency
+    };
+  });
   
+   // For backward compatibility, still listen for the custom event
+   React.useEffect(() => {
+    const handleShowExpenseItem = (event: CustomEvent) => {
+      if (event.detail) {
+        const { expensePlanId, itemCurrency } = event.detail;
+        
+        // Update additionalData with the parameters from the event
+        setLocalAdditionalData((prevData: any) => ({
+          ...prevData,
+          expensePlanId,
+          itemCurrency
+        }));
+      }
+    };
+    
+    // Add event listener
+    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener);
+    };
+  }, []);
+
+  const ExpensePlanItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
+    const {
+      form,
+      loading,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      handleSubmit,
+      handleCancel,
+      handleExpenseGroupChange,
+      handleExpenseTypeChange,
+      handleCurrencyChange,
+      isEditMode,
+    } = useExpensePlanItem();
+
+    const handleCancelWithCallback = () => {
+      handleCancel();
+      if (onClose) {
+        onClose(false);
+      }
+    };
+
+    const handleSubmitWithCallback = async () => {
+      try {
+        await handleSubmit();
+        if (onClose) {
+          onClose(true);
+        }
+      } catch (error) {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:expense_summary_request.no_expense_items",
+            "No expense items created"
+          ),
+          "error"
+        );
+      }
+    };
+
+    return (
+              <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }} data-testid="expense-plan-item-main-container">
+        <div className="gba:flex gba:items-center gba:pt-10 gba:font-primary gba:relative gba:pb-[30px] gba:h-8 gba:box-content" data-testid="expense-plan-item-header-container">
+          <div className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none" data-testid="expense-plan-item-title-container">
+                          <Title level={4} className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto" data-testid="expense-plan-item-header-title">
+              {isEditMode
+                ? getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
+                : getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
+              }
+            </Title>
+          </div>
+        </div>
+        <Divider className="gba:m-0 gba:ml-0 gba:mb-[30px]" data-testid="expense-plan-item-header-divider" />
+
+        <ExpensePlanItemForm
+          form={form}
+          expenseGroups={expenseGroups}
+          expenseTypes={expenseTypes}
+          customFields={customFields}
+          costCenters={costCenters}
+          currencies={currencies}
+          handleSubmit={handleSubmitWithCallback}
+          handleCancel={handleCancelWithCallback}
+          handleExpenseGroupChange={handleExpenseGroupChange}
+          handleExpenseTypeChange={handleExpenseTypeChange}
+          handleCurrencyChange={handleCurrencyChange}
+          loading={loading}
+        />
+      </div>
+    );
+  };
+
   return (
     <ExpensePlanItemProvider 
       accessToken={accessToken} 
       userInfo={userInfo} 
-      additionalData={additionalData}
+      additionalData={localAdditionalData}
     >
       <ExpensePlanItemContent onClose={onClose} />
     </ExpensePlanItemProvider>

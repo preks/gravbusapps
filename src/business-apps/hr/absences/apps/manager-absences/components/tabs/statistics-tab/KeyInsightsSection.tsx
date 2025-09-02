@@ -171,7 +171,7 @@ export const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ data, co
           </div>
           <div className="gba:text-3xl gba:font-bold gba:text-gray-900" data-testid="approval-rate-value">{approvalRate}%</div>
           <div className="gba:text-xs gba:text-gray-500" data-testid="approval-rate-sub">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.excellent_planning_and_timing', `${statistics.approvedAbsences || 0}/${(statistics.approvedAbsences || 0) + (statistics.pendingRequests || 0)} requests`)}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_status_scope', 'Statuses considered: APPROVED vs ALL STATUSES')}
           </div>
         </CardContent>
       </Card>

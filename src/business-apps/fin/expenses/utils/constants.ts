@@ -10,7 +10,7 @@ export const FILES_ENDPOINT = env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT")
 
 export const EMPLOYEE_FILES_LOCATION = "/api/v1/tenant/files"
 
-export const FILES_ENGINE_ENDPOINT = env("NEXT_PUBLIC_API_SERVER") + "/docs-engine/api/v1"
+export const FILES_ENGINE_ENDPOINT = env("NEXT_PUBLIC_BASE_URL") + "/docs-engine/api/v1"
 
 export const PROCESSES_ENDPOINT = env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
 
@@ -19,5 +19,7 @@ export const EVENTS = {
     SAVE:"pse_save",
     NEXT:"pse_next",
     CANCEL:"pse_cancel",
-    ABORT: "pse_abort"
+    ABORT: "pse_abort",
+    SKIP: "pse_skip",
+    DISCARD: "pse_discard"
   } as const;

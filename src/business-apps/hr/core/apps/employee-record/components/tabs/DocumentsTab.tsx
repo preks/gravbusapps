@@ -12,10 +12,11 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { PiPencilSimple } from 'react-icons/pi';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { AppActionMenu } from '@/components/app-action-menu';
 
 interface DocumentsTabProps {
   employee: Employee;
@@ -615,19 +616,21 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
           
           {isSelfView && (
             <div>
-              <AppActionButton
-                data-testid="upload-document-button"
-                variant="primary"
+              <AppActionMenu
+                data-testid="employee-document-upload-button"
                 contextsArray={[FlowContextName.documentPersonal]}
                 externalContextData={{
                   employeeId: employee?.id
                 }}
-                prefixDataTestId="upload-document"
+                prefixDataTestId="employee-document-upload"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
               >
-                Upload Document
-              </AppActionButton>
+                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                  <PiPencilSimple />
+                  Upload Document
+                </div>
+              </AppActionMenu>
             </div>
           )}
         </div>
@@ -668,19 +671,18 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
         
         {/* Upload button */}
         <div>
-          <AppActionButton
-            data-testid="upload-document-button"
-            variant="primary"
+          <AppActionMenu
+            data-testid="employee-document-upload-button"
             contextsArray={[FlowContextName.documentPersonal]}
             externalContextData={{
               employeeId: employee?.id
             }}
-            prefixDataTestId="upload-document"
+            prefixDataTestId="employee-document-upload"
             accessToken={accessToken}
             autoExecuteSingleAction={true}
           >
-            Upload Document
-          </AppActionButton>
+            <PiPencilSimple className="gba:cursor-pointer" />
+          </AppActionMenu>
         </div>
       </div>
       

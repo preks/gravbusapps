@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useMainViewAdvancePayments } from '../../../hooks/useMainViewAdvancePayments';
+import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 
@@ -12,8 +13,17 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     accessToken: props.accessToken,
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
+  
+  // Get managerId from userInfo for currency filtering
+  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
+  
+  // Use the advance payment filters hook with accessToken and managerId for dynamic currency data
+  const { currencyFilter } = useAdvancePaymentFilters({
+    accessToken: props.accessToken,
+    managerId
+  });
 
-  // Use the new main view hook for advance payments
+  // Use the new main view hook for advance payments with currency filter
   const {
     paymentStats: advancePaymentStats,
     statsLoading,
@@ -22,6 +32,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   } = useMainViewAdvancePayments({
     ...contextProps,
     pageSize: 1000, // Large page size for statistics
+    currentCurrencyFilter: currencyFilter, // Use the dynamic currency filter
   });
   
   // Fetch statistics on component mount

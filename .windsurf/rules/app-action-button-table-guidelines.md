@@ -1,7 +1,6 @@
 ---
-trigger: always_on
+alwaysApply: true
 ---
-
 # AppActionButton Table Integration Guidelines (Concise)
 
 ## Core Rule
@@ -90,10 +89,10 @@ const columns = [
 ## Entity Context Mapping
 ```typescript
 // CRM Entities
-[FlowContextName.leadEntity]         // externalContextData: { leadId }
-[FlowContextName.accountEntity]      // externalContextData: { accountId }
-[FlowContextName.contactEntity]      // externalContextData: { contactId }
-[FlowContextName.opportunityEntity]  // externalContextData: { opportunityId }
+[FlowContextName.customerLeadEntity]         // externalContextData: { leadId }
+[FlowContextName.customerAccountEntity]      // externalContextData: { accountId }
+[FlowContextName.customerAccountEntity]      // externalContextData: { contactId }
+[FlowContextName.customerOpportunityEntity]  // externalContextData: { opportunityId }
 
 // Investment Entities
 [FlowContextName.equityInvestmentEntity]        // externalContextData: { investmentId }

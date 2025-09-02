@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
 import { Button } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -7,7 +7,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { ICONS } from "../../../utils/icons";
 import LocationContainer from "../components/LocationContainer/LocationContainer";
 import LocationForm from "../components/LocationForm/LocationForm";
-import "./TripScreen.css";
+
 import { DestinationLimit, LocationData, TripScreenProps } from "../utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../ExpenseRequestWizardQueries";
@@ -15,12 +15,13 @@ import { useExpenseRequestWizardContext } from "../context/ExpenseRequestWizardC
 import { showToast } from "../../../utils/notificationUtils";
 import LoadScreen from "./LoadScreen";
 import { fetchEmployeeRule } from "../ExpenseRequestWizardQueries";
-import { formatDateTimeToISO, getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { getOverlapWarningMessage } from '../utils/dateOverlapUtils';
+import { combineDateTimeToISOString } from '../utils/locationTimeUtils';
 import { ABSENCE_STATUS,  defaultDestination, defaultEndLocation, defaultStartLocation, EXCLUDED_STATUSES, TRIP_REQUEST_TYPE } from "../constants/constants";
 import RejectionComment from "../components/RejectionComment";
 import { EVENTS } from "../../../utils/constants";
 import { mergeUniqueById } from '../../../utils/functionUtils';
-import { setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
+import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils';
 
 /**
  * Filters travel regions based on expense items' currency
@@ -69,8 +70,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
-      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.psi_initialParameters.expenseItems;
     }
     return [];
   };
@@ -111,6 +112,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
+  const lastAbsenceCheckKeyRef = useRef<string | null>(null);
   
   const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string, isError: boolean } | null>(null);
@@ -142,7 +144,7 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
       }
       
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
-      
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId;
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message', 
@@ -152,9 +154,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return false;
       }
       
-      if (ruleData.id) {
-        setEmployeeRuleId(ruleData.id);
-        const hasConflict = await checkRuleConflicts(ruleData.id);
+      if (ruleDataValue) {
+        setEmployeeRuleId(ruleDataValue);
+        const hasConflict = await checkRuleConflicts(ruleDataValue);
         if (hasConflict) {
           return false;
         }
@@ -220,9 +222,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     }
     
     const additionalItems: Array<{id: string, code: string, title: string, ruleId: string}> = [];
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-        Array.isArray(additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-      additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+        Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
         additionalItems.push({
           id: item.id,
           code: item.code || '',
@@ -291,8 +293,18 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         return;
       }
       
-      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
-      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
+      const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      let finalStartDate = startTimeValue;
+      let finalEndDate = endTimeValue;
+      try {
+        if (finalStartDate && finalEndDate && new Date(finalStartDate).getTime() > new Date(finalEndDate).getTime()) {
+          const temporaryValue = finalStartDate;
+          finalStartDate = finalEndDate;
+          finalEndDate = temporaryValue;
+        }
+      } catch {}
+      
       
       const variables = {
         employeeId: employeeId,
@@ -301,9 +313,21 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
         statusArray: EXCLUDED_STATUSES,
         requestId: expenseId,
         activeUserLocale,
-        startTimeValue,
-        endTimeValue
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
       };
+
+      const dedupeKey = JSON.stringify({
+        employeeId,
+        expenseId,
+        expensePlanId,
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
+      });
+      if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        return;
+      }
+      lastAbsenceCheckKeyRef.current = dedupeKey;
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
         const overlapWarning = getOverlapWarningMessage(response, expensePlanId);
@@ -370,9 +394,9 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) {
           myData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip;
         } else if (expenseRequestData.ExpenseRequestByPk.expensePlan) {
-          myData = expenseRequestData.ExpenseRequestByPk.expensePlan;
+          myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip;
         }
-        const startObject = myData.expenseRequestTrip?.find((item: any) => item.pointType === 'START_POINT');
+        const startObject = myData.find((item: any) => item.pointType === 'START_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
           const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ');
@@ -511,7 +535,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   };
 
   useEffect(() => {
-    if (accessToken && userInfo?.employeeId && expenseRequestData) {
+    if (accessToken && userInfo?.employeeDetails && expenseRequestData) {
       if (startLocation.departureDate || startLocation.departureTime) {
         checkAbsencesAndRequests(
           startLocation.departureDate,
@@ -574,7 +598,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
       return false;
     }
     
-    if (startLocationOverlap || endLocationOverlap) {
+    if (startLocationOverlap?.isError===true || endLocationOverlap?.isError===true) {
       updateTripFormValidation(false);
       return false;
     }
@@ -656,31 +680,18 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
   }
-
-  const getLatestRejectComment = () => {
-    if (expenseRequestData && 
-        expenseRequestData.ExpenseRequestByPk && 
-        expenseRequestData.ExpenseRequestByPk.expenseRequestComment) {
-      const filteredArray = expenseRequestData.ExpenseRequestByPk.expenseRequestComment
-        .filter((comment: any) => comment.commentType && comment.commentType.toUpperCase().includes("REJECT"));
-      
-      return filteredArray && filteredArray.length > 0 ? 
-        [...filteredArray].sort((a: any, b: any) => new Date(b.commentDate).getTime() - new Date(a.commentDate).getTime())[0] : 
-        null;
-    }
-    return null;
-  };
   
-  const latestRejectComment = getLatestRejectComment();
+  const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
   return (
     <div
-      className="gba:tripScreenContainer"
+      className="gba:flex gba:flex-col gba:w-[100%]"
       data-testid="expense-request-wizard-trip-screen"
     >
       <Form form={form} layout="vertical">
         <div
-          className="gba:tripContent"
+          className="gba:flex gba:flex-col"
+          style={{ padding: '0 16px 32px 16px' }}
           data-testid="expense-request-wizard-trip-screen-content"
         >
           {/* Rejection Comment */}
@@ -688,7 +699,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             <RejectionComment comment={latestRejectComment} />
           )}
           {/* Start Location */}
-          <div className="gba:locationContainerWrapper gba:withDivider" data-testid="start-location-wrapper">
+          <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -752,7 +763,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-            <div key={destination.id} className="gba:locationContainerWrapper gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+            <div key={destination.id} className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title",
@@ -790,10 +801,10 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           ))}
 
           {/* Add Destination Button */}
-          <div
-            className="gba:addDestinationContainer gba:withDivider"
-            data-testid="add-destination-container"
-          >
+                     <div
+             className="gba:flex gba:pl-4 gba:border-b gba:border-b-[#e8e8e8] gba:py-4 [&>button]:!gba:py-0 [&>button]:!gba:px-[10px] [&>button]:-gba:ml-[10px] [&>button]:!gba:rounded-[20px]"
+             data-testid="add-destination-container"
+           >
             <Button
               variant="ghost"
               onClick={addDestination}
@@ -810,7 +821,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           </div>
 
           {/* End Location */}
-          <div className="gba:locationContainerWrapper" data-testid="end-location-wrapper">
+          <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.end_location_text', 'End Location')}
               icon={ICONS.PIN_ICON}

@@ -1,6 +1,4 @@
 ---
-description: Add data-testid props to all important React elements
-globs: 
 alwaysApply: true
 ---
 # Data-TestID Implementation Guidelines for AI Agents

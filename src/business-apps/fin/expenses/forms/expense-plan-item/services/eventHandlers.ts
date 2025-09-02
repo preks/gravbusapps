@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { completeTaskFlow, getOpenedTaskFlow, initiateFlow } from "../../expense-item/context/services/flowHandlers";
 import { DEFAULT_EXPENSE_STATUS, FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { EVENTS } from "../../../utils/constants";
 
 /**
  * Handles the submission of an expense plan item
@@ -26,10 +27,14 @@ export const handleSubmit = async (
   generalDataResponse: any,
   catalogueDataResponse: any,
   setLoading: (loading: boolean) => void,
+  expensePlanId:string,
   accessToken?: string,
   userInfo?: any,
   additionalData?: any,
-  setIsEditMode?: (isEdit: boolean) => void
+  setIsEditMode?: (isEdit: boolean) => void,
+  itemValues?: { id: string; version: string | number },
+  getIsProcessEventDispatched?: () => boolean,
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
     setLoading(true);
@@ -61,7 +66,7 @@ export const handleSubmit = async (
     }
 
     // Check if we have an expense plan from either the wizard or task payload
-    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;
@@ -69,6 +74,10 @@ export const handleSubmit = async (
     
     if (accessToken && userInfo?.employeeDetails?.employeeId && hasExpensePlan) {
       try {
+        // Check if process event is already dispatched
+        if (getIsProcessEventDispatched && getIsProcessEventDispatched()) {
+          return;
+        }
 
         const flowResult = await initiateFlow(accessToken, userInfo.employeeDetails.employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME);
         if (flowResult && flowResult.id) {
@@ -101,6 +110,8 @@ export const handleSubmit = async (
 
     const submitData = {
       expensePlanItem: {
+        ...(itemValues?.id && { id: itemValues.id }),
+        ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         totalAmount: values.amount || 0,
         currencyRef: values.currency || "Currency:v1:EUR",
@@ -115,7 +126,7 @@ export const handleSubmit = async (
         nonReimbursableAmount: values.reimbursable !== true ? values.amount : "",
         expenseRuleGeneralExpense: values.expenseType || "",
         costCenter: values.costCenter,
-        expensePlan: values.expensePlan || additionalData?.expensePlanId || "",
+        expensePlan: values.expensePlan || expensePlanId || additionalData?.expensePlanId || "",
         additionalProperties: {
           customFields: customFieldsArray,
         },
@@ -150,8 +161,15 @@ export const handleSubmit = async (
 
     if (accessToken && userInfo?.employeeDetails?.employeeId && !hasExpensePlan) {
       try {
-        await dispatchProcessContinueEvent(FLOW_PROCESS_NAME, submitData);
-        operationSuccessful = true;
+        if (dispatchProcessContinueEventIfEnabled) {
+          const success = dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData);
+          if (success) {
+            operationSuccessful = true;
+          }
+        } else {
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData);
+          operationSuccessful = true;
+        }
       } catch (processError) {
         showToast(
           getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows", "Error in expense approval process"),
