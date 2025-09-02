@@ -41,6 +41,7 @@ export enum FlowContextName {
   customerActivityEntity = "customerActivityEntity",
   customerActivityCreate = "customerActivityCreate",
   customerActivityUpdate = "customerActivityUpdate",
+  customerActivityDelete = "customerActivityDelete",
 
   /// Customer Documents
   createCustomerDocument = "customerDocumentCreate",
@@ -78,6 +79,7 @@ export enum FlowContextName {
 
   investmentActivityEntity = "investmentActivityEntity",
   createInvestmentActivity = "investmentActivityCreate",
+  investmentActivityDelete = "investmentActivityDelete",
 
   /// Investment Tasks
 

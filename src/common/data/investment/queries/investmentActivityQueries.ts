@@ -23,7 +23,9 @@ export const GET_INVESTMENT_ACTIVITY_BY_ID = (id: string): string => `
 
 // Get investment activities with filtering
 export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVariables = {}): string => {
-  const whereConditions = [];
+  const whereConditions = [
+    `isDeleted: { _eq: false }`
+  ];
   
   if (variables.id) {
     whereConditions.push(`id: { _eq: "${variables.id}" }`);
@@ -55,7 +57,7 @@ export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVari
     `);
   }
   
-  const whereClause = whereConditions.length > 0 ? `where: { ${whereConditions.join(', ')} }` : '';
+  const whereClause = `where: { ${whereConditions.join(', ')} }`;
   
   return `
     query GetInvestmentActivities(
@@ -66,7 +68,6 @@ export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVari
         ${whereClause}
         offset: $offset
         limit: $limit
-        order_by: { occurredAt: desc }
       ) {
         ${INVESTMENT_ACTIVITY}
       }
