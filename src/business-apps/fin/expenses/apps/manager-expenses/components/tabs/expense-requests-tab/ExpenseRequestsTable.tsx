@@ -400,7 +400,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     data-testid={`expense-requests-row-${record.id}`}
                   >
                     <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
-                      <div className="gba:flex gba:justify-center gba:gap-2">
+                      <div
+                        className="gba:flex gba:justify-center gba:gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <AppActionButton
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
@@ -418,8 +421,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                       "lowcoder:expense_plan_list.expense_plan_flows.print",
                                       "Print",
                                     ),
-                                    onClick: (e?: React.MouseEvent) => {
-                                      e?.stopPropagation();
+                                    onClick: () => {
                                       handlePrintRequest(record);
                                     },
                                   },
@@ -436,8 +438,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                 "lowcoder:expense_request_list.expense_request_flows.view_request_details",
                                 "View Request Details",
                               ),
-                              onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation();
+                              onClick: () => {
                                 handleViewRequestDetails(record);
                               },
                             },
