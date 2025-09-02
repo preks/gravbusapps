@@ -116,16 +116,16 @@ export const managerExpenseAreas: ExpenseArea[] = [
 
 export const quickActions: QuickAction[] = [
   {
-    id: 'add-expense-item',
-    label: 'Add Expense Item',
-    icon: Plus,
-    action: 'create-expense-item'
-  },
-  {
     id: 'create-plan',
     label: 'Create Plan',
     icon: Plus,
     action: 'create-plan'
+  },
+  {
+    id: 'add-expense-item',
+    label: 'Add Expense Item',
+    icon: Plus,
+    action: 'create-expense-item'
   },
   {
     id: 'request-advance',
