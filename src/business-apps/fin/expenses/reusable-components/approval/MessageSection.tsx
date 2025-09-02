@@ -28,7 +28,8 @@ const MessageSection: React.FC<MessageSectionProps> = ({
         placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.comment_area', 'Write Message...')}
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
-        className="gba:bg-transparent gba:border-none gba:text-muted-foreground gba:resize-none gba:p-2 gba:text-xs gba:bg-gray-100"
+        className="gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none"
+        style={{ backgroundColor: '#f3f4f6' }}
         data-testid={`${prefixDataTestId}-message-textarea`}
       />
       

@@ -4,6 +4,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-d
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { formatCurrency } from '../utils/formatters';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../../utils';
 
 interface ComparisonCardProps {
   title: string;
@@ -57,13 +58,13 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6 gba:items-start">
         <div className="gba:text-center">
           <div className="gba:text-2xl gba:font-bold gba:text-blue-600 gba:min-h-[2.5rem] gba:flex gba:items-center gba:justify-center" data-testid="current-period-statistic">
-            {formatCurrency(currentValue)}
+            {formatCurrencyDisplay(currentValue, 'EUR')}
           </div>
           <div className="gba:text-sm gba:text-gray-500 gba:mt-2">{currentLabel}</div>
         </div>
         <div className="gba:text-center">
           <div className="gba:text-2xl gba:font-bold gba:text-gray-500 gba:min-h-[2.5rem] gba:flex gba:items-center gba:justify-center" data-testid="previous-period-statistic">
-            {formatCurrency(previousValue)}
+            {formatCurrencyDisplay(previousValue, 'EUR')}
           </div>
           <div className="gba:text-sm gba:text-gray-500 gba:mt-2">{previousLabel}</div>
         </div>
@@ -85,12 +86,12 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(value) => formatCurrency(value)}
+                tickFormatter={(value) => formatCurrencyDisplay(value, 'EUR')}
                 width={80}
               />
               <ChartTooltip 
                 content={<ChartTooltipContent 
-                  formatter={(value: any) => [formatCurrency(Number(value)), getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount','Amount')]}
+                  formatter={(value: any) => [formatCurrencyDisplay(Number(value), 'EUR'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount','Amount')]}
                 />}
               />
               <Bar 

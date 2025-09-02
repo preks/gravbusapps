@@ -32,6 +32,7 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable';
 
@@ -509,15 +510,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-reimbursable-amount-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="expense-plan-reimbursable-amount-cell">
                             {record.reimbursableAmount ? 
-                              `${formatNumberFunction(String(record.reimbursableAmount))} ${record.currency?.code || 'EUR'}` : 
-                              '0.00 EUR'
+                              formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code) : 
+                                                              formatCurrencyDisplay(0, 'EUR')
                             }
                           </div>
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-paid-advance-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="expense-plan-paid-advance-cell">
                             {record.advancePaymentPaidAmount && record.advancePaymentPaidAmount > 0 ? 
-                              `${formatNumberFunction(String(record.advancePaymentPaidAmount))} ${record.currency?.code || 'EUR'}` : 
+                              formatCurrencyDisplay(record.advancePaymentPaidAmount, record.currency?.code) : 
                               '-'
                             }
                           </div>

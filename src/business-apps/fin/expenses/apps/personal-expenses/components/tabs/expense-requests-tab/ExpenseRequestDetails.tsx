@@ -18,6 +18,7 @@ import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel, getDateFormat, formatNumberFunction } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
@@ -172,7 +173,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {typeof selectedItem.totalAmount === 'number' ? 
-                  `${formatNumberFunction(String(selectedItem.totalAmount))} ${selectedItem.currency?.code || '-'}` : 
+                  formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code) : 
                   '-'
                 }
               </span>
@@ -188,7 +189,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
                     {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
                   </span>
                   <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                    {`${formatNumberFunction(String(advanceAmount))} ${selectedItem.currency?.code || '-'}`}
+                    {formatCurrencyDisplay(advanceAmount, selectedItem.currency?.code)}
                   </span>
                 </div>
               ) : null;

@@ -236,7 +236,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     setAmountError(amountError);
     
     // Validate payment method if amount is valid
-    if (!amountError && value !== '0.00') {
+    if (!amountError && parseFloat(value) !== 0) {
       const paymentMethodError = validatePaymentMethod();
       setPaymentMethodError(paymentMethodError);
     } else {

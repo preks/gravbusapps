@@ -1,4 +1,5 @@
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 import React, { useMemo, useCallback } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
@@ -155,8 +156,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'total-expenses',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for') + ' ' + currentMonthName,
-      value: formatNumberFunction(String(totalExpenses ?? 0)),
-      suffix: '€',
+      value: formatCurrencyDisplay(totalExpenses ?? 0),
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
@@ -169,10 +169,9 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'pending-reimbursement',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending Reimbursement'),
-      value: formatNumberFunction(String(pendingReimbursement)),
+      value: formatCurrencyDisplay(pendingReimbursement),
       valueIsString: true,
       prefix: <WalletOutlined />,
-      suffix: '€',
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_processing','Awaiting processing'),
