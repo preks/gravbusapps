@@ -1,12 +1,23 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { PiArrowRight, PiCheckCircle, PiXCircle } from 'react-icons/pi';
-import Pill from '@/components/pill/Pill';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { useCurrencyStore } from '../../../store/useCurrencyStore';
-import { formatCurrency } from '../../../utils/currencyUtils';
+import React from "react";
+import {
+  Badge,
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@newwork/nw-design-system";
+import { PiArrowRight, PiCheckCircle, PiXCircle, PiCalendarDuotone, PiClock } from "react-icons/pi";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getDateFormat,
+  formatNumberFunction,
+} from "@/common/utils/windowUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import { getExpenseRequestStatusDisplay } from "../../../utils";
+import dayjs from "dayjs";
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   request: any;
@@ -14,161 +25,20 @@ export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   onReject?: (requestId: string) => Promise<void>;
 }
 
-// Shared component for expense details view
-interface ExpenseDetailsViewProps {
-  title: string;
-  code: string;
-  status: string;
-  requester: string;
-  department: string;
-  tripType: string;
-  totalAmount: string;
-  onViewDetails: () => void;
-  onApprove?: () => void;
-  onReject?: () => void;
-  canApprove: boolean;
-  canReject: boolean;
-}
-
-const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
-  title,
-  code,
-  status,
-  requester,
-  department,
-  tripType,
-  totalAmount,
-  onViewDetails,
-  onApprove,
-  onReject,
-  canApprove,
-  canReject
-}) => {
-  // Helper function to get status display info
-  const getStatusDisplay = (status: string) => {
-    type PillType = "draft" | "completed" | "waiting" | "task" | "error";
-
-    const statusMap: Record<string, { label: string; type: PillType }> = {
-      DRAFT: { label: "Draft", type: "draft" },
-      PENDING: { label: "Pending Approval", type: "waiting" },
-      APPROVED: { label: "Approved", type: "completed" },
-      REJECTED: { label: "Rejected", type: "error" },
-      PAID: { label: "Paid", type: "completed" },
-      CREATED: { label: "Created", type: "waiting" },
-    };
-
-    return statusMap[status] || { label: status, type: "waiting" };
-  };
-
-  return (
-    <div className="gba:p-6">
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-medium gba:mb-2">{title}</h3>
-        <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{code}</p>
-        <Pill
-          type={getStatusDisplay(status).type}
-          label={getStatusDisplay(status).label}
-        />
-      </div>
-
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-medium gba:mb-4">
-          Request Details
-        </h3>
-        <div className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Requester
-              </div>
-              <div className="gba:text-sm">{requester}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Department
-              </div>
-              <div className="gba:text-sm">{department}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Trip Type
-              </div>
-              <div className="gba:text-sm">{tripType}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Total Amount
-              </div>
-              <div className="gba:text-sm">{totalAmount}</div>
-            </div>
-          </div>
-          <div>
-            <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-              Description
-            </div>
-            <div className="gba:text-sm">
-              {request.description || "No description provided"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="gba:mt-8 gba:flex gba:justify-end gba:gap-3">
-        {canApprove && onApprove && (
-          <Button 
-            variant="default" 
-            onClick={onApprove} 
-            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-white gba:hover:bg-green-600" 
-            data-testid="expense-request-approve-button"
-          >
-            {getTranslationFromI18nKeyAndLabel('expense_request_approve', 'Approve')}
-            <PiCheckCircle className="gba:h-4 gba:w-4" />
-          </Button>
-        )}
-        {canReject && onReject && (
-          <Button 
-            variant="destructive" 
-            onClick={onReject} 
-            className="gba:flex gba:items-center gba:gap-2" 
-            data-testid="expense-request-reject-button"
-          >
-            {getTranslationFromI18nKeyAndLabel('expense_request_reject', 'Reject')}
-            <PiXCircle className="gba:h-4 gba:w-4" />
-          </Button>
-        )}
-        <Button onClick={onViewDetails} className="gba:flex gba:items-center gba:gap-2" data-testid="expense-request-view-details-button">
-          {getTranslationFromI18nKeyAndLabel('expense_request_view_details', 'View Details')}
-          <PiArrowRight className="gba:h-4 gba:w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   request,
   onApprove,
   onReject,
 }) => {
-  // Use the currency store
-  const { primaryCurrency } = useCurrencyStore();
+  if (!request) return null;
 
-  // Helper function to get department safely
-  const getDepartment = () => {
-    return request.employee?.department || "Not specified";
+  // Get trip type
+  const getTripType = () => {
+    return "Business Travel";
   };
 
-  const handleViewDetails = () => {
-    const url = buildPlatformUrl(
-      "/platform/fin/expenses/expense-request-record",
-      { expenseRequestId: request.id }
-    );
-    navigateTo(url);
-  };
-
-  // Determine if approval/rejection actions are available based on status
-  const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED';
-  const canReject = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED';
+  const canApprove = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
+  const canReject = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
 
   const handleApprove = () => {
     if (onApprove) {
@@ -183,20 +53,218 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   };
 
   return (
-    <ExpenseDetailsView
-      title={request.title}
-      code={request.code || ""}
-      status={request.status}
-      requester={request.employee?.fullName || "Unknown"}
-      department={getDepartment()}
-      tripType="Business Travel"
-      totalAmount={typeof request.amount === 'number' ? formatCurrency(request.amount, primaryCurrency || request.currency) : '-'}
-      onViewDetails={handleViewDetails}
-      onApprove={handleApprove}
-      onReject={handleReject}
-      canApprove={canApprove}
-      canReject={canReject}
-    />
+    <div className="gba:p-6 gba:space-y-6" data-testid="expense-request-details-content">
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+        <div className="gba:flex-1">
+          <h2
+            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
+            data-testid="expense-request-title"
+          >
+            {request.title}
+          </h2>
+          <p className="gba:text-sm gba:text-gray-500" data-testid="expense-request-code">
+            {request.code}
+          </p>
+        </div>
+        <Badge
+          variant={
+            getExpenseRequestStatusDisplay(request.status).type === "completed"
+              ? "success"
+              : getExpenseRequestStatusDisplay(request.status).type === "error"
+              ? "destructive"
+              : getExpenseRequestStatusDisplay(request.status).type === "task"
+              ? "warning"
+              : getExpenseRequestStatusDisplay(request.status).type === "waiting"
+              ? "secondary"
+              : "default"
+          }
+          className="gba:text-sm"
+          data-testid="expense-request-status-badge"
+        >
+          {getExpenseRequestStatusDisplay(request.status).label}
+        </Badge>
+      </div>
+
+      {/* Date Information */}
+      <Card>
+        <CardContent className="gba:p-4 gba:space-y-3">
+          {request.startDate && request.endDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiCalendarDuotone className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.duration",
+                  "Duration",
+                )}
+                : {dayjs(request.startDate).format(getDateFormat("date.short"))} {" → "}
+                {dayjs(request.endDate).format(getDateFormat("date.short"))}
+              </span>
+            </div>
+          )}
+
+          {request.requestDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiClock className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:expense_request_details.request_date",
+                  "Request Date",
+                )}
+                : {dayjs(request.requestDate).format(getDateFormat("date.short"))}
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Description */}
+      {request.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-base">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:personal_expenses.description",
+                "Description",
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="gba:text-sm gba:text-gray-700" data-testid="expense-request-description">
+              {request.description}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Details Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-base">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_details.title",
+              "Request Details",
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+            {request.employee && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_overview.side_bar.requester",
+                    "Requester",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {request.employee.displayName || request.employee.fullName}
+                </span>
+              </div>
+            )}
+
+            {request.employee?.employeePosition?.organizationalUnit && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.department_title",
+                    "Department",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {request.employee.employeePosition.organizationalUnit.name}
+                </span>
+              </div>
+            )}
+
+            {request.employee?.employeePosition?.siteLocation && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.location_title",
+                    "Location",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {request.employee.employeePosition.siteLocation.name}
+                </span>
+              </div>
+            )}
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.trip_type",
+                  "Trip Type",
+                )}
+              </span>
+              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+            </div>
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:expense_request_list.expense_plan_table.total_amount",
+                  "Total Amount",
+                )}
+              </span>
+              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+                {typeof request.totalAmount === "number"
+                  ? `${formatNumberFunction(String(request.totalAmount))} ${
+                      request.currencyRef?.split(":").pop() || "-"
+                    }`
+                  : "-"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Action Buttons */}
+      <div className="gba:flex gba:justify-end gba:gap-3">
+        {canApprove && onApprove && (
+          <Button
+            variant="default"
+            onClick={handleApprove}
+            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-white gba:hover:bg-green-600"
+            data-testid="expense-request-approve-button"
+          >
+            {getTranslationFromI18nKeyAndLabel("expense_request_approve", "Approve")}
+            <PiCheckCircle className="gba:h-4 gba:w-4" />
+          </Button>
+        )}
+        {canReject && onReject && (
+          <Button
+            variant="destructive"
+            onClick={handleReject}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid="expense-request-reject-button"
+          >
+            {getTranslationFromI18nKeyAndLabel("expense_request_reject", "Reject")}
+            <PiXCircle className="gba:h-4 gba:w-4" />
+          </Button>
+        )}
+        <Button
+          variant="default"
+          onClick={() => {
+            // Navigate to the expense request record page
+            const url = buildPlatformUrl("/platform/fin/expenses/expense-request-record", {
+              expenseRequestId: request.id,
+            });
+            navigateTo(url);
+          }}
+          data-testid="expense-request-view-details-button"
+        >
+          <PiArrowRight className="gba:mr-2" />
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.plan_details.view_full_details",
+            "View Full Details",
+          )}
+        </Button>
+      </div>
+    </div>
   );
 };
 

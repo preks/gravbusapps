@@ -27,18 +27,43 @@ export interface ExpenseRequest {
   startDate?: string | null;
   endDate?: string | null;
   amount: number;
+  totalAmount?: number;
   currency: string;
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
   attachments?: {
     fileUrl: string;
     fileName: string;
   }[];
+  employeeDocument?: {
+    file: string;
+    fileSize: number;
+    id: string;
+    description: string;
+    mimeType: string;
+    name: string;
+    type: string;
+    employee: {
+      id: string;
+    };
+  } | null;
   employee?: {
     id: string;
     displayName?: string;
     fullName: string;
     department?: string;
     pictureThumbnail?: string;
+    employeePosition?: {
+      organizationalUnit?: {
+        id: string;
+        name: string;
+      };
+      siteLocation?: {
+        id: string;
+        name: string;
+      };
+    };
     additionalProperties?: Record<string, any>;
   };
 }
@@ -78,13 +103,10 @@ export interface ExpenseRequestsResult {
     sortBy?: string,
     status?: string[],
     requestDateStart?: string,
-    currencyFilter?: string | null
+    currencyFilter?: string | null,
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
-  rejectRequest: (
-    requestId: string,
-    rejectionReason?: string
-  ) => Promise<boolean>;
+  rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
   requestStats: ExpenseRequestStatisticsData | null;
   requestStatsLoading: boolean;
   requestStatsError: string | null;
@@ -111,13 +133,9 @@ export const useGetExpenseRequests = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [requestStats, setRequestStats] =
-    useState<ExpenseRequestStatisticsData | null>(null);
-  const [requestStatsLoading, setRequestStatsLoading] =
-    useState<boolean>(false);
-  const [requestStatsError, setRequestStatsError] = useState<string | null>(
-    null
-  );
+  const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
+  const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
+  const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
 
   const [sorting, setSorting] = useState<SortConfig>({
     field: "requestDate",
@@ -125,8 +143,7 @@ export const useGetExpenseRequests = ({
   });
 
   const supervisorEmployeeId =
-    userInfo?.employeeDetails?.employeeId ||
-    "00000000-0000-0000-0000-000000000000";
+    userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
 
   const lastFetchParams = useRef<{
     searchTerm: string;
@@ -179,8 +196,7 @@ export const useGetExpenseRequests = ({
               id: request.employee.id,
               displayName: request.employee.displayName,
               fullName: request.employee.fullName,
-              department:
-                request.employee.employeePosition?.organizationalUnit?.name,
+              department: request.employee.employeePosition?.organizationalUnit?.name,
               pictureThumbnail: request.employee.pictureThumbnail,
               additionalProperties: request.employee.additionalProperties,
             }
@@ -197,10 +213,9 @@ export const useGetExpenseRequests = ({
       sortBy?: string,
       status: string[] = [],
       requestDateStart?: string,
-      currencyFilter: string | null = null
+      currencyFilter: string | null = null,
     ) => {
-      const effectiveSortBy =
-        sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`;
+      const effectiveSortBy = sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`;
 
       if (!accessToken) {
         setError("Access token not available.");
@@ -224,10 +239,8 @@ export const useGetExpenseRequests = ({
         lastFetchParams.current.page === currentParams.page &&
         lastFetchParams.current.pageSize === currentParams.pageSize &&
         lastFetchParams.current.sortBy === currentParams.sortBy &&
-        JSON.stringify(lastFetchParams.current.status) ===
-          JSON.stringify(currentParams.status) &&
-        lastFetchParams.current.requestDateStart ===
-          currentParams.requestDateStart &&
+        JSON.stringify(lastFetchParams.current.status) === JSON.stringify(currentParams.status) &&
+        lastFetchParams.current.requestDateStart === currentParams.requestDateStart &&
         lastFetchParams.current.currencyFilter === currentParams.currencyFilter;
 
       if (isDuplicateRequest) {
@@ -298,25 +311,20 @@ export const useGetExpenseRequests = ({
           offset,
         };
 
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              query: GET_EXPENSE_REQUESTS_BY_MANAGER,
-              variables,
-            }),
-          }
-        );
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_EXPENSE_REQUESTS_BY_MANAGER,
+            variables,
+          }),
+        });
 
         if (!response.ok) {
-          throw new Error(
-            `HTTP error! status: ${response.status} ${response.statusText}`
-          );
+          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
@@ -325,8 +333,7 @@ export const useGetExpenseRequests = ({
           throw new Error(result.errors.map((e: any) => e.message).join(", "));
         }
 
-        const count =
-          result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
+        const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
         setTotalCount(count);
 
         const mappedRequests = mapResponseToRequests(result.data);
@@ -340,14 +347,7 @@ export const useGetExpenseRequests = ({
         setIsLoading(false);
       }
     },
-    [
-      accessToken,
-      supervisorEmployeeId,
-      setIsLoading,
-      setError,
-      setRequests,
-      setTotalCount,
-    ]
+    [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount],
   );
 
   const approveRequest = useCallback(
@@ -358,20 +358,17 @@ export const useGetExpenseRequests = ({
       }
 
       try {
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              query: APPROVE_EXPENSE_REQUEST,
-              variables: { requestId },
-            }),
-          }
-        );
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: APPROVE_EXPENSE_REQUEST,
+            variables: { requestId },
+          }),
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -385,10 +382,8 @@ export const useGetExpenseRequests = ({
 
         setRequests((prevRequests) =>
           prevRequests.map((request) =>
-            request.id === requestId
-              ? { ...request, status: "APPROVED" }
-              : request
-          )
+            request.id === requestId ? { ...request, status: "APPROVED" } : request,
+          ),
         );
         return true;
       } catch (err) {
@@ -396,7 +391,7 @@ export const useGetExpenseRequests = ({
         return false;
       }
     },
-    [accessToken, setError, setRequests]
+    [accessToken, setError, setRequests],
   );
 
   const rejectRequest = useCallback(
@@ -407,23 +402,20 @@ export const useGetExpenseRequests = ({
       }
 
       try {
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: REJECT_EXPENSE_REQUEST,
+            variables: {
+              requestId,
+              rejectionReason: rejectionReason || "",
             },
-            body: JSON.stringify({
-              query: REJECT_EXPENSE_REQUEST,
-              variables: {
-                requestId,
-                rejectionReason: rejectionReason || "",
-              },
-            }),
-          }
-        );
+          }),
+        });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -437,10 +429,8 @@ export const useGetExpenseRequests = ({
 
         setRequests((prevRequests) =>
           prevRequests.map((request) =>
-            request.id === requestId
-              ? { ...request, status: "REJECTED" }
-              : request
-          )
+            request.id === requestId ? { ...request, status: "REJECTED" } : request,
+          ),
         );
         return true;
       } catch (err) {
@@ -448,7 +438,7 @@ export const useGetExpenseRequests = ({
         return false;
       }
     },
-    [accessToken, setError, setRequests]
+    [accessToken, setError, setRequests],
   );
 
   const fetchRequestStatistics = useCallback(
@@ -484,20 +474,17 @@ export const useGetExpenseRequests = ({
               employeeId: supervisorEmployeeId,
             };
 
-        const response = await fetch(
-          env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              query,
-              variables,
-            }),
-          }
-        );
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query,
+            variables,
+          }),
+        });
         const result = await response.json();
         if (result.errors) {
           throw new Error(result.errors.map((e: any) => e.message).join(", "));
@@ -507,20 +494,15 @@ export const useGetExpenseRequests = ({
 
         const stats = {
           pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
-          pendingAmount:
-            data.pendingAmount?.aggregate?.sum?.totalAmount ?? null,
-          totalRequestsSubmitted:
-            data.totalRequestsSubmitted?.aggregate?.count ?? 0,
-          totalSubmittedAmount:
-            data.totalSubmittedAmount?.aggregate?.sum?.totalAmount ?? null,
+          pendingAmount: data.pendingAmount?.aggregate?.sum?.totalAmount ?? null,
+          totalRequestsSubmitted: data.totalRequestsSubmitted?.aggregate?.count ?? 0,
+          totalSubmittedAmount: data.totalSubmittedAmount?.aggregate?.sum?.totalAmount ?? null,
         };
 
         setRequestStats(stats);
       } catch (err: any) {
         console.error(err);
-        setRequestStatsError(
-          err.message ?? "Failed to fetch expense request statistics."
-        );
+        setRequestStatsError(err.message ?? "Failed to fetch expense request statistics.");
         setRequestStats(null);
       } finally {
         setRequestStatsLoading(false);
@@ -532,7 +514,7 @@ export const useGetExpenseRequests = ({
       setRequestStats,
       setRequestStatsLoading,
       setRequestStatsError,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -544,7 +526,7 @@ export const useGetExpenseRequests = ({
         undefined,
         currentStatusFilter || [],
         undefined,
-        currentCurrencyFilter
+        currentCurrencyFilter,
       );
     }
   }, [

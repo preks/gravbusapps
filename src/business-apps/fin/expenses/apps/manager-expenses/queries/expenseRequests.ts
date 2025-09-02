@@ -27,9 +27,18 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       currencyRef
       status
       createdAt
-      employeeDocument { # Corrected field for attachments
-        file # Corresponds to fileUrl
-        name # Corresponds to fileName
+      updatedAt
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
       }
       employee {
         id
@@ -107,6 +116,7 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       currencyRef
       status
       createdAt
+      updatedAt
       employeeDocument {
         file
         name
