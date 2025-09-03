@@ -133,7 +133,9 @@ export const createAllowanceScreenLogObject = (
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
     },
-    travelBreakdowns
+    travelBreakdownWrapper: {
+       travelBreakdowns: travelBreakdowns
+    }
   };
 };
 
