@@ -290,8 +290,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.title",
-                        "Request Title",
+                        "lowcoder:employee_list.flows_button.expense_requests",
+                        "Expense Requests",
                       )}
                     </span>
                     {renderSortIndicator("title")}
@@ -305,7 +305,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.start_date",
+                        "lowcoder:personal_expenses.start_date",
                         "Start Date",
                       )}
                     </span>
@@ -320,7 +320,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.end_date",
+                        "lowcoder:personal_expenses.end_date",
                         "End Date",
                       )}
                     </span>
@@ -335,7 +335,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.employee",
+                        "lowcoder:hr_absences.create_absence.employee",
                         "Employee",
                       )}
                     </span>
@@ -350,7 +350,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.creation_date",
+                        "lowcoder:manager_expense_request_list.expense_table.creation_date",
                         "Creation Date",
                       )}
                     </span>
@@ -365,7 +365,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center gba:justify-end">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_request_details.amount",
+                        "lowcoder:manager_expense_request_list.expense_table.amount",
                         "Amount",
                       )}
                     </span>

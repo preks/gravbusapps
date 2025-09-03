@@ -32,17 +32,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     (filterKey: string, isMultiFilter: boolean = false) => {
       if (isMultiFilter) {
         // For multi-filter cards (like "Total Requests Submitted")
-        const filtersToToggle = [
-          "PENDING",
-          "APPROVED",
-          "VERIFIED",
-          "BOOKED",
-          "TRANSFERRED",
-        ];
+        const filtersToToggle = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
 
         // Check if all filters are currently active
         const allFiltersActive = filtersToToggle.every((filter) =>
-          selectedFilters.includes(filter)
+          selectedFilters.includes(filter),
         );
 
         if (allFiltersActive) {
@@ -60,7 +54,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         }
       }
     },
-    [selectedFilters, addFilter, removeFilter]
+    [selectedFilters, addFilter, removeFilter],
   );
 
   const widgets: WidgetItem[] = requestStats
@@ -69,32 +63,29 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           key: "pending-requests",
           title: getTranslationFromI18nKeyAndLabel(
             "lowcoder:absence_management_hub_manager.pending_requests_btn",
-            "Pending Requests"
+            "Pending Requests",
           ),
           value: requestStats.pendingCount,
           color: selectedFilters.includes("PENDING") ? "#1890ff" : "#faad14",
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval",
-            "Waiting for approval"
+            "Waiting for approval",
           ),
           active: selectedFilters.includes("PENDING"),
         },
         {
           key: "pending-amount",
           title: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_requests_tab.pending_amount",
-            "Pending Amount"
+            "lowcoder:team_expenses_page.expense_plans_tab.pending_amount",
+            "Pending Amount",
           ),
-          value: formatCurrency(
-            requestStats.pendingAmount || 0,
-            displayCurrency
-          ),
+          value: formatCurrency(requestStats.pendingAmount || 0, displayCurrency),
           color: "#52c41a",
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_requests_tab.pending_amount_description",
-            "Total Pending Funds"
+            "lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds",
+            "Total Pending Funds",
           ),
           valueIsString: true,
           // This card shows amount, not clickable for filtering
@@ -103,55 +94,36 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           key: "total-requests-submitted",
           title: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted",
-            "Total Requests Submitted"
+            "Total Requests Submitted",
           ),
           value: requestStats.totalRequestsSubmitted,
           color: (() => {
-            const multiFilters = [
-              "PENDING",
-              "APPROVED",
-              "VERIFIED",
-              "BOOKED",
-              "TRANSFERRED",
-            ];
-            const allActive = multiFilters.every((filter) =>
-              selectedFilters.includes(filter)
-            );
+            const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
+            const allActive = multiFilters.every((filter) => selectedFilters.includes(filter));
             return allActive ? "#1677ff" : "#1890ff";
           })(),
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted_description",
-            "All Submitted Requests"
+            "lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests",
+            "All Submitted Requests",
           ),
           active: (() => {
-            const multiFilters = [
-              "PENDING",
-              "APPROVED",
-              "VERIFIED",
-              "BOOKED",
-              "TRANSFERRED",
-            ];
-            return multiFilters.every((filter) =>
-              selectedFilters.includes(filter)
-            );
+            const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
+            return multiFilters.every((filter) => selectedFilters.includes(filter));
           })(),
         },
         {
           key: "total-submitted-amount",
           title: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount",
-            "Total Submitted Amount"
+            "Total Submitted Amount",
           ),
-          value: formatCurrency(
-            requestStats.totalSubmittedAmount || 0,
-            displayCurrency
-          ),
+          value: formatCurrency(requestStats.totalSubmittedAmount || 0, displayCurrency),
           color: selectedFilters.length === 0 ? "#1677ff" : "#722ed1",
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount_description",
-            "All Expense Requests"
+            "lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests",
+            "All Expense Requests",
           ),
           valueIsString: true,
           active: selectedFilters.length === 0,
@@ -177,7 +149,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           break;
       }
     },
-    [handleCardClick, selectedFilters, removeFilter]
+    [handleCardClick, selectedFilters, removeFilter],
   );
 
   return (
@@ -188,7 +160,10 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       onRetry={fetchRequestStatistics}
       onWidgetClick={handleWidgetClick}
       skeletonCount={4}
-      emptyText="No expense request statistics available."
+      emptyText={getTranslationFromI18nKeyAndLabel(
+        "lowcoder:personal_expenses.no_expense_request_statistics_available",
+        "No expense request statistics available.",
+      )}
       cardBackground="transparent"
       className="gba:py-0"
     />

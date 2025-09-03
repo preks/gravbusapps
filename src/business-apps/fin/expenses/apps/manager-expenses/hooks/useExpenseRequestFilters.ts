@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { DataFilterGroup, DataFilter } from "@/components/data-filter";
-import { ExpenseStatus } from "../utils";
+import { ExpenseStatus, getExpenseRequestStatusDisplay } from "../utils";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useExpenseRequestCurrencies } from "./useExpenseRequestCurrencies";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface UseExpenseRequestFiltersProps {
   accessToken?: string;
@@ -33,14 +34,19 @@ export interface UseExpenseRequestFiltersReturn {
 }
 
 const availableFilterStatuses: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
   ExpenseStatus.CREATED,
+  ExpenseStatus.ASSIGNED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,
+  ExpenseStatus.RETURNED,
   ExpenseStatus.REJECTED,
   ExpenseStatus.VERIFIED,
   ExpenseStatus.BOOKED,
-  ExpenseStatus.TRANSFERRED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.CLOSED,
   ExpenseStatus.DISCARDED,
+  ExpenseStatus.TRANSFERRED,
 ];
 
 export const useExpenseRequestFilters = ({
@@ -52,12 +58,8 @@ export const useExpenseRequestFilters = ({
   const [search, setSearch] = useState<string>("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<
-    string | null
-  >(null);
-  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<
-    string | null
-  >(null);
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string | null>(null);
+  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
 
@@ -82,12 +84,7 @@ export const useExpenseRequestFilters = ({
         setLocalPrimaryCurrency(detectedCurrency);
       }
     }
-  }, [
-    detectedCurrency,
-    currenciesLoading,
-    userHasManuallySelectedCurrency,
-    localPrimaryCurrency,
-  ]);
+  }, [detectedCurrency, currenciesLoading, userHasManuallySelectedCurrency, localPrimaryCurrency]);
 
   useEffect(() => {}, [localPrimaryCurrency]);
 
@@ -134,40 +131,15 @@ export const useExpenseRequestFilters = ({
         });
       }
     },
-    [localMostUsedCurrency]
+    [localMostUsedCurrency],
   );
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     availableFilterStatuses.forEach((status) => {
-      switch (status) {
-        case ExpenseStatus.CREATED:
-          map[status] = "Draft (Created)";
-          break;
-        case ExpenseStatus.PENDING:
-          map[status] = "In Approval (Pending)";
-          break;
-        case ExpenseStatus.APPROVED:
-          map[status] = "Approved";
-          break;
-        case ExpenseStatus.REJECTED:
-          map[status] = "Revision Required (Rejected)";
-          break;
-        case ExpenseStatus.VERIFIED:
-          map[status] = "In Transit (Verified)";
-          break;
-        case ExpenseStatus.BOOKED:
-          map[status] = "In Transit (Booked)";
-          break;
-        case ExpenseStatus.TRANSFERRED:
-          map[status] = "Transferred";
-          break;
-        case ExpenseStatus.DISCARDED:
-          map[status] = "Discarded";
-          break;
-        default:
-          map[status] = status;
-      }
+      // Use the getExpenseRequestStatusDisplay function for consistent translated labels
+      const display = getExpenseRequestStatusDisplay(status);
+      map[status] = display.label;
     });
     return map;
   }, []);
@@ -193,13 +165,19 @@ export const useExpenseRequestFilters = ({
     return [
       {
         id: "statusGroup",
-        title: "Status",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_request_list.expense_plan_table.status",
+          "Status",
+        ),
         filters: statusItems,
         selectionMode: "multiple",
       },
       {
         id: "currencyGroup",
-        title: "Currency",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_calculation_rule.expense_table.currency",
+          "Currency",
+        ),
         filters: currencyItems,
         selectionMode: "single",
       },
@@ -221,14 +199,14 @@ export const useExpenseRequestFilters = ({
     (filterId: string) => {
       handleDataFilterChange(filterId, true);
     },
-    [handleDataFilterChange]
+    [handleDataFilterChange],
   );
 
   const removeFilter = useCallback(
     (filterId: string) => {
       handleDataFilterChange(filterId, false);
     },
-    [handleDataFilterChange]
+    [handleDataFilterChange],
   );
 
   const returnPrimaryCurrency = useMemo(() => {
