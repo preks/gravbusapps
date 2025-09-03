@@ -141,7 +141,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   currentUserEmployeeId,
   employeeIdToShow,
   initialActiveTab,
-  userInfo
+  userInfo,
+  additionalData
 }) => {
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab);
@@ -352,6 +353,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           userInfo={userInfo}
           isSelfView={isSelfView}
           employeeFeedback={feedback ?? []}
+          businessAppContext={{ accessToken, userInfo, additionalData }}
         />
       )
     },

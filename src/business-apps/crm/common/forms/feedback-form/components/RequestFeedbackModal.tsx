@@ -39,6 +39,24 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
   onClose,
   businessAppContext
 }) => {
+  // Safety check for businessAppContext
+  if (!businessAppContext) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="gba:max-w-md gba:w-full">
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+          </DialogHeader>
+          <div className="gba:p-4">
+            <Alert variant="destructive">
+              <AlertDescription>Business app context is not available. Please refresh the page.</AlertDescription>
+            </Alert>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +71,24 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
   
   const graphqlClient = useGraphQLClient(businessAppContext.accessToken);
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+
+  // Safety check for accessToken
+  if (!businessAppContext.accessToken) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="gba:max-w-md gba:w-full">
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+          </DialogHeader>
+          <div className="gba:p-4">
+            <Alert variant="destructive">
+              <AlertDescription>Access token is not available. Please ensure you are properly authenticated.</AlertDescription>
+            </Alert>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Fetch employees
   const fetchEmployees = async (search?: string) => {
