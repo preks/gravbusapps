@@ -38,7 +38,6 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   onClearFilters?: () => void;
   onViewDetails?: (plan: ExpensePlan) => void;
   currencyFilter?: string | null;
-  // Add data props to receive from parent
   expensePlans: ExpensePlan[];
   loading: boolean;
   error: Error | null;
@@ -288,7 +287,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    Start Date
+                    {getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:personal_expenses.start_date",
+                      "Start Date",
+                    )}
                     {renderSortIndicator("startDate")}
                   </div>
                 </TableHead>
@@ -298,7 +300,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    End Date
+                    {getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:personal_expenses.end_date",
+                      "End Date",
+                    )}
+
                     {renderSortIndicator("endDate")}
                   </div>
                 </TableHead>
@@ -321,7 +327,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   data-testid={`${DATA_TEST_ID_PREFIX}-creation-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    Creation Date
+                    {getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:manager_expense_request_list.expense_table.creation_date",
+                      "Creation Date",
+                    )}
                     {renderSortIndicator("createdAt")}
                   </div>
                 </TableHead>

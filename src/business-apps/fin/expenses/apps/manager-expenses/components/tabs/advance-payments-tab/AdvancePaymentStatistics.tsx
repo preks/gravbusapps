@@ -27,8 +27,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         {
           key: "total-advance-payment",
           title: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payment",
-            "Total Advance Payment"
+            "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
+            "Total Advance Payment",
           ),
           value: advancePaymentStats.sumAmount
             ? formatCurrency(advancePaymentStats.sumAmount, primaryCurrency)
@@ -38,14 +38,14 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           span: { xs: 24, sm: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
-            "Total Advance Payments"
+            "Total Advance Payments",
           ),
         },
         {
           key: "pending-amount",
           title: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.advance_payments_tab.pending_amount",
-            "Pending Amount"
+            "lowcoder:team_expenses_page.expense_plans_tab.pending_amount",
+            "Pending Amount",
           ),
           value: advancePaymentStats.pendingAmount
             ? formatCurrency(advancePaymentStats.pendingAmount, primaryCurrency)
@@ -55,7 +55,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           span: { xs: 24, sm: 12, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
-            "Awaiting approval"
+            "Awaiting approval",
           ),
         },
       ]

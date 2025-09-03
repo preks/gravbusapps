@@ -45,7 +45,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         }
       }
     },
-    [activeFilter, onFilterChange]
+    [activeFilter, onFilterChange],
   );
 
   // Handle widget clicks from WidgetGroup
@@ -75,9 +75,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           const isTotalPlansFilterActive =
             activeFilter &&
             activeFilter.length === 12 &&
-            allStatusesExceptDiscarded.every((status) =>
-              activeFilter.includes(status)
-            ) &&
+            allStatusesExceptDiscarded.every((status) => activeFilter.includes(status)) &&
             !activeFilter.includes(ExpenseStatus.DISCARDED);
 
           if (isTotalPlansFilterActive) {
@@ -93,7 +91,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           break;
       }
     },
-    [activeFilter, onFilterChange, handleCardClick]
+    [activeFilter, onFilterChange, handleCardClick],
   );
 
   // Transform the stats data into widgets format
@@ -105,21 +103,16 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: "pending-approval",
         title: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.pending_approval",
-          "Pending Approval"
+          "Pending Approval",
         ),
-        value: formatNumberFunction(
-          planStats.pendingCount.toString(),
-          "0.00[,]00"
-        ),
+        value: planStats.pendingCount.toString(),
         prefix: <PiCalendar />,
-        color: activeFilter?.includes(ExpenseStatus.PENDING)
-          ? "#1890ff"
-          : "#faad14",
+        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "#1890ff" : "#faad14",
         valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
-          "Requires action"
+          "Requires action",
         ),
         active: activeFilter?.includes(ExpenseStatus.PENDING) || false,
       },
@@ -127,19 +120,16 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: "total-plans",
         title: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted",
-          "Total Plans (Submitted)"
+          "Total Plans (Submitted)",
         ),
-        value: formatNumberFunction(
-          planStats.totalCount.toString(),
-          "0.00[,]00"
-        ),
+        value: planStats.totalCount.toString(),
         prefix: <PiFileText />,
         color: "#1890ff",
         valueIsString: true,
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
-          "All submitted plans"
+          "All submitted plans",
         ),
         active: !!(
           activeFilter &&
@@ -165,16 +155,13 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         key: "total-amount",
         title: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted",
-          "Total Amount (Submitted)"
+          "Total Amount (Submitted)",
         ),
         value: planStats.sumTotalAmount
           ? formatCurrency(planStats.sumTotalAmount, displayCurrency)
           : `${displayCurrency} 0,00`,
         prefix: (
-          <span
-            className="gba:font-medium"
-            data-testid="expense-plan-stats-total-currency-code"
-          >
+          <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">
             {displayCurrency}
           </span>
         ),
@@ -183,7 +170,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.across_all_plans",
-          "Across all plans"
+          "Across all plans",
         ),
       },
     ];
@@ -202,7 +189,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       skeletonCount={4}
       emptyText={getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available",
-        "No expense plan statistics available."
+        "No expense plan statistics available.",
       )}
       cardBackground="transparent"
       className="gba:py-0 gba:bg-transparent"

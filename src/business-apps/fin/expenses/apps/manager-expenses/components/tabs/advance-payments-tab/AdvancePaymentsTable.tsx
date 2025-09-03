@@ -155,7 +155,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-title-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>Expense Plan</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:create_expense_request.initial_expense_plan_select_label",
+                        "Expense Plan",
+                      )}
+                    </span>
                     {sorting.field === "expensePlan.title" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -166,7 +171,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-start-date-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>Start Date</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:personal_expenses.start_date",
+                        "Start Date",
+                      )}
+                    </span>
                     {sorting.field === "expensePlan.startDate" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -177,7 +187,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-end-date-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>End Date</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:personal_expenses.end_date",
+                        "End Date",
+                      )}
+                    </span>
                     {sorting.field === "expensePlan.endDate" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -188,7 +203,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-employee-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>Employee</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:expense_config_calculation_rule_list.expense_table.employee",
+                        "Employee",
+                      )}
+                    </span>
                     {sorting.field === "expensePlan.employee.fullName" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -199,7 +219,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-creation-date-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>Creation Date</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:manager_expense_request_list.expense_table.creation_date",
+                        "Creation Date",
+                      )}
+                    </span>
                     {sorting.field === "createdAt" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -210,7 +235,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-amount-header"
                 >
                   <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
-                    <span>Amount</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel("lowcoder:sales_hub.amount", "Amount")}
+                    </span>
                     {sorting.field === "amount" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -221,7 +248,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   data-testid="advance-payments-status-header"
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    <span>Status</span>
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:manager_expense_request_list.expense_table.status",
+                        "Status",
+                      )}
+                    </span>
                     {sorting.field === "status" &&
                       (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
                   </div>
@@ -392,7 +424,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount,
-              )} of ${totalCount} advance payments`}
+              )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.advance_payments", "advance payments")}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
