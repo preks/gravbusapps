@@ -136,7 +136,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!isLoading && filteredPayments.length === 0) {
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-          <span className="gba:text-gray-500">No advance payments found.</span>
+          <span className="gba:text-gray-500">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:personal_expenses.no_advance_payments_found",
+              "No advance payments found.",
+            )}
+          </span>
         </div>
       );
     }
@@ -283,7 +288,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                             ),
                             key: "view-advance-payment-details",
                             label: getTranslationFromI18nKeyAndLabel(
-                              "lowcoder:advance_payment_details.title",
+                              "lowcoder:advance_payment_table.advance_payment_details",
                               "View Advance Payment Details",
                             ),
                             onClick: () => {

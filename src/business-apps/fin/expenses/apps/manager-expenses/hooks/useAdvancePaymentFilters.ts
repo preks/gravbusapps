@@ -1,12 +1,10 @@
 import { useState, useCallback, useMemo } from "react";
-import type {
-  DataFilterGroup,
-  DataFilter,
-} from "@/components/data-filter/DataFilter";
+import type { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from "../utils";
 import { useCurrencyStore } from "../store/useCurrencyStore";
 import { useAdvancePaymentCurrencies } from "./useAdvancePaymentCurrencies";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface UseAdvancePaymentFiltersProps {
   accessToken?: string;
@@ -72,7 +70,7 @@ export const useAdvancePaymentFilters = ({
         setStatusFilter(newStatus);
       }
     },
-    [setStatusFilter]
+    [setStatusFilter],
   );
 
   const handleDataFilterChange = useCallback(
@@ -102,12 +100,7 @@ export const useAdvancePaymentFilters = ({
         handleStatusFilterChange(newFilters.length > 0 ? newFilters : null);
       }
     },
-    [
-      statusFilter,
-      handleStatusFilterChange,
-      setPrimaryCurrency,
-      setUserSelected,
-    ]
+    [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected],
   );
 
   // Define the statuses that should be used for filtering with the correct mappings
@@ -128,33 +121,14 @@ export const useAdvancePaymentFilters = ({
     ExpenseStatus.TRANSFERRED,
   ];
 
-  // Map of status to display label based on user requirements
-  const statusDisplayMap: Partial<Record<ExpenseStatus, string>> = {
-    [ExpenseStatus.PREPARED]: "Prepared",
-    [ExpenseStatus.CREATED]: "Draft (Created)",
-    [ExpenseStatus.ASSIGNED]: "Assigned",
-    [ExpenseStatus.PENDING]: "Approval Required",
-    [ExpenseStatus.APPROVED]: "Approved",
-    [ExpenseStatus.RETURNED]: "In Revision (Returned)",
-    [ExpenseStatus.REJECTED]: "Revision Required (Rejected)",
-    [ExpenseStatus.VERIFIED]: "In Transit (Verified)",
-    [ExpenseStatus.BOOKED]: "In Transit (Booked)",
-    [ExpenseStatus.PAID]: "Paid",
-    [ExpenseStatus.CLOSED]: "Closed",
-    [ExpenseStatus.DISCARDED]: "Discarded",
-    [ExpenseStatus.TRANSFERRED]: "In Transit (Transferred)",
-  };
-
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
 
-    // Add status filters
+    // Add status filters - use the getAdvancePaymentStatusDisplay function for consistent translated labels
     availableFilterStatuses.forEach((status) => {
-      // Use the custom display map if available, otherwise get from getAdvancePaymentStatusDisplay
-      map[status] =
-        statusDisplayMap[status] ||
-        getAdvancePaymentStatusDisplay(status).label;
+      const display = getAdvancePaymentStatusDisplay(status);
+      map[status] = display.label;
     });
 
     // Add currency filters - simplified to only the most common ones
@@ -189,13 +163,19 @@ export const useAdvancePaymentFilters = ({
     return [
       {
         id: "statusGroup",
-        title: "Status",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_request_list.expense_plan_table.status",
+          "Status",
+        ),
         filters: statusItems,
         selectionMode: "multiple",
       },
       {
         id: "currencyGroup",
-        title: "Currency",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_calculation_rule.expense_table.currency",
+          "Currency",
+        ),
         filters: currencyItems,
         selectionMode: "single",
       },
