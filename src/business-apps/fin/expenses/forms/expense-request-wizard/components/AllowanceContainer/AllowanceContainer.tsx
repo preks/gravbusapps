@@ -208,7 +208,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
             <div
               className="gba:grid gba:mt-4"
               style={{
-                gridTemplateColumns: 'repeat(auto-fit, minmax(0, 100px))',
+                gridTemplateColumns: 'repeat(4, minmax(0, 100px))',
                 gap: '20px',
                 justifyContent: 'space-between',
                 alignItems: 'stretch'
