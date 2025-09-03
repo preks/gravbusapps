@@ -3,6 +3,8 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants';
 import { EVENTS } from '../../../utils/constants';
 
 export interface AdvanceObject {
+  id?: string;
+  version?: string;
   currencyRef: string;
   amount: number;
   paymentMethod: string | null;
@@ -61,15 +63,32 @@ export const createAdvanceObject = (
   paymentMethod: string | null,
   expensePlanData: any
 ): AdvanceObject | null => {
+  const planDataPk = expensePlanData?.ExpensePlanByPk;
   if(paymentMethod)
-  return {
+  {
+    let initialAdvancePayment = null;
+    if (planDataPk?.advancePayment && planDataPk.advancePayment.length > 0) {
+      initialAdvancePayment = planDataPk.advancePayment[0];
+    }
+    if(initialAdvancePayment)
+      return {
+        id: initialAdvancePayment.id,
+        version: initialAdvancePayment.version,
+        currencyRef: selectedCurrencyId,
+        amount: parseFloat(amount),
+        paymentMethod: paymentMethod,
+        status: "PREPARED",
+        expensePlan: planDataPk.id,
+        costCenter: planDataPk.costCenter.id
+      }
+    else return {
     currencyRef: selectedCurrencyId,
     amount: parseFloat(amount),
     paymentMethod: paymentMethod,
     status: "PREPARED",
-    expensePlan: expensePlanData.ExpensePlanByPk.id,
-    costCenter: expensePlanData.ExpensePlanByPk.costCenter.id
-  };
+    expensePlan: planDataPk.id,
+    costCenter: planDataPk.costCenter.id
+  };}
   else return null
 };
 
