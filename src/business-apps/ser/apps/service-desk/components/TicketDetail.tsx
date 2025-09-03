@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Button, Tag, Timeline, Input, Alert, Space, Typography, Divider, 
-  Select, Row, Col, Steps, Badge, message, Switch 
+  Select, Row, Col, Steps, Badge, message, Progress 
 } from 'antd';
 import { 
   User, Clock, AlertCircle, ArrowRight, CheckCircle, PlayCircle,
-  Edit3, Send, Users, Calendar, Eye, MessageSquare, UserPlus,
+  Send, Users, Calendar, Eye, MessageSquare, UserPlus,
   UserMinus, RotateCw, FastForward
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, Comment, StepStatus, SubmittedRequest } from 'packages/services-plus-core';
+import { formatRequestId, getStatusColor } from '../../../utils'; // ✅ Import utilities
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
@@ -28,7 +29,8 @@ const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', hours: 72, color: '#52c41a' },
 ];
 
-// Mock users for assignment picker
+// ⚠️ MOCKED DATA: Users for assignment picker
+// TODO: Replace with real user data from organizational service
 const MOCK_USERS = [
   { id: 'user1', name: 'John Smith', email: 'john.smith@company.com' },
   { id: 'user2', name: 'Sarah Johnson', email: 'sarah.johnson@company.com' },
@@ -36,11 +38,26 @@ const MOCK_USERS = [
   { id: 'user4', name: 'Lisa Chen', email: 'lisa.chen@company.com' },
 ];
 
-// Calculate SLA due date
+// Calculate SLA due date - ENHANCED with real data
 const calculateSLADue = (ticket: StepInstance | null): { dueDate: Date | null; status: 'ok' | 'warning' | 'overdue'; hoursLeft: number } => {
+  // Use real dueDate from workflow engine if available
+  if (ticket?.dueDate) {
+    const dueDate = new Date(ticket.dueDate);
+    const now = new Date();
+    const timeDiff = dueDate.getTime() - now.getTime();
+    const hoursLeft = timeDiff / (1000 * 60 * 60);
+    
+    let status: 'ok' | 'warning' | 'overdue' = 'ok';
+    if (hoursLeft < 0) status = 'overdue';
+    else if (hoursLeft < 2) status = 'warning';
+    
+    return { dueDate, status, hoursLeft };
+  }
+  
+  // Fallback: Calculate from startedAt if no real dueDate
   if (!ticket?.startedAt) return { dueDate: null, status: 'ok', hoursLeft: 0 };
   
-  // Default to medium priority for demo
+  // Default to medium priority for demo (when no real SLA data)
   const priority = PRIORITY_OPTIONS[2]; // medium - 24 hours
   const startDate = new Date(ticket.startedAt);
   const dueDate = new Date(startDate.getTime() + (priority.hours * 60 * 60 * 1000));
@@ -72,7 +89,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
   const [commentText, setCommentText] = useState<string>('');
   const [isSubmittingComment, setIsSubmittingComment] = useState<boolean>(false);
   const [assigneeId, setAssigneeId] = useState<string>('');
-  const [isMarkdownMode, setIsMarkdownMode] = useState<boolean>(false);
+
   const [overallRequest, setOverallRequest] = useState<SubmittedRequest | null>(null);
   const [isLoadingRequest, setIsLoadingRequest] = useState<boolean>(false);
 
@@ -395,7 +412,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 
                 <div className="gba:flex gba:items-center gba:gap-4 gba:mb-4">
                   <Text code className="gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('services.ticket.id', 'ID')}: {displayTicket?.id || 'N/A'}
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.id', 'ID')}: {displayTicket?.requestId ? formatRequestId(displayTicket.requestId) : 'N/A'}
                   </Text>
                   <Tag color={getStatusColor(displayTicket?.status || 'pending')} className="gba:text-sm">
                     {getTranslationFromI18nKeyAndLabel(
@@ -405,8 +422,17 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                   </Tag>
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <User className="gba:w-4 gba:h-4 gba:text-gray-400" />
-                    <Text className="gba:text-sm">{deskKey}</Text>
+                    <Text className="gba:text-sm">{displayTicket?.desk || deskKey}</Text>
                   </div>
+                  {/* LIVE DATA: Task Start Time */}
+                  {displayTicket?.startedAt && (
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <Calendar className="gba:w-4 gba:h-4 gba:text-gray-400" />
+                      <Text className="gba:text-sm">
+                        Started: {new Date(displayTicket.startedAt).toLocaleString()}
+                      </Text>
+                    </div>
+                  )}
                 </div>
 
                 {/* Task Message */}
@@ -418,17 +444,22 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                   </div>
                 )}
 
-                {/* Requester Information */}
-                {(displayTicket as any)?.requester && (
+                {/* Requester Information - Using LIVE DATA */}
+                {(displayTicket?.requesterName || displayTicket?.requesterId) && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
                     <User className="gba:w-4 gba:h-4 gba:text-gray-500" />
                     <Text>
-                      <strong>Requested by:</strong> {(displayTicket as any).requester}
+                      <strong>Requested by:</strong> {displayTicket.requesterName || displayTicket.requesterId}
                     </Text>
+                    {displayTicket.requesterName && displayTicket.requesterId && (
+                      <Text type="secondary" className="gba:text-xs gba:ml-2">
+                        (ID: {displayTicket.requesterId})
+                      </Text>
+                    )}
                   </div>
                 )}
 
-                {/* SLA Due Information */}
+                {/* HYBRID DATA: SLA Due Information - uses real dueDate if available, fallback to calculated */}
                 {slaInfo.dueDate && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
                     {slaInfo.status === 'overdue' && <AlertCircle className="gba:w-4 gba:h-4 gba:text-red-500" />}
@@ -447,18 +478,21 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       {slaInfo.dueDate.toLocaleString()}
                       {slaInfo.status === 'overdue' && ' (Overdue)'}
                       {slaInfo.status === 'warning' && ` (${Math.round(slaInfo.hoursLeft)}h left)`}
+                      {displayTicket?.dueDate && (
+                        <span className="gba:ml-2 gba:text-xs gba:text-green-600">(Live SLA)</span>
+                      )}
                     </Text>
                   </div>
                 )}
 
-                {/* Assignment Info */}
+                {/* LIVE DATA: Assignment Info */}
                 <div className="gba:mb-4">
                   {displayTicket?.assignedToUserId ? (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <User className="gba:w-4 gba:h-4 gba:text-blue-500" />
                       <Text>
                         {getTranslationFromI18nKeyAndLabel('services.ticket.assignedTo', 'Assigned to')}: {' '}
-                        <strong>{displayTicket?.assignedToUserId}</strong>
+                        <strong>{displayTicket.assignedToUserName || displayTicket.assignedToUserId}</strong>
                       </Text>
                     </div>
                   ) : displayTicket?.claimedByUserId ? (
@@ -466,7 +500,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       <User className="gba:w-4 gba:h-4 gba:text-orange-500" />
                       <Text>
                         {getTranslationFromI18nKeyAndLabel('services.ticket.claimedBy', 'Claimed by')}: {' '}
-                        <strong>{displayTicket?.claimedByUserId}</strong>
+                        <strong>{displayTicket.claimedByUserName || displayTicket.claimedByUserId}</strong>
                       </Text>
                     </div>
                   ) : (
@@ -477,6 +511,31 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       </Text>
                     </div>
                   )}
+                </div>
+
+                {/* LIVE DATA: Task Metadata */}
+                <div className="gba:mb-4 gba:p-3 gba:bg-gray-50 gba:rounded">
+                  <Text strong className="gba:block gba:mb-2 gba:text-sm">Task Details (Live Data)</Text>
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:text-xs">
+                    {displayTicket?.defId && (
+                      <div>
+                        <Text type="secondary">Definition ID:</Text> 
+                        <Text code className="gba:ml-1">{displayTicket.defId}</Text>
+                      </div>
+                    )}
+                    {displayTicket?.requestId && (
+                      <div>
+                        <Text type="secondary">Flow ID:</Text> 
+                        <Text code className="gba:ml-1">{formatRequestId(displayTicket.requestId)}</Text>
+                      </div>
+                    )}
+                    {displayTicket?.finishedAt && (
+                      <div>
+                        <Text type="secondary">Finished:</Text> 
+                        <Text className="gba:ml-1">{new Date(displayTicket.finishedAt).toLocaleString()}</Text>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -642,19 +701,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                   {getTranslationFromI18nKeyAndLabel('services.ticket.comments.title', 'Comments')}
                   <Badge count={displayTicket?.comments?.length || 0} showZero style={{ backgroundColor: '#1890ff' }} />
                 </div>
-                {/* Markdown Mode Toggle */}
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Text className="gba:text-sm">
-                    {getTranslationFromI18nKeyAndLabel('services.ticket.comments.markdown', 'Markdown')}
-                  </Text>
-                  <Switch
-                    size="small"
-                    checked={isMarkdownMode}
-                    onChange={setIsMarkdownMode}
-                    checkedChildren={<Edit3 className="gba:w-3 gba:h-3" />}
-                    unCheckedChildren={<Edit3 className="gba:w-3 gba:h-3" />}
-                  />
-                </div>
+
               </div>
             }
           >
@@ -676,17 +723,10 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 <TextArea
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder={
-                    isMarkdownMode 
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'services.ticket.comments.placeholder.markdown',
-                          'Add a comment with **markdown** support...'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'services.ticket.comments.placeholder',
-                          'Add a comment visible to downstream steps...'
-                        )
-                  }
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'services.ticket.comments.placeholder',
+                    'Add a comment visible to downstream steps...'
+                  )}
                   rows={4}
                   className="gba:mb-3"
                   data-testid="comment-input"
@@ -694,10 +734,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                 
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <Text className="gba:text-xs gba:text-gray-500">
-                    {isMarkdownMode 
-                      ? getTranslationFromI18nKeyAndLabel('services.ticket.comments.markdown.help', 'Use **bold**, *italic*, `code` and more')
-                      : getTranslationFromI18nKeyAndLabel('services.ticket.comments.plain.help', 'Plain text formatting')
-                    }
+                    {getTranslationFromI18nKeyAndLabel('services.ticket.comments.plain.help', 'Plain text formatting')}
                   </Text>
                   
                   <Button
@@ -788,17 +825,68 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
         >
           {overallRequest ? (
             <div className="gba:space-y-4">
-              {/* Request Info */}
+              {/* Enhanced Request Header */}
               <div>
-                                        <Text strong className="gba:block gba:mb-2">
-                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.request', 'Request')}: {overallRequest.id}
-                        </Text>
-                        <Text type="secondary" className="gba:text-sm">
-                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.submitted', 'Submitted by')}: {overallRequest.requesterId}
-                        </Text>
-                        <Text type="secondary" className="gba:block gba:text-sm">
-                          {getTranslationFromI18nKeyAndLabel('services.ticket.overall.date', 'Date')}: {new Date(overallRequest.createdAt).toLocaleString()}
-                        </Text>
+                {/* Request Title and Status */}
+                <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
+                  <div className="gba:flex-1">
+                    <Title level={4} className="gba:mb-2">
+                      {overallRequest.titleSnapshot || 'Service Request'}
+                    </Title>
+                  </div>
+                  <Badge color={getStatusColor(overallRequest.status as any)} className="gba:text-sm">
+                    {overallRequest.status.replace('_', ' ').toUpperCase()}
+                  </Badge>
+                </div>
+
+                {/* Request Metadata */}
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm">
+                    <Text code className="gba:font-mono">
+                      {formatRequestId(overallRequest.id)}
+                    </Text>
+                    <Text type="secondary">
+                      Created: {new Date(overallRequest.createdAt).toLocaleDateString()}
+                    </Text>
+                  </div>
+                  
+                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                      <Text>
+                        <strong>Submitted by:</strong> {overallRequest.requesterName || overallRequest.requesterId}
+                      </Text>
+                    </div>
+                    
+                    {overallRequest.templateId && (
+                      <Text type="secondary">
+                        Template: {overallRequest.templateId}
+                      </Text>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Visualization */}
+                {overallRequest.progress && (
+                  <div className="gba:mt-4">
+                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
+                      <Text strong className="gba:text-sm">
+                        Progress: {overallRequest.progress.completedSteps} of {overallRequest.progress.totalSteps} steps completed
+                      </Text>
+                      <Text className="gba:text-sm gba:text-blue-600">
+                        {overallRequest.progress.percentage}%
+                      </Text>
+                    </div>
+                    <Progress 
+                      percent={overallRequest.progress.percentage}
+                      status={overallRequest.status === 'completed' ? 'success' : 
+                             overallRequest.status === 'canceled' ? 'exception' : 'active'}
+                      showInfo={false}
+                      strokeColor="#1890ff"
+                      className="gba:mb-0"
+                    />
+                  </div>
+                )}
               </div>
 
               <Divider />

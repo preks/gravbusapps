@@ -3,6 +3,7 @@ import { Eye, User, Search, Filter, Calendar, Clock, AlertCircle, UserPlus, User
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, TicketStatus } from 'packages/services-plus-core';
+import { formatRequestId } from '../../../utils'; // ✨ Import formatRequestId utility
 import { TicketDetail } from './TicketDetail';
 import { useDeskTickets } from '../hooks/useDeskTickets';
 import { useTicketActions } from '../hooks/useTicketActions';
@@ -88,6 +89,23 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     accessToken,
     userInfo,
   });
+
+  // Debug: Log tickets data whenever it changes
+  useEffect(() => {
+    console.log(`[ConductorAdapterRequester] 🔍 Received ${tickets?.length || 0} tickets for desk ${deskKey}:`);
+    
+    if (tickets && tickets.length > 0) {
+      console.log(`[ConductorAdapterRequester] 📋 All tickets data:`, tickets.map(ticket => ({
+        id: ticket.id,
+        name: ticket.name,
+        requesterId: ticket.requesterId,
+        requesterName: ticket.requesterName,
+        hasRequesterName: !!(ticket.requesterName && ticket.requesterName.trim().length > 0)
+      })));
+    } else {
+      console.log(`[ConductorAdapterRequester] ❌ No tickets received or tickets is empty`);
+    }
+  }, [tickets, deskKey]);
 
   // Ticket actions (claim, unclaim)
   const { 
@@ -222,14 +240,15 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         }
       }
 
-      // Search filter (requestId or requester)
+      // Search filter (requestId, formatted requestId, requester, or step name)
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
         const matchesRequestId = ticket.requestId?.toLowerCase().includes(searchLower);
+        const matchesFormattedRequestId = ticket.requestId ? formatRequestId(ticket.requestId).toLowerCase().includes(searchLower) : false;
         const matchesRequester = ticket.requesterId?.toLowerCase().includes(searchLower);
         const matchesStepName = ticket.name?.toLowerCase().includes(searchLower);
         
-        if (!matchesRequestId && !matchesRequester && !matchesStepName) {
+        if (!matchesRequestId && !matchesFormattedRequestId && !matchesRequester && !matchesStepName) {
           return false;
         }
       }
@@ -296,7 +315,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           className="gba:text-sm"
           data-testid={`request-id-${requestId}`}
         >
-          {requestId || 'N/A'}
+          {requestId ? formatRequestId(requestId) : 'N/A'}
         </Text>
       ),
     },
@@ -318,18 +337,41 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       dataIndex: 'requesterId',
       key: 'requesterId',
       width: 120,
-      render: (requesterId: string, record: StepInstance) => (
-        <UserDisplayName
-          userId={requesterId}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          showIcon={true}
-          color="default"
-          size="small"
-          fallback="Unknown"
-          testId={`requester-${record.id}`}
-        />
-      ),
+      render: (requesterId: string, record: StepInstance) => {
+        console.log(`[ConductorAdapterRequester] 🔍 RENDER - Task ${record.id}:`, {
+          requesterId: requesterId,
+          requesterName: record.requesterName,
+          hasRequesterName: !!(record.requesterName && record.requesterName.trim().length > 0),
+          taskName: record.name
+        });
+        
+        // If we have the requester name directly, use it
+        if (record.requesterName && record.requesterName.trim().length > 0) {
+          console.log(`[ConductorAdapterRequester] ✅ Using requester name: ${record.requesterName}`);
+          return (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid={`requester-${record.id}`}>
+              <User className="gba:w-4 gba:h-4 gba:text-blue-500" />
+              <span className="gba:text-sm gba:font-medium">{record.requesterName}</span>
+            </div>
+          );
+        }
+        
+        console.log(`[ConductorAdapterRequester] ❌ No requester name found, falling back to UUID lookup: ${requesterId}`);
+        
+        // Fallback to UserDisplayName component for UUID lookup
+        return (
+          <UserDisplayName
+            userId={requesterId}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            showIcon={true}
+            color="default"
+            size="small"
+            fallback="Unknown User"
+            testId={`requester-${record.id}`}
+          />
+        );
+      },
     },
     {
       title: getTranslationFromI18nKeyAndLabel('services.queue.columns.status', 'Status'),

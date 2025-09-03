@@ -11,10 +11,16 @@ export type {
   ServiceCategory,
   ServiceRequestTemplate,
   SubmittedRequest,
+  RequestWithHistory,
   StepInstance,
   StepReceiver,
   StepStatus,
   TicketStatus,
+  Comment,
+  FlowComment,
+  TaskAction,
+  AvailableActions,
+  TaskStatistics,
   ServicesAnalyticsEvent,
   AnalyticsPayload
 } from './types';

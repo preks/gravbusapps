@@ -2,21 +2,20 @@
  * Service Portal & Service Desk Services
  */
 
-// Original Service Portal Mock Engine (for simple use cases)
+// Original Service Portal Mock Engine (for simple use cases - Service Portal only)
 export { MockWorkflowEngine, mockWorkflowEngine } from './MockWorkflowEngine';
 
-// Enhanced Service Desk Engine & Provider (for advanced features)
-export { MockWorkflowEngineAdapter } from './MockWorkflowEngineAdapter';
+// Service Desk Workflow Engine Provider (live data only)
 export {
-  createMockEngine,
   getWorkflowEngine,
   setWorkflowEngine,
   resetWorkflowEngine,
+  setWorkflowEngineCurrentUser,
   useWorkflowEngine,
   mockDataHelpers,
 } from './workflowEngineProvider';
 
-// New Conductor Integration
+// Conductor Integration (real live data)
 export { ConductorWorkflowEngineAdapter, createConductorWorkflowEngine } from './ConductorWorkflowEngineAdapter';
 
 // Service Templates

@@ -4,6 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFeature } from '@/common/hooks/useFeature';
 import type { StepReceiver } from 'packages/services-plus-core';
 import { DeskQueue } from './components/DeskQueue';
+import { TemplatesTab } from './components/TemplatesTab';
 import { useUserCapabilities } from './hooks/useUserCapabilities';
 import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
 
@@ -199,37 +200,69 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
         onChange={handleTabChange}
         data-testid="service-desk-tabs"
         className="gba:w-full"
-        items={capabilities.map(({ desk, name, ticketCount }) => ({
-          key: desk,
-          label: (
-            <span 
-              data-testid={`desk-tab-${desk.toLowerCase()}`}
-              className="gba:flex gba:items-center gba:gap-2"
-            >
-              <span>
-                {getTranslationFromI18nKeyAndLabel(
-                  `services.desk.${desk.toLowerCase()}.name`,
-                  name
+        items={[
+          // Regular desk tabs
+          ...capabilities.map(({ desk, name, ticketCount }) => ({
+            key: desk,
+            label: (
+              <span 
+                data-testid={`desk-tab-${desk.toLowerCase()}`}
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    `services.desk.${desk.toLowerCase()}.name`,
+                    name
+                  )}
+                </span>
+                {ticketCount > 0 && (
+                  <Badge 
+                    count={ticketCount} 
+                    size="small"
+                    className="gba:ml-1" 
+                  />
                 )}
               </span>
-              {ticketCount > 0 && (
+            ),
+            children: (
+              <DeskQueue
+                deskKey={desk}
+                ticketId={ticketId}
+                accessToken={accessToken}
+                userInfo={userInfo}
+              />
+            ),
+          })),
+          // Templates tab for development
+          {
+            key: 'templates',
+            label: (
+              <span 
+                data-testid="desk-tab-templates"
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'services.desk.templates.name',
+                    'Templates'
+                  )}
+                </span>
                 <Badge 
-                  count={ticketCount} 
+                  count="DEV" 
+                  style={{ backgroundColor: '#52c41a' }}
                   size="small"
                   className="gba:ml-1" 
                 />
-              )}
-            </span>
-          ),
-          children: (
-            <DeskQueue
-              deskKey={desk}
-              ticketId={ticketId}
-              accessToken={accessToken}
-              userInfo={userInfo}
-            />
-          ),
-        }))}
+              </span>
+            ),
+            children: (
+              <TemplatesTab
+                accessToken={accessToken}
+                userInfo={userInfo}
+              />
+            ),
+          }
+        ]}
       />
     </div>
   );

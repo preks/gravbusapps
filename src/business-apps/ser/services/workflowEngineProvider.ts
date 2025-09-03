@@ -1,5 +1,6 @@
-import { MockWorkflowEngineAdapter } from './MockWorkflowEngineAdapter';
+import { ConductorWorkflowEngineAdapter } from './ConductorWorkflowEngineAdapter';
 import type { WorkflowEngine } from 'packages/services-plus-core';
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 /**
  * Singleton instance of the workflow engine
@@ -7,23 +8,24 @@ import type { WorkflowEngine } from 'packages/services-plus-core';
 let workflowEngineInstance: WorkflowEngine | null = null;
 
 /**
- * Create a new MockWorkflowEngineAdapter instance
- * @param currentUserId - Optional user ID for the engine context
- * @returns New MockWorkflowEngineAdapter instance
+ * Create a new ConductorWorkflowEngineAdapter instance
+ * @param context - BusinessAppContext with accessToken and userInfo
+ * @returns New ConductorWorkflowEngineAdapter instance
  */
-export function createMockEngine(currentUserId?: string): MockWorkflowEngineAdapter {
-  return new MockWorkflowEngineAdapter(currentUserId);
+export function createConductorEngine(context: BusinessAppContextProps): ConductorWorkflowEngineAdapter {
+  return new ConductorWorkflowEngineAdapter(context);
 }
 
 /**
  * Get or create singleton WorkflowEngine instance
- * Used by both Service Desk and Portal apps
- * @param currentUserId - Optional user ID for initial setup
- * @returns Singleton WorkflowEngine instance
+ * Always uses ConductorWorkflowEngineAdapter for real live data
+ * @param context - BusinessAppContext with accessToken and userInfo
+ * @returns Singleton ConductorWorkflowEngineAdapter instance
  */
-export function getWorkflowEngine(currentUserId?: string): WorkflowEngine {
+export function getWorkflowEngine(context: BusinessAppContextProps): WorkflowEngine {
   if (!workflowEngineInstance) {
-    workflowEngineInstance = createMockEngine(currentUserId);
+    console.log('🔧 Creating ConductorWorkflowEngineAdapter instance');
+    workflowEngineInstance = createConductorEngine(context);
   }
   return workflowEngineInstance;
 }
@@ -44,74 +46,43 @@ export function resetWorkflowEngine(): void {
 }
 
 /**
- * Update the current user context on the underlying engine (for mock usage)
- * Ensures actions like claim/comment use the logged-in user's ID
+ * Update the current user context (no-op for ConductorWorkflowEngineAdapter)
+ * ConductorWorkflowEngineAdapter uses context from BusinessAppContextProps
+ * @param userId - User ID (ignored in live data mode)
  */
 export function setWorkflowEngineCurrentUser(userId: string): void {
-  if (!userId) return;
-  if (!workflowEngineInstance) return;
-  // For MockWorkflowEngineAdapter we can update the user context at runtime
-  const maybeMock: any = workflowEngineInstance as any;
-  if (typeof maybeMock.setCurrentUserId === 'function') {
-    maybeMock.setCurrentUserId(userId);
-  }
+  // No-op: ConductorWorkflowEngineAdapter uses context from BusinessAppContextProps
+  // This function is preserved for backward compatibility
+  console.log('🔧 setWorkflowEngineCurrentUser called (no-op in live data mode):', userId);
 }
 
 /**
  * Hook to get WorkflowEngine instance in React components
- * @param currentUserId - Optional user ID for engine context
- * @returns WorkflowEngine instance
+ * @param context - BusinessAppContext with accessToken and userInfo
+ * @returns ConductorWorkflowEngineAdapter instance
  */
-export function useWorkflowEngine(currentUserId?: string): WorkflowEngine {
-  return getWorkflowEngine(currentUserId);
+export function useWorkflowEngine(context: BusinessAppContextProps): WorkflowEngine {
+  return getWorkflowEngine(context);
 }
 
 /**
- * Mock data helpers for development and testing
+ * Mock data helpers (no-op for live data mode)
+ * Preserved for backward compatibility
  */
 export const mockDataHelpers = {
   /**
-   * Seed the engine with sample data
+   * Seed the engine with sample data (no-op in live data mode)
    */
-  async seedSampleData(engine: WorkflowEngine): Promise<void> {
-    if (!(engine instanceof MockWorkflowEngineAdapter)) {
-      console.warn('seedSampleData only works with MockWorkflowEngineAdapter');
-      return;
-    }
-
-    // Seed with sample requests
-    try {
-      const requestId1 = await engine.startRequest('new-hardware-request', {
-        hardwareType: 'Laptop',
-        justification: 'Current laptop is 5 years old and failing',
-        urgency: 'High',
-      });
-
-      const requestId2 = await engine.startRequest('new-hardware-request', {
-        hardwareType: 'Monitor',
-        justification: 'Dual monitor setup for productivity',
-        urgency: 'Medium',
-      });
-
-      // Simulate some step progression
-      const tickets = await engine.getDeskTickets('HR');
-      if (tickets.length > 0) {
-        await engine.claim(tickets[0].id);
-        await engine.comment(tickets[0].id, 'Reviewing request for compliance');
-      }
-
-      console.log('Sample data seeded:', { requestId1, requestId2 });
-    } catch (error) {
-      console.error('Error seeding sample data:', error);
-    }
+  async seedSampleData(_engine: WorkflowEngine): Promise<void> {
+    console.log('🔧 mockDataHelpers.seedSampleData called (no-op in live data mode)');
+    // No-op: Live data mode doesn't seed mock data
   },
 
   /**
-   * Clear all data from mock engine
+   * Clear all data from engine (no-op in live data mode)
    */
-  clearData(engine: WorkflowEngine): void {
-    if (engine instanceof MockWorkflowEngineAdapter) {
-      engine.clearAllData();
-    }
+  clearData(_engine: WorkflowEngine): void {
+    console.log('🔧 mockDataHelpers.clearData called (no-op in live data mode)');
+    // No-op: Live data mode doesn't manage mock data
   },
 };
