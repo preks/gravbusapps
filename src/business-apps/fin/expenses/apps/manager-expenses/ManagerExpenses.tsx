@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
-import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi';
+import { GaugeIcon, PathIcon, HandCoinsIcon, MoneyIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react';
 import { useAppCurrency } from './hooks/useAppCurrency';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -17,6 +17,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ApprovalsPage, ExpenseReportsPage } from './components/pages';
 import TeamSpendingAnalyticsPage from './components/pages/TeamSpendingAnalyticsPage';
 
+import { MODULE_COLORS } from '@/common/constants/ui';
+
+const moduleVariant = MODULE_COLORS.FIN;
+
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
@@ -32,27 +36,27 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <PiGauge className="w-5 h-5" />,
+      icon: <GaugeIcon className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
     },
     {
       key: 'expense-plans',
-      icon: <PiPath className="w-5 h-5" />,
+      icon: <PathIcon className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')
     },
     {
       key: 'advance-payments',
-      icon: <PiHandCoins className="w-5 h-5" />,
+      icon: <HandCoinsIcon className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')
     },
     {
       key: 'expense-requests',
-      icon: <PiMoney className="w-5 h-5" />,
+      icon: <MoneyIcon className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
     },
     {
       key: 'expense-calendar',
-      icon: <PiCalendarBlank className="w-5 h-5" />,
+      icon: <CalendarBlankIcon className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')
     }
   ];
@@ -186,7 +190,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout
-        headerIcon={<PiWalletDuotone className="w-6 h-6 text-purple-600" />}
+        headerIcon={WalletIcon}
         headerTitle="Team Expenses"
         headerDescription="Manage team expenses, track expense plans, advance payments, and expense requests"
         headerSubViews={{

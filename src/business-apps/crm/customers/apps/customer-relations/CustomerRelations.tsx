@@ -2,21 +2,22 @@ import React, { useState, useEffect } from "react";
 import { Button, Alert, AlertTitle, AlertDescription } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
 import { PageLayout } from "@newwork/nw-design-system";
-import { Handshake, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House } from "@phosphor-icons/react";
+import { HandshakeIcon, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House, Handshake } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { LeadList } from "./views/lead-view";
 import { AccountList } from "./views/account-view";
 import { ContactList } from "./views/contact-view";
 import { OpportunityView } from "./views/opportunity-view";
 import { DashboardView } from "./views/dashboard-view";
-import { SalesDashboard } from "./views/analytics-view";
+import { AnalyticsView } from "./views/analytics-view";
 import { useSalesDashboard } from "./views/dashboard-view/hooks/useSalesDashboard";
 import { DateRange } from "./views/dashboard-view/types/dashboardTypes";
 import CampaignManagement from "./views/campaign-view/CampaignManagement";
 import { TaskView } from "./views/task-view";
+import { MODULE_COLORS } from "@/common/constants/ui";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
-
+const moduleVariant = MODULE_COLORS.CRM;
 export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   context
 ) => {
@@ -198,7 +199,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   const renderAnalyticsContent = () => {
     return (
       <div data-testid="analytics-tab-content">
-        <SalesDashboard {...context} />
+        <AnalyticsView {...context} />
       </div>
     );
   };
@@ -253,12 +254,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   return (
     <div data-testid="customer-relations-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: Handshake,
-          variant: "strategy",
-          size: "lg",
-          label: "Customer Relations"
-        }}
+        headerIcon={HandshakeIcon}
         headerTitle="Customer Relations"
         headerDescription="Manage customer relationships, track leads, accounts, contacts, and sales opportunities"
         headerSubViews={{
@@ -270,6 +266,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
             icon: option.icon
           }))
         }}
+        variant={moduleVariant}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
