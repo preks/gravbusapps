@@ -98,6 +98,7 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     id
     version
     createdAt
+    description
     expenseRuleId
     code
     processInstanceId
