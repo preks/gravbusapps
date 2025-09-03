@@ -224,7 +224,6 @@ export const INVESTMENT_TASK = `
     code
     name
     description
-    comment
     startDate
     dueDate
     endDate

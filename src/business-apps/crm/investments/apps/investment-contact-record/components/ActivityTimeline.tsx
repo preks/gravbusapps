@@ -9,8 +9,7 @@ import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
-import { useGetInvestmentActivitiesByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
-import type { InvestmentActivity as ContactActivityData } from '@/common/data/investment/types';
+import { useGetContactActivities, ContactActivityData } from '../queries/ContactActivityQueries';
 // import { useGetContactDocuments, ContactDocumentData } from '../queries/ContactDocumentQueries'; // Unused import
 import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
@@ -66,7 +65,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
   const originalActivitiesRef = useRef<ContactActivityData[]>([]);
 
-  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(context);
+  const { fetchContactActivities } = useGetContactActivities(context);
   const { fetchContactTasks } = useGetContactTasks(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
@@ -94,9 +93,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     setActivitiesError(null);
     
     try {
-      const investmentActivities = await fetchInvestmentActivitiesByContactId(contactId);
+      const result = await fetchContactActivities({ contactId });
       // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
-      const sortedActivities = investmentActivities.sort((a, b) => {
+      const sortedActivities = (result.SalesActivity || []).sort((a, b) => {
         const dateA = new Date(a.occurredAt || a.createdAt).getTime();
         const dateB = new Date(b.occurredAt || b.createdAt).getTime();
         return dateB - dateA;
