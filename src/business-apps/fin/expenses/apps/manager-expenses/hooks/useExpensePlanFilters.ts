@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { DataFilterGroup, DataFilter } from "@/components/data-filter";
 import { ExpenseStatus, getExpensePlanStatusDisplay } from "../utils";
+
 import { useDebounce } from "@/common/hooks/useDebounce";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useExpensePlanCurrencies } from "./useExpensePlanCurrencies";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface UseExpensePlanFiltersProps {
   accessToken?: string;
@@ -59,11 +60,8 @@ export const useExpensePlanFilters = ({
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([]);
 
   // LOCAL currency state for expense plans tab - independent from dashboard
-  const [localPrimaryCurrency, setLocalPrimaryCurrency] =
-    useState<string>("EUR");
-  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<
-    string | null
-  >(null);
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>("EUR");
+  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
 
@@ -92,12 +90,7 @@ export const useExpensePlanFilters = ({
         setLocalPrimaryCurrency(detectedCurrency);
       }
     }
-  }, [
-    detectedCurrency,
-    currenciesLoading,
-    localPrimaryCurrency,
-    userHasManuallySelectedCurrency,
-  ]);
+  }, [detectedCurrency, currenciesLoading, localPrimaryCurrency, userHasManuallySelectedCurrency]);
 
   // Available currencies - include detected currency and common ones
   const availableCurrencies = useMemo(() => {
@@ -113,84 +106,40 @@ export const useExpensePlanFilters = ({
     return Array.from(currencies).sort();
   }, [detectedCurrency]);
 
-  const handleDataFilterChange = useCallback(
-    (filterId: string, isSelected: boolean) => {
-      // Check if this is a currency filter (starts with 'currency:')
-      if (filterId.startsWith("currency:")) {
-        const currencyCode = filterId.replace("currency:", "");
-        if (isSelected) {
-          setLocalPrimaryCurrency(currencyCode); // Use local state instead of global store
-          setUserHasManuallySelectedCurrency(true); // Mark that user has made a manual selection
-        }
-        // We don't handle deselection for currency as it's a single-select
-        return;
+  const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
+    // Check if this is a currency filter (starts with 'currency:')
+    if (filterId.startsWith("currency:")) {
+      const currencyCode = filterId.replace("currency:", "");
+      if (isSelected) {
+        setLocalPrimaryCurrency(currencyCode); // Use local state instead of global store
+        setUserHasManuallySelectedCurrency(true); // Mark that user has made a manual selection
       }
+      // We don't handle deselection for currency as it's a single-select
+      return;
+    }
 
-      // Handle status filters
-      setStatusFilter((prevFilter) => {
-        if (isSelected) {
-          // Add the status if it's not already in the array
-          if (!prevFilter.includes(filterId as ExpenseStatus)) {
-            return [...prevFilter, filterId as ExpenseStatus];
-          }
-          return prevFilter;
-        } else {
-          // Remove the status from the array
-          return prevFilter.filter((status) => status !== filterId);
+    // Handle status filters
+    setStatusFilter((prevFilter) => {
+      if (isSelected) {
+        // Add the status if it's not already in the array
+        if (!prevFilter.includes(filterId as ExpenseStatus)) {
+          return [...prevFilter, filterId as ExpenseStatus];
         }
-      });
-    },
-    []
-  );
+        return prevFilter;
+      } else {
+        // Remove the status from the array
+        return prevFilter.filter((status) => status !== filterId);
+      }
+    });
+  }, []);
 
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     availableFilterStatuses.forEach((status) => {
-      // Map status to display names that match the UI requirements
-      switch (status) {
-        case ExpenseStatus.PREPARED:
-          map[status] = "Prepared";
-          break;
-        case ExpenseStatus.CREATED:
-          map[status] = "Draft (Created)";
-          break;
-        case ExpenseStatus.ASSIGNED:
-          map[status] = "Assigned";
-          break;
-        case ExpenseStatus.PENDING:
-          map[status] = "In Approval (Pending)";
-          break;
-        case ExpenseStatus.APPROVED:
-          map[status] = "Approved";
-          break;
-        case ExpenseStatus.RETURNED:
-          map[status] = "In Revision (Returned)";
-          break;
-        case ExpenseStatus.REJECTED:
-          map[status] = "Revision Required (Rejected)";
-          break;
-        case ExpenseStatus.VERIFIED:
-          map[status] = "In Transit (Verified)";
-          break;
-        case ExpenseStatus.BOOKED:
-          map[status] = "In Transit (Booked)";
-          break;
-        case ExpenseStatus.PAID:
-          map[status] = "Paid";
-          break;
-        case ExpenseStatus.CLOSED:
-          map[status] = "Closed";
-          break;
-        case ExpenseStatus.DISCARDED:
-          map[status] = "Discarded";
-          break;
-        case ExpenseStatus.TRANSFERRED:
-          map[status] = "Transferred";
-          break;
-        default:
-          map[status] = status;
-      }
+      // Use the getExpensePlanStatusDisplay function for consistent translated labels
+      const display = getExpensePlanStatusDisplay(status);
+      map[status] = display.label;
     });
     return map;
   }, []);
@@ -218,13 +167,19 @@ export const useExpensePlanFilters = ({
     return [
       {
         id: "statusGroup",
-        title: "Status",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_request_list.expense_plan_table.status",
+          "Status",
+        ),
         filters: statusItems,
         selectionMode: "multiple",
       },
       {
         id: "currencyGroup",
-        title: "Currency",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_calculation_rule.expense_table.currency",
+          "Currency",
+        ),
         filters: currencyItems,
         selectionMode: "single",
       },

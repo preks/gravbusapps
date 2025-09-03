@@ -21,7 +21,7 @@ import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import Pill from "@/components/pill/Pill";
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
-import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
+import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { formatCurrency } from "../../../utils/currencyUtils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
@@ -246,10 +246,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
         <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-          No expense plans found
-        </div>
-        <div className="gba:text-gray-400 gba:mb-4">
-          No expense plans match your current criteria.
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:create_expense_request.no_plans_found_search",
+            "No expense plans found",
+          )}
         </div>
       </div>
     );

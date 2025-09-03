@@ -1,4 +1,5 @@
 import { PillType } from "@/components/pill/Pill";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 /**
  * Enum representing the technical statuses for expenses
@@ -32,48 +33,83 @@ export interface StatusDisplayConfig {
  * @param status - The technical status from the API
  * @returns StatusDisplayConfig with label and styling information
  */
-export const getExpensePlanStatusDisplay = (
-  status: string
-): StatusDisplayConfig => {
+export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
+    case ExpenseStatus.PREPARED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.prepared", "Prepared"),
+        type: "draft",
+      };
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
-        type: "draft"
-      };
-    case ExpenseStatus.PENDING:
-      return {
-        label: "Approval Required",
-        type: "task",
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: "Revision Required",
-        type: "error"
-      };
-    case ExpenseStatus.APPROVED:
-      return {
-        label: "Approved",
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
+        type: "draft",
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: "Assigned",
-        type: "waiting"
-      };
-    case ExpenseStatus.BOOKED:
-      return {
-        label: "In Transit",
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
         type: "waiting",
+      };
+    case ExpenseStatus.PENDING:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.in_approval",
+          "In Approval",
+        ),
+        type: "waiting",
+      };
+    case ExpenseStatus.APPROVED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.approved", "Approved"),
+        type: "completed",
+      };
+    case ExpenseStatus.RETURNED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.returned", "Returned"),
+        type: "waiting",
+      };
+    case ExpenseStatus.REJECTED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.revision_required",
+          "Revision Required",
+        ),
+        type: "task",
       };
     case ExpenseStatus.VERIFIED:
       return {
-        label: "In Transit",
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.verified", "Verified"),
         type: "waiting",
+      };
+    case ExpenseStatus.BOOKED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.booked", "Booked"),
+        type: "waiting",
+      };
+    case ExpenseStatus.PAID:
+      return {
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
+        type: "completed",
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: "Closed",
+        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
+        type: "completed",
+      };
+    case ExpenseStatus.DISCARDED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.discarded",
+          "Discarded",
+        ),
+        type: "error",
+      };
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_statuses.transferred",
+          "Transferred",
+        ),
         type: "completed",
       };
     default:
@@ -89,14 +125,12 @@ export const getExpensePlanStatusDisplay = (
  * @param status - The technical status from the API
  * @returns StatusDisplayConfig with label and styling information
  */
-export const getExpenseRequestStatusDisplay = (
-  status: string
-): StatusDisplayConfig => {
+export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
     case ExpenseStatus.CREATED:
       return {
-        label: 'Draft',
-        type: "draft"
+        label: "Draft",
+        type: "draft",
       };
     case ExpenseStatus.PENDING:
       return {
@@ -140,8 +174,8 @@ export const getExpenseRequestStatusDisplay = (
       };
     case ExpenseStatus.REJECTED:
       return {
-        label: 'Revision Required',
-        type: "error"
+        label: "Revision Required",
+        type: "error",
       };
     default:
       return {
@@ -156,9 +190,7 @@ export const getExpenseRequestStatusDisplay = (
  * @param status - The technical status from the API
  * @returns StatusDisplayConfig with label and styling information
  */
-export const getAdvancePaymentStatusDisplay = (
-  status: string
-): StatusDisplayConfig => {
+export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
     case ExpenseStatus.PREPARED:
       return {
