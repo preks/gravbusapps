@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Button, Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { ActivityDeletionPopup } from '@/common/components';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -13,6 +16,7 @@ import { useGetSalesActivities } from '../queries/salesActivityQueries';
 import { useGetCrmDocuments } from '../queries/CrmDocumentQueries';
 import { useGetSalesTasks } from '../queries/SalesTaskQueries';
 import { NotesSection } from './NotesSection';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
 const { Text } = Typography;
 
@@ -79,6 +83,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const { fetchSalesTasks } = useGetSalesTasks(context);
+  const graphqlClient = useGraphQLClient(context.accessToken);
 
   const loadActivities = async () => {
     if (!accountId) return;
@@ -512,38 +517,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     });
   };
 
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({ open: false });
+
   const handleDeleteActivity = (activity: SalesActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
-            changeMode: 'DELETE',
-            salesActivity: {
-              id: activity.id,
-              version: activity.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the activity from the local state
-          setActivities(prevActivities => 
-            prevActivities.filter(act => act.id !== activity.id)
-          );
-          
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+    setDeletePopup({ open: true, activity });
   };
 
   const getActivityTypeValue = (activityType: any): string => {
@@ -640,14 +617,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
             >
               Activities
             </div>
-            <Button 
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.customerActivityCreate]}
+              externalContextData={{ 
+                accountId,
+                account: accountId,
+                salesActivity: { account: accountId }
+              }}
+              prefixDataTestId="account-add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button 
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -701,8 +690,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                       <div>
                         <Text type="secondary">
                           {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerEmployee 
-                            ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) 
-                            : activity.createdBy || 'Unknown User'}
+                            ? (activity.ownerEmployee.displayName || activity.ownerEmployee.fullName || `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() || 'Unknown User')
+                            : (activity.createdBy || 'Unknown User')}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -911,6 +900,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
         </div>
       )}
 
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity!.title}
+          accountId={accountId}
+          domain="crm"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            // originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id); // This line was not in the original file, so it's not added.
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
     </div>
   );
 }; 

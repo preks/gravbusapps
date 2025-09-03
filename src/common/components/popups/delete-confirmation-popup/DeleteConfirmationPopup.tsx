@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -120,6 +120,48 @@ export const DeleteConfirmationPopup: React.FC<DeleteConfirmationPopupProps> = (
     }
     // Don't close popup on error, let user try again or manually close
   };
+
+  // Close the dialog automatically when a process completes successfully
+  // This mirrors how other timelines listen for completion events
+  const hasHandledRef = useRef(false);
+  useEffect(() => {
+    if (!isFlowRegistryMode || !isOpen) {
+      return;
+    }
+
+    hasHandledRef.current = false;
+
+    const onAnyProcessCompletion = (event: any) => {
+      try {
+        if (hasHandledRef.current) return;
+        const resolution = event?.detail?.resolution;
+        if (resolution === 'success') {
+          hasHandledRef.current = true;
+          handleFlowProcessCompletion();
+        }
+      } catch (e) {
+        // no-op
+      }
+    };
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ];
+
+    eventNames.forEach((name) => window.addEventListener(name, onAnyProcessCompletion as EventListener));
+    return () => {
+      eventNames.forEach((name) => window.removeEventListener(name, onAnyProcessCompletion as EventListener));
+    };
+  }, [isFlowRegistryMode, isOpen]);
 
   return (
     <AlertDialog 
