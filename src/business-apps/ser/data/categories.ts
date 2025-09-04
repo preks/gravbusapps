@@ -95,6 +95,13 @@ export const serviceCategories: ServiceCategory[] = [
     icon: 'clipboard',
     description: 'Office supplies, events, and general administrative support',
     order: 13
+  },
+  {
+    id: 'flow-templates',
+    name: 'Flow Templates',
+    icon: 'workflow', // Note: will map to Tree icon in iconMapping
+    description: 'Dynamic workflow templates from custom-flow-engine with automatic form generation',
+    order: 0 // Show first in the list
   }
 ];
 

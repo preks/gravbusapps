@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Eye, User, Search, Filter, Calendar, Clock, AlertCircle, UserPlus, UserMinus } from 'lucide-react';
+import { Eye, User, MagnifyingGlass, Funnel, Calendar, Clock, Warning, UserPlus, UserMinus } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, TicketStatus } from 'packages/services-plus-core';
@@ -424,7 +424,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
-            {isOverdue && <AlertCircle className="gba:w-3 gba:h-3 gba:text-red-500" />}
+            {isOverdue && <Warning className="gba:w-3 gba:h-3 gba:text-red-500" />}
             {!isOverdue && slaStatus.status === 'warning' && <Clock className="gba:w-3 gba:h-3 gba:text-yellow-500" />}
             <div>
               <div className="gba:text-xs" style={{ color: slaStatus.color }}>
@@ -614,7 +614,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
           {/* Search */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-64">
-            <Search className="gba:w-4 gba:h-4 gba:text-gray-400" />
+            <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-gray-400" />
             <Input
               placeholder={getTranslationFromI18nKeyAndLabel(
                 'services.queue.search.placeholder',
@@ -630,7 +630,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
 
           {/* Status Filter */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Filter className="gba:w-4 gba:h-4 gba:text-gray-400" />
+            <Funnel className="gba:w-4 gba:h-4 gba:text-gray-400" />
             <Text className="gba:text-sm gba:text-gray-600">
               {getTranslationFromI18nKeyAndLabel('services.queue.filters.status', 'Status:')}
             </Text>

@@ -1,41 +1,44 @@
 /**
  * Icon Mapping for Service Categories
- * Maps service category IDs to Lucide React icons
+ * Maps service category IDs to Phosphor React icons
  */
 
 import { 
   Users, 
   Laptop, 
-  Plane, 
-  Building, 
-  DollarSign, 
+  Airplane, 
+  Buildings, 
+  CurrencyDollar, 
   ShoppingCart, 
   FileText, 
   Shield, 
   Key, 
-  BarChart3, 
+  ChartBar, 
   GraduationCap, 
   Car, 
   Clipboard,
-  LucideIcon
-} from 'lucide-react';
+  Tree,
+  Icon
+} from '@phosphor-icons/react';
 
-export const categoryIcons: Record<string, LucideIcon> = {
+export const categoryIcons: Record<string, Icon> = {
   'hr': Users,
   'it': Laptop,
-  'travel': Plane,
-  'facilities': Building,
-  'finance': DollarSign,
+  'travel': Airplane,
+  'facilities': Buildings,
+  'finance': CurrencyDollar,
   'procurement': ShoppingCart,
   'legal': FileText,
   'security': Shield,
   'access-identity': Key,
-  'data-analytics': BarChart3,
+  'data-analytics': ChartBar,
   'learning-development': GraduationCap,
   'fleet': Car,
-  'admin': Clipboard
+  'admin': Clipboard,
+  'flow-templates': Tree,
+  'workflow': Tree // Alias for flow-templates
 };
 
-export const getCategoryIcon = (categoryId: string): LucideIcon => {
+export const getCategoryIcon = (categoryId: string): Icon => {
   return categoryIcons[categoryId] || Clipboard;
 };

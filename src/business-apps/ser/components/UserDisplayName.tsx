@@ -1,6 +1,6 @@
 import React from 'react';
 import { Spin } from 'antd';
-import { User } from 'lucide-react';
+import { User } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeeDetails, getEmployeeDisplayName } from '../hooks/useEmployeeDetails';
 

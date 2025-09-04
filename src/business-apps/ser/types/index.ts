@@ -4,6 +4,9 @@
  * Based on Services+ Contract specifications
  */
 
+// Flow template types for dynamic form generation
+export * from './flowTemplate';
+
 // Core domain types
 export type StepReceiver =
   | 'HR' | 'IT' | 'Facilities' | 'Finance' | 'Procurement' | 'Legal'

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests } from './components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkflowEngine, ServiceRequestTemplate } from '../../types';
+import { WorkflowEngine, ServiceRequestTemplate, FlowTemplate } from '../../types';
 import { mockWorkflowEngine, createConductorWorkflowEngine } from '../../services';
 import { useServicesFeatureFlag } from '../../utils/featureFlags';
 
@@ -22,6 +22,7 @@ interface ServicePortalState {
   selectedCategoryId?: string;
   selectedServiceId?: string;
   selectedTemplate?: ServiceRequestTemplate;
+  selectedFlowTemplate?: FlowTemplate;
   selectedRequestId?: string;
 }
 
@@ -66,7 +67,17 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
     setState({
       currentView: 'requestForm',
       selectedTemplate: template,
+      selectedFlowTemplate: undefined, // Clear flow template
       selectedCategoryId: template.categoryId
+    });
+  };
+
+  const navigateToFlowRequestForm = (flowTemplate: FlowTemplate) => {
+    setState({
+      currentView: 'requestForm',
+      selectedTemplate: undefined, // Clear mock template
+      selectedFlowTemplate: flowTemplate,
+      selectedCategoryId: flowTemplate.category || 'flow' // Use template category or default
     });
   };
 
@@ -98,14 +109,17 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
           <ServiceDetail
             categoryId={state.selectedCategoryId!}
             onRequestService={navigateToRequestForm}
+            onRequestFlowTemplate={navigateToFlowRequestForm}
             onBack={navigateToCatalog}
+            {...contextProps}
           />
         );
       
       case 'requestForm':
         return (
           <RequestForm
-            template={state.selectedTemplate!}
+            template={state.selectedTemplate}
+            flowTemplate={state.selectedFlowTemplate}
             workflowEngine={activeWorkflowEngine}
             onSuccess={navigateToMyRequests}
             onCancel={() => navigateToCategory(state.selectedCategoryId!)}

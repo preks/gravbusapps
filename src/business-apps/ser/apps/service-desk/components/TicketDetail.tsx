@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Button, Tag, Timeline, Input, Alert, Space, Typography, Divider, 
-  Select, Row, Col, Steps, Badge, message, Progress 
+  Select, Row, Col, Steps, Badge, message, Progress, Tooltip 
 } from 'antd';
 import { 
   User, Clock, AlertCircle, ArrowRight, CheckCircle, PlayCircle,
@@ -11,7 +11,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepReceiver, StepInstance, Comment, StepStatus, SubmittedRequest } from 'packages/services-plus-core';
-import { formatRequestId, getStatusColor } from '../../../utils'; // ✅ Import utilities
+import { formatRequestId } from '../../../utils'; // ✅ Import utilities
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
@@ -20,6 +20,12 @@ import { TaskForm, type TaskFormField } from './TaskForm';
 const { Text, Title, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
+
+// Utility function to truncate long IDs for better display
+const truncateId = (id: string, maxLength: number = 12): string => {
+  if (!id || id.length <= maxLength) return id;
+  return `${id.slice(0, 8)}...${id.slice(-4)}`;
+};
 
 // Priority options for SLA calculation
 const PRIORITY_OPTIONS = [
@@ -136,7 +142,12 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
       
       setIsLoadingRequest(true);
       try {
-        const workflowEngine = getWorkflowEngine(currentUserId || 'default-user');
+        const workflowEngine = getWorkflowEngine({ 
+          currentUserId: currentUserId || 'default-user',
+          accessToken: accessToken || '',
+          activeUserLocale: 'en',
+          activeStructureId: 'default'
+        } as BusinessAppContextProps);
         const request = await workflowEngine.getRequest(ticket.requestId);
         setOverallRequest(request);
       } catch (err) {
@@ -446,16 +457,35 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
 
                 {/* Requester Information - Using LIVE DATA */}
                 {(displayTicket?.requesterName || displayTicket?.requesterId) && (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-                    <User className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                    <Text>
-                      <strong>Requested by:</strong> {displayTicket.requesterName || displayTicket.requesterId}
-                    </Text>
-                    {displayTicket.requesterName && displayTicket.requesterId && (
-                      <Text type="secondary" className="gba:text-xs gba:ml-2">
-                        (ID: {displayTicket.requesterId})
-                      </Text>
-                    )}
+                  <div className="gba:mb-4">
+                    <div className="gba:flex gba:items-start gba:gap-2">
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-500 gba:mt-1 gba:flex-shrink-0" />
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                          <Text>
+                            <strong>Requested by:</strong>
+                          </Text>
+                          <div className="gba:flex gba:flex-col gba:gap-1">
+                            <Text className="gba:break-words">
+                              {displayTicket.requesterName || (
+                                <Tooltip title={displayTicket.requesterId}>
+                                  <Text code className="gba:font-mono gba:text-xs">
+                                    {truncateId(displayTicket.requesterId || '', 16)}
+                                  </Text>
+                                </Tooltip>
+                              )}
+                            </Text>
+                            {displayTicket.requesterName && displayTicket.requesterId && (
+                              <Tooltip title={displayTicket.requesterId}>
+                                <Text type="secondary" className="gba:text-xs gba:font-mono">
+                                  ID: {truncateId(displayTicket.requesterId, 16)}
+                                </Text>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -828,40 +858,66 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
               {/* Enhanced Request Header */}
               <div>
                 {/* Request Title and Status */}
-                <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
-                  <div className="gba:flex-1">
-                    <Title level={4} className="gba:mb-2">
+                <div className="gba:flex gba:justify-between gba:items-start gba:gap-3 gba:mb-3">
+                  <div className="gba:flex-1 gba:min-w-0">
+                    <Title level={4} className="gba:mb-2 gba:break-words gba:leading-tight">
                       {overallRequest.titleSnapshot || 'Service Request'}
                     </Title>
                   </div>
-                  <Badge color={getStatusColor(overallRequest.status as any)} className="gba:text-sm">
+                  <Badge color={getStatusColor(overallRequest.status as any)} className="gba:text-sm gba:flex-shrink-0">
                     {overallRequest.status.replace('_', ' ').toUpperCase()}
                   </Badge>
                 </div>
 
                 {/* Request Metadata */}
-                <div className="gba:space-y-2">
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm">
-                    <Text code className="gba:font-mono">
+                <div className="gba:space-y-3">
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-sm">
+                    <Text code className="gba:font-mono gba:text-xs">
                       {formatRequestId(overallRequest.id)}
                     </Text>
-                    <Text type="secondary">
+                    <Text type="secondary" className="gba:text-xs">
                       Created: {new Date(overallRequest.createdAt).toLocaleDateString()}
                     </Text>
                   </div>
                   
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm">
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <User className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <Text>
-                        <strong>Submitted by:</strong> {overallRequest.requesterName || overallRequest.requesterId}
-                      </Text>
+                  <div className="gba:space-y-2">
+                    <div className="gba:flex gba:items-start gba:gap-2">
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-500 gba:mt-0.5 gba:flex-shrink-0" />
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div className="gba:flex gba:flex-col gba:gap-1">
+                          <Text className="gba:text-sm">
+                            <strong>Submitted by:</strong>
+                          </Text>
+                          {overallRequest.requesterName ? (
+                            <div>
+                              <Text className="gba:break-words gba:text-sm">
+                                {overallRequest.requesterName}
+                              </Text>
+                              {overallRequest.requesterId && (
+                                <Tooltip title={overallRequest.requesterId}>
+                                  <Text type="secondary" className="gba:text-xs gba:font-mono gba:block">
+                                    ID: {truncateId(overallRequest.requesterId, 16)}
+                                  </Text>
+                                </Tooltip>
+                              )}
+                            </div>
+                          ) : (
+                            <Tooltip title={overallRequest.requesterId}>
+                              <Text code className="gba:font-mono gba:text-xs">
+                                {truncateId(overallRequest.requesterId || '', 16)}
+                              </Text>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
                     {overallRequest.templateId && (
-                      <Text type="secondary">
-                        Template: {overallRequest.templateId}
-                      </Text>
+                      <div className="gba:pl-6">
+                        <Text type="secondary" className="gba:text-xs gba:break-words">
+                          Template: {overallRequest.templateId}
+                        </Text>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -912,19 +968,21 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                       <Steps.Step
                         key={step.id}
                         title={
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Text strong={isCurrentStep} className="gba:text-sm">
-                              {step.name}
-                            </Text>
+                          <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
+                            <div className="gba:flex-1 gba:min-w-0">
+                              <Text strong={isCurrentStep} className="gba:text-sm gba:break-words gba:leading-tight">
+                                {step.name}
+                              </Text>
+                            </div>
                             {isCurrentStep && (
-                              <Badge status="processing" />
+                              <Badge status="processing" className="gba:flex-shrink-0" />
                             )}
                           </div>
                         }
                         description={
                           <div className="gba:space-y-1">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <Tag color={getStatusColor(step.status)}>
+                            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                              <Tag color={getStatusColor(step.status)} className="gba:text-xs">
                                 {step.status.toUpperCase()}
                               </Tag>
                               {step.desk && (

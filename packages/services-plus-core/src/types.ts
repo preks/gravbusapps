@@ -206,6 +206,15 @@ export interface WorkflowEngine {
     hasMore: boolean;
     data: any[];
   }>;
+  
+  // Universal assignment analysis
+  getStepsRequiringAssignment?(templateId: string): Promise<Array<{
+    stepId: string;
+    stepIndex: number;
+    title: string;
+    assignmentMode: string;
+    requiresUsers: boolean;
+  }>>;
 }
 
 // Analytics event types

@@ -3,9 +3,8 @@ import {
   Form, Input, Button, DatePicker, Checkbox, Radio, Select, 
   Upload, Card, Alert, Space, Typography, Divider
 } from 'antd';
-import { Upload as UploadIcon, Save, Send } from 'lucide-react';
+import { Upload as UploadIcon, FloppyDisk, PaperPlaneTilt } from '@phosphor-icons/react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -57,7 +56,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         switch (field.type.toLowerCase()) {
           case 'date':
           case 'datetime':
-            if (value && dayjs.isDayjs(value)) {
+            if (value && (value instanceof Date || (value && typeof value.toISOString === 'function'))) {
               transformedValues[field.name] = value.toISOString();
             }
             break;
@@ -325,7 +324,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <Space>
             {showSaveButton && (
               <Button
-                icon={<Save className="gba:w-4 gba:h-4" />}
+                icon={<FloppyDisk className="gba:w-4 gba:h-4" />}
                 onClick={handleSave}
                 disabled={!hasUnsavedChanges}
                 data-testid="save-draft-button"
@@ -337,7 +336,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             {showCompleteButton && (
               <Button
                 type="primary"
-                icon={<Send className="gba:w-4 gba:h-4" />}
+                icon={<PaperPlaneTilt className="gba:w-4 gba:h-4" />}
                 onClick={handleSubmit}
                 loading={isSubmitting}
                 data-testid="complete-task-button"

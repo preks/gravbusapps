@@ -5,24 +5,32 @@ import {
   Button, 
   Badge, 
   Alert,
+  Spinner,
   type KpiCardData
 } from '@newwork/nw-design-system';
-import { ServiceCategory, ServiceRequestTemplate } from '../../../types';
+import { ServiceCategory, ServiceRequestTemplate, FlowTemplate } from '../../../types';
 import { getCategoryById } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
+import { useSharedFlowTemplates } from '../../../hooks/useSharedFlowTemplates';
+import { FlowTemplateCard } from './FlowTemplateCard';
+import { FlowTemplatesDetail } from './FlowTemplatesDetail';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   ArrowLeft, 
   ClockCounterClockwise, 
   Users,
   Lightning,
   Star,
-  ArrowRight
+  ArrowRight,
+  Tree,
+  Warning
 } from '@phosphor-icons/react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 
-export interface ServiceDetailProps {
+export interface ServiceDetailProps extends BusinessAppContextProps {
   categoryId: string;
   onRequestService: (template: ServiceRequestTemplate) => void;
+  onRequestFlowTemplate?: (template: FlowTemplate) => void;
   onBack: () => void;
 }
 
@@ -152,13 +160,42 @@ const ServiceTemplateCard: React.FC<ServiceTemplateCardProps> = ({
 export const ServiceDetail: React.FC<ServiceDetailProps> = ({
   categoryId,
   onRequestService,
-  onBack
+  onRequestFlowTemplate,
+  onBack,
+  ...contextProps
 }) => {
+  // Special handling for Flow Templates category
+  if (categoryId === 'flow-templates') {
+    console.log('🎭 [ServiceDetail] Rendering FlowTemplatesDetail for category:', categoryId);
+    return (
+      <FlowTemplatesDetail
+        {...contextProps}
+        onRequestFlowTemplate={onRequestFlowTemplate}
+        onBack={onBack}
+      />
+    );
+  }
+
   const [category, setCategory] = useState<ServiceCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch flow templates from custom-flow-engine using shared service
+  const { 
+    templates: flowTemplates, 
+    isLoading: flowTemplatesLoading, 
+    error: flowTemplatesError,
+    refetch: refetchFlowTemplates,
+    totalCount: flowTemplatesCount
+  } = useSharedFlowTemplates(contextProps, { 
+    categoryId: categoryId, // Will be filtered once we add category support
+    enabled: true,
+    limit: 100
+  });
+
   useEffect(() => {
+    console.log('🎭 [ServiceDetail] Component mounting with categoryId:', categoryId);
+    
     const loadCategory = async () => {
       setIsLoading(true);
       setError(null);
@@ -172,8 +209,10 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
           throw new Error(`Category ${categoryId} not found`);
         }
         
+        console.log('🎭 [ServiceDetail] Category loaded:', categoryData.name);
         setCategory(categoryData);
       } catch (err) {
+        console.error('🎭 [ServiceDetail] Error loading category:', err);
         setError(err instanceof Error ? err.message : 'Failed to load category');
       } finally {
         setIsLoading(false);
@@ -182,6 +221,16 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
 
     loadCategory();
   }, [categoryId]);
+
+  // Debug effect for flow templates
+  useEffect(() => {
+    console.log('🎭 [ServiceDetail] Flow templates state changed:', {
+      loading: flowTemplatesLoading,
+      error: flowTemplatesError,
+      count: flowTemplates.length,
+      templates: flowTemplates.map(t => ({ id: t.id, name: t.name }))
+    });
+  }, [flowTemplates, flowTemplatesLoading, flowTemplatesError]);
 
   // Mock service templates for the category with richer data
   const mockServiceTemplates: ServiceRequestTemplate[] = useMemo(() => {
@@ -308,12 +357,20 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
   const kpiCards: KpiCardData[] = useMemo(() => {
     if (!category) return [];
     
+    const totalTemplates = mockServiceTemplates.filter(t => t.enabled).length + flowTemplates.length;
+    
     return [
       {
         id: 'available-services',
         title: 'Available Services',
-        value: mockServiceTemplates.filter(t => t.enabled).length,
-        description: 'Ready to request'
+        value: totalTemplates,
+        description: `${flowTemplates.length} live + ${mockServiceTemplates.filter(t => t.enabled).length} mock`
+      },
+      {
+        id: 'flow-templates',
+        title: 'Flow Templates', 
+        value: flowTemplates.length,
+        description: 'Live from workflow engine'
       },
       {
         id: 'avg-processing-time',
@@ -326,15 +383,9 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
         title: 'Success Rate',
         value: '98%',
         description: 'Successfully completed'
-      },
-      {
-        id: 'user-satisfaction',
-        title: 'User Satisfaction',
-        value: '4.8/5',
-        description: 'Average user rating'
       }
     ];
-  }, [category, mockServiceTemplates]);
+  }, [category, mockServiceTemplates, flowTemplates]);
 
   if (isLoading) {
     return (
@@ -403,23 +454,159 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
         headerTitle={category.name}
         headerDescription={category.description}
         sectionTitle="Available Services"
-        sectionDescription={`Choose from ${mockServiceTemplates.length} service${mockServiceTemplates.length !== 1 ? 's' : ''} in the ${category.name} category`}
+        sectionDescription={`Choose from ${flowTemplates.length + mockServiceTemplates.length} total service${flowTemplates.length + mockServiceTemplates.length !== 1 ? 's' : ''} in the ${category.name} category`}
         kpiCardsData={kpiCards}
       >
-        {/* Services Grid */}
-        <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2 gba:xl:grid-cols-3">
-          {mockServiceTemplates.map((template) => (
-            <ServiceTemplateCard
-              key={template.id}
-              template={template}
-              category={category}
-              onRequest={() => onRequestService(template)}
-            />
-          ))}
-        </div>
+        {/* Flow Templates Section (Live from custom-flow-engine) */}
+        {/* Always show the section for debugging - will show loading, error, or empty state */}
+        {true && (
+          <div className="gba:space-y-6 gba:mb-8">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Tree className="gba:w-5 gba:h-5 gba:text-indigo-600" />
+                  <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Flow Templates</h2>
+                </div>
+                <Badge variant="outline" className="gba:text-xs gba:bg-indigo-50 gba:text-indigo-700 gba:border-indigo-300">
+                  Live Data
+                </Badge>
+                {flowTemplatesLoading && (
+                  <Spinner className="gba:w-4 gba:h-4 gba:text-indigo-600" />
+                )}
+              </div>
+              
+              <div className="gba:flex gba:gap-2">
+                {flowTemplatesError && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={refetchFlowTemplates}
+                    className="gba:text-xs"
+                  >
+                    Retry
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    console.log('🎭 [ServiceDetail] Manual refresh clicked');
+                    refetchFlowTemplates();
+                  }}
+                  className="gba:text-xs"
+                >
+                  Refresh Templates
+                </Button>
+              </div>
+            </div>
 
-        {/* Empty State */}
-        {mockServiceTemplates.length === 0 && (
+            <p className="gba:text-sm gba:text-gray-600">
+              Dynamic templates from the workflow engine with automatic form generation based on template definitions.
+            </p>
+
+            {/* Flow Templates Loading State */}
+            {flowTemplatesLoading && (
+              <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2 gba:xl:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="gba:h-64 gba:animate-pulse">
+                    <div className="gba:p-6 gba:space-y-4">
+                      <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-3/4"></div>
+                      <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-1/2"></div>
+                      <div className="gba:space-y-2">
+                        <div className="gba:h-3 gba:bg-gray-200 gba:rounded"></div>
+                        <div className="gba:h-3 gba:bg-gray-200 gba:rounded gba:w-5/6"></div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Flow Templates Error State */}
+            {flowTemplatesError && !flowTemplatesLoading && (
+              <Alert variant="destructive">
+                <Warning className="gba:h-4 gba:w-4" />
+                <div>
+                  <p className="gba:font-semibold">Failed to Load Flow Templates</p>
+                  <p className="gba:text-sm">{flowTemplatesError}</p>
+                </div>
+              </Alert>
+            )}
+
+            {/* Flow Templates Grid */}
+            {!flowTemplatesLoading && !flowTemplatesError && flowTemplates.length > 0 && (
+              <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2 gba:xl:grid-cols-3">
+                {flowTemplates.map((template) => (
+                  <FlowTemplateCard
+                    key={template.id || template.name}
+                    template={template}
+                    onRequest={() => onRequestFlowTemplate?.(template)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Debug Information */}
+            <div className="gba:p-4 gba:bg-gray-50 gba:rounded-lg gba:text-xs gba:text-gray-600">
+              <div><strong>Flow Templates Debug Info:</strong></div>
+              <div>• Loading: {flowTemplatesLoading ? 'Yes' : 'No'}</div>
+              <div>• Error: {flowTemplatesError || 'None'}</div>
+              <div>• Templates Count: {flowTemplates.length}</div>
+              <div>• Total Count: {flowTemplatesCount}</div>
+              <div>• Category ID: {categoryId}</div>
+              <div>• Hook Enabled: Yes</div>
+              <div>• Console Tags: Look for "🎭 [useSharedFlowTemplates]" and "🎯 [TemplatesService]"</div>
+              <div>• Backend Expected: localhost:3000</div>
+              {flowTemplatesError && (
+                <div className="gba:mt-2 gba:p-2 gba:bg-red-50 gba:rounded gba:border gba:border-red-200">
+                  <div className="gba:font-semibold gba:text-red-800">💡 Troubleshooting:</div>
+                  <div className="gba:text-red-700">1. Start custom-flow-engine: cd custom-flow-engine && npm start</div>
+                  <div className="gba:text-red-700">2. Verify http://localhost:3000/api/templates responds</div>
+                  <div className="gba:text-red-700">3. Check console for connection errors</div>
+                </div>
+              )}
+            </div>
+
+            {/* No Flow Templates */}
+            {!flowTemplatesLoading && !flowTemplatesError && flowTemplates.length === 0 && (
+              <div className="gba:text-center gba:py-8 gba:border-2 gba:border-dashed gba:border-gray-200 gba:rounded-lg">
+                <Tree className="gba:w-8 gba:h-8 gba:text-gray-400 gba:mx-auto gba:mb-2" />
+                <p className="gba:text-sm gba:text-gray-500">No flow templates available for this category</p>
+                <p className="gba:text-xs gba:text-gray-400 gba:mt-2">Make sure custom-flow-engine is running on localhost:3000</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mock Templates Section */}
+        {mockServiceTemplates.length > 0 && (
+          <div className="gba:space-y-6">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Mock Templates</h2>
+              <Badge variant="outline" className="gba:text-xs gba:bg-gray-50 gba:text-gray-600 gba:border-gray-300">
+                Development
+              </Badge>
+            </div>
+            
+            <p className="gba:text-sm gba:text-gray-600">
+              Static templates for development and testing purposes with predefined forms.
+            </p>
+
+            <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2 gba:xl:grid-cols-3">
+              {mockServiceTemplates.map((template) => (
+                <ServiceTemplateCard
+                  key={template.id}
+                  template={template}
+                  category={category}
+                  onRequest={() => onRequestService(template)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State - Both Sections Empty */}
+        {!flowTemplatesLoading && flowTemplates.length === 0 && mockServiceTemplates.length === 0 && (
           <div className="gba:text-center gba:py-16">
             <div className="gba:mx-auto gba:w-24 gba:h-24 gba:bg-muted gba:rounded-full gba:flex gba:items-center gba:justify-center gba:mb-6">
               <IconComponent className="gba:h-12 gba:w-12 gba:text-muted-foreground" />

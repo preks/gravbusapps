@@ -106,11 +106,15 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Converts service template to flow template and executes it
    */
   async startRequest(templateKey: string, formData: any): Promise<string> {
+    // Declare payload in broader scope for error handling
+    let requestPayload: any = null;
+    let flowTemplateId: string = '';
+    
     try {
       console.log(`[ConductorAdapter] Starting request with template: ${templateKey}`, { formData });
 
       // Map template key to actual flow template
-      const flowTemplateId = this.mapServiceTemplateToFlowTemplate(templateKey);
+      flowTemplateId = this.mapServiceTemplateToFlowTemplate(templateKey);
       const requesterDisplayName = this.getRequesterDisplayName();
       
       console.log(`[ConductorAdapterRequester] ✅ Will send requester name: ${requesterDisplayName}`);
@@ -119,17 +123,17 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       const executionContext = this.buildExecutionContext(formData, templateKey);
       
       // Prepare request payload
-      const requestPayload = {
-        initiator: this.currentUserId,
-        context: {
-          serviceRequestType: templateKey,
-          requesterId: this.currentUserId,
+      requestPayload = {
+          initiator: this.currentUserId,
+          context: {
+            serviceRequestType: templateKey,
+            requesterId: this.currentUserId,
           requesterName: requesterDisplayName,
-          initiatedFrom: 'service-portal',
-          urgency: formData.urgency || 'standard'
-        },
-        runtimeAssignments: executionContext.assignments,
-        inputValues: formData
+            initiatedFrom: 'service-portal',
+            urgency: formData.urgency || 'standard'
+          },
+          runtimeAssignments: executionContext.assignments,
+          inputValues: formData
       };
 
       console.log(`[ConductorAdapterRequester] 🚀 API Request Details:`, {
@@ -158,21 +162,48 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       if (!response.ok) {
         let errorMessage = `Failed to execute template: ${response.status} ${response.statusText}`;
+        let errorBody = '';
         try {
-          const errorBody = await response.text();
+          errorBody = await response.text();
           console.error(`[ConductorAdapterRequester] ❌ API Error Response:`, {
             status: response.status,
             statusText: response.statusText,
             body: errorBody,
             url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
             templateKey: templateKey,
-            flowTemplateId: flowTemplateId
+            flowTemplateId: flowTemplateId,
+            actualPayloadSent: requestPayload
           });
           errorMessage += ` - Response: ${errorBody}`;
         } catch (parseError) {
           console.error(`[ConductorAdapterRequester] Could not parse error response:`, parseError);
         }
-        throw new Error(errorMessage);
+        
+        // Create enhanced error with structured debug info (3 separate JSON sections)
+        const enhancedError = new Error(errorMessage);
+        (enhancedError as any).debugPayload = {
+          apiCall: {
+            method: 'POST',
+            url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer [REDACTED]'
+            },
+            timestamp: new Date().toISOString(),
+            templateInfo: {
+              templateKey: templateKey,
+              flowTemplateId: flowTemplateId
+            }
+          },
+          sentPayload: requestPayload,
+          response: {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorBody,
+            timestamp: new Date().toISOString()
+          }
+        };
+        throw enhancedError;
       }
 
       const result = await response.json();
@@ -189,7 +220,36 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
     } catch (error) {
       console.error('[ConductorAdapter] Error starting request:', error);
-      throw new Error(`Failed to start service request: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // If this is already an enhanced error (from API response), re-throw as-is
+      if (error && typeof error === 'object' && 'debugPayload' in error) {
+        throw error;
+      }
+      
+      // Create enhanced error for other types of failures (network, parsing, etc.)
+      const enhancedError = new Error(`Failed to start service request: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      (enhancedError as any).debugPayload = {
+        apiCall: {
+          method: 'POST',
+          url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer [REDACTED]'
+          },
+          timestamp: new Date().toISOString(),
+          templateInfo: {
+            templateKey: templateKey,
+            flowTemplateId: flowTemplateId
+          }
+        },
+        sentPayload: requestPayload || { error: 'Payload not yet built when error occurred' },
+        response: {
+          error: 'Network or Processing Error',
+          originalError: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString()
+        }
+      };
+      throw enhancedError;
     }
   }
 
@@ -497,96 +557,269 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   // =================================================================================
 
   /**
-   * Map service template key to flow template ID
+   * ✨ DYNAMIC: Map any template name to flow template ID
+   * Converts template names from custom-flow-engine to flow IDs dynamically
    */
   private mapServiceTemplateToFlowTemplate(templateKey: string): string {
-    const templateMapping: Record<string, string> = {
+    // ✨ DYNAMIC MAPPING: Convert template name to flow ID
+    let flowId: string;
+    
+    if (templateKey.startsWith('flow_')) {
+      // Already a flow ID, use as-is
+      flowId = templateKey;
+    } else {
+      // Convert template name to flow ID dynamically
+      flowId = 'flow_' + templateKey
+        .toLowerCase()
+        .replace(/\s+/g, '_')           // Replace spaces with underscores
+        .replace(/[^a-z0-9_]/g, '')     // Remove special characters
+        .replace(/_+/g, '_')            // Remove duplicate underscores
+        .replace(/^_|_$/g, '');         // Remove leading/trailing underscores
+    }
+
+    // Legacy mappings for backward compatibility with hardcoded keys
+    const legacyMappings: Record<string, string> = {
       'employee-onboarding-request': 'flow_employee_onboarding_process',
-      'new-hardware-request': 'flow_employee_onboarding_process', // Fallback for testing
-      'hardware-equipment-request': 'flow_employee_service_request_process', // ✨ NEW: Hardware requests  
-      'it-hardware': 'flow_employee_service_request_process', // ✨ ACTUAL key from Service Portal
+      'new-hardware-request': 'flow_employee_onboarding_process',
+      'hardware-equipment-request': 'flow_employee_service_request_process',
+      'it-hardware': 'flow_employee_service_request_process',
       'it-support-request': 'flow_employee_service_request_process',
       'hr-service-request': 'flow_employee_service_request_process'
     };
 
-    console.log(`[ConductorAdapterRequester] 🔧 Template Key Mapping:`, {
+    // Use legacy mapping if available, otherwise use dynamic mapping
+    const finalFlowId = legacyMappings[templateKey] || flowId;
+
+    console.log(`[ConductorAdapterRequester] 🔧 DYNAMIC Template Mapping:`, {
       inputTemplateKey: templateKey,
-      mappedFlowId: templateMapping[templateKey] || 'flow_employee_onboarding_process (FALLBACK)',
-      availableMappings: Object.keys(templateMapping),
-      willUseFlowId: templateMapping[templateKey] || 'flow_employee_onboarding_process'
+      dynamicFlowId: flowId,
+      legacyMapping: legacyMappings[templateKey] || 'none',
+      finalFlowId: finalFlowId,
+      mappingType: legacyMappings[templateKey] ? 'legacy' : 'dynamic'
     });
 
-    return templateMapping[templateKey] || 'flow_employee_onboarding_process';
+    return finalFlowId;
   }
 
   /**
-   * Build execution context with assignment resolution
-   * Maps real form data (departments, positions, managers) to proper workflow assignments
+   * ✨ DYNAMIC: Analyze template type and assignment requirements
+   * Determines if a template needs runtime assignments based on its characteristics
+   */
+  /**
+   * 🌐 UNIVERSAL: Get steps that require runtime assignments for any template
+   * This analyzes the actual template definition to detect steps with "targets": null
+   */
+  async getStepsRequiringAssignment(templateId: string): Promise<Array<{
+    stepId: string;
+    stepIndex: number;
+    title: string;
+    assignmentMode: string;
+    requiresUsers: boolean;
+  }>> {
+    try {
+      // Fetch template definition to analyze steps
+      const response = await fetch(`${this.flowEngineBaseUrl}/api/templates/${templateId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`[ConductorAdapter] Could not fetch template ${templateId} for assignment analysis`);
+        return [];
+      }
+
+      const templateResponse = await response.json();
+      const template = templateResponse.template || templateResponse.data || templateResponse;
+      
+      const stepsRequiringAssignment: Array<{
+        stepId: string;
+        stepIndex: number;
+        title: string;
+        assignmentMode: string;
+        requiresUsers: boolean;
+      }> = [];
+
+      if (template?.steps) {
+        template.steps.forEach((step: any, index: number) => {
+          const stepId = `step_${index}`;
+          const assignmentMode = step.assignment?.assignmentMode;
+
+          // Check if step requires runtime assignment (same logic as custom-flow-engine)
+          if (assignmentMode === 'CLAIM' || assignmentMode === 'ASSIGN') {
+            if (!step.assignment.targets) {
+              // targets: null - requires runtime assignment
+              stepsRequiringAssignment.push({
+                stepId: stepId,
+                stepIndex: index,
+                title: step.title || `Step ${index + 1}`,
+                assignmentMode: assignmentMode,
+                requiresUsers: assignmentMode === 'ASSIGN' // ASSIGN mode requires specific users
+              });
+            } else if (typeof step.assignment.targets === 'object') {
+              // Check if all target arrays are empty
+              const targets = step.assignment.targets;
+              const targetArrays = [
+                targets.users,
+                targets.organizationalUnits,
+                targets.companies,
+                targets.siteLocations,
+                targets.capabilities,
+                targets.costCenters,
+                targets.matrixTeams
+              ];
+              
+              const hasAnyTargets = targetArrays.some(arr => 
+                Array.isArray(arr) && arr.length > 0
+              );
+              
+              if (!hasAnyTargets) {
+                stepsRequiringAssignment.push({
+                  stepId: stepId,
+                  stepIndex: index,
+                  title: step.title || `Step ${index + 1}`,
+                  assignmentMode: assignmentMode,
+                  requiresUsers: assignmentMode === 'ASSIGN'
+                });
+              }
+            }
+          }
+        });
+      }
+
+      console.log(`[ConductorAdapter] 🔍 Template ${templateId} analysis:`, {
+        totalSteps: template?.steps?.length || 0,
+        stepsRequiringAssignment: stepsRequiringAssignment.length,
+        requiredSteps: stepsRequiringAssignment
+      });
+
+      return stepsRequiringAssignment;
+    } catch (error) {
+      console.error(`[ConductorAdapter] Error analyzing template ${templateId}:`, error);
+      return [];
+    }
+  }
+
+  private analyzeTemplateType(templateKey: string): {
+    category: string;
+    needsRuntimeAssignments: boolean;
+    stepComplexity: string;
+    description: string;
+  } {
+    // 🌐 UNIVERSAL: Always check if template needs runtime assignments
+    // The actual detection is now done by getStepsRequiringAssignment method
+    
+    return {
+      category: 'universal',
+      needsRuntimeAssignments: true, // Always check - let getStepsRequiringAssignment determine actual needs
+      stepComplexity: 'universal',
+      description: 'Universal approach: analyze actual template to detect runtime assignment requirements'
+    };
+  }
+
+  /**
+   * ✨ DYNAMIC: Build execution context with template-driven assignment resolution
+   * Analyzes template structure to determine if runtime assignments are needed
    */
   private buildExecutionContext(formData: any, templateKey?: string): { assignments: Record<string, any> } {
-    console.log(`[ConductorAdapterRequester] 🔧 BUILD EXECUTION CONTEXT:`, {
+    // 🔧 GENERAL APPROACH: By default, all templates use their predefined assignments
+    // This preserves the correct assignmentMode (CLAIM/ASSIGN/etc.) from the template
+    const templateType = this.analyzeTemplateType(templateKey || '');
+    
+    console.log(`[ConductorAdapterRequester] 🔧 GENERAL ASSIGNMENT APPROACH:`, {
       templateKey: templateKey,
       templateKeyType: typeof templateKey,
-      isHardwareRequest: templateKey === 'hardware-equipment-request',
-      isITHardware: templateKey === 'it-hardware',
-      isITRequest: templateKey === 'it-support-request', 
-      isHRRequest: templateKey === 'hr-service-request',
-      condition: templateKey === 'hardware-equipment-request' || templateKey === 'it-hardware' || templateKey === 'it-support-request' || templateKey === 'hr-service-request'
+      templateKeyExact: `"${templateKey}"`,
+      templateType: templateType,
+      needsRuntimeAssignments: templateType.needsRuntimeAssignments,
+      templateCategory: templateType.category,
+      approach: 'Use template defaults to preserve correct assignmentMode'
     });
 
     const assignments: Record<string, any> = {};
 
-    // Different templates need different assignment strategies
-    if (templateKey === 'hardware-equipment-request' || templateKey === 'it-hardware' || templateKey === 'it-support-request' || templateKey === 'hr-service-request') {
-      // Service Request Templates: 2 steps
-      // Step 0: Submit Service Request (targets: null, mode: ASSIGN) - test both approaches
-      // Step 1: Process Service Request (targets: dept-001, mode: CLAIM) - has predefined assignment
-      console.log(`[ConductorAdapterRequester] 🔧 Service Request Template - Testing assignment approaches`);
-      
-      // USE EXACT WORKING ONBOARDING STRUCTURE - ASSIGN mode needs users array populated!
-      console.log(`[ConductorAdapterRequester] 🔧 Service Request Template - Using EXACT onboarding structure with ASSIGN`);
-      
-      assignments['step_0'] = {
-        assignment: {
-          targets: {
-            users: [this.currentUserId], // ✅ ASSIGN mode REQUIRES users in this array!
-            organizationalUnits: [],
-            capabilities: [],
-            matrixTeams: [],
-            companies: [],
-            siteLocations: [],
-            costCenters: []
-          },
-          assignmentMode: 'ASSIGN', // ✅ ASSIGN (not CLAIM)
-          allowReassignment: false
-        }
-      };
-      
-      console.log(`[ConductorAdapterRequester] 🚪 SERVICE REQUEST assignments (FIXED STRUCTURE):`, { 
-        assignments,
-        step0Assignment: assignments['step_0'],
-        step0AssignmentMode: assignments['step_0']?.assignment?.assignmentMode,
-        step0TargetsUsers: assignments['step_0']?.assignment?.targets?.users,
-        currentUserId: this.currentUserId,
-        usersArrayLength: assignments['step_0']?.assignment?.targets?.users?.length
-      });
-      return { assignments };
+    // 🔧 GENERAL: Most templates use predefined assignments with correct assignmentMode
+    if (!templateType.needsRuntimeAssignments) {
+      console.log(`[ConductorAdapterRequester] ✅ USING TEMPLATE DEFAULTS - All steps will use assignmentMode from template (category: ${templateType.category})`);
+      console.log(`[ConductorAdapterRequester] 🎯 NO RUNTIME OVERRIDES - Template has correct assignmentMode for each step`);
+      console.log(`[ConductorAdapterRequester] 🚪 EARLY RETURN - Returning empty assignments to preserve template assignmentMode`);
+      return { assignments }; // Return empty assignments to use template defaults
     }
 
-    // Employee Onboarding Template: Needs runtime assignments for 7 steps
-    console.log(`[ConductorAdapterRequester] 🔧 Onboarding Template - Building runtime assignments`);
-    
-    // Extract real organizational data from form
+    // 🌐 UNIVERSAL: Build assignments from form data for any template
+    console.log(`[ConductorAdapterRequester] 🌐 Using Universal Assignment Approach for all templates`);
+
+    // Extract organizational data for backwards compatibility
     const employeeDepartment = formData.department;
     const reportingManager = formData.reportingManager;
+    
+    // 🌐 UNIVERSAL: Always use the universal assignment builder
+    return this.buildUniversalAssignments(formData, templateKey || 'unknown');
+  }
 
-    // Step 0: HR Documentation (assign to employee's actual department + HR capabilities)
+  /**
+   * ✨ DYNAMIC: Build onboarding-specific assignments (7 steps)
+   */
+  private buildUniversalAssignments(formData: any, templateKey: string): { assignments: Record<string, any> } {
+    console.log(`[ConductorAdapterRequester] 🌐 Building Universal Assignments from form data`);
+    const assignments: Record<string, any> = {};
+
+    // 🌐 UNIVERSAL APPROACH: Build assignments from form data for any template
+    // Form data should contain step assignments like: stepAssignments: { step_3: "userId", step_1: "anotherUserId" }
+    
+    if (formData.stepAssignments) {
+      Object.keys(formData.stepAssignments).forEach(stepId => {
+        const assignedUserId = formData.stepAssignments[stepId];
+        
+        if (assignedUserId) {
+          assignments[stepId] = {
+            targets: {
+              users: [assignedUserId],
+              organizationalUnits: [],
+              capabilities: [],
+              matrixTeams: [],
+              companies: [],
+              siteLocations: [],
+              costCenters: []
+            },
+            assignmentMode: formData[`${stepId}_assignmentMode`] || 'ASSIGN', // Default to ASSIGN for user assignments
+            allowReassignment: formData[`${stepId}_allowReassignment`] !== false // Default to true unless explicitly false
+          };
+        }
+      });
+    }
+
+    console.log(`[ConductorAdapterRequester] 🎯 UNIVERSAL ASSIGNMENTS built from form:`, {
+      assignmentCount: Object.keys(assignments).length,
+      assignmentKeys: Object.keys(assignments),
+      assignments: assignments,
+      sourceFormData: formData.stepAssignments,
+      templateKey: templateKey
+    });
+
+    return { assignments };
+  }
+
+  private buildOnboardingAssignments(formData: any, employeeDepartment: any, reportingManager: any): { assignments: Record<string, any> } {
+    // 🌐 UNIVERSAL: Delegate to universal assignment builder
+    return this.buildUniversalAssignments(formData, 'onboarding');
+  }
+
+  /**
+   * ✨ DYNAMIC: Build training-specific assignments
+   */
+  private buildTrainingAssignments(formData: any, employeeDepartment: any, reportingManager: any): { assignments: Record<string, any> } {
+    console.log(`[ConductorAdapterRequester] 🎓 Building Training Assignments - Multi-step training workflow`);
+    const assignments: Record<string, any> = {};
+
+    // Generic training assignments - can be customized based on training type
     assignments['step_0'] = {
       assignment: {
         targets: {
           users: reportingManager ? [reportingManager] : [],
-          organizationalUnits: employeeDepartment ? [employeeDepartment] : [],
-          capabilities: ['cap-001'],
+          organizationalUnits: employeeDepartment ? [employeeDepartment, 'OU_HR_001'] : ['OU_HR_001'],
+          capabilities: ['cap-003'], // Training capability
           matrixTeams: [],
           companies: [],
           siteLocations: [],
@@ -597,13 +830,29 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
     };
 
-    // Step 1: IT Equipment (assign to IT department + technical capabilities)
-    assignments['step_1'] = {
+    console.log(`[ConductorAdapterRequester] 🎯 FINAL ASSIGNMENTS - Training Template:`, {
+      assignmentCount: Object.keys(assignments).length,
+      assignmentKeys: Object.keys(assignments),
+      assignments: assignments
+    });
+
+    return { assignments };
+  }
+
+  /**
+   * ✨ DYNAMIC: Build recruiting-specific assignments  
+   */
+  private buildRecruitingAssignments(formData: any, employeeDepartment: any, reportingManager: any): { assignments: Record<string, any> } {
+    console.log(`[ConductorAdapterRequester] 👥 Building Recruiting Assignments - Multi-step recruitment workflow`);
+    const assignments: Record<string, any> = {};
+
+    // Generic recruiting assignments
+    assignments['step_0'] = {
       assignment: {
         targets: {
-          users: [],
-          organizationalUnits: ['OU_IT_001'], // Map to actual IT department ID
-          capabilities: ['cap-002','cap-005'],
+          users: reportingManager ? [reportingManager] : [],
+          organizationalUnits: ['OU_HR_001'], // HR leads recruiting
+          capabilities: ['cap-004'], // Recruiting capability
           matrixTeams: [],
           companies: [],
           siteLocations: [],
@@ -614,13 +863,29 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
     };
 
-    // Step 2: System Access (assign to IT Security team)
-    assignments['step_2'] = {
+    console.log(`[ConductorAdapterRequester] 🎯 FINAL ASSIGNMENTS - Recruiting Template:`, {
+      assignmentCount: Object.keys(assignments).length,
+      assignmentKeys: Object.keys(assignments),
+      assignments: assignments
+    });
+
+    return { assignments };
+  }
+
+  /**
+   * ✨ DYNAMIC: Build requisition-specific assignments
+   */
+  private buildRequisitionAssignments(formData: any, employeeDepartment: any, reportingManager: any): { assignments: Record<string, any> } {
+    console.log(`[ConductorAdapterRequester] 📋 Building Requisition Assignments - Multi-step requisition workflow`);
+    const assignments: Record<string, any> = {};
+
+    // Generic requisition assignments
+    assignments['step_0'] = {
       assignment: {
         targets: {
-          users: [],
-          organizationalUnits: ['OU_IT_001'],
-          capabilities: ['cap-002'],
+          users: reportingManager ? [reportingManager] : [],
+          organizationalUnits: employeeDepartment ? [employeeDepartment] : ['OU_HR_001'],
+          capabilities: ['cap-005'], // Requisition capability
           matrixTeams: [],
           companies: [],
           siteLocations: [],
@@ -631,13 +896,29 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
     };
 
-    // Step 3: Training (assign to employee's department + HR/L&D capabilities)
-    assignments['step_3'] = {
+    console.log(`[ConductorAdapterRequester] 🎯 FINAL ASSIGNMENTS - Requisition Template:`, {
+      assignmentCount: Object.keys(assignments).length,
+      assignmentKeys: Object.keys(assignments),
+      assignments: assignments
+    });
+
+    return { assignments };
+  }
+
+  /**
+   * ✨ DYNAMIC: Build generic assignments for unknown template types
+   */
+  private buildGenericAssignments(formData: any, employeeDepartment: any, reportingManager: any, templateCategory: string): { assignments: Record<string, any> } {
+    console.log(`[ConductorAdapterRequester] 🔧 Building Generic Assignments - Unknown template category: ${templateCategory}`);
+    const assignments: Record<string, any> = {};
+
+    // Generic fallback assignments
+    assignments['step_0'] = {
       assignment: {
         targets: {
           users: reportingManager ? [reportingManager] : [],
           organizationalUnits: employeeDepartment ? [employeeDepartment, 'OU_HR_001'] : ['OU_HR_001'],
-          capabilities: ['cap-001'],
+          capabilities: ['cap-001'], // Generic capability
           matrixTeams: [],
           companies: [],
           siteLocations: [],
@@ -648,58 +929,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
     };
 
-    // Step 4: Workspace Setup (assign to Facilities + employee department)
-    assignments['step_4'] = {
-      assignment: {
-        targets: {
-          users: [],
-          organizationalUnits: employeeDepartment ? [employeeDepartment, 'OU_FACILITIES_001'] : ['OU_FACILITIES_001'],
-          capabilities: ['cap-001'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: []
-        },
-        assignmentMode: 'CLAIM',
-        allowReassignment: true
-      }
-    };
-
-    // Step 5: Manager Notification (assign to reporting manager + HR)
-    assignments['step_5'] = {
-      assignment: {
-        targets: {
-          users: reportingManager ? [reportingManager] : [],
-          organizationalUnits: employeeDepartment ? [employeeDepartment] : [],
-          capabilities: ['cap-001'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: []
-        },
-        assignmentMode: 'CLAIM',
-        allowReassignment: true
-      }
-    };
-
-    // Step 6: Final Completion (assign to HR + manager)
-    assignments['step_6'] = {
-      assignment: {
-        targets: {
-          users: reportingManager ? [reportingManager] : [],
-          organizationalUnits: ['OU_HR_001'],
-          capabilities: ['cap-001'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: []
-        },
-        assignmentMode: 'CLAIM',
-        allowReassignment: true
-      }
-    };
-
-    console.log(`[ConductorAdapterRequester] 🎯 FINAL ASSIGNMENTS - Onboarding Template:`, {
+    console.log(`[ConductorAdapterRequester] 🎯 FINAL ASSIGNMENTS - Generic Template:`, {
+      templateCategory: templateCategory,
       assignmentCount: Object.keys(assignments).length,
       assignmentKeys: Object.keys(assignments),
       assignments: assignments
@@ -1609,7 +1840,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting REAL tickets for desk: ${desk}${userId ? ` and user: ${userId}` : ''}`);
 
-      // If userId is provided, use user-specific task retrieval 
+      // If userId is provided, use user-specific task retrieval
       if (userId) {
         const userTasks = await this.getUserTasks(userId, {
           includeAssigned: true,

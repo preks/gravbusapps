@@ -16,7 +16,7 @@ import {
   Separator,
   type KpiCardData
 } from '@newwork/nw-design-system';
-import { ServiceRequestTemplate, WorkflowEngine } from '../../../types';
+import { ServiceRequestTemplate, WorkflowEngine, FlowTemplate, DynamicFormValues } from '../../../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   FileText, 
@@ -36,9 +36,11 @@ import { getCategoryById } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useRealEmployeeData, getEmployeeOptions, getJobPositionOptions, getDepartmentOptions } from '../hooks/useRealEmployeeData';
 import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
+import { DynamicFormGenerator } from './DynamicFormGenerator';
 
 export interface RequestFormProps extends BusinessAppContextProps {
-  template: ServiceRequestTemplate;
+  template?: ServiceRequestTemplate;
+  flowTemplate?: FlowTemplate;
   workflowEngine: WorkflowEngine;
   onSuccess: (requestId: string) => void;
   onCancel: () => void;
@@ -219,6 +221,7 @@ const ProcessStepPreview: React.FC<{ template: ServiceRequestTemplate }> = ({ te
 
 export const RequestForm: React.FC<RequestFormProps> = ({
   template,
+  flowTemplate,
   workflowEngine,
   onSuccess,
   onCancel,
@@ -226,9 +229,73 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; payload?: any } | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
-  // Removed unused step management for now
+  const [stepsRequiringAssignment, setStepsRequiringAssignment] = useState<Array<{
+    stepId: string;
+    stepIndex: number;
+    title: string;
+    assignmentMode: string;
+    requiresUsers: boolean;
+  }>>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  
+  // Determine if we're using a flow template or mock template
+  const isFlowTemplate = !!flowTemplate;
+  const currentTemplate = flowTemplate || template;
+  
+  // 🌐 UNIVERSAL: Load steps requiring assignment for any template
+  React.useEffect(() => {
+    const loadRequiredAssignments = async () => {
+      if (!isFlowTemplate || !flowTemplate?.id || !workflowEngine.getStepsRequiringAssignment) {
+        setStepsRequiringAssignment([]);
+        return;
+      }
+
+      setLoadingAssignments(true);
+      try {
+        const requiredSteps = await workflowEngine.getStepsRequiringAssignment(flowTemplate.id);
+        setStepsRequiringAssignment(requiredSteps);
+        
+        // Initialize step assignment form fields
+        if (requiredSteps.length > 0) {
+          const initialAssignments: any = { stepAssignments: {} };
+          requiredSteps.forEach(step => {
+            // Set assignment mode and allowReassignment from template
+            initialAssignments[`${step.stepId}_assignmentMode`] = step.assignmentMode;
+            initialAssignments[`${step.stepId}_allowReassignment`] = step.assignmentMode !== 'ASSIGN';
+            
+            // 🎯 SERVICE PORTAL: Auto-assign ASSIGN mode steps to current user
+            if (step.assignmentMode === 'ASSIGN') {
+              initialAssignments.stepAssignments[step.stepId] = contextProps.userInfo?.id || 'current-user';
+            }
+          });
+          setFormData((prev: any) => ({ ...prev, ...initialAssignments }));
+        }
+        
+        console.log(`[RequestForm] 🔍 Template ${flowTemplate.id} requires assignments for:`, requiredSteps);
+      } catch (error) {
+        console.error('[RequestForm] Error loading required assignments:', error);
+        setStepsRequiringAssignment([]);
+      } finally {
+        setLoadingAssignments(false);
+      }
+    };
+
+    loadRequiredAssignments();
+  }, [isFlowTemplate, flowTemplate?.id, workflowEngine]);
+  
+  if (!currentTemplate) {
+    return (
+      <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
+        <Warning className="gba:h-4 gba:w-4" />
+        <h4 className="gba:font-semibold">Invalid Template</h4>
+        <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+          No valid template provided for this request form.
+        </div>
+      </Alert>
+    );
+  }
 
   // Load real employee data
   const {
@@ -251,6 +318,18 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   const handleFieldChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
     
+    // 🌐 UNIVERSAL: Handle step assignment changes
+    if (field.startsWith('stepAssignment_')) {
+      const stepId = field.replace('stepAssignment_', '');
+      setFormData((prev: any) => ({
+        ...prev,
+        stepAssignments: {
+          ...prev.stepAssignments,
+          [stepId]: value
+        }
+      }));
+    }
+    
     // Handle cascading dropdown logic
     if (field === 'department') {
       setSelectedDepartmentId(value);
@@ -265,8 +344,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     }
   };
 
-  const category = getCategoryById(template.categoryId);
-  const IconComponent = category ? getCategoryIcon(category.id) : FileText;
+  // Get category and icon based on template type
+  const category = isFlowTemplate 
+    ? { id: 'flow-templates', name: 'Flow Template', description: 'Dynamic workflow template' }
+    : getCategoryById((template as ServiceRequestTemplate).categoryId);
+  const IconComponent = (category ? getCategoryIcon(category.id) : null) || FileText;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -274,11 +356,84 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     setIsLoading(true);
     setError(null);
 
+    // Build complete payload for debugging
+    let completePayload: any = {};
+
     try {
-      const newRequestId = await workflowEngine.startRequest(template.key, formData);
-      onSuccess(newRequestId);
+      if (isFlowTemplate && flowTemplate) {
+        // For flow templates, we need to execute the template with the form data
+        // The workflowEngine should have a method to execute templates by ID
+        if (typeof workflowEngine.executeTemplate === 'function') {
+          // Build the actual API payload that will be sent to custom-flow-engine
+          completePayload = {
+            apiEndpoint: `POST /api/templates/${flowTemplate.id || flowTemplate.name}/execute`,
+            expectedCustomFlowEnginePayload: {
+              initiatorId: contextProps.userInfo?.id || 'unknown-user',
+              input: formData,
+              correlationId: `REQ-${Date.now()}`
+            },
+            actualPayloadSent: 'Will be logged by ConductorWorkflowEngineAdapter',
+            formData: formData,
+            templateInfo: {
+              id: flowTemplate.id,
+              name: flowTemplate.name,
+              description: flowTemplate.description
+            }
+          };
+          const newRequestId = await workflowEngine.executeTemplate(flowTemplate.id || flowTemplate.name, formData);
+          onSuccess(newRequestId);
+        } else {
+          // Fallback to startRequest with template name as key
+          completePayload = {
+            apiEndpoint: `POST /api/templates/${flowTemplate.id || flowTemplate.name}/execute`,
+            expectedCustomFlowEnginePayload: {
+              initiatorId: contextProps.userInfo?.id || 'unknown-user',
+              input: formData,
+              correlationId: `REQ-${Date.now()}`
+            },
+            actualPayloadSent: 'Check browser console for ConductorWorkflowEngineAdapter logs',
+            formData: formData,
+            templateInfo: {
+              id: flowTemplate.id,
+              name: flowTemplate.name,
+              description: flowTemplate.description
+            }
+          };
+          const newRequestId = await workflowEngine.startRequest(flowTemplate.name, formData);
+          onSuccess(newRequestId);
+        }
+      } else if (template) {
+        // For mock templates, use the existing logic
+        completePayload = {
+          apiEndpoint: `POST /api/templates/{mappedFlowTemplateId}/execute`,
+          expectedCustomFlowEnginePayload: {
+            initiatorId: contextProps.userInfo?.id || 'unknown-user',
+            input: formData,
+            correlationId: `REQ-${Date.now()}`
+          },
+          actualPayloadSent: 'Check browser console for ConductorWorkflowEngineAdapter logs',
+          formData: formData,
+          templateInfo: {
+            key: template.key,
+            title: template.title,
+            categoryId: template.categoryId
+          }
+        };
+        const newRequestId = await workflowEngine.startRequest(template.key, formData);
+        onSuccess(newRequestId);
+      } else {
+        throw new Error('No valid template provided');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit request');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit request';
+      
+      // Check if this is an enhanced error from ConductorWorkflowEngineAdapter with actual payload
+      const actualPayload = (err as any)?.debugPayload || null;
+      
+      setError({
+        message: errorMessage,
+        payload: actualPayload || completePayload // Use actual payload if available, fallback to mock
+      });
     } finally {
       setIsLoading(false);
     }
@@ -340,50 +495,91 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       ]
     };
 
-    return configs[template.key] || [
+    // For flow templates, return empty array since we use dynamic fields
+    if (isFlowTemplate) {
+      return [];
+    }
+
+    return configs[(template as ServiceRequestTemplate).key] || [
       { field: 'serviceDetails', required: true, type: 'textarea' },
       { field: 'businessJustification', required: true, type: 'textarea' },
       { field: 'priority', required: true, type: 'select', options: ['Low', 'Medium', 'High', 'Critical'] },
       { field: 'expectedDate', required: false, type: 'date' }
     ];
-  }, [template.key, employees, jobPositions, departments, employmentTypes]);
+  }, [isFlowTemplate, template, employees, jobPositions, departments, employmentTypes]);
 
   // Future: Could implement multi-step form here
 
   // KPI cards for the form
-  const kpiCards: KpiCardData[] = useMemo(() => [
+  const kpiCards: KpiCardData[] = useMemo(() => {
+    const stepCount = isFlowTemplate 
+      ? (flowTemplate?.stepCount || flowTemplate?.steps?.length || 0)
+      : (template as ServiceRequestTemplate)?.steps?.length || 0;
+    
+    const estimatedTime = isFlowTemplate
+      ? (flowTemplate?.estimatedDuration || `${stepCount}-${stepCount * 2} days`)
+      : '2-5 days';
+
+    return [
     {
       id: 'processing-steps',
       title: 'Processing Steps',
-      value: template.steps.length,
+        value: stepCount,
       description: 'Workflow stages'
     },
     {
       id: 'estimated-time',
       title: 'Est. Completion',
-      value: `${template.steps.length * 1}-${template.steps.length * 2} days`,
+        value: estimatedTime,
       description: 'Business days'
     },
+      {
+        id: 'template-type',
+        title: 'Template Type',
+        value: isFlowTemplate ? 'Live' : 'Mock',
+        description: isFlowTemplate ? 'Workflow engine' : 'Development'
+      },
     {
       id: 'success-rate',
       title: 'Success Rate',
       value: '98%',
       description: 'Completion rate'
-    },
-    {
-      id: 'satisfaction',
-      title: 'User Rating',
-      value: '4.8★',
-      description: 'Average satisfaction'
-    }
-  ], [template.steps.length]);
+      }
+    ];
+  }, [isFlowTemplate, flowTemplate, template]);
 
-  // Calculate form completion percentage
+  // Calculate form completion percentage (including step assignments)
   const completionPercentage = useMemo(() => {
-    const totalRequired = formFieldsConfig.filter(f => f.required).length;
-    const completedRequired = formFieldsConfig.filter(f => f.required && formData[f.field]).length;
-    return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : 0;
-  }, [formFieldsConfig, formData]);
+    let totalRequired = 0;
+    let completedRequired = 0;
+
+    if (isFlowTemplate && flowTemplate?.formSchema) {
+      // Flow template form fields
+      totalRequired = flowTemplate.formSchema.filter(f => f.required).length;
+      completedRequired = flowTemplate.formSchema.filter(f => f.required && formData[f.name]).length;
+    } else {
+      // Mock template form fields
+      totalRequired = formFieldsConfig.filter(f => f.required).length;
+      completedRequired = formFieldsConfig.filter(f => f.required && formData[f.field]).length;
+    }
+
+    // 🌐 UNIVERSAL: Add step assignments to completion calculation
+    if (stepsRequiringAssignment.length > 0) {
+      const claimStepsRequiringInput = stepsRequiringAssignment.filter(step => step.assignmentMode === 'CLAIM');
+      
+      // Only count CLAIM steps as requiring user input (ASSIGN steps are auto-completed)
+      totalRequired += claimStepsRequiringInput.length;
+      
+      const completedClaimAssignments = claimStepsRequiringInput.filter(step => 
+        formData.stepAssignments?.[step.stepId]
+      ).length;
+      completedRequired += completedClaimAssignments;
+      
+      // ASSIGN steps are automatically completed (assigned to current user)
+    }
+
+    return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
+  }, [isFlowTemplate, flowTemplate, formFieldsConfig, formData, stepsRequiringAssignment]);
 
     return (
     <div data-testid="request-form-container" style={{ backgroundColor: "white", padding: "16px" }}>
@@ -405,22 +601,78 @@ export const RequestForm: React.FC<RequestFormProps> = ({
           icon: IconComponent,
           variant: "strategy",
           size: "lg",
-          label: template.title
+          label: currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title
         }}
-        headerTitle={`Request: ${template.title}`}
-        headerDescription={template.description || 'Complete the form below to submit your service request'}
+        headerTitle={`Request: ${currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title}`}
+        headerDescription={currentTemplate.description || 'Complete the form below to submit your service request'}
         sectionTitle="Service Request Form"
-        sectionDescription={`Fill out the required information to submit your ${template.title.toLowerCase()}`}
+        sectionDescription={`Fill out the required information to submit your ${(currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title).toLowerCase()}`}
         kpiCardsData={kpiCards}
       >
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
           {/* Main Form Column */}
           <div className="gba:lg:col-span-2 gba:space-y-6">
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
                 <Warning className="gba:h-4 gba:w-4" />
                 <h4 className="gba:font-semibold">Request Failed</h4>
-                <p>{error}</p>
+                <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+                  <strong>Error:</strong> {error.message}
+                </div>
+                {error.payload && (
+                  <div className="gba:mt-4 gba:space-y-4">
+                    <div className="gba:text-xs gba:font-semibold gba:text-gray-700">
+                      {error.payload.sentPayload ? 
+                        '🎯 ACTUAL API Debug Info (from ConductorWorkflowEngineAdapter):' : 
+                        '🔍 API Debug Info (Development):'
+                      }
+                    </div>
+                    
+                    {/* 1. API Call Information */}
+                    {error.payload.apiCall && (
+                      <div className="gba:p-3 gba:bg-blue-50 gba:rounded gba:border gba:border-blue-200">
+                        <div className="gba:text-xs gba:font-semibold gba:text-blue-800 gba:mb-2">
+                          🌐 1. API Call Information
+                        </div>
+                        <pre className="gba:text-xs gba:text-blue-700 gba:whitespace-pre-wrap gba:font-mono gba:overflow-x-auto">
+                          {JSON.stringify(error.payload.apiCall, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    {/* 2. Sent Payload */}
+                    {error.payload.sentPayload && (
+                      <div className="gba:p-3 gba:bg-green-50 gba:rounded gba:border gba:border-green-200">
+                        <div className="gba:text-xs gba:font-semibold gba:text-green-800 gba:mb-2">
+                          📦 2. Sent Payload to Custom Flow Engine
+                        </div>
+                        <pre className="gba:text-xs gba:text-green-700 gba:whitespace-pre-wrap gba:font-mono gba:overflow-x-auto">
+                          {JSON.stringify(error.payload.sentPayload, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    {/* 3. Response Information */}
+                    {error.payload.response && (
+                      <div className="gba:p-3 gba:bg-red-50 gba:rounded gba:border gba:border-red-200">
+                        <div className="gba:text-xs gba:font-semibold gba:text-red-800 gba:mb-2">
+                          📤 3. Response from Custom Flow Engine
+                        </div>
+                        <pre className="gba:text-xs gba:text-red-700 gba:whitespace-pre-wrap gba:font-mono gba:overflow-x-auto">
+                          {JSON.stringify(error.payload.response, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    <div className="gba:text-xs gba:text-blue-600 gba:bg-blue-50 gba:p-2 gba:rounded">
+                      {error.payload.sentPayload ? (
+                        <span>✅ <strong>These show the EXACT API call data!</strong> Compare with browser network tab - each section matches the corresponding network request parts.</span>
+                      ) : (
+                        <span>💡 <strong>Tip:</strong> Check browser console for ConductorWorkflowEngineAdapter logs to see the actual data sent to custom-flow-engine</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </Alert>
             )}
 
@@ -456,13 +708,113 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                 
                 {/* Show data error */}
                 {(dataError || employmentTypesError) && (
-                  <Alert variant="destructive" className="gba:mb-6">
+                  <Alert variant="destructive" className="gba:mb-6" style={{ display: 'block' }}>
                     <Warning className="gba:h-4 gba:w-4" />
                     <h4 className="gba:font-semibold">Data Loading Error</h4>
-                    <p>{dataError || employmentTypesError}</p>
+                    <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
+                      {dataError || employmentTypesError}
+                    </div>
                   </Alert>
                 )}
 
+                {/* Conditional Form Rendering */}
+                {isFlowTemplate && flowTemplate?.formSchema ? (
+                  /* Dynamic Form Generation from Flow Template */
+                  <div className="gba:space-y-6">
+                    <div className="gba:border-b gba:pb-4">
+                      <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
+                      <p className="gba:text-sm gba:text-gray-600 gba:mt-1">{flowTemplate.description}</p>
+                    </div>
+                    
+                    {/* Render dynamic fields without form wrapper */}
+                    <div className="gba:space-y-4">
+                      {flowTemplate.formSchema.map((field) => (
+                        <div key={field.name} className="gba:space-y-2">
+                          <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+                            {field.label}
+                            {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+                          </label>
+                          {field.description && (
+                            <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+                          )}
+                          
+                          {/* Render field based on type */}
+                          {field.type === 'TEXT' && (
+                            <Input
+                              id={field.name}
+                              value={formData[field.name] || ''}
+                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              placeholder={field.placeholder}
+                              required={field.required}
+                            />
+                          )}
+                          
+                          {field.type === 'TEXTAREA' && (
+                            <Textarea
+                              id={field.name}
+                              value={formData[field.name] || ''}
+                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              placeholder={field.placeholder}
+                              required={field.required}
+                              rows={4}
+                            />
+                          )}
+                          
+                          {field.type === 'SELECT' && (
+                            <Select
+                              value={formData[field.name] || ''}
+                              onValueChange={(value) => handleFieldChange(field.name, value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {field.options?.map(option => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          
+                          {field.type === 'DATE' && (
+                            <Input
+                              id={field.name}
+                              type="date"
+                              value={formData[field.name] || ''}
+                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              required={field.required}
+                            />
+                          )}
+                          
+                          {field.type === 'NUMBER' && (
+                            <Input
+                              id={field.name}
+                              type="number"
+                              value={formData[field.name] || ''}
+                              onChange={(e) => handleFieldChange(field.name, parseFloat(e.target.value) || '')}
+                              placeholder={field.placeholder}
+                              required={field.required}
+                            />
+                          )}
+                          
+                          {field.type === 'EMAIL' && (
+                            <Input
+                              id={field.name}
+                              type="email"
+                              value={formData[field.name] || ''}
+                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              placeholder={field.placeholder}
+                              required={field.required}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Static Form Configuration for Mock Templates */
                 <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
                   {formFieldsConfig.map((fieldConfig) => (
                     <div key={fieldConfig.field} className={fieldConfig.type === 'textarea' ? 'gba:md:col-span-2' : ''}>
@@ -484,8 +836,129 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                     </div>
                   ))}
                 </div>
+                )}
 
                 <Separator />
+
+                {/* 🌐 UNIVERSAL: Step Assignment Section */}
+                {stepsRequiringAssignment.length > 0 && (
+                  <div className="gba:space-y-6">
+                    <div className="gba:border-l-4 gba:border-blue-500 gba:pl-4 gba:py-2 gba:bg-blue-50">
+                      <h4 className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:text-blue-900">
+                        <Users className="gba:mr-2" size={16} />
+                        Step Assignments
+                      </h4>
+                      <p className="gba:text-sm gba:text-blue-700 gba:mt-1">
+                        This template requires specific step assignments. Steps marked as "ASSIGN" are automatically assigned to you. You can assign "CLAIM" steps to others if needed.
+                      </p>
+                    </div>
+
+                    {loadingAssignments ? (
+                      <div className="gba:flex gba:items-center gba:justify-center gba:p-4">
+                        <Spinner size="sm" className="gba:mr-3" />
+                        <span className="gba:text-sm gba:text-muted-foreground">Loading required assignments...</span>
+                      </div>
+                    ) : (
+                      <div className="gba:space-y-4">
+                        {stepsRequiringAssignment.map((step) => (
+                          <div key={step.stepId} className="gba:p-4 gba:border gba:rounded-lg gba:bg-gray-50">
+                            <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
+                              <div>
+                                <h5 className="gba:font-semibold gba:text-gray-900">
+                                  {step.title}
+                                </h5>
+                                <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`gba:text-xs ${
+                                      step.assignmentMode === 'ASSIGN' 
+                                        ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200' 
+                                        : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
+                                    }`}
+                                  >
+                                    {step.assignmentMode} Mode
+                                  </Badge>
+                                  <span className="gba:text-xs gba:text-gray-500">
+                                    Step {step.stepIndex + 1}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* ASSIGN Mode - Auto-assigned to current user */}
+                            {step.assignmentMode === 'ASSIGN' ? (
+                              <div className="gba:space-y-3">
+                                <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
+                                  <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                  Assigned to
+                                </label>
+                                
+                                <div className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded">
+                                  <div className="gba:flex gba:items-center">
+                                    <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                    <div>
+                                      <span className="gba:font-medium gba:text-green-900">
+                                        You (Current User)
+                                      </span>
+                                      <p className="gba:text-xs gba:text-green-700">
+                                        This step is automatically assigned to you as the requester.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              /* CLAIM Mode - Allow assignment selection */
+                              <div className="gba:space-y-3">
+                                <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
+                                  <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
+                                  Assign to User
+                                  <span className="gba:text-destructive gba:ml-1">*</span>
+                                </label>
+                                
+                                <Select 
+                                  value={formData.stepAssignments?.[step.stepId] || ''} 
+                                  onValueChange={(val) => handleFieldChange(`stepAssignment_${step.stepId}`, val)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select user to assign this step to..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {/* Current user option */}
+                                    <SelectItem value={contextProps.userInfo?.id || 'current-user'}>
+                                      <div className="gba:flex gba:flex-col">
+                                        <span className="gba:font-medium">You (Current User)</span>
+                                        <span className="gba:text-xs gba:text-muted-foreground">Handle this step yourself</span>
+                                      </div>
+                                    </SelectItem>
+                                    
+                                    <Separator className="gba:my-1" />
+                                    
+                                    {/* Employee options */}
+                                    {getEmployeeOptions(employees).map((emp) => (
+                                      <SelectItem key={emp.value} value={emp.value}>
+                                        <div className="gba:flex gba:flex-col">
+                                          <span className="gba:font-medium">{emp.label}</span>
+                                          {emp.jobTitle && <span className="gba:text-xs gba:text-muted-foreground">{emp.jobTitle} • {emp.department}</span>}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                
+                                <div className="gba:text-xs gba:text-blue-600 gba:bg-blue-50 gba:p-2 gba:rounded">
+                                  ℹ️ This step uses CLAIM mode - you can assign it to yourself or someone else who can claim the task.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {stepsRequiringAssignment.length > 0 && <Separator />}
 
                 {/* Additional Information Section */}
                 <div className="gba:space-y-4">
@@ -553,8 +1026,125 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
           {/* Sidebar Column */}
           <div className="gba:space-y-6">
-            {/* Process Preview */}
-            <ProcessStepPreview template={template} />
+            {/* Process Preview - Only show for mock templates that have steps */}
+            {!isFlowTemplate && template && (template as ServiceRequestTemplate).steps && (
+              <ProcessStepPreview template={template as ServiceRequestTemplate} />
+            )}
+
+            {/* Flow Steps Preview - Show for flow templates */}
+            {isFlowTemplate && flowTemplate && flowTemplate.steps && (
+              <Card className="gba:p-6 gba:bg-gradient-to-r gba:from-indigo-50 gba:to-blue-50 gba:border-indigo-200">
+                <h3 className="gba:text-lg gba:font-bold gba:text-foreground gba:mb-4 gba:flex gba:items-center">
+                  <Sparkle className="gba:mr-2 gba:text-indigo-600" size={20} />
+                  Workflow Steps
+                </h3>
+                
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
+                  This request will follow {flowTemplate.steps.length} workflow step{flowTemplate.steps.length !== 1 ? 's' : ''}:
+                </p>
+                
+                <div className="gba:space-y-4">
+                  {flowTemplate.steps.slice(0, 5).map((step: any, index: number) => {
+                    // Helper function to get step type icon and color
+                    const getStepTypeInfo = (type: string) => {
+                      switch (type) {
+                        case 'TASK':
+                          return { icon: '📋', color: 'gba:bg-blue-600', bgColor: 'gba:bg-blue-50' };
+                        case 'GATEWAY':
+                          return { icon: '🔀', color: 'gba:bg-yellow-600', bgColor: 'gba:bg-yellow-50' };
+                        case 'SUBPROCESS':
+                          return { icon: '⚙️', color: 'gba:bg-purple-600', bgColor: 'gba:bg-purple-50' };
+                        default:
+                          return { icon: '📝', color: 'gba:bg-gray-600', bgColor: 'gba:bg-gray-50' };
+                      }
+                    };
+
+                    // Helper function to format assignment info
+                    const getAssignmentInfo = (assignment: any) => {
+                      if (!assignment) return 'System';
+                      
+                      const { targets, assignmentMode } = assignment;
+                      
+                      if (index === 0) return 'You (Requester)';
+                      
+                      if (targets?.organizationalUnits?.length > 0) {
+                        const mode = assignmentMode === 'CLAIM' ? 'Team (any member)' : 'Team (assigned)';
+                        return mode;
+                      }
+                      
+                      if (targets?.users?.length > 0) {
+                        return assignmentMode === 'CLAIM' ? 'Specific Users' : 'Assigned User';
+                      }
+                      
+                      return assignmentMode === 'CLAIM' ? 'Available Team Member' : 'System Assigned';
+                    };
+
+                    // Helper function to format duration
+                    const formatDuration = (minutes: number) => {
+                      if (!minutes) return 'Variable';
+                      
+                      if (minutes < 60) return `${minutes} min`;
+                      
+                      const hours = Math.floor(minutes / 60);
+                      const remainingMinutes = minutes % 60;
+                      
+                      if (hours < 24) {
+                        return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+                      }
+                      
+                      const days = Math.floor(hours / 24);
+                      const remainingHours = hours % 24;
+                      
+                      return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+                    };
+
+                    const typeInfo = getStepTypeInfo(step.type);
+                    const assignmentInfo = getAssignmentInfo(step.assignment);
+                    const duration = formatDuration(step.dueInMinutes);
+
+                    return (
+                      <div key={step.id || index} className={`gba:p-3 gba:rounded-lg gba:border ${typeInfo.bgColor} gba:border-opacity-30`}>
+                        <div className="gba:flex gba:items-start gba:space-x-3">
+                          <div className={`gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full ${typeInfo.color} gba:text-white gba:text-xs gba:font-bold gba:flex-shrink-0`}>
+                            {index + 1}
+                          </div>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <div className="gba:flex gba:items-start gba:justify-between gba:mb-1">
+                              <h4 className="gba:font-semibold gba:text-sm gba:text-foreground gba:leading-tight">
+                                {step.title || `Step ${index + 1}`}
+                              </h4>
+                              <span className="gba:text-xs gba:text-gray-500 gba:ml-2 gba:flex-shrink-0">
+                                {typeInfo.icon}
+                              </span>
+                            </div>
+                            
+                            {step.message && (
+                              <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:leading-relaxed">
+                                {step.message}
+                              </p>
+                            )}
+                            
+                            <div className="gba:flex gba:items-center gba:justify-between gba:text-xs">
+                              <span className="gba:text-muted-foreground">
+                                👤 {assignmentInfo}
+                              </span>
+                              <span className="gba:text-muted-foreground">
+                                ⏱️ {duration}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {flowTemplate.steps.length > 5 && (
+                    <div className="gba:text-center gba:text-xs gba:text-muted-foreground gba:pt-2 gba:border-t gba:border-gray-200">
+                      ... and {flowTemplate.steps.length - 5} more step{flowTemplate.steps.length - 5 !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Quick Tips */}
             <Card className="gba:p-6">

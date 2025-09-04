@@ -18,6 +18,9 @@ export {
 // Conductor Integration (real live data)
 export { ConductorWorkflowEngineAdapter, createConductorWorkflowEngine } from './ConductorWorkflowEngineAdapter';
 
+// Shared Templates Service (used by both Service Desk and Service Portal)
+export { TemplatesService, createTemplatesService, useSharedTemplates } from './templatesService';
+
 // Service Templates
 export { employeeOnboardingServiceTemplate, getEmployeeOnboardingTemplate, employeeOnboardingTemplateMetadata } from './templates/employeeOnboardingTemplate';
 
