@@ -339,42 +339,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
-  /**
-   * Get tickets for a specific service desk
-   * Queries tasks assigned to desk capabilities
-   */
-  async getDeskTickets(desk: StepReceiver): Promise<StepInstance[]> {
-    try {
-      console.log(`[ConductorAdapter] Getting tickets for desk: ${desk}`);
-
-      // Map service desk to capabilities
-      const capabilities = this.mapDeskToCapabilities(desk);
-      
-      // Query tasks for these capabilities (pass userId to enable claimable logic)
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/search?userId=${encodeURIComponent(this.currentUserId)}&capabilities=${capabilities.join(',')}&includeAssigned=true&includeClaimable=true`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get desk tickets: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const tasks = result.data?.tasks || result.tasks || [];
-
-      // Convert tasks to StepInstance format
-      const stepInstances = tasks.map((task: any) => this.convertTaskToStepInstance(task));
-      
-      console.log(`[ConductorAdapter] Found ${stepInstances.length} tickets for desk ${desk}`);
-      return stepInstances;
-
-    } catch (error) {
-      console.error(`[ConductorAdapter] Error getting desk tickets for ${desk}:`, error);
-      throw new Error(`Failed to get desk tickets: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   /**
    * Get detailed information for a specific ticket
@@ -413,36 +377,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
-  /**
-   * Claim a step/task for the current user
-   */
-  async claim(stepId: string): Promise<void> {
-    try {
-      console.log(`[ConductorAdapter] Claiming step: ${stepId} for user: ${this.currentUserId}`);
-
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${stepId}/claim`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-        body: JSON.stringify({
-          userId: this.currentUserId,
-          comment: `Claimed by ${this.currentUserId} via Service Desk`
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to claim task: ${response.status} ${response.statusText}`);
-      }
-
-      console.log(`[ConductorAdapter] Step claimed successfully: ${stepId}`);
-
-    } catch (error) {
-      console.error(`[ConductorAdapter] Error claiming step ${stepId}:`, error);
-      throw new Error(`Failed to claim step: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   /**
    * Assign a step to a specific user
@@ -1509,17 +1443,16 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Enhanced claim method with comment support
+   * Claim method - matches custom-flow-engine API contract
    */
-  async claim(stepId: string, userId: string, comment?: string): Promise<void> {
+  async claim(stepId: string, userId: string): Promise<void> {
     try {
       console.log(`[ConductorAdapter] Claiming step: ${stepId} by user: ${userId}`);
 
       await this.makeRequest(`/api/tasks/${stepId}/claim`, {
         method: 'POST',
         body: JSON.stringify({
-          userId,
-          comment
+          userId
         }),
       });
 
@@ -1834,70 +1767,83 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Get real active tickets for a specific desk from custom-flow-engine
-   * This fetches actual workflow tasks that are waiting for action, not synthetic data
+   * Uses the SAME API as what actually works for claiming
    */
   async getDeskTickets(desk: StepReceiver, userId?: string): Promise<StepInstance[]> {
     try {
-      console.log(`[ConductorAdapter] Getting REAL tickets for desk: ${desk}${userId ? ` and user: ${userId}` : ''}`);
+      console.log(`[ConductorAdapter] Getting REAL tickets for desk: ${desk} using custom-flow-engine API`);
 
-      // If userId is provided, use user-specific task retrieval
-      if (userId) {
-        const userTasks = await this.getUserTasks(userId, {
-          includeAssigned: true,
-          includeClaimable: true
-        });
-        
-        // Filter by desk
-        return userTasks.filter(task => task.desk === desk);
+      // Use the actual custom-flow-engine API that we know works
+      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/user/${this.currentUserId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get user tasks: ${response.status} ${response.statusText}`);
       }
 
-      // For desk-wide retrieval, we need to get active flows and extract their tasks
-      // Since there's no direct "all tasks for desk" endpoint, we'll use a multi-step approach:
-      // 1. Get active flows (RUNNING status)
-      // 2. For each flow, get its active tasks  
-      // 3. Filter tasks by desk capabilities
+      const result = await response.json();
+      const tasks = result.tasks || [];
+
+      console.log(`[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`, tasks.map(t => t.id));
       
-      console.log(`[ConductorAdapter] Getting active flows to find ${desk} tickets...`);
+      // Convert custom-flow-engine tasks to StepInstance format
+      const stepInstances = tasks.map((task: any) => this.convertCustomFlowEngineTaskToStepInstance(task, desk));
       
-      // Step 1: Get all running flows
-      const activeFlowsResponse = await this.makeRequest('/api/flows/list?status=RUNNING&limit=100');
-      const flows = activeFlowsResponse.data?.flows || activeFlowsResponse.flows || [];
-      
-      console.log(`[ConductorAdapter] Found ${flows.length} active flows to check for ${desk} tasks`);
-      
-      const deskTasks: StepInstance[] = [];
-      
-      // Step 2: For each active flow, get its tasks and check if they belong to this desk
-      for (const flow of flows) {
-        try {
-          const flowId = flow.flowId || flow.id;
-          if (!flowId) continue;
-          
-          // Get full flow details including tasks
-          const flowDetail = await this.makeRequest(`/api/flows/${flowId}`);
-          
-          // Extract tasks from the flow that belong to this desk
-          const flowTasks = await this.extractRealTasksForDesk(flowDetail, desk);
-          
-          console.log(`[ConductorAdapterRequester] 🔍 Flow ${flowId} generated ${flowTasks.length} tasks for desk ${desk}:`);
-          flowTasks.forEach(task => {
-            console.log(`[ConductorAdapterRequester] - Task: ${task.name}, RequesterId: ${task.requesterId}, RequesterName: ${task.requesterName}`);
-          });
-          
-          deskTasks.push(...flowTasks);
-          
-        } catch (error) {
-          console.warn(`[ConductorAdapter] Error processing flow for ${desk} tasks:`, error);
-          // Continue processing other flows
-        }
-      }
-      
-      console.log(`[ConductorAdapter] Found ${deskTasks.length} REAL tickets for desk: ${desk}`);
-      return deskTasks;
+      console.log(`[ConductorAdapter] Converted to ${stepInstances.length} StepInstances for desk: ${desk}`);
+      return stepInstances;
 
     } catch (error) {
-      console.error('[ConductorAdapter] Error getting desk tickets:', error);
+      console.error(`[ConductorAdapter] Error getting real desk tickets:`, error);
       throw new Error(`Failed to get desk tickets: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Convert custom-flow-engine task to StepInstance format
+   */
+  private convertCustomFlowEngineTaskToStepInstance(task: any, desk: StepReceiver): StepInstance {
+    const taskId = task.id;
+    
+    return {
+      id: taskId,
+      name: task.title || 'Unnamed Task',
+      stepIndex: 0,
+      status: this.mapCustomFlowEngineStatusToStepStatus(task.status),
+      desk: desk,
+      requesterId: task.workflowMeta?.rootWorkflowId || 'unknown',
+      requesterName: undefined,
+      startedAt: task.scheduledAt || new Date().toISOString(),
+      dueAt: task.dueDate,
+      formSchema: task.form || [],
+      data: task.inputs || {},
+      assignedToUserId: task.assignment?.assignedTo,
+      claimedByUserId: task.assignment?.assignedTo,
+      allowReassignment: task.assignment?.allowReassignment || false,
+    };
+  }
+
+  /**
+   * Map custom-flow-engine task status to StepInstance status
+   */
+  private mapCustomFlowEngineStatusToStepStatus(status: string): 'ready' | 'in-progress' | 'completed' | 'cancelled' {
+    switch (status?.toUpperCase()) {
+      case 'SCHEDULED':
+      case 'OPEN':
+        return 'ready';
+      case 'IN_PROGRESS':
+        return 'in-progress';
+      case 'COMPLETED':
+        return 'completed';
+      case 'REJECTED':
+      case 'FAILED':
+        return 'cancelled';
+      default:
+        return 'ready';
     }
   }
 

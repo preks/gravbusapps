@@ -114,6 +114,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     isPerformingAction 
   } = useTicketActions({
     accessToken,
+    userInfo,
     onSuccess: () => {
       setOptimisticUpdates({}); // Clear all optimistic updates
       refetch(); // Refresh the ticket list after successful action

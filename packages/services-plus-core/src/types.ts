@@ -171,7 +171,7 @@ export interface WorkflowEngine {
   getTaskStatistics(userId: string): Promise<TaskStatistics>;
   
   // Task actions
-  claim(stepId: string, userId: string, comment?: string): Promise<void>;
+  claim(stepId: string, userId: string): Promise<void>;
   unclaim(stepId: string, userId: string, comment?: string): Promise<void>;
   assign(stepId: string, userId: string, assignToUserId: string, comment?: string): Promise<void>;
   unassign(stepId: string, userId: string, comment?: string): Promise<void>;

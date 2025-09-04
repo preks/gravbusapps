@@ -3,7 +3,7 @@ import {
   Form, Input, Button, DatePicker, Checkbox, Radio, Select, 
   Upload, Card, Alert, Space, Typography, Divider
 } from 'antd';
-import { Upload as UploadIcon, FloppyDisk, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Upload as UploadIcon, Save, Send } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { Text, Title } = Typography;
@@ -324,7 +324,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           <Space>
             {showSaveButton && (
               <Button
-                icon={<FloppyDisk className="gba:w-4 gba:h-4" />}
+                icon={<Save className="gba:w-4 gba:h-4" />}
                 onClick={handleSave}
                 disabled={!hasUnsavedChanges}
                 data-testid="save-draft-button"
@@ -336,7 +336,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             {showCompleteButton && (
               <Button
                 type="primary"
-                icon={<PaperPlaneTilt className="gba:w-4 gba:h-4" />}
+                icon={<Send className="gba:w-4 gba:h-4" />}
                 onClick={handleSubmit}
                 loading={isSubmitting}
                 data-testid="complete-task-button"

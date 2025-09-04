@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import type { Comment } from 'packages/services-plus-core';
-import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
-import { createConductorWorkflowEngine } from '../../../services';
-import type { UserInfo } from '@/common/BusinessAppContext';
+import { ConductorWorkflowEngineAdapter } from '../../../services/ConductorWorkflowEngineAdapter';
+import type { UserInfoProps } from '@/common/BusinessAppContext';
 
 export interface UseTicketActionsProps {
   accessToken: string;
-  userInfo?: UserInfo;
+  userInfo?: UserInfoProps;
   onSuccess?: () => void;
   onError?: (error: string) => void;
 }
@@ -21,7 +20,7 @@ export interface UseTicketActionsReturn {
 
 /**
  * Hook to handle ticket actions (claim, assign, advance, comment)
- * Integrates with WorkflowEngine action methods
+ * Always uses ConductorWorkflowEngineAdapter for real API integration
  */
 export const useTicketActions = ({
   accessToken,
@@ -31,15 +30,10 @@ export const useTicketActions = ({
 }: UseTicketActionsProps): UseTicketActionsReturn => {
   const [isPerformingAction, setIsPerformingAction] = useState<boolean>(false);
 
-  // Get the appropriate workflow engine (real or mock)
+  // Always use ConductorWorkflowEngineAdapter for real API integration
   const getEngine = () => {
-    if (accessToken && userInfo) {
-      console.log(`🎯 [useTicketActions] Using ConductorWorkflowEngineAdapter for actions`);
-      return createConductorWorkflowEngine(accessToken, userInfo);
-    } else {
-      console.log(`🎯 [useTicketActions] Using MockWorkflowEngineAdapter for actions`);
-      return getWorkflowEngine();
-    }
+    console.log(`🎯 [useTicketActions] Using ConductorWorkflowEngineAdapter for actions`);
+    return new ConductorWorkflowEngineAdapter({ accessToken, userInfo });
   };
 
   const handleAction = async <T>(
@@ -64,32 +58,36 @@ export const useTicketActions = ({
   const claimTicket = async (stepId: string): Promise<void> => {
     return handleAction('claim ticket', async () => {
       const workflowEngine = getEngine();
-      console.log(`🎯 [useTicketActions] *** CLAIMING TICKET: ${stepId} ***`);
-      await workflowEngine.claim(stepId);
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** CLAIMING TICKET: ${stepId} by user: ${userId} ***`);
+      await workflowEngine.claim(stepId, userId);
     });
   };
 
-  const assignTicket = async (stepId: string, userId: string): Promise<void> => {
+  const assignTicket = async (stepId: string, assignToUserId: string): Promise<void> => {
     return handleAction('assign ticket', async () => {
       const workflowEngine = getEngine();
-      console.log(`🎯 [useTicketActions] *** ASSIGNING TICKET: ${stepId} to ${userId} ***`);
-      await workflowEngine.assign(stepId, userId);
+      const currentUserId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** ASSIGNING TICKET: ${stepId} from ${currentUserId} to ${assignToUserId} ***`);
+      await workflowEngine.assign(stepId, currentUserId, assignToUserId, `Assigned via Service Desk`);
     });
   };
 
   const advanceTicket = async (stepId: string, payload?: any): Promise<void> => {
     return handleAction('advance ticket', async () => {
       const workflowEngine = getEngine();
-      console.log(`🎯 [useTicketActions] *** ADVANCING TICKET: ${stepId} ***`, payload ? 'with form data' : 'without form data');
-      await workflowEngine.advance(stepId, payload);
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** ADVANCING TICKET: ${stepId} by user: ${userId} ***`, payload ? 'with form data' : 'without form data');
+      await workflowEngine.advance(stepId, userId, payload, `Completed via Service Desk`);
     });
   };
 
   const addComment = async (stepId: string, body: string): Promise<Comment> => {
     return handleAction('add comment', async () => {
       const workflowEngine = getEngine();
-      console.log(`🎯 [useTicketActions] *** ADDING COMMENT to: ${stepId} ***`);
-      return await workflowEngine.comment(stepId, body);
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** ADDING COMMENT to: ${stepId} by user: ${userId} ***`);
+      return await workflowEngine.comment(stepId, userId, body);
     });
   };
 
