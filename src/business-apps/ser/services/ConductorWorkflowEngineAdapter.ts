@@ -1811,6 +1811,31 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   private convertCustomFlowEngineTaskToStepInstance(task: any, desk: StepReceiver): StepInstance {
     const taskId = task.id;
     
+    // Determine assignedToUserId and claimedByUserId based on assignmentStatus
+    const assignmentStatus = task.assignment?.assignmentStatus;
+    const assignedToUser = task.assignment?.assignedTo;
+    
+    let assignedToUserId: string | undefined;
+    let claimedByUserId: string | undefined;
+    
+    console.log(`[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}'`);
+    
+    if (assignedToUser) {
+      if (assignmentStatus === 'ASSIGNED') {
+        assignedToUserId = assignedToUser;
+        claimedByUserId = undefined;
+      } else if (assignmentStatus === 'CLAIMED') {
+        assignedToUserId = undefined;
+        claimedByUserId = assignedToUser;
+      } else {
+        // For other statuses (CLAIMABLE, UNASSIGNED), both should be undefined
+        assignedToUserId = undefined;
+        claimedByUserId = undefined;
+      }
+    }
+    
+    console.log(`[ConductorAdapter] ➡️ Result: assignedToUserId='${assignedToUserId}', claimedByUserId='${claimedByUserId}'`);
+    
     return {
       id: taskId,
       name: task.title || 'Unnamed Task',
@@ -1823,8 +1848,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       dueAt: task.dueDate,
       formSchema: task.form || [],
       data: task.inputs || {},
-      assignedToUserId: task.assignment?.assignedTo,
-      claimedByUserId: task.assignment?.assignedTo,
+      assignedToUserId,
+      claimedByUserId,
       allowReassignment: task.assignment?.allowReassignment || false,
     };
   }

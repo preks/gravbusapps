@@ -2,7 +2,7 @@ import React from 'react';
 import { Spin } from 'antd';
 import { User } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useEmployeeDetails, getEmployeeDisplayName } from '../hooks/useEmployeeDetails';
+import { useUserDetails, getEmployeeDisplayName } from '../hooks/useUserDetails';
 
 export interface UserDisplayNameProps extends BusinessAppContextProps {
   /**
@@ -56,7 +56,7 @@ export const UserDisplayName: React.FC<UserDisplayNameProps> = ({
   className = '',
   testId,
 }) => {
-  const { employee, isLoading, error } = useEmployeeDetails({
+  const { employee, isLoading, error } = useUserDetails({
     employeeId: userId,
     accessToken,
     userInfo,

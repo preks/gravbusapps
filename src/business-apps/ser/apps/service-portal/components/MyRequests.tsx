@@ -14,8 +14,7 @@ import { formatRequestId } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ClockCounterClockwise, CheckCircle, XCircle, FileText, User, Calendar, CurrencyDollar, Building, Phone, Globe, X } from '@phosphor-icons/react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import { useRealEmployeeData } from '../hooks/useRealEmployeeData';
-import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
+import { UserDisplayName } from '../../../components/UserDisplayName';
 
 export interface MyRequestsProps extends BusinessAppContextProps {
   workflowEngine: WorkflowEngine;
@@ -24,42 +23,64 @@ export interface MyRequestsProps extends BusinessAppContextProps {
 
 interface RequestTimelineProps {
   request: SubmittedRequest;
-  contextProps: BusinessAppContextProps;
+  contextProps: BusinessAppContextProps & { workflowEngine: WorkflowEngine };
 }
 
-const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps }) => {
-  // Load real data for ID resolution
-  const { employees, departments, jobPositions, isLoading: dataLoading } = useRealEmployeeData(contextProps);
-  const { employmentTypes, isLoading: catalogLoading } = useEmploymentTypeCatalog(contextProps);
-  
-  // Get the actual employee ID for the requesting user
-  const requestingEmployeeId = contextProps.userInfo?.employeeDetails?.employeeId;
-  
-  // Debug logging to understand User ID vs Employee ID mapping
-  React.useEffect(() => {
-    if (employees.length > 0) {
-      console.log(`[MyRequests] Employee data loaded: ${employees.length} employees`);
-      console.log(`[MyRequests] User ID (requesterId): ${request.requesterId}`);
-      console.log(`[MyRequests] Employee ID (from context): ${requestingEmployeeId}`);
+const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialRequest, contextProps }) => {
+  const [request, setRequest] = useState<SubmittedRequest>(initialRequest);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+
+  // Auto-refresh mechanism for live data
+  const refreshRequestData = async () => {
+    try {
+      setIsRefreshing(true);
+      console.log(`[RequestTimeline] 🔄 Refreshing live data for request: ${request.id}`);
       
-      const foundEmployee = findEmployeeById(request.requesterId);
-      if (foundEmployee) {
-        console.log(`[MyRequests] ✅ Found employee: ${foundEmployee.displayName} (matched via ${foundEmployee.employeeId === requestingEmployeeId ? 'Employee ID' : 'direct lookup'})`);
-      } else {
-        console.log(`[MyRequests] ❌ Employee not found. Need to investigate ID mapping.`);
-        
-        // Show what employee IDs we have available
-        if (requestingEmployeeId) {
-          const directEmployeeMatch = employees.find(emp => emp.employeeId === requestingEmployeeId);
-          if (directEmployeeMatch) {
-            console.log(`[MyRequests] ✅ Found employee via Employee ID: ${directEmployeeMatch.displayName}`);
-          } else {
-            console.log(`[MyRequests] ❌ Employee ID ${requestingEmployeeId} also not found`);
-          }
-        }
-      }
+      const updatedRequest = await contextProps.workflowEngine.getRequest(request.id);
+      setRequest(updatedRequest);
+      setLastRefreshed(new Date());
+      
+      console.log(`[RequestTimeline] ✅ Updated request data:`, {
+        id: updatedRequest.id,
+        status: updatedRequest.status,
+        stepsCompleted: updatedRequest.steps.filter(s => s.status === 'done').length,
+        totalSteps: updatedRequest.steps.length,
+        timelineEvents: updatedRequest.timeline.length
+      });
+      
+    } catch (error) {
+      console.error(`[RequestTimeline] ❌ Failed to refresh request data:`, error);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [employees, request.requesterId, requestingEmployeeId]);
+  };
+
+  // Auto-refresh every 30 seconds when drawer is open
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshRequestData();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [request.id]);
+
+  // Listen for manual refresh events
+  useEffect(() => {
+    const handleManualRefresh = () => {
+      refreshRequestData();
+    };
+
+    window.addEventListener('refreshRequestTimeline', handleManualRefresh);
+    return () => window.removeEventListener('refreshRequestTimeline', handleManualRefresh);
+  }, []);
+
+  // Update request when initialRequest changes (drawer opened with new request)
+  useEffect(() => {
+    setRequest(initialRequest);
+    setLastRefreshed(new Date());
+  }, [initialRequest.id]);
+
   const getStepIcon = (status: StepStatus) => {
     switch (status) {
       case 'done': return <CheckCircle className="gba:text-green-600" size={20} />;
@@ -112,26 +133,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
     return FileText;
   };
 
-  // Enhanced employee lookup function that handles both User IDs and Employee IDs
-  const findEmployeeById = (targetId: string) => {
-    if (!targetId || employees.length === 0) return null;
-    
-    // Special case: if this is the requesting user's User ID, use their Employee ID instead
-    if (targetId === request.requesterId && requestingEmployeeId) {
-      const employeeByEmployeeId = employees.find(emp => emp.employeeId === requestingEmployeeId);
-      if (employeeByEmployeeId) return employeeByEmployeeId;
-    }
-    
-    // Check all possible ID fields: EmployeePosition.id, EmployeePosition.employeeId, Employee.id
-    return employees.find(emp => 
-      emp.id === targetId ||                    // EmployeePosition.id
-      emp.employeeId === targetId ||           // EmployeePosition.employeeId  
-      emp.actualEmployeeId === targetId ||     // Employee.id
-      emp.displayName?.toLowerCase().includes(targetId.toLowerCase()) // Fallback name match
-    );
-  };
-
-  // Enhanced field value formatter that resolves IDs to human-readable names
+  // Simplified field value formatter
   const formatFieldValue = (key: string, value: any): string => {
     if (value === null || value === undefined) return 'Not provided';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -139,9 +141,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
     
     const keyLower = key.toLowerCase();
     const valueStr = value.toString();
-    
-    // Show loading state while data is being fetched
-    if (dataLoading || catalogLoading) return `${valueStr} (loading...)`;
     
     // Date formatting
     if (keyLower.includes('date') && typeof value === 'string') {
@@ -152,51 +151,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
       }
     }
     
-    // Resolve IDs to names using loaded data
-    try {
-      // Department ID resolution
-      if (keyLower.includes('department')) {
-        const department = departments.find(d => d.id === valueStr);
-        if (department) return department.name;
-      }
-      
-      // Position/Job Title ID resolution  
-      if (keyLower.includes('position') || keyLower.includes('job')) {
-        const position = jobPositions.find(p => p.id === valueStr);
-        if (position) return position.name;
-      }
-      
-      // Employee ID resolution (reporting manager, etc.)
-      if (keyLower.includes('manager') || keyLower.includes('supervisor') || keyLower.includes('employee')) {
-        const employee = findEmployeeById(valueStr);
-        if (employee) return employee.displayName;
-      }
-      
-      // Employment Type ID resolution
-      if (keyLower.includes('employment') && keyLower.includes('type')) {
-        const empType = employmentTypes.find(et => et.id === valueStr);
-        if (empType) return empType.name;
-      }
-      
-      // User ID resolution for "submitted by" and other user fields
-      if (keyLower.includes('user') || keyLower.includes('by') || keyLower.includes('created')) {
-        const user = findEmployeeById(valueStr);
-        if (user) return user.displayName;
-        
-        // Fallback: Use context employee details if this is the current user
-        if (valueStr === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
-          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
-          return `${firstName} ${lastName}`;
-        }
-        
-        // Final fallback for unresolved user IDs
-        if (valueStr.length > 30) return valueStr.slice(0, 8) + '... (User name not available)';
-      }
-    } catch (error) {
-      console.warn(`Failed to resolve ID for ${key}:`, error);
-    }
-    
-    // Return original value if no resolution found
     return valueStr;
   };
 
@@ -207,59 +161,8 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
       .trim();
   };
 
-  // Resolve user names in timeline messages
   const resolveTimelineMessage = (message: string): string => {
-    if (dataLoading) return message; // Don't resolve while loading
-    
-    try {
-      // Replace generic "User" with actual user names based on context
-      let resolvedMessage = message;
-      
-      // Pattern: "Request [Title] submitted by User"
-      if (message.includes('submitted by User')) {
-        const submittedBy = findEmployeeById(request.requesterId);
-        if (submittedBy) {
-          resolvedMessage = message.replace('User', submittedBy.displayName);
-        } else if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
-          // Use context employee details if available
-          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
-          resolvedMessage = message.replace('User', `${firstName} ${lastName}`);
-        } else {
-          // Fallback for unresolved users
-          resolvedMessage = message.replace('User', 'User');
-        }
-      }
-      
-      // Pattern: "User started the request"
-      if (message.includes('User') && message.includes('started')) {
-        const initiator = findEmployeeById(request.requesterId);
-        if (initiator) {
-          resolvedMessage = message.replace('User', initiator.displayName);
-        } else if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
-          const { firstName, lastName } = contextProps.userInfo.employeeDetails;
-          resolvedMessage = message.replace('User', `${firstName} ${lastName}`);
-        } else {
-          resolvedMessage = message.replace('User', 'User');
-        }
-      }
-      
-      // Pattern: "User completed step X"
-      if (message.includes('User') && message.includes('completed')) {
-        // Try to find user from step assignees
-        const completedStep = request.steps.find(s => s.status === 'done');
-        if (completedStep?.assignedToUserId) {
-          const assignee = findEmployeeById(completedStep.assignedToUserId);
-          if (assignee) {
-            resolvedMessage = message.replace('User', assignee.displayName);
-          }
-        }
-      }
-      
-      return resolvedMessage;
-    } catch (error) {
-      console.warn('Failed to resolve timeline message:', error);
-      return message;
-    }
+    return message;
   };
 
   return (
@@ -281,12 +184,24 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
             </div>
           </div>
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-2">
-            <Badge variant="default" className="gba:text-sm gba:px-3 gba:py-1 gba:bg-green-100 gba:text-green-800">
-              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-            </Badge>
-            <span className="gba:text-xs gba:text-muted-foreground">
-              {request.steps.filter(s => s.status === 'done').length} of {request.steps.length} steps completed
-            </span>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Badge variant="default" className="gba:text-sm gba:px-3 gba:py-1 gba:bg-green-100 gba:text-green-800">
+                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+              </Badge>
+              {isRefreshing && (
+                <Badge variant="outline" className="gba:text-xs gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:animate-pulse">
+                  🔄 Updating...
+                </Badge>
+              )}
+            </div>
+            <div className="gba:text-right">
+              <span className="gba:text-xs gba:text-muted-foreground">
+                {request.steps.filter(s => s.status === 'done').length} of {request.steps.length} steps completed
+              </span>
+              <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                📡 Live data • Auto-refresh: 30s
+              </div>
+            </div>
           </div>
         </div>
 
@@ -299,97 +214,204 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
             }}
           ></div>
         </div>
-        <div className="gba:text-xs gba:text-muted-foreground">
-          Progress: {Math.round((request.steps.filter(s => s.status === 'done').length / request.steps.length) * 100)}% complete
+        <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:justify-between gba:items-center">
+          <span>Progress: {Math.round((request.steps.filter(s => s.status === 'done').length / request.steps.length) * 100)}% complete</span>
+          <span className="gba:flex gba:items-center gba:gap-1">
+            <span className={`gba:w-2 gba:h-2 gba:rounded-full ${isRefreshing ? 'gba:bg-blue-500 gba:animate-pulse' : 'gba:bg-green-500'}`}></span>
+            {isRefreshing ? 'Syncing...' : 'Live'}
+          </span>
         </div>
       </Card>
 
       {/* Submitted Form Data */}
-      {request.formData && Object.keys(request.formData).length > 0 && (
-        <Card className="gba:p-6">
-          <h5 className="gba:text-lg gba:font-semibold gba:mb-6 gba:flex gba:items-center gba:gap-2">
-            <FileText size={20} />
-            Submitted Information
-          </h5>
-          
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
-            {Object.entries(request.formData).map(([key, value]) => {
-              const IconComponent = getFieldIcon(key);
-              const formattedValue = formatFieldValue(key, value);
-              const isLongText = formattedValue.length > 50;
-              
-              return (
-                <div 
-                  key={key} 
-                  className={`gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-gray-50/50 gba:transition-all gba:duration-200 hover:gba:bg-gray-100/50 hover:gba:border-gray-300 ${
-                    isLongText ? 'gba:md:col-span-2' : ''
-                  }`}
-                >
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg gba:flex-shrink-0">
-                      <IconComponent size={16} className="gba:text-blue-600" />
-                    </div>
-                    
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <h6 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-1">
-                        {formatFieldLabel(key)}
-                      </h6>
+      {(() => {
+        // Use request.formData which contains the actual submitted form data
+        const submittedData = request.formData || {};
+        
+        console.log(`[RequestTimeline] 📋 Using submitted form data for request ${request.id}:`, {
+          requestFormDataKeys: request.formData ? Object.keys(request.formData) : [],
+          requestFormData: request.formData,
+          finalSubmittedData: submittedData,
+          finalDataKeys: Object.keys(submittedData),
+          dataSource: 'request.formData',
+          allSteps: request.steps.map(s => ({ 
+            name: s.name, 
+            status: s.status,
+            hasAssignment: !!(s.assignedToUserId || s.claimedByUserId),
+            hasDueDate: !!s.dueDate
+          }))
+        });
+        
+        if (Object.keys(submittedData).length === 0) {
+          return (
+            <Card className="gba:p-6">
+              <h5 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center gba:gap-2">
+                <FileText size={20} />
+                Submitted Information
+              </h5>
+              <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                <FileText className="gba:mx-auto gba:mb-2" size={24} />
+                <p>No submitted form data available</p>
+                <p className="gba:text-xs gba:mt-2">
+                  Check console for debugging info.
+                </p>
+              </div>
+            </Card>
+          );
+        }
+        
+        return (
+          <Card className="gba:p-6">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
+                <FileText size={20} />
+                Submitted Information
+              </h5>
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                <Badge variant="outline" className="gba:text-xs">
+                  {Object.keys(submittedData).filter(key => 
+                    !key.includes('stepAssignment') && 
+                    !key.includes('_assignmentMode') && 
+                    !key.includes('_allowReassignment') &&
+                    submittedData[key] !== null && 
+                    submittedData[key] !== undefined && 
+                    submittedData[key] !== ''
+                  ).length} fields
+                </Badge>
+                <Badge variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-700">
+                  ✅ Form Data
+                </Badge>
+              </div>
+            </div>
+            
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+              {Object.entries(submittedData).map(([key, value]) => {
+                // Skip internal step assignment fields and empty values
+                if (key.includes('stepAssignment') || 
+                    key.includes('_assignmentMode') || 
+                    key.includes('_allowReassignment') ||
+                    value === null ||
+                    value === undefined ||
+                    value === '') {
+                  return null;
+                }
+                
+                const IconComponent = getFieldIcon(key);
+                const formattedValue = formatFieldValue(key, value);
+                const isLongText = formattedValue.length > 50;
+                
+                return (
+                  <div 
+                    key={key} 
+                    className={`gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-gray-50/50 gba:transition-all gba:duration-200 hover:gba:bg-gray-100/50 hover:gba:border-gray-300 ${
+                      isLongText ? 'gba:md:col-span-2' : ''
+                    }`}
+                  >
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg gba:flex-shrink-0">
+                        <IconComponent size={16} className="gba:text-blue-600" />
+                      </div>
                       
-                      {isLongText ? (
-                        <div className="gba:text-sm gba:text-gray-600 gba:bg-white gba:p-3 gba:rounded gba:border gba:whitespace-pre-wrap gba:font-mono gba:text-xs">
-                          {formattedValue}
-                        </div>
-                      ) : (
-                        <p className="gba:text-sm gba:text-gray-600 gba:truncate" title={formattedValue}>
-                          {formattedValue}
-                        </p>
-                      )}
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <h6 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-1">
+                          {formatFieldLabel(key)}
+                        </h6>
+                        
+                        {isLongText ? (
+                          <div className="gba:text-sm gba:text-gray-600 gba:bg-white gba:p-3 gba:rounded gba:border gba:whitespace-pre-wrap gba:font-mono gba:text-xs">
+                            {formattedValue}
+                          </div>
+                        ) : (
+                          <p className="gba:text-sm gba:text-gray-600 gba:truncate" title={formattedValue}>
+                            {formattedValue}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }).filter(Boolean)}
+            </div>
+
+            {/* Enhanced Submission Metadata */}
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200">
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4 gba:text-xs gba:text-muted-foreground">
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:font-medium gba:text-gray-700">Submitted By</span>
+                  <UserDisplayName
+                    userId={request.requesterId}
+                    accessToken={contextProps.accessToken}
+                    userInfo={contextProps.userInfo}
+                    showIcon={true}
+                    color="default"
+                    size="small"
+                    fallback="Unknown User"
+                    testId={`submitted-by-${request.id}`}
+                  />
+                </div>
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:font-medium gba:text-gray-700">Template</span>
+                  <div>
+                    <div className="gba:font-mono gba:text-gray-700">{request.templateId}</div>
+                    <div className="gba:text-gray-500">v{request.templateVersion}</div>
+                  </div>
+                </div>
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:font-medium gba:text-gray-700">Category</span>
+                  <Badge variant="outline" className="gba:text-xs gba:w-fit">
+                    {request.categoryIdSnapshot?.replace(/[-_]/g, ' ') || 'General'}
+                  </Badge>
+                </div>
+                <div className="gba:flex gba:flex-col">
+                  <span className="gba:font-medium gba:text-gray-700">Request Type</span>
+                  <span className="gba:text-gray-700">Service Request</span>
+                </div>
+              </div>
+              
+              {/* Priority information if available */}
+              {(request.formData?.urgency || request.formData?.priority || submittedData?.urgency || submittedData?.priority) && (
+                <div className="gba:mt-4 gba:pt-3 gba:border-t gba:border-gray-100">
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-xs">
+                    <div className="gba:flex gba:flex-col">
+                      <span className="gba:font-medium gba:text-gray-700">Priority/Urgency</span>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          (submittedData?.urgency === 'urgent' || submittedData?.priority === 'high') ? 'gba:bg-red-100 gba:text-red-800' :
+                          (submittedData?.urgency === 'medium' || submittedData?.priority === 'medium') ? 'gba:bg-yellow-100 gba:text-yellow-800' :
+                          'gba:bg-green-100 gba:text-green-800'
+                        }
+                      >
+                        {(submittedData?.urgency || submittedData?.priority || 'Normal').toUpperCase()}
+                      </Badge>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          
-          {/* Submission Metadata */}
-          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200">
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-xs gba:text-muted-foreground">
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:font-medium gba:text-gray-700">Submitted By</span>
-                <span>{(() => {
-                  if (dataLoading) return `Loading user...`;
-                  const submitter = findEmployeeById(request.requesterId);
-                  if (submitter) return submitter.displayName;
-                  
-                  // Fallback: Use employee details from context if available
-                  if (request.requesterId === contextProps.userInfo?.id && contextProps.userInfo?.employeeDetails) {
-                    const { firstName, lastName } = contextProps.userInfo.employeeDetails;
-                    return `${firstName} ${lastName}`;
-                  }
-                  
-                  // Final fallback for unresolved users
-                  return `${request.requesterId.slice(0, 8)}... (User name not available)`;
-                })()}</span>
-              </div>
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:font-medium gba:text-gray-700">Template Version</span>
-                <span>v{request.templateVersion}</span>
-              </div>
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:font-medium gba:text-gray-700">Template ID</span>
-                <span className="gba:font-mono">{request.templateId}</span>
-              </div>
+              )}
             </div>
-          </div>
-        </Card>
-      )}
+          </Card>
+        );
+      })()}
 
       {/* Workflow Steps */}
       <Card className="gba:p-6">
-        <h5 className="gba:text-lg gba:font-semibold gba:mb-6 gba:flex gba:items-center gba:gap-2">
-          <ClockCounterClockwise size={20} />
-          Workflow Progress
-        </h5>
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+          <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
+            <ClockCounterClockwise size={20} />
+            Workflow Progress
+          </h5>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {isRefreshing && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-blue-600">
+                <div className="gba:w-3 gba:h-3 gba:border-2 gba:border-blue-500 gba:border-t-transparent gba:rounded-full gba:animate-spin"></div>
+                Refreshing...
+              </div>
+            )}
+            <span className="gba:text-xs gba:text-gray-500">
+              Last refreshed: {lastRefreshed.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
         
         <div className="gba:space-y-4">
           {request.steps.map((step, index) => (
@@ -419,7 +441,19 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
                           </Badge>
                         </span>
                         {step.assignedToUserId && (
-                          <span>Assigned to: {step.assignedToUserId}</span>
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            Assigned to: 
+                            <UserDisplayName
+                              userId={step.assignedToUserId}
+                              accessToken={contextProps.accessToken}
+                              userInfo={contextProps.userInfo}
+                              showIcon={false}
+                              color="blue"
+                              size="small"
+                              fallback="Unknown User"
+                              testId={`step-assignee-${step.id}`}
+                            />
+                          </span>
                         )}
                       </div>
                     </div>
@@ -439,8 +473,8 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
                     </Badge>
                   </div>
                   
-                  {/* Timestamps and Duration */}
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:text-xs gba:text-muted-foreground gba:mt-3">
+                  {/* Enhanced Timestamps and Due Dates */}
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-3 gba:text-xs gba:text-muted-foreground gba:mt-3">
                     {step.startedAt && (
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium gba:text-gray-700">Started</span>
@@ -453,10 +487,21 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
                         <span>{new Date(step.finishedAt).toLocaleString()}</span>
                       </div>
                     )}
+                    {step.dueDate && (
+                      <div className="gba:flex gba:flex-col">
+                        <span className="gba:font-medium gba:text-gray-700">Due Date</span>
+                        <span className={new Date(step.dueDate) < new Date() ? 'gba:text-red-600 gba:font-semibold' : 'gba:text-gray-700'}>
+                          {new Date(step.dueDate).toLocaleString()}
+                          {new Date(step.dueDate) < new Date() && (
+                            <span className="gba:ml-1 gba:text-red-500 gba:font-bold">⚠️ OVERDUE</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
                     {(step.startedAt || step.finishedAt) && (
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium gba:text-gray-700">Duration</span>
-                        <span>{formatDuration(step.startedAt, step.finishedAt) || 'N/A'}</span>
+                        <span>{formatDuration(step.startedAt, step.finishedAt) || 'In Progress'}</span>
                       </div>
                     )}
                   </div>
@@ -470,7 +515,18 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
                       <div className="gba:space-y-2">
                         {step.comments.slice(-2).map((comment) => (
                           <div key={comment.id} className="gba:bg-background gba:p-2 gba:rounded gba:text-xs">
-                            <div className="gba:font-medium gba:mb-1">{comment.authorId}</div>
+                            <div className="gba:flex gba:items-center gba:gap-1 gba:font-medium gba:mb-1">
+                              <UserDisplayName
+                                userId={comment.authorId}
+                                accessToken={contextProps.accessToken}
+                                userInfo={contextProps.userInfo}
+                                showIcon={false}
+                                color="default"
+                                size="small"
+                                fallback="Unknown User"
+                                testId={`comment-author-${comment.id}`}
+                              />
+                            </div>
                             <div className="gba:text-muted-foreground gba:mb-1">{comment.body}</div>
                             <div className="gba:text-xs gba:text-muted-foreground">
                               {new Date(comment.createdAt).toLocaleString()}
@@ -487,20 +543,51 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request, contextProps
         </div>
       </Card>
 
-      {/* Activity Timeline */}
+      {/* Enhanced Activity Timeline with Live Updates */}
       {request.timeline.length > 0 && (
         <Card className="gba:p-6">
-          <h5 className="gba:text-lg gba:font-semibold gba:mb-4">Recent Activity</h5>
-          <div className="gba:space-y-3 gba:max-h-64 gba:overflow-y-auto">
-            {request.timeline.slice(-5).reverse().map((event, index) => (
+          <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+            <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
+              <FileText size={20} />
+              Recent Activity
+              <Badge variant="outline" className="gba:text-xs gba:ml-2">
+                {request.timeline.length} events
+              </Badge>
+            </h5>
+            <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:gap-1">
+              <span className={`gba:w-2 gba:h-2 gba:rounded-full ${isRefreshing ? 'gba:bg-blue-500 gba:animate-pulse' : 'gba:bg-green-500'}`}></span>
+              Real-time
+            </div>
+          </div>
+          <div className="gba:space-y-3 gba:max-h-80 gba:overflow-y-auto">
+            {request.timeline.slice(-10).reverse().map((event, index) => (
               <div 
                 key={index}
-                className="gba:flex gba:justify-between gba:items-start gba:p-3 gba:bg-muted/30 gba:rounded-md gba:text-sm gba:border-l-4 gba:border-blue-400"
+                className="gba:flex gba:justify-between gba:items-start gba:p-4 gba:bg-muted/30 gba:rounded-md gba:text-sm gba:border-l-4 gba:border-blue-400 gba:transition-all gba:duration-200 hover:gba:bg-muted/50"
               >
-                <span className="gba:text-foreground">{resolveTimelineMessage(event.message)}</span>
-                <span className="gba:text-muted-foreground gba:text-xs gba:whitespace-nowrap gba:ml-4 gba:font-mono">
-                  {new Date(event.at).toLocaleString()}
-                </span>
+                <div className="gba:flex-1">
+                  <span className="gba:text-foreground gba:font-medium">{resolveTimelineMessage(event.message)}</span>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:flex gba:items-center gba:gap-2">
+                    <Calendar size={12} />
+                    {new Date(event.at).toLocaleString()}
+                  </div>
+                </div>
+                <div className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:ml-4">
+                  {(() => {
+                    const eventTime = new Date(event.at);
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now.getTime() - eventTime.getTime()) / (1000 * 60));
+                    
+                    if (diffMinutes < 1) return 'Just now';
+                    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+                    
+                    const diffHours = Math.floor(diffMinutes / 60);
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    
+                    const diffDays = Math.floor(diffHours / 24);
+                    return `${diffDays}d ago`;
+                  })()}
+                </div>
               </div>
             ))}
           </div>
@@ -613,12 +700,13 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     ];
   }, [requests]);
 
-  // Table columns
+  // Enhanced table columns with more details
   const columns = [
     {
       title: 'Request ID',
       dataIndex: 'id',
       key: 'id',
+      width: 120,
       render: (id: string) => (
         <code className="gba:text-sm gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
           {formatRequestId(id)}
@@ -628,12 +716,174 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     {
       title: 'Service',
       dataIndex: 'titleSnapshot',
-      key: 'title'
+      key: 'title',
+      ellipsis: true
+    },
+    {
+      title: 'Progress',
+      key: 'progress',
+      width: 120,
+      render: (_: any, record: SubmittedRequest) => {
+        const completed = record.steps.filter(s => s.status === 'done').length;
+        const total = record.steps.length;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        return (
+          <div className="gba:space-y-1">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:font-medium">{percentage}%</span>
+              <div className="gba:flex-1 gba:bg-gray-200 gba:rounded-full gba:h-2">
+                <div 
+                  className="gba:bg-blue-500 gba:h-2 gba:rounded-full gba:transition-all"
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+            </div>
+            <div className="gba:text-xs gba:text-gray-500">
+              {completed} of {total} steps
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Current Step',
+      key: 'currentStep',
+      width: 150,
+      render: (_: any, record: SubmittedRequest) => {
+        const currentStep = record.steps.find(s => s.status === 'in_progress' || s.status === 'ready');
+        const nextStep = record.steps.find(s => s.status === 'pending');
+        const activeStep = currentStep || nextStep;
+        
+        if (!activeStep) {
+          return <span className="gba:text-gray-500 gba:text-sm">Completed</span>;
+        }
+        
+        return (
+          <div className="gba:space-y-1">
+            <div className="gba:text-sm gba:font-medium gba:truncate" title={activeStep.name}>
+              {activeStep.name}
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
+              <Badge variant="outline" className="gba:text-xs">
+                {activeStep.desk}
+              </Badge>
+              {activeStep.assignedToUserId && (
+                <span className="gba:text-gray-500">
+                  • Assigned
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Priority',
+      key: 'priority',
+      width: 90,
+      render: (_: any, record: SubmittedRequest) => {
+        const urgency = record.formData?.urgency || record.formData?.priority;
+        const earliestDue = record.steps
+          .filter(s => s.dueDate)
+          .map(s => new Date(s.dueDate!))
+          .sort((a, b) => a.getTime() - b.getTime())[0];
+        
+        const isOverdue = earliestDue && earliestDue < new Date();
+        
+        // Determine priority based on urgency and due dates
+        const getPriorityInfo = () => {
+          if (isOverdue) return { level: 'High', color: 'gba:bg-red-100 gba:text-red-800' };
+          if (urgency === 'urgent' || urgency === 'high') return { level: 'High', color: 'gba:bg-red-100 gba:text-red-800' };
+          if (urgency === 'medium' || urgency === 'normal') return { level: 'Medium', color: 'gba:bg-yellow-100 gba:text-yellow-800' };
+          if (urgency === 'low') return { level: 'Low', color: 'gba:bg-green-100 gba:text-green-800' };
+          return { level: 'Normal', color: 'gba:bg-gray-100 gba:text-gray-800' };
+        };
+        
+        const { level, color } = getPriorityInfo();
+        
+        return (
+          <Badge variant="outline" className={color}>
+            {level}
+          </Badge>
+        );
+      }
+    },
+    {
+      title: 'Requester',
+      key: 'requester',
+      width: 120,
+      render: (_: any, record: SubmittedRequest) => (
+        <UserDisplayName
+          userId={record.requesterId}
+          accessToken={contextProps.accessToken}
+          userInfo={contextProps.userInfo}
+          showIcon={true}
+          color="default"
+          size="small"
+          fallback="Unknown User"
+          testId={`requester-${record.id}`}
+        />
+      )
+    },
+    {
+      title: 'Category',
+      key: 'category',
+      width: 100,
+      render: (_: any, record: SubmittedRequest) => {
+        // Extract readable category from categoryIdSnapshot  
+        const category = record.categoryIdSnapshot || 'general';
+        const displayCategory = category
+          .replace(/[-_]/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+        
+        return (
+          <Badge variant="outline" className="gba:text-xs">
+            {displayCategory}
+          </Badge>
+        );
+      }
+    },
+    {
+      title: 'Est. Completion',
+      key: 'estimatedCompletion', 
+      width: 110,
+      render: (_: any, record: SubmittedRequest) => {
+        const nextDueDate = record.steps
+          .filter(s => s.dueDate && s.status !== 'done')
+          .map(s => new Date(s.dueDate!))
+          .sort((a, b) => a.getTime() - b.getTime())[0];
+        
+        if (!nextDueDate) {
+          return <span className="gba:text-gray-500 gba:text-xs">No deadline</span>;
+        }
+        
+        const now = new Date();
+        const diffDays = Math.ceil((nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const isOverdue = diffDays < 0;
+        const isDueSoon = diffDays <= 2 && diffDays >= 0;
+        
+        return (
+          <div className="gba:space-y-1">
+            <div className={`gba:text-sm ${isOverdue ? 'gba:text-red-600' : isDueSoon ? 'gba:text-yellow-600' : 'gba:text-gray-700'}`}>
+              {nextDueDate.toLocaleDateString()}
+            </div>
+            <div className={`gba:text-xs ${isOverdue ? 'gba:text-red-500' : isDueSoon ? 'gba:text-yellow-500' : 'gba:text-gray-500'}`}>
+              {isOverdue ? `${Math.abs(diffDays)} days overdue` :
+               diffDays === 0 ? 'Due today' :
+               diffDays === 1 ? 'Due tomorrow' :
+               `Due in ${diffDays} days`}
+            </div>
+          </div>
+        );
+      }
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status: string) => {
         const badgeProps = getStatusBadgeProps(status);
         return (
@@ -647,11 +897,28 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
       title: 'Created',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString()
+      width: 110,
+      render: (date: string) => {
+        const createdDate = new Date(date);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return (
+          <div className="gba:space-y-1">
+            <div className="gba:text-sm">{createdDate.toLocaleDateString()}</div>
+            <div className="gba:text-xs gba:text-gray-500">
+              {diffDays === 0 ? 'Today' : 
+               diffDays === 1 ? '1 day ago' : 
+               `${diffDays} days ago`}
+            </div>
+          </div>
+        );
+      }
     },
     {
       title: 'Actions',
       key: 'actions',
+      width: 120,
       render: (_: any, record: SubmittedRequest) => (
         <Button 
           variant="outline" 
@@ -699,24 +966,24 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         </div>
         
         <PageLayout
-                  headerPhosphorIcon={{
-          icon: XCircle,
-          variant: "strategy",
-          size: "lg",
-          label: "Error"
-        }}
+          headerPhosphorIcon={{
+            icon: XCircle,
+            variant: "strategy",
+            size: "lg",
+            label: "Error"
+          }}
           headerTitle="Error Loading Requests"
           headerDescription="Failed to load your service requests"
         >
-        <Alert variant="destructive">
-          <h4 className="gba:font-semibold">Failed to Load Requests</h4>
-          <p>{error}</p>
-          <div className="gba:mt-4">
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </div>
-        </Alert>
+          <Alert variant="destructive">
+            <h4 className="gba:font-semibold">Failed to Load Requests</h4>
+            <p>{error}</p>
+            <div className="gba:mt-4">
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </Alert>
         </PageLayout>
       </div>
     );
@@ -763,10 +1030,14 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
                 columns={columns}
                 dataSource={requests}
                 rowKey="id"
+                scroll={{ x: 1200 }}
+                size="middle"
                 pagination={{
                   pageSize: 10,
-                  showSizeChanger: false,
-                  showQuickJumper: false
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} requests`,
+                  pageSizeOptions: ['10', '20', '50']
                 }}
               />
             </div>
@@ -786,19 +1057,19 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         </div>
       </PageLayout>
 
-      {/* Request Details Drawer - Moved to root level */}
+      {/* Request Details Drawer */}
       <>
         {/* Overlay */}
         <div 
           style={{
             position: 'fixed',
-            top: '48px', // Just below header with no gap
+            top: '48px',
             left: 0,
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)', // Safari support
+            WebkitBackdropFilter: 'blur(4px)',
             zIndex: isDrawerOpen ? 999 : -1,
             opacity: isDrawerOpen ? 1 : 0,
             transition: 'opacity 300ms ease-in-out',
@@ -812,8 +1083,8 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
           style={{
             position: 'fixed',
             right: 0,
-            top: '48px', // Match overlay position exactly
-            height: 'calc(100vh - 48px)', // Full height minus header
+            top: '48px',
+            height: 'calc(100vh - 48px)',
             width: '800px',
             maxWidth: '95vw',
             backgroundColor: 'white',
@@ -842,9 +1113,25 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
                 Request Details
               </h3>
               {selectedRequest && (
-                <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px', margin: 0 }}>
-                  {formatRequestId(selectedRequest.id)} • {selectedRequest.titleSnapshot}
-                </p>
+                <div>
+                  <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px', margin: 0 }}>
+                    {formatRequestId(selectedRequest.id)} • {selectedRequest.titleSnapshot}
+                  </p>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Manual refresh trigger - will be handled by the timeline component
+                        const refreshEvent = new CustomEvent('refreshRequestTimeline');
+                        window.dispatchEvent(refreshEvent);
+                      }}
+                    >
+                      🔄 Refresh Data
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
             <Button 
@@ -872,7 +1159,12 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
               backgroundColor: 'white'
             }}
           >
-            {selectedRequest && isDrawerOpen && <RequestTimeline request={selectedRequest} contextProps={contextProps} />}
+            {selectedRequest && isDrawerOpen && (
+              <RequestTimeline 
+                request={selectedRequest} 
+                contextProps={{ ...contextProps, workflowEngine }} 
+              />
+            )}
           </div>
         </div>
       </>

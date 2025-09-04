@@ -1,4 +1,4 @@
 export { useDesksForUser } from './useDesksForUser';
 export { useUserCapabilitiesGraphQL } from './useUserCapabilitiesGraphQL';
-export { useEmployeeDetails } from './useEmployeeDetails';
+export { useUserDetails } from './useUserDetails';
 export { useSharedFlowTemplates } from './useSharedFlowTemplates';

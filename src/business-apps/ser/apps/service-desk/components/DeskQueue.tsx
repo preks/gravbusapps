@@ -339,27 +339,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       key: 'requesterId',
       width: 120,
       render: (requesterId: string, record: StepInstance) => {
-        console.log(`[ConductorAdapterRequester] 🔍 RENDER - Task ${record.id}:`, {
-          requesterId: requesterId,
-          requesterName: record.requesterName,
-          hasRequesterName: !!(record.requesterName && record.requesterName.trim().length > 0),
-          taskName: record.name
-        });
-        
-        // If we have the requester name directly, use it
-        if (record.requesterName && record.requesterName.trim().length > 0) {
-          console.log(`[ConductorAdapterRequester] ✅ Using requester name: ${record.requesterName}`);
-          return (
-            <div className="gba:flex gba:items-center gba:gap-2" data-testid={`requester-${record.id}`}>
-              <User className="gba:w-4 gba:h-4 gba:text-blue-500" />
-              <span className="gba:text-sm gba:font-medium">{record.requesterName}</span>
-            </div>
-          );
-        }
-        
-        console.log(`[ConductorAdapterRequester] ❌ No requester name found, falling back to UUID lookup: ${requesterId}`);
-        
-        // Fallback to UserDisplayName component for UUID lookup
+        // Always use UserDisplayName for consistent UI and user resolution
         return (
           <UserDisplayName
             userId={requesterId}
@@ -368,7 +348,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
             showIcon={true}
             color="default"
             size="small"
-            fallback="Unknown User"
+            fallback={record.requesterName || "Unknown User"}
             testId={`requester-${record.id}`}
           />
         );
