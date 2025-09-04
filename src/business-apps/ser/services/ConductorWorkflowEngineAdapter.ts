@@ -341,12 +341,11 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
 
   /**
-   * Get detailed information for a specific ticket
+   * Get detailed information for a specific ticket using real custom-flow-engine task ID
    */
   async getTicketDetail(ticketId: string): Promise<StepInstance | null> {
     try {
-      console.log(`🔍 [ConductorAdapter] *** GETTING TICKET DETAIL FOR: ${ticketId} ***`);
-      console.log(`🔍 [ConductorAdapter] API URL: ${this.flowEngineBaseUrl}/api/tasks/${ticketId}?userId=${this.currentUserId}`);
+      console.log(`🔍 [ConductorAdapter] Getting ticket detail for REAL task ID: ${ticketId}`);
 
       const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${ticketId}?userId=${this.currentUserId}`, {
         method: 'GET',
@@ -358,17 +357,20 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       if (!response.ok) {
         if (response.status === 404) {
-          console.warn(`[ConductorAdapter] Ticket not found: ${ticketId}`);
+          console.warn(`[ConductorAdapter] Task not found: ${ticketId}`);
           return null;
         }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const taskData = await response.json();
-      console.log(`[ConductorAdapter] Got task detail:`, taskData);
+      const result = await response.json();
+      console.log(`[ConductorAdapter] Got REAL task detail:`, result);
       
-      // Convert to StepInstance format
-      const stepInstance = this.convertTaskToStepInstance(taskData);
+      // Use the task data from custom-flow-engine API response
+      const taskData = result.task || result;
+      
+      // Convert to StepInstance format using real custom-flow-engine task data  
+      const stepInstance = this.convertCustomFlowEngineTaskToStepInstance(taskData, 'Admin');
       return stepInstance;
 
     } catch (error) {
@@ -2060,96 +2062,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
     
     return -1; // No current step found
-  }
-
-  /**
-   * Get detailed information for a specific ticket/task
-   * Handles synthetic task IDs: {flowId}_current_step_{stepIndex}
-   */
-  async getTicketDetail(ticketId: string): Promise<StepInstance | null> {
-    try {
-      console.log(`[ConductorAdapterRequester] 🔍 Getting ticket detail for: ${ticketId}`);
-      
-      // Parse synthetic task ID to extract flow ID and step index
-      const match = ticketId.match(/^(.+)_current_step_(\d+)$/);
-      if (!match) {
-        console.error(`[ConductorAdapterRequester] ❌ Invalid synthetic task ID format: ${ticketId}`);
-        throw new Error(`Invalid task ID format: ${ticketId}`);
-      }
-      
-      const [, flowId, stepIndexStr] = match;
-      const stepIndex = parseInt(stepIndexStr, 10);
-      
-      console.log(`[ConductorAdapterRequester] 🔍 Parsed task ID:`, {
-        originalTaskId: ticketId,
-        extractedFlowId: flowId,
-        extractedStepIndex: stepIndex,
-        isValidStepIndex: !isNaN(stepIndex)
-      });
-      
-      // Fetch the flow details
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/flows/${flowId}`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-      });
-      
-      if (!response.ok) {
-        console.error(`[ConductorAdapterRequester] ❌ Failed to fetch flow ${flowId}: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch flow details: ${response.status} ${response.statusText}`);
-      }
-      
-      const flowDetail = await response.json();
-      console.log(`[ConductorAdapterRequester] ✅ Fetched flow detail:`, {
-        flowId: flowId,
-        hasSteps: !!(flowDetail.steps && flowDetail.steps.length > 0),
-        stepCount: flowDetail.steps?.length || 0,
-        requestedStepIndex: stepIndex
-      });
-      
-      // Validate step index
-      const flowSteps = flowDetail.steps || [];
-      if (stepIndex >= flowSteps.length || stepIndex < 0) {
-        console.error(`[ConductorAdapterRequester] ❌ Invalid step index ${stepIndex} for flow with ${flowSteps.length} steps`);
-        throw new Error(`Step index ${stepIndex} out of range for flow with ${flowSteps.length} steps`);
-      }
-      
-      // Get the specific step
-      const targetStep = flowSteps[stepIndex];
-      console.log(`[ConductorAdapterRequester] 🎯 Target step:`, {
-        stepIndex: stepIndex,
-        stepTitle: targetStep.title,
-        stepType: targetStep.type
-      });
-      
-      // Create synthetic task for this specific step
-      const syntheticTask = {
-        taskId: ticketId, // Use the original ticket ID
-        taskDefName: targetStep.title || `Step ${stepIndex + 1}`,
-        title: targetStep.title || `Step ${stepIndex + 1}`,
-        status: 'SCHEDULED',
-        assignment: targetStep.assignment,
-        flowId: flowId,
-        stepIndex: stepIndex
-      };
-      
-      // Convert to StepInstance using existing logic
-      const stepInstance = this.convertTaskToStepInstance(syntheticTask, flowDetail);
-      
-      console.log(`[ConductorAdapterRequester] ✅ Created ticket detail:`, {
-        ticketId: stepInstance.id,
-        name: stepInstance.name,
-        desk: stepInstance.desk,
-        requesterId: stepInstance.requesterId,
-        requesterName: stepInstance.requesterName
-      });
-      
-      return stepInstance;
-      
-    } catch (error) {
-      console.error(`[ConductorAdapterRequester] ❌ Error getting ticket detail:`, error);
-      throw new Error(`Failed to get ticket details: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
   }
 
   /**
