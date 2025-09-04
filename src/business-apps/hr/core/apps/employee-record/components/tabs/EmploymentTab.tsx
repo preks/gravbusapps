@@ -157,7 +157,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
     return [
       {
         label: "Weekly Hours",
-        value:computedWeeklyHours.toString() || ''
+        value: computedWeeklyHours.toString() || ''
       },
       {
         label: "FTE (Full-Time Equivalent)",
