@@ -6,7 +6,8 @@ import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@
 import { BusinessAppContextProps } from '@/business-apps/types';
 import AllowanceContainer from '../components/AllowanceContainer';
 import { CostCenter } from '../utils/types';
-import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects } from '../ExpenseRequestWizardQueries';
+import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects, getAllowanceData } from '../ExpenseRequestWizardQueries';
+import { DEDUCTIONS_TYPES_ENUM, DEDUCTION_KEYS } from '../constants/constants';
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
@@ -47,6 +48,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
   const [, setTravelRegionsData] = useState<any>(null);
   const [, setCostCentersData] = useState<any>(null);
   const [deductionsData, setDeductionsData] = useState<any[]>([]);
+  const [visibleDeductionKeys, setVisibleDeductionKeys] = useState<string[]>([]);
   const [hasDeductions, setHasDeductions] = useState<boolean>(false);
   const [defaultCostCenter, setDefaultCostCenter] = useState<string>("");
   const [defaultProject, setDefaultProject] = useState<string>("");
@@ -68,10 +70,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         const travelRegionsResponse = await graphQLClient.request(getTravelRegionsAndUser, {
           expenseRuleId: employeeRuleId,
           employeeId: employeeIdValue,
-          activeUserLocale: locale,
-          expenseRequestId: additionalData?.psi_taskPayload?.expenseRequest?.id
+          activeUserLocale: locale
         });
-        setDeductionsData(travelRegionsResponse.TravelBreakdown || []);
         setTravelRegionsData(travelRegionsResponse);
         if (travelRegionsResponse?.EmployeePosition && 
             travelRegionsResponse.EmployeePosition.length > 0 && 
@@ -109,6 +109,41 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
     fetchTravelRegionsAndCostCenters();
   }, [employeeRuleId, graphQLClient, userInfo?.employeeDetails?.employeeId]);
 
+  useEffect(() => {
+    const fetchAllowanceData = async () => {
+      if (!expenseRequestData?.ExpenseRequestByPk) return;
+      try {
+        const employeeIdValue = userInfo?.employeeDetails?.employeeId;
+        const response = await graphQLClient.request(getAllowanceData, {
+          employeeId: employeeIdValue,
+          expenseRequestId: additionalData?.psi_taskPayload?.expenseRequest?.id,
+          expenseRequestRuleId: expenseRequestData?.ExpenseRequestByPk?.expenseRuleId
+        });
+        const setup = Array.isArray(response?.ExpenseRuleAllowanceSetup) ? response.ExpenseRuleAllowanceSetup : [];
+        const issues = new Set<string>(setup.map((s: any) => s.issue).filter(Boolean));
+        const keys: string[] = [];
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.BREAKFAST)) keys.push(DEDUCTION_KEYS.BREAKFAST);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.LUNCH)) keys.push(DEDUCTION_KEYS.LUNCH);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.DINNER)) keys.push(DEDUCTION_KEYS.DINNER);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.OVERNIGHT)) keys.push(DEDUCTION_KEYS.OVERNIGHT);
+        setVisibleDeductionKeys(keys);
+        if (keys.length === 0) {
+          setDeductionsData([]);
+        } else {
+          setDeductionsData(response.TravelBreakdown || []);
+        }
+      } catch (error) {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:modify_expense_request.error_fetch_regions_cost_centers",
+            "Error fetching travel regions and cost centers"
+          ),
+          "error"
+        );
+      }
+    };
+    fetchAllowanceData();
+  }, [expenseRequestData]);
   useEffect(() => {
     // Determine if deductions exist
     const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0;
@@ -178,9 +213,30 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         ? allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId 
         : null;
       
-      // Attach deductionDay if hasDeductions is true
+      // Attach deductionDay if hasDeductions is true; ensure all flags exist and default to false
       if (hasDeductions) {
-        updatedElement.deductionDay = getDeductionByDate(updatedElement.expenseDate) || null;
+        const dd = getDeductionByDate(updatedElement.expenseDate);
+        if (dd) {
+          updatedElement.deductionDay = {
+            id: dd.id ?? null,
+            version: dd.version ?? 0,
+            deductionDay: null,
+            breakfast: !!dd.breakfast,
+            lunch: !!dd.lunch,
+            dinner: !!dd.dinner,
+            overnight: !!dd.overnight
+          };
+        } else {
+          updatedElement.deductionDay = {
+            id: null,
+            version: 0,
+            deductionDay: null,
+            breakfast: false,
+            lunch: false,
+            dinner: false,
+            overnight: false
+          };
+        }
       } else {
         updatedElement.deductionDay = null;
       }
@@ -369,6 +425,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           deductionsData,
           EVENTS.NEXT
         );
+        console.log("logObject", logObject);
         dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
       }
     };
@@ -407,7 +464,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
                 defaultProject={defaultProject}
                 onProjectChange={handleProjectChange}
                 onDeductionsChange={handleDeductionsChange}
-                hasDeductions={hasDeductions}
+                hasDeductions={hasDeductions && visibleDeductionKeys.length > 0}
+                visibleDeductionKeys={visibleDeductionKeys}
               />
             ))}
           </div>

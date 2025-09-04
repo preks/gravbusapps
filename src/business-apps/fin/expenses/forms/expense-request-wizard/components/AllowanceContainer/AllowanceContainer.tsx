@@ -3,6 +3,7 @@ import { Button } from '@newwork/gravity-ui-catalog';
 import { SelectField } from '@newwork/gravity-ui-catalog';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { CostCenter } from '../../utils/types';
+import { DEDUCTION_KEYS } from '../../constants/constants';
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
 import { getDayName } from '../../utils/allowanceScreenUtils';
 
@@ -22,6 +23,7 @@ interface AllowanceContainerProps {
   onProjectChange: (index: number, value: string | undefined) => void;
   onDeductionsChange?: (index: number, deductions: string[]) => void;
   hasDeductions?: boolean;
+  visibleDeductionKeys?: string[];
 }
 
 /**
@@ -39,14 +41,15 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   defaultProject,
   onProjectChange,
   onDeductionsChange,
-  hasDeductions
+  hasDeductions,
+  visibleDeductionKeys
 }) => {
   const dateToDisplay = item.allowanceDate || item.expenseDate;
   const selectedDeductions: string[] = Array.isArray(item?.deductions) ? item.deductions : [];
 
   const deductionOptions = [
     {
-      key: 'breakfast',
+      key: DEDUCTION_KEYS.BREAKFAST,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_deduction.expense_deduction_modal.breakfast_title',
         'Breakfast'
@@ -54,7 +57,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
       icon: ICONS.BREAKFAST_DEDUCTION_ICON
     },
     {
-      key: 'lunch',
+      key: DEDUCTION_KEYS.LUNCH,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_deduction.expense_deduction_modal.lunch_title',
         'Lunch'
@@ -62,7 +65,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
       icon: ICONS.LUNCH_DEDUCTION_ICON
     },
     {
-      key: 'dinner',
+      key: DEDUCTION_KEYS.DINNER,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_deduction.expense_deduction_modal.dinner_title',
         'Dinner'
@@ -70,7 +73,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
       icon: ICONS.DINNER_DEDUCTION_ICON
     },
     {
-      key: 'overnight',
+      key: DEDUCTION_KEYS.OVERNIGHT,
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_deduction.expense_deduction_modal.overnight_allowance',
         'Overnight Allowance'
@@ -78,6 +81,10 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
       icon: ICONS.OVERNIGHT_DEDUCTION_ICON
     }
   ];
+
+  const optionsToShow = Array.isArray(visibleDeductionKeys) && visibleDeductionKeys.length > 0
+    ? deductionOptions.filter(opt => visibleDeductionKeys.includes(opt.key))
+    : deductionOptions;
 
   const toggleDeduction = (deductionKey: string) => {
     const current = new Set<string>(selectedDeductions);
@@ -193,7 +200,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
           />
 
           {/* Deductions Section */}
-          {hasDeductions ? (
+          {hasDeductions && optionsToShow.length > 0 ? (
           <div className="gba:flex gba:flex-col" data-testid={`allowance-deductions-section-${index}`}>
             <span
               className="gba:font-semibold gba:text-black gba:text-base gba:py-3"
@@ -215,7 +222,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               }}
               data-testid={`allowance-deductions-buttons-${index}`}
             >
-              {deductionOptions.map((option) => {
+              {optionsToShow.map((option) => {
                 const isSelected = selectedDeductions.includes(option.key);
                 return (
                   <button

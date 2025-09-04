@@ -78,3 +78,16 @@ export const defaultDestination: LocationData ={
   travelRegionRef: undefined,
 }
 
+export const DEDUCTIONS_TYPES_ENUM ={
+  BREAKFAST: "Breakfast Deduction",
+  LUNCH: "Lunch Deduction",
+  DINNER: "Dinner Deduction",
+  OVERNIGHT: "Overnight Allowance"
+}
+
+export const DEDUCTION_KEYS = {
+  BREAKFAST: 'breakfast',
+  LUNCH: 'lunch',
+  DINNER: 'dinner',
+  OVERNIGHT: 'overnight'
+};

@@ -609,7 +609,7 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:
   }
 }
 `
-export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!, $expenseRequestId: uuid) {
+export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!) {
   AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
     id
     travelRegionRef
@@ -642,7 +642,10 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
     structureId
     costCenterId
   }
-      TravelBreakdown(where: {expenseRequestId: {_eq: $expenseRequestId}, isDeleted: {_eq: false}}){
+}`
+
+export const getAllowanceData =`query getAllowanceData($employeeId: uuid!, $expenseRequestId: uuid, $expenseRequestRuleId: uuid!) {
+      TravelBreakdown(where: {expenseRequestId: {_eq: $expenseRequestId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id
     version
     breakfast
@@ -656,6 +659,10 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
     expensePlanId
     costCenterId
     expenseRequestId
+  }
+      ExpenseRuleAllowanceSetup(where: {expenseRuleId: {_eq: $expenseRequestRuleId}, isDeleted: {_eq: false}}) {
+    id
+    issue
   }
 }`
 
