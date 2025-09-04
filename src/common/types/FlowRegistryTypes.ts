@@ -43,6 +43,10 @@ export enum FlowContextName {
   customerActivityUpdate = "customerActivityUpdate",
   customerActivityDelete = "customerActivityDelete",
 
+  /// Customer Notes
+  customerNoteCreate = "customerNoteCreate",
+  customerNoteDelete = "customerNoteDelete",
+
   /// Customer Documents
   createCustomerDocument = "customerDocumentCreate",
   
@@ -89,6 +93,7 @@ export enum FlowContextName {
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
+  investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents
   investmentDocumentEntity = "investmentDocumentEntity",

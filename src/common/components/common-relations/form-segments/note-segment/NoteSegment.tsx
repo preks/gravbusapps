@@ -29,6 +29,11 @@ export interface NoteSegmentProps {
   reminderLabel?: React.ReactNode;
   entityLabel?: React.ReactNode;
 
+  // Placeholders (optional)
+  titlePlaceholder?: string;
+  textPlaceholder?: string;
+  reminderPlaceholder?: string;
+
   // TestId prefix for container
   ["data-testid"]?: string;
 }
@@ -65,6 +70,9 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
   textLabel,
   reminderLabel,
   entityLabel,
+  titlePlaceholder,
+  textPlaceholder,
+  reminderPlaceholder,
   "data-testid": dataTestId = "note-segment",
 }) => {
   const form = useFormContext<any>();
@@ -116,7 +124,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           <FormItem>
             <FormLabel>{titleLabel}</FormLabel>
             <FormControl>
-              <Input data-testid={`${dataTestId}-title`} maxLength={100} {...field} />
+              <Input data-testid={`${dataTestId}-title`} maxLength={100} placeholder={titlePlaceholder} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -131,7 +139,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           <FormItem>
             <FormLabel>{textLabel}</FormLabel>
             <FormControl>
-              <Textarea data-testid={`${dataTestId}-text`} {...field} />
+              <Textarea data-testid={`${dataTestId}-text`} placeholder={textPlaceholder} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -152,6 +160,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                   data-testid={`${dataTestId}-reminder-date`}
                   value={normalizeDateTimeLocalValue(field.value)}
                   onChange={field.onChange}
+                  placeholder={reminderPlaceholder}
                 />
               </FormControl>
               <FormMessage />

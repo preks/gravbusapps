@@ -14,6 +14,12 @@ export {
   type ActivityDeletionPopupProps
 } from './popups/activity-deletion-popup';
 
+// Note Deletion Popup (Flow-configured wrapper)
+export {
+  NoteDeletionPopup,
+  type NoteDeletionPopupProps
+} from './popups/note-deletion-popup';
+
 // Record Sections
 export * from './common-relations/record-sections';
 

@@ -98,45 +98,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
     try {
       const activitiesData = await fetchInvestmentActivitiesByLeadId(leadId);
-      // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
-      const sortedActivities = activitiesData.sort((a, b) => {
-        const dateA = new Date((a as any).occurredAt || a.createdAt).getTime();
-        const dateB = new Date((b as any).occurredAt || b.createdAt).getTime();
-        return dateB - dateA;
-      });
-
-      // Fetch creator employee information for activities where ownerEmployee is null
-      const enhancedActivities = await Promise.all(
-        sortedActivities.map(async (activity) => {
-          const anyActivity: any = activity as any;
-          if (!anyActivity.ownerEmployee && anyActivity.createdBy) {
-            try {
-              const employeeQuery = `
-                query GetEmployeeByUserId($userId: String!) {
-                  Employee(where: {userId: {_eq: $userId}, isDeleted: {_eq: false}}, limit: 1) {
-                    id
-                    firstName
-                    lastName
-                    displayName
-                    fullName
-                  }
-                }
-              `;
-              const employeeResult = await graphqlClient.request(employeeQuery, { userId: anyActivity.createdBy });
-              const employee = employeeResult?.Employee?.[0];
-              if (employee) {
-                return { ...anyActivity, ownerEmployee: employee } as InvestmentActivity;
-              }
-            } catch (error) {
-              console.warn('Failed to fetch creator employee for activity:', anyActivity.id, error);
-            }
-          }
-          return activity;
-        })
+      // Sort activities by createdAt in descending order (newest first)
+      const sortedActivities = activitiesData.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-
-      setActivities(enhancedActivities);
-      originalActivitiesRef.current = enhancedActivities;
+      
+      setActivities(sortedActivities);
+      originalActivitiesRef.current = sortedActivities;
     } catch (error) {
       console.error('Error loading activities:', error);
       setActivitiesError(error instanceof Error ? error.message : 'Failed to load activities');
@@ -497,11 +465,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs((activity as any).occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {
-                            (activity as any).ownerEmployee
-                              ? ((activity as any).ownerEmployee.displayName || (activity as any).ownerEmployee.fullName || `${(activity as any).ownerEmployee.firstName || ''} ${(activity as any).ownerEmployee.lastName || ''}`.trim() || 'Unknown User')
-                              : ((activity as any).createdBy || 'Unknown User')
-                          }
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayNameFromObject(activity.createdBy)}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -522,7 +486,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
                       <div style={{ position: 'absolute', top: '0', right: '0' }}>
-                        {/* Edit disabled per requirements */}
+                        <AppAction
+                          contextsArray={[FlowContextName.investmentActivityEntity]}
+                          externalContextData={{ leadId, activityId: activity.id }}
+                          prefixDataTestId={`edit-activity-${activity.id}`}
+                          accessToken={context.accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                        >
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            style={{ marginRight: '4px' }}
+                          >
+                            <EditOutlined />
+                          </Button>
+                        </AppAction>
                         <Button
                           variant="ghost"
                           size="sm"
