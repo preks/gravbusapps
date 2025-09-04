@@ -114,6 +114,21 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
     }));
   }, [employee.employeePosition]);
 
+    // Map real team members from GraphQL data
+    const computedWorkingHours = useMemo(() => {
+      const wh = employee.workingHours?.[0];
+      const hours = [
+        wh?.mondayHours,
+        wh?.tuesdayHours,
+        wh?.wednesdayHours,
+        wh?.thursdayHours,
+        wh?.fridayHours,
+        wh?.saturdayHours,
+        wh?.sundayHours
+      ].reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+      return hours > 0 ? `${hours} hours/week` : 'Not specified';
+    }, [employee.workingHours]);
+
   return (
       <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
         {/* Summary Overview Headline with Action Button */}
@@ -459,7 +474,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                   <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-gray-400 gba:mr-3" />
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-gray-900">Weekly Hours</div>
-                    <div className="gba:text-sm gba:text-gray-600">{employee.workingHours?.[0]?.fullTimeEquivalent ? `${employee.workingHours[0].fullTimeEquivalent} hours/week` : 'Not specified'}</div>
+                    <div className="gba:text-sm gba:text-gray-600">{computedWorkingHours}</div>
                   </div>
                 </div>
                 

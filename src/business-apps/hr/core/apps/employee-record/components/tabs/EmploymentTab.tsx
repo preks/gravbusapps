@@ -126,18 +126,48 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const getWorkingHoursData = () => {
     const workingHours = employee.workingHours?.[0];
     
+    // Compute weekly hours by summing daily hours if missing
+    const computedWeeklyHours = (() => {
+      const days = [
+        workingHours?.mondayHours,
+        workingHours?.tuesdayHours,
+        workingHours?.wednesdayHours,
+        workingHours?.thursdayHours,
+        workingHours?.fridayHours,
+        workingHours?.saturdayHours,
+        workingHours?.sundayHours
+      ];
+      return days.reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+    })();
+
+    // Compute weekly days as count of days with hours > 0
+    const computedWeeklyDays = (() => {
+      const days = [
+        workingHours?.mondayHours,
+        workingHours?.tuesdayHours,
+        workingHours?.wednesdayHours,
+        workingHours?.thursdayHours,
+        workingHours?.fridayHours,
+        workingHours?.saturdayHours,
+        workingHours?.sundayHours
+      ];
+      return days.reduce((count, val) => count + ((typeof val === 'number' && val > 0) ? 1 : 0), 0);
+    })();
+    
     return [
       {
         label: "Weekly Hours",
-        value: workingHours?.weeklyHours?.toString() || ''
+        value:computedWeeklyHours.toString() || ''
       },
       {
         label: "FTE (Full-Time Equivalent)",
-        value: employee.fullTimeEquivalent?.toString() || ''
+        value: (workingHours?.fullTimeEquivalent !== undefined && workingHours?.fullTimeEquivalent !== null)
+          ? workingHours.fullTimeEquivalent.toString()
+          : ''
       },
       {
         label: "Days per Week",
-        value: workingHours?.weeklyDays?.toString() || ''
+        value: computedWeeklyDays.toString() || ''
       }
     ];
   };
