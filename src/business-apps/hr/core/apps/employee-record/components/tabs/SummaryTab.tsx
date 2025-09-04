@@ -114,7 +114,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
     }));
   }, [employee.employeePosition]);
 
-    // Map real team members from GraphQL data
+    // Calculate total weekly working hours from daily hours data
     const computedWorkingHours = useMemo(() => {
       const wh = employee.workingHours?.[0];
       const hours = [
