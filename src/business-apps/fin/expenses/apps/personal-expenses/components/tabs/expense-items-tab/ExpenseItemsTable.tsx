@@ -30,6 +30,7 @@ import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import { startProcess } from '@/common/utils/start-process';
 import { notification } from 'antd';
+import { formatCurrencyDisplay } from '../../../utils';
 
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable';
@@ -325,6 +326,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           if (filters.length === 0) {
             // Clear all filters including amount range
             clearFilters();
+            // Also clear the search state when clearing all filters
+            setSearch('');
           } else {
             // Handle individual filter removal - find which filters were removed and remove them
             const removedFilters = allSelectedFilters.filter(f => !filters.includes(f));
@@ -577,7 +580,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
                             <span data-testid="expense-amount-cell">
-                              {formatNumberFunction(String(record.reimbursableAmount ?? '0'))} {record.currency?.code || ''}
+                              {formatCurrencyDisplay(record.reimbursableAmount ?? '0', record.currency?.code)}
                             </span>
                           </TableCell>
                         </TableRow>

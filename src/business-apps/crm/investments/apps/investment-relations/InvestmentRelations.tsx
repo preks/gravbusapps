@@ -7,9 +7,9 @@ import {
   Contact as ContactIcon,
   BarChart3,
 } from "lucide-react";
-import { TrendUp } from "@phosphor-icons/react";
+import { TrendUpIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-
+import { MODULE_COLORS } from "@/common/constants/ui";
 import { LeadView } from "./views/lead-view";
 import { AccountView } from "./views/account-view";
 import { ContactView } from "./views/contact-view";
@@ -18,12 +18,47 @@ import { AnalyticsView } from "./views/analytics-view";
 import { DashboardView } from "./views/dashboard-view";
 import { TaskView } from "./views/task-view";
 import { navigateTo } from "@/common/utils/navigationUtils";
+import { useDashboardQueries } from "./views/dashboard-view/queries/DashboardQueries";
+import { PipelineInfo } from "./views/dashboard-view/types/dashboardTypes";
+
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
+
+const moduleVariant = MODULE_COLORS.IRM;
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   context
 ) => {
+  const { fetchPipelines } = useDashboardQueries(context);
+  const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
+  const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    return { startDate: start, endDate: end };
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const entries = await fetchPipelines();
+        if (!mounted) return;
+        const mapped: PipelineInfo[] = (entries || []).map((e: any) => ({
+          id: e.id,
+          name: e.value,
+          ref: e.id, // prefer id; queries also accept code
+          description: e.description,
+        }));
+        setPipelines(mapped);
+      } catch {
+        // ignore; UI handles empty gracefully
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [fetchPipelines]);
   const viewOptions = [
     {
       key: "dashboard",
@@ -131,10 +166,9 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
         return (
           <div data-testid="dashboard-tab-content">
             <DashboardView
-              accessToken={context.accessToken}
-              userInfo={context.userInfo}
-              pipelines={[]}
-              dateRange={{ startDate: new Date(), endDate: new Date() }}
+              pipelines={pipelines}
+              dateRange={dateRange}
+              {...context}
             />
           </div>
         );
@@ -183,12 +217,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   return (
     <div data-testid="investment-relations-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: TrendUp,
-          variant: "premium",
-          size: "lg",
-          label: "Investment Relations",
-        }}
+        headerIcon={TrendUpIcon}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
         headerContent={
@@ -209,6 +238,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             icon: option.icon,
           })),
         }}
+        variant={moduleVariant}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

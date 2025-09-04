@@ -92,11 +92,11 @@ const { t } = useTranslation();
     lastUploadTimestampRef.current = now;
     setIsHandlingUpload(true);
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       handleFileUpload(files).finally(() => {
         setIsHandlingUpload(false);
       });
-    }, 0);
+    });
   }, [handleFileUpload, isHandlingUpload, isProcessingFiles]);
 
   const handleModalConfirm = useCallback((keepExisting: boolean) => {

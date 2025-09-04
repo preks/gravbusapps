@@ -7,6 +7,7 @@ export { usePipelines } from './usePipelines';
 export { useOpportunityTrendData } from './useOpportunityTrendData';
 export { useOpportunitiesOverTime } from './useOpportunitiesOverTime';
 export { useContactsOverTime } from './useContactsOverTime';
+export { useLeadsTrendData } from './useLeadsTrendData';
 
 export type { RevenueTrendData } from './useRevenueTrends';
 export type { PipelineHealthData } from './usePipelineHealth';
