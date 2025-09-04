@@ -21,7 +21,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@newwork/gravity-ui-catalog": "^7.10.11",
-    "@newwork/nw-design-system": "^0.0.1-168",
+    "@newwork/nw-design-system": "^0.0.1-178",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.26.1",
     "clsx": "^2.1.1",
@@ -69,8 +69,8 @@
     "http-server": "^14.1.1",
     "postcss": "^8.5.5",
     "tw-animate-css": "^1.3.6",
-    "uuid": "^10.0.0",
     "typescript-eslint": "^8.11.0",
+    "uuid": "^10.0.0",
     "vite": "^6.3.5",
     "webpack-manifest-plugin": "^5.0.1",
     "yargs": "^17.7.2"

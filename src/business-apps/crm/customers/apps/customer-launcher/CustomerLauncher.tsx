@@ -25,7 +25,8 @@ import { startProcess } from "@/common/utils/start-process";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import * as RemixIcons from "@remixicon/react";
 // Import PhosphorIcons for LauncherLayout
-import { Users } from "@phosphor-icons/react";
+import { UsersIcon } from "@phosphor-icons/react";
+import { MODULE_COLORS } from "@/common/constants/ui";
 
 interface CustomerLauncherProps extends BusinessAppContextProps {}
 
@@ -45,6 +46,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
     return new Intl.NumberFormat("en-US").format(num);
   };
 
+  const moduleVariant = MODULE_COLORS.CRM;
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
     if (error) return [];
@@ -77,8 +79,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
       id: action.id,
       label: action.label,
       icon: action.icon, // Now directly using PhosphorIcon components
-      onClick: () => handleQuickAction(action),
-      variant: "secondary",
+      onClick: () => handleQuickAction(action)
     }));
   }, []);
 
@@ -308,20 +309,6 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
 
       const actions = getAreaActions(area.id);
 
-      // Get variant based on category
-      const getVariant = (category: string) => {
-        switch (category) {
-          case "sales":
-            return "ext1";
-          case "customer":
-            return "ext2";
-          case "intelligence":
-            return "ext3";
-          default:
-            return "default";
-        }
-      };
-
       return {
         id: area.id,
         title: area.title,
@@ -333,7 +320,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
           label: "View Details",
           onClick: () => handleNavigationClick(area),
         },
-        variant: getVariant(area.category),
+        variant: moduleVariant,
       };
     });
 
@@ -449,12 +436,13 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
     <LauncherLayout
       title="Customer Relationship Management Hub"
       description="Comprehensive customer management, sales pipeline, and relationship intelligence"
-      icon={Users}
+      icon={UsersIcon}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used CRM functions and shortcuts"
+      variant={moduleVariant}
     />
   );
 };

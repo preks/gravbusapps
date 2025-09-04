@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
-import { PiGauge, PiMoney, PiHandCoins, PiWalletDuotone } from 'react-icons/pi';
+import { GaugeIcon, MoneyIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react';
+
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -16,23 +17,27 @@ import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab/Expense
 import ExpenseRequestTab from './components/tabs/expence-requests-tab/ExpenseRequestTab';
 import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePaymentTab';
 
+import { MODULE_COLORS } from '@/common/constants/ui';
+
+const moduleVariant = MODULE_COLORS.FIN;
+
 interface BackofficeExpensesProps extends BusinessAppContextProps {}
 
 const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <PiGauge className="gba:w-5 gba:h-5" />,
+      icon: <GaugeIcon className="gba:w-5 gba:h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard')
     },
     {
       key: 'expense-requests',
-      icon: <PiMoney className="gba:w-5 gba:h-5" />,
+      icon: <MoneyIcon className="gba:w-5 gba:h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
     },
     {
       key: 'advance-payments',
-      icon: <PiHandCoins className="gba:w-5 gba:h-5" />,
+      icon: <HandCoinsIcon className="gba:w-5 gba:h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')
     }
   ];
@@ -95,7 +100,7 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
   return (
     <div data-testid="backoffice-expenses-container">
       <PageLayout
-        headerIcon={<PiWalletDuotone className="gba:w-6 gba:h-6 gba:text-purple-600" />}
+        headerIcon={WalletIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.expense_management_title', 'Expense Management')}
         headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.expense_management_subheader', 'Manage backoffice expenses, track expense requests, and advance payments')}
         headerSubViews={{
@@ -107,6 +112,7 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
             icon: option.icon
           }))
         }}
+        variant={moduleVariant}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">

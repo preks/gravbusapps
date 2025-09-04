@@ -63,13 +63,13 @@ export const useContactsOverTime = ({
         // Calculate this month and last month date ranges
         const now = new Date();
         const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
         const lastMonthStart = new Date(
           now.getFullYear(),
           now.getMonth() - 1,
           1
         );
-        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
         const query = `
           query GetContactsOverTime(
@@ -198,7 +198,7 @@ export const useContactsOverTime = ({
 
         // Calculate metrics using aggregate results
         const total = result.totalNumberOfContacts?.aggregate?.count || 0;
-        const totalLastMonth = result.lastMonthContacts?.aggregate?.count || 0;
+        const totalLastMonth = result.totalLastMonthContacts?.aggregate?.count || 0;
         const thisMonth = result.thisMonthContacts?.aggregate?.count || 0;
         const lastMonth = result.lastMonthContacts?.aggregate?.count || 0;
 
