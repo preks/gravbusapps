@@ -399,7 +399,6 @@ export const handleSubmit = async (
         })),
       },
     };
-
     let operationSuccessful = false;
     
     if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {

@@ -249,6 +249,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   };
 
   const handleAmountBlur = () => {
+
     const currentValue = form.getFieldValue('amount');
     if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
       return;
@@ -367,7 +368,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         EVENTS.NEXT,
         skipStep
       );
-      
       dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
   };
@@ -447,9 +447,27 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                     )}
                     data-testid="payment-amount-input"
                     onChange={(field) => {
-                      const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
-                      form.setFieldsValue({ amount: formattedValue });
-                      handleAmountChange(field);
+                      const prev = amount || '';
+                      const nextRaw = String(field.value);
+                      const isZeroVariant = (v: string) => {
+                        const digits = String(v).replace(/\D/g, '');
+                        return digits.length > 0 && /^0+$/.test(digits);
+                      };
+                      let value = isZeroVariant(prev)
+                        ? nextRaw.replace(/^[0.,]+/, '')
+                        : nextRaw;
+                      if (/^0+\d+$/.test(value)) {
+                        value = value.replace(/^0+/, '');
+                      }
+                      if (value.includes('.') || value.includes(',')) {
+                        const sep = value.includes('.') ? '.' : ',';
+                        const parts = value.split(sep);
+                        if (parts[1] && parts[1].length > 2) {
+                          value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`;
+                        }
+                      }
+                      form.setFieldsValue({ amount: value });
+                      handleAmountChange({ ...field, value });
                     }}
                     onBlur={handleAmountBlur}
                     required={true}
