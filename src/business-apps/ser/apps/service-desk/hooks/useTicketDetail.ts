@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { StepInstance } from 'packages/services-plus-core';
-import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
 import { createConductorWorkflowEngine } from '../../../services';
 
 export interface UseTicketDetailProps {
@@ -39,10 +38,12 @@ export const useTicketDetail = ({
         hasUserInfo: !!userInfo,
       });
 
-      // Use real workflow engine if authenticated, otherwise fall back to mock for development
-      const workflowEngine = accessToken && userInfo
-        ? createConductorWorkflowEngine({ accessToken, userInfo })
-        : getWorkflowEngine();
+      // Use real workflow engine - requires authentication
+      if (!accessToken || !userInfo) {
+        throw new Error('Authentication required - no access token or user info provided');
+      }
+      
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
 
       console.log(`🎯 [useTicketDetail] *** CALLING getTicketDetail for: ${ticketId} ***`);
       console.log(`🎯 [useTicketDetail] Using ${workflowEngine.constructor.name} for ticket details`);

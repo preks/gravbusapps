@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Eye, User, MagnifyingGlass, Funnel, Calendar, Clock, Warning, UserPlus, UserMinus } from '@phosphor-icons/react';
+import { Bug } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepReceiver, StepInstance, TicketStatus } from 'packages/services-plus-core';
+import type { StepReceiver, StepInstance, TicketStatus, StepStatus } from 'packages/services-plus-core';
 import { formatRequestId } from '../../../utils'; // ✨ Import formatRequestId utility
 import { TicketDetail } from './TicketDetail';
+import { DebugFlowModal } from './DebugFlowModal';
 import { useDeskTickets } from '../hooks/useDeskTickets';
 import { useTicketActions } from '../hooks/useTicketActions';
-import { setWorkflowEngineCurrentUser } from '../../../services/workflowEngineProvider';
-import { UserDisplayName } from '../../../components/UserDisplayName';
+import { EmployeeDisplayName } from './EmployeeDisplayName';
 // Note: DebouncedInput would be preferred but using Input with onChange for now
 
 // UI Components - TODO: Replace with @newwork/nw-design-system when available
@@ -78,13 +79,17 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(ticketId || null);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState<boolean>(!!ticketId);
 
+  // Debug modal state for development
+  const [debugTicket, setDebugTicket] = useState<StepInstance | null>(null);
+  const [isDebugModalOpen, setIsDebugModalOpen] = useState<boolean>(false);
+
   // Filter and search state
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Fetch tickets for this desk
-  const { tickets, isLoading, error, refetch } = useDeskTickets({
+  const { tickets, isLoading, refetch } = useDeskTickets({
     deskKey,
     accessToken,
     userInfo,
@@ -126,12 +131,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
 
   const currentUserId = userInfo?.employeeDetails?.employeeId;
 
-  // Ensure mock engine uses the logged-in user's ID for actions
-  useEffect(() => {
-    if (currentUserId) {
-      setWorkflowEngineCurrentUser(currentUserId);
-    }
-  }, [currentUserId]);
 
   // Handle claim ticket with optimistic update
   const handleClaimTicket = async (ticket: StepInstance) => {
@@ -145,7 +144,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       ...prev,
       [ticket.id]: {
         claimedByUserId: currentUserId,
-        status: 'claimed' as TicketStatus
+        status: 'claimed' as StepStatus
       }
     }));
 
@@ -177,7 +176,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       [ticket.id]: {
         claimedByUserId: undefined,
         assignedToUserId: undefined,
-        status: 'queued' as TicketStatus
+        status: 'queued' as StepStatus
       }
     }));
 
@@ -275,7 +274,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     setIsDetailDrawerOpen(true);
     
     // Update URL to reflect ticket detail view
-    const url = new URL(window.location.href);
     const newPath = `/desk/${deskKey}/tickets/${ticket.id}`;
     window.history.pushState({}, '', newPath);
   };
@@ -288,6 +286,20 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     // Update URL to go back to queue
     const newPath = `/desk/${deskKey}`;
     window.history.pushState({}, '', newPath);
+  };
+
+  // Handle debug modal open
+  const handleOpenDebugModal = (ticket: StepInstance) => {
+    setDebugTicket(ticket);
+    setIsDebugModalOpen(true);
+    console.log(`[DeskQueue] 🔍 Opening debug modal for ticket: ${ticket.id}`);
+  };
+
+  // Handle debug modal close
+  const handleCloseDebugModal = () => {
+    setIsDebugModalOpen(false);
+    setDebugTicket(null);
+    console.log(`[DeskQueue] ❌ Closing debug modal`);
   };
 
   // Get status color for badges/tags
@@ -339,15 +351,12 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       key: 'requesterId',
       width: 120,
       render: (requesterId: string, record: StepInstance) => {
-        // Always use UserDisplayName for consistent UI and user resolution
+        // Use EmployeeDisplayName to get user names from Employee table
         return (
-          <UserDisplayName
+          <EmployeeDisplayName
             userId={requesterId}
             accessToken={accessToken}
-            userInfo={userInfo}
             showIcon={true}
-            color="default"
-            size="small"
             fallback={record.requesterName || "Unknown User"}
             testId={`requester-${record.id}`}
           />
@@ -427,26 +436,21 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       render: (assignedToUserId: string | undefined, record: StepInstance) => {
         if (assignedToUserId) {
           return (
-            <UserDisplayName
+            <EmployeeDisplayName
               userId={assignedToUserId}
               accessToken={accessToken}
-              userInfo={userInfo}
               showIcon={true}
-              color="blue"
-              size="small"
+              fallback="Assigned User"
               testId={`assigned-user-${record.id}`}
             />
           );
         }
         if (record.claimedByUserId) {
           return (
-            <UserDisplayName
+            <EmployeeDisplayName
               userId={record.claimedByUserId}
               accessToken={accessToken}
-              userInfo={userInfo}
               showIcon={true}
-              color="orange"
-              size="small"
               fallback="Claimed User"
               testId={`claimed-user-${record.id}`}
             />
@@ -478,6 +482,28 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
               </div>
             </div>
           </div>
+        );
+      },
+    },
+    {
+      title: getTranslationFromI18nKeyAndLabel('services.queue.columns.debug', 'Debug'),
+      key: 'debug',
+      width: 80,
+      render: (_: unknown, record: StepInstance) => {
+        return (
+          <Button
+            type="default"
+            size="small"
+            icon={<Bug className="gba:w-3 gba:h-3" />}
+            onClick={() => handleOpenDebugModal(record)}
+            data-testid={`debug-ticket-${record.id}`}
+            className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-purple-300 gba:text-purple-600 hover:gba:border-purple-500 hover:gba:text-purple-700"
+            title={getTranslationFromI18nKeyAndLabel('services.queue.actions.debug.tooltip', 'Show debug data from flow engine')}
+          >
+            <span className="gba:hidden md:gba:inline">
+              {getTranslationFromI18nKeyAndLabel('services.queue.actions.debug', 'Debug')}
+            </span>
+          </Button>
         );
       },
     },
@@ -695,7 +721,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           dataSource={filteredTickets}
           loading={isLoading}
           rowKey="id"
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
@@ -773,6 +799,16 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           />
         )}
       </Drawer>
+
+      {/* Debug Flow Modal - Development Tool */}
+      <DebugFlowModal
+        ticket={debugTicket}
+        deskKey={deskKey}
+        isOpen={isDebugModalOpen}
+        onClose={handleCloseDebugModal}
+        accessToken={accessToken}
+        userInfo={userInfo}
+      />
     </div>
   );
 };

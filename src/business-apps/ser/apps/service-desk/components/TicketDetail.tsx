@@ -14,7 +14,7 @@ import type { StepReceiver, StepInstance, Comment, StepStatus, SubmittedRequest 
 import { formatRequestId } from '../../../utils'; // ✅ Import utilities
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
-import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../../../services';
 import { TaskForm, type TaskFormField } from './TaskForm';
 
 const { Text, Title, Paragraph } = Typography;
@@ -142,12 +142,11 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
       
       setIsLoadingRequest(true);
       try {
-        const workflowEngine = getWorkflowEngine({ 
-          currentUserId: currentUserId || 'default-user',
-          accessToken: accessToken || '',
-          activeUserLocale: 'en',
-          activeStructureId: 'default'
-        } as BusinessAppContextProps);
+        if (!accessToken || !userInfo) {
+          throw new Error('Authentication required - no access token or user info provided');
+        }
+        
+        const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
         const request = await workflowEngine.getRequest(ticket.requestId);
         setOverallRequest(request);
       } catch (err) {

@@ -2,6 +2,8 @@ export { DeskQueue } from './DeskQueue';
 export { TicketDetail } from './TicketDetail';
 export { ServiceDeskDiagnostic } from './ServiceDeskDiagnostic';
 export { TemplatesTab } from './TemplatesTab';
+export { EmployeeDisplayName } from './EmployeeDisplayName';
+export { DebugFlowModal } from './DebugFlowModal';
 export { DeskAccessGuard } from '../../../components/DeskAccessGuard';
 export { UserDisplayName } from '../../../components/UserDisplayName';
 export type { DeskQueueProps } from './DeskQueue';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getWorkflowEngine } from '../../../services/workflowEngineProvider';
+import { createConductorWorkflowEngine } from '../../../services';
 
 export interface Template {
   id: string;
@@ -90,7 +90,14 @@ export const useTemplates = (
         search: currentSearch
       });
 
-      const workflowEngine = getWorkflowEngine(context);
+      if (!context.accessToken || !context.userInfo) {
+        throw new Error('Authentication required - no access token or user info provided');
+      }
+      
+      const workflowEngine = createConductorWorkflowEngine({ 
+        accessToken: context.accessToken, 
+        userInfo: context.userInfo 
+      });
       
       // Check if templates functionality is available (optional method)
       if (!workflowEngine.getTemplates || typeof workflowEngine.getTemplates !== 'function') {

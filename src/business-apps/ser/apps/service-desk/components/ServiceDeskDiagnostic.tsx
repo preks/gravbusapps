@@ -27,9 +27,9 @@ export const ServiceDeskDiagnostic: React.FC<ServiceDeskDiagnosticProps> = ({
   };
 
   const handleClearCache = () => {
-    // Clear sessionStorage data used by mock engine
+    // Clear any service-related sessionStorage data
     Object.keys(sessionStorage).forEach(key => {
-      if (key.startsWith('services-plus-mock-')) {
+      if (key.startsWith('services-plus-')) {
         sessionStorage.removeItem(key);
       }
     });
