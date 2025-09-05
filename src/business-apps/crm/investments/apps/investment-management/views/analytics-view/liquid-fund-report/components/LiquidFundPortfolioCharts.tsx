@@ -12,7 +12,7 @@ import {
   ComposedChart,
   Line
 } from 'recharts';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency } from '@/common/data/investment';
 
 interface PortfolioChartsProps {
   accountConcentrationData: any[];

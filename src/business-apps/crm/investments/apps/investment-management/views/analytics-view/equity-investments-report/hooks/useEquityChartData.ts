@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { EnhancedEquityInvestmentSummary } from './useEquityInvestmentIntegration';
+import { EquityInvestmentSummary } from '../EquityInvestmentsReport';
 
-export const useEquityChartData = (equityInvestments: EnhancedEquityInvestmentSummary[]) => {
+export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[]) => {
   return useMemo(() => {
     // Investment role distribution data (using default role since it's not in centralized structure)
     const roleData = equityInvestments.reduce((acc, equity) => {

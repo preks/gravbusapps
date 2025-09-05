@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { Button } from '@newwork/nw-design-system';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
@@ -10,9 +10,80 @@ import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useEquityInvestmentIntegration, useEquityChartData } from './hooks';
+import { useGetInvestments } from '@/common/data/investment';
+import type { Investment, EquityInvestment } from '@/common/data/investment';
+import { useEquityChartData } from './hooks';
 import { formatCurrency, formatNumber, formatPercentage } from './utils';
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components';
+
+// Equity Investment Summary interface (moved from separate hook)
+export interface EquityInvestmentSummary {
+  id: string;
+  investment: Investment;
+  equityInvestment?: EquityInvestment;
+  displayName: string;
+  statusColor: string;
+  riskLevelColor: string;
+  currencyCode: string;
+  roi: number;
+  isActive: boolean;
+  ebitdaMargin: number;
+  roleColor: string;
+}
+
+export interface EquityInvestmentKPIs {
+  totalEquityValue: number;
+  averageCompanyValuation: number;
+  totalEbitda: number;
+  numberOfEquityInvestments: number;
+}
+
+// Utility functions (moved from separate hook)
+const extractCurrencyCode = (currency: any): string => {
+  if (!currency) return 'EUR';
+  
+  let currencyValue = currency.description || currency.code || currency.id || currency.name || currency;
+  
+  if (typeof currencyValue === 'string') {
+    if (currencyValue.includes(':')) {
+      const parts = currencyValue.split(':');
+      return parts[parts.length - 1] || 'EUR';
+    }
+    
+    if (currencyValue.length === 3) {
+      return currencyValue.toUpperCase();
+    }
+  }
+  
+  return 'EUR';
+};
+
+const getStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active': return 'green';
+    case 'inactive': return 'red';
+    case 'pending': return 'orange';
+    default: return 'blue';
+  }
+};
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low': return 'green';
+    case 'medium': return 'orange';
+    case 'high': return 'red';
+    default: return 'blue';
+  }
+};
+
+const getRoleColor = (role: string): string => {
+  switch (role?.toLowerCase()) {
+    case 'lead': return 'purple';
+    case 'co-investor': return 'blue';
+    case 'minority': return 'green';
+    default: return 'gray';
+  }
+};
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -22,7 +93,101 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport';
   const [activeTab, setActiveTab] = useState('overview');
   
-  const { equityInvestments, kpis, isLoading, error, refetch } = useEquityInvestmentIntegration(props);
+  const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([]);
+  const [kpis, setKpis] = useState<EquityInvestmentKPIs>({
+    totalEquityValue: 0,
+    averageCompanyValuation: 0,
+    totalEbitda: 0,
+    numberOfEquityInvestments: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { fetchInvestments } = useGetInvestments(props);
+
+  // Transform equity data
+  const transformEquityData = useCallback((investments: Investment[]): EquityInvestmentSummary[] => {
+    return investments
+      .filter(investment => investment.equityInvestment && Object.keys(investment.equityInvestment).length > 0)
+      .map(investment => {
+        const equityInvestment = investment.equityInvestment!;
+        const bookValue = investment.bookValue || 0;
+        const marketValue = investment.investmentMarketValue || bookValue;
+        const roi = bookValue > 0 ? ((marketValue - bookValue) / bookValue) * 100 : 0;
+        
+        return {
+          id: equityInvestment.id,
+          investment,
+          equityInvestment,
+          displayName: investment.displayName || investment.name || equityInvestment.companyName || 'Unknown Equity',
+          statusColor: getStatusColor(investment.investmentStatus?.value || ''),
+          riskLevelColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
+          currencyCode: extractCurrencyCode(investment.currency),
+          roi,
+          isActive: investment.investmentStatus?.value?.toLowerCase() === 'active',
+          ebitdaMargin: equityInvestment.ebitdaMargin || 0,
+          roleColor: getRoleColor(equityInvestment.investmentRole?.value || '')
+        };
+      });
+  }, []);
+
+  // Calculate KPIs
+  const calculateKPIs = useCallback((equityInvestments: EquityInvestmentSummary[]): EquityInvestmentKPIs => {
+    const totalEquityValue = equityInvestments.reduce((sum, equity) => 
+      sum + (equity.investment.investmentMarketValue || equity.investment.bookValue || 0), 0
+    );
+    
+    const totalCompanyValuation = equityInvestments.reduce((sum, equity) => 
+      sum + (equity.equityInvestment?.companyValuation || 0), 0
+    );
+    const averageCompanyValuation = equityInvestments.length > 0 ? totalCompanyValuation / equityInvestments.length : 0;
+    
+    const totalEbitda = equityInvestments.reduce((sum, equity) => 
+      sum + (equity.equityInvestment?.ebitda || 0), 0
+    );
+
+    return {
+      totalEquityValue,
+      averageCompanyValuation,
+      totalEbitda,
+      numberOfEquityInvestments: equityInvestments.length
+    };
+  }, []);
+
+  // Load data function
+  const loadData = useCallback(async () => {
+    if (!props.accessToken) {
+      setError('Access token not available');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const result = await fetchInvestments();
+      const enhancedEquityInvestments = transformEquityData(result.Investment);
+      const calculatedKPIs = calculateKPIs(enhancedEquityInvestments);
+      
+      setEquityInvestments(enhancedEquityInvestments);
+      setKpis(calculatedKPIs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [props.accessToken, fetchInvestments, transformEquityData, calculateKPIs]);
+
+  // Load data on mount and when access token changes
+  useEffect(() => {
+    if (props.accessToken) {
+      loadData();
+    }
+  }, [props.accessToken, loadData]);
+
+  // Refetch function for error retry
+  const refetch = loadData;
   const chartData = useEquityChartData(equityInvestments);
 
   if (isLoading) {

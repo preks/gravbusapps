@@ -11,6 +11,11 @@ import {
   LiquidFundInvestment
 } from '../types';
 
+// Extract currency code from currency reference
+const extractCurrencyCode = (currencyId: string): string => {
+  return currencyId?.split(':').pop() || 'EUR';
+};
+
 /**
  * Transform BaseInvestment (GraphQL response) to Investment (enhanced with computed fields)
  */
@@ -89,3 +94,14 @@ export function toLiquidFundInvestment(base: BaseLiquidFundInvestment): LiquidFu
     interestPaymentFrequencyLabel
   };
 }
+
+// Note: Enhanced mapper removed - use base toLiquidFundInvestment instead
+
+/**
+ * Transform array of liquid fund investments
+ */
+export function toLiquidFundInvestments(baseLiquidFunds: BaseLiquidFundInvestment[]): LiquidFundInvestment[] {
+  return baseLiquidFunds.map(toLiquidFundInvestment);
+}
+
+// Note: Enhanced array mapper removed - use base toLiquidFundInvestments instead

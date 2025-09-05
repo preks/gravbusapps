@@ -1,6 +1,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { INVESTMENT_REF } from './investmentFragments';
 
 export const INVESTMENT_LEAD = `
         id
@@ -224,7 +225,6 @@ export const INVESTMENT_TASK = `
     code
     name
     description
-    comment
     startDate
     dueDate
     endDate
@@ -248,6 +248,11 @@ export const INVESTMENT_TASK = `
     }
     assignedEmployee {
       ${EMPLOYEE_REF}
+    }
+
+    # Entity references
+    investment {
+      ${INVESTMENT_REF}
     }
 
     # User references
@@ -274,6 +279,9 @@ export const INVESTMENT_ACTIVITY = `
     }
     
     # Entity references
+    investment {
+      ${INVESTMENT_REF}
+    }
     account {
       ${INVESTMENT_ACCOUNT_REF}
     }
@@ -298,6 +306,11 @@ export const INVESTMENT_NOTE = `
     # Employee references
     authorEmployee {
       ${EMPLOYEE_REF}
+    }
+    
+    # Entity references
+    investment {
+      ${INVESTMENT_REF}
     }
 `;
 

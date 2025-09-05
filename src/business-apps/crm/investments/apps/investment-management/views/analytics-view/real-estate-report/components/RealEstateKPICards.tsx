@@ -3,7 +3,7 @@ import { Card, Typography } from 'antd';
 import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment';
 
 const { Text } = Typography;
 

@@ -75,7 +75,6 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
       "real-estate",
       "private-equity",
       "liquid-funds",
-      "liquid-portfolio",
     ];
     if (subViewFromUrl && valid.includes(subViewFromUrl)) {
       return subViewFromUrl;

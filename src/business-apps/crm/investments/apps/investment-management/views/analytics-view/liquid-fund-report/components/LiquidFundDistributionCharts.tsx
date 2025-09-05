@@ -8,7 +8,7 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
-import { renderCustomizedLabel, CHART_COLORS } from '../utils/formatters';
+// Note: This component uses its own COLORS array instead of shared chart utilities
 
 const COLORS = [
   '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', 
@@ -43,7 +43,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -53,7 +53,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name, props) => [
+              formatter={(value, _name, _props) => [
                 `${value} funds (${((value as number / paymentFrequencyData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
@@ -72,7 +72,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -82,7 +82,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name, props) => [
+              formatter={(value, _name, _props) => [
                 `${value} funds (${((value as number / earlyTerminationData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
@@ -101,7 +101,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -111,7 +111,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name, props) => [
+              formatter={(value, _name, _props) => [
                 `${value} investments (${((value as number / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
@@ -130,7 +130,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -140,7 +140,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name, props) => [
+              formatter={(value, _name, _props) => [
                 `${value} investments (${((value as number / phaseData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
@@ -159,7 +159,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -169,7 +169,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name, props) => [
+              formatter={(value, _name, _props) => [
                 `${value} investments (${((value as number / riskLevelData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
@@ -188,7 +188,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }) => percent ? `${name}: ${(percent * 100).toFixed(0)}%` : name}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -198,7 +198,7 @@ export const LiquidFundDistributionCharts: React.FC<DistributionChartsProps> = (
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value, name) => [
+              formatter={(value, _name) => [
                 `${value} investments`,
                 'Count'
               ]}

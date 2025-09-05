@@ -13,7 +13,8 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
-import { formatCurrency, formatPercentage, renderLineTooltip, CHART_COLORS } from '../utils/formatters';
+import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import { renderLineTooltip, CHART_COLORS } from '../utils';
 
 interface PortfolioTimelineChartsProps {
   performanceTimelineData: any[];
