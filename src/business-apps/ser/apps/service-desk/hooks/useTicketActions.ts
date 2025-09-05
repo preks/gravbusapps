@@ -12,9 +12,13 @@ export interface UseTicketActionsProps {
 
 export interface UseTicketActionsReturn {
   claimTicket: (stepId: string) => Promise<void>;
+  unclaimTicket: (stepId: string, comment?: string) => Promise<void>;
   assignTicket: (stepId: string, userId: string) => Promise<void>;
+  completeTicket: (stepId: string, payload?: any) => Promise<void>;
+  rejectTicket: (stepId: string, reason: string) => Promise<void>;
   advanceTicket: (stepId: string, payload?: any) => Promise<void>;
   addComment: (stepId: string, body: string) => Promise<Comment>;
+  isLoading: boolean;
   isPerformingAction: boolean;
 }
 
@@ -82,6 +86,33 @@ export const useTicketActions = ({
     });
   };
 
+  const unclaimTicket = async (stepId: string, comment?: string): Promise<void> => {
+    return handleAction('unclaim ticket', async () => {
+      const workflowEngine = getEngine();
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** UNCLAIMING TICKET: ${stepId} by user: ${userId} ***`);
+      await workflowEngine.unclaim(stepId, userId, comment);
+    });
+  };
+
+  const completeTicket = async (stepId: string, payload?: any): Promise<void> => {
+    return handleAction('complete ticket', async () => {
+      const workflowEngine = getEngine();
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** COMPLETING TICKET: ${stepId} by user: ${userId} ***`, payload ? 'with form data' : 'without form data');
+      await workflowEngine.advance(stepId, userId, payload, 'Completed via Service Desk');
+    });
+  };
+
+  const rejectTicket = async (stepId: string, reason: string): Promise<void> => {
+    return handleAction('reject ticket', async () => {
+      const workflowEngine = getEngine();
+      const userId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** REJECTING TICKET: ${stepId} by user: ${userId} with reason: ${reason} ***`);
+      await workflowEngine.reject(stepId, userId, reason);
+    });
+  };
+
   const addComment = async (stepId: string, body: string): Promise<Comment> => {
     return handleAction('add comment', async () => {
       const workflowEngine = getEngine();
@@ -93,9 +124,13 @@ export const useTicketActions = ({
 
   return {
     claimTicket,
+    unclaimTicket,
     assignTicket,
+    completeTicket,
+    rejectTicket,
     advanceTicket,
     addComment,
+    isLoading: isPerformingAction, // Alias for backward compatibility
     isPerformingAction,
   };
 };

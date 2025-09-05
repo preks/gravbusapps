@@ -50,9 +50,11 @@ export type Comment = {
   id: string;
   stepId: string;
   authorId: string;
+  authorName?: string;
   createdAt: string;
   body: string;
   visibility: 'current_and_downstream';
+  action?: string; // Action that triggered this comment (COMMENT, COMPLETE, REJECT, etc.)
 };
 
 export type StepInstance = {
@@ -62,11 +64,17 @@ export type StepInstance = {
   desk: StepReceiver;
   status: StepStatus;
   assignedToUserId?: string;
+  assignedToUserName?: string;
   claimedByUserId?: string;
+  claimedByUserName?: string;
   startedAt?: string;
+  updatedAt?: string;
   finishedAt?: string;
   comments: Comment[];
   requestId: string; // backlink
+  workflowId?: string; // workflow identifier
+  requesterId?: string; // who originally requested the parent flow (for Service Desk display)
+  requesterName?: string; // name of the person who originally requested the parent flow
   
   // Additional rich data fields for detailed display
   description?: string;

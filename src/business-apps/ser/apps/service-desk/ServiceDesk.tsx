@@ -5,6 +5,7 @@ import { useFeature } from '@/common/hooks/useFeature';
 import type { StepReceiver } from 'packages/services-plus-core';
 import { DeskQueue } from './components/DeskQueue';
 import { TemplatesTab } from './components/TemplatesTab';
+import { TaskRecord } from './components/TaskRecord';
 import { useUserCapabilities } from './hooks/useUserCapabilities';
 import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
 
@@ -21,19 +22,38 @@ export interface ServiceDeskProps extends BusinessAppContextProps {
   ticketId?: string;
 }
 
+// Parse URL parameters for deskKey and ticketId
+const parseUrlParams = () => {
+  const path = window.location.pathname;
+  // Match patterns like /desk/IT or /desk/IT/task/123
+  const deskMatch = path.match(/\/desk\/([^\/]+)/);
+  const taskMatch = path.match(/\/desk\/[^\/]+\/task\/([^\/]+)/);
+  
+  return {
+    deskKeyFromUrl: deskMatch ? deskMatch[1] : null,
+    ticketIdFromUrl: taskMatch ? taskMatch[1] : null,
+  };
+};
+
 const ServiceDesk: React.FC<ServiceDeskProps> = ({
   accessToken,
   userInfo,
   deskKey,
   ticketId,
 }) => {
+
+  const { deskKeyFromUrl, ticketIdFromUrl } = parseUrlParams();
+  const resolvedDeskKey = deskKey || deskKeyFromUrl || '';
+  const resolvedTicketId = ticketId || ticketIdFromUrl || null;
+
   // Feature flag guard - default to enabled for development
   const servicesFeature = useFeature<boolean>('SERVICES_PLUS_ENABLED');
   const isServicesEnabled = servicesFeature !== false; // true if undefined (development) or true
   
   // Tab state management with URL parameter support
-  const [activeTab, setActiveTab] = useState<string>(deskKey || '');
+  const [activeTab, setActiveTab] = useState<string>(resolvedDeskKey);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(resolvedTicketId);
   
   // Get user capabilities to determine available desks
   const { capabilities, isLoading: capabilitiesLoading, error: capabilitiesError } = useUserCapabilities({
@@ -41,18 +61,79 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     userInfo,
   });
 
-  // Update tab from URL parameter
+  // Update tab and task from URL parameters
   useEffect(() => {
-    if (deskKey) {
-      setActiveTab(deskKey);
+    if (resolvedDeskKey) {
+      setActiveTab(resolvedDeskKey);
     }
-  }, [deskKey]);
+    if (resolvedTicketId) {
+      setSelectedTaskId(resolvedTicketId);
+    }
+    
+    // Ensure app parameter is set on component load
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('app')) {
+      url.searchParams.set('app', 'ServiceDesk');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [resolvedDeskKey, resolvedTicketId]);
+
+  // Handle browser navigation (back/forward/refresh)
+  useEffect(() => {
+    const handlePopState = () => {
+      const { deskKeyFromUrl, ticketIdFromUrl } = parseUrlParams();
+      if (deskKeyFromUrl) {
+        setActiveTab(deskKeyFromUrl);
+      }
+      if (ticketIdFromUrl) {
+        setSelectedTaskId(ticketIdFromUrl);
+      } else {
+        setSelectedTaskId(null);
+      }
+      
+      // Ensure app parameter is preserved on browser navigation
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('app')) {
+        url.searchParams.set('app', 'ServiceDesk');
+        window.history.replaceState({}, '', url.toString());
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Helper function to build URL with app parameter preserved
+  const buildUrlWithApp = (path: string) => {
+    const url = new URL(window.location.href);
+    url.pathname = path;
+    // Preserve the app parameter if it exists
+    if (!url.searchParams.has('app')) {
+      url.searchParams.set('app', 'ServiceDesk');
+    }
+    return url.toString();
+  };
 
   // Update URL when tab changes
   const handleTabChange = (key: string) => {
     setActiveTab(key);
-    const newPath = `/desk/${key}`;
-    window.history.pushState({}, '', newPath);
+    setSelectedTaskId(null); // Clear task selection when switching tabs
+    const newUrl = buildUrlWithApp(`/desk/${key}`);
+    window.history.pushState({}, '', newUrl);
+  };
+
+  // Handle task selection
+  const handleTaskSelect = (taskId: string, deskKey: string) => {
+    setSelectedTaskId(taskId);
+    const newUrl = buildUrlWithApp(`/desk/${deskKey}/task/${taskId}`);
+    window.history.pushState({}, '', newUrl);
+  };
+
+  // Handle closing task detail
+  const handleTaskClose = () => {
+    setSelectedTaskId(null);
+    const newUrl = buildUrlWithApp(`/desk/${activeTab}`);
+    window.history.pushState({}, '', newUrl);
   };
 
   // Feature flag check - return early if explicitly disabled
@@ -178,6 +259,19 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     setActiveTab(capabilities[0].desk);
   }
 
+  // Show task record if selected
+  if (selectedTaskId) {
+    return (
+      <TaskRecord
+        taskId={selectedTaskId}
+        deskKey={activeTab}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        onClose={handleTaskClose}
+      />
+    );
+  }
+
   return (
     <div data-testid="service-desk-container" className="gba:p-6">
       <div className="gba:mb-6">
@@ -230,6 +324,7 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
                 ticketId={ticketId}
                 accessToken={accessToken}
                 userInfo={userInfo}
+                onTaskSelect={handleTaskSelect}
               />
             ),
           })),

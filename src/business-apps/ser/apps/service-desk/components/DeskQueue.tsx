@@ -21,6 +21,7 @@ const { Text } = Typography;
 export interface DeskQueueProps extends BusinessAppContextProps {
   deskKey: StepReceiver;
   ticketId?: string;
+  onTaskSelect?: (taskId: string, deskKey: string) => void;
 }
 
 // Priority options for stub implementation
@@ -75,6 +76,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   ticketId,
   accessToken,
   userInfo,
+  onTaskSelect,
 }) => {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(ticketId || null);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState<boolean>(!!ticketId);
@@ -338,7 +340,13 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       key: 'name',
       render: (name: string, record: StepInstance) => (
         <div>
-          <div className="gba:font-medium gba:text-sm">{name}</div>
+          <div 
+            className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline"
+            onClick={() => onTaskSelect?.(record.id, deskKey)}
+            data-testid={`step-name-${record.id}`}
+          >
+            {name}
+          </div>
           <div className="gba:text-xs gba:text-gray-500">
             ID: {record.id}
           </div>

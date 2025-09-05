@@ -6,7 +6,8 @@ export * from './featureFlags';
 export * from './iconMapping';
 
 // Additional utility functions can be added here
-export const formatRequestId = (id: string): string => {
+export const formatRequestId = (id: string | undefined | null): string => {
+  if (!id) return 'REQ-UNKNOWN';
   return `REQ-${id.slice(-8).toUpperCase()}`;
 };
 
@@ -59,4 +60,29 @@ export const decodeHtmlEntities = (str: string): string => {
 export const renderSafeText = (text: string | null | undefined): string => {
   if (!text) return '';
   return decodeHtmlEntities(text);
+};
+
+// SLA Status calculation
+export interface SLAStatus {
+  status: 'ok' | 'warning' | 'overdue';
+  hoursLeft: number;
+}
+
+export const getSLAStatus = (ticket: any): SLAStatus | null => {
+  if (!ticket?.dueDate) return null;
+  
+  const dueDate = new Date(ticket.dueDate);
+  const now = new Date();
+  const hoursLeft = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+  
+  let status: 'ok' | 'warning' | 'overdue';
+  if (hoursLeft < 0) {
+    status = 'overdue';
+  } else if (hoursLeft < 24) {
+    status = 'warning';
+  } else {
+    status = 'ok';
+  }
+  
+  return { status, hoursLeft };
 };

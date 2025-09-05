@@ -369,8 +369,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       // Use the task data from custom-flow-engine API response
       const taskData = result.task || result;
       
+      // Determine the actual desk based on API data instead of hardcoding
+      const actualDesk = this.determineTaskDesk(taskData, []);
+      console.log(`[ConductorAdapter] 🎯 Determined desk for task ${ticketId}: ${actualDesk} (was hardcoded as 'Admin')`);
+      
       // Convert to StepInstance format using real custom-flow-engine task data  
-      const stepInstance = this.convertCustomFlowEngineTaskToStepInstance(taskData, 'Admin');
+      const stepInstance = this.convertCustomFlowEngineTaskToStepInstance(taskData, actualDesk);
       return stepInstance;
 
     } catch (error) {
@@ -1446,10 +1450,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Claim method - matches custom-flow-engine API contract
+   * NOTE: custom-flow-engine recreates tasks on claim, so task ID may change
    */
   async claim(stepId: string, userId: string): Promise<void> {
     try {
       console.log(`[ConductorAdapter] Claiming step: ${stepId} by user: ${userId}`);
+      console.warn(`[ConductorAdapter] ⚠️ WARNING: Task ID may change after claim due to workflow recreation`);
 
       await this.makeRequest(`/api/tasks/${stepId}/claim`, {
         method: 'POST',
@@ -1457,6 +1463,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           userId
         }),
       });
+
+      console.log(`[ConductorAdapter] ✅ Step ${stepId} claimed - note that task may have new ID now`);
 
     } catch (error) {
       console.error('[ConductorAdapter] Error claiming step:', error);
@@ -1595,10 +1603,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Enhanced comment method with userId parameter
+   * NOTE: custom-flow-engine recreates tasks on comment, so task ID may change
    */
   async comment(stepId: string, userId: string, body: string): Promise<Comment> {
     try {
       console.log(`[ConductorAdapter] Adding comment to step: ${stepId} by user: ${userId}`);
+      console.warn(`[ConductorAdapter] ⚠️ WARNING: Task ID may change after comment due to workflow recreation (same as CLAIM issue)`);
 
       const result = await this.makeRequest(`/api/tasks/${stepId}/comment`, {
         method: 'POST',
@@ -1607,6 +1617,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           comment: body
         }),
       });
+      
+      console.log(`[ConductorAdapter] ✅ Comment added to step ${stepId} - note that task may have new ID now`);
       
       return {
         id: result.taskId || Date.now().toString(),
@@ -1793,8 +1805,40 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       console.log(`[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`, tasks.map(t => t.id));
       
-      // Convert custom-flow-engine tasks to StepInstance format
-      const stepInstances = tasks.map((task: any) => this.convertCustomFlowEngineTaskToStepInstance(task, desk));
+      // VALIDATION: Filter out orphaned tasks (tasks without valid parent workflows)
+      const validTasks = [];
+      for (const task of tasks) {
+        try {
+          // Check if parent workflow still exists
+          const workflowId = task.workflowId || task.flowId;
+          if (workflowId) {
+            // Try to get the parent workflow - if it doesn't exist, skip the task
+            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/api/flows/${workflowId}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.accessToken}`,
+              },
+            });
+            
+            if (workflowResponse.ok) {
+              validTasks.push(task);
+              console.log(`[ConductorAdapter] ✅ Task ${task.id} has valid parent workflow ${workflowId}`);
+            } else {
+              console.warn(`[ConductorAdapter] ❌ Skipping orphaned task ${task.id} - parent workflow ${workflowId} not found (${workflowResponse.status})`);
+            }
+          } else {
+            console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} - no workflow ID`);
+          }
+        } catch (error) {
+          console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} due to validation error:`, error);
+        }
+      }
+      
+      console.log(`[ConductorAdapter] Filtered ${tasks.length} → ${validTasks.length} valid tasks (removed ${tasks.length - validTasks.length} orphaned tasks)`);
+      
+      // Convert only valid tasks to StepInstance format
+      const stepInstances = validTasks.map((task: any) => this.convertCustomFlowEngineTaskToStepInstance(task, desk));
       
       console.log(`[ConductorAdapter] Converted to ${stepInstances.length} StepInstances for desk: ${desk}`);
       return stepInstances;
@@ -1843,6 +1887,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       status: this.mapCustomFlowEngineStatusToStepStatus(task.status),
       desk: desk,
       requesterId: task.workflowMeta?.rootWorkflowId || 'unknown',
+      workflowId: task.workflowId, // Add the workflowId from API response
       requesterName: undefined,
       startedAt: task.scheduledAt || new Date().toISOString(),
       dueAt: task.dueDate,

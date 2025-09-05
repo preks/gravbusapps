@@ -4,6 +4,8 @@ export { ServiceDeskDiagnostic } from './ServiceDeskDiagnostic';
 export { TemplatesTab } from './TemplatesTab';
 export { EmployeeDisplayName } from './EmployeeDisplayName';
 export { DebugFlowModal } from './DebugFlowModal';
+export { TaskDetailScreen } from './TaskDetailScreen';
+export { TaskRecord } from './TaskRecord';
 export { DeskAccessGuard } from '../../../components/DeskAccessGuard';
 export { UserDisplayName } from '../../../components/UserDisplayName';
 export type { DeskQueueProps } from './DeskQueue';
