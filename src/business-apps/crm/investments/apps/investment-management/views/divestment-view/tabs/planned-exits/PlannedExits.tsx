@@ -226,7 +226,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`planned-exit-investment-update-button-${investment.id}`}

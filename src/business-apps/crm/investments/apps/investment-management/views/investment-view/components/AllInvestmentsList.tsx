@@ -256,7 +256,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                       <span>{formatDate(investment.createdAt)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`all-investment-update-button-${investment.id}`}
