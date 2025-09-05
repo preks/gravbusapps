@@ -104,7 +104,7 @@ export enum FlowContextName {
   liquidFundInvestmentEntity = "liquidFundInvestmentEntity", // TODO: Check
 
   /// Investment Reports
-  uploadInvestmentReport = "uploadInvestmentReport",
+  investmentReportUpload = "investmentReportUpload",
   investmentReportEntity = "investmentReportEntity", // Integrate
 
 

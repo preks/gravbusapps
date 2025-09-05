@@ -38,6 +38,7 @@ interface InvestmentOpportunityFormContextValue {
   onCancel: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  hideActions: boolean;
 
   // Employee positions (for owner selection)
   employeePositions: SelectOption[];
@@ -110,6 +111,7 @@ interface InvestmentOpportunityFormProviderProps {
   initialValues?: Partial<InvestmentOpportunityFormValues>;
   onSubmit?: (values: InvestmentOpportunityFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean;
 }
 
 export const OpportunityFormProvider: React.FC<
@@ -120,6 +122,7 @@ export const OpportunityFormProvider: React.FC<
   initialValues = {},
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
 }) => {
   const { accessToken } = businessAppContext;
 
@@ -200,8 +203,8 @@ export const OpportunityFormProvider: React.FC<
       ...initialValues,
     });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   // Auto-selection tracking
   const autoSelectionDone = useRef(false);
@@ -255,11 +258,11 @@ export const OpportunityFormProvider: React.FC<
         label: `${displayName} - ${jobTitle}`,
         name: displayName,
         extraInfo: {
-          picture: emp.employee?.picture,
-          pictureThumbnail: emp.employee?.pictureThumbnail,
+          picture: emp.employee?.picture || undefined,
+          pictureThumbnail: emp.employee?.pictureThumbnail || undefined,
           jobPosition: jobTitle,
           organizationalUnit: orgUnit,
-          userId: emp.employee?.userId,
+          userId: emp.employee?.userId || undefined,
         },
       };
     });
@@ -267,7 +270,7 @@ export const OpportunityFormProvider: React.FC<
     finalEmployees.push(...regularEmployees);
 
     // Add current user to the beginning if they're not already in the list
-    if (currentUserEmployee) {
+    if (currentUserEmployee && currentUserId) {
       const currentUserDisplayName =
         currentUserEmployee.employee?.displayName ||
         `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`.trim();
@@ -282,11 +285,11 @@ export const OpportunityFormProvider: React.FC<
         label: `${currentUserDisplayName} - ${currentUserJobTitle}`,
         name: currentUserDisplayName,
         extraInfo: {
-          picture: currentUserEmployee.employee?.picture,
-          pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail,
+          picture: currentUserEmployee.employee?.picture || undefined,
+          pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail || undefined,
           jobPosition: currentUserJobTitle,
           organizationalUnit: currentUserOrgUnit,
-          userId: currentUserEmployee.employee?.userId,
+          userId: currentUserEmployee.employee?.userId || undefined,
         },
       };
 
@@ -318,7 +321,7 @@ export const OpportunityFormProvider: React.FC<
           name: opportunityOwnerDisplayName,
           extraInfo: {
             picture: undefined,
-            pictureThumbnail: opportunityData.ownerEmployee.pictureThumbnail,
+            pictureThumbnail: opportunityData.ownerEmployee.pictureThumbnail || undefined,
             jobPosition: "Owner",
             organizationalUnit: "N/A",
             userId: undefined,
@@ -516,6 +519,7 @@ export const OpportunityFormProvider: React.FC<
       onCancel,
       isLoading: isLoading || opportunityDataLoading,
       error: error || opportunityDataError,
+      hideActions,
 
       // Employee positions
       employeePositions: employeePositionsSelectOptions,
@@ -587,6 +591,7 @@ export const OpportunityFormProvider: React.FC<
       error,
       opportunityDataLoading,
       opportunityDataError,
+      hideActions,
       employeePositionsSelectOptions,
       employeePositionsLoading,
       employeePositionsError,

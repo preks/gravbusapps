@@ -3,10 +3,8 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   LauncherLayout,
   type LauncherSectionConfig,
-  type NavigationCardData,
   type QuickActionData,
   type KpiData,
-  Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
@@ -15,11 +13,8 @@ import {
 import {
   investmentAreas,
   investmentQuickActions,
-  categoryLabels,
-  getInvestmentAreasByCategory,
 } from "./utils/investmentAreas";
 import { InvestmentArea, InvestmentQuickAction } from "./types";
-import BackgroundImage from "@/assets/images/background.png";
 import { useInvestmentDashboardStats } from "./hooks/useInvestmentDashboardStats";
 import { startProcess } from "@/common/utils/start-process";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
@@ -93,8 +88,8 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
 
   // Generate sections based on investment areas
   const sections = useMemo((): LauncherSectionConfig[] => {
-    // Convert areas to NavigationCardData format
-    const cards: NavigationCardData[] = investmentAreas.map((area) => {
+    // Convert areas to cards format
+    const cards = investmentAreas.map((area) => {
       // Get area stats
       const getAreaStats = (areaId: string) => {
         switch (areaId) {
@@ -393,6 +388,15 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         processName: "createLead",
         builderType: "NATIVE_SCREEN",
         payload: {},
+      });
+    } else if (action.action === "convert-lead") {
+      startProcess({
+        domain: "investments",
+        processName: "convertInvestmentLead",
+        builderType: "NATIVE_SCREEN",
+        payload: {
+          leadId: 'demo-lead-123' // Demo lead ID - in production this would come from context
+        },
       });
     } else if (action.action === "save-opportunity") {
       startProcess({

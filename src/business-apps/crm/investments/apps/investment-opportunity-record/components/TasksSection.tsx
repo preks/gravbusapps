@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
@@ -140,18 +141,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     };
   }, [opportunityId]);
 
-  const handleAddTaskClick = () => {
-    if (opportunityId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          opportunityId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add task handled via AppAction below
 
   const handleDeleteTask = (task: SalesTaskData) => {
     Modal.confirm({
@@ -233,14 +223,21 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
+        <AppAction
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          externalContextData={{ opportunityId }}
+          accessToken={context.accessToken}
+          prefixDataTestId="opportunity-tasks"
+          emptyStateBehavior="enable"
         >
-          Add Task
-        </Button>
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

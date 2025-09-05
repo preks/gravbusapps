@@ -261,7 +261,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{titleLabel}</FormLabel>
+            <FormLabel>{titleLabel}<span className="nw:text-destructive">*</span></FormLabel>
             <FormControl>
               <Input
                 placeholder="Please Enter..."
@@ -441,7 +441,6 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
             <FormLabel>{assigneeLabel || "Assigned To"}</FormLabel>
             <FormControl>
               <EmployeeSelect
-                className="gba:w-full gba:h-auto"
                 employees={assigneeOptions as any}
                 value={field.value || ''}
                 onValueChange={(v: string | null) => {
@@ -473,7 +472,6 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
               <FormLabel>{entityLabel || "Related Entity"}</FormLabel>
               <FormControl>
                 <EntitySelect
-                  className="gba:w-full gba:h-auto"
                   entities={entitySelectOptions as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {

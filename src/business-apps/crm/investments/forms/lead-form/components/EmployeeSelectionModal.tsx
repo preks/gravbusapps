@@ -80,6 +80,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
             Select Lead Owner
           </h2>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={handleClose}

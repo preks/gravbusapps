@@ -12,6 +12,7 @@ import {
   NoteSection,
   ConditionSection,
 } from '@/common/components/common-relations/record-sections';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const mockAccountData = {
   name: 'Acme Corporation',
@@ -156,6 +157,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
             <div>
               <ActivitySection
                 {...context}
+                activityActionProps={{
+                  contextsArray: [FlowContextName.investmentActivityEntity],
+                  externalContextData: { ...entityIds },
+                  prefixDataTestId: 'activities',
+                  emptyStateBehavior: 'enable'
+                }}
                 activities={[
                   { id: 'a1', title: 'Intro Call', description: 'Initial discovery with client', occurredAt: new Date().toISOString(), createdBy: 'Daniel Vorberg', activityType: { value: 'Call' } },
                   { id: 'a2', title: 'Email Follow-up', description: 'Sent recap and next steps', occurredAt: new Date(Date.now()-86400000).toISOString(), createdBy: 'You', activityType: { value: 'Email' } },
@@ -170,6 +177,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
               <TaskSection
                 {...context}
                 demo
+                taskActionProps={{
+                  contextsArray: [FlowContextName.createCustomerTask],
+                  externalContextData: { ...entityIds },
+                  prefixDataTestId: 'tasks',
+                  emptyStateBehavior: 'enable'
+                }}
                 demoTasks={[
                   { id: 't1', title: 'Prepare proposal', assignee: 'Daniel Vorberg', due: 'Fri 17:00', statusCode: 'IN_PROGRESS' },
                   { id: 't2', title: 'Schedule workshop', assignee: 'You', due: 'Mon 10:00', statusCode: 'PENDING' },
@@ -186,6 +199,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
               <ApprovalSection
                 {...context}
                 demo
+                approvalActionProps={{
+                  contextsArray: [FlowContextName.customerAccountEntity],
+                  externalContextData: { ...entityIds },
+                  prefixDataTestId: 'approvals',
+                  emptyStateBehavior: 'enable'
+                }}
                 demoApprovals={[
                   { id: 1, date: 'Created today', title: 'Budget Approval', status: 'pending' },
                   { id: 2, date: 'Yesterday', title: 'Legal Review', status: 'approved', actor: 'Legal Team' }
@@ -197,6 +216,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
               <NoteSection
                 {...context}
                 demo
+                noteActionProps={{
+                  contextsArray: [FlowContextName.investmentNoteEntity],
+                  externalContextData: { ...entityIds },
+                  prefixDataTestId: 'notes',
+                  emptyStateBehavior: 'enable'
+                }}
                 data-testid="record-example-note-section"
               />
             </div>
@@ -213,6 +238,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
             <ConditionSection
               {...context}
               opportunity={{ salesPipelineStage: { code: 'DISCOVERY', value: 'Discovery' } }}
+              stageConditionActionProps={{
+                contextsArray: [FlowContextName.saveOpportunityStageConditionStatus],
+                externalContextData: { ...entityIds },
+                prefixDataTestId: 'stage-condition-status-icon',
+                emptyStateBehavior: 'disable'
+              }}
               stageConditionStatuses={[
                 {
                   id: 'cond_1',

@@ -222,6 +222,7 @@ const CompanyInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
@@ -397,6 +398,7 @@ const CompanyInformationSection: React.FC = () => {
             }}
           >
             <Button
+              type="button"
               variant="ghost"
               onClick={() =>
                 setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)

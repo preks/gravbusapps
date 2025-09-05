@@ -139,6 +139,7 @@ const PersonalInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
@@ -198,42 +199,7 @@ const PersonalInformationSection: React.FC = () => {
             </Alert>
           )}
 
-          {/* First Name and Last Name - Side by side */}
-          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                First Name *
-              </Label>
-              <Input
-                name="firstName"
-                value={formValues.firstName}
-                onChange={(e) => setFormValues({ firstName: e.target.value })}
-                placeholder="Please enter first name..."
-                className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "FirstNameInput"
-                )}
-              />
-            </div>
 
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Last Name *
-              </Label>
-              <Input
-                name="lastName"
-                value={formValues.lastName}
-                onChange={(e) => setFormValues({ lastName: e.target.value })}
-                placeholder="Please enter last name..."
-                className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "LastNameInput"
-                )}
-              />
-            </div>
-          </div>
 
           {/* Academic Title and Language - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
