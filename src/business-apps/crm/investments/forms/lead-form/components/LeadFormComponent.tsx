@@ -14,7 +14,6 @@ import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
-import InvestmentInformationSection from "./InvestmentInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import DescriptionSection from "./DescriptionSection";
 
@@ -89,7 +88,7 @@ const LeadFormComponent: React.FC = () => {
         regionRef: toStringOrUndefined(formValues.region),
         locality: toStringOrUndefined(formValues.locality), // ✅ UPDATED: Use formValues.locality
         postalCode: toStringOrUndefined(formValues.postalCode),
-        addressLine: buildAddressLine(formValues.addressLine),
+        addressLine: buildAddressLine(formValues.addressLine ? [formValues.addressLine] : []),
 
         // ✅ FIXED: Conversion Information with correct API field names
         convertedAccount: toStringOrUndefined(formValues.accountId), // ✅ FIXED: API expects 'convertedAccount' not 'convertedAccountId'
@@ -133,6 +132,15 @@ const LeadFormComponent: React.FC = () => {
         annualNetColdRent: formValues.annualNetColdRent
           ? parseFloat(formValues.annualNetColdRent)
           : null,
+        
+        // Real Estate Specific Fields
+        buildingYear: formValues.buildingYear
+          ? parseInt(formValues.buildingYear)
+          : null,
+        size: formValues.size
+          ? parseFloat(formValues.size)
+          : null,
+        sizeMeasurementUnitRef: toStringOrUndefined(formValues.measurementUnit),
       };
 
       // ✅ SIMPLIFIED: No complex address array logic needed for InvestmentLead
@@ -225,8 +233,6 @@ const LeadFormComponent: React.FC = () => {
           {/* Company Information Section */}
           <CompanyInformationSection />
 
-          {/* Investment Information Section */}
-          <InvestmentInformationSection />
 
           {/* Address Information Section */}
           <AddressInformationSection />

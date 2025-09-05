@@ -34,6 +34,7 @@ export const useInvestmentLeadData = ({
   // Function to map investment lead data to form values
   const mapLeadToFormValues = useCallback(
     (lead: InvestmentLeadQueryResult): Partial<LeadFormValues> => {
+
       const mappedValues = {
         // System fields
         id: lead.id,
@@ -109,14 +110,12 @@ export const useInvestmentLeadData = ({
         requiredCapitalAmount: lead.requiredCapitalAmount?.toString() || "",
         forecastedProfitAmount: lead.forecastedProfitAmount?.toString() || "",
         annualNetColdRent: lead.annualNetColdRent?.toString() || "",
-      };
 
-      console.log("🔄 Final mapped values for address fields:", {
-        country: mappedValues.country,
-        region: mappedValues.region,
-        locality: mappedValues.locality,
-        addressLine: mappedValues.addressLine,
-      });
+        // Real Estate specific fields
+        buildingYear: lead.buildingYear?.toString() || "",
+        size: lead.size?.toString() || "",
+        measurementUnit: lead.sizeMeasurementUnitRef || lead.sizeMeasurementUnit?.id || "",
+      };
 
       return mappedValues;
     },

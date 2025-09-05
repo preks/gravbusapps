@@ -170,6 +170,16 @@ export interface InvestmentLeadQueryResult {
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
 
+  // Real Estate specific fields
+  buildingYear?: number;
+  size?: number;
+  sizeMeasurementUnitRef?: string;
+  sizeMeasurementUnit?: {
+    id: string;
+    code: string;
+    value: string;
+  };
+
   // System fields
   version?: number;
   createdAt?: string; // ✅ ADDED
@@ -345,6 +355,16 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
       requiredCapitalAmount
       forecastedProfitAmount
       annualNetColdRent
+      
+      # Real Estate specific fields
+      buildingYear
+      size
+      sizeMeasurementUnitRef
+      sizeMeasurementUnit {
+        id
+        code
+        value
+      }
       
       # System fields - ✅ ADDED: All system fields
       version
