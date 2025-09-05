@@ -5,32 +5,28 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-sys
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { Spinner } from '@newwork/nw-design-system';
 import { Badge } from '@newwork/nw-design-system';
-import { Plus, DollarSign, Building, TrendingUp, Users, BarChart, PieChart, Activity, Briefcase } from 'lucide-react';
+import { DollarSign, Building, TrendingUp, Users, BarChart, PieChart, Activity, Briefcase } from 'lucide-react';
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useGetInvestments } from '@/common/data/investment';
 import type { Investment, EquityInvestment } from '@/common/data/investment';
-import { useEquityChartData } from './hooks';
-import { formatCurrency, formatNumber, formatPercentage } from './utils';
+import { useEquityChartData, useEquityKPIIntegration } from './hooks';
+import { 
+  calculateChange,
+  formatCurrency,
+  extractCurrencyCode,
+  getInvestmentStatusColor,
+  getRiskLevelColor,
+  getInvestmentRoleColor
+} from '../shared/utils';
+import type { EquityInvestmentSummary } from '../shared/types';
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components';
 
-// Equity Investment Summary interface (moved from separate hook)
-export interface EquityInvestmentSummary {
-  id: string;
-  investment: Investment;
-  equityInvestment?: EquityInvestment;
-  displayName: string;
-  statusColor: string;
-  riskLevelColor: string;
-  currencyCode: string;
-  roi: number;
-  isActive: boolean;
-  ebitdaMargin: number;
-  roleColor: string;
-}
-
+// Legacy interface - kept for compatibility but not used for KPIs anymore
 export interface EquityInvestmentKPIs {
   totalEquityValue: number;
   averageCompanyValuation: number;
@@ -38,51 +34,18 @@ export interface EquityInvestmentKPIs {
   numberOfEquityInvestments: number;
 }
 
-// Utility functions (moved from separate hook)
-const extractCurrencyCode = (currency: any): string => {
+// Helper function to safely extract currency code from CatalogEntry or string
+const safeCurrencyExtraction = (currency: any): string => {
   if (!currency) return 'EUR';
   
-  let currencyValue = currency.description || currency.code || currency.id || currency.name || currency;
-  
-  if (typeof currencyValue === 'string') {
-    if (currencyValue.includes(':')) {
-      const parts = currencyValue.split(':');
-      return parts[parts.length - 1] || 'EUR';
-    }
-    
-    if (currencyValue.length === 3) {
-      return currencyValue.toUpperCase();
-    }
+  if (typeof currency === 'object') {
+    // Handle CatalogEntry: try code first, then value
+    const currencyStr = currency.code || currency.value;
+    return extractCurrencyCode(currencyStr || 'EUR');
   }
   
-  return 'EUR';
-};
-
-const getStatusColor = (status: string): string => {
-  switch (status?.toLowerCase()) {
-    case 'active': return 'green';
-    case 'inactive': return 'red';
-    case 'pending': return 'orange';
-    default: return 'blue';
-  }
-};
-
-const getRiskLevelColor = (riskLevel: string): string => {
-  switch (riskLevel?.toLowerCase()) {
-    case 'low': return 'green';
-    case 'medium': return 'orange';
-    case 'high': return 'red';
-    default: return 'blue';
-  }
-};
-
-const getRoleColor = (role: string): string => {
-  switch (role?.toLowerCase()) {
-    case 'lead': return 'purple';
-    case 'co-investor': return 'blue';
-    case 'minority': return 'green';
-    default: return 'gray';
-  }
+  // Handle string values
+  return extractCurrencyCode(currency);
 };
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
@@ -91,19 +54,20 @@ interface EquityInvestmentsReportProps extends BusinessAppContextProps {
 
 const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) => {
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport';
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('distribution');
   
   const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([]);
-  const [kpis, setKpis] = useState<EquityInvestmentKPIs>({
-    totalEquityValue: 0,
-    averageCompanyValuation: 0,
-    totalEbitda: 0,
-    numberOfEquityInvestments: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
+  // Use the new KPI integration hook for real GraphQL aggregate queries
+  const { current: kpis, previous: previousKpis, isLoading: kpiLoading, error: kpiError, refetch: refetchKpis } = useEquityKPIIntegration(props);
+  
   const { fetchInvestments } = useGetInvestments(props);
+
+  // Combined loading and error states
+  const isLoading = dataLoading || kpiLoading;
+  const error = dataError || kpiError;
 
   // Transform equity data
   const transformEquityData = useCallback((investments: Investment[]): EquityInvestmentSummary[] => {
@@ -120,64 +84,38 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           investment,
           equityInvestment,
           displayName: investment.displayName || investment.name || equityInvestment.companyName || 'Unknown Equity',
-          statusColor: getStatusColor(investment.investmentStatus?.value || ''),
+          statusColor: getInvestmentStatusColor(investment.investmentStatus?.value || ''),
           riskLevelColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
-          currencyCode: extractCurrencyCode(investment.currency),
+          currencyCode: safeCurrencyExtraction(investment.currency),
           roi,
           isActive: investment.investmentStatus?.value?.toLowerCase() === 'active',
           ebitdaMargin: equityInvestment.ebitdaMargin || 0,
-          roleColor: getRoleColor(equityInvestment.investmentRole?.value || '')
+          roleColor: getInvestmentRoleColor(equityInvestment.investmentRole?.value || '')
         };
       });
   }, []);
 
-  // Calculate KPIs
-  const calculateKPIs = useCallback((equityInvestments: EquityInvestmentSummary[]): EquityInvestmentKPIs => {
-    const totalEquityValue = equityInvestments.reduce((sum, equity) => 
-      sum + (equity.investment.investmentMarketValue || equity.investment.bookValue || 0), 0
-    );
-    
-    const totalCompanyValuation = equityInvestments.reduce((sum, equity) => 
-      sum + (equity.equityInvestment?.companyValuation || 0), 0
-    );
-    const averageCompanyValuation = equityInvestments.length > 0 ? totalCompanyValuation / equityInvestments.length : 0;
-    
-    const totalEbitda = equityInvestments.reduce((sum, equity) => 
-      sum + (equity.equityInvestment?.ebitda || 0), 0
-    );
-
-    return {
-      totalEquityValue,
-      averageCompanyValuation,
-      totalEbitda,
-      numberOfEquityInvestments: equityInvestments.length
-    };
-  }, []);
-
-  // Load data function
+  // Load equity investment data for chart display
   const loadData = useCallback(async () => {
     if (!props.accessToken) {
-      setError('Access token not available');
-      setIsLoading(false);
+      setDataError('Access token not available');
+      setDataLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    setDataLoading(true);
+    setDataError(null);
     
     try {
       const result = await fetchInvestments();
       const enhancedEquityInvestments = transformEquityData(result.Investment);
-      const calculatedKPIs = calculateKPIs(enhancedEquityInvestments);
-      
       setEquityInvestments(enhancedEquityInvestments);
-      setKpis(calculatedKPIs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setDataError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setIsLoading(false);
+      setDataLoading(false);
     }
-  }, [props.accessToken, fetchInvestments, transformEquityData, calculateKPIs]);
+  }, [props.accessToken, fetchInvestments, transformEquityData]);
 
   // Load data on mount and when access token changes
   useEffect(() => {
@@ -186,8 +124,10 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
     }
   }, [props.accessToken, loadData]);
 
-  // Refetch function for error retry
-  const refetch = loadData;
+  // Combined refetch function for error retry
+  const refetch = useCallback(async () => {
+    await Promise.all([loadData(), refetchKpis()]);
+  }, [loadData, refetchKpis]);
   const chartData = useEquityChartData(equityInvestments);
 
   if (isLoading) {
@@ -233,14 +173,14 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
     riskLevelData,
     currencyData,
     roiData,
+    stakeTypeData,
+    investmentTypeData,
     // Enhanced chart data
     equityTimelineData,
-    stakeVsValuationData,
-    ebitdaValuationAnalysisData,
-    rolePerformanceData,
+    stakeVsInvestmentAmountData,
+    roleInvestmentAmountData,
     concentrationByRoleData,
-    topCompaniesByValuationData,
-    valuationDistributionData
+    topCompaniesByValuationData
   } = chartData;
 
   return (
@@ -256,82 +196,77 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           </h3>
           <Badge variant="secondary">{equityInvestments.length} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
         </div>
-        <div className="gba:flex gba:gap-2">
-          <Button
-            data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
-            variant="default"
-          >
-            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-            {getTranslationFromI18nKeyAndLabel('button.addEquityInvestment', 'Add Equity Investment')}
-          </Button>
-        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4 gba:mb-6 gba:w-full">
-        <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalEquityValue')}>
-          <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
-            <div className="gba:p-3 gba:rounded-lg">
-              <DollarSign className="gba:h-6 gba:w-6" />
-            </div>
-            <div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('kpi.totalEquityValue', 'Total Equity Value')}
-              </p>
-              <p className="gba:text-2xl gba:font-bold">
-                {formatCurrency(kpis.totalEquityValue)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-AverageCompanyValuation')}>
-          <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
-            <div className="gba:p-3 gba:rounded-lg">
-              <Building className="gba:h-6 gba:w-6" />
-            </div>
-            <div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('kpi.averageCompanyValuation', 'Average Company Valuation')}
-              </p>
-              <p className="gba:text-2xl gba:font-bold">
-                {formatCurrency(kpis.averageCompanyValuation)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalEbitda')}>
-          <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
-            <div className="gba:p-3 gba:rounded-lg">
-              <TrendingUp className="gba:h-6 gba:w-6" />
-            </div>
-            <div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('kpi.totalEbitda', 'Total EBITDA')}
-              </p>
-              <p className="gba:text-2xl gba:font-bold">
-                {formatCurrency(kpis.totalEbitda)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-NumberOfEquityInvestments')}>
-          <CardContent className="gba:flex gba:items-center gba:gap-3 gba:p-6">
-            <div className="gba:p-3 gba:rounded-lg">
-              <Users className="gba:h-6 gba:w-6" />
-            </div>
-            <div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('kpi.numberOfEquityInvestments', 'Number of Equity Investments')}
-              </p>
-              <p className="gba:text-2xl gba:font-bold">
-                {formatNumber(kpis.numberOfEquityInvestments)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="gba:mb-6">
+        <WidgetGroup
+          widgets={[
+            {
+              key: "total-investments",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
+              value: kpis.totalInvestments,
+              prefix: <TeamOutlined />,
+              color: "var(--nw-color-primary-500)",
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Total number of equity investments",
+              trend: {
+                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
+                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "total-amount-invested",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
+              value: formatCurrency(kpis.totalAmountInvested),
+              prefix: <DollarCircleOutlined />,
+              color: "var(--nw-color-success-500)",
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Sum of all equity investment amounts",
+              trend: {
+                value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
+                positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "total-market-value",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
+              value: formatCurrency(kpis.totalMarketValue),
+              prefix: <RiseOutlined />,
+              color: "var(--nw-color-warning-500)",
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Current total market value of equity positions",
+              trend: {
+                value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
+                positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "average-company-valuation",
+              title: getTranslationFromI18nKeyAndLabel('kpi.averageCompanyValuation', 'Average Company Valuation'),
+              value: formatCurrency(kpis.averageCompanyValuation),
+              prefix: <BankOutlined />,
+              color: "var(--nw-color-purple-500)",
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Average valuation across all companies",
+              trend: {
+                value: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).value,
+                positive: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).positive,
+                description: "vs 7 days ago",
+              },
+            },
+          ]}
+          isLoading={isLoading}
+          error={error ? new Error(error) : null}
+          onRetry={refetch}
+          data-testid={formatDataTestId(prefixDataTestId, 'KPICards')}
+        />
       </div>
 
       {/* Tabbed Charts */}
@@ -341,10 +276,10 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           onValueChange={setActiveTab}
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
-          <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-            <TabsTrigger value="overview" className="gba:flex gba:items-center gba:gap-2">
-              <BarChart className="gba:h-4 gba:w-4" />
-              {getTranslationFromI18nKeyAndLabel('tab.overview', 'Overview')}
+          <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
+            <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2">
+              <PieChart className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
             <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2">
               <TrendingUp className="gba:h-4 gba:w-4" />
@@ -354,15 +289,17 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
               <Briefcase className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analytics')}
             </TabsTrigger>
-            <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2">
-              <PieChart className="gba:h-4 gba:w-4" />
-              {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="gba:mt-6">
-            <div className="gba:p-6 gba:text-center">
-              <p>Overview content coming soon...</p>
+          <TabsContent value="distribution" className="gba:mt-6">
+            <div className="gba:space-y-6 gba:w-full">
+              <EquityDistributionCharts
+                roleData={roleData}
+                statusData={statusData}
+                stakeTypeData={stakeTypeData}
+                investmentTypeData={investmentTypeData}
+                rawInvestments={equityInvestments}
+              />
             </div>
           </TabsContent>
 
@@ -376,28 +313,11 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           </TabsContent>
 
           <TabsContent value="analytics" className="gba:mt-6">
-            <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6 gba:w-full">
+            <div className="gba:space-y-6">
               <EquityAnalyticsCharts
-                stakeVsValuationData={stakeVsValuationData}
-                ebitdaValuationAnalysisData={ebitdaValuationAnalysisData}
-                rolePerformanceData={rolePerformanceData}
+                stakeVsInvestmentAmountData={stakeVsInvestmentAmountData}
+                roleInvestmentAmountData={roleInvestmentAmountData}
                 concentrationByRoleData={concentrationByRoleData}
-                valuationDistributionData={valuationDistributionData}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="distribution" className="gba:mt-6">
-            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:w-full">
-              <EquityDistributionCharts
-                roleData={roleData}
-                statusData={statusData}
-                phaseData={phaseData}
-                riskLevelData={riskLevelData}
-                currencyData={currencyData}
-                roiData={roiData}
-                ebitdaMarginData={ebitdaMarginData}
-                valuationEbitdaData={valuationEbitdaData}
               />
             </div>
           </TabsContent>

@@ -359,7 +359,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                         <AppActionButton
                           data-testid={`exit-opportunity-update-button-${opportunity.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.entityContext]}
+                          contextsArray={[FlowContextName.investmentOpportunityEntity]}
                           externalContextData={{ opportunityId: opportunity.id }}
                           prefixDataTestId={`exit-opportunity-update`}
       accessToken={accessToken}

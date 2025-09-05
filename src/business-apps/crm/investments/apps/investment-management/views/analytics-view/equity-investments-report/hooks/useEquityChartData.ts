@@ -1,19 +1,26 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { EquityInvestmentSummary } from '../EquityInvestmentsReport';
+import { EquityInvestmentSummary } from '../../shared/types';
 
 export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[]) => {
   return useMemo(() => {
-    // Investment role distribution data (using default role since it's not in centralized structure)
+    // Investment role distribution data (using GraphQL investmentRole array)
     const roleData = equityInvestments.reduce((acc, equity) => {
-      const role = 'Lead Investor'; // Default role since it's not in centralized structure
+      // Since investmentRole is an array, we need to get the first role or default
+      const roles = equity.investment.investmentRole || [];
+      const role = roles.length > 0 && roles[0]?.investmentRole?.value 
+        ? roles[0].investmentRole.value 
+        : 'Unknown';
+      
       const existing = acc.find(item => item.type === role);
       if (existing) {
-        existing.value += 1;
+        existing.count += 1;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0;
       } else {
         acc.push({
           type: role,
-          value: 1
+          count: 1,
+          totalAmount: equity.investment.investmentMarketValue || 0
         });
       }
       return acc;
@@ -43,11 +50,13 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       const status = equity.investment.investmentStatus?.value || 'Unknown';
       const existing = acc.find(item => item.type === status);
       if (existing) {
-        existing.value += 1;
+        existing.count += 1;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0;
       } else {
         acc.push({
           type: status,
-          value: 1
+          count: 1,
+          totalAmount: equity.investment.investmentMarketValue || 0
         });
       }
       return acc;
@@ -105,6 +114,40 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       color: equity.roi >= 0 ? '#52c41a' : '#ff4d4f'
     }));
 
+    // Investment stake type distribution data (using GraphQL investmentStakeType field)
+    const stakeTypeData = equityInvestments.reduce((acc, equity) => {
+      const stakeType = equity.investment.investmentStakeType?.value || 'Unknown';
+      const existing = acc.find(item => item.type === stakeType);
+      if (existing) {
+        existing.count += 1;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+      } else {
+        acc.push({
+          type: stakeType,
+          count: 1,
+          totalAmount: equity.investment.investmentMarketValue || 0
+        });
+      }
+      return acc;
+    }, [] as any[]);
+
+    // Investment type distribution data (using GraphQL investmentType field)
+    const investmentTypeData = equityInvestments.reduce((acc, equity) => {
+      const investmentType = equity.investment.investmentType?.value || 'Unknown';
+      const existing = acc.find(item => item.type === investmentType);
+      if (existing) {
+        existing.count += 1;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+      } else {
+        acc.push({
+          type: investmentType,
+          count: 1,
+          totalAmount: equity.investment.investmentMarketValue || 0
+        });
+      }
+      return acc;
+    }, [] as any[]);
+
     // NEW: Equity Investment Performance Timeline - showing valuations and EBITDA over time
     const equityTimelineData = equityInvestments
       .filter(equity => equity.investment.acquisitionDate)
@@ -129,15 +172,18 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         return acc;
       }, [] as any[]);
 
-    // NEW: Stake vs Valuation Correlation (Scatter Plot)
-    const stakeVsValuationData = equityInvestments
-      .filter(equity => equity.investment.stakePercentage && equity.investment.investmentMarketValue)
+    // NEW: Stake vs Investment Amount Correlation (Scatter Plot)
+    const stakeVsInvestmentAmountData = equityInvestments
+      .filter(equity => {
+        const hasStake = equity.investment.stakePercentage;
+        const hasAmount = equity.investment.totalInvestmentAmount;
+        return hasStake && hasAmount;
+      })
       .map(equity => ({
         stake: equity.investment.stakePercentage,
-        valuation: equity.investment.investmentMarketValue,
+        investmentAmount: equity.investment.totalInvestmentAmount,
         name: equity.displayName || 'Unknown',
         role: 'Lead Investor', // Default role since it's not in centralized structure
-        ebitda: equity.equityInvestment?.ebitdaAmount || 0,
         color: '#1890ff' // Default color for lead investor
       }));
 
@@ -148,19 +194,13 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         .map(equity => equity.investment.investmentMarketValue || 0)
         .filter(val => val > 0);
       
-      console.log('Equity investments count:', equityInvestments.length);
-      console.log('Valuations:', valuations);
-      
       if (valuations.length === 0) {
-        console.log('No valuations found, returning empty array');
         return [];
       }
       
       // Find min and max values (same logic as valuationDistributionData)
       const minValuation = Math.min(...valuations);
       const maxValuation = Math.max(...valuations);
-      
-      console.log('Min valuation:', minValuation, 'Max valuation:', maxValuation);
       
       // Create 5 equal-sized ranges (same as valuationDistributionData)
       const rangeSize = (maxValuation - minValuation) / 5;
@@ -220,18 +260,20 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         range.averageEbitda = range.count > 0 ? range.totalEbitda / range.count : 0;
       });
       
-      console.log('Generated ebitdaValuationAnalysisData:', ranges);
       return ranges;
     })();
 
-    // NEW: Investment Role vs Performance Analysis (Scatter Plot)
-    const rolePerformanceData = equityInvestments
-      .filter(equity => equity.roi !== undefined)
+    // NEW: Investment Role vs Investment Amount Analysis (Scatter Plot)
+    const roleInvestmentAmountData = equityInvestments
+      .filter(equity => {
+        const hasAmount = equity.investment.totalInvestmentAmount;
+        return hasAmount;
+      })
       .map(equity => {
         const roleScore = 3; // Default to Lead Investor score
         return {
           role: roleScore,
-          performance: equity.roi,
+          investmentAmount: equity.investment.totalInvestmentAmount,
           name: equity.displayName || 'Unknown',
           valuation: equity.investment.investmentMarketValue || 0,
           stake: equity.investment.stakePercentage || 0
@@ -247,14 +289,12 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         existing.totalValuation += value;
         existing.count += 1;
         existing.averageValuation = existing.totalValuation / existing.count;
-        existing.totalEbitda += equity.equityInvestment?.ebitdaAmount || 0;
       } else {
         acc.push({
           role,
           totalValuation: value,
           count: 1,
-          averageValuation: value,
-          totalEbitda: equity.equityInvestment?.ebitdaAmount || 0
+          averageValuation: value
         });
       }
       return acc;
@@ -350,14 +390,14 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       riskLevelData,
       currencyData,
       roiData,
+      stakeTypeData,
+      investmentTypeData,
       // New enhanced chart data
       equityTimelineData,
-      stakeVsValuationData,
-      ebitdaValuationAnalysisData,
-      rolePerformanceData,
+      stakeVsInvestmentAmountData,
+      roleInvestmentAmountData,
       concentrationByRoleData,
-      topCompaniesByValuationData,
-      valuationDistributionData
+      topCompaniesByValuationData
     };
   }, [equityInvestments]);
 }; 

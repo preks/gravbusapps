@@ -116,8 +116,6 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           return 'Back to Real Estate Investments';
         case 'liquid-funds':
           return 'Back to Liquid Fund Investments';
-        case 'private-equity':
-          return 'Back to Private Equity Investments';
         case 'overview':
         default:
           return 'Back to All Investments';

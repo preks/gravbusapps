@@ -231,7 +231,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                         <AppActionButton
                           data-testid={`planned-exit-investment-update-button-${investment.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.entityContext]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: investment.id }}
                           prefixDataTestId={`planned-exit-investment-update`}
                           accessToken={accessToken}

@@ -338,7 +338,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                         <AppActionButton
                           data-testid={`sold-opportunity-update-button-${opportunity.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.entityContext]}
+                          contextsArray={[FlowContextName.investmentOpportunityEntity]}
                           externalContextData={{ opportunityId: opportunity.id }}
                           prefixDataTestId={`sold-opportunity-update`}
                           accessToken={accessToken}

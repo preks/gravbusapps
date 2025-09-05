@@ -266,7 +266,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                       <AppActionButton
                         data-testid={`real-estate-investment-update-button-${investment.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.realEstateInvestmentEntity]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`real-estate-investment-update`}
                         accessToken={accessToken}

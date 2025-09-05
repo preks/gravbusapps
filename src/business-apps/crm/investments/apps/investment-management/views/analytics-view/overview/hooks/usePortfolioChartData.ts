@@ -18,10 +18,12 @@ export const usePortfolioChartData = (investments: EnhancedInvestmentSummary[]) 
     const investmentGroupData = investments.reduce((acc, investment) => {
       const group = investment.investmentGroup || 'Unknown';
       const existing = acc.find(item => item.group === group);
+      const totalAmount = investment.totalInvestmentAmount || 0;
       if (existing) {
         existing.count += 1;
+        existing.totalAmount += totalAmount;
       } else {
-        acc.push({ group, count: 1 });
+        acc.push({ group, count: 1, totalAmount });
       }
       return acc;
     }, [] as any[]);
@@ -29,10 +31,12 @@ export const usePortfolioChartData = (investments: EnhancedInvestmentSummary[]) 
     const statusData = investments.reduce((acc, investment) => {
       const status = investment.investmentStatus || 'Unknown';
       const existing = acc.find(item => item.status === status);
+      const totalAmount = investment.totalInvestmentAmount || 0;
       if (existing) {
         existing.count += 1;
+        existing.totalAmount += totalAmount;
       } else {
-        acc.push({ status, count: 1 });
+        acc.push({ status, count: 1, totalAmount });
       }
       return acc;
     }, [] as any[]);
@@ -62,11 +66,12 @@ export const usePortfolioChartData = (investments: EnhancedInvestmentSummary[]) 
     const currencyData = investments.reduce((acc, investment) => {
       const currency = investment.currencyCode || 'EUR';
       const existing = acc.find(item => item.currency === currency);
-      const value = investment.marketValue || 0;
+      const totalAmount = investment.totalInvestmentAmount || 0;
       if (existing) {
-        existing.totalValue += value;
+        existing.count += 1;
+        existing.totalAmount += totalAmount;
       } else {
-        acc.push({ currency, totalValue: value });
+        acc.push({ currency, count: 1, totalAmount });
       }
       return acc;
     }, [] as any[]);
@@ -86,7 +91,7 @@ export const usePortfolioChartData = (investments: EnhancedInvestmentSummary[]) 
           color: group === 'Equity' ? '#1890ff' : 
                  group === 'Real Estate' ? '#52c41a' :
                  group === 'Liquid Fund' ? '#fa8c16' :
-                 group === 'Private Equity' ? '#722ed1' : '#595959'
+                 '#595959'
         });
       }
       return acc;
@@ -154,7 +159,7 @@ export const usePortfolioChartData = (investments: EnhancedInvestmentSummary[]) 
           color: investment.investmentType === 'Equity' ? '#1890ff' : 
                  investment.investmentType === 'Real Estate' ? '#52c41a' :
                  investment.investmentType === 'Liquid Funds' ? '#fa8c16' :
-                 investment.investmentType === 'Private Equity' ? '#722ed1' : '#595959'
+                 '#595959'
         };
       });
 

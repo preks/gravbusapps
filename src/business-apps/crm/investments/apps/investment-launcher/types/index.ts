@@ -27,7 +27,6 @@ export interface InvestmentDashboardStats {
   totalInvestments: number;
   equityInvestments: number;
   realEstateInvestments: number;
-  privateEquityInvestments: number;
   liquidFunds: number;
   
   // Portfolio Value

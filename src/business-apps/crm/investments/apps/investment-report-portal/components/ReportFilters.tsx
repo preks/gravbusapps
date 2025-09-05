@@ -41,7 +41,6 @@ export const ReportFilters: React.FC<ReportFiltersProps> = ({
     { value: 'EQUITY', label: getTranslationFromI18nKeyAndLabel('investment.type.equity', 'Equity') },
     { value: 'REAL_ESTATE', label: getTranslationFromI18nKeyAndLabel('investment.type.realEstate', 'Real Estate') },
     { value: 'LIQUID_FUND', label: getTranslationFromI18nKeyAndLabel('investment.type.liquidFund', 'Liquid Fund') },
-    { value: 'PRIVATE_EQUITY', label: getTranslationFromI18nKeyAndLabel('investment.type.privateEquity', 'Private Equity') },
   ];
 
   const reportScopeOptions = [

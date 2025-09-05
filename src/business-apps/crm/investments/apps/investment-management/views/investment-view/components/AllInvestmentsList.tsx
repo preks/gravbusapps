@@ -11,6 +11,7 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
+import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -32,9 +33,6 @@ const formatGroupName = (groupName: string): string => {
   }
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
     return 'Liquid Fund';
-  }
-  if (groupName === 'PrivateEquity') {
-    return 'Private Equity';
   }
   
   // For other cases, add spaces before capital letters (camelCase to Title Case)
@@ -103,13 +101,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     setPageSize(targetPageSize);
   }, [pageSize]);
 
-  const getInvestmentContext = useCallback((inv: Investment): FlowContextName => {
-    const typeLabel = (inv as any).investmentTypeLabel?.toLowerCase() || inv.investmentGroup?.code?.toLowerCase() || "";
-    if (typeLabel.includes("real")) return FlowContextName.realEstateInvestmentEntity;
-    if (typeLabel.includes("liquid") || typeLabel.includes("fund")) return FlowContextName.liquidFundInvestmentEntity;
-    if (typeLabel.includes("private")) return FlowContextName.privateEquityInvestmentEntity;
-    return FlowContextName.equityInvestmentEntity;
-  }, []);
 
   const handleRowClick = useCallback((investmentId: string) => {
     const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
@@ -164,15 +155,15 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             data-testid="all-investments-add-action"
             emptyStateBehavior="hide"
           >
-            <button
-              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-              data-testid="all-investments-add-action"
-              type="button"
+            <Button
+              variant="default"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="all-investments-add-button"
             >
-              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                Add
-              </span>
-            </button>
+              <PlusOutlined />
+              Add Investment
+            </Button>
           </AppAction>
         ),
       }}
@@ -270,7 +261,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                       <AppActionButton
                         data-testid={`all-investment-update-button-${investment.id}`}
                         size="icon"
-                        contextsArray={[getInvestmentContext(investment)]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`all-investment-update`}
                         accessToken={accessToken}

@@ -14,10 +14,6 @@ export interface InvestmentFormValues {
   lastReportedTurnover?: number | string;
   lastReportedEbitda?: number | string;
 
-  // Private Equity Information (only for PRIVATE_EQUITY type)
-  privateEquityInvestmentId?: string;
-  privateEquityInvestmentVersion?: number | string;
-  privateEquityRole?: string;
 
   // Real Estate Information (only for REAL_ESTATE type)
   realEstateInvestmentId?: string;

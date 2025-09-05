@@ -100,18 +100,6 @@ const InvestmentFormComponent: React.FC = () => {
     }
   }, [formValues.group, formValues.equityRole, formValues.currentCompanyValue, formValues.lastReportedTurnover, formValues.lastReportedEbitda, setFormValues]);
 
-  // Clear private equity information when investment type changes away from PRIVATE_EQUITY
-  React.useEffect(() => {
-    if (formValues.group !== "InvestmentGroup:v1:PRIVATE_EQUITY") {
-      if (formValues.privateEquityRole) {
-        setFormValues({
-          privateEquityRole: '',
-          privateEquityInvestmentId: '',
-          privateEquityInvestmentVersion: ''
-        });
-      }
-    }
-  }, [formValues.group, formValues.privateEquityRole, setFormValues]);
 
   // Clear real estate information when investment type changes away from REAL_ESTATE
   React.useEffect(() => {
@@ -544,43 +532,6 @@ const InvestmentFormComponent: React.FC = () => {
             </div>
           )}
 
-          {/* Private Equity Information Section - Only show for PRIVATE_EQUITY type */}
-          {formValues.group === "InvestmentGroup:v1:PRIVATE_EQUITY" && (
-            <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
-              <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-4">
-                Private Equity Information
-              </h3>
-
-              {/* Role Field */}
-              <div className="gba:space-y-2 gba:w-full">
-                <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
-                  Role <span className="gba:text-red-500">*</span>
-                </Label>
-                <div className="gba:w-full">
-                  <Select 
-                    value={formValues.privateEquityRole || ''} 
-                    onValueChange={(value: string) => setFormValues({ privateEquityRole: value })}
-                  >
-                    <SelectTrigger className="gba:w-full" data-testid={formatDataTestId(prefixDataTestId, 'PrivateEquityRoleSelect')}>
-                      <SelectValue placeholder="Please Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {investmentRoles.map((option) => (
-                        <SelectItem key={option.id} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {(investmentRolesError || validationErrors.privateEquityRole) && (
-                  <p className="gba:mt-1 gba:text-sm gba:text-red-600">
-                    {investmentRolesError || validationErrors.privateEquityRole}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Real Estate Information Section - Only show for REAL_ESTATE type */}
           {formValues.group === "InvestmentGroup:v1:REAL_ESTATE" && (

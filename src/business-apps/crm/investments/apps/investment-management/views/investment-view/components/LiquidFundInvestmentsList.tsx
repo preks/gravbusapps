@@ -243,7 +243,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                       <AppActionButton
                         data-testid={`liquid-fund-investment-update-button-${liquidFund.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.liquidFundInvestmentEntity]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: liquidFund.investment.id }}
                         prefixDataTestId={`liquid-fund-investment-update`}
                         accessToken={accessToken}
