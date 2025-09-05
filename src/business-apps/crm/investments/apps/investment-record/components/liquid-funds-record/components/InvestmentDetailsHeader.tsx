@@ -1,24 +1,34 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Badge, Button } from '@newwork/nw-design-system';
-import { DollarSign, TrendingUp, Target, BarChart3, Award, Calendar, Settings, Info } from 'lucide-react';
-import AuditInfoPanel from '../../shared/AuditInfoPanel';
-import { formatCurrency, formatPercentage, getStatusColor } from '../../../utils/formatters';
+import React from 'react';
+import { Card, CardContent } from '@newwork/nw-design-system';
+import { Badge } from '@newwork/nw-design-system';
+import { DollarSign, TrendingUp, Target, BarChart3, Award, Calendar } from 'lucide-react';
+import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import PlannedExitFlag from '../../shared/PlannedExitFlag';
 import type { LiquidFundInvestmentData } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { AiSummaryButton } from '../../shared/AiSummaryButton';
 
 interface InvestmentDetailsHeaderProps {
   liquidFundData: LiquidFundInvestmentData | null;
   context: BusinessAppContextProps;
+  investmentId?: string;
 }
 
-const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ liquidFundData, context }) => {
+const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ liquidFundData, context, investmentId }) => {
   if (!liquidFundData) {
-    return null;
+    return (
+      <Card className="gba:mb-6">
+        <CardContent className="gba:p-6">
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+            <div className="gba:text-center">
+              <p className="gba:text-gray-500">Loading investment details...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
   const { investment, liquidFundInvestment } = liquidFundData;
-  const [showAudit, setShowAudit] = useState(false);
   // Helper function to format reference values for display
   const formatReferenceValue = (refValue: string): string => {
     if (!refValue) return 'N/A';
@@ -29,123 +39,113 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ liqui
 
   return (
     <div className="gba:px-6 gba:pt-6 gba:pb-4" data-testid="investment-details-header">
-      <Card>
-        <CardHeader className="gba:pb-3">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <div className="gba:p-2 gba:bg-teal-100 gba:rounded-md">
-                <BarChart3 className="gba:h-4 gba:w-4 gba:text-teal-600" />
+      <Card className="gba:bg-white gba:border gba:shadow-sm">
+        <CardContent className="gba:p-6">
+          {/* Company Name and Investment Type */}
+          <div className="gba:mb-6">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <BarChart3 className="gba:h-6 gba:w-6 gba:text-teal-600" />
+                <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                  {investment.displayName || investment.name || 'Liquid Fund Investment Details'}
+                </h1>
               </div>
-              <div>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                  {investment.displayName || investment.name || 'Investment Details'}
-                </h2>
-                <div className="gba:flex gba:items-center gba:gap-3 gba:mt-0.5">
-                  <Badge className="gba:bg-teal-100 gba:text-teal-800 gba:text-xs gba:px-2 gba:py-0.5">
-                    {investment.investmentGroup?.value || formatReferenceValue(investment.investmentGroup?.code || '')}
-                  </Badge>
-                  <Badge className="gba:bg-cyan-100 gba:text-cyan-800 gba:text-xs gba:px-2 gba:py-0.5">
-                    {investment.investmentType?.value || formatReferenceValue(investment.investmentType?.code || '')}
-                  </Badge>
-                  <span className="gba:text-xs gba:text-gray-600">
-                    {investment.investmentAccount?.name || ''}
-                  </span>
-                </div>
-              </div>
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAudit(v => !v)}
-              className="gba:flex gba:items-center"
-              data-testid="audit-toggle-button"
-            >
-              <Info className="gba:h-4 gba:w-4 gba:mr-1" />
-              {getTranslationFromI18nKeyAndLabel('crm.investments.audit.info', 'Audit Info')}
-            </Button>
+              {/* AI Summary Button */}
+              {context && investmentId && (
+                <AiSummaryButton 
+                  investmentId={investmentId} 
+                  accessToken={context.accessToken} 
+                />
+              )}
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Badge variant="secondary" className="gba:text-sm">
+                {investment.investmentGroup?.value || formatReferenceValue(investment.investmentGroup?.code || '') || 'Liquid Fund'}
+              </Badge>
+              <Badge variant="outline" className="gba:text-sm">
+                {investment.investmentStatus?.value || formatReferenceValue(investment.investmentStatus?.code || '') || 'Unknown'}
+              </Badge>
+              <PlannedExitFlag 
+                plannedExit={investment?.planedExit} 
+                plannedExitDate={investment?.plannedExitDate}
+                variant="default"
+                data-testid="liquid-fund-record-planned-exit-flag"
+              />
+            </div>
           </div>
-          <AuditInfoPanel show={showAudit} investment={investment} context={context} data-testid="audit-info-panel" />
-        </CardHeader>
-        <CardContent className="gba:pt-0">
-          <div className="gba:grid gba:gap-4 gba:grid-cols-2 gba:md:grid-cols-4 gba:lg:grid-cols-7">
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <DollarSign className="gba:h-3 gba:w-3 gba:text-green-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Book Value</span>
+
+          {/* Core Details Grid */}
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
+            {/* Initial Investment */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <DollarSign className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Initial Investment</span>
               </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
                 {formatCurrency(
                   investment.initialInvestmentAmount || 0,
                   investment.currency?.code || 'EUR'
                 )}
               </p>
             </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <TrendingUp className="gba:h-3 gba:w-3 gba:text-teal-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Market Value</span>
+
+            {/* Market Value */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <TrendingUp className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Market Value</span>
               </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
                 {formatCurrency(
                   investment.investmentMarketValue || 0,
                   investment.currency?.code || 'EUR'
                 )}
               </p>
             </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <Target className="gba:h-3 gba:w-3 gba:text-teal-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Initial Investment</span>
+
+            {/* Interest Rate */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Award className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Interest Rate</span>
               </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {formatCurrency(
-                  investment.initialInvestmentAmount || 0,
-                  investment.currency?.code || 'EUR'
-                )}
-              </p>
-            </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <BarChart3 className="gba:h-3 gba:w-3 gba:text-amber-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Total Investment</span>
-              </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {formatCurrency(
-                  investment.totalInvestmentAmount || 0,
-                  investment.currency?.code || 'EUR'
-                )}
-                {formatCurrency(
-                  investment.totalInvestmentAmount || 0,
-                  investment.currency?.code || 'EUR'
-                )}
-              </p>
-            </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <Award className="gba:h-3 gba:w-3 gba:text-cyan-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Interest Rate</span>
-              </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
                 {formatPercentage(liquidFundInvestment?.interestRate || 0)}
               </p>
             </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <Calendar className="gba:h-3 gba:w-3 gba:text-gray-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Acquired</span>
+
+            {/* Maturity Date */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Maturity Date</span>
               </div>
-              <p className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {investment.acquisitionDate ? new Date(investment.acquisitionDate).toLocaleDateString('de-DE') : ''}
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                {liquidFundInvestment?.maturityDate ? new Date(liquidFundInvestment.maturityDate).toLocaleDateString('de-DE') : '-'}
               </p>
             </div>
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
-                <Settings className="gba:h-3 gba:w-3 gba:text-gray-600" />
-                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Status</span>
+
+            {/* Bank Name */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <BarChart3 className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Bank</span>
               </div>
-              <Badge className={`${getStatusColor((investment.investmentStatus?.code || ''))} gba:text-xs gba:px-1.5 gba:py-0.5`}>
-                {investment.investmentStatus?.value || formatReferenceValue(investment.investmentStatus?.code || '')}
-              </Badge>
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                {liquidFundInvestment?.bankName || '-'}
+              </p>
+            </div>
+
+            {/* Fund Type */}
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Target className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-600">Fund Type</span>
+              </div>
+              <p className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                {liquidFundInvestment?.investmentLiquidFundType?.value || formatReferenceValue(liquidFundInvestment?.investmentLiquidFundType?.code || '') || '-'}
+              </p>
             </div>
           </div>
         </CardContent>

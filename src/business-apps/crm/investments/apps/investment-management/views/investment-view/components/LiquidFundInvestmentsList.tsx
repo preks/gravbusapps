@@ -13,15 +13,16 @@ import {
 } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
-import type { Investment } from "@/common/data/investment/types";
+import { formatCurrency, formatDate } from "@/common/data/investment";
+import type { LiquidFundInvestment, Investment } from "@/common/data/investment/types/investmentTypes";
 import type { InvestmentQueryVariables } from "@/common/data/investment/queries/investmentQueries";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, DollarSign, Calendar } from "lucide-react";
+import { Building2, Calendar, User, Target, TrendingUp } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../utils";
+
 
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {}
 
@@ -37,7 +38,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
 
   const { fetchInvestments } = useGetInvestments(context);
 
-  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [investments, setInvestments] = useState<LiquidFundInvestment[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +48,10 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: searchTerm.trim() || undefined,
-      orderBy: [{ field: sortField, direction: sortOrder }],
-      ...selectedFilters
+      orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }],
+      // Filter for investments that have liquid fund investment data
+      investmentGroupIds: ['InvestmentGroup:v1:LIQUID_FUND']
     };
-    v.investmentGroupIds = ["liquid-fund-group-id"]; // TODO: replace with real IDs
     return v;
   }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
 
@@ -60,8 +61,18 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
     setError(null);
     try {
       const result = await fetchInvestments(queryVariables);
-      setInvestments(result.Investment || []);
-      setTotalCount(result.InvestmentAggregate?.aggregate?.count || 0);
+      
+      // Filter investments that have liquidFundInvestment data and transform to enhanced format
+      const liquidFundInvestments = (result.Investment || [])
+        .filter((investment: Investment) => investment.liquidFundInvestment && investment.liquidFundInvestment.length > 0)
+        .map((investment: Investment) => ({
+          ...investment.liquidFundInvestment[0], // Get the first liquid fund investment
+          investment: investment // Attach the main investment data
+        }));
+      
+      // Transform to enhanced format for UI
+      setInvestments(liquidFundInvestments);
+      setTotalCount(result.InvestmentAggregate?.aggregate?.count || liquidFundInvestments.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
@@ -84,9 +95,15 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
   }, []);
 
   const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'investments',
+      fromSubView: 'liquid-funds'
+    });
     navigateTo(detailsUrl);
   }, []);
+
+
 
   if (isLoading && investments.length === 0) {
     return (
@@ -153,51 +170,81 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead>Investment</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Deposit</TableHead>
+                <TableHead>Currency</TableHead>
+                <TableHead>Initial Investment</TableHead>
+                <TableHead>Market Value</TableHead>
+                <TableHead>Performance</TableHead>
+                <TableHead>Owner</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>Acquisition Date</TableHead>
+                <TableHead className="gba:w-[60px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {investments.map((investment) => (
-                <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
-                  
+              {investments.map((liquidFund) => (
+                <TableRow key={liquidFund.id} className="gba:cursor-pointer" onClick={() => handleRowClick(liquidFund.investment.id)}>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span className="gba:font-medium">{investment.name}</span>
+                      <span className="gba:font-medium">{liquidFund.investment.name}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{investment.investmentGroup?.code || "Unknown"}</Badge>
+                    <Badge variant="secondary">{liquidFund.investment?.investmentType?.value || 'Liquid Fund'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="gba:font-medium gba:text-gray-900">{liquidFund.bankName || liquidFund.fundManager || 'Unknown Bank'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{liquidFund.investment?.currency?.code || 'EUR'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="gba:font-medium gba:text-gray-700">{formatCurrency(liquidFund.investment.initialInvestmentAmount || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="gba:font-semibold gba:text-gray-900">{formatCurrency(liquidFund.investment.investmentMarketValue || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:flex gba:flex-col gba:items-start">
+                      <span className={`gba:font-semibold ${
+                        (liquidFund.performancePercentage ?? 0) === 0 ? 'gba:text-gray-500' : 
+                        (liquidFund.performancePercentage ?? 0) > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                      }`}>
+                        {formatCurrency(liquidFund.performanceAmount || 0)}
+                      </span>
+                      <span className={`gba:text-sm ${
+                        (liquidFund.performancePercentage ?? 0) === 0 ? 'gba:text-gray-400' : 
+                        (liquidFund.performancePercentage ?? 0) > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                      }`}>
+                        ({(liquidFund.performancePercentage ?? 0) === 0 ? '' : (liquidFund.performancePercentage ?? 0) > 0 ? '+' : ''}{(liquidFund.performancePercentage ?? 0).toFixed(2)}%)
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                      <span>{liquidFund.ownerDisplayName}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={investment.investmentStatus?.code === "Active" ? "default" : "secondary"}>
-                      {investment.investmentStatus?.code || "Unknown"}
-                    </Badge>
+                    <Badge variant={liquidFund.statusBadgeVariant}>{liquidFund.investment.investmentStatus?.value || "Unknown"}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatDate(investment.createdAt)}</span>
+                      <span>{formatDate(liquidFund.investment.acquisitionDate || liquidFund.investment.createdAt)}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
-                        data-testid={`liquid-fund-investment-update-button-${investment.id}`}
+                        data-testid={`liquid-fund-investment-update-button-${liquidFund.id}`}
                         size="icon"
                         contextsArray={[FlowContextName.liquidFundInvestmentEntity]}
-                        externalContextData={{ investmentId: investment.id }}
+                        externalContextData={{ investmentId: liquidFund.investment.id }}
                         prefixDataTestId={`liquid-fund-investment-update`}
                         accessToken={accessToken}
                         emptyStateBehavior="disable"

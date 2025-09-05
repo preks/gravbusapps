@@ -22,8 +22,11 @@ import {
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable';
-import type { RealEstateAnalyticsFilters } from './types';
+import { ExistingPropertiesTable } from './components/ExistingPropertiesTable';
+import { ProjectDevelopmentTable } from './components/ProjectDevelopmentTable';
+import { MezzanineLoansTable } from './components/MezzanineLoansTable';
+import { OthersTable } from './components/OthersTable';
+import type { RealEstateReportFilters } from './types';
 // Removed separate catalog hook - using central data source instead
 // import { useInvestmentTypeCatalog } from './hooks/useInvestmentTypeCatalog';
 
@@ -50,7 +53,7 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   const typesError = null;
   
   // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<string>('existing-properties');
 
   // Filter states - Updated to 2024 where actual data exists
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
@@ -85,16 +88,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     [appliedEndDate?.valueOf()]
   );
 
-  // Create filters for Overview and specific investment types
-  const overviewFilters = useMemo((): RealEstateAnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency
-    // No investmentType filter to show all real estate reports
-  }), [startDateString, endDateString, appliedCurrency]);
-
   // Create dynamic filters for each investment type
-  const createInvestmentTypeFilters = useCallback((investmentTypeValue: string): RealEstateAnalyticsFilters => ({
+  const createInvestmentTypeFilters = useCallback((investmentTypeValue: string): RealEstateReportFilters => ({
     startDate: startDateString,
     endDate: endDateString,
     currency: appliedCurrency,
@@ -210,10 +205,7 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         </div>
       ) : (
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-          <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${realEstateTypes.length + 1}, minmax(0, 1fr))` }}>
-            <TabsTrigger value="overview" data-testid={`${dataTestId}-overview-tab`}>
-              Overview
-            </TabsTrigger>
+          <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${realEstateTypes.length}, minmax(0, 1fr))` }}>
             {realEstateTypes.map((type) => {
               const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
               return (
@@ -228,31 +220,74 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
             })}
           </TabsList>
           
-          <TabsContent value="overview" className="gba:mt-6">
-            <RealEstateAnalyticsTable
-              accessToken={accessToken}
-              userInfo={userInfo}
-              filters={overviewFilters}
-              propertyType="All Real Estate Reports"
-              title="Real Estate Analytics - Overview"
-              data-testid={`${dataTestId}-overview-table`}
-            />
-          </TabsContent>
-          
           {realEstateTypes.map((type) => {
             const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
             const typeFilters = createInvestmentTypeFilters(type.value);
             
+            // Select the appropriate table component based on investment type
+            const getTableComponent = () => {
+              switch (type.value) {
+                case 'Existing Properties':
+                  return (
+                    <ExistingPropertiesTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Project Development':
+                  return (
+                    <ProjectDevelopmentTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Mezzanine Loans':
+                  return (
+                    <MezzanineLoansTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Others':
+                  return (
+                    <OthersTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                default:
+                  return (
+                    <ExistingPropertiesTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+              }
+            };
+            
             return (
               <TabsContent key={type.id} value={tabValue} className="gba:mt-6">
-                <RealEstateAnalyticsTable
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  filters={typeFilters}
-                  propertyType={`${type.value} Properties`}
-                  title={`Real Estate Analytics - ${type.value}`}
-                  data-testid={`${dataTestId}-${tabValue}-table`}
-                />
+                {getTableComponent()}
               </TabsContent>
             );
           })}

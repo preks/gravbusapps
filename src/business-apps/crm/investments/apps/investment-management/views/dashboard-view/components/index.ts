@@ -2,6 +2,7 @@
 // This file serves as the central export point for all dashboard components
 
 export { default as MetricsCards } from './MetricsCards';
+export { default as InvestmentStatistics } from './InvestmentStatistics';
 export { default as EquityMetricsCards } from './EquityMetricsCards';
 export { default as RealEstateMetricsCards } from './RealEstateMetricsCards';
 export { default as PrivateEquityMetricsCards } from './PrivateEquityMetricsCards';

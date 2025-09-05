@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-system";
 import {
   DollarSign,
+  Target,
   TrendingDown,
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -23,7 +24,7 @@ export const DivestmentView: React.FC<DivestmentViewProps> = (
     },
     {
       key: "exit-opportunities",
-      icon: <DollarSign className="gba:w-4 gba:h-4" />,
+      icon: <Target className="gba:w-4 gba:h-4" />,
       label: getTranslationFromI18nKeyAndLabel("exit_opportunities", "Exit Opportunities"),
     },
     {

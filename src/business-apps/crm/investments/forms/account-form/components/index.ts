@@ -1,1 +1,1 @@
-export { default as DiagnosticAccountForm } from "./DiagnosticAccountForm";
+export { default as AccountFormComponent } from "./AccountFormComponent";

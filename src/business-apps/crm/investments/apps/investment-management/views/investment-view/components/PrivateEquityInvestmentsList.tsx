@@ -19,8 +19,25 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, DollarSign, Calendar } from "lucide-react";
-import { formatCurrency, formatDate } from "../utils";
+import { Building2, Calendar } from "lucide-react";
+import { formatCurrency, formatDate } from "@/common/data/investment";
+
+// Helper function to format group names for display
+const formatGroupName = (groupName: string): string => {
+  // Handle specific cases for better display
+  if (groupName === 'RealEstate') {
+    return 'Real Estate';
+  }
+  if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
+    return 'Liquid Fund';
+  }
+  if (groupName === 'PrivateEquity') {
+    return 'Private Equity';
+  }
+  
+  // For other cases, add spaces before capital letters (camelCase to Title Case)
+  return groupName.replace(/([A-Z])/g, ' $1').trim();
+};
 
 export interface PrivateEquityInvestmentsListProps extends BusinessAppContextProps {}
 
@@ -49,7 +66,13 @@ const PrivateEquityInvestmentsList: React.FC<PrivateEquityInvestmentsListProps> 
       orderBy: [{ field: sortField, direction: sortOrder }],
       ...selectedFilters
     };
-    v.investmentGroupIds = ["private-equity-group-id"]; // TODO: replace with real IDs
+    // Filter by investment types that belong to Equity group (based on catalog parentEntryId)
+    v.investmentTypeIds = [
+      "InvestmentType:v1:PHARMA",
+      "InvestmentType:v1:LIFE_SCEINCE", 
+      "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+      "InvestmentType:v1:CO_INVESTMENTS"
+    ];
     return v;
   }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
 
@@ -180,13 +203,10 @@ const PrivateEquityInvestmentsList: React.FC<PrivateEquityInvestmentsListProps> 
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{investment.investmentGroup?.code || "Unknown"}</Badge>
+                    <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="gba:flex gba:items-center">
-                      <DollarSign className="gba:w-4 gba:h-4" />
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
-                    </div>
+                    <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
                   </TableCell>
                   <TableCell>
                     <Badge variant={investment.investmentStatus?.code === "Active" ? "default" : "secondary"}>

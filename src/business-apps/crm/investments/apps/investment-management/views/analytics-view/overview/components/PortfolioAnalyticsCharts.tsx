@@ -13,7 +13,8 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
-import { formatCurrency, formatPercentage, CHART_COLORS } from '../utils/formatters';
+import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import { CHART_COLORS } from '../utils';
 
 interface PortfolioAnalyticsChartsProps {
   sizeVsRoiData: any[];

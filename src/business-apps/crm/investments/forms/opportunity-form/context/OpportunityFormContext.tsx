@@ -18,6 +18,18 @@ import {
 } from "../types";
 import { useInvestmentOpportunityData } from "../hooks/useOpportunityData";
 import { usePipelineCatalogs } from "../hooks/usePipelineCatalogs";
+import { useSearchableCatalog } from "../hooks/useSearchableCatalog";
+import { useInvestmentGroupTypes } from "../hooks/useInvestmentGroupTypes";
+import { 
+  INVESTMENT_GROUP_CATALOG, 
+  INVESTMENT_GROUP_VERSION,
+  INVESTMENT_ROLE_CATALOG,
+  INVESTMENT_ROLE_VERSION,
+  INVESTMENT_STAKE_TYPE_CATALOG,
+  INVESTMENT_STAKE_TYPE_VERSION,
+  MEASUREMENT_UNIT_CATALOG,
+  MEASUREMENT_UNIT_VERSION
+} from "../hooks/useInvestmentCatalogs";
 
 interface InvestmentOpportunityFormContextValue {
   formValues: InvestmentOpportunityFormValues;
@@ -47,6 +59,43 @@ interface InvestmentOpportunityFormContextValue {
   pipelineError: string | null;
   pipelineStageError: string | null;
   refetchStages: (selectedPipelineId?: string) => void;
+
+  // Investment Group data
+  investmentGroupsSearchable: SelectOption[];
+  investmentGroupsLoading: boolean;
+  investmentGroupsError: string | null;
+  investmentGroupsHasMore: boolean;
+  searchInvestmentGroups: (search: string) => void;
+  loadMoreInvestmentGroups: () => void;
+
+  // Investment Role data
+  investmentRolesSearchable: SelectOption[];
+  investmentRolesLoading: boolean;
+  investmentRolesError: string | null;
+  investmentRolesHasMore: boolean;
+  searchInvestmentRoles: (search: string) => void;
+  loadMoreInvestmentRoles: () => void;
+
+  // Investment Stake Type data
+  investmentStakeTypesSearchable: SelectOption[];
+  investmentStakeTypesLoading: boolean;
+  investmentStakeTypesError: string | null;
+  investmentStakeTypesHasMore: boolean;
+  searchInvestmentStakeTypes: (search: string) => void;
+  loadMoreInvestmentStakeTypes: () => void;
+
+  // Measurement Unit data
+  measurementUnitsSearchable: SelectOption[];
+  measurementUnitsLoading: boolean;
+  measurementUnitsError: string | null;
+  measurementUnitsHasMore: boolean;
+  searchMeasurementUnits: (search: string) => void;
+  loadMoreMeasurementUnits: () => void;
+
+  // Dependent Investment Types (based on selected group)
+  dependentInvestmentTypes: SelectOption[];
+  dependentInvestmentTypesLoading: boolean;
+  dependentInvestmentTypesError: string | null;
 
   // Business app context for child components
   businessAppContext: BusinessAppContextProps;
@@ -112,6 +161,9 @@ export const OpportunityFormProvider: React.FC<
 
       // Real Estate Specific
       annualNetColdRent: "",
+      buildingYear: "",
+      size: "",
+      measurementUnit: "",
 
       // Relationship Information
       account: "",
@@ -287,26 +339,6 @@ export const OpportunityFormProvider: React.FC<
       businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
         ?.opportunityId;
 
-    console.log("👤 Auto-selection check:", {
-      hasCurrentUserEmployee: !!currentUserEmployee,
-      currentUserEmployeeId: currentUserEmployee?.employeeId,
-      formOwner: formValues.owner,
-      autoSelectionDone: autoSelectionDone.current,
-      currentOpportunityId: currentOpportunityId,
-      hasOpportunityData: !!opportunityData,
-      shouldAutoSelect:
-        currentUserEmployee &&
-        !formValues.owner &&
-        !autoSelectionDone.current &&
-        !currentOpportunityId &&
-        !opportunityData,
-    });
-
-    // Only auto-select if:
-    // 1. We have current user employee data
-    // 2. No owner is set yet
-    // 3. We haven't already done auto-selection
-    // 4. We're NOT editing an existing opportunity (no opportunityId)
     if (
       currentUserEmployee &&
       !formValues.owner &&
@@ -360,6 +392,52 @@ export const OpportunityFormProvider: React.FC<
     }));
   }, [pipelineStageOptions]);
 
+  // Investment Group Catalog Hook
+  const investmentGroupsConfig = useMemo(() => ({
+    catalogIdentifier: INVESTMENT_GROUP_CATALOG,
+    version: INVESTMENT_GROUP_VERSION,
+    businessAppContext
+  }), [businessAppContext]);
+
+  const investmentGroupsHook = useSearchableCatalog(investmentGroupsConfig);
+
+  // Investment Role Catalog Hook  
+  const investmentRolesConfig = useMemo(() => ({
+    catalogIdentifier: INVESTMENT_ROLE_CATALOG,
+    version: INVESTMENT_ROLE_VERSION,
+    businessAppContext
+  }), [businessAppContext]);
+
+  const investmentRolesHook = useSearchableCatalog(investmentRolesConfig);
+
+  // Investment Stake Type Catalog Hook
+  const investmentStakeTypesConfig = useMemo(() => ({
+    catalogIdentifier: INVESTMENT_STAKE_TYPE_CATALOG,
+    version: INVESTMENT_STAKE_TYPE_VERSION,
+    businessAppContext
+  }), [businessAppContext]);
+
+  const investmentStakeTypesHook = useSearchableCatalog(investmentStakeTypesConfig);
+
+  // Measurement Unit Catalog Hook (with AREA filter same as lead form)
+  const measurementUnitsConfig = useMemo(() => ({
+    catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
+    version: MEASUREMENT_UNIT_VERSION,
+    businessAppContext,
+    whereConditions: { additionalValue1: "AREA" }
+  }), [businessAppContext]);
+
+  const measurementUnitsHook = useSearchableCatalog(measurementUnitsConfig);
+
+  // Dependent Investment Types Hook (based on selected investment group)
+  const dependentInvestmentTypesHook = useInvestmentGroupTypes(
+    formValues.investmentGroupRef,
+    businessAppContext.accessToken
+  );
+
+  // Dependent investment types are already in SelectOption format from the hook
+  const dependentInvestmentTypesSelectOptions: SelectOption[] = dependentInvestmentTypesHook.investmentTypes;
+
   // Extract opportunityId for tracking changes
   const opportunityId =
     businessAppContext.additionalData?.opportunityId ||
@@ -400,15 +478,30 @@ export const OpportunityFormProvider: React.FC<
   // Auto-load stages when pipeline is set (for loaded opportunity data)
   useEffect(() => {
     if (formValues.pipeline && refetchStages) {
-      console.log("🔄 Auto-loading stages for pipeline:", formValues.pipeline);
       refetchStages(formValues.pipeline);
     }
   }, [formValues.pipeline]);
 
+  // Initialize investment catalogs when context is ready
+  useEffect(() => {
+    if (businessAppContext.accessToken) {
+      investmentGroupsHook.initialize();
+      investmentRolesHook.initialize();
+      investmentStakeTypesHook.initialize();
+      measurementUnitsHook.initialize();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessAppContext.accessToken]); // Only depend on accessToken, not the hook objects to avoid infinite loop
+
+  // Clear investment type when investment group changes (but NOT during initial data load)
+  useEffect(() => {
+    if (formValues.investmentGroupRef) {
+    }
+  }, [formValues.investmentGroupRef]);
+
   // Update form values
   const setFormValues = useCallback(
     (updates: Partial<InvestmentOpportunityFormValues>) => {
-      console.log("🔄 Form values update:", updates);
       setFormValuesState((prev) => ({ ...prev, ...updates }));
     },
     []
@@ -445,6 +538,43 @@ export const OpportunityFormProvider: React.FC<
       pipelineStageError: stageError,
       refetchStages,
 
+      // Investment Group data
+      investmentGroupsSearchable: investmentGroupsHook.options,
+      investmentGroupsLoading: investmentGroupsHook.loading,
+      investmentGroupsError: investmentGroupsHook.error,
+      investmentGroupsHasMore: investmentGroupsHook.hasMore,
+      searchInvestmentGroups: investmentGroupsHook.search,
+      loadMoreInvestmentGroups: investmentGroupsHook.loadMore,
+
+      // Investment Role data
+      investmentRolesSearchable: investmentRolesHook.options,
+      investmentRolesLoading: investmentRolesHook.loading,
+      investmentRolesError: investmentRolesHook.error,
+      investmentRolesHasMore: investmentRolesHook.hasMore,
+      searchInvestmentRoles: investmentRolesHook.search,
+      loadMoreInvestmentRoles: investmentRolesHook.loadMore,
+
+      // Investment Stake Type data
+      investmentStakeTypesSearchable: investmentStakeTypesHook.options,
+      investmentStakeTypesLoading: investmentStakeTypesHook.loading,
+      investmentStakeTypesError: investmentStakeTypesHook.error,
+      investmentStakeTypesHasMore: investmentStakeTypesHook.hasMore,
+      searchInvestmentStakeTypes: investmentStakeTypesHook.search,
+      loadMoreInvestmentStakeTypes: investmentStakeTypesHook.loadMore,
+
+      // Measurement Unit data
+      measurementUnitsSearchable: measurementUnitsHook.options,
+      measurementUnitsLoading: measurementUnitsHook.loading,
+      measurementUnitsError: measurementUnitsHook.error,
+      measurementUnitsHasMore: measurementUnitsHook.hasMore,
+      searchMeasurementUnits: measurementUnitsHook.search,
+      loadMoreMeasurementUnits: measurementUnitsHook.loadMore,
+
+      // Dependent Investment Types (based on selected group)
+      dependentInvestmentTypes: dependentInvestmentTypesHook.investmentTypes,
+      dependentInvestmentTypesLoading: dependentInvestmentTypesHook.loadingInvestmentTypes,
+      dependentInvestmentTypesError: dependentInvestmentTypesHook.errorInvestmentTypes,
+
       // Business app context
       businessAppContext,
     }),
@@ -470,6 +600,33 @@ export const OpportunityFormProvider: React.FC<
       pipelineError,
       stageError,
       refetchStages,
+      investmentGroupsHook.options,
+      investmentGroupsHook.loading,
+      investmentGroupsHook.error,
+      investmentGroupsHook.hasMore,
+      investmentGroupsHook.search,
+      investmentGroupsHook.loadMore,
+      investmentRolesHook.options,
+      investmentRolesHook.loading,
+      investmentRolesHook.error,
+      investmentRolesHook.hasMore,
+      investmentRolesHook.search,
+      investmentRolesHook.loadMore,
+      investmentStakeTypesHook.options,
+      investmentStakeTypesHook.loading,
+      investmentStakeTypesHook.error,
+      investmentStakeTypesHook.hasMore,
+      investmentStakeTypesHook.search,
+      investmentStakeTypesHook.loadMore,
+      measurementUnitsHook.options,
+      measurementUnitsHook.loading,
+      measurementUnitsHook.error,
+      measurementUnitsHook.hasMore,
+      measurementUnitsHook.search,
+      measurementUnitsHook.loadMore,
+      dependentInvestmentTypesHook.investmentTypes,
+      dependentInvestmentTypesHook.loadingInvestmentTypes,
+      dependentInvestmentTypesHook.errorInvestmentTypes,
       businessAppContext,
     ]
   );

@@ -63,7 +63,7 @@ export const useOpportunitiesOverTime = (
 
       const query = selectedPipelineId
         ? `
-        query GetOpportunitiesOverTime($startDate: timestamptz!, $pipelineId: uuid!) {
+        query GetOpportunitiesOverTime($startDate: timestamptz!, $pipelineId: String!) {
           # Get all opportunities created in the time range
           allOpportunities: Opportunity(
             where: {

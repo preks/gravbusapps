@@ -105,6 +105,15 @@ const OpportunityFormComponent: React.FC = () => {
           formValues.investmentStakeTypeRef
         ),
 
+        // Real Estate specific fields
+        buildingYear: formValues.buildingYear
+          ? parseInt(formValues.buildingYear)
+          : undefined,
+        size: formValues.size
+          ? parseFloat(formValues.size)
+          : undefined,
+        sizeMeasurementUnitRef: toStringOrUndefined(formValues.measurementUnit),
+
         // Relationships
         ownerEmployee: toStringOrUndefined(formValues.owner),
         account: toStringOrUndefined(
@@ -131,21 +140,6 @@ const OpportunityFormComponent: React.FC = () => {
         investmentOpportunity: investmentOpportunityPayload,
         changeMode: changeMode,
       };
-
-      console.log(
-        "🚀 Investment Opportunity payload:",
-        JSON.stringify(payload, null, 2)
-      );
-
-      console.log(
-        "✅ Investment Opportunity form dispatching pse_submit event with payload:",
-        payload
-      );
-      console.log(
-        "🔍 Opportunity Payload keys before dispatch:",
-        Object.keys(payload)
-      );
-
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);
     } catch (err) {

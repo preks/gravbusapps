@@ -25,8 +25,8 @@ import { startProcess } from "@/common/utils/start-process";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import * as RemixIcons from "@remixicon/react";
 // Import PhosphorIcons for LauncherLayout
-import { TrendUp } from "@phosphor-icons/react";
-
+import { TrendUpIcon } from "@phosphor-icons/react";
+import { MODULE_COLORS } from "@/common/constants/ui";
 interface InvestmentLauncherProps extends BusinessAppContextProps {}
 
 const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
@@ -54,6 +54,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
     }).format(num / 100);
   };
 
+  const moduleVariant = MODULE_COLORS.IRM;
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
     if (error) return [];
@@ -87,7 +88,6 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
       label: action.label,
       icon: action.icon, // Now directly using PhosphorIcon components
       onClick: () => handleQuickAction(action),
-      variant: "secondary",
     }));
   }, []);
 
@@ -327,19 +327,6 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
 
       const actions = getAreaActions(area.id);
 
-      // Get variant based on category
-      const getVariant = (category: string) => {
-        switch (category) {
-          case "crm":
-            return "ext1";
-          case "portfolio":
-            return "ext2";
-          case "analytics":
-            return "ext3";
-          default:
-            return "default";
-        }
-      };
 
       return {
         id: area.id,
@@ -352,7 +339,6 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
           label: "View Details",
           onClick: () => handleNavigationClick(area),
         },
-        variant: getVariant(area.category),
       };
     });
 
@@ -487,12 +473,13 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
     <LauncherLayout
       title="Investment Relations Management Hub"
       description="Comprehensive portfolio management, investment tracking, and performance analytics"
-      icon={TrendUp}
+      icon={TrendUpIcon}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used investment and business management functions"
+      variant={moduleVariant}
     />
   );
 };

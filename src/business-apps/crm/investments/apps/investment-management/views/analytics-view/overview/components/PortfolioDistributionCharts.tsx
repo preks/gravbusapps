@@ -12,7 +12,8 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
-import { formatCurrency, formatPercentage, renderCustomizedLabel, CHART_COLORS } from '../utils/formatters';
+import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import { renderCustomizedLabel, CHART_COLORS } from '../utils';
 
 interface PortfolioDistributionChartsProps {
   investmentTypeData: any[];

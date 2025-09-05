@@ -44,7 +44,7 @@ export const GET_PIPELINE_STAGES = `
         catalog: { identifier: { _eq: "InvestmentOpportunityPipelineStage" } }
         parentEntryId: { _eq: $pipelineRef }
       }
-      orderBy: { additionalValue1: ASC }
+      orderBy: { value: ASC }
     ) {
       id
       code
@@ -73,9 +73,12 @@ export const GET_PIPELINE_OPPORTUNITIES = `
   ) {
     opportunities: InvestmentOpportunity(
       where: {
-        opportunityPipeline: { id: { _eq: $pipelineRef } }
         isDeleted: { _eq: false }
         createdAt: { _gte: $startDate, _lte: $endDate }
+        _or: [
+          { opportunityPipeline: { id: { _eq: $pipelineRef } } },
+          { opportunityPipeline: { code: { _eq: $pipelineRef } } }
+        ]
       }
       orderBy: { createdAt: DESC }
       limit: $limit
@@ -201,7 +204,8 @@ export const GET_SALES_ACTIVITIES = `
         createdAt: { _gte: $startDate, _lte: $endDate }
         isDeleted: { _eq: false }
         _or: [
-          { opportunity: { opportunityPipeline: { id: { _eq: $pipelineRef } } } }
+          { opportunity: { opportunityPipeline: { id: { _eq: $pipelineRef } } } },
+          { opportunity: { opportunityPipeline: { code: { _eq: $pipelineRef } } } },
           { leadId: { _isNull: false } }
         ]
       }
@@ -240,7 +244,10 @@ export const GET_WIN_RATE_DATA = `
   ) {
     monthOpportunities: InvestmentOpportunity(
       where: {
-        opportunityPipeline: { id: { _eq: $pipelineRef } }
+        _or: [
+          { opportunityPipeline: { id: { _eq: $pipelineRef } } },
+          { opportunityPipeline: { code: { _eq: $pipelineRef } } }
+        ]
         isDeleted: { _eq: false }
         closeDate: { _gte: $monthStart, _lte: $endDate }
         opportunityStatus: { code: { _in: ["WON", "LOST"] } }
@@ -254,7 +261,10 @@ export const GET_WIN_RATE_DATA = `
     
     quarterOpportunities: InvestmentOpportunity(
       where: {
-        opportunityPipeline: { id: { _eq: $pipelineRef } }
+        _or: [
+          { opportunityPipeline: { id: { _eq: $pipelineRef } } },
+          { opportunityPipeline: { code: { _eq: $pipelineRef } } }
+        ]
         isDeleted: { _eq: false }
         closeDate: { _gte: $quarterStart, _lte: $endDate }
         opportunityStatus: { code: { _in: ["WON", "LOST"] } }
@@ -279,7 +289,10 @@ export const GET_SALES_REP_PERFORMANCE = `
   ) {
     opportunities: InvestmentOpportunity(
       where: {
-        opportunityPipeline: { id: { _eq: $pipelineRef } }
+        _or: [
+          { opportunityPipeline: { id: { _eq: $pipelineRef } } },
+          { opportunityPipeline: { code: { _eq: $pipelineRef } } }
+        ]
         isDeleted: { _eq: false }
         closeDate: { _gte: $startDate, _lte: $endDate }
         opportunityStatus: { code: { _in: ["WON", "LOST"] } }
@@ -300,7 +313,10 @@ export const GET_SALES_REP_PERFORMANCE = `
       where: {
         createdAt: { _gte: $activityStartDate, _lte: $activityEndDate }
         isDeleted: { _eq: false }
-        opportunity: { opportunityPipeline: { id: { _eq: $pipelineRef } } }
+        _or: [
+          { opportunity: { opportunityPipeline: { id: { _eq: $pipelineRef } } } },
+          { opportunity: { opportunityPipeline: { code: { _eq: $pipelineRef } } } }
+        ]
       }
     ) {
       id

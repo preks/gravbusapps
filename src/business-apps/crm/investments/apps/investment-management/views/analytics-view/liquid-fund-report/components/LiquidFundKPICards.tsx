@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { Building, Percent, Calendar, CheckCircle } from 'lucide-react';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment';
 import { LiquidFundInvestmentKPIs } from '../types';
 
 // Typography no longer needed with design system

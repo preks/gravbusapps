@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { EnhancedRealEstateInvestmentSummary } from './useRealEstateInvestmentIntegration';
+import { RealEstateInvestmentSummary } from '../RealEstateInvestmentsReport';
 
-export const useRealEstateChartData = (realEstateInvestments: EnhancedRealEstateInvestmentSummary[]) => {
+export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestmentSummary[]) => {
   const chartData = useMemo(() => {
     // Property Type Distribution
     const propertyTypeData = realEstateInvestments.reduce((acc, property) => {
-      const type = property.realEstateType?.value || 'Unknown';
+      const type = property.propertyType || 'Unknown';
       const existing = acc.find(item => item.name === type);
       if (existing) {
         existing.value += 1;
@@ -144,7 +144,7 @@ export const useRealEstateChartData = (realEstateInvestments: EnhancedRealEstate
         name: property.displayName || 'Unknown Property',
         size: property.size || 0,
         value: property.investment.marketValue || property.investment.bookValue || 0,
-        color: property.propertyTypeColor
+        color: 'blue'
       }));
 
     // Region Distribution
@@ -198,7 +198,7 @@ export const useRealEstateChartData = (realEstateInvestments: EnhancedRealEstate
         leverageRatio: property.investment.leverageRatio || 0,
         marketValue: property.investment.marketValue || 0,
         debtFinancing: property.investment.debtFinancing || 0,
-        color: property.propertyTypeColor
+        color: 'blue'
       }));
 
     // ROI vs Size Analysis

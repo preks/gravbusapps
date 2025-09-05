@@ -13,7 +13,7 @@ import {
   ScatterChart,
   Scatter
 } from 'recharts';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency } from '@/common/data/investment';
 import { LiquidFundTimelineCharts } from './LiquidFundTimelineCharts';
 import { LiquidFundPortfolioCharts } from './LiquidFundPortfolioCharts';
 import { LiquidFundDistributionCharts } from './LiquidFundDistributionCharts';

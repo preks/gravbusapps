@@ -32,6 +32,7 @@ import {
   INVESTMENT_GROUP_CATALOG,
   INVESTMENT_ROLE_CATALOG,
   INVESTMENT_STAKE_TYPE_CATALOG,
+  MEASUREMENT_UNIT_CATALOG,
 } from "../hooks/useLeadCatalogs";
 
 // ✅ ADDED: New catalog constants for searchable dropdowns
@@ -39,6 +40,7 @@ export const SALUTATION_CATALOG = "Salutation";
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
 
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
+import { useInvestmentGroupTypes } from "../hooks/useInvestmentGroupTypes";
 
 interface LeadFormContextValue extends LeadContextState {
   formValues: LeadFormValues;
@@ -159,6 +161,60 @@ interface LeadFormContextValue extends LeadContextState {
   searchSalesCampaigns: (search: string) => void;
   loadMoreSalesCampaigns: () => void;
   showMoreSalesCampaigns: () => void;
+
+  // Dependent Investment Group Types (filtered by selected investment group)
+  dependentInvestmentTypes: SelectOption[];
+  dependentInvestmentTypesLoading: boolean;
+  dependentInvestmentTypesError: string | null;
+  refetchDependentInvestmentTypes: () => void;
+
+  // Investment Groups
+  investmentGroupsSearchable: SelectOption[];
+  investmentGroupsLoading: boolean;
+  investmentGroupsError: string | null;
+  investmentGroupsHasMore: boolean;
+  investmentGroupsNeedsMoreData: boolean;
+  investmentGroupsDisplayCount: number;
+  investmentGroupsTotalFetched: number;
+  searchInvestmentGroups: (search: string) => void;
+  loadMoreInvestmentGroups: () => void;
+  showMoreInvestmentGroups: () => void;
+
+  // Investment Roles
+  investmentRolesSearchable: SelectOption[];
+  investmentRolesLoading: boolean;
+  investmentRolesError: string | null;
+  investmentRolesHasMore: boolean;
+  investmentRolesNeedsMoreData: boolean;
+  investmentRolesDisplayCount: number;
+  investmentRolesTotalFetched: number;
+  searchInvestmentRoles: (search: string) => void;
+  loadMoreInvestmentRoles: () => void;
+  showMoreInvestmentRoles: () => void;
+
+  // Investment Stake Types
+  investmentStakeTypesSearchable: SelectOption[];
+  investmentStakeTypesLoading: boolean;
+  investmentStakeTypesError: string | null;
+  investmentStakeTypesHasMore: boolean;
+  investmentStakeTypesNeedsMoreData: boolean;
+  investmentStakeTypesDisplayCount: number;
+  investmentStakeTypesTotalFetched: number;
+  searchInvestmentStakeTypes: (search: string) => void;
+  loadMoreInvestmentStakeTypes: () => void;
+  showMoreInvestmentStakeTypes: () => void;
+
+  // Measurement Units
+  measurementUnitsSearchable: SelectOption[];
+  measurementUnitsLoading: boolean;
+  measurementUnitsError: string | null;
+  measurementUnitsHasMore: boolean;
+  measurementUnitsNeedsMoreData: boolean;
+  measurementUnitsDisplayCount: number;
+  measurementUnitsTotalFetched: number;
+  searchMeasurementUnits: (search: string) => void;
+  loadMoreMeasurementUnits: () => void;
+  showMoreMeasurementUnits: () => void;
 }
 
 const LeadFormContext = createContext<LeadFormContextValue | null>(null);
@@ -255,6 +311,11 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     requiredCapitalAmount: "",
     forecastedProfitAmount: "",
     annualNetColdRent: "",
+    
+    // Real Estate Specific Fields
+    buildingYear: "",
+    size: "",
+    measurementUnit: "",
 
     // Conversion Information
     conversionDate: "", // ✅ ADDED: Date when lead was converted
@@ -561,6 +622,15 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     [businessAppContext.accessToken]
   );
 
+  const measurementUnitsConfig = useMemo(
+    () => ({
+      accessToken: businessAppContext.accessToken,
+      catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
+      whereConditions: { additionalValue1: "AREA" },
+    }),
+    [businessAppContext.accessToken]
+  );
+
   const leadSourcesHook = useSearchableCatalog(leadSourcesConfig);
   const leadStatusesHook = useSearchableCatalog(leadStatusesConfig);
   const leadRatingsHook = useSearchableCatalog(leadRatingsConfig);
@@ -580,6 +650,18 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const investmentStakeTypesHook = useSearchableCatalog(
     investmentStakeTypesConfig
   );
+
+  const measurementUnitsHook = useSearchableCatalog(
+    measurementUnitsConfig
+  );
+
+  // Dependent Investment Types hook - filtered by selected investment group
+  const dependentInvestmentTypesHook = useInvestmentGroupTypes(
+    formValues.investmentGroup,
+    businessAppContext.accessToken
+  );
+  // Clear investment type when investment group changes (will be defined after setFormValues)
+  const previousInvestmentGroup = useRef(formValues.investmentGroup);
 
   // Initialize data on mount
   const hasInitialized = useRef(false);
@@ -602,6 +684,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       investmentGroupsHook.initialize();
       investmentRolesHook.initialize();
       investmentStakeTypesHook.initialize();
+      measurementUnitsHook.initialize();
     }
   }, [businessAppContext.accessToken]);
 
@@ -611,27 +694,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       businessAppContext.additionalData?.leadId ||
       businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
         ?.leadId;
-
-    console.log("👤 Auto-selection check:", {
-      hasCurrentUserEmployee: !!currentUserEmployee,
-      currentUserEmployeeId: currentUserEmployee?.employeeId,
-      formOwner: formValues.owner,
-      autoSelectionDone: autoSelectionDone.current,
-      currentLeadId: currentLeadId,
-      hasLeadData: !!leadData,
-      shouldAutoSelect:
-        currentUserEmployee &&
-        !formValues.owner &&
-        !autoSelectionDone.current &&
-        !currentLeadId &&
-        !leadData,
-    });
-
-    // Only auto-select if:
-    // 1. We have current user employee data
-    // 2. No owner is set yet
-    // 3. We haven't already done auto-selection
-    // 4. We're NOT editing an existing lead (no leadId)
     if (
       currentUserEmployee &&
       !formValues.owner &&
@@ -664,10 +726,14 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     ) {
       const mappedValues = mapLeadToFormValues(leadData);
 
-      setFormValuesState((prev) => ({
-        ...prev,
-        ...mappedValues,
-      }));
+      setFormValuesState((prev) => {
+        const newFormValues = {
+          ...prev,
+          ...mappedValues,
+        };
+        
+        return newFormValues;
+      });
       // Don't auto-select current user if we're editing an existing lead
       autoSelectionDone.current = true;
     }
@@ -720,6 +786,30 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const setFormValues = useCallback((updates: Partial<LeadFormValues>) => {
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // Clear investment type when investment group changes (but NOT during initial data load)
+  useEffect(() => {
+    if (previousInvestmentGroup.current !== formValues.investmentGroup) {
+      // Check if this is the initial load from database vs user interaction
+      const isInitialLoad = (
+        // Case 1: First time setting group from empty to a value (initial form load)
+        (previousInvestmentGroup.current === "" && formValues.investmentGroup !== "") ||
+        // Case 2: Currently loading lead data from GraphQL
+        (leadData && leadData.id && formValues.id === leadData.id && 
+         leadData.investmentGroupRef === formValues.investmentGroup)
+      );
+      
+      if (!isInitialLoad) {
+        // This is a user interaction - clear the investment type
+        setFormValues({ investmentType: "" });
+      } 
+      
+      previousInvestmentGroup.current = formValues.investmentGroup;
+    }
+  }, [formValues.investmentGroup, formValues.id, leadData, setFormValues]);
+
+  // DO NOT auto-select investment types - let user choose manually
+  // This prevents confusion when switching between investment groups
 
   // Address management functions (new dynamic structure)
   const addAddress = useCallback(() => {
@@ -1075,6 +1165,24 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     searchInvestmentStakeTypes: investmentStakeTypesHook.search,
     loadMoreInvestmentStakeTypes: investmentStakeTypesHook.loadMore,
     showMoreInvestmentStakeTypes: investmentStakeTypesHook.showMore,
+
+    // Measurement Units
+    measurementUnitsSearchable: measurementUnitsHook.allOptions,
+    measurementUnitsLoading: measurementUnitsHook.loading,
+    measurementUnitsError: measurementUnitsHook.error,
+    measurementUnitsHasMore: measurementUnitsHook.hasMore,
+    measurementUnitsNeedsMoreData: measurementUnitsHook.needsMoreData,
+    measurementUnitsDisplayCount: measurementUnitsHook.displayCount,
+    measurementUnitsTotalFetched: measurementUnitsHook.totalFetched,
+    searchMeasurementUnits: measurementUnitsHook.search,
+    loadMoreMeasurementUnits: measurementUnitsHook.loadMore,
+    showMoreMeasurementUnits: measurementUnitsHook.showMore,
+
+    // Dependent Investment Group Types (filtered by selected investment group)
+    dependentInvestmentTypes: dependentInvestmentTypesHook.investmentTypes,
+    dependentInvestmentTypesLoading: dependentInvestmentTypesHook.loadingInvestmentTypes,
+    dependentInvestmentTypesError: dependentInvestmentTypesHook.errorInvestmentTypes,
+    refetchDependentInvestmentTypes: dependentInvestmentTypesHook.refetchInvestmentTypes,
   };
 
   return (

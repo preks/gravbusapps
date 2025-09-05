@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { PageLayout } from "@newwork/nw-design-system";
-import { PiUsersThree, PiBriefcase, PiChartPie } from "react-icons/pi";
+import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon } from "@phosphor-icons/react";
+
 
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { EmployeeList } from "./components/views/employee-view/EmployeeList";
 import { JobPositionList } from "./components/views/job-position-view/JobPositionList";
 import { HrAnalyticsView } from "./components/views/analytics-view/HrAnalyticsView";
+import { MODULE_COLORS } from "@/common/constants/ui";
+
+const moduleVariant = MODULE_COLORS.HR;
 
 export interface HumanResourcesProps extends BusinessAppContextProps {}
 
@@ -13,21 +17,21 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
   const viewOptions = [
     {
       key: "employees",
-      icon: <PiUsersThree />,
+      icon: <UsersThreeIcon />,
       label: "Employees",
       title: "Employee Management",
       description: "View and manage all employees in your organization, including their profiles, roles, and organizational assignments.",
     },
     {
       key: "positions",
-      icon: <PiBriefcase />,
+      icon: <BriefcaseIcon />,
       label: "Job Positions",
       title: "Job Position Management",
       description: "Manage job positions, departments, profiles, and track employee assignments across your organizational structure.",
     },
     {
       key: "analytics",
-      icon: <PiChartPie />,
+      icon: <ChartPieIcon />,
       label: "Analytics",
       title: "HR Analytics & Insights",
       description: "Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.",
@@ -145,12 +149,7 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
   return (
     <div data-testid="human-resources-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: PiUsersThree as any,
-          variant: "premium",
-          size: "lg",
-          label: "Human Resources",
-        }}
+        headerIcon={UsersThreeIcon}
         headerTitle="Human Resources"
         headerDescription="Manage employees, job positions, and organizational structure"
         sectionTitle={activeTabInfo.title}
@@ -164,6 +163,7 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
             icon: option.icon,
           })),
         }}
+        variant={moduleVariant}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

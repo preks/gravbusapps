@@ -10,17 +10,12 @@ import {
   AlertDescription,
 } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
-import { BarChart3, Home, Briefcase, Banknote } from "lucide-react";
+import { BarChart3, Home, Briefcase, Banknote, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { MetricsCards } from ".";
+import { InvestmentStatistics } from ".";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import { Investment } from "@/common/data/investment/types/investmentTypes";
-
-// Helper function to calculate ROI
-const calculateROI = (marketValue: number, initialAmount: number): number => {
-  if (initialAmount === 0) return 0;
-  return ((marketValue - initialAmount) / initialAmount) * 100;
-};
+import { useInvestmentGroupsAndTypes } from "../hooks/useInvestmentGroupsAndTypes";
 
 // Helper function to format currency
 const formatCurrency = (amount: number): string => {
@@ -30,6 +25,68 @@ const formatCurrency = (amount: number): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount);
+};
+
+// Helper function to calculate month-over-month change
+const calculateMonthOverMonthChange = (currentValue: number, previousValue: number): { percentage: number; trend: 'up' | 'down' | 'neutral' } => {
+  if (previousValue === 0) {
+    return { percentage: 0, trend: 'neutral' };
+  }
+  
+  const change = ((currentValue - previousValue) / previousValue) * 100;
+  
+  if (Math.abs(change) < 0.1) {
+    return { percentage: change, trend: 'neutral' };
+  }
+  
+  return {
+    percentage: change,
+    trend: change > 0 ? 'up' : 'down'
+  };
+};
+
+// Helper function to get trend icon and color
+const getTrendDisplay = (trend: 'up' | 'down' | 'neutral', percentage: number) => {
+  const formattedPercentage = `${Math.abs(percentage).toFixed(1)}%`;
+  
+  switch (trend) {
+    case 'up':
+      return {
+        icon: <TrendingUp className="gba:w-3 gba:h-3" />,
+        color: 'gba:text-green-600',
+        text: `+${formattedPercentage}`
+      };
+    case 'down':
+      return {
+        icon: <TrendingDown className="gba:w-3 gba:h-3" />,
+        color: 'gba:text-red-600',
+        text: `-${formattedPercentage}`
+      };
+    case 'neutral':
+    default:
+      return {
+        icon: <Minus className="gba:w-3 gba:h-3" />,
+        color: 'gba:text-gray-500',
+        text: '0.0%'
+      };
+  }
+};
+
+// Helper function to format group names for display
+const formatGroupName = (groupName: string): string => {
+  // Handle specific cases for better display
+  if (groupName === 'RealEstate') {
+    return 'Real Estate';
+  }
+  if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
+    return 'Liquid Fund';
+  }
+  if (groupName === 'PrivateEquity') {
+    return 'Private Equity';
+  }
+  
+  // For other cases, add spaces before capital letters (camelCase to Title Case)
+  return groupName.replace(/([A-Z])/g, ' $1').trim();
 };
 
 interface InvestmentTypesTabProps extends BusinessAppContextProps {
@@ -44,6 +101,9 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
   const [investments, setInvestments] = React.useState<Investment[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Get investment groups and types from catalog
+  const { data: groupsData, isLoading: groupsLoading, error: groupsError } = useInvestmentGroupsAndTypes(props.accessToken);
 
   // Load investment data
   React.useEffect(() => {
@@ -69,84 +129,80 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
     loadInvestments();
   }, [props.accessToken, fetchInvestments]);
 
-  // Calculate metrics from centralized data
-  const metrics = React.useMemo(() => {
-    if (!investments.length) return null;
+  // Calculate investment groups count for the breakdown overview
+  const investmentGroupsCount = React.useMemo(() => {
+    if (!investments.length) return 0;
 
-    // Only include investments with proper groups in overall metrics
     const validInvestments = investments.filter(inv => 
-      inv.investmentGroupLabel || inv.investmentGroup?.value
+      inv.investmentGroup?.value
     );
 
-    // Log data quality issues if investments without proper groups are found
-    const invalidInvestments = investments.filter(inv => 
-      !inv.investmentGroupLabel && !inv.investmentGroup?.value
-    );
-    if (invalidInvestments.length > 0) {
-      console.warn(`Found ${invalidInvestments.length} investments without proper investment groups. This indicates data quality issues.`);
-    }
-
-    const totalInvested = validInvestments.reduce((sum, inv) => 
-      sum + (inv.initialInvestmentAmount || 0), 0
-    );
-    const totalMarketValue = validInvestments.reduce((sum, inv) => 
-      sum + (inv.investmentMarketValue || 0), 0
-    );
-    const valueChange = totalMarketValue - totalInvested;
-    const avgROI = validInvestments.length > 0 ? 
-      validInvestments.reduce((sum, inv) => {
-        const roi = calculateROI(
-          inv.investmentMarketValue || 0, 
-          inv.initialInvestmentAmount || 0
-        );
-        return sum + roi;
-      }, 0) / validInvestments.length : 0;
-
-    const investmentGroups = new Set(
-      validInvestments.map(inv => inv.investmentGroupLabel || inv.investmentGroup?.value)
+    return new Set(
+      validInvestments.map(inv => inv.investmentGroup?.value)
         .filter(group => group) // Remove any undefined/null values
     ).size;
-
-    return {
-      totalInvested: formatCurrency(totalInvested),
-      currentBookValue: formatCurrency(totalMarketValue),
-      bookValueChange: `${valueChange >= 0 ? '+' : ''}${formatCurrency(valueChange)}`,
-      avgExpectedROI: `${avgROI.toFixed(1)}%`,
-      totalInvestments: validInvestments.length,
-      investmentGroups
-    };
   }, [investments]);
 
-  // Calculate investment group metrics from centralized data
+  // Calculate investment group metrics from centralized data using catalog structure
   const investmentGroupMetrics = React.useMemo(() => {
-    if (!investments.length) return [];
+    if (!investments.length || !groupsData.groups.length) return [];
 
-    // Group by investment group (Real Estate, Liquid Fund, Equity)
+    // Create a map of group values to group info for easier lookup
+    const groupMap = new Map(groupsData.groups.map(group => [group.value, group]));
+    
+    // Create a map of investment type values to their parent group
+    const typeToGroupMap = new Map<string, string>();
+    groupsData.groups.forEach(group => {
+      group.types.forEach(type => {
+        typeToGroupMap.set(type.value, group.value);
+      });
+    });
+    
+    // Group investments by their investment type's correct parent group (catalog as source of truth)
     const groupGroups = investments.reduce((groups, inv) => {
-      const group = inv.investmentGroupLabel || inv.investmentGroup?.value;
+      const investmentTypeValue = inv.investmentType?.value;
+      const actualGroupValue = inv.investmentGroup?.value;
       
-      // Log investments without proper investment groups for data quality monitoring
-      if (!group) {
-        console.warn('Investment without proper group found:', {
+      // Determine the correct group based on catalog (investment type's parent)
+      const correctGroupValue = investmentTypeValue ? typeToGroupMap.get(investmentTypeValue) : null;
+      
+      // Use catalog-based grouping if available, otherwise fall back to assigned group
+      const finalGroupValue = correctGroupValue || actualGroupValue;
+      
+      if (!finalGroupValue) {
+        console.warn('Investment without proper type or group found:', {
           id: inv.id,
           name: inv.name,
-          investmentGroupLabel: inv.investmentGroupLabel,
-          investmentGroup: inv.investmentGroup
+          investmentType: investmentTypeValue,
+          investmentGroup: actualGroupValue
         });
-        return groups; // Skip investments without proper groups
+        return groups; // Skip investments without proper classification
       }
       
-      if (!groups[group]) groups[group] = [];
-      groups[group].push(inv);
+      // Log data quality issues
+      if (actualGroupValue && correctGroupValue && actualGroupValue !== correctGroupValue) {
+        console.warn(`Investment data mismatch: "${inv.name}" assigned to "${actualGroupValue}" but type "${investmentTypeValue}" belongs to "${correctGroupValue}" per catalog. Using catalog group.`);
+      } else if (!investmentTypeValue && actualGroupValue) {
+        console.info(`Investment "${inv.name}" has no type, using assigned group "${actualGroupValue}"`);
+      }
+      
+      if (!groups[finalGroupValue]) groups[finalGroupValue] = [];
+      groups[finalGroupValue].push(inv);
       return groups;
     }, {} as Record<string, Investment[]>);
 
-    // Define preferred order for investment groups
-    const groupOrder = ['Real Estate', 'Equity', 'Liquid Fund', 'Liquid Funds'];
+    // Define preferred order for investment groups (using actual values from data)
+    const groupOrder = ['RealEstate', 'Equity', 'Liquid Fund', 'Liquid Funds'];
     
-    // Only return groups that have actual investments (filter out empty groups)
+    // Ensure all catalog groups are represented, even if empty
+    groupsData.groups.forEach(catalogGroup => {
+      if (!groupGroups[catalogGroup.value]) {
+        groupGroups[catalogGroup.value] = [];
+      }
+    });
+    
+    // Return all groups (including empty ones to show catalog structure)
     return Object.entries(groupGroups)
-      .filter(([, groupInvestments]) => groupInvestments.length > 0)
       .sort(([groupA], [groupB]) => {
         const indexA = groupOrder.indexOf(groupA);
         const indexB = groupOrder.indexOf(groupB);
@@ -166,21 +222,31 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
       const totalMarketValue = groupInvestments.reduce((sum, inv) => 
         sum + (inv.investmentMarketValue || 0), 0
       );
-      const avgROI = groupInvestments.reduce((sum, inv) => {
-        const roi = calculateROI(
-          inv.investmentMarketValue || 0, 
-          inv.initialInvestmentAmount || 0
-        );
-        return sum + roi;
-      }, 0) / groupInvestments.length;
 
-      // Calculate subtypes based on investment types (not investment groups)
-      const subTypeGroups = groupInvestments.reduce((groups, inv) => {
-        const subType = inv.investmentTypeLabel || inv.investmentType?.value || 'General';
-        if (!groups[subType]) groups[subType] = [];
-        groups[subType].push(inv);
-        return groups;
-      }, {} as Record<string, Investment[]>);
+
+      // Initialize all catalog types for this group with empty arrays
+      const catalogGroup = groupMap.get(group);
+      const subTypeGroups: Record<string, Investment[]> = {};
+      
+      // First, create entries for all catalog types in this group
+      if (catalogGroup) {
+        catalogGroup.types.forEach(type => {
+          subTypeGroups[type.value] = [];
+        });
+      }
+      
+      // Then, assign investments to their correct types
+      groupInvestments.forEach(inv => {
+        const investmentTypeValue = inv.investmentType?.value;
+        
+        if (investmentTypeValue && subTypeGroups[investmentTypeValue]) {
+          subTypeGroups[investmentTypeValue].push(inv);
+        } else if (investmentTypeValue) {
+          // Investment type exists but not in this group's catalog - log warning
+          console.warn(`Investment type "${investmentTypeValue}" not found in catalog for group "${group}"`);
+        }
+        // Skip investments without investment types
+      });
 
       const subTypes = Object.entries(subTypeGroups).map(([subType, subTypeInvestments]) => {
         const subTypeTotalInvested = subTypeInvestments.reduce((sum, inv) => 
@@ -188,18 +254,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
         );
         const percentage = totalInvested > 0 ? (subTypeTotalInvested / totalInvested) * 100 : 0;
         
-        // Log investment types with 0€ amounts for investigation (not filtering)
-        if (subTypeTotalInvested === 0) {
-          console.info(`Investment type "${subType}" in group "${group}" has 0€ invested amount. This might be legitimate (e.g., acquired for free, different investment structure). Investments:`, 
-            subTypeInvestments.map(inv => ({
-              id: inv.id,
-              name: inv.name,
-              initialInvestmentAmount: inv.initialInvestmentAmount,
-              investmentMarketValue: inv.investmentMarketValue,
-              hasMarketValue: (inv.investmentMarketValue || 0) > 0
-            }))
-          );
-        }
+        // Note: Some investment types may have 0€ invested amounts but still have market value
         
         return {
           name: subType,
@@ -229,13 +284,13 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
         color: config.color,
         investments: groupInvestments.length,
         totalInvested: formatCurrency(totalInvested),
-        bookValue: formatCurrency(totalMarketValue),
-        avgROI: `${avgROI.toFixed(1)}%`,
-        roiColor: avgROI >= 0 ? 'gba:text-green-600' : 'gba:text-red-600',
+        marketValue: formatCurrency(totalMarketValue),
         subTypes
       };
     });
-  }, [investments]);
+    
+    return result;
+  }, [investments, groupsData.groups]);
 
   if (isLoading) {
     return (
@@ -248,11 +303,11 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
     );
   }
 
-  if (error) {
+  if (error || groupsError) {
     return (
       <Alert variant="destructive" data-testid="investment-types-error">
-        <AlertTitle>Error Loading Investment Types Data</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertTitle>Error Loading Investment Data</AlertTitle>
+        <AlertDescription>{error || groupsError}</AlertDescription>
         <button
           className="gba:px-4 gba:py-2 gba:bg-red-500 gba:text-white gba:rounded"
           onClick={() => window.location.reload()}
@@ -263,36 +318,15 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
     );
   }
 
-  // Helper function to get performance percentage for each type
-  const getTypePerformance = (typeName: string): number => {
-    const normalizedName = typeName.toLowerCase().replace(/\s+/g, "");
-    if (
-      normalizedName.includes("equity") &&
-      !normalizedName.includes("private")
-    ) {
-      return 75; // Default performance for equity
-    }
-    if (
-      normalizedName.includes("realestate") ||
-      normalizedName.includes("real")
-    ) {
-      return 80; // Default performance for real estate
-    }
-    if (normalizedName.includes("liquid")) {
-      return 70; // Default performance for liquid funds
-    }
-    return Math.round(70 + Math.random() * 20); // Default fallback
-  };
+
 
   return (
     <div data-testid="investment-types-content">
       {/* Key Metrics Cards */}
       <div className="gba:mb-8">
-        <MetricsCards
-          metrics={metrics}
-          isLoading={isLoading}
-          error={error}
+        <InvestmentStatistics
           accessToken={props.accessToken}
+          userInfo={props.userInfo}
         />
       </div>
 
@@ -303,7 +337,7 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
             Investment Breakdown Overview
           </h2>
           <span className="gba:text-sm gba:text-gray-600">
-            Capital allocation across {metrics?.investmentGroups || 0} investment
+            Capital allocation across {investmentGroupsCount} investment
             groups
           </span>
         </div>
@@ -311,23 +345,29 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
         <div className="gba:space-y-6">
           {/* Investment Groups Grid */}
           <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3">
-            {isLoading ? (
+            {groupsLoading ? (
               <div className="gba:col-span-full gba:flex gba:justify-center gba:items-center gba:py-8">
                 <Spinner size="lg" />
               </div>
-            ) : error ? (
+            ) : groupsError ? (
               <div className="gba:col-span-full">
                 <Alert variant="destructive">
                   <AlertTitle>Error Loading Investment Groups</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{groupsError}</AlertDescription>
                   <Button size="sm" onClick={() => window.location.reload()}>
                     Retry
                   </Button>
                 </Alert>
               </div>
+            ) : investmentGroupMetrics.length === 0 ? (
+              <div className="gba:col-span-full gba:text-center gba:py-8">
+                <p className="gba:text-gray-500">No investment groups found</p>
+                <p className="gba:text-sm gba:text-gray-400 gba:mt-2">
+                  {investments.length} investments available, {groupsData.groups.length} groups in catalog
+                </p>
+              </div>
             ) : (
               investmentGroupMetrics.map((group) => {
-                const groupPerformance = getTypePerformance(group.name);
                 return (
                   <Card key={group.name} className="gba:h-full">
                     <CardHeader>
@@ -338,12 +378,15 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                             const subtabMap: { [key: string]: string } = {
                               Equity: "equity",
                               "Real Estate": "real-estate",
+                              RealEstate: "real-estate",
                               "Liquid Fund": "liquid-funds",
                               "Liquid Funds": "liquid-funds",
+                              LiquidFund: "liquid-funds",
+                              LiquidFunds: "liquid-funds",
                             };
                             const subtab =
                               subtabMap[group.name] ||
-                              group.name.toLowerCase().replace(" ", "-");
+                              formatGroupName(group.name).toLowerCase().replace(" ", "-");
                             onNavigateToInvestmentType(subtab);
                           }}
                           data-testid={`investment-group-icon-${group.name
@@ -364,22 +407,8 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                           )}
                         </div>
                         <div className="gba:flex-1">
-                          <CardTitle className="gba:flex gba:items-center gba:justify-between">
-                            <span>{group.name}</span>
-                            <div className="gba:flex gba:items-center gba:gap-1">
-                              <span
-                                className={`gba:text-sm gba:font-medium ${
-                                  groupPerformance >= 70
-                                    ? "gba:text-green-600"
-                                    : "gba:text-red-600"
-                                }`}
-                              >
-                                {groupPerformance}%
-                              </span>
-                              <span className="gba:text-xs gba:text-gray-500">
-                                performance
-                              </span>
-                            </div>
+                          <CardTitle>
+                            <span>{formatGroupName(group.name)}</span>
                           </CardTitle>
                           <p className="gba:text-sm gba:text-gray-600">
                             {group.investments} investments
@@ -388,48 +417,56 @@ const InvestmentTypesTab: React.FC<InvestmentTypesTabProps> = (props) => {
                       </div>
                     </CardHeader>
                     <CardContent className="gba:p-6">
-                      <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
+                      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
                         <div>
-                          <p className="gba:text-sm gba:text-gray-600">
-                            Total Invested
-                          </p>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <p className="gba:text-sm gba:text-gray-600">
+                              Total Invested
+                            </p>
+                            {(() => {
+                              // Mock previous month data for Total Invested
+                              const totalInvestedNum = parseFloat(group.totalInvested.replace(/[€.,]/g, ''));
+                              const mockPreviousTotalInvested = totalInvestedNum * 0.97; // Mock 3% previous value
+                              
+                              const change = calculateMonthOverMonthChange(totalInvestedNum, mockPreviousTotalInvested);
+                              const trendDisplay = getTrendDisplay(change.trend, change.percentage);
+                              
+                              return (
+                                <div className={`gba:flex gba:items-center gba:gap-1 gba:text-xs ${trendDisplay.color}`}>
+                                  {trendDisplay.icon}
+                                  <span>{trendDisplay.text}</span>
+                                </div>
+                              );
+                            })()}
+                          </div>
                           <p className="gba:text-lg gba:font-semibold">
                             {group.totalInvested}
                           </p>
                         </div>
-                        <div>
-                          <p className="gba:text-sm gba:text-gray-600">
-                            Book Value
-                          </p>
-                          <p className="gba:text-lg gba:font-semibold">
-                            {group.bookValue}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="gba:mb-4">
-                        <div className="gba:flex gba:justify-between gba:items-center">
-                          <p className="gba:text-sm gba:text-gray-600">
-                            Avg. ROI
-                          </p>
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <p
-                              className={`gba:text-lg gba:font-semibold ${group.roiColor}`}
-                            >
-                              {group.avgROI}
+                        <div className="gba:text-right">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end gba:mb-1">
+                            <p className="gba:text-sm gba:text-gray-600">
+                              Market Value
                             </p>
-                            <span
-                              className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full ${
-                                groupPerformance >= 70
-                                  ? "gba:bg-green-100 gba:text-green-800"
-                                  : "gba:bg-red-100 gba:text-red-800"
-                              }`}
-                            >
-                              {groupPerformance >= 70
-                                ? "Performing"
-                                : "Underperforming"}
-                            </span>
+                            {(() => {
+                              // Mock previous month data for Market Value
+                              const marketValueNum = parseFloat(group.marketValue.replace(/[€.,]/g, ''));
+                              const mockPreviousMarketValue = marketValueNum * 0.95; // Mock 5% previous value
+                              
+                              const change = calculateMonthOverMonthChange(marketValueNum, mockPreviousMarketValue);
+                              const trendDisplay = getTrendDisplay(change.trend, change.percentage);
+                              
+                              return (
+                                <div className={`gba:flex gba:items-center gba:gap-1 gba:text-xs ${trendDisplay.color}`}>
+                                  {trendDisplay.icon}
+                                  <span>{trendDisplay.text}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
+                          <p className="gba:text-lg gba:font-semibold">
+                            {group.marketValue}
+                          </p>
                         </div>
                       </div>
 

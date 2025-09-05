@@ -112,4 +112,143 @@
     white-space: normal !important;
     word-break: break-word !important;
   }
+
+  /* Flow Wizard Dialog Styles */
+  .gba\:flow-wizard-dialog .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .gba\:flow-wizard-dialog .ant-modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom: none;
+    padding: 20px 24px;
+  }
+
+  .gba\:flow-wizard-dialog .ant-modal-title {
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .gba\:flow-wizard-dialog .ant-modal-close {
+    color: white;
+    opacity: 0.8;
+  }
+
+  .gba\:flow-wizard-dialog .ant-modal-close:hover {
+    opacity: 1;
+  }
+
+  .gba\:flow-wizard-dialog .ant-modal-body {
+    padding: 0;
+  }
+
+  /* Pattern Selector Improvements */
+  .gba\:pattern-selector-category {
+    transition: all 0.3s ease;
+  }
+
+  .gba\:pattern-selector-category:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .gba\:pattern-selected {
+    box-shadow: 0 0 0 2px #1890ff;
+    background: #f0f8ff;
+  }
+
+  /* Step Configuration Improvements */
+  .gba\:step-editor {
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .gba\:step-editor:hover {
+    border-color: #1890ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+  }
+
+  .gba\:step-editor.editing {
+    border-color: #1890ff;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  }
+
+  /* Wizard Progress Improvements */
+  .gba\:wizard-progress {
+    background: linear-gradient(90deg, #f0f2f5 0%, #e6f7ff 100%);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* Content block and input block styling */
+  .gba\:content-block,
+  .gba\:input-block {
+    background: #fafafa;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  .gba\:content-block:hover,
+  .gba\:input-block:hover {
+    border-color: #1890ff;
+    background: #f0f8ff;
+  }
+
+  /* Animation for expanding categories */
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .gba\:category-expanded {
+    animation: slideDown 0.3s ease;
+  }
+  
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .gba\:flow-wizard-dialog .ant-modal {
+      width: 95vw !important;
+      max-width: none !important;
+    }
+    
+    .gba\:pattern-selector-grid {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .gba\:step-config-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+  
+  /* Custom scrollbar for dialog content */
+  .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
 }

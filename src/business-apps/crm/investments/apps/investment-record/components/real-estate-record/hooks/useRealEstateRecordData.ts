@@ -29,23 +29,21 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
 
       if (!result.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
+        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
 
-      const rawRei = (result.investment as any).realEstateInvestment;
-      const normalizedRei = Array.isArray(rawRei) ? (rawRei[0] || null) : rawRei;
+      // Check if this investment has real estate-specific data (array format)
+      const realEstateInvestmentArray = (result.investment as any).realEstateInvestment;
+      const hasRealEstateData = realEstateInvestmentArray && 
+                               Array.isArray(realEstateInvestmentArray) && 
+                               realEstateInvestmentArray.length > 0;
 
-      const hasRealEstateData = !!(normalizedRei && Object.keys(normalizedRei).length > 0);
-      if (!hasRealEstateData) {
-        const errorMsg = `Investment ${investmentId} is not a real estate investment or has no real estate-specific data`;
-        setError(errorMsg);
-        return;
-      }
-
+      // Always create the real estate data structure, even without real estate-specific data
       const realEstateInvestmentData: RealEstateInvestmentData = {
         investment: result.investment,
-        realEstateInvestment: normalizedRei
+        realEstateInvestment: hasRealEstateData ? realEstateInvestmentArray[0] : undefined
       };
 
       setRealEstateData(realEstateInvestmentData);
