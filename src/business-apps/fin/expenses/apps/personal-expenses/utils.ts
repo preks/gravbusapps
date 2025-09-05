@@ -384,8 +384,8 @@ export const formatCurrencyDisplay = (amount: number | string | null | undefined
     case 'de':
       // German format: 1.234 EUR
       return `${formattedAmount} ${currencyCode}`;
-    case 'fr':
-      // Romanian format: 1 234 EUR (using French locale as specified)
+    case 'ro':
+      // Romanian format: 1 234 EUR 
       return `${formattedAmount} ${currencyCode}`;
     case 'en':
       // English format: EUR 1,234

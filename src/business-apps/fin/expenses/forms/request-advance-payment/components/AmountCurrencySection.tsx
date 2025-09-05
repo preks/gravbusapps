@@ -2,7 +2,7 @@ import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import AmountInput from './AmountInput';
-import { NumberFieldProps, SelectFieldProps } from '../types/FormTypes';
+// types from FormTypes are not required here
 
 interface AmountCurrencySectionProps {
   amount: number;
@@ -42,7 +42,6 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
       onValidationError(null);
     }
   };
-
   return (
     <div className="gba:flex gba:gap-4 gba:mb-4" data-testid={dataTestId}>
       {/* Amount Field */}
@@ -82,7 +81,10 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
           disabled={true} // Currency is locked to plan's currency
           data-testid="request-advance-payment-currency-select"
         >
-          <SelectTrigger className="gba:w-full gba:h-10 gba:border gba:border-none gba:bg-gray-100">
+          <SelectTrigger
+            className="gba:h-10 gba:bg-gray-100 gba:border-none"
+            style={{ width: '100%', justifyContent: 'space-between' }}
+          >
             <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:request_advance_payment.select_currency',
               'Select Currency'
