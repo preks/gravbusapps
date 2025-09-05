@@ -425,7 +425,6 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           deductionsData,
           EVENTS.NEXT
         );
-        console.log("logObject", logObject);
         dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
       }
     };
