@@ -49,7 +49,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
     }).format(num / 100);
   };
 
-  const moduleVariant = MODULE_COLORS.IRM;
+  const moduleColor = MODULE_COLORS.IRM;
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
     if (error) return [];
@@ -483,7 +483,7 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used investment and business management functions"
-      variant={moduleVariant}
+      variant={moduleColor}
     />
   );
 };

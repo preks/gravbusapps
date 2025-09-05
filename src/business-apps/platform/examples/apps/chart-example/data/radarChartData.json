@@ -1,0 +1,90 @@
+{
+  "simple": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "legend": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "icons": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "dots": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "multiple": [
+    { "month": "January", "desktop": 186, "mobile": 80, "tablet": 45 },
+    { "month": "February", "desktop": 305, "mobile": 200, "tablet": 120 },
+    { "month": "March", "desktop": 237, "mobile": 120, "tablet": 75 },
+    { "month": "April", "desktop": 73, "mobile": 190, "tablet": 95 },
+    { "month": "May", "desktop": 209, "mobile": 130, "tablet": 85 },
+    { "month": "June", "desktop": 214, "mobile": 140, "tablet": 90 }
+  ],
+  "linesOnly": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "customLabel": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "gridFill": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "gridNone": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "gridCircle": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ],
+  "radius": [
+    { "month": "January", "desktop": 186, "mobile": 80 },
+    { "month": "February", "desktop": 305, "mobile": 200 },
+    { "month": "March", "desktop": 237, "mobile": 120 },
+    { "month": "April", "desktop": 73, "mobile": 190 },
+    { "month": "May", "desktop": 209, "mobile": 130 },
+    { "month": "June", "desktop": 214, "mobile": 140 }
+  ]
+}

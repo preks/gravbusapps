@@ -15,6 +15,7 @@ import ExpensePlanDetails from "./ExpensePlanDetails";
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string;
+  moduleColor?: string;
 }
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {

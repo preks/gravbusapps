@@ -1,6 +1,13 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { ClockCircleOutlined } from "@ant-design/icons";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+} from "@newwork/nw-design-system";
+import { ClockIcon } from  "@phosphor-icons/react";
 
 export interface ActivityHeatmapData {
   dayIndex: number; // 0-6
@@ -11,20 +18,29 @@ export interface ActivityHeatmapData {
 export interface ActivityHeatmapChartProps {
   data: ActivityHeatmapData[];
   isLoading?: boolean;
+  moduleColor?: string;
 }
 
 export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
   data,
   isLoading,
+  moduleColor = "default",
 }) => {
   if (isLoading) {
     return (
       <Card data-testid="activity-heatmap-loading">
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <ClockCircleOutlined />
-            Activity Heatmap (Last 30 days)
-          </CardTitle>
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <IconAvatar
+            icon={ClockIcon}
+            variant={moduleColor as any}
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
+          <div>
+            <CardTitle>Activity Heatmap</CardTitle>
+            <CardDescription>Last 30 days</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
@@ -64,11 +80,18 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
 
   return (
     <Card data-testid="activity-heatmap-chart">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <ClockCircleOutlined />
-          Activity Heatmap (Last 30 days)
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={ClockIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Activity Heatmap</CardTitle>
+          <CardDescription>Last 30 days</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-6">

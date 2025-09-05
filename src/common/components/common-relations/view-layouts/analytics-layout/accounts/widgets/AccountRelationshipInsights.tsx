@@ -12,9 +12,10 @@ export interface AccountRelationshipInsightsProps {
     accountsWithOpportunities: number;
     accountsOverTime: Array<{ date: string; accountsCreated: number; accountsActive: number; accountsWithOpportunities: number }>
   };
+  moduleColor?: string;
 }
 
-export const AccountRelationshipInsights: React.FC<AccountRelationshipInsightsProps> = ({ data }) => {
+export const AccountRelationshipInsights: React.FC<AccountRelationshipInsightsProps> = ({ data, moduleColor = "default" }) => {
   const industryInsights = (data?.accountsByIndustry || []).slice(0, 5).map((industry, index) => ({
     category: industry.industry,
     count: industry.count,

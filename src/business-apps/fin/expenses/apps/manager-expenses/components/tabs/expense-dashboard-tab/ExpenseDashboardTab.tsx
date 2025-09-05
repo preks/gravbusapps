@@ -3,9 +3,11 @@ import {
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle
+  CardTitle,
+  Icon,
+  IconAvatar
 } from '@newwork/nw-design-system';
-import { PiListChecks, PiChartLineUp, PiFileText, PiCalendar, PiClockAfternoon } from 'react-icons/pi';
+import { ListChecksIcon, TrendUpIcon, FileTextIcon, CalendarIcon, ClockIcon, ReceiptIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useCurrencyStore } from '../../../store/useCurrencyStore';
 import { useCurrencyFilter } from '../../../hooks/useCurrencyFilter';
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard';
@@ -21,6 +23,7 @@ export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
   onNavigateToReports?: () => void;
   onNavigateToAnalytics?: () => void;
+  moduleColor?: string;
 }
 
 // Define a type for recent requests if not already available from the hook
@@ -45,6 +48,7 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+  const { moduleColor } = props;
   // Get manager ID from props
   const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || '';
   const accessToken = props.accessToken || '';
@@ -73,16 +77,16 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: 'approvals',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_approvals', 'Review Approvals'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals', 'Review pending expense approvals.'),
-      icon: PiListChecks,
+      icon: ListChecksIcon,
       onClick: () => props.onNavigateToApprovals?.(),
       testId: 'review-approvals-action',
-      iconColor: 'gba:text-blue-500'
+      iconColor: 'gba:text-amber-500'
     },
     {
       key: 'analysis',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis', 'Team Spending Analysis'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports', 'View spending trends and reports.'),
-      icon: PiChartLineUp,
+      icon: TrendUpIcon,
       onClick: () => props.onNavigateToAnalytics?.(),
       testId: 'team-spending-analysis-action',
       iconColor: 'gba:text-green-500'
@@ -91,10 +95,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: 'reports',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn', 'Expense Reports'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports', 'Generate or view team expense reports.'),
-      icon: PiFileText,
+      icon: FileTextIcon,
       onClick: () => props.onNavigateToReports?.(),
       testId: 'expense-reports-action',
-      iconColor: 'gba:text-purple-500'
+      iconColor: 'gba:text-blue-500'
     }
   ];
 
@@ -112,7 +116,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: 'team-members',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members', 'Team Members'),
       value: dashboardData?.teamMembersCount ?? 0,
-      prefix: <PiListChecks />,
       color: '#1677ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members_description', 'Total team members')
@@ -121,7 +124,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: 'pending-approvals',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.pending_approvals', 'Pending Approvals'),
       value: dashboardData?.pendingApprovalsCount ?? 0,
-      prefix: <PiClockAfternoon />,
       color: '#faad14',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.requires_action', 'Requires action')
@@ -140,7 +142,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: 'expense-categories',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_categories', 'Expense Categories'),
       value: dashboardData?.expenseCategoriesCount ?? 0,
-      prefix: <PiCalendar />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.categories_used', 'Categories used')
@@ -187,7 +188,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           </h3>
           <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
             {quickActions.map((action) => {
-              const IconComponent = action.icon;
               return (
                 <Card 
                   key={action.key}
@@ -197,7 +197,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                 >
                   <CardContent className="gba:p-6">
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <IconComponent className={`gba:text-2xl ${action.iconColor} gba:mr-3`} />
+                      <Icon icon={action.icon} className={`gba:text-2xl ${action.iconColor} gba:mr-3`} />
                       <h4 className="gba:text-base gba:font-semibold gba:m-0">{action.title}</h4>
                     </div>
                     <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{action.description}</p>
@@ -213,7 +213,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           {/* Recent Expense Requests */}
           <Card data-testid="recent-expense-requests-card">
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <IconAvatar icon={ReceiptIcon} variant={moduleColor as any} size="md" decorative />
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.recent_expense_requests', 'Recent Expense Requests')}
               </CardTitle>
             </CardHeader>
@@ -253,7 +254,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           {/* Team Budget Status */}
           <Card>
             <CardHeader>
-              <CardTitle>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <IconAvatar icon={UsersThreeIcon} variant={moduleColor as any} size="md" decorative />
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_budget_status', 'Team Budget Status')}
               </CardTitle>
             </CardHeader>
@@ -309,6 +311,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
             data={dashboardData?.monthlyTrends || []} 
             title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', 'Monthly Expense Trends')}
             currencyFilter={chartCurrency}
+            moduleColor={moduleColor}
           />
         </div>
       </div>

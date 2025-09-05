@@ -29,6 +29,7 @@ export interface AnalyticsLayoutProps {
   accountsProps?: AccountsTabLayoutProps;
   opportunitiesProps?: OpportunitiesTabLayoutProps;
   contactsProps?: ContactsTabLayoutProps;
+  moduleColor?: string;
 }
 
 export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
@@ -39,23 +40,24 @@ export const AnalyticsLayout: React.FC<AnalyticsLayoutProps> = ({
   accountsProps,
   opportunitiesProps,
   contactsProps,
+  moduleColor,
 }) => {
   const tabs = useMemo(() => {
     const items: Array<{ key: AnalyticsTabKey; label: string; icon: React.ReactNode; content: React.ReactNode }> = [];
     if (overviewProps) {
-      items.push({ key: "overview", label: "Overview", icon: <BarChartOutlined className="gba:mr-2" />, content: <OverviewTabLayout {...overviewProps} /> });
+      items.push({ key: "overview", label: "Overview", icon: <BarChartOutlined className="gba:mr-2" />, content: <OverviewTabLayout moduleColor={moduleColor} {...overviewProps} /> });
     }
     if (leadsProps) {
-      items.push({ key: "leads", label: "Leads", icon: <TeamOutlined className="gba:mr-2" />, content: <LeadsTabLayout {...leadsProps} /> });
+      items.push({ key: "leads", label: "Leads", icon: <TeamOutlined className="gba:mr-2" />, content: <LeadsTabLayout moduleColor={moduleColor} {...leadsProps} /> });
     }
     if (accountsProps) {
-      items.push({ key: "accounts", label: "Accounts", icon: <BankOutlined className="gba:mr-2" />, content: <AccountsTabLayout {...accountsProps} /> });
+      items.push({ key: "accounts", label: "Accounts", icon: <BankOutlined className="gba:mr-2" />, content: <AccountsTabLayout moduleColor={moduleColor} {...accountsProps} /> });
     }
     if (opportunitiesProps) {
-      items.push({ key: "opportunities", label: "Opportunities", icon: <DollarCircleOutlined className="gba:mr-2" />, content: <OpportunitiesTabLayout {...opportunitiesProps} /> });
+      items.push({ key: "opportunities", label: "Opportunities", icon: <DollarCircleOutlined className="gba:mr-2" />, content: <OpportunitiesTabLayout moduleColor={moduleColor} {...opportunitiesProps} /> });
     }
     if (contactsProps) {
-      items.push({ key: "contacts", label: "Contacts", icon: <ContactsOutlined className="gba:mr-2" />, content: <ContactsTabLayout {...contactsProps} /> });
+      items.push({ key: "contacts", label: "Contacts", icon: <ContactsOutlined className="gba:mr-2" />, content: <ContactsTabLayout moduleColor={moduleColor} {...contactsProps} /> });
     }
     return items;
   }, [overviewProps, leadsProps, accountsProps, opportunitiesProps, contactsProps]);

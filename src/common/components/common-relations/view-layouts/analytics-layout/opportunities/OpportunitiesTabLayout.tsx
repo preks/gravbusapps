@@ -45,6 +45,7 @@ export interface OpportunitiesTabLayoutProps {
   topDeals: Array<{ id: string; name: string; value: number; stage: string; winChance: number; owner: string }>;
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null;
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null;
+  moduleColor?: string;
 }
 
 // colors local to pie widget
@@ -70,6 +71,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   topDeals,
   velocityData,
   dealHealthData,
+  moduleColor = "default",
 }) => {
   const kpis = [
     { key: "total-opportunities", title: "Total Opportunities", value: totalOpportunities, prefix: <DollarCircleOutlined />, description: "All opportunities in pipeline", ...(trendData && !trendLoading ? { trend: { value: `${Math.abs(totalOpportunities - (trendData.totalOpportunitiesLastMonth || 0))}%`, positive: totalOpportunities >= (trendData.totalOpportunitiesLastMonth || 0), description: `${totalOpportunities} total vs ${trendData.totalOpportunitiesLastMonth || 0} last month` } } : {}) },
@@ -96,19 +98,26 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         pipelines={pipelines}
         selectedPipelineId={selectedPipelineId}
         onPipelineChange={onPipelineChange}
+        moduleColor={moduleColor}
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <OpportunityVelocityAnalysis data={velocityData || { averageDaysInPipeline: 0, velocityTrend: [], quickWins: [], slowMovers: [] }} />
-        <DealHealthMatrix data={dealHealthData || { healthDistribution: { excellent: 0, healthy: 0, warning: 0, critical: 0 }, matrixData: [] }} />
+        <OpportunityVelocityAnalysis 
+          data={velocityData || { averageDaysInPipeline: 0, velocityTrend: [], quickWins: [], slowMovers: [] }} 
+          moduleColor={moduleColor}
+        />
+        <DealHealthMatrix 
+          data={dealHealthData || { healthDistribution: { excellent: 0, healthy: 0, warning: 0, critical: 0 }, matrixData: [] }} 
+          moduleColor={moduleColor}
+        />
       </div>
 
       <div className="gba:flex gba:flex-col lg:gba:flex-row gba:gap-6">
         <div className="gba:flex-1 lg:gba:w-3/4">
-          <OpportunitiesByStageBar data={opportunitiesByStage} />
+          <OpportunitiesByStageBar data={opportunitiesByStage} moduleColor={moduleColor} />
         </div>
         <div className="gba:flex-1 lg:gba:w-1/4 lg:gba:flex-none">
-          <OpportunitiesByPipelinePie data={opportunitiesByPipeline} />
+          <OpportunitiesByPipelinePie data={opportunitiesByPipeline} moduleColor={moduleColor} />
         </div>
       </div>
 

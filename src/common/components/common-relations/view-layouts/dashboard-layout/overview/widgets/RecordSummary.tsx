@@ -1,7 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, IconAvatar } from "@newwork/nw-design-system";
 import { Trophy as TrophyIcon } from "lucide-react";
-import { SupportedVariant } from "@/common/constants/ui";
 
 export interface RecentRecordItem {
   id: string;
@@ -12,16 +11,16 @@ export interface RecentRecordItem {
 
 export interface RecordSummaryProps {
   records: RecentRecordItem[];
-  variant?: SupportedVariant;
+  moduleColor?: string;
 }
 
-export const RecordSummary: React.FC<RecordSummaryProps> = ({ records, variant = 'default' }) => {
+export const RecordSummary: React.FC<RecordSummaryProps> = ({ records, moduleColor = 'default' }) => {
   return (
     <Card className="gba:h-full">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         <IconAvatar
           icon={TrophyIcon}
-          variant={variant}
+          variant={moduleColor as any}
           size="md"
           iconWeight="regular"
           decorative={true}

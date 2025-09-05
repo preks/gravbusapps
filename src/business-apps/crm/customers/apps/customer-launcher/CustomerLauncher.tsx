@@ -46,7 +46,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
     return new Intl.NumberFormat("en-US").format(num);
   };
 
-  const moduleVariant = MODULE_COLORS.CRM;
+  const moduleColor = MODULE_COLORS.CRM;
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
     if (error) return [];
@@ -320,7 +320,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
           label: "View Details",
           onClick: () => handleNavigationClick(area),
         },
-        variant: moduleVariant,
+        variant: moduleColor,
       };
     });
 
@@ -442,7 +442,7 @@ const CustomerLauncher: React.FC<CustomerLauncherProps> = (context) => {
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used CRM functions and shortcuts"
-      variant={moduleVariant}
+      variant={moduleColor}
     />
   );
 };

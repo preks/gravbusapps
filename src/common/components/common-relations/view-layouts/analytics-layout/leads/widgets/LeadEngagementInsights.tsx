@@ -9,6 +9,7 @@ export interface LeadEngagementInsightsProps {
   conversionRate: number;
   avgTimeToConversion?: number;
   leadsOverTime?: Array<{ date: string; leadsCreated: number }>;
+  moduleColor?: string;
 }
 
 export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({ 
@@ -16,7 +17,8 @@ export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
   leadHealthIndicators, // eslint-disable-line @typescript-eslint/no-unused-vars -- TODO: Use custom health indicators if provided
   conversionRate, 
   avgTimeToConversion, 
-  leadsOverTime 
+  leadsOverTime,
+  moduleColor = "default"
 }) => {
   const engagementLevels = (leadsByRating || []).map((rating, index) => {
     const colors = ["#10B981", "#3B82F6", "#F59E0B", "#EF4444"]; // success, info, warn, danger
@@ -117,7 +119,7 @@ export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
     <div className="gba:grid gba:grid-cols-2 gba:gap-6">
       <Card data-testid="lead-engagement-levels">
         <CardHeader>
-          <CardTitle className="gba:text-base">Lead Rating Distributison</CardTitle>
+          <CardTitle className="gba:text-base">Lead Rating Distribution</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:space-y-3">

@@ -11,7 +11,7 @@ import { AbsenceDetails, EntitlementsDetails } from './components/pages';
 import { useDashboardData } from './hooks/useDashboardData';
 import { AbsenceDetailsFilter } from './types';
 import { MODULE_COLORS } from '@/common/constants/ui';
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
 const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, userInfo }) => {
@@ -226,7 +226,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
             icon: option.icon
           }))
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         {renderTabContent()}

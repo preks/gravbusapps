@@ -5,7 +5,9 @@ import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilter
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 
-interface AdvancePaymentsTabProps extends BusinessAppContextProps {}
+interface AdvancePaymentsTabProps extends BusinessAppContextProps {
+  moduleColor?: string;
+}
 
 const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders
