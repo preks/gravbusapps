@@ -21,7 +21,7 @@ import type { InvestmentActivity, InvestmentTask } from '@/common/data/investmen
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
 
 const { Text } = Typography;
 
@@ -65,6 +65,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const graphqlClient = useGraphQLClient(context.accessToken);
   const { generateSummary, state: aiSummaryState } = useAiSummary(leadId || '', context.accessToken);
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   // Listen for process completion to refetch approval tasks
   useProcessCompletion({
@@ -120,9 +121,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     setApprovalTasksError(null);
 
     try {
-      // For now, show no approval tasks since central investment data doesn't have approval task hooks yet
-      setApprovalTasks([]);
-      setApprovalTasksError(null);
+      const tasksData = await fetchInvestmentTasksByLeadId(leadId);
+      setApprovalTasks(tasksData);
     } catch (error) {
       console.error('Error loading approval tasks:', error);
       setApprovalTasksError(error instanceof Error ? error.message : 'Failed to load approval tasks');
@@ -216,32 +216,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   };
 
   const handleDeleteTask = (task: InvestmentTask) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the approval task "${task.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              lead: leadId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          setApprovalTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          message.success('Approval task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting approval task:', error);
-          message.error('Failed to delete approval task');
-        }
-      },
-    });
+    setDeleteApprovalPopup({ open: true, task });
   };
 
   const getEmployeeDisplayNameFromObject = (employee: any): string => {
@@ -547,10 +522,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           </div>
           <div style={{ padding: '0 24px 24px' }}>
             <NotesSection
-              key={notesKey}
+              key={`notes-${notesKey}`}
               leadId={leadId}
               context={context}
-              showHeader={false}
             />
           </div>
         </div>
@@ -571,21 +545,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               className="gba:approvals-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
-              Approval Tasks
+              Approvals
             </div>
             <Button
               variant="default"
               onClick={handleRequestApproval}
               data-testid="request-approval-button"
             >
-              <PlusCircleOutlined />
+              <CheckCircleOutlined />
               Request Approval
             </Button>
           </div>
+
+          {/* List of approval tasks */}
           <div style={{ padding: '0 24px 24px' }}>
             {approvalTasksLoading && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
+                  Loading approval tasks...
+                </div>
               </div>
             )}
 
@@ -595,12 +574,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 description={approvalTasksError}
                 type="error"
                 showIcon
-                style={{ marginBottom: '16px' }}
-                action={
-                  <Button size="sm" onClick={loadApprovalTasks}>
-                    Retry
-                  </Button>
-                }
+                action={<Button size="sm" onClick={() => loadApprovalTasks()}>Retry</Button>}
               />
             )}
 
@@ -650,7 +624,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteTask(task)}
+                          onClick={() => setDeleteApprovalPopup({ open: true, task })}
                         >
                           <CloseOutlined />
                         </Button>
@@ -748,7 +722,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           accessToken={context.accessToken}
           activityId={deletePopup.activity!.id}
           activityVersion={deletePopup.activity!.version}
-          activityTitle={deletePopup.activity!.title}
+          activityTitle={deletePopup.activity?.title || 'Activity'}
           leadId={leadId}
           domain="investments"
           onSuccess={() => {
@@ -759,6 +733,36 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           onError={() => {
             message.error('Failed to delete activity');
           }}
+        />
+      ) : null}
+
+      {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: deleteApprovalPopup.task!.version,
+            },
+            leadId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid={`delete-approval-task-popup`}
         />
       ) : null}
 

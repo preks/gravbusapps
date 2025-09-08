@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ActivityDeletionPopup } from '@/common/components';
@@ -9,11 +9,11 @@ import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
+import DeleteConfirmationPopup from '@/common/components/popups/delete-confirmation-popup/DeleteConfirmationPopup';
 import dayjs from 'dayjs';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 // Import the GraphQL queries we created
 import { useGetSalesActivities } from '../queries/salesActivityQueries';
-import { useGetCrmDocuments } from '../queries/CrmDocumentQueries';
 import { useGetSalesTasks } from '../queries/SalesTaskQueries';
 import { NotesSection } from './NotesSection';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -27,33 +27,42 @@ interface SalesActivityData {
   description: string;
   createdAt: string;
   createdBy: string;
+  occurredAt?: string | null;
+  completedAt?: string | null;
+  ownerEmployee?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
+    fullName?: string;
+  };
   activityType?: {
     value: string;
   };
 }
 
-interface CrmDocumentData {
-  id: string;
-  name: string;
-  mimeType?: string;
-  fileSize?: number;
-  createdAt: string;
-  createdBy: string;
-  version: number;
-}
+// interface CrmDocumentData {
+//   id: string;
+//   name: string;
+//   mimeType?: string;
+//   fileSize?: number;
+//   createdAt: string;
+//   createdBy: string;
+//   version: number;
+// }
 
-interface SalesTaskData {
-  id: string;
-  name: string;
-  type?: {
-    value: string;
-  };
-  typeRef: string;
-  statusRef?: string;
-  createdAt: string;
-  createdBy: string;
-  version: number;
-}
+// interface SalesTaskData {
+//   id: string;
+//   name: string;
+//   type?: {
+//     value: string;
+//   };
+//   typeRef: string;
+//   statusRef?: string;
+//   createdAt: string;
+//   createdBy: string;
+//   version: number;
+// }
 
 interface ActivityTimelineProps {
   accountId?: string;
@@ -66,9 +75,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   const [activities, setActivities] = useState<SalesActivityData[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<CrmDocumentData[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [notesKey, setNotesKey] = useState(0);
   
   // Approval tasks state
@@ -81,7 +87,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   
   // Use the GraphQL query hooks
   const { fetchSalesActivities } = useGetSalesActivities(context);
-  const { fetchCrmDocuments } = useGetCrmDocuments(context);
   const { fetchSalesTasks } = useGetSalesTasks(context);
   const graphqlClient = useGraphQLClient(context.accessToken);
 
@@ -141,23 +146,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const loadDocuments = async () => {
-    if (!accountId) return;
-    
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    
-    try {
-      const result = await fetchCrmDocuments({ accountId });
-      const documents = result.CrmDocument || [];
-      
-      setDocuments(documents);
-    } catch (err) {
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents');
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
+  // Documents not used in this view
 
   const loadApprovalTasks = async () => {
     if (!accountId) return;
@@ -195,20 +184,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const handleRequestApproval = () => {
-    if (accountId) {
-      // Pre-fill task with approval type, let user select from managers
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          accountId,
-          typeRef: 'SalesTaskType:v1:APPROVAL', // Correct catalog format
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Request approval handled via AppAction
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
@@ -224,10 +200,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     return priority?.value || 'Medium';
   };
 
-  const getTypeValue = (type: any): string => {
-    if (typeof type === 'string') return type;
-    return type?.value || 'Approval';
-  };
+  // No type badge needed for approvals list
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
@@ -245,49 +218,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const handleUpdateTask = (task: any) => {
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesTask',
-      payload: {
-        accountId: accountId,
-        typeRef: task.typeRef || 'SalesTaskType:v1:APPROVAL',
-        taskData: task // Pass existing task data for update mode
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  };
+  // Update handled by AppActionButton
 
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: any }>({ open: false });
   const handleDeleteApprovalTask = (task: any) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the approval task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesTask', {
-            changeMode: "DELETE",
-            salesTask: {
-              id: task.id,
-              version: task.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the task from local state
-          setApprovalTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          
-          message.success('Approval task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting approval task:', error);
-          message.error('Failed to delete approval task');
-        }
-      },
-    });
+    setDeleteApprovalPopup({ open: true, task });
   };
 
   useEffect(() => {
@@ -338,8 +273,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
           console.log('ActivityTimeline: Process completed successfully, refreshing current tab');
           if (activeTab === 'activities') {
             loadActivities();
-          } else if (activeTab === 'documents') {
-            loadDocuments();
           } else if (activeTab === 'approvals') {
             loadApprovalTasks();
           }
@@ -372,9 +305,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
         if (activityCreated && activeTab === 'activities') {
           loadActivities();
         }
-        if (documentUploaded && activeTab === 'documents') {
-          loadDocuments();
-        }
+        // documents not handled here
         if (noteCreated) {
           // Force refresh of notes tab by updating key
           setNotesKey(prev => prev + 1);
@@ -384,8 +315,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
         if (!activityCreated && !documentUploaded && !noteCreated && (event.detail?.resolution === 'success' || response)) {
           if (activeTab === 'activities') {
             loadActivities();
-          } else if (activeTab === 'documents') {
-            loadDocuments();
           } else if (activeTab === 'notes') {
             setNotesKey(prev => prev + 1);
           }
@@ -433,9 +362,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
 
     const handlePostMessage = (event: MessageEvent) => {
       try {
-        if (event.data?.type === 'CRM_DOCUMENT_UPLOADED' && event.data?.accountId === accountId) {
-          loadDocuments();
-        }
+        // documents not handled here
       } catch (err) {
         console.error('Error handling postMessage:', err);
       }
@@ -470,52 +397,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const handleUploadDocument = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveCrmDocument',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
-
-  const handleDeleteDocument = (document: CrmDocumentData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the document "${document.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
-            changeMode: "DELETE",
-            crmDocument: {
-              id: document.id,
-              version: document.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the document from local state
-          setDocuments(prevDocuments => 
-            prevDocuments.filter(d => d.id !== document.id)
-          );
-          
-          message.success('Document deleted successfully');
-        } catch (error) {
-          console.error('Error deleting document:', error);
-          message.error('Failed to delete document');
-        }
-      },
-    });
-  };
+  // Document handlers removed
 
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({ open: false });
 
@@ -758,14 +640,35 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.createCustomerTask]}
+              externalContextData={{
+                accountId,
+                // Prefill approval task type so form opens in Approval mode
+                typeRef: 'SalesTaskType:v1:APPROVAL',
+                // Provide current user id for flow expressions like #{employeeDetails.userId}
+                userId: context.userInfo?.id,
+                employeeDetails: { userId: context.userInfo?.id },
+                // Also provide in psi_taskPayload initial parameters as some flows read from there
+                psi_taskPayload: {
+                  psi_initialParameters: {
+                    employeeDetails: { userId: context.userInfo?.id }
+                  }
+                }
+              }}
+              prefixDataTestId="account-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -872,15 +775,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                         </div>
                       </div>
                       <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
-                        <Button
-                          type="text"
-                          icon={<EditOutlined />}
-                          size="small"
-                          style={{ padding: '4px', lineHeight: 1 }}
-                          onClick={() => handleUpdateTask(task)}
-                          data-testid={`update-task-${task.id}`}
-                          title="Update Task"
-                        />
                         <Button 
                           type="text" 
                           icon={<CloseOutlined />} 
@@ -918,6 +812,37 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
           onError={() => {
             message.error('Failed to delete activity');
           }}
+        />
+      ) : null}
+
+      {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task!.name || 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.customerTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            salesTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: deleteApprovalPopup.task!.version,
+            },
+            // Pass only main context id; Flow will resolve the rest
+            accountId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid={`delete-approval-task-popup`}
         />
       ) : null}
     </div>

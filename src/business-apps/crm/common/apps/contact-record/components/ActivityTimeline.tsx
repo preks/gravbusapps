@@ -653,22 +653,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={() => startProcess({
-                domain: 'customer-relations',
-                processName: 'saveSalesTask',
-                payload: {
-                  contactId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL', // Correct catalog format
-                },
-                builderType: 'NATIVE_SCREEN',
-              })}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.createCustomerTask]}
+              externalContextData={{
+                contactId,
+                typeRef: 'SalesTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="contact-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>

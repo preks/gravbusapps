@@ -758,14 +758,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.createCustomerTask]}
+              externalContextData={{
+                leadId,
+                typeRef: 'SalesTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="lead-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
