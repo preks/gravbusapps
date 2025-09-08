@@ -3,7 +3,8 @@ import { Table, Card, Badge } from 'antd';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancePayment } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../utils/currency';
 import ExpensePlanAdvancePaymentsSummary from './ExpensePlanAdvancePaymentsSummary';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -15,7 +16,7 @@ interface ExpensePlanAdvancePaymentsProps {
 // Format and display advance payment data
 
 const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({ advancePayments }) => {
-  const activeUserLocale = getCurrentActiveUserLocale();
+  
   
   // Format date helper function
   const formatDate = (dateString: string | null) => {
@@ -24,12 +25,7 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
   };
 
   // Format amount helper function
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat(activeUserLocale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  const formatAmount = (amount: number, currencyCode?: string) => formatCurrencyDisplay(amount, currencyCode);
 
   // Get status color
   const getStatusColor = (status: string): string => {
@@ -61,11 +57,7 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
-      render: (amount: number, record) => (
-        <span>
-          {formatAmount(amount)} {record.currency?.code ?? ''}
-        </span>
-      ),
+      render: (amount: number, record) => formatAmount(amount, record.currency?.code),
       sorter: (a, b) => a.amount - b.amount,
     },
     {

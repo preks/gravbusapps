@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from './utils/currency';
 import { useGetExpensePlanRecord } from './hooks/useGetExpensePlanRecord';
 import { getExpensePlanStatusDisplay } from './utils';
 
@@ -135,7 +136,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />,
+      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} currencyCode={expensePlan?.currency?.code} />,
     },
     
     // Allowances tab - only show if there are allowances
@@ -147,7 +148,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.allowances', 'Allowances')}</span>
         </div>
       ),
-      children: <ExpensePlanAllowances expenseAllowances={expensePlan.expenseAllowance} />,
+      children: <ExpensePlanAllowances expenseAllowances={expensePlan.expenseAllowance} currencyCode={expensePlan?.currency?.code} />,
     }] : []),
     
     // Trip tab - only show if there are trips
@@ -245,7 +246,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
             {expensePlan?.project?.name}
           </Descriptions.Item>
           <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}>
-            {expensePlan?.totalAmount} {expensePlan?.currency?.code}
+            {formatCurrencyDisplay(expensePlan?.totalAmount, expensePlan?.currency?.code)}
           </Descriptions.Item>
         </Descriptions>
       </div>

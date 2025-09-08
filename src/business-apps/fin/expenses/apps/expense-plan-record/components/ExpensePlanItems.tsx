@@ -3,11 +3,13 @@ import { Table, Card, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import Pill from '@/components/pill';
 import { ExpensePlanItem } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../utils/currency';
 import dayjs from 'dayjs';
 
 interface ExpensePlanItemsProps {
   expensePlanItems: ExpensePlanItem[];
+  currencyCode?: string;
 }
 
 const { Text } = Typography;
@@ -51,9 +53,9 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
   );
 };
 
-const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems }) => {
+const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, currencyCode }) => {
   const loading = false;
-  const activeUserLocale = getCurrentActiveUserLocale();
+  
   
   // Format date helper function
   const formatDate = (dateString: string | null) => {
@@ -61,15 +63,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
     return dayjs(dateString).format('DD.MM.YYYY');
   };
 
-  // Format amount helper function
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat(activeUserLocale, {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  // Format amount helper function - display with plan currency code if available
+  const formatAmount = (amount: number) => formatCurrencyDisplay(amount, currencyCode);
 
   const columns: ColumnsType<ExpensePlanItem> = [
     {
@@ -212,7 +207,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
         <div 
           className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
           style={{ 
-            borderColor: textColors.reimbursable
+            borderColor: textColors.reimbursable,
+            backgroundColor: cardColors.reimbursable
           }}
           data-testid="reimbursable-amount-card"
         >
@@ -228,7 +224,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
         <div 
           className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
           style={{ 
-            borderColor: textColors.nonReimbursable
+            borderColor: textColors.nonReimbursable,
+            backgroundColor: cardColors.nonReimbursable
           }}
           data-testid="non-reimbursable-amount-card"
         >
@@ -244,7 +241,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
         <div 
           className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
           style={{ 
-            borderColor: textColors.deductible
+            borderColor: textColors.deductible,
+            backgroundColor: cardColors.deductible
           }}
           data-testid="deductible-amount-card"
         >
@@ -260,7 +258,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems })
         <div 
           className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
           style={{ 
-            borderColor: textColors.nonDeductible
+            borderColor: textColors.nonDeductible,
+            backgroundColor: cardColors.nonDeductible
           }}
           data-testid="non-deductible-amount-card"
         >

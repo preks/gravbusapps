@@ -1,19 +1,21 @@
 import React from 'react';
-import { Table, Card, Typography, Tag, Tooltip } from 'antd';
+import { Table, Card, Typography, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ExpenseAllowance } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../utils/currency';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 interface ExpensePlanAllowancesProps {
   expenseAllowances: ExpenseAllowance[];
+  currencyCode?: string;
 }
 
 const { Text } = Typography;
 
-const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAllowances }) => {
-  const activeUserLocale = getCurrentActiveUserLocale();
+const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAllowances, currencyCode }) => {
+  
   
   // Format date helper function
   const formatDate = (dateString: string) => {
@@ -21,12 +23,7 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
   };
 
   // Format amount helper function
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat(activeUserLocale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  const formatAmount = (amount: number) => formatCurrencyDisplay(amount, currencyCode);
 
   // Boolean indicator component
   const BooleanIndicator = ({ value }: { value: boolean }) => (

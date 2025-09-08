@@ -2,12 +2,13 @@ import React from 'react';
 import { Table, Typography } from 'antd';
 import { AdvancePayment } from '../types/expensePlanRecord.types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../utils/currency';
 
 const { Text } = Typography;
 
 interface ExpensePlanAdvancePaymentsSummaryProps {
   pageData: readonly AdvancePayment[];
-  formatAmount: (amount: number) => string;
+  formatAmount?: (amount: number) => string;
 }
 
 const ExpensePlanAdvancePaymentsSummary: React.FC<ExpensePlanAdvancePaymentsSummaryProps> = ({ pageData, formatAmount }) => {
@@ -27,7 +28,7 @@ const ExpensePlanAdvancePaymentsSummary: React.FC<ExpensePlanAdvancePaymentsSumm
         </Table.Summary.Cell>
         <Table.Summary.Cell index={1} align="right">
           <Text strong>
-            {formatAmount(totalAmount)} {pageData[0]?.currency?.code || ''}
+            {formatAmount ? formatAmount(totalAmount) : formatCurrencyDisplay(totalAmount, pageData[0]?.currency?.code)}
           </Text>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={2} colSpan={6} />
