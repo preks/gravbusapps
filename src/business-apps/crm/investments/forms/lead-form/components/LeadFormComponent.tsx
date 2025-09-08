@@ -9,12 +9,10 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import { toStringOrUndefined } from "../utils/validationUtils";
-import { buildAddressLine } from "@/common/utils/addressFormatter";
 import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
-import InvestmentInformationSection from "./InvestmentInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import DescriptionSection from "./DescriptionSection";
 
@@ -84,12 +82,24 @@ const LeadFormComponent: React.FC = () => {
         // ✅ FIXED: Owner Information with correct API field name
         ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ FIXED: API expects 'ownerEmployee' not 'ownerEmployeeId'
 
-        // ✅ UPDATED: Address Information with single addressLine
+        // ✅ UPDATED: Address Information collecting all address lines
         countryRef: toStringOrUndefined(formValues.country),
         regionRef: toStringOrUndefined(formValues.region),
         locality: toStringOrUndefined(formValues.locality), // ✅ UPDATED: Use formValues.locality
         postalCode: toStringOrUndefined(formValues.postalCode),
-        addressLine: buildAddressLine(formValues.addressLine),
+        addressLine: (() => {
+          // Collect all non-empty address lines
+          const addressLines = [
+            formValues.addressLine1,
+            formValues.addressLine2,
+            formValues.addressLine3,
+            formValues.addressLine4,
+          ]
+            .filter((line) => line && line.trim())
+            .map((line) => line!.trim());
+          
+          return addressLines.length > 0 ? { lines: addressLines } : null;
+        })(),
 
         // ✅ FIXED: Conversion Information with correct API field names
         convertedAccount: toStringOrUndefined(formValues.accountId), // ✅ FIXED: API expects 'convertedAccount' not 'convertedAccountId'
@@ -133,13 +143,17 @@ const LeadFormComponent: React.FC = () => {
         annualNetColdRent: formValues.annualNetColdRent
           ? parseFloat(formValues.annualNetColdRent)
           : null,
+        
+        // Real Estate Specific Fields
+        buildingYear: formValues.buildingYear
+          ? parseInt(formValues.buildingYear)
+          : null,
+        size: formValues.size
+          ? parseFloat(formValues.size)
+          : null,
+        sizeMeasurementUnitRef: toStringOrUndefined(formValues.measurementUnit),
       };
 
-      // ✅ SIMPLIFIED: No complex address array logic needed for InvestmentLead
-      // The addressLine is already set above as jsonb from formValues.addressLine
-      // No addresses array needed since InvestmentLead uses single addressLine field
-
-      // ✅ FIXED: Initialize empty arrays for tags and communication channels (ensure correct format)
       leadPayload.tags = [];
       leadPayload.communicationChannels = [];
 
@@ -225,8 +239,6 @@ const LeadFormComponent: React.FC = () => {
           {/* Company Information Section */}
           <CompanyInformationSection />
 
-          {/* Investment Information Section */}
-          <InvestmentInformationSection />
 
           {/* Address Information Section */}
           <AddressInformationSection />

@@ -1,12 +1,37 @@
-import React, { useState, useEffect } from "react";
-import { Card } from "@newwork/nw-design-system";
+import React, { useState, useEffect, useCallback } from "react";
+import { 
+  Card,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Badge,
+  Spinner,
+  Alert,
+  Button
+} from "@newwork/nw-design-system";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { TrendingUp, DollarSign, CheckCircle, Search, Award } from "lucide-react";
+import { 
+  TrendingUp, 
+  DollarSign, 
+  CheckCircle, 
+  Award, 
+  Building2, 
+  Calendar, 
+  User,
+  Target
+} from "lucide-react";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { DebouncedInput } from "@/components/data-filter";
+import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
+import { AppAction } from "@/components/app-action/AppAction";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrency, formatDate } from "../../utils";
 import { useSalesData } from "./hooks/useSalesData";
-import { OpportunityList } from "@/business-apps/crm/customers/apps/customer-relations/views/opportunity-view/opportunity-list";
 
 interface SalesProps extends BusinessAppContextProps {}
 
@@ -15,7 +40,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   const [sortField, setSortField] = useState("closeDate");
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize] = useState(20);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   const context = { accessToken, userInfo };
 
@@ -32,6 +58,25 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
     sortOrder,
     context,
   });
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleSetFilter = useCallback((filters: string[]) => {
+    setSelectedFilters(filters);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRowClick = useCallback((opportunityId: string) => {
+    const detailsUrl = buildPlatformUrl('/platform/irm/opportunity-record', { 
+      opportunityId,
+      fromView: 'divestments',
+      fromSubView: 'sales'
+    });
+    navigateTo(detailsUrl);
+  }, []);
 
   useEffect(() => {
     loadPage(currentPage, pageSize);
@@ -68,6 +113,20 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         }
       },
       {
+        key: "average-sale-amount",
+        title: getTranslationFromI18nKeyAndLabel("average_sale_amount", "Average Sale Amount"),
+        value: formatCurrency(metrics.averageRevenue),
+        prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+        color: '#722ed1', // Purple theme for average sale amount
+        span: { xs: 24, sm: 12, md: 12, lg: 6 },
+        description: getTranslationFromI18nKeyAndLabel("average_amount_per_sale", "Average amount per sale"),
+        trend: {
+          value: formatCurrency(metrics.averageRevenue),
+          positive: true,
+          description: getTranslationFromI18nKeyAndLabel("per_transaction", "per transaction")
+        }
+      },
+      {
         key: "total-revenue",
         title: getTranslationFromI18nKeyAndLabel("total_revenue", "Total Revenue"),
         value: formatCurrency(metrics.totalRevenue),
@@ -94,20 +153,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
           positive: true,
           description: getTranslationFromI18nKeyAndLabel("per_sale", "per sale")
         }
-      },
-      {
-        key: "success-rate",
-        title: getTranslationFromI18nKeyAndLabel("success_rate", "Success Rate"),
-        value: `${metrics.averageWinRate.toFixed(1)}%`,
-        prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-gold-600" />,
-        color: '#faad14', // Gold theme for success rate
-        span: { xs: 24, sm: 12, md: 12, lg: 6 },
-        description: getTranslationFromI18nKeyAndLabel("overall_success_rate", "Overall success rate"),
-        trend: {
-          value: `${metrics.averageWinRate.toFixed(1)}% ${getTranslationFromI18nKeyAndLabel("success_rate", "success rate")}`,
-          positive: metrics.averageWinRate > 50,
-          description: getTranslationFromI18nKeyAndLabel("win_rate", "win rate")
-        }
       }
     ];
 
@@ -124,98 +169,203 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
     );
   };
 
-  const formatCurrency = (amount: number, currencyCode: string = "USD"): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  // Helper function to get status badge variant (for sold opportunities)
+  const getSalesBadgeVariant = (): "secondary" => {
+    return "secondary"; // All sold opportunities use secondary (success) variant
   };
 
-  const renderSalesList = () => (
-    <OpportunityList accessToken={accessToken} userInfo={userInfo} sourceApp="divestments" />
-  );
+  const renderSalesTable = () => {
+    if (loading && soldOpportunities.length === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+          <Spinner size="lg" />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <Alert variant="destructive" className="gba:mb-4">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <span>Error loading sales: {error instanceof Error ? error.message : String(error)}</span>
+            <Button variant="outline" size="sm" onClick={() => loadPage(currentPage, pageSize)}>
+              Retry
+            </Button>
+          </div>
+        </Alert>
+      );
+    }
+
+    return (
+      <DataContainer
+        dataControllerProps={{
+          search: searchTerm,
+          setSearch: handleSearch,
+          debounceDelay: 500,
+          filter: selectedFilters,
+          setFilter: handleSetFilter,
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>Sold Opportunities</span>
+                <span className="gba:text-gray-500">({total})</span>
+              </div>
+            </div>
+          ),
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.createOpportunity]}
+              accessToken={accessToken}
+              data-testid="sales-add-action"
+              emptyStateBehavior="hide"
+            >
+              <button
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                data-testid="sales-add-action"
+                type="button"
+              >
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                  Add
+                </span>
+              </button>
+            </AppAction>
+          ),
+        }}
+        dataFilterProps={{
+          filterGroups: [],
+          onFilterChange: () => {},
+        }}
+        dataBody={
+          <div className="gba:bg-white gba:rounded-lg gba:border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Opportunity</TableHead>
+                  <TableHead>Investment</TableHead>
+                  <TableHead>Sale Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Revenue</TableHead>
+                  <TableHead>Close Date</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="gba:w-[60px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {soldOpportunities.length === 0 && !loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="gba:text-center gba:py-12">
+                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
+                        <DollarSign className="gba:w-12 gba:h-12 gba:text-gray-400" />
+                        <div className="gba:text-gray-600">
+                          <p className="gba:font-medium gba:mb-1">
+                            {getTranslationFromI18nKeyAndLabel("no_sales_found", "No sales found")}
+                          </p>
+                          <p className="gba:text-sm">
+                            {getTranslationFromI18nKeyAndLabel(
+                              "no_sold_opportunities_message", 
+                              "No opportunities with 'WON' status found. Successfully closed divestment opportunities will appear here."
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  soldOpportunities.map((opportunity) => (
+                    <TableRow 
+                      key={opportunity.id} 
+                      className="gba:cursor-pointer" 
+                      onClick={() => handleRowClick(opportunity.id)}
+                    >
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-green-600" />
+                        <div className="gba:flex gba:flex-col">
+                          <span className="gba:font-medium">{opportunity.name}</span>
+                          {opportunity.code && (
+                            <span className="gba:text-sm gba:text-gray-500">{opportunity.code}</span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Target className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{opportunity.investmentName || opportunity.account?.displayName || "N/A"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="gba:font-medium gba:text-green-600">
+                        {opportunity.estimatedAmount ? formatCurrency(opportunity.estimatedAmount) : "N/A"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getSalesBadgeVariant()}>
+                        Sold
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-1">
+                        <DollarSign className="gba:w-4 gba:h-4 gba:text-green-600" />
+                        <span className="gba:font-medium gba:text-green-600">
+                          {opportunity.estimatedAmount ? formatCurrency(opportunity.estimatedAmount) : "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {opportunity.closeDate ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                          <span>{formatDate(opportunity.closeDate)}</span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                        <span>
+                          {opportunity.ownerEmployee?.displayName || 
+                           opportunity.ownerEmployee?.firstName && opportunity.ownerEmployee?.lastName
+                             ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`
+                             : "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`sold-opportunity-update-button-${opportunity.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.investmentOpportunityEntity]}
+                          externalContextData={{ opportunityId: opportunity.id }}
+                          prefixDataTestId={`sold-opportunity-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        }
+      />
+    );
+  };
 
   return (
     <div data-testid="sales-container" className="gba:space-y-6">
-      {/* Header Section */}
-      <div className="gba:border-b gba:border-gray-200 gba:pb-6">
-        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-          <CheckCircle className="gba:h-6 gba:w-6 gba:text-green-600" />
-          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
-            {getTranslationFromI18nKeyAndLabel("sales", "Sales")}
-          </h2>
-        </div>
-        <p className="gba:text-sm gba:text-gray-600">
-          {getTranslationFromI18nKeyAndLabel(
-            "sales_description", 
-            "Successfully sold opportunities from investments planned for exit (WON status displayed as 'Sold')"
-          )}
-        </p>
-      </div>
-
-      {/* Sales Success Banner */}
-      <Card className="gba:p-6 gba:bg-gradient-to-r gba:from-green-50 gba:to-emerald-50 gba:border-green-200">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <div className="gba:p-3 gba:bg-green-100 gba:rounded-full">
-            <TrendingUp className="gba:h-8 gba:w-8 gba:text-green-600" />
-          </div>
-          <div className="gba:flex-1">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-green-900 gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel("successful_exits", "Successful Exits")}
-            </h3>
-            <p className="gba:text-green-700">
-              {getTranslationFromI18nKeyAndLabel(
-                "successful_exits_desc",
-                "Track completed divestment sales and their performance metrics"
-              )}
-            </p>
-          </div>
-          <div className="gba:text-right">
-            <div className="gba:flex gba:items-center gba:gap-1 gba:text-green-600">
-              <DollarSign className="gba:h-5 gba:w-5" />
-              <span className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel("revenue_generated", "Revenue Generated")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
       {/* Metrics */}
       {renderMetrics()}
 
       {/* Sales List */}
-      <div className="gba:bg-white gba:rounded-lg gba:shadow-sm gba:p-6">
-        <div className="gba:mb-6">
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
-              {getTranslationFromI18nKeyAndLabel("sold_opportunities", "Sold Opportunities")}
-            </h3>
-            <div className="gba:relative gba:w-80">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400" />
-              <DebouncedInput
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  "search_sales",
-                  "Search sold opportunities..."
-                )}
-                value={searchTerm}
-                onChange={setSearchTerm}
-                className="gba:w-full gba:pl-10 gba:pr-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:ring-2 gba:focus:ring-green-500 gba:focus:border-green-500"
-                data-testid="sales-search"
-              />
-            </div>
-          </div>
-          <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel(
-              "sold_opportunities_desc",
-              "All opportunities that have been successfully sold (WON status displayed as 'Sold')"
-            )}
-          </p>
-        </div>
-        {renderSalesList()}
-      </div>
+      {renderSalesTable()}
     </div>
   );
 };

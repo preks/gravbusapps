@@ -31,4 +31,10 @@ export const ICONS = {
   //Expense trip icons
   PIN_ICON: `${ICONS_ENDPOINT}/remixicons/map-pin-line.svg`, 
   DELETE_CIRCLE_ICON: `${ICONS_ENDPOINT}/remixicons/close-circle-line.svg`, 
+
+  //Deduction icons
+  BREAKFAST_DEDUCTION_ICON: `${ICONS_ENDPOINT}/remixicons/cup-line.svg`,
+  LUNCH_DEDUCTION_ICON: `${ICONS_ENDPOINT}/remixicons/bowl-line.svg`,
+  DINNER_DEDUCTION_ICON: `${ICONS_ENDPOINT}/remixicons/restaurant-line.svg`,
+  OVERNIGHT_DEDUCTION_ICON: `${ICONS_ENDPOINT}/remixicons/armchair-line.svg`,
 };

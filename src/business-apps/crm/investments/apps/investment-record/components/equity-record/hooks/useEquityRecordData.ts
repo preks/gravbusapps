@@ -40,16 +40,10 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
                            Array.isArray(equityInvestmentArray) && 
                            equityInvestmentArray.length > 0;
 
-      if (!hasEquityData) {
-        const errorMsg = `Investment ${investmentId} is not an equity investment or has no equity-specific data`;
-        setError(errorMsg);
-        return;
-      }
-
-      // Create the equity data structure (take first equity investment)
+      // Always create the equity data structure, even without equity-specific data
       const equityInvestmentData: EquityInvestmentData = {
         investment: result.investment,
-        equityInvestment: equityInvestmentArray[0]
+        equityInvestment: hasEquityData ? equityInvestmentArray[0] : undefined
       };
 
       setEquityData(equityInvestmentData);

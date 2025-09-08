@@ -8,12 +8,14 @@ interface AccountFormProps {
   initialValues?: Partial<AccountFormValues>;
   onSubmit?: (values: AccountFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean; // Hide submit/cancel buttons when embedded
 }
 
 const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
   accessToken,
   userInfo,
   additionalData,
@@ -41,6 +43,7 @@ const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
+      hideActions={hideActions}
     >
       <AccountFormComponent />
     </AccountFormProvider>

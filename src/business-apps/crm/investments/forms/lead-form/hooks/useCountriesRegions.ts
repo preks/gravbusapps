@@ -37,9 +37,10 @@ export interface UseCountriesRegionsReturn {
   refreshData: () => void;
 }
 
-// Cache for countries and regions data to prevent continuous queries
+// Global cache for countries and regions data to prevent continuous queries across all component instances
 let cachedCountriesData: FullCountryDetails[] | null = null;
 let cacheTimestamp: number | null = null;
+let cacheAccessToken: string | null = null; // Track which access token was used for caching
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 export const useCountriesRegions = (
@@ -67,9 +68,10 @@ export const useCountriesRegions = (
   const COUNTRIES_PAGE_SIZE = 200;
 
   const isCacheValid = useCallback(() => {
-    if (!cachedCountriesData || !cacheTimestamp) return false;
-    return Date.now() - cacheTimestamp < CACHE_DURATION;
-  }, []);
+    if (!cachedCountriesData || !cacheTimestamp || !cacheAccessToken) return false;
+    // Check if cache is valid for the current access token and within time limit
+    return cacheAccessToken === context.accessToken && Date.now() - cacheTimestamp < CACHE_DURATION;
+  }, [context.accessToken]);
 
   const loadAllData = useCallback(async () => {
     if (!context.accessToken) return;
@@ -85,9 +87,10 @@ export const useCountriesRegions = (
       const data = await fetchCountriesAndRegions();
       setFullCountriesData(data);
 
-      // Update cache
+      // Update cache with access token
       cachedCountriesData = data;
       cacheTimestamp = Date.now();
+      cacheAccessToken = context.accessToken;
       setHasInitialized(true);
     } catch (err) {
       setError(
@@ -165,14 +168,14 @@ export const useCountriesRegions = (
     if (!hasInitialized && context.accessToken) {
       loadAllData();
     }
-  }, [context.accessToken, hasInitialized, loadAllData]);
+  }, [context.accessToken, hasInitialized]); // ✅ FIXED: Removed loadAllData from dependencies
 
   // Load initial countries page when data is ready
   useEffect(() => {
     if (fullCountriesData.length > 0 && displayedCountries.length === 0) {
       loadCountriesPage("", 0, false);
     }
-  }, [fullCountriesData, displayedCountries.length, loadCountriesPage]);
+  }, [fullCountriesData.length, displayedCountries.length]); // ✅ FIXED: Removed loadCountriesPage from dependencies, use length instead of array
 
   // Use displayed countries from pagination
   const countries = displayedCountries;
@@ -265,6 +268,7 @@ export const useCountriesRegions = (
     // Clear cache to force refresh
     cachedCountriesData = null;
     cacheTimestamp = null;
+    cacheAccessToken = null;
     setHasInitialized(false);
     await loadAllData();
   }, [loadAllData]);

@@ -35,9 +35,9 @@ const AnalyticsInsights = () => {
     {
       type: "info",
       icon: TrendingUp,
-      title: "Private Equity Opportunity",
-      description: "Private equity showing consistent 22% ROI with low correlation to other assets.",
-      recommendation: "Explore additional private equity opportunities in healthcare and technology sectors.",
+      title: "Liquid Fund Opportunity",
+      description: "Liquid funds showing consistent returns with low risk and high liquidity.",
+      recommendation: "Consider increasing allocation to liquid funds for portfolio stability.",
       priority: "Low",
       gradientFrom: "gba:from-blue-50",
       gradientTo: "gba:to-indigo-50",

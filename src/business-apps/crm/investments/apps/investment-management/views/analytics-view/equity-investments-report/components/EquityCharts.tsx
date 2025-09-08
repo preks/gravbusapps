@@ -49,9 +49,6 @@ export const EquityCharts: React.FC<EquityChartsProps> = ({ chartData }) => {
     valuationDistributionData
   } = chartData;
 
-  // Debug the data
-  console.log('ebitdaValuationAnalysisData:', ebitdaValuationAnalysisData);
-  console.log('valuationDistributionData:', valuationDistributionData);
 
   return (
     <>

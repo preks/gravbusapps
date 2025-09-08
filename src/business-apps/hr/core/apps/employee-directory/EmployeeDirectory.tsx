@@ -7,17 +7,18 @@ import { PageLayout, IconAvatar } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { DataController, DataControllerProps } from '@/components/dataController';
 import { DataCards } from '@/components/dataCards';
-import { PiUser, PiUsersThree } from 'react-icons/pi';
-import { Users } from '@phosphor-icons/react';
+import { UserIcon, UsersIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { EmployeeCard } from './components/EmployeeCard.component';
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details';
 //import { useTranslation } from 'react-i18next';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
+import { MODULE_COLORS } from '@/common/constants/ui';
 /**
  * Employee Directory page component. Renders the employee directory module with grid, infinite scroll, and alphabet filter.
  * @returns {JSX.Element}
  */
+const moduleColor = MODULE_COLORS.HR;
+
 
 export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props;
@@ -88,17 +89,11 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
   return (
     <div data-testid="employee-directory-app">
       <PageLayout
-        headerIcon={
-          <IconAvatar
-            icon={Users}
-            variant="info"
-            size="lg"
-            data-testid="employee-directory-header-icon"
-          />
-        }
+        headerIcon={UsersIcon}
         headerTitle="Employee Directory"
         headerDescription="Browse and connect with employees across your organization"
         className="gba:min-h-screen"
+        variant={moduleColor}
       >
         <DataContainer<DataControllerProps>
           dataControllerComponent={DataController}
@@ -114,7 +109,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
             setFilter: setSelectedFilters,
             filterLabelMap: filterLabelMap,
             listTitle: 'Employees',
-            listIcon: <PiUsersThree size={20} />,
+            listIcon: <UsersThreeIcon size={20} />,
             listAmount: total,
           }}
           dataFilterProps={{
@@ -154,7 +149,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
           dataDetails={
             selectedEmployee ? {
               title: `${selectedEmployee.firstName} ${selectedEmployee.lastName}`,
-              icon: <PiUser size={20} />,
+              icon: <UserIcon size={20} />,
               content: <EmployeeDetails employeeId={selectedEmployee.id} accessToken={accessToken} userInfo={props.userInfo} />,
               onClose: () => setSelectedEmployee(null)
             } : undefined

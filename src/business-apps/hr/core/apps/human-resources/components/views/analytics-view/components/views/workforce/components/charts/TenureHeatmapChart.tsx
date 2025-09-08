@@ -1,296 +1,288 @@
-import React from 'react';
-import { Card, Alert, Spinner, Badge } from '@newwork/nw-design-system';
+import React, { useMemo } from 'react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+} from "@newwork/nw-design-system";
+import { ClockIcon } from "@phosphor-icons/react";
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-
-interface TenureDistributionItem {
-  orgUnitId: string;
-  orgUnitName: string;
-  tenureRangeId: string;
-  count: number;
-}
-
-interface TenureRange {
-  id: string;
-  label: string;
-  minMonths: number;
-  maxMonths: number;
-}
-
-interface OrganizationalUnit {
-  id: string;
-  name: string;
-  code?: string | null;
-  description?: string | null;
-}
+import { TenureDistributionItem, TenureRange, OrganizationalUnit } from '../../../../../hooks/useTenureByOrgUnit';
 
 interface TenureHeatmapChartProps {
   data: TenureDistributionItem[];
   orgUnits: OrganizationalUnit[];
   tenureRanges: TenureRange[];
   loading?: boolean;
-  error?: string | null;
+  error?: Error | null;
+  moduleColor?: string;
 }
 
-interface MatrixCell {
-  orgUnitId: string;
-  orgUnitName: string;
-  tenureRangeId: string;
-  tenureRangeLabel: string;
-  count: number;
-  color: string;
-  intensity: number;
-}
-
-const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
-  data,
-  orgUnits,
-  tenureRanges,
-  loading = false,
-  error = null
+/**
+ * Tenure distribution heatmap chart component
+ * 
+ * Displays a heatmap showing employee tenure distribution across business units
+ */
+const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({ 
+  data, 
+  orgUnits, 
+  tenureRanges, 
+  loading = false, 
+  error = null,
+  moduleColor = "default" 
 }) => {
-  const prefixDataTestId = 'TenureHeatmapChart';
+  // Sort tenure ranges by their minMonths property
+  const sortedTenureRanges = useMemo(() => {
+    return [...tenureRanges].sort((a, b) => a.minMonths - b.minMonths);
+  }, [tenureRanges]);
 
-  // Generate color based on intensity (0-1 scale)
-  const getHeatmapColor = (intensity: number): string => {
-    if (intensity === 0) return '#dbeafe'; // Light blue for zero
-    
-    // Smooth gradient from blue (min) to orange (max)
-    const blue = { r: 219, g: 234, b: 254 }; // Light blue
-    const orange = { r: 249, g: 115, b: 22 }; // Orange
-    
-    // Interpolate between blue and orange
-    const r = Math.round(blue.r + (orange.r - blue.r) * intensity);
-    const g = Math.round(blue.g + (orange.g - blue.g) * intensity);
-    const b = Math.round(blue.b + (orange.b - blue.b) * intensity);
-    
-    return `rgb(${r}, ${g}, ${b})`;
-  };
+  // Sort org units alphabetically
+  const sortedOrgUnits = useMemo(() => {
+    return [...orgUnits].sort((a, b) => a.name.localeCompare(b.name));
+  }, [orgUnits]);
 
-  // Create matrix data structure
-  const createMatrixData = (): MatrixCell[][] => {
-    if (!data.length || !orgUnits.length || !tenureRanges.length) return [];
+  // Calculate statistics and prepare heatmap data
+  const { maxCount, totalEmployees, avgPerCell, heatmapData } = useMemo(() => {
+    const max = Math.max(...data.map(item => item.count));
+    const total = data.reduce((sum, item) => sum + item.count, 0);
+    const cellCount = sortedOrgUnits.length * sortedTenureRanges.length;
+    const avg = total / Math.max(1, cellCount);
 
-    // Find max count for intensity calculation
-    const maxCount = Math.max(...data.map(item => item.count));
-    
-    // Create a map for quick lookup
+    // Create a lookup map for efficient data access
     const dataMap = new Map<string, number>();
     data.forEach(item => {
       const key = `${item.orgUnitId}-${item.tenureRangeId}`;
       dataMap.set(key, item.count);
     });
 
-    // Create matrix: rows = tenure ranges, columns = org units (TRANSPOSED)
-    const matrix: MatrixCell[][] = [];
-    
-    // Sort org units by name for consistent display
-    const sortedOrgUnits = [...orgUnits].sort((a, b) => a.name.localeCompare(b.name));
-    
-    // Sort tenure ranges by minMonths for logical progression
-    const sortedTenureRanges = [...tenureRanges].sort((a, b) => a.minMonths - b.minMonths);
+    return {
+      maxCount: max,
+      totalEmployees: total,
+      avgPerCell: avg,
+      heatmapData: dataMap
+    };
+  }, [data, sortedOrgUnits.length, sortedTenureRanges.length]);
 
-    // Now iterate by tenure ranges first (rows), then org units (columns)
-    sortedTenureRanges.forEach(tenureRange => {
-      const row: MatrixCell[] = [];
-      
-      sortedOrgUnits.forEach(orgUnit => {
-        const key = `${orgUnit.id}-${tenureRange.id}`;
-        const count = dataMap.get(key) || 0;
-        const intensity = maxCount > 0 ? count / maxCount : 0;
-        
-        row.push({
-          orgUnitId: orgUnit.id,
-          orgUnitName: orgUnit.name,
-          tenureRangeId: tenureRange.id,
-          tenureRangeLabel: tenureRange.label,
-          count,
-          color: getHeatmapColor(intensity),
-          intensity
-        });
-      });
-      
-      matrix.push(row);
-    });
+  // Helper functions for heatmap rendering
+  const getIntensity = (count: number) => {
+    if (count === 0) return 0;
+    return Math.min(1, count / Math.max(1, maxCount));
+  };
 
-    return matrix;
+  const getHeatmapColor = (intensity: number) => {
+    if (intensity === 0) return "#F3F4F6";
+    const alpha = Math.max(0.1, intensity);
+    return `rgba(34, 197, 94, ${alpha})`; // Green color scheme for tenure
+  };
+
+  const getEmployeeCountForCell = (orgUnitId: string, tenureRangeId: string) => {
+    const key = `${orgUnitId}-${tenureRangeId}`;
+    return heatmapData.get(key) || 0;
   };
 
   if (loading) {
     return (
-      <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-loading`}>
-        <div className="gba:mb-4">
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_tenure_heatmap', 'Tenure Distribution by Organizational Unit')}
-            </h3>
-            <Badge variant="outline" className="gba:text-xs">
-              Loading...
-            </Badge>
+      <Card data-testid="tenure-heatmap-loading">
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <IconAvatar
+            icon={ClockIcon}
+            variant={moduleColor as any}
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
+          <div>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'hr_analytics_tenure_distribution_by_organizational_unit', 
+                'Tenure Distribution by Organizational Unit'
+              )}
+            </CardTitle>
+            <CardDescription>
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_loading', 'Loading...')}
+            </CardDescription>
           </div>
-          <p className="gba:text-gray-600 gba:text-sm">
-            Shows distribution of employee tenure across organizational units using a visual heatmap
-          </p>
-        </div>
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Spinner className="gba:w-8 gba:h-8" />
-        </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+            <div className="gba:animate-pulse gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_loading_tenure_data', 'Loading tenure data...')}
+            </div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
   if (error) {
     return (
-      <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-error`}>
-        <div className="gba:mb-4">
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_tenure_heatmap', 'Tenure Distribution by Organizational Unit')}
-            </h3>
-            <Badge variant="outline" className="gba:text-xs">
-              Error
-            </Badge>
+      <Card data-testid="tenure-heatmap-error">
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <IconAvatar
+            icon={ClockIcon}
+            variant="destructive"
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
+          <div>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'hr_analytics_tenure_distribution_by_organizational_unit', 
+                'Tenure Distribution by Organizational Unit'
+              )}
+            </CardTitle>
+            <CardDescription>
+              {getTranslationFromI18nKeyAndLabel('hr_analytics_error', 'Error loading data')}
+            </CardDescription>
           </div>
-          <p className="gba:text-gray-600 gba:text-sm">
-            Shows distribution of employee tenure across organizational units using a visual heatmap
-          </p>
-        </div>
-        <Alert variant="destructive">
-          {error}
-        </Alert>
-      </Card>
-    );
-  }
-
-  const matrixData = createMatrixData();
-  const sortedOrgUnits = [...orgUnits].sort((a, b) => a.name.localeCompare(b.name));
-  const sortedTenureRanges = [...tenureRanges].sort((a, b) => a.minMonths - b.minMonths);
-
-  if (!matrixData.length) {
-    return (
-      <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-no-data`}>
-        <div className="gba:mb-4">
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_tenure_heatmap', 'Tenure Distribution by Organizational Unit')}
-            </h3>
-            <Badge variant="outline" className="gba:text-xs">
-              No data
-            </Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-red-500">
+            <p>{getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading_tenure_data', 'Error loading tenure data')}</p>
+            <p className="gba:text-sm gba:mt-2">{error.message}</p>
           </div>
-          <p className="gba:text-gray-600 gba:text-sm">
-            Shows distribution of employee tenure across organizational units using a visual heatmap
-          </p>
-        </div>
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No tenure data available')}
-        </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
-      <div className="gba:mb-6">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_tenure_heatmap', 'Tenure Distribution by Organizational Unit')}
-          </h3>
-          <Badge variant="outline" className="gba:text-xs">
-            {data.length} data points
-          </Badge>
+    <Card data-testid="tenure-heatmap-chart">
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={ClockIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'hr_analytics_tenure_distribution_by_organizational_unit', 
+              'Tenure Distribution by Organizational Unit'
+            )}
+          </CardTitle>
+          <CardDescription>
+            {getTranslationFromI18nKeyAndLabel(
+              'hr_analytics_tenure_chart_description', 
+              'Employee distribution across tenure ranges by organizational unit'
+            )}
+          </CardDescription>
         </div>
-        <p className="gba:text-gray-600 gba:text-sm">
-          Shows distribution of employee tenure across organizational units using a visual heatmap
-        </p>
-      </div>
-
-      <div className="gba:overflow-x-auto">
-        <div className="gba:min-w-fit">
-          {/* Header Row - Organizational Units */}
-          <div 
-            className="gba:grid gba:gap-1 gba:mb-1"
-            style={{ 
-              gridTemplateColumns: `200px repeat(${sortedOrgUnits.length}, 60px)` 
-            }}
-          >
-            {/* Empty top-left cell */}
-            <div className="gba:h-16" />
-            
-            {/* Organizational unit headers */}
-            {sortedOrgUnits.map(orgUnit => (
-              <div 
-                key={`header-${orgUnit.id}`}
-                className="gba:h-16 gba:flex gba:items-center gba:justify-center gba:p-2"
-              >
-                <span 
-                  className="gba:text-xs gba:font-medium gba:text-gray-700 gba:text-center gba:leading-tight gba:transform gba:-rotate-45"
-                  style={{ writingMode: 'horizontal-tb' }}
-                >
-                  {orgUnit.name}
-                </span>
+      </CardHeader>
+      <CardContent>
+        <div className="gba:space-y-6">
+          {/* Statistics Summary */}
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-sm gba:bg-gray-50 gba:p-4 gba:rounded-lg">
+            <div className="gba:text-center">
+              <div className="gba:font-bold gba:text-lg gba:text-gray-900">
+                {totalEmployees}
               </div>
-            ))}
+              <div className="gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+              </div>
+            </div>
+            <div className="gba:text-center">
+              <div className="gba:font-bold gba:text-lg gba:text-gray-900">
+                {avgPerCell.toFixed(1)}
+              </div>
+              <div className="gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('hr_analytics_avg_per_cell', 'Avg per Cell')}
+              </div>
+            </div>
+            <div className="gba:text-center">
+              <div className="gba:font-bold gba:text-lg gba:text-gray-900">
+                {maxCount}
+              </div>
+              <div className="gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('hr_analytics_max_in_cell', 'Max in Cell')}
+              </div>
+            </div>
           </div>
 
-          {/* Matrix Rows */}
-          {matrixData.map((row, rowIndex) => (
-            <div 
-              key={`row-${rowIndex}`}
-              className="gba:grid gba:gap-1 gba:mb-1"
-              style={{ 
-                gridTemplateColumns: `200px repeat(${sortedOrgUnits.length}, 60px)` 
-              }}
-            >
-              {/* Tenure Range Label */}
-              <div className="gba:h-16 gba:flex gba:items-center gba:justify-end gba:px-3">
-                <span 
-                  className="gba:text-sm gba:font-medium gba:text-gray-700 gba:truncate gba:text-right"
-                  title={row[0]?.tenureRangeLabel}
-                >
-                  {row[0]?.tenureRangeLabel}
-                </span>
+          {/* Heatmap Grid - Transposed: Org Units on X-axis, Tenure Ranges on Y-axis */}
+          <div className="gba:overflow-x-auto gba:pt-4">
+            <div className="gba:inline-block gba:min-w-full">
+              {/* Header with organizational units */}
+              <div 
+                className="gba:grid gba:gap-1 gba:mb-2"
+                style={{ 
+                  gridTemplateColumns: `120px repeat(${sortedOrgUnits.length}, 100px)` 
+                }}
+              >
+                <div className="gba:w-30"></div>
+                {sortedOrgUnits.map((orgUnit) => (
+                  <div 
+                    key={orgUnit.id} 
+                    className="gba:text-xs gba:text-gray-700 gba:text-center gba:font-medium gba:p-1 gba:truncate"
+                    title={orgUnit.name}
+                  >
+                    {orgUnit.name}
+                  </div>
+                ))}
               </div>
               
-              {/* Data Cells */}
-              {row.map(cell => (
-                <div
-                  key={`cell-${cell.tenureRangeId}-${cell.orgUnitId}`}
-                  className="gba:h-16 gba:w-16 gba:border gba:border-gray-300 gba:flex gba:items-center gba:justify-center gba:cursor-default gba:transition-all gba:duration-200 hover:gba:scale-105 hover:gba:shadow-md"
-                  style={{ backgroundColor: cell.color }}
-                  title={`${cell.tenureRangeLabel} - ${cell.orgUnitName}: ${cell.count} employees`}
+              {/* Data rows - now iterating through tenure ranges */}
+              {sortedTenureRanges.map((tenureRange) => (
+                <div 
+                  key={tenureRange.id} 
+                  className="gba:grid gba:gap-1 gba:mb-1"
+                  style={{ 
+                    gridTemplateColumns: `120px repeat(${sortedOrgUnits.length}, 100px)` 
+                  }}
                 >
-                  <span className="gba:text-sm gba:font-semibold gba:text-gray-800">
-                    {cell.count > 0 ? cell.count : ''}
-                  </span>
+                  <div className="gba:text-xs gba:text-gray-700 gba:text-right gba:pr-2 gba:py-2 gba:font-medium gba:truncate">
+                    {tenureRange.label}
+                  </div>
+                  {sortedOrgUnits.map((orgUnit) => {
+                    const count = getEmployeeCountForCell(orgUnit.id, tenureRange.id);
+                    const intensity = getIntensity(count);
+                    return (
+                      <div
+                        key={`${tenureRange.id}-${orgUnit.id}`}
+                        className="gba:w-24 gba:h-16 gba:rounded-md gba:border gba:border-gray-200 gba:relative gba:group gba:cursor-pointer gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-medium gba:transition-all gba:duration-200 hover:gba:scale-105"
+                        style={{ backgroundColor: getHeatmapColor(intensity) }}
+                        title={`${tenureRange.label} - ${orgUnit.name}: ${count} employees`}
+                        data-testid={`heatmap-cell-${tenureRange.id}-${orgUnit.id}`}
+                      >
+                        <span className={`gba:text-sm gba:font-bold ${intensity > 0.5 ? 'gba:text-white' : 'gba:text-gray-800'}`}>
+                          {count > 0 ? count : ''}
+                        </span>
+                        <div className="gba:absolute gba:bottom-full gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:mb-2 gba:px-3 gba:py-2 gba:bg-gray-900 gba:text-white gba:text-xs gba:rounded gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:pointer-events-none gba:whitespace-nowrap gba:z-50">
+                          <div className="gba:font-semibold">{tenureRange.label}</div>
+                          <div>{orgUnit.name}</div>
+                          <div>{count} {getTranslationFromI18nKeyAndLabel('hr_analytics_employees', 'employees')}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Color Scale Legend */}
-      <div className="gba:mt-6 gba:flex gba:flex-col gba:items-center gba:gap-3">
-        <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-          Employee Count Scale
-        </span>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-xs gba:text-gray-500">Few</span>
-          <div className="gba:flex gba:h-4">
-            {[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((intensity, index) => (
-              <div
-                key={`legend-${index}`}
-                className="gba:w-8 gba:h-4 gba:border-r gba:border-gray-300 last:gba:border-r-0"
-                style={{ backgroundColor: getHeatmapColor(intensity) }}
-                title={`Intensity: ${Math.round(intensity * 100)}%`}
-              />
-            ))}
           </div>
-          <span className="gba:text-xs gba:text-gray-500">Many</span>
+
+          {/* Legend */}
+          <div className="gba:flex gba:items-center gba:justify-center gba:space-x-4 gba:text-xs gba:text-gray-600">
+            <span>{getTranslationFromI18nKeyAndLabel('hr_analytics_fewer', 'Fewer')}</span>
+            <div className="gba:flex gba:space-x-1">
+              {[0, 0.2, 0.4, 0.6, 0.8, 1].map((intensity) => (
+                <div 
+                  key={intensity} 
+                  className="gba:w-4 gba:h-4 gba:rounded-sm gba:border gba:border-gray-200" 
+                  style={{ backgroundColor: getHeatmapColor(intensity) }} 
+                />
+              ))}
+            </div>
+            <span>{getTranslationFromI18nKeyAndLabel('hr_analytics_more', 'More')}</span>
+          </div>
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 };
 
-export default TenureHeatmapChart; 
+export default TenureHeatmapChart;

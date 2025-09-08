@@ -103,15 +103,6 @@ export class InvestmentApiClient {
       };
     }
 
-    // Add private equity information if this is a private equity investment
-    const isPrivateEquityType = values.group === "InvestmentGroup:v1:PRIVATE_EQUITY";
-    if (isPrivateEquityType) {
-      investmentRequest.privateEquityInvestment = {
-        id: values.privateEquityInvestmentId,
-        investmentRoleRef: toStringOrUndefined(values.privateEquityRole),
-        version: values.privateEquityInvestmentVersion || 0,
-      };
-    }
 
     // Add real estate information if this is a real estate investment
     const isRealEstateType = values.group === "InvestmentGroup:v1:REAL_ESTATE";

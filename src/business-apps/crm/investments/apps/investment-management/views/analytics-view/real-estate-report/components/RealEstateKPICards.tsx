@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, Typography } from 'antd';
+import { Card } from '@newwork/nw-design-system';
 import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment';
 
-const { Text } = Typography;
+// Typography components removed - using native HTML elements with nw-design-system styling
 
 interface RealEstateKPICardsProps {
   kpis: {

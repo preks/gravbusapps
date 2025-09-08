@@ -40,8 +40,12 @@ import {
   getTranslationFromI18nKeyAndLabel,
   getCatalogValue,
 } from "@/common/utils/windowUtils";
-import { PiCalendarBlank } from "react-icons/pi";
+
+import { CalendarBlankIcon } from "@phosphor-icons/react";
 import { startProcess } from "@/common/utils/start-process";
+
+import { MODULE_COLORS } from '@/common/constants/ui';
+const moduleColor = MODULE_COLORS.HR;
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -789,12 +793,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   return (
     <div data-testid="personal-absences-container">
       <PageLayout
-        headerIcon={
-          <PiCalendarBlank
-            className="gba:w-6 gba:h-6"
-            style={{ color: "#a3519aff" }}
-          />
-        }
+        headerIcon={CalendarBlankIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel(
           "lowcoder:hr_absences.absence_overview",
           "Absence Overview"
@@ -808,6 +807,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             icon: option.icon,
           })),
         }}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div

@@ -61,6 +61,7 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
             Select Owner <span className="gba:text-red-500">*</span>
           </span>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             onClick={handleDropdownClose}

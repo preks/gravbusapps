@@ -17,7 +17,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
 
   const handleInvestmentClick = (investmentId: string) => {
-    window.location.href = `/platform/irm/investment-record?investmentId=${investmentId}`;
+    const detailsUrl = `/platform/irm/investment-record?investmentId=${investmentId}&fromView=dashboard`;
+    window.location.href = detailsUrl;
   };
 
   const handleNavigateToInvestmentType = (investmentType: string) => {

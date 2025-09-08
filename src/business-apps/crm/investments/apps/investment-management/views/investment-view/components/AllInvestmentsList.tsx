@@ -11,6 +11,7 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
+import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -19,9 +20,24 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, DollarSign, Calendar } from "lucide-react";
+import { Building2, Calendar, User } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../utils";
+import { formatCurrency, formatDate } from "@/common/data/investment";
+
+
+// Helper function to format group names for display
+const formatGroupName = (groupName: string): string => {
+  // Handle specific cases for better display
+  if (groupName === 'RealEstate') {
+    return 'Real Estate';
+  }
+  if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
+    return 'Liquid Fund';
+  }
+  
+  // For other cases, add spaces before capital letters (camelCase to Title Case)
+  return groupName.replace(/([A-Z])/g, ' $1').trim();
+};
 
 export interface AllInvestmentsListProps extends BusinessAppContextProps {}
 
@@ -30,7 +46,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
   const [sortField] = useState("createdAt");
   const [sortOrder] = useState<"ASC" | "DESC">("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -79,16 +95,19 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     setCurrentPage(1);
   }, []);
 
-  const getInvestmentContext = useCallback((inv: Investment): FlowContextName => {
-    const typeLabel = (inv as any).investmentTypeLabel?.toLowerCase() || inv.investmentGroup?.code?.toLowerCase() || "";
-    if (typeLabel.includes("real")) return FlowContextName.realEstateInvestmentEntity;
-    if (typeLabel.includes("liquid") || typeLabel.includes("fund")) return FlowContextName.liquidFundInvestmentEntity;
-    if (typeLabel.includes("private")) return FlowContextName.privateEquityInvestmentEntity;
-    return FlowContextName.equityInvestmentEntity;
-  }, []);
+  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
+    const targetPageSize = newPageSize || pageSize;
+    setCurrentPage(page);
+    setPageSize(targetPageSize);
+  }, [pageSize]);
+
 
   const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'investments',
+      fromSubView: 'overview'
+    });
     navigateTo(detailsUrl);
   }, []);
 
@@ -136,15 +155,15 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             data-testid="all-investments-add-action"
             emptyStateBehavior="hide"
           >
-            <button
-              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-              data-testid="all-investments-add-action"
-              type="button"
+            <Button
+              variant="default"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="all-investments-add-button"
             >
-              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                Add
-              </span>
-            </button>
+              <PlusOutlined />
+              Add Investment
+            </Button>
           </AppAction>
         ),
       }}
@@ -157,12 +176,16 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead>Investment</TableHead>
+                <TableHead>Group</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Initial Investment</TableHead>
+                <TableHead>Market Value</TableHead>
+                <TableHead>Performance</TableHead>
+                <TableHead>Owner</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="gba:w-[60px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -175,17 +198,56 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{(investment as any).investmentTypeLabel || investment.investmentGroup?.code || "Unknown"}</Badge>
+                    <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const currentValue = investment.investmentMarketValue || 0;
+                      const initialValue = investment.initialInvestmentAmount || 0;
+                      const performanceAmount = currentValue - initialValue;
+                      const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                      
+                      return (
+                        <div className="gba:flex gba:flex-col gba:items-start">
+                          <span className={`gba:font-semibold ${
+                            performancePercentage === 0 ? 'gba:text-gray-500' : 
+                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                          }`}>
+                            {formatCurrency(performanceAmount)}
+                          </span>
+                          <span className={`gba:text-sm ${
+                            performancePercentage === 0 ? 'gba:text-gray-400' : 
+                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                          }`}>
+                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                      <span>
+                        {investment.ownerEmployee?.displayName || 
+                         investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                           ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                           : "N/A"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={investment.investmentStatus?.code === "Active" ? "default" : "secondary"}>
-                      {investment.investmentStatus?.code || "Unknown"}
+                    <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
+                      {investment.investmentStatus?.value || "Unknown"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -194,12 +256,12 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                       <span>{formatDate(investment.createdAt)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`all-investment-update-button-${investment.id}`}
                         size="icon"
-                        contextsArray={[getInvestmentContext(investment)]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`all-investment-update`}
                         accessToken={accessToken}
@@ -213,6 +275,64 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
               ))}
             </TableBody>
           </Table>
+          
+          {/* Pagination */}
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
+            data-testid="all-investments-pagination"
+          >
+            <div
+              className="gba:text-sm gba:text-muted-foreground"
+              data-testid="all-investments-pagination-info"
+            >
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+                currentPage * pageSize,
+                totalCount
+              )} of ${totalCount} investments`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid="all-investments-page-size-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div
+                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                data-testid="all-investments-page-info"
+              >
+                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  data-testid="all-investments-prev-page"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                  data-testid="all-investments-next-page"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       }
     />

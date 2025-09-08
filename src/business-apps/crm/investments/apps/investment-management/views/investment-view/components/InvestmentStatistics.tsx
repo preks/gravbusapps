@@ -3,11 +3,11 @@ import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import {
   DollarOutlined,
   RiseOutlined,
-  TrophyOutlined,
+  PercentageOutlined,
   PieChartOutlined,
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useInvestmentDataIntegration } from "@/common/data/investment";
+import { useInvestmentKPIIntegration } from "../hooks/useInvestmentKPIIntegration";
 
 interface InvestmentStatisticsProps extends BusinessAppContextProps {}
 
@@ -20,83 +20,96 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...context }) => {
-  const { investments, isLoading, error, stats } = useInvestmentDataIntegration(context);
+const formatPercentage = (value: number): string => {
+  return `${value.toFixed(1)}%`;
+};
 
-  const { totalInvested, totalBookValue, changePercent, avgROI, totalCount, distinctTypes } = useMemo(() => {
-    // Central hook returns enhanced Investment with investmentMarketValue field
-    const invested = investments.reduce((sum, inv: any) => sum + (inv.initialInvestmentAmount || 0), 0);
-    const bookValue = typeof stats?.totalMarketValue === 'number' && stats.totalMarketValue > 0
-      ? stats.totalMarketValue
-      : investments.reduce((sum, inv: any) => sum + (inv.investmentMarketValue || 0), 0);
-    const change = invested > 0 ? ((bookValue - invested) / invested) * 100 : 0;
-    const avg = investments.length > 0
-      ? investments.reduce((sum, inv: any) => {
-          const init = inv.initialInvestmentAmount || 0;
-          const mv = inv.investmentMarketValue || 0;
-          return sum + (init > 0 ? ((mv - init) / init) * 100 : 0);
-        }, 0) / investments.length
-      : 0;
-    const types = new Set((investments as any[]).map((i) => i.investmentGroupLabel || i.investmentTypeLabel || 'Unknown')).size;
+const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+  if (previous === 0) return { value: "N/A", positive: true };
+  const change = ((current - previous) / previous) * 100;
+  return {
+    value: `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+    positive: change >= 0
+  };
+};
+
+export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...context }) => {
+  const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context);
+
+  const { totalInvestments, totalInvested, averageStakePercentage, totalMarketValue } = useMemo(() => {
     return {
-      totalInvested: invested,
-      totalBookValue: bookValue,
-      changePercent: change,
-      avgROI: avg,
-      totalCount: investments.length,
-      distinctTypes: types,
+      totalInvestments: current.totalInvestments,
+      totalInvested: current.totalInvested,
+      averageStakePercentage: current.averageStakePercentage,
+      totalMarketValue: current.totalMarketValue,
     };
-  }, [investments]);
+  }, [current]);
+
+  // Calculate comparison trends using real historical data
+  const investmentsChange = calculateChange(totalInvestments, previous.totalInvestments);
+  const investedChange = calculateChange(totalInvested, previous.totalInvested);
+  const stakeChange = calculateChange(averageStakePercentage, previous.averageStakePercentage);
+  const marketValueChange = calculateChange(totalMarketValue, previous.totalMarketValue);
 
   const widgets: WidgetItem[] = [
+    {
+      key: "total-investments",
+      title: "Total Investments",
+      value: totalInvestments,
+      prefix: <PieChartOutlined />,
+      color: "#1677ff",
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: "Across all investment types",
+      trend: {
+        value: investmentsChange.value,
+        positive: investmentsChange.positive,
+        description: "vs 7 days ago",
+      },
+    },
     {
       key: "total-invested",
       title: "Total Invested",
       value: formatCurrency(totalInvested),
       prefix: <DollarOutlined />,
-      color: "#1677ff",
-      valueIsString: true,
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: "Committed capital",
-    },
-    {
-      key: "book-value",
-      title: "Book Value",
-      value: formatCurrency(totalBookValue),
-      prefix: <RiseOutlined />,
       color: "#52c41a",
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}% vs invested`,
+      description: "Sum of total investment amounts",
       trend: {
-        value: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}%`,
-        positive: changePercent >= 0,
-        description: "Change vs invested",
+        value: investedChange.value,
+        positive: investedChange.positive,
+        description: "vs 7 days ago",
       },
     },
     {
-      key: "avg-roi",
-      title: "Avg. Expected ROI",
-      value: `${avgROI.toFixed(1)}%`,
-      prefix: <TrophyOutlined />,
+      key: "average-stake",
+      title: "Average Stake Percentage",
+      value: formatPercentage(averageStakePercentage),
+      prefix: <PercentageOutlined />,
       color: "#faad14",
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: `across ${totalCount} investments`,
+      description: "Average across all investments",
       trend: {
-        value: `${avgROI.toFixed(1)}%`,
-        positive: avgROI >= 0,
-        description: "Expected return",
+        value: stakeChange.value,
+        positive: stakeChange.positive,
+        description: "vs 7 days ago",
       },
     },
     {
-      key: "asset-types",
-      title: "Asset Types",
-      value: distinctTypes,
-      prefix: <PieChartOutlined />,
+      key: "total-market-value",
+      title: "Total Market Value",
+      value: formatCurrency(totalMarketValue),
+      prefix: <RiseOutlined />,
       color: "#722ed1",
+      valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: `${totalCount} total investments`,
+      description: "Current market valuation",
+      trend: {
+        value: marketValueChange.value,
+        positive: marketValueChange.positive,
+        description: "vs 7 days ago",
+      },
     },
   ];
 
@@ -106,6 +119,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
         widgets={widgets}
         isLoading={isLoading}
         error={error ? new Error(error) : null}
+        onRetry={refetch}
         skeletonCount={4}
         emptyText="No investment statistics available."
         data-testid="investment-statistics"

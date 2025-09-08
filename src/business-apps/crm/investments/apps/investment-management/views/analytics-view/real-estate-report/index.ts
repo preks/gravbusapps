@@ -1,4 +1,4 @@
 export { default } from './RealEstateInvestmentsReport';
 export { default as RealEstateInvestmentsReport } from './RealEstateInvestmentsReport';
-export type { EnhancedRealEstateInvestmentSummary } from './hooks/useRealEstateInvestmentIntegration';
-export type { RealEstateInvestmentSummary, RealEstateInvestmentKPIs, RealEstateInvestmentQueryVariables } from './types'; 
+export type { RealEstateInvestmentKPIs } from './RealEstateInvestmentsReport';
+export type { RealEstateInvestmentSummary } from '../shared/types'; 
