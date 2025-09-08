@@ -19,9 +19,10 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, DollarSign, Calendar } from "lucide-react";
+import { Building2, Calendar, User, Target } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../utils";
+import { formatCurrency, formatDate } from "@/common/data/investment";
+
 
 export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {}
 
@@ -50,7 +51,13 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
       orderBy: [{ field: sortField, direction: sortOrder }],
       ...selectedFilters
     };
-    v.investmentGroupIds = ["real-estate-group-id"]; // TODO: replace with real IDs
+    // Filter by investment types that belong to Real Estate group (based on catalog parentEntryId)
+    v.investmentTypeIds = [
+      "InvestmentType:v1:EXISTING_PROPERTY",
+      "InvestmentType:v1:PROJECT_DEVELOPMENT",
+      "InvestmentType:v1:MEZZANINE_LOANS",
+      "InvestmentType:v1:OTHER_REAL_ESTATE"
+    ];
     return v;
   }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
 
@@ -84,7 +91,11 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
   }, []);
 
   const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'investments',
+      fromSubView: 'real-estate'
+    });
     navigateTo(detailsUrl);
   }, []);
 
@@ -153,12 +164,17 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead>Investment</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Initial Investment</TableHead>
+                <TableHead>Market Value</TableHead>
+                <TableHead>Performance</TableHead>
+                <TableHead>Acquisition Date</TableHead>
+                <TableHead>Investment Role</TableHead>
+                <TableHead>Owner</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="gba:w-[60px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -171,17 +187,72 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{investment.investmentGroup?.code || "Unknown"}</Badge>
+                    <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const currentValue = investment.investmentMarketValue || 0;
+                      const initialValue = investment.initialInvestmentAmount || 0;
+                      const performanceAmount = currentValue - initialValue;
+                      const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                      
+                      return (
+                        <div className="gba:flex gba:flex-col gba:items-start">
+                          <span className={`gba:font-semibold ${
+                            performancePercentage === 0 ? 'gba:text-gray-500' : 
+                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                          }`}>
+                            {formatCurrency(performanceAmount)}
+                          </span>
+                          <span className={`gba:text-sm ${
+                            performancePercentage === 0 ? 'gba:text-gray-400' : 
+                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                          }`}>
+                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                      <Calendar className="gba:w-4 gba:h-4 gba:text-blue-600" />
+                      <span>
+                        {investment.acquisitionDate 
+                          ? formatDate(investment.acquisitionDate)
+                          : "N/A"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={investment.investmentStatus?.code === "Active" ? "default" : "secondary"}>
-                      {investment.investmentStatus?.code || "Unknown"}
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Target className="gba:w-4 gba:h-4 gba:text-purple-600" />
+                      <span>
+                        {investment.investmentRole?.value || "N/A"}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                      <span>
+                        {investment.ownerEmployee?.displayName || 
+                         investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                           ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                           : "N/A"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
+                      {investment.investmentStatus?.value || "Unknown"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -190,12 +261,12 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                       <span>{formatDate(investment.createdAt)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`real-estate-investment-update-button-${investment.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.realEstateInvestmentEntity]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`real-estate-investment-update`}
                         accessToken={accessToken}

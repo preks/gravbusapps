@@ -90,13 +90,6 @@ export const validateInvestmentForm = (values: any): ValidationResult => {
     }
   }
 
-  // Validate private equity information if investment group is PRIVATE_EQUITY
-  const isPrivateEquityType = values.group === "InvestmentGroup:v1:PRIVATE_EQUITY";
-  if (isPrivateEquityType) {
-    if (!isRequired(values.privateEquityRole)) {
-      errors.privateEquityRole = "Role is required for private equity investments";
-    }
-  }
 
   // Validate real estate information if investment group is REAL_ESTATE
   const isRealEstateType = values.group === "InvestmentGroup:v1:REAL_ESTATE";

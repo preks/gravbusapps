@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -6,9 +6,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Badge,
+  Spinner,
+  Alert,
+  Button
 } from "@newwork/nw-design-system";
-import { Button, Input } from "@newwork/nw-design-system";
-import { Spin, Alert, Badge } from "antd";
 import {
   Search,
   Filter,
@@ -16,11 +18,16 @@ import {
   DollarSign,
   Building2,
   Calendar,
+  User
 } from "lucide-react";
-import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { DebouncedInput } from "@/components/data-filter";
+import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
+import { AppAction } from "@/components/app-action/AppAction";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrency, formatDate } from "../../utils";
 import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
 import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
 
@@ -28,10 +35,11 @@ interface PlannedExitsProps extends BusinessAppContextProps {}
 
 const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: "asc" | "desc";
-  } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [sortField] = useState("plannedExitDate");
+  const [sortOrder] = useState<"ASC" | "DESC">("ASC");
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   const { 
     investments, 
@@ -42,53 +50,51 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   } = usePlannedExitsData({
     accessToken,
     searchTerm,
-    sortBy: sortConfig?.key,
-    sortDirection: sortConfig?.direction,
+    sortBy: sortField,
+    sortDirection: sortOrder.toLowerCase() as "asc" | "desc",
+    limit: pageSize,
+    offset: (currentPage - 1) * pageSize,
   });
 
-  const handleSort = (key: string) => {
-    setSortConfig(current => ({
-      key,
-      direction: current?.key === key && current.direction === "asc" ? "desc" : "asc"
-    }));
-  };
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const handleSetFilter = useCallback((filters: string[]) => {
+    setSelectedFilters(filters);
+    setCurrentPage(1);
+  }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+  const handleRowClick = useCallback((investmentId: string) => {
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'divestments',
+      fromSubView: 'planned-exits'
     });
-  };
+    navigateTo(detailsUrl);
+  }, []);
 
-  const SortIcon = ({ column }: { column: string }) => {
-    if (sortConfig?.key !== column) return null;
-    return sortConfig.direction === "asc" ? (
-      <PiArrowUp className="gba:ml-1 gba:h-4 gba:w-4" />
-    ) : (
-      <PiArrowDown className="gba:ml-1 gba:h-4 gba:w-4" />
+
+
+  if (isLoading && investments.length === 0) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+        <Spinner size="lg" />
+      </div>
     );
-  };
+  }
 
   if (error) {
     return (
-      <div data-testid="planned-exits-error" className="gba:p-6">
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel("error", "Error")}
-          description={error}
-          type="error"
-          showIcon
-        />
-      </div>
+      <Alert variant="destructive" className="gba:mb-4">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <span>Error loading planned exits: {error instanceof Error ? error.message : String(error)}</span>
+          <Button variant="outline" size="sm" onClick={refetch}>
+            Retry
+          </Button>
+        </div>
+      </Alert>
     );
   }
 
@@ -97,170 +103,151 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       {/* Metrics Section */}
       <PlannedExitsMetrics accessToken={accessToken} />
 
-      {/* Search and Filters */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <div className="gba:relative gba:w-80">
-            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400" />
-            <DebouncedInput
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                "search_investments",
-                "Search investments..."
-              )}
-              value={searchTerm}
-              onChange={setSearchTerm}
-              className="gba:w-full gba:pl-10 gba:pr-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-blue-500"
-              data-testid="planned-exits-search"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refetch}
-            data-testid="planned-exits-refresh"
-          >
-            {getTranslationFromI18nKeyAndLabel("refresh", "Refresh")}
-          </Button>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:text-gray-600" data-testid="planned-exits-count">
-            {getTranslationFromI18nKeyAndLabel("total_results", "Total")}: {totalCount}
-          </span>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead
-                className="gba:cursor-pointer gba:select-none"
-                onClick={() => handleSort("name")}
-                data-testid="header-name"
+      <DataContainer
+        dataControllerProps={{
+          search: searchTerm,
+          setSearch: handleSearch,
+          debounceDelay: 500,
+          filter: selectedFilters,
+          setFilter: handleSetFilter,
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>Planned Exits</span>
+                <span className="gba:text-gray-500">({totalCount})</span>
+              </div>
+            </div>
+          ),
+          actions: (
+            <AppAction
+              contextsArray={[FlowContextName.createInvestment]}
+              accessToken={accessToken}
+              data-testid="planned-exits-add-action"
+              emptyStateBehavior="hide"
+            >
+              <button
+                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+                data-testid="planned-exits-add-action"
+                type="button"
               >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel("investment_name", "Investment Name")}
-                  <SortIcon column="name" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:cursor-pointer gba:select-none"
-                onClick={() => handleSort("investmentGroup.code")}
-                data-testid="header-group"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel("group", "Group")}
-                  <SortIcon column="investmentGroup.code" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:cursor-pointer gba:select-none"
-                onClick={() => handleSort("investmentMarketValue")}
-                data-testid="header-market-value"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel("market_value", "Market Value")}
-                  <SortIcon column="investmentMarketValue" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:cursor-pointer gba:select-none"
-                onClick={() => handleSort("stakePercentage")}
-                data-testid="header-stake"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel("stake_percent", "Stake %")}
-                  <SortIcon column="stakePercentage" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:cursor-pointer gba:select-none"
-                onClick={() => handleSort("plannedExitDate")}
-                data-testid="header-exit-date"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel("planned_exit_date", "Planned Exit Date")}
-                  <SortIcon column="plannedExitDate" />
-                </div>
-              </TableHead>
-              <TableHead data-testid="header-actions">
-                {getTranslationFromI18nKeyAndLabel("actions", "Actions")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="gba:text-center gba:py-8">
-                  <Spin size="large" />
-                </TableCell>
-              </TableRow>
-            ) : investments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="gba:text-center gba:py-8">
-                  <div className="gba:text-gray-500">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "no_planned_exits",
-                      "No investments planned for exit found"
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              investments.map((investment) => (
-                <TableRow key={investment.id} data-testid={`investment-row-${investment.id}`}>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Building2 className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                      <span className="gba:font-medium">{investment.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {investment.investmentGroup ? (
-                      <Badge color="blue">{investment.investmentGroup.code}</Badge>
-                    ) : (
-                      <span className="gba:text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <DollarSign className="gba:h-4 gba:w-4 gba:text-green-600" />
-                      <span className="gba:font-medium">
-                        {formatCurrency(investment.investmentMarketValue || 0)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="gba:font-medium">
-                      {investment.stakePercentage?.toFixed(1)}%
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {investment.plannedExitDate ? (
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                        <span>{formatDate(investment.plannedExitDate)}</span>
-                      </div>
-                    ) : (
-                      <span className="gba:text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid={`view-investment-${investment.id}`}
-                    >
-                      {getTranslationFromI18nKeyAndLabel("view_details", "View Details")}
-                    </Button>
-                  </TableCell>
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                  Add
+                </span>
+              </button>
+            </AppAction>
+          ),
+        }}
+        dataFilterProps={{
+          filterGroups: [],
+          onFilterChange: () => {},
+        }}
+        dataBody={
+          <div className="gba:bg-white gba:rounded-lg gba:border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Investment</TableHead>
+                  <TableHead>Group</TableHead>
+                  <TableHead>Initial Investment</TableHead>
+                  <TableHead>Market Value</TableHead>
+                  <TableHead>Performance</TableHead>
+                  <TableHead>Stake %</TableHead>
+                  <TableHead>Planned Exit Date</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="gba:w-[60px]">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {investments.map((investment) => (
+                  <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span className="gba:font-medium">{investment.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{investment.investmentGroup?.value || "Unknown"}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const currentValue = investment.investmentMarketValue || 0;
+                        const initialValue = investment.initialInvestmentAmount || 0;
+                        const performanceAmount = currentValue - initialValue;
+                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        
+                        return (
+                          <div className="gba:flex gba:flex-col gba:items-start">
+                            <span className={`gba:font-semibold ${
+                              performancePercentage === 0 ? 'gba:text-gray-500' : 
+                              performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                            }`}>
+                              {formatCurrency(performanceAmount)}
+                            </span>
+                            <span className={`gba:text-sm ${
+                              performancePercentage === 0 ? 'gba:text-gray-400' : 
+                              performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                            }`}>
+                              ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      <span className="gba:font-medium">
+                        {investment.stakePercentage ? `${investment.stakePercentage.toFixed(1)}%` : "N/A"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {investment.plannedExitDate ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                          <span>{formatDate(investment.plannedExitDate)}</span>
+                        </div>
+                      ) : (
+                        <span className="gba:text-gray-400">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                        <span>
+                          {investment.ownerEmployee?.displayName || 
+                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                             : "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`planned-exit-investment-update-button-${investment.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.investmentEntity]}
+                          externalContextData={{ investmentId: investment.id }}
+                          prefixDataTestId={`planned-exit-investment-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        }
+      />
     </div>
   );
 };

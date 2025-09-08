@@ -46,7 +46,7 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
 
   return (
     <AppAction
-      contextsArray={[FlowContextName.uploadInvestmentReport]}
+      contextsArray={[FlowContextName.investmentReportUpload]}
       externalContextData={{ investmentId }}
       accessToken={accessToken}
       emptyStateBehavior="enable"

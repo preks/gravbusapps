@@ -123,16 +123,6 @@ export interface InvestmentData {
     annualExpenses: number;
     version: number;
   };
-  privateEquityInvestment?: {
-    id: string;
-    investmentRoleRef: string;
-    investmentRole: {
-      id: string;
-      code: string;
-      value: string;
-    };
-    version: number;
-  };
   liquidFundInvestment?: {
     id: string;
     accountNumber: string;
@@ -272,16 +262,6 @@ export const GET_INVESTMENT_BY_ID = `
         buildingYear
         occupancyPercent
         annualExpenses
-        version
-      }
-      privateEquityInvestment {
-        id
-        investmentRoleRef
-        investmentRole {
-          id
-          code
-          value
-        }
         version
       }
       liquidFundInvestment {

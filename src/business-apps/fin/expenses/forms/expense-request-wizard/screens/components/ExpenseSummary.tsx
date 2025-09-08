@@ -142,7 +142,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayExpenses && (
         <>
         <div 
-          className="gba:min-h-[40px] gba:py-[0.5rem]" 
+          className="gba:min-h-[40px] gba:py-4" 
           data-testid="expense-summary-expenses"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -186,7 +186,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayAdvance && (
         <>
         <div 
-          className="gba:min-h-[40px] gba:py-[0.5rem]" 
+          className="gba:min-h-[40px] gba:py-4" 
           data-testid="expense-summary-advance"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -205,7 +205,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayNonReimbursable && (
         <>
         <div 
-          className="gba:min-h-[40px] gba:py-[0.5rem]" 
+          className="gba:min-h-[40px] gba:py-4" 
           data-testid="expense-summary-non-reimbursable"
         >
           <div className="gba:flex gba:justify-between gba:items-center">
@@ -224,7 +224,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ requestData }) => {
       {displayObject.displayRemaining && (
         <>
         <div 
-          className="gba:min-h-[40px] gba:py-[0.5rem]" 
+          className="gba:min-h-[40px] gba:py-4" 
           data-testid="expense-summary-remaining"
         >
           <div className="gba:flex gba:justify-between gba:items-center">

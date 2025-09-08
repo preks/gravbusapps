@@ -17,6 +17,7 @@ import { SalesArea, SalesQuickAction } from './types';
 import { useSalesStats } from './hooks/useSalesStats';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import * as RemixIcons from '@remixicon/react';
+import { MODULE_COLORS } from '@/common/constants/ui';
 // Import PhosphorIcons for LauncherLayout
 import { 
   ShoppingCart,
@@ -28,7 +29,7 @@ import {
 } from '@phosphor-icons/react';
 
 interface SalesLauncherProps extends BusinessAppContextProps {}
-
+const moduleColor = MODULE_COLORS.ERP;
 const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useSalesStats(context);
 
@@ -279,6 +280,7 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used sales functions and shortcuts"
+      variant={moduleColor}
     />
   );
 };

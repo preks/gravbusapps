@@ -1,4 +1,4 @@
-export { SalesDashboard } from './SalesDashboard';
-export { CampaignsAnalyticsTab } from './components/CampaignsAnalyticsTab';
-export { default } from './SalesDashboard';
-export type { SalesDashboardProps } from './SalesDashboard'; 
+export { AnalyticsView } from './AnalyticsView';
+export { CampaignsTab } from './tabs/campaigns/CampaignsTab';
+export { default } from './AnalyticsView';
+export type { AnalyticsViewProps } from './AnalyticsView'; 

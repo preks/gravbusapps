@@ -7,11 +7,11 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Combobox,
 } from "@newwork/nw-design-system";
 import { useFormContext } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { EntitySelect } from '../shared/components';
 
 export interface NoteSegmentProps {
   // Entity selection
@@ -28,6 +28,11 @@ export interface NoteSegmentProps {
   textLabel: React.ReactNode;
   reminderLabel?: React.ReactNode;
   entityLabel?: React.ReactNode;
+
+  // Placeholders (optional)
+  titlePlaceholder?: string;
+  textPlaceholder?: string;
+  reminderPlaceholder?: string;
 
   // TestId prefix for container
   ["data-testid"]?: string;
@@ -65,14 +70,12 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
   textLabel,
   reminderLabel,
   entityLabel,
+  titlePlaceholder,
+  textPlaceholder,
+  reminderPlaceholder,
   "data-testid": dataTestId = "note-segment",
 }) => {
   const form = useFormContext<any>();
-
-  const entityOptions = React.useMemo(
-    () => (entities || []).map((e) => ({ value: e.id, label: `${e.name} (${String(e.type).charAt(0).toUpperCase() + String(e.type).slice(1)})` })),
-    [entities]
-  );
 
   const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
     if (!v) return "";
@@ -81,10 +84,10 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (showEntitySelection && onEntitySearch && entityOptions.length === 0) {
+    if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
       onEntitySearch("");
     }
-  }, [showEntitySelection, onEntitySearch, entityOptions.length]);
+  }, [showEntitySelection, onEntitySearch, entities]);
 
   React.useEffect(() => {
     if (!showEntitySelection || !initialEntityFromContext) return;
@@ -116,7 +119,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           <FormItem>
             <FormLabel>{titleLabel}</FormLabel>
             <FormControl>
-              <Input data-testid={`${dataTestId}-title`} maxLength={100} {...field} />
+              <Input data-testid={`${dataTestId}-title`} maxLength={100} placeholder={titlePlaceholder} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -131,7 +134,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
           <FormItem>
             <FormLabel>{textLabel}</FormLabel>
             <FormControl>
-              <Textarea data-testid={`${dataTestId}-text`} {...field} />
+              <Textarea data-testid={`${dataTestId}-text`} placeholder={textPlaceholder} {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -152,6 +155,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                   data-testid={`${dataTestId}-reminder-date`}
                   value={normalizeDateTimeLocalValue(field.value)}
                   onChange={field.onChange}
+                  placeholder={reminderPlaceholder}
                 />
               </FormControl>
               <FormMessage />
@@ -169,10 +173,10 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
             <FormItem>
               <FormLabel>{entityLabel || "Related Entity"}</FormLabel>
               <FormControl>
-                <Combobox
-                  className="gba:w-full"
-                  options={entityOptions}
-                  value={field.value || ""}
+                <EntitySelect
+                  className="gba:w-full gba:h-auto"
+                  entities={entities as any}
+                  value={field.value || ''}
                   onValueChange={(v: string | null) => {
                     field.onChange(v);
                     const id = String(v || "");
@@ -185,16 +189,11 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                       form.setValue(e.type, { id: e.id });
                     }
                   }}
-                  placeholder="Search leads, contacts, accounts, or opportunities..."
-                  searchPlaceholder="Type to search..."
-                  emptyText={entitiesLoading ? "Loading..." : "No results"}
                   onSearch={onEntitySearch}
-                  searchDebounce={300}
                   loading={Boolean(entitiesLoading)}
                   hasMore={Boolean(entitiesHasMore)}
                   onLoadMore={onEntityLoadMore}
                   data-testid={`${dataTestId}-entity`}
-                  align="start"
                 />
               </FormControl>
               <FormMessage />

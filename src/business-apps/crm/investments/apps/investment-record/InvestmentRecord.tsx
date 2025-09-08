@@ -8,6 +8,7 @@ import { EquityRecord } from './components/equity-record';
 import { LiquidFundRecord } from './components/liquid-funds-record';
 import { RealEstateRecord } from './components/real-estate-record';
 
+
 interface InvestmentRecordProps extends BusinessAppContextProps {}
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
@@ -115,57 +116,35 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     );
   }
 
-  // Check if any investment type has data
-  const hasEquityData = investmentData?.equityInvestment && Object.keys(investmentData.equityInvestment).length > 0;
-  const hasLiquidFundData = investmentData?.liquidFundInvestment && Object.keys(investmentData.liquidFundInvestment).length > 0;
-  const hasRealEstateData = investmentData?.realEstateInvestment && Object.keys(investmentData.realEstateInvestment).length > 0;
-
-  // Determine group by catalog code/value
+  // Determine investment type to route to the appropriate component
   const groupCode = (investmentData?.investmentGroup?.code || investmentData?.investmentGroupRef || '').toString().toUpperCase();
-  const groupLabel = investmentData?.investmentGroup?.value || investmentData?.investmentGroup?.code || 'Investment';
+  const typeCode = (investmentData?.investmentType?.code || investmentData?.investmentTypeRef || '').toString().toUpperCase();
+  const typeName = (investmentData?.investmentType?.value || '').toString().toLowerCase();
 
-  // If no specialization found, fallback for known groups; else show unsupported
-  if (!hasEquityData && !hasLiquidFundData && !hasRealEstateData) {
-    const isKnownGroup = ['EQUITY', 'LIQUID_FUND', 'REAL_ESTATE'].some(k => groupCode.includes(k));
-    if (isKnownGroup) {
-      return (
-        <div 
-          className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-          data-testid="investment-record-missing-specialization"
-        >
-          <Alert
-            message={`${groupLabel} Record Unavailable`}
-            description={`This ${groupLabel.toLowerCase()} investment has no specialization data yet. You can still view basic details, or update the record to add ${groupLabel.toLowerCase()} details.`}
-            type="info"
-            showIcon
-          />
-        </div>
-      );
+  // Helper function to determine which component to render
+  const getInvestmentRecordComponent = () => {
+    // Check for investment groups first
+    if (groupCode.includes('EQUITY')) {
+      return <EquityRecord {...props} investmentId={investmentId} />;
     }
-    return (
-      <div 
-        className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-        data-testid="investment-record-unknown-type"
-      >
-        <Alert
-          message="Investment Type Not Supported"
-          description="This investment type is not currently supported. Only Equity, Liquid Fund, and Real Estate investments are supported."
-          type="warning"
-          showIcon
-        />
-      </div>
-    );
-  }
+    
+    if (groupCode.includes('LIQUID_FUND')) {
+      return <LiquidFundRecord {...props} investmentId={investmentId} />;
+    }
+    
+    if (groupCode.includes('REAL_ESTATE')) {
+      // All Real Estate types use the same RealEstateRecord component
+      // The component will determine which header to show based on investment type
+      return <RealEstateRecord {...props} investmentId={investmentId} />;
+    }
+    
+    // Fallback to equity record for unknown groups
+    return <EquityRecord {...props} investmentId={investmentId} />;
+  };
 
-  // Route based on investment type - the specific components will handle their own data fetching
-  // We pass the investment ID and let each component determine if it has the right type of data
-  
   return (
     <div data-testid="investment-record-container">
-      {/* Try each investment type - the component will handle if it has data or not */}
-      <EquityRecord {...props} investmentId={investmentId} />
-      <LiquidFundRecord {...props} investmentId={investmentId} />
-      <RealEstateRecord {...props} investmentId={investmentId} />
+      {getInvestmentRecordComponent()}
     </div>
   );
 };

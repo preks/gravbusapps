@@ -26,9 +26,10 @@ import {
   ChartBar,
   Gear
 } from '@phosphor-icons/react';
+import { MODULE_COLORS } from '@/common/constants/ui';
 
 interface HrLauncherProps extends BusinessAppContextProps {}
-
+const moduleColor = MODULE_COLORS.HR;
 const HrLauncher: React.FC<HrLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useHrStats(context);
 
@@ -118,18 +119,6 @@ const HrLauncher: React.FC<HrLauncherProps> = (context) => {
 
       const areaStats = getAreaStats(area.id, area.kpiType);
 
-      // Get variant based on category and area ID
-      const getVariant = (category: string, areaId: string) => {
-        switch (category) {
-          case 'core': return 'info';
-          case 'management': return 'success';
-          case 'time-off': return 'warning';
-          case 'analytics': return 'info';
-          case 'settings': return 'default';
-          default: return 'default';
-        }
-      };
-
              return {
          id: area.id,
          title: area.title,
@@ -144,7 +133,6 @@ const HrLauncher: React.FC<HrLauncherProps> = (context) => {
            label: area.buttonLabel || getDefaultButtonLabel(area.id),
            onClick: () => handleNavigationClick(area)
          },
-         variant: getVariant(area.category, area.id)
        };
     });
 
@@ -282,6 +270,7 @@ const HrLauncher: React.FC<HrLauncherProps> = (context) => {
          icon: action.icon,
          onClick: () => handleQuickAction(action)
        }))}
+       variant={moduleColor}
      />
    );
 };

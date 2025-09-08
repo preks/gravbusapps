@@ -6,7 +6,8 @@ import {
   AddressBook,
   FileText,
   ChartBar,
-  Wallet
+  Wallet,
+  ArrowsClockwise
 } from '@phosphor-icons/react';
 
 export const investmentAreas: InvestmentArea[] = [
@@ -71,6 +72,12 @@ export const investmentQuickActions: InvestmentQuickAction[] = [
     label: 'Add New Lead',
     icon: UserPlus,
     action: 'create-lead'
+  },
+  {
+    id: 'convert-lead',
+    label: 'Convert Lead',
+    icon: ArrowsClockwise,
+    action: 'convert-lead'
   },
   {
     id: 'create-opportunity',

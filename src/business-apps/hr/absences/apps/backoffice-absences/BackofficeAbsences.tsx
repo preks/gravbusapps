@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 // Using PageLayout headerSubViews pattern like team expenses implementation
-import { PiGauge, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
+//import { PiGauge, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
+import { GaugeIcon, ListBulletsIcon, ChartBarIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
 
@@ -9,7 +10,8 @@ import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab, StatisticsTab } 
 import { AbsenceDetails, EntitlementsDetails } from './components/pages';
 import { useDashboardData } from './hooks/useDashboardData';
 import { AbsenceDetailsFilter } from './types';
-
+import { MODULE_COLORS } from '@/common/constants/ui';
+const moduleColor = MODULE_COLORS.HR;
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
 const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, userInfo }) => {
@@ -92,27 +94,27 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     {
       key: 'dashboard',
       label: 'Dashboard',
-      icon: <PiGauge className="w-5 h-5" />,
+      icon: <GaugeIcon className="w-5 h-5" />,
     },
     {
       key: 'absence-list',
       label: 'Absence List',
-      icon: <PiListBullets className="w-5 h-5" />,
+      icon: <ListBulletsIcon className="w-5 h-5" />,
     },
     {
       key: 'calendar',
       label: 'Calendar View',
-      icon: <PiCalendarBlank className="w-5 h-5" />,
+      icon: <CalendarBlankIcon className="w-5 h-5" />,
     },
     {
       key: 'statistics',
       label: 'Statistics',
-      icon: <PiChartBar className="w-5 h-5" />,
+      icon: <ChartBarIcon className="w-5 h-5" />,
     },
     {
       key: 'reports',
       label: 'Reports',
-      icon: <PiChartBar className="w-5 h-5" />,
+      icon: <ChartBarIcon className="w-5 h-5" />,
     },
   ];
 
@@ -212,7 +214,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
   return (
     <div data-testid="backoffice-absences-container">
       <PageLayout
-        headerIcon={<PiCalendarBlank className="w-6 h-6 text-blue-600" />}
+        headerIcon={CalendarBlankIcon}
         headerTitle="Absence Management Hub (Backoffice)"
         headerDescription="Manage and monitor all absence requests across the organization"
         headerSubViews={{
@@ -224,6 +226,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
             icon: option.icon
           }))
         }}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         {renderTabContent()}

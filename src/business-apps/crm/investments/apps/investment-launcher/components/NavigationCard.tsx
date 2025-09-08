@@ -398,15 +398,6 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
               </div>
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleInvestmentTypeClick("private-equity", e)}
-              >
-                <span className="gba:text-gray-600">
-                  Private Equity Investments
-                </span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-              </div>
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
                 onClick={(e) => handleInvestmentTypeClick("liquid-funds", e)}
               >
                 <span className="gba:text-gray-600">

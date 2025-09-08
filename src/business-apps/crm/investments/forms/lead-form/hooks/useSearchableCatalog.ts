@@ -7,6 +7,7 @@ interface SearchableCatalogHookParams {
   catalogIdentifier: string;
   version?: string;
   pageSize?: number;
+  whereConditions?: Record<string, any>;
 }
 
 interface SearchableCatalogState {
@@ -25,6 +26,7 @@ export const useSearchableCatalog = ({
   catalogIdentifier,
   version = "v1",
   pageSize = 100, // Increased from 20 to 100 for better UX
+  whereConditions,
 }: SearchableCatalogHookParams) => {
   const [state, setState] = useState<SearchableCatalogState>({
     options: [],
@@ -53,9 +55,6 @@ export const useSearchableCatalog = ({
       }));
 
       try {
-        console.log(
-          `🔍 Fetching ${catalogIdentifier} with offset: ${offset}, searchTerm: "${searchTerm}"`
-        );
 
         const response = await catalogClient.getCatalogEntriesList(
           {
@@ -68,13 +67,10 @@ export const useSearchableCatalog = ({
             returnTotalRecords: true,
             includeChildCatalogEntries: true,
             ...(searchTerm.trim() && { value: searchTerm.trim() }),
+            ...whereConditions,
           }
         );
 
-        console.log(`${catalogIdentifier} Response:`, response);
-        console.log(
-          `Received ${response.data.length} items, total records: ${response.paging?.totalRecords}`
-        );
 
         const mappedOptions: SelectOption[] = response.data.map(
           (entry: any) => ({
@@ -102,10 +98,6 @@ export const useSearchableCatalog = ({
           })
         );
 
-        console.log(
-          `✅ ${catalogIdentifier}: Updated offset: ${currentOffset}, hasMore: ${hasMoreRecords}, totalRecords: ${totalRecords}, fetchedItems: ${response.data.length}, sortedTotal: ${sortedOptions.length}`
-        );
-
         setState((prev) => ({
           ...prev,
           loading: false,
@@ -116,7 +108,6 @@ export const useSearchableCatalog = ({
           initialized: true, // Mark as initialized after successful load
         }));
       } catch (err) {
-        console.error(`Error fetching ${catalogIdentifier} catalog:`, err);
         setState((prev) => ({
           ...prev,
           loading: false,
@@ -136,23 +127,9 @@ export const useSearchableCatalog = ({
   );
 
   const loadMore = useCallback(() => {
-    console.log(`LoadMore called for ${catalogIdentifier}:`, {
-      hasMore: state.hasMore,
-      loading: state.loading,
-      currentOffset: state.offset,
-      optionsLength: state.options.length,
-      currentSearch: state.currentSearch,
-    });
 
     if (state.hasMore && !state.loading) {
-      console.log(
-        `Executing loadMore for ${catalogIdentifier} from offset ${state.offset}`
-      );
       fetchCatalogEntries(state.currentSearch, state.offset, true);
-    } else {
-      console.log(
-        `LoadMore skipped for ${catalogIdentifier} - hasMore: ${state.hasMore}, loading: ${state.loading}`
-      );
     }
   }, [
     fetchCatalogEntries,

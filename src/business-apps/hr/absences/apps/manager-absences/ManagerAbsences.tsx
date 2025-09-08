@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
-import { PiGauge, PiCalendarBlank, PiListBullets, PiChartBar } from 'react-icons/pi';
+import { GaugeIcon, CalendarBlankIcon, ListBulletsIcon, ChartBarIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 import { AbsenceStatisticsSimple } from './components/tabs/dashboard-tab';
@@ -12,6 +12,9 @@ import { StatisticsTab } from './components/tabs/statistics-tab';
 import { WorkLifeBalanceAnalysisPage } from './components/pages/WorkLifeBalanceAnalysisPage';
 import { TeamCoverageOptimizerPage } from './components/pages/TeamCoverageOptimizerPage';
 import { AbsenceListPage } from './components/pages/AbsenceListPage';
+import { MODULE_COLORS } from '@/common/constants/ui';
+
+const moduleColor = MODULE_COLORS.HR;
 
 export interface ManagerAbsencesProps extends BusinessAppContextProps {}
 
@@ -19,27 +22,27 @@ const ManagerAbsences: React.FC<ManagerAbsencesProps> = (props) => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <PiGauge className="w-5 h-5" />,
+      icon: <GaugeIcon className="w-5 h-5" />,
       label: 'Dashboard'
     },
     {
       key: 'absence-list',
-      icon: <PiListBullets className="w-5 h-5" />,
+      icon: <ListBulletsIcon className="w-5 h-5" />,
       label: 'Absence List'
     },
     {
       key: 'team-calendar',
-      icon: <PiCalendarBlank className="w-5 h-5" />,
+      icon: <CalendarBlankIcon className="w-5 h-5" />,
       label: 'Team Calendar'
     },
     {
       key: 'statistics',
-      icon: <PiChartBar className="w-5 h-5" />,
+      icon: <ChartBarIcon className="w-5 h-5" />,
       label: 'Statistics'
     },
     {
       key: 'reports',
-      icon: <PiChartBar className="w-5 h-5" />,
+      icon: <ChartBarIcon className="w-5 h-5" />,
       label: 'Reports'
     }
   ];
@@ -148,7 +151,7 @@ const ManagerAbsences: React.FC<ManagerAbsencesProps> = (props) => {
   return (
     <div data-testid="manager-absences-container">
       <PageLayout
-        headerIcon={<PiCalendarBlank className="w-6 h-6 text-purple-600" />}
+        headerIcon={CalendarBlankIcon}
         headerTitle="Absence Management Hub (Manager)"
         headerDescription="Manage team absences, track absence requests, and view team calendar"
         headerSubViews={{

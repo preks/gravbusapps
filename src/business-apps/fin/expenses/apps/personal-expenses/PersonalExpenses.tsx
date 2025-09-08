@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
-import { Wallet } from "@phosphor-icons/react";
+import { WalletIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { MODULE_COLORS } from '@/common/constants/ui';
+
+
+const moduleColor = MODULE_COLORS.FIN;
 // Create a global API for tab navigation
+
 interface TabNavigationState {
   setActiveTab: (tabKey: string) => void;
   filter?: string;
@@ -116,12 +121,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
   return (
     <div data-testid="personal-expenses-container">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: Wallet,
-          variant: "default",
-          size: "lg",
-          label: "My Expenses"
-        }}
+        headerIcon={WalletIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.my_expenses',"My Expenses")}
         headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.main_description',"Manage your personal expenses, track expenses, and manage advance payments.")}
         headerSubViews={{
@@ -136,6 +136,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
             { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar','Calendar') }
           ]
         }}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         {/* Render content header (statistics/widget cards) if available */}
