@@ -1,4 +1,4 @@
-import { OpportunityRecord } from './OpportunityRecord';
+import OpportunityRecord from './OpportunityRecord';
 
 export { OpportunityRecord };
 export { WorkflowsStatusModal } from './components/WorkflowsStatusModal';

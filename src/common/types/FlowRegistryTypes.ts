@@ -41,6 +41,11 @@ export enum FlowContextName {
   customerActivityEntity = "customerActivityEntity",
   customerActivityCreate = "customerActivityCreate",
   customerActivityUpdate = "customerActivityUpdate",
+  customerActivityDelete = "customerActivityDelete",
+
+  /// Customer Notes
+  customerNoteCreate = "customerNoteCreate",
+  customerNoteDelete = "customerNoteDelete",
 
   /// Customer Documents
   createCustomerDocument = "customerDocumentCreate",
@@ -48,6 +53,7 @@ export enum FlowContextName {
 
   customerTaskEntity = 'customerTaskEntity',
   createCustomerTask = 'customerTaskCreate',
+  customerTaskDelete = 'customerTaskDelete',
 
 
   // Investment Relations
@@ -78,15 +84,18 @@ export enum FlowContextName {
 
   investmentActivityEntity = "investmentActivityEntity",
   createInvestmentActivity = "investmentActivityCreate",
+  investmentActivityDelete = "investmentActivityDelete",
 
   /// Investment Tasks
 
   investmentTaskEntity = "investmentTaskEntity",
   investmentTaskCreate = "investmentTaskCreate",
   investmentTaskUpdate = "investmentTaskUpdate",
+  investmentTaskDelete = "investmentTaskDelete",
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
+  investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents
   investmentDocumentEntity = "investmentDocumentEntity",
@@ -106,11 +115,6 @@ export enum FlowContextName {
   /// Investment Reports
   investmentReportUpload = "investmentReportUpload",
   investmentReportEntity = "investmentReportEntity", // Integrate
-
-
-
-
-
 
 
 

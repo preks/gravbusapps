@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, EditOutlined, LoadingOutlined, CalendarOutlined, CloudUploadOutlined } from '@ant-design/icons';
 import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { ActivityDeletionPopup } from '@/common/components';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -55,6 +58,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
   const originalActivitiesRef = useRef<ContactActivityData[]>([]);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: ContactActivityData }>({ open: false });
 
   const { fetchContactActivities } = useGetContactActivities(context);
   const { fetchContactTasks } = useGetContactTasks(context);
@@ -377,40 +381,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   };
 
   const handleDeleteActivity = (activity: ContactActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
-            changeMode: "DELETE",
-            salesActivity: {
-              id: activity.id,
-              version: activity.version,
-              contact: contactId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the activity from both states
-          setActivities(prevActivities => 
-            prevActivities.filter(a => a.id !== activity.id)
-          );
-          
-          // Also remove from original activities ref
-          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-          
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+    setDeletePopup({ open: true, activity });
   };
 
   const handleLanguageChange = (languageCode: string) => {
@@ -550,14 +521,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 />
               )}
             </div>
-            <Button 
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.customerActivityCreate]}
+              externalContextData={{ contactId, contact: contactId, salesActivity: { contact: contactId } }}
+              prefixDataTestId="contact-add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button 
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -674,22 +653,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={() => startProcess({
-                domain: 'customer-relations',
-                processName: 'saveSalesTask',
-                payload: {
-                  contactId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL', // Correct catalog format
-                },
-                builderType: 'NATIVE_SCREEN',
-              })}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.createCustomerTask]}
+              externalContextData={{
+                contactId,
+                typeRef: 'SalesTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="contact-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -811,6 +793,27 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           </div>
         </div>
       )}
+
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity!.title}
+          contactId={contactId}
+          domain="crm"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
     </div>
   );
 }; 
