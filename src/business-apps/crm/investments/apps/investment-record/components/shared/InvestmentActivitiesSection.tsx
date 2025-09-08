@@ -8,6 +8,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InvestmentNotesSection } from './InvestmentNotesSection';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
+import { useGetInvestmentById } from '@/common/data/investment';
+import { useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
@@ -22,6 +24,7 @@ import type { InvestmentActivity, InvestmentTask } from '@/common/data/investmen
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
+import { ActivityDeletionPopup } from '@/common/components';
 
 
 const { Text } = Typography;
@@ -58,11 +61,15 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
   const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([]);
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
+  const [accountIdForInvestment, setAccountIdForInvestment] = useState<string | null>(null);
 
   const originalActivitiesRef = useRef<InvestmentActivity[]>([]);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
 
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
+  const { fetchInvestmentById } = useGetInvestmentById(context);
+  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const graphqlClient = useGraphQLClient(context.accessToken);
 
@@ -121,12 +128,21 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
     setApprovalTasksError(null);
 
     try {
-      const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      // Filter for approval tasks
-      const approvals = tasksData.filter(task => 
-        task.taskType?.value?.toLowerCase().includes('approval') ||
-        task.taskType?.code?.toLowerCase().includes('approval')
-      );
+      let tasksData: InvestmentTask[] = [];
+      if (accountIdForInvestment) {
+        // Mirror account-record behavior: approvals are tied to account
+        tasksData = await fetchInvestmentTasksByAccountId(accountIdForInvestment);
+      } else {
+        tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
+      }
+      // Filter for approval tasks (catalog value/code or taskTypeRef)
+      const approvals = tasksData.filter(task => {
+        const value = task.taskType?.value?.toLowerCase?.();
+        const code = task.taskType?.code?.toLowerCase?.();
+        const taskTypeRef = (task as any).taskTypeRef as string | undefined;
+        const refMatch = taskTypeRef === 'InvestmentTaskType:v1:APPROVAL' || taskTypeRef?.toLowerCase() === 'approval';
+        return value === 'approval' || code === 'approval' || refMatch;
+      });
       setApprovalTasks(approvals);
     } catch (err) {
       console.error('Error fetching approval tasks:', err);
@@ -158,35 +174,25 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
     }
   };
 
-  // Handler for Request Approval button
-  const handleRequestApproval = () => {
-    if (!investmentId) {
-      message.error('Investment ID is required to request approval');
-      return;
-    }
-
-    try {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          investmentId: investmentId,
-          typeRef: 'InvestmentTaskType:v1:APPROVAL',
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    } catch (error) {
-      console.error('Error starting approval request process:', error);
-      message.error('Failed to start approval request process');
-    }
-  };
+  // Request Approval now handled via AppAction Flow (context-driven)
 
   // Load data when component mounts or investmentId changes
   useEffect(() => {
     if (activeTab === 'activities') {
       loadActivities();
     } else if (activeTab === 'approvals') {
-      loadApprovalTasks();
+      // Ensure we know the account of this investment (to mirror account-record behavior)
+      (async () => {
+        try {
+          if (!accountIdForInvestment && investmentId) {
+            const res = await fetchInvestmentById(investmentId);
+            const accId = res?.investment?.investmentAccount?.id || null;
+            setAccountIdForInvestment(accId);
+          }
+        } finally {
+          await loadApprovalTasks();
+        }
+      })();
     }
   }, [investmentId, activeTab]);
 
@@ -243,7 +249,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                 dot={<FileTextOutlined />}
                 color="blue"
               >
-                <div>
+                <div style={{ position: 'relative' }}>
                   <h4 style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
                     {activity.translatedTitle || activity.title || 'Untitled Activity'}
                   </h4>
@@ -255,6 +261,16 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                       {activity.translatedDescription || activity.description}
                     </p>
                   )}
+                  <div style={{ position: 'absolute', top: 0, right: 0 }}>
+                    <AntButton
+                      type="text"
+                      icon={<CloseOutlined />}
+                      size="small"
+                      onClick={() => setDeletePopup({ open: true, activity })}
+                      data-testid={`delete-activity-button-${activity.id}`}
+                      title="Delete Activity"
+                    />
+                  </div>
                 </div>
               </Timeline.Item>
             ))}
@@ -356,7 +372,11 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               <AppAction
                 contextsArray={[FlowContextName.createInvestmentActivity]}
                 accessToken={context.accessToken}
-                externalContextData={{ investmentId: investmentId }}
+                externalContextData={{ 
+                  investmentId: investmentId,
+                  accountId: accountIdForInvestment,
+                  investmentData: { investmentAccount: { id: accountIdForInvestment } }
+                }}
                 prefixDataTestId="add-activity"
                 emptyStateBehavior="hide"
               >
@@ -380,14 +400,27 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               </Button>
             )}
             {activeTab === 'approvals' && (
-              <Button
-                variant="default"
-                onClick={handleRequestApproval}
-                data-testid="request-approval-button"
+              <AppAction
+                contextsArray={[FlowContextName.investmentTaskCreate]}
+                accessToken={context.accessToken}
+                externalContextData={{
+                  investmentId,
+                  investment: investmentId,
+                  investmentTask: { investment: investmentId },
+                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                }}
+                prefixDataTestId="request-approval"
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
               >
-                <PlusCircleOutlined />
-                Request Approval
-              </Button>
+                <Button
+                  variant="default"
+                  data-testid="request-approval-button"
+                >
+                  <PlusCircleOutlined />
+                  Request Approval
+                </Button>
+              </AppAction>
             )}
 
           </div>
@@ -430,6 +463,29 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
       {/* Tab content */}
       {renderTabContent()}
 
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={typeof (deletePopup.activity as any).version === 'number' ? (deletePopup.activity as any).version : undefined}
+          activityTitle={deletePopup.activity?.title || 'Activity'}
+          domain="investments"
+          onSuccess={() => {
+            const id = deletePopup.activity!.id;
+            setActivities(prev => prev.filter(a => a.id !== id));
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== id);
+            setDeletePopup({ open: false });
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            setDeletePopup({ open: false });
+            message.error('Failed to delete activity');
+          }}
+          data-testid="investment-activity-deletion-popup"
+        />
+      ) : null}
 
     </div>
   );
