@@ -58,7 +58,7 @@ export const validateActivityData = (
   if (!data.description) errors.push('Description is required');
 
   const requireEntity = options?.requireEntity ?? true;
-  const hasEntity = Boolean(data.account || data.contact || data.opportunity || data.lead);
+  const hasEntity = Boolean(data.account || data.contact || data.opportunity || data.lead || (data as any)?.relatedEntityId);
 
   if (requireEntity && !hasEntity) {
     errors.push('Please select a related entity');

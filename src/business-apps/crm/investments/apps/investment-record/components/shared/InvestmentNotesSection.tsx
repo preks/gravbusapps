@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal, Input } from 'antd';
+import { Spin, Alert, Button, Timeline, Typography, message } from 'antd';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -8,11 +8,12 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { formatDate } from '@/common/data/investment';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { NoteDeletionPopup } from '@/common/components';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
 import type { InvestmentNote } from '@/common/data/investment/types';
 
-
-const { TextArea } = Input;
 const { Text } = Typography;
 
 interface InvestmentNotesSectionProps {
@@ -28,11 +29,7 @@ export const InvestmentNotesSection: React.FC<InvestmentNotesSectionProps> = ({ 
   const [notes, setNotes] = useState<SimpleNoteData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingNote, setEditingNote] = useState<SimpleNoteData | null>(null);
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteText, setNoteText] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: SimpleNoteData }>({ open: false });
   
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
@@ -107,86 +104,6 @@ export const InvestmentNotesSection: React.FC<InvestmentNotesSectionProps> = ({ 
     return formatDate(dateString, 'DD.MM.YYYY HH:mm', 'N/A');
   };
 
-  const openCreateModal = () => {
-    setEditingNote(null);
-    setNoteTitle('');
-    setNoteText('');
-    setIsModalVisible(true);
-  };
-
-  const openEditModal = (note: SimpleNoteData) => {
-    setEditingNote(note);
-    setNoteTitle(note.title || '');
-    setNoteText(note.text || '');
-    setIsModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setIsModalVisible(false);
-    setEditingNote(null);
-    setNoteTitle('');
-    setNoteText('');
-  };
-
-  const saveNote = async () => {
-    if (!investmentId) {
-      message.error('Investment ID is required');
-      return;
-    }
-
-    if (!noteTitle.trim() && !noteText.trim()) {
-      message.error('Please enter a title or note text');
-      return;
-    }
-
-    setSaving(true);
-    
-    try {
-      const processKey = editingNote ? 'investment-note-update' : 'investment-note-create';
-      const payload = editingNote 
-        ? {
-            id: editingNote.id,
-            version: editingNote.version,
-            title: noteTitle.trim(),
-            text: noteText.trim(),
-            investmentId: investmentId,
-          }
-        : {
-            title: noteTitle.trim(),
-            text: noteText.trim(),
-            investmentId: investmentId,
-          };
-
-      await startProcess(processKey, payload);
-      
-      message.success(editingNote ? 'Note updated successfully' : 'Note created successfully');
-      closeModal();
-      loadNotes();
-    } catch (error) {
-      console.error('Error saving note:', error);
-      message.error(editingNote ? 'Failed to update note' : 'Failed to create note');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const createNote = async () => {
-    if (!investmentId) {
-      message.error('Investment ID is required to create a note');
-      return;
-    }
-
-    try {
-      await startProcess('investment-note-create', {
-        investmentId: investmentId,
-      });
-      message.success('Note creation process started');
-    } catch (error) {
-      console.error('Error starting note creation process:', error);
-      message.error('Failed to start note creation process');
-    }
-  };
-
   const renderContent = () => {
     if (loading) {
       return (
@@ -246,13 +163,35 @@ export const InvestmentNotesSection: React.FC<InvestmentNotesSectionProps> = ({ 
                     </Text>
                   )}
                 </div>
+                <div>
+                <AppAction
+                  contextsArray={[FlowContextName.investmentNoteEntity]}
+                  externalContextData={{
+                    investmentId,
+                    investment: investmentId,
+                    noteId: note.id,
+                    investmentNote: { investment: investmentId },
+                  }}
+                  prefixDataTestId={`investment-note-edit-${note.id}`}
+                  accessToken={context.accessToken}
+                  emptyStateBehavior="enable"
+                  deferMainContextRequestsUntilClick
+                >
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    style={{ marginLeft: '8px' }}
+                    data-testid={`edit-note-${note.id}`}
+                  />
+                </AppAction>
                 <Button
                   size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => openEditModal(note)}
+                  icon={<CloseOutlined />}
+                  onClick={() => setDeletePopup({ open: true, note })}
                   style={{ marginLeft: '8px' }}
-                  data-testid={`edit-note-${note.id}`}
+                  data-testid={`delete-note-${note.id}`}
                 />
+                </div>
               </div>
               {note.text && (
                 <p style={{ margin: '8px 0 0 0', color: '#666', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
@@ -273,55 +212,61 @@ export const InvestmentNotesSection: React.FC<InvestmentNotesSectionProps> = ({ 
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
             Notes ({notes.length})
           </h3>
-          <Button
-            size="small"
-            icon={<PlusCircleOutlined />}
-            onClick={openCreateModal}
-            data-testid="investment-create-note-button"
+          <AppAction
+            contextsArray={[FlowContextName.investmentNoteEntity]}
+            externalContextData={{
+              investmentId,
+              investment: investmentId,
+              investmentNote: { investment: investmentId },
+            }}
+            staticFlowData={investmentId ? [{
+              key: 'create-investment-note-fallback',
+              label: 'Add Note',
+              onClick: () => startProcess({
+                domain: 'investments',
+                processName: 'createInvestmentNote',
+                payload: { investmentId },
+                builderType: 'NATIVE_SCREEN',
+              })
+            }] : []}
+            prefixDataTestId="add-note"
+            accessToken={context.accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
-            Add Note
-          </Button>
+            <Button
+              size="small"
+              icon={<PlusCircleOutlined />}
+              data-testid="investment-create-note-button"
+            >
+              Add Note
+            </Button>
+          </AppAction>
         </div>
       )}
 
       {/* Content */}
       {renderContent()}
 
-      {/* Create/Edit Modal */}
-      <Modal
-        title={editingNote ? 'Edit Note' : 'Create Note'}
-        open={isModalVisible}
-        onOk={saveNote}
-        onCancel={closeModal}
-        okText={editingNote ? 'Update' : 'Create'}
-        cancelText="Cancel"
-        confirmLoading={saving}
-        data-testid="investment-note-modal"
-      >
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-            Title
-          </label>
-          <Input
-            value={noteTitle}
-            onChange={(e) => setNoteTitle(e.target.value)}
-            placeholder="Enter note title..."
-            data-testid="note-title-input"
-          />
-        </div>
-        <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-            Note
-          </label>
-          <TextArea
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Enter your note..."
-            rows={6}
-            data-testid="note-text-input"
-          />
-        </div>
-      </Modal>
+      {/* Flow-driven create/edit via AppAction; no local modal */}
+
+      {deletePopup.open && deletePopup.note && (
+        <NoteDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          noteId={deletePopup.note.id}
+          noteVersion={deletePopup.note.version}
+          noteTitle={deletePopup.note.title || 'Untitled Note'}
+          domain="investments"
+          onSuccess={() => {
+            const id = deletePopup.note!.id;
+            setNotes(prev => prev.filter(n => n.id !== id));
+            setDeletePopup({ open: false });
+          }}
+          onError={() => setDeletePopup({ open: false })}
+        />
+      )}
     </div>
   );
 };

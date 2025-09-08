@@ -90,6 +90,10 @@ export interface TaskSegmentProps {
   // File upload callback (optional convenience)
   onFilesChange?: (files: File[]) => void;
 
+  // New behavior controls
+  showType?: boolean;
+  staticDefaults?: Partial<Record<string, any>>;
+
   ["data-testid"]?: string;
 }
 
@@ -127,9 +131,22 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   entitiesHasMore = false,
   onEntityLoadMore,
   initialEntityFromContext,
+  showType = true,
+  staticDefaults,
   "data-testid": dataTestId = "task-segment",
 }) => {
   const form = useFormContext<any>();
+
+  // Apply static defaults once
+  React.useEffect(() => {
+    if (!staticDefaults) return;
+    Object.entries(staticDefaults).forEach(([key, value]) => {
+      if (value !== undefined && (form.getValues(key) === undefined || form.getValues(key) === '')) {
+        form.setValue(key as any, value, { shouldValidate: true });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const typeState = useCatalogOptions({
     accessToken,
@@ -337,36 +354,38 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Type and Priority*/}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        <FormField
-          control={form.control as any}
-          name="taskTypeRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{typeLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger
-                    className="gba:w-full"
-                    data-testid={`${dataTestId}-type`}
-                    aria-invalid={
-                      !!(form.formState?.errors as any)?.taskTypeRef
-                    }
-                  >
-                    <SelectValue placeholder="Please Select..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {typeState.options.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showType && (
+          <FormField
+            control={form.control as any}
+            name="taskTypeRef"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{typeLabel}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger
+                      className="gba:w-full"
+                      data-testid={`${dataTestId}-type`}
+                      aria-invalid={
+                        !!(form.formState?.errors as any)?.taskTypeRef
+                      }
+                    >
+                      <SelectValue placeholder="Please Select..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {typeState.options.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Priority */}
         <FormField

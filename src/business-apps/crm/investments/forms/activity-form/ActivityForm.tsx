@@ -70,7 +70,12 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
             lead: activity.lead,
             ownerEmployee: activity.ownerEmployee,
             version: activity.version,
-          });
+            // keep relatedEntityId for validation convenience
+            ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
+            ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
+            ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
+            ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {}),
+          } as any);
 
           // Hydrate and pin related entity if present so combobox trigger keeps rich label
           const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id;
@@ -86,10 +91,16 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [isUpdateMode, activityId, fetchInvestmentActivityById]);
 
   const handleEntitySearch = useCallback((searchTerm: string) => {
-    if (searchTerm.trim().length >= 2) {
-      searchEntities(searchTerm);
-    }
+    // Allow empty string to fetch first page
+    searchEntities((searchTerm || ''));
   }, [searchEntities]);
+
+  // Prefetch entities on mount if selection is visible
+  useEffect(() => {
+    if (!hasEntityFromContext) {
+      searchEntities('');
+    }
+  }, [hasEntityFromContext, searchEntities]);
 
   // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback((data: any): string[] | null => {
@@ -98,7 +109,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: Activity) => {
-    const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData }, {
+    const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData } as any, {
       isUpdate: isUpdateMode,
     });
     return payload;
