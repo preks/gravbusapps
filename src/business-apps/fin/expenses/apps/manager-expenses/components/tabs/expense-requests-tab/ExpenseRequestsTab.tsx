@@ -8,7 +8,9 @@ import { useAppCurrency } from '../../../hooks/useAppCurrency';
 import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
+export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
+  moduleColor?: string;
+}
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   // Extract only the necessary props to prevent unnecessary re-renders

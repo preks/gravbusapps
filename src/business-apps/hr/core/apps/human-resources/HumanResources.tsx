@@ -9,7 +9,7 @@ import { JobPositionList } from "./components/views/job-position-view/JobPositio
 import { HrAnalyticsView } from "./components/views/analytics-view/HrAnalyticsView";
 import { MODULE_COLORS } from "@/common/constants/ui";
 
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 
 export interface HumanResourcesProps extends BusinessAppContextProps {}
 
@@ -163,7 +163,7 @@ export const HumanResources: React.FC<HumanResourcesProps> = (context) => {
             icon: option.icon,
           })),
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

@@ -7,7 +7,6 @@ import {
   CardDescription,
   IconAvatar,
 } from "@newwork/nw-design-system";
-import { SupportedVariant } from "@/common/constants/ui";
 import {
   ChartConfig,
   ChartContainer,
@@ -29,7 +28,7 @@ export interface LeadSourceItem {
 export interface LeadSourceChartProps {
   items: LeadSourceItem[];
   totalLeads: number;
-  variant?: SupportedVariant;
+  moduleColor?: string;
 }
 
 const formatLargeNumber = (value: number): string => {
@@ -48,7 +47,7 @@ const toKey = (value: string): string =>
 export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
   items,
   totalLeads,
-  variant = "default",
+  moduleColor,
 }) => {
   const dataKey = "leads";
   const nameKey = "source";
@@ -79,7 +78,7 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         <IconAvatar
           icon={ChartPieIcon}
-          variant={variant}
+          variant={moduleColor as any}
           size="md"
           iconWeight="regular"
           decorative={true}
@@ -94,8 +93,8 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
           <div className="gba:space-y-4">
             {/* Chart with center content */}
             <div className="gba:relative gba:w-full gba:flex gba:justify-center">
-              <ChartContainer config={chartConfig} className="gba:w-[300px] gba:h-[300px]">
-                <PieChart width={300} height={300}>
+              <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
+                <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
@@ -108,7 +107,7 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
                   <ChartTooltip
                     content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />}
                   />
-                  <ChartLegend content={<ChartLegendContent />} />
+                  <ChartLegend content={<ChartLegendContent />}     className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />
                 </PieChart>
               </ChartContainer>
 

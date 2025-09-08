@@ -1,7 +1,20 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system';
+import React, { useMemo } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  Badge,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@newwork/nw-design-system';
 import { ContactsOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { UsersIcon } from '@phosphor-icons/react';
 
 export interface ContactsByTypeItem { type: string; count: number; percentage: number }
 export interface ContactsByAccountItem { accountName: string; contactCount: number }
@@ -16,18 +29,32 @@ export interface ContactInsightsDashboardData {
 
 interface ContactInsightsDashboardProps {
   data: ContactInsightsDashboardData;
+  moduleColor?: string;
 }
 
-const TYPE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#14B8A6'];
-
-export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> = ({ data }) => {
+export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
+  const chartConfig = useMemo(() => ({
+    count: {
+      label: "Contacts",
+    },
+  } satisfies ChartConfig), []);
   return (
     <Card data-testid="contact-insights-analysis">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <ContactsOutlined />
-          Contact Insights Dashboard
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={UsersIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Contact Insights Dashboard</CardTitle>
+          <CardDescription>Contact analytics and engagement overview</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4 gba:mb-6">
@@ -57,14 +84,14 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Contacts by Type</h4>
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
               <BarChart data={data.contactsByType}>
                 <XAxis dataKey="type" angle={-45} textAnchor="end" height={80} />
                 <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#C8E6C9" />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" fill="var(--color-count)" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Top Accounts by Contact Count</h4>

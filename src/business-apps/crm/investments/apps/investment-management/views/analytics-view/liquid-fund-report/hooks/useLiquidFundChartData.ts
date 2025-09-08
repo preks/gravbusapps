@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { LiquidFundInvestmentSummary } from '../LiquidFundInvestmentsReport';
+import { LiquidFundInvestmentSummary } from '../../shared/types';
 
 export const useLiquidFundChartData = (liquidFundInvestments: LiquidFundInvestmentSummary[]) => {
   return useMemo(() => {

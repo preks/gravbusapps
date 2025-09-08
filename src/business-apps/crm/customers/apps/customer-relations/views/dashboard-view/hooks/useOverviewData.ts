@@ -145,7 +145,7 @@ export const useOverviewData = (
       };
 
       const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'];
-      const stageColors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#f5222d'];
+      const stageColors = ['var(--nw-offline)', 'var(--nw-info)', 'var(--nw-warning)', 'var(--nw-success)', 'var(--nw-destructive)'];
 
       // Initialize all stages with zero counts
       stageOrder.forEach(stageCode => {

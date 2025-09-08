@@ -3,6 +3,8 @@ import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd'
 import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
@@ -136,18 +138,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
     };
   }, [contactId]);
 
-  const handleAddTaskClick = () => {
-    if (contactId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          contactId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add task handled via AppAction below
 
   const handleDeleteTask = (task: ContactTaskData) => {
     Modal.confirm({
@@ -227,14 +218,21 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
+        <AppAction
+          contextsArray={[FlowContextName.createCustomerTask]}
+          externalContextData={{ contactId }}
+          accessToken={context.accessToken}
+          prefixDataTestId="contact-tasks"
+          emptyStateBehavior="enable"
         >
-          Add Task
-        </Button>
+          <Button 
+            type="primary"
+            icon={<PlusCircleOutlined />}
+            data-testid="add-task-button"
+          >
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

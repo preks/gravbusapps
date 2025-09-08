@@ -45,7 +45,7 @@ import { CalendarBlankIcon } from "@phosphor-icons/react";
 import { startProcess } from "@/common/utils/start-process";
 
 import { MODULE_COLORS } from '@/common/constants/ui';
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -807,7 +807,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             icon: option.icon,
           })),
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div

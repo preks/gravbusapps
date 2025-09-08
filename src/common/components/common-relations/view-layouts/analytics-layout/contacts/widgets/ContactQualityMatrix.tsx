@@ -1,7 +1,19 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, XAxis, YAxis, Bar } from 'recharts';
-import { CheckCircleOutlined, ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import React, { useMemo } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@newwork/nw-design-system';
+import { PieChart, Pie, BarChart, XAxis, YAxis, Bar } from 'recharts';
+import { ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { CheckCircleIcon } from '@phosphor-icons/react';
 
 export interface ContactQualityData {
   overallScore: number;
@@ -10,18 +22,56 @@ export interface ContactQualityData {
   issuesSummary: { missingEmails: number; missingPhones: number; missingAccounts: number; duplicatePotential: number };
 }
 
-interface ContactQualityMatrixProps { data: ContactQualityData }
+interface ContactQualityMatrixProps { 
+  data: ContactQualityData;
+  moduleColor?: string;
+}
 
-const QUALITY_COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6B7280'];
+const toKey = (value: string): string =>
+  value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data }) => {
+export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
+  const pieChartConfig = useMemo(() => {
+    const config: Record<string, { label?: string }> = {};
+    data.qualityDistribution.forEach((item) => {
+      const key = toKey(item.category);
+      config[key] = { label: item.category };
+    });
+    return config as ChartConfig;
+  }, [data.qualityDistribution]);
+
+  const pieChartData = useMemo(() => {
+    return data.qualityDistribution.map((item) => {
+      const key = toKey(item.category);
+      return {
+        ...item,
+        fill: `var(--color-${key})`,
+      };
+    });
+  }, [data.qualityDistribution]);
+
+  const barChartConfig = useMemo(() => ({
+    percentage: {
+      label: "Completeness %",
+    },
+  } satisfies ChartConfig), []);
   return (
     <Card data-testid="contact-quality-matrix">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <CheckCircleOutlined />
-          Contact Quality Matrix
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={CheckCircleIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Contact Quality Matrix</CardTitle>
+          <CardDescription>Data quality analysis and completeness metrics</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:text-center gba:mb-6">
@@ -32,25 +82,34 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mb-6">
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Quality Distribution</h4>
-            <ResponsiveContainer width="100%" height={200}>
+            <ChartContainer config={pieChartConfig} className="gba:w-full gba:h-[200px]">
               <PieChart>
-                <Pie data={data.qualityDistribution} cx="50%" cy="50%" outerRadius={80} dataKey="count" label={({ category, percentage }) => `${category}: ${percentage}%`}>
-                  {data.qualityDistribution.map((_, i) => (<Cell key={`cell-${i}`} fill={QUALITY_COLORS[i % QUALITY_COLORS.length]} />))}
-                </Pie>
-                <Tooltip />
+                <Pie 
+                  data={pieChartData} 
+                  cx="50%" 
+                  cy="50%" 
+                  outerRadius={80} 
+                  dataKey="count" 
+                  label={({ category, percentage }) => `${category}: ${percentage}%`}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Data Completeness</h4>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.completenessMetrics} layout="horizontal">
+            <ChartContainer config={barChartConfig} className="gba:w-full gba:h-[200px]">
+              <BarChart data={data.completenessMetrics} layout="vertical">
                 <XAxis type="number" domain={[0, 100]} />
                 <YAxis dataKey="metric" type="category" width={120} />
-                <Tooltip formatter={(v) => [`${v}%`, 'Completeness']} />
-                <Bar dataKey="percentage" fill="#3B82F6" />
+                <ChartTooltip 
+                  content={<ChartTooltipContent 
+                    formatter={(v) => [`${v}%`, 'Completeness']}
+                  />}
+                />
+                <Bar dataKey="percentage" fill="var(--color-percentage)" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </div>
 

@@ -16,7 +16,7 @@ import AdditionalInformationSection from "./AdditionalInformationSection";
 const prefixDataTestId = "ContactForm";
 
 const ContactFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } =
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
     useContactFormContext();
 
   // Safety check - if context is not properly initialized, show error
@@ -163,29 +163,33 @@ const ContactFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? "Update Contact" : "Create Contact"}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (only shown when not embedded) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={!isFormValid}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            >
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {formValues.id ? "Update Contact" : "Create Contact"}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

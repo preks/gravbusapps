@@ -226,12 +226,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       formValues.lastReportedEbitda = investment.equityInvestment.lastReportedEbitda?.toString() || '';
     }
 
-    // Add private equity information if available
-    if (investment.privateEquityInvestment) {
-      formValues.privateEquityInvestmentId = investment.privateEquityInvestment.id || '';
-      formValues.privateEquityInvestmentVersion = investment.privateEquityInvestment.version || '';
-      formValues.privateEquityRole = investment.privateEquityInvestment.investmentRoleRef || '';
-    }
 
     // Add real estate information if available
     if (investment.realEstateInvestment) {

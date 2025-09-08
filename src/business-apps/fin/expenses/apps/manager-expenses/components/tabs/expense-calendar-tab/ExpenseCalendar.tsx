@@ -26,6 +26,7 @@ interface ExpenseTimelineEvent extends TimelineEvent {
 }
 
 export interface ExpenseCalendarProps extends BusinessAppContextProps {
+  moduleColor?: string;
   // Add any specific props for ExpenseCalendarTab if needed
 }
 

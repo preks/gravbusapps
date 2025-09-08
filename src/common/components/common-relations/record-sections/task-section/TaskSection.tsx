@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, TimelineLayout } from '@newwork/nw-design-system';
 import { PlusCircleOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
 
@@ -22,28 +22,21 @@ interface TaskSectionProps extends BusinessAppContextProps {
   demo?: boolean;
   demoTasks?: TaskDemoItem[];
   'data-testid'?: string;
+  taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, demo, demoTasks }) => {
-  const entityContext = accountId ? FlowContextName.customerAccountEntity
-    : contactId ? FlowContextName.customerAccountEntity
-    : opportunityId ? FlowContextName.customerOpportunityEntity
-    : leadId ? FlowContextName.customerLeadEntity
-    : FlowContextName.customerAccountEntity;
-
-  const externalContextData = accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {};
-
-  if (demo || !entityContext || Object.keys(externalContextData).length === 0) {
+const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, demo, demoTasks, taskActionProps }) => {
+  if (demo) {
     return (
       <div data-testid="task-section">
         <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:pt-6 gba:pb-4">
           <div className="gba:text-[18px] gba:font-medium">Tasks</div>
           <AppAction
             accessToken={accessToken}
-            contextsArray={[FlowContextName.createCustomerTask]}
-            externalContextData={externalContextData}
-            prefixDataTestId="tasks"
-            emptyStateBehavior="enable"
+            contextsArray={taskActionProps?.contextsArray}
+            externalContextData={taskActionProps?.externalContextData}
+            prefixDataTestId={taskActionProps?.prefixDataTestId || 'tasks'}
+            emptyStateBehavior={taskActionProps?.emptyStateBehavior || 'enable'}
           >
             <Button data-testid="add-task-button">
               <span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Task</span>
@@ -88,10 +81,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, accountId, conta
         <div className="gba:text-[18px] gba:font-medium">Tasks</div>
         <AppAction
           accessToken={accessToken}
-          contextsArray={[FlowContextName.createCustomerTask]}
-          externalContextData={externalContextData}
-          prefixDataTestId="tasks"
-          emptyStateBehavior="enable"
+          contextsArray={taskActionProps?.contextsArray}
+          externalContextData={taskActionProps?.externalContextData}
+          prefixDataTestId={taskActionProps?.prefixDataTestId || 'tasks'}
+          emptyStateBehavior={taskActionProps?.emptyStateBehavior || 'enable'}
         >
           <Button data-testid="add-task-button">
             <span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Task</span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card } from '@newwork/nw-design-system';
 import { 
   BarChart, 
   Bar, 
@@ -112,7 +112,7 @@ export const LiquidFundCharts: React.FC<LiquidFundChartsProps> = ({ chartData })
             />
             <Bar 
               dataKey="value" 
-              fill="#8884d8"
+              fill="var(--nw-color-primary-500)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>
@@ -135,7 +135,7 @@ export const LiquidFundCharts: React.FC<LiquidFundChartsProps> = ({ chartData })
             />
             <Bar 
               dataKey="value" 
-              fill="#82ca9d"
+              fill="var(--nw-color-success-500)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

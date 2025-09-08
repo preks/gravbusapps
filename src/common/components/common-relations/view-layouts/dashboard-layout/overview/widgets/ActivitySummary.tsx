@@ -14,9 +14,12 @@ export interface ActivityItem {
 
 export interface ActivitySummaryProps {
   activities: ActivityItem[];
+  moduleColor?: string;
 }
 
-export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities }) => {
+export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, moduleColor = "default" }) => {
+  // Remove unused variable warning
+  const _ = moduleColor;
   return (
     <Card className="gba:h-full">
       <CardHeader>

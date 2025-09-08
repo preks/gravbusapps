@@ -1,106 +1,53 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Tag, Button, Space, Alert, Spin } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { Typography } from 'antd';
+import React, { useState } from 'react';
+import { Alert, AlertTitle, AlertDescription, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Button } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useGetInvestments } from '@/common/data/investment';
-import type { Investment, LiquidFundInvestment } from '@/common/data/investment';
-import { useLiquidFundChartData } from './hooks/useLiquidFundChartData';
-import { LiquidFundKPICards, LiquidFundCharts } from './components';
+import type { LiquidFundInvestment } from '@/common/data/investment';
+import { useInvestmentDataIntegration } from '@/common/data/investment';
+import { useLiquidFundKPIIntegration } from './hooks/useLiquidFundKPIIntegration';
+import { LiquidFundKPICards } from './components/LiquidFundKPICards';
+import { 
+  LiquidFundDistributionCharts, 
+  LiquidFundTimelineCharts, 
+  LiquidFundAnalyticsCharts 
+} from './components';
+import { 
+  extractCurrencyCode,
+  getInvestmentStatusColor,
+  getInvestmentPhaseColor,
+  getRiskLevelColor,
+  getFundTypeColor
+} from '../shared/utils';
+import type { LiquidFundInvestmentSummary } from '../shared/types';
 
-const { Title } = Typography;
-
-// Liquid Fund Summary interface (moved from separate hook)
-export interface LiquidFundInvestmentSummary {
-  id: string;
-  investment: Investment;
-  liquidFundInvestment?: LiquidFundInvestment;
-  displayName: string;
-  currencyCode: string;
-  statusColor: string;
-  phaseColor: string;
-  riskColor: string;
-  fundTypeName: string;
-  fundTypeColor: string;
-  daysToMaturity: number;
-  isNearMaturity: boolean;
-}
+// Interface definition moved to shared/types.ts - keeping legacy export for compatibility
 
 export interface LiquidFundInvestmentKPIs {
+  totalInvestments: number;
+  averageInvestmentValue: number;
+  averageMarketValue: number;
   totalFundValue: number;
-  averageInterestRate: number;
-  maturingSoon: number;
-  earlyTerminationAllowed: number;
+  // Previous period data for comparison
+  previousTotalInvestments?: number;
+  previousAverageInvestmentValue?: number;
+  previousAverageMarketValue?: number;
+  previousTotalFundValue?: number;
 }
 
-// Utility functions (moved from separate hook)
-const getStatusColor = (status: string): string => {
-  switch (status?.toLowerCase()) {
-    case 'active': return 'green';
-    case 'inactive': return 'red';
-    case 'pending': return 'orange';
-    default: return 'blue';
-  }
-};
+// Utility functions moved to shared/utils.ts - using centralized versions
 
-const getPhaseColor = (phase: string): string => {
-  switch (phase?.toLowerCase()) {
-    case 'growth': return 'green';
-    case 'decline': return 'red';
-    case 'mature': return 'blue';
-    default: return 'gray';
-  }
-};
-
-const getRiskColor = (risk: string): string => {
-  switch (risk?.toLowerCase()) {
-    case 'low': return 'green';
-    case 'medium': return 'orange';
-    case 'high': return 'red';
-    default: return 'blue';
-  }
-};
-
-const getFrequencyColor = (frequency: string): string => {
-  switch (frequency?.toLowerCase()) {
-    case 'monthly': return 'blue';
-    case 'quarterly': return 'green';
-    case 'annually': return 'purple';
-    default: return 'gray';
-  }
-};
-
-const extractCurrencyCode = (currencyValue: string | undefined): string => {
-  if (!currencyValue) {
-    return 'EUR';
-  }
-
-  if (currencyValue.includes(':')) {
-    return currencyValue.split(':').pop() || 'EUR';
-  }
-
-  const currencyMap: Record<string, string> = {
-    'euro': 'EUR',
-    'dollar': 'USD',
-    'pound': 'GBP',
-    'yen': 'JPY',
-    'franc': 'CHF'
-  };
-
-  if (typeof currencyValue === 'string') {
-    const normalizedValue = currencyValue.toLowerCase().trim();
-    if (currencyMap[normalizedValue]) {
-      return currencyMap[normalizedValue];
-    }
-    
-    if (currencyValue.length === 3) {
-      return currencyValue.toUpperCase();
-    }
+// Helper function to safely extract currency code from CatalogEntry or string
+const safeCurrencyExtraction = (currency: any): string => {
+  if (!currency) return 'EUR';
+  
+  if (typeof currency === 'object') {
+    // Handle CatalogEntry: try code first, then value
+    const currencyStr = currency.code || currency.value;
+    return extractCurrencyCode(currencyStr || 'EUR');
   }
   
-  return 'EUR';
+  // Handle string values
+  return extractCurrencyCode(currency);
 };
 
 interface LiquidFundInvestmentsReportProps extends BusinessAppContextProps {
@@ -111,139 +58,83 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   prefixDataTestId = 'LiquidFundInvestmentsReport',
   ...context 
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [liquidFundInvestments, setLiquidFundInvestments] = useState<LiquidFundInvestmentSummary[]>([]);
-  const [kpis, setKpis] = useState<LiquidFundInvestmentKPIs>({
-    totalFundValue: 0,
-    averageInterestRate: 0,
-    maturingSoon: 0,
-    earlyTerminationAllowed: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const { fetchInvestments } = useGetInvestments(context);
-
-  // Transform liquid fund data
-  const transformLiquidFundData = useCallback((investments: Investment[]): LiquidFundInvestmentSummary[] => {
-    return investments
-      .filter(investment => investment.liquidFundInvestment && Object.keys(investment.liquidFundInvestment).length > 0)
-      .map(investment => {
-        const liquidFundInvestment = investment.liquidFundInvestment!;
-        const daysToMaturity = liquidFundInvestment.maturityDate ? 
-          Math.ceil((new Date(liquidFundInvestment.maturityDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 
-          0;
-        
-        return {
-          id: liquidFundInvestment.id,
-          investment,
-          liquidFundInvestment,
-          displayName: investment.displayName || investment.name || liquidFundInvestment.accountNumber || 'Unknown Fund',
-          currencyCode: extractCurrencyCode(investment.currency),
-          statusColor: getStatusColor(investment.investmentStatus?.value || ''),
-          phaseColor: getPhaseColor(investment.investmentPhase?.value || ''),
-          riskColor: getRiskColor(investment.investmentRiskLevel?.value || ''),
-          fundTypeName: liquidFundInvestment.interestPaymentFrequency?.description || 'Unknown',
-          fundTypeColor: getFrequencyColor(liquidFundInvestment.interestPaymentFrequency?.description || ''),
-          daysToMaturity,
-          isNearMaturity: daysToMaturity <= 30 && daysToMaturity > 0
-        };
-      });
-  }, []);
-
-  // Calculate KPIs
-  const calculateKPIs = useCallback((liquidFundInvestments: LiquidFundInvestmentSummary[]): LiquidFundInvestmentKPIs => {
-    const totalFundValue = liquidFundInvestments.reduce((sum, fund) => 
-      sum + (fund.investment.investmentMarketValue || fund.investment.bookValue || 0), 0
-    );
+  const [activeTab, setActiveTab] = useState('distribution');
+  
+  // Use central investment data integration hook
+  const { investments, isLoading, error, refetch } = useInvestmentDataIntegration(context);
+  
+  // Use KPI integration hook (matches working pattern)
+  const { current, previous, isLoading: kpiLoading, error: kpiError, refetch: refetchKpis } = useLiquidFundKPIIntegration(context);
+  
+  // Filter for liquid fund investments only (using type assertion for relationship)
+  const liquidFundInvestments = investments.filter(inv => 
+    (inv as any).liquidFundInvestment && (inv as any).liquidFundInvestment.length > 0
+  );
+  
+  // Transform KPI data to component format (matches working pattern)
+  const kpis: LiquidFundInvestmentKPIs = {
+    totalInvestments: current.totalInvestments,
+    averageInvestmentValue: current.averageInvestmentValue,
+    averageMarketValue: current.averageMarketValue,
+    totalFundValue: current.totalMarketValue,
+    previousTotalInvestments: previous.totalInvestments,
+    previousAverageInvestmentValue: previous.averageInvestmentValue,
+    previousAverageMarketValue: previous.averageMarketValue,
+    previousTotalFundValue: previous.totalMarketValue
+  };
+  
+  // Transform investments for liquid fund specific data
+  const liquidFundSummaries: LiquidFundInvestmentSummary[] = liquidFundInvestments.map((investment): LiquidFundInvestmentSummary => {
+    const liquidFund = (investment as any).liquidFundInvestment?.[0] as LiquidFundInvestment;
     
-    const totalInterestRate = liquidFundInvestments.reduce((sum, fund) => 
-      sum + (fund.liquidFundInvestment?.interestRate || 0), 0
-    );
-    const averageInterestRate = liquidFundInvestments.length > 0 ? totalInterestRate / liquidFundInvestments.length : 0;
-    
-    const maturingSoon = liquidFundInvestments.filter(fund => 
-      fund.isNearMaturity
-    ).length;
-    
-    const earlyTerminationAllowed = liquidFundInvestments.filter(fund => 
-      fund.liquidFundInvestment?.earlyTerminationAllowed || false
-    ).length;
-
     return {
-      totalFundValue,
-      averageInterestRate,
-      maturingSoon,
-      earlyTerminationAllowed
+      id: investment.id,
+      investment,
+      liquidFundInvestment: liquidFund,
+      displayName: investment.code || investment.fundManagerName || `Investment ${investment.id}`,
+      currencyCode: safeCurrencyExtraction(investment.currency),
+      statusColor: getInvestmentStatusColor(investment.investmentStatus?.value || ''),
+      phaseColor: getInvestmentPhaseColor(investment.investmentPhase?.value || ''),
+      riskColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
+      fundTypeName: liquidFund?.investmentLiquidFundType?.value || 'Unknown',
+      fundTypeColor: getFundTypeColor(liquidFund?.investmentLiquidFundType?.value || ''),
+      daysToMaturity: liquidFund?.maturityDate ? 
+        Math.ceil((new Date(liquidFund.maturityDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0,
+      isNearMaturity: liquidFund?.maturityDate ? 
+        Math.ceil((new Date(liquidFund.maturityDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 30 : false,
+      isActive: investment.investmentStatus?.value?.toLowerCase() === 'active'
     };
-  }, []);
-
-  // Load data function
-  const loadData = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token not available');
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const result = await fetchInvestments();
-      const enhancedLiquidFundInvestments = transformLiquidFundData(result.Investment);
-      const calculatedKPIs = calculateKPIs(enhancedLiquidFundInvestments);
-      
-      setLiquidFundInvestments(enhancedLiquidFundInvestments);
-      setKpis(calculatedKPIs);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context.accessToken, fetchInvestments, transformLiquidFundData, calculateKPIs]);
-
-  // Load data on mount and when access token changes
-  useEffect(() => {
-    if (context.accessToken) {
-      loadData();
-    }
-  }, [context.accessToken, loadData]);
-
-  // Refetch function for error retry
-  const refetch = loadData;
-
-  const chartData = useLiquidFundChartData(liquidFundInvestments);
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
+  });
+  
+  // Create chart data from the liquid fund summaries
+  const chartData = {
+    rawLiquidFunds: liquidFundSummaries
   };
 
   if (error) {
     return (
       <Alert
-        message="Error Loading Liquid Fund Investments"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={() => refetch()}>
+        data-testid={formatDataTestId(prefixDataTestId, 'Error')}
+        variant="destructive"
+      >
+        <AlertTitle>Error Loading Liquid Fund Investments</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <div className="gba:mt-2">
+          <Button variant="outline" size="sm" onClick={refetch}>
             Retry
           </Button>
-        }
-      />
+        </div>
+      </Alert>
     );
   }
 
   if (isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '400px' 
-      }}>
-        <Spin size="large" />
+      <div 
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid={formatDataTestId(prefixDataTestId, 'Loading')}
+      >
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -251,57 +142,52 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   return (
     <div
       data-testid={formatDataTestId(prefixDataTestId, 'LiquidFundInvestmentsReport')}
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
+      className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
-            Liquid Fund Investments Report
-          </Title>
-          <Tag color="blue">{liquidFundInvestments.length} funds</Tag>
-        </div>
-        <Space>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
-          >
-            Add Liquid Fund
-          </Button>
-        </Space>
-      </div>
-
       {/* KPI Cards */}
       <LiquidFundKPICards 
-        kpis={kpis} 
+        kpis={kpis}
+        isLoading={kpiLoading}
+        error={kpiError ? new Error(kpiError) : null}
+        onRetry={refetchKpis}
         prefixDataTestId={`${prefixDataTestId}-KPI`} 
       />
 
-      {/* Search */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ width: '300px' }}>
-          <DebouncedInput
-            placeholder="Search liquid fund investments..."
-            value={searchTerm}
-            onChange={handleSearch}
-            data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
-          />
-        </div>
-      </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:mt-6">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
+          <TabsTrigger value="distribution" data-testid={`${prefixDataTestId}-distribution-tab`}>
+            Distribution Analysis
+          </TabsTrigger>
+          <TabsTrigger value="timeline" data-testid={`${prefixDataTestId}-timeline-tab`}>
+            Timeline Analysis  
+          </TabsTrigger>
+          <TabsTrigger value="analytics" data-testid={`${prefixDataTestId}-analytics-tab`}>
+            Performance Analytics
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Charts */}
-      <LiquidFundCharts chartData={chartData} />
+        <TabsContent value="distribution" className="gba:mt-6">
+          <LiquidFundDistributionCharts 
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+          />
+        </TabsContent>
+
+        <TabsContent value="timeline" className="gba:mt-6">
+          <LiquidFundTimelineCharts 
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="gba:mt-6">
+          <LiquidFundAnalyticsCharts 
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

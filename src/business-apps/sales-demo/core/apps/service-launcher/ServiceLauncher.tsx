@@ -29,7 +29,7 @@ import {
 } from '@phosphor-icons/react';
 import { MODULE_COLORS } from '@/common/constants/ui';
 interface ServiceLauncherProps extends BusinessAppContextProps {}
-const moduleVariant = MODULE_COLORS.SER;
+const moduleColor = MODULE_COLORS.SER;
 const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
   // Placeholder KPI data
   const headerKpis = useMemo((): KpiData[] => {
@@ -119,7 +119,7 @@ const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
         quickActions={launcherQuickActions}
         quickActionsTitle="Quick Actions"
         quickActionsDescription="Service management functions and shortcuts"
-        variant={moduleVariant}
+        variant={moduleColor}
       />
       <WorkInProgressOverlay />
     </div>

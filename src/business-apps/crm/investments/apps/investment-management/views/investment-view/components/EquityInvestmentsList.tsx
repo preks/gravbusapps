@@ -271,12 +271,12 @@ N/A
                       <span>{formatDate(investment.createdAt)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
                         data-testid={`equity-investment-update-button-${investment.id}`}
                         size="icon"
-                        contextsArray={[FlowContextName.equityInvestmentEntity]}
+                        contextsArray={[FlowContextName.investmentEntity]}
                         externalContextData={{ investmentId: investment.id }}
                         prefixDataTestId={`equity-investment-update`}
                         accessToken={accessToken}

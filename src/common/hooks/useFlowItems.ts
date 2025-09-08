@@ -95,7 +95,53 @@ const mapFlowItemsToActionOptions = (
     return name.trim();
   };
 
-  return flowItems.map((flowItem) => {
+  // Prefer only screen-based flows for button execution; skip raw service/API flows
+  let allowed = flowItems.filter((fi) => {
+    const type = (fi.builderType || '').toUpperCase();
+    const flowType = (fi.flowType || '').toUpperCase();
+    // Always allow NAVIGATION/REPORT; for ACTION allow only UI builders
+    if (flowType === 'NAVIGATION' || flowType === 'REPORT') return true;
+    return type === 'LOWCODER' || type === 'NATIVE_SCREEN' || type === 'SCREEN' || type === 'FORM';
+  });
+
+  // Heuristic: prefer flows that match the entity implied by externalContextData
+  const hasTaskHints =
+    'taskId' in externalContextData || 'salesTask' in externalContextData || 'salesTaskId' in externalContextData;
+  const hasNoteHints = 'noteId' in externalContextData || 'crmNote' in externalContextData || 'investmentNote' in externalContextData;
+  const hasActivityHints = 'activityId' in externalContextData || 'salesActivity' in externalContextData || 'investmentActivity' in externalContextData;
+
+  const getFlowString = (fi: FlowItemReduced): string => {
+    const pn = (fi.processName || '').toLowerCase();
+    const name = (fi.flowName || '').toLowerCase();
+    const trans = (typeof fi.flowNameTranslation === 'string' ? fi.flowNameTranslation : '')?.toLowerCase();
+    return `${pn} ${name} ${trans}`;
+  };
+
+  // Strong filter: if we clearly know the entity, keep only matching flows when possible
+  if (hasTaskHints) {
+    const onlyTask = allowed.filter((fi) => /\b(task|salestask)\b/.test(getFlowString(fi)));
+    if (onlyTask.length > 0) allowed = onlyTask;
+    else allowed = allowed.filter((fi) => !/\b(note|crmnote|investmentnote)\b/.test(getFlowString(fi)));
+  } else if (hasNoteHints) {
+    const onlyNote = allowed.filter((fi) => /\b(note|crmnote|investmentnote)\b/.test(getFlowString(fi)));
+    if (onlyNote.length > 0) allowed = onlyNote;
+  } else if (hasActivityHints) {
+    const onlyAct = allowed.filter((fi) => /(activity|salesactivity|investmentactivity)/.test(getFlowString(fi)));
+    if (onlyAct.length > 0) allowed = onlyAct;
+  }
+
+  const scoreFlow = (fi: FlowItemReduced): number => {
+    const str = getFlowString(fi);
+    if (hasTaskHints && /task/.test(str)) return 0;
+    if (hasActivityHints && /(activity|salesactivity|investmentactivity)/.test(str)) return 0;
+    if (hasNoteHints && /(note|crmnote|investmentnote)/.test(str)) return 0;
+    // otherwise keep order but deprioritize
+    return 1;
+  };
+
+  allowed = allowed.slice().sort((a, b) => scoreFlow(a) - scoreFlow(b));
+
+  return allowed.map((flowItem) => {
     // Create payload directly from externalContextData
     // The context.contextData from the API is just metadata about what context is expected
     const payload: Record<string, any> = { ...externalContextData };
@@ -141,11 +187,13 @@ const mapFlowItemsToActionOptions = (
       default:
         // For ACTION and unknown flow types, start a process
         onClick = () => {
+          const builder = (flowItem.builderType || '').toUpperCase();
+          const uiBuilder = builder === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : 'LOWCODER';
           startProcess({
             processName: flowItem.processName,
             domain: flowItem.domain,
             payload,
-            builderType: flowItem.builderType === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : 'LOWCODER'
+            builderType: uiBuilder
           });
         };
         break;

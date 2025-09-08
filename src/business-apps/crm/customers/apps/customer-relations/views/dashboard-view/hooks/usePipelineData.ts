@@ -15,7 +15,7 @@ export interface UsePipelineDataReturn {
 
 export const usePipelineData = (
   context: BusinessAppContextProps,
-  pipeline: PipelineInfo,
+  pipeline: PipelineInfo | null,
   dateRange: DateRange
 ): UsePipelineDataReturn => {
   const [pipelineData, setPipelineData] = useState<PipelineData | null>(null);
@@ -31,8 +31,8 @@ export const usePipelineData = (
   } = useDashboardQueries(context);
 
   const loadPipelineData = useCallback(async () => {
-    if (!context.accessToken || !pipeline.ref) {
-      setError('Missing access token or pipeline reference');
+    if (!context.accessToken || !pipeline || !pipeline.ref) {
+      setError(!pipeline ? 'No pipeline selected' : 'Missing access token or pipeline reference');
       setIsLoading(false);
       return;
     }
@@ -185,11 +185,11 @@ export const usePipelineData = (
     }
   }, [
     context.accessToken,
-    pipeline.ref,
-    pipeline.id,
-    pipeline.name,
-    pipeline.description,
-    pipeline.color,
+    pipeline?.ref,
+    pipeline?.id,
+    pipeline?.name,
+    pipeline?.description,
+    pipeline?.color,
     dateRange.startDate,
     dateRange.endDate,
     fetchPipelineStages,

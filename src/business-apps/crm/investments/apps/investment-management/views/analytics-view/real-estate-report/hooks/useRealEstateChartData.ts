@@ -1,307 +1,317 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { RealEstateInvestmentSummary } from '../RealEstateInvestmentsReport';
+import { RealEstateInvestmentSummary } from '../../shared/types';
+
+// Chart data interfaces
+interface TypeDistributionItem {
+  type: string;
+  count: number;
+  totalvalue: number;
+}
+
+interface StatusDistributionItem {
+  status: string;
+  count: number;
+  totalvalue: number;
+}
+
+interface CurrencyDistributionItem {
+  currency: string;
+  count: number;
+  totalvalue: number;
+}
+
+interface TimelineDataItem {
+  period: string;
+  investmentCount: number;
+  totalInvestmentAmount: number;
+  cumulativeInvestments: number;
+  year: number;
+}
+
+interface PerformanceDataItem {
+  period: string;
+  averageOccupancyRate: number;
+  totalPropertyValue: number;
+}
+
+interface BuildingYearDataItem {
+  yearRange: string;
+  propertyCount: number;
+  totalValue: number;
+  averageValue: number;
+}
+
+interface GeoDataItem {
+  location: string;
+  city: string;
+  country: string;
+  count: number;
+  totalvalue: number;
+  averagevalue: number;
+}
 
 export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestmentSummary[]) => {
   const chartData = useMemo(() => {
-    // Property Type Distribution
-    const propertyTypeData = realEstateInvestments.reduce((acc, property) => {
-      const type = property.propertyType || 'Unknown';
-      const existing = acc.find(item => item.name === type);
+    // Type Distribution Data (based on investment type)
+    const typeData = realEstateInvestments.reduce((acc, property) => {
+      const type = property.investment?.investmentType?.value || 'Unknown Type';
+      const existing = acc.find((item: TypeDistributionItem) => item.type === type);
       if (existing) {
-        existing.value += 1;
+        existing.count += 1;
+        existing.totalvalue += property.investment?.totalInvestmentAmount || 0;
       } else {
         acc.push({
-          name: type,
-          value: 1
+          type: type,
+          count: 1,
+          totalvalue: property.investment?.totalInvestmentAmount || 0
         });
       }
       return acc;
-    }, [] as any[]);
-
-    // Country Distribution
-    const countryData = realEstateInvestments.reduce((acc, property) => {
-      const country = property.country?.value || 'Unknown';
-      const existing = acc.find(item => item.name === country);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({
-          name: country,
-          value: 1
-        });
-      }
-      return acc;
-    }, [] as any[]);
-
-    // Occupancy Data
-    const occupancyData = realEstateInvestments.map(property => ({
-      name: property.displayName || 'Unknown Property',
-      occupancy: property.occupancyPercent || 0,
-      color: property.occupancyColor
-    }));
-
-    // Expenses vs Value Data
-    const expensesValueData = realEstateInvestments
-      .filter(property => 
-        property.annualExpenses !== null && 
-        property.annualExpenses !== undefined && 
-        !isNaN(Number(property.annualExpenses)) &&
-        Number(property.annualExpenses) >= 0 &&
-        property.investment?.marketValue !== null && 
-        property.investment?.marketValue !== undefined && 
-        !isNaN(Number(property.investment?.marketValue)) &&
-        Number(property.investment?.marketValue) >= 0
-      )
-      .map(property => ({
-        expenses: Number(property.annualExpenses) || 0,
-        value: Number(property.investment.marketValue) || 0,
-        name: property.displayName || 'Unknown Property',
-        currency: property.currencyCode || 'EUR'
-      }));
-
-    // Building Year Distribution
-    const buildingYearData = realEstateInvestments
-      .filter(property => property.buildingYear)
-      .reduce((acc, property) => {
-        const year = property.buildingYear || 'Unknown';
-        const existing = acc.find(item => item.year === year);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          acc.push({
-            year: year,
-            count: 1
-          });
-        }
-        return acc;
-      }, [] as any[]);
+    }, [] as TypeDistributionItem[]);
 
     // Investment Status Distribution
     const statusData = realEstateInvestments.reduce((acc, property) => {
-      const status = property.investment.investmentStatus?.value || 'Unknown';
-      const existing = acc.find(item => item.name === status);
+      const status = property.investment?.investmentStatus?.value || 'Unknown';
+      const existing = acc.find((item: StatusDistributionItem) => item.status === status);
       if (existing) {
-        existing.value += 1;
+        existing.count += 1;
+        existing.totalvalue += property.investment?.totalInvestmentAmount || 0;
       } else {
         acc.push({
-          name: status,
-          value: 1
+          status: status,
+          count: 1,
+          totalvalue: property.investment?.totalInvestmentAmount || 0
         });
       }
       return acc;
-    }, [] as any[]);
-
-    // Investment Phase Distribution
-    const phaseData = realEstateInvestments.reduce((acc, property) => {
-      const phase = property.investment.investmentPhase?.value || 'Unknown';
-      const existing = acc.find(item => item.name === phase);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({
-          name: phase,
-          value: 1
-        });
-      }
-      return acc;
-    }, [] as any[]);
-
-    // Risk Level Distribution
-    const riskLevelData = realEstateInvestments.reduce((acc, property) => {
-      const risk = property.investment.investmentRiskLevel?.value || 'Unknown';
-      const existing = acc.find(item => item.name === risk);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({
-          name: risk,
-          value: 1
-        });
-      }
-      return acc;
-    }, [] as any[]);
+    }, [] as StatusDistributionItem[]);
 
     // Currency Distribution
     const currencyData = realEstateInvestments.reduce((acc, property) => {
       const currency = property.currencyCode || 'EUR';
-      const existing = acc.find(item => item.name === currency);
+      const existing = acc.find((item: CurrencyDistributionItem) => item.currency === currency);
       if (existing) {
-        existing.value += property.investment.marketValue || property.investment.bookValue || 0;
+        existing.count += 1;
+        existing.totalvalue += property.investment?.totalInvestmentAmount || 0;
       } else {
         acc.push({
-          name: currency,
-          value: property.investment.marketValue || property.investment.bookValue || 0
+          currency: currency,
+          count: 1,
+          totalvalue: property.investment?.totalInvestmentAmount || 0
         });
       }
       return acc;
-    }, [] as any[]);
-
-    // Property Size Distribution
-    const propertySizeData = realEstateInvestments
-      .filter(property => property.size && property.size > 0)
-      .map(property => ({
-        name: property.displayName || 'Unknown Property',
-        size: property.size || 0,
-        value: property.investment.marketValue || property.investment.bookValue || 0,
-        color: 'blue'
-      }));
-
-    // Region Distribution
-    const regionData = realEstateInvestments.reduce((acc, property) => {
-      const region = property.region?.value || 'Unknown';
-      const existing = acc.find(item => item.name === region);
-      if (existing) {
-        existing.value += 1;
-        existing.totalValue += property.investment.marketValue || property.investment.bookValue || 0;
-      } else {
-        acc.push({
-          name: region,
-          value: 1,
-          totalValue: property.investment.marketValue || property.investment.bookValue || 0
-        });
-      }
-      return acc;
-    }, [] as any[]);
+    }, [] as CurrencyDistributionItem[]);
 
     // Investment Timeline Data (acquisitions over time)
     const timelineData = realEstateInvestments
       .filter(property => property.investment.acquisitionDate)
       .reduce((acc, property) => {
         const date = dayjs(property.investment.acquisitionDate).format('YYYY-MM');
-        const existing = acc.find(item => item.month === date);
+        const existing = acc.find((item: TimelineDataItem) => item.period === date);
         if (existing) {
-          existing.count += 1;
-          existing.value += property.investment.initialInvestmentAmount || 0;
+          existing.investmentCount += 1;
+          existing.totalInvestmentAmount += property.investment.totalInvestmentAmount || 0;
+          existing.cumulativeInvestments = 0; // Will be calculated after
         } else {
           acc.push({
-            month: date,
-            count: 1,
-            value: property.investment.initialInvestmentAmount || 0,
+            period: date,
+            investmentCount: 1,
+            totalInvestmentAmount: property.investment.totalInvestmentAmount || 0,
+            cumulativeInvestments: 0, // Will be calculated after
             year: dayjs(property.investment.acquisitionDate).year()
           });
         }
         return acc;
-      }, [] as any[])
-      .sort((a, b) => a.month.localeCompare(b.month));
+      }, [] as TimelineDataItem[])
+      .sort((a: TimelineDataItem, b: TimelineDataItem) => a.period.localeCompare(b.period));
 
-    // Leverage Analysis Data
+    // Calculate cumulative count
+    let runningCount = 0;
+    timelineData.forEach((item: TimelineDataItem) => {
+      runningCount += item.investmentCount;
+      item.cumulativeInvestments = runningCount;
+    });
+
+    // Performance Timeline Data (for performance over time chart)
+    const performanceData = realEstateInvestments
+      .filter(property => property.investment.acquisitionDate)
+      .reduce((acc, property) => {
+        const date = dayjs(property.investment.acquisitionDate).format('YYYY-MM');
+        const existing = acc.find((item: PerformanceDataItem) => item.period === date);
+        const occupancyRate = property.occupancyRate || 0;
+        const marketValue = property.investment.investmentMarketValue || 0;
+        
+        if (existing) {
+          existing.averageOccupancyRate = (existing.averageOccupancyRate + occupancyRate) / 2;
+          existing.totalPropertyValue += marketValue;
+        } else {
+          acc.push({
+            period: date,
+            averageOccupancyRate: occupancyRate,
+            totalPropertyValue: marketValue
+          });
+        }
+        return acc;
+      }, [] as PerformanceDataItem[])
+      .sort((a: PerformanceDataItem, b: PerformanceDataItem) => a.period.localeCompare(b.period));
+
+    // Building Year Data for timeline analysis
+    const buildingYearData = realEstateInvestments
+      .filter(property => property.realEstateInvestment?.buildingYear)
+      .reduce((acc, property) => {
+        const year = property.realEstateInvestment?.buildingYear || '';
+        const decade = Math.floor(parseInt(year) / 10) * 10;
+        const yearRange = `${decade}s`;
+        const existing = acc.find((item: BuildingYearDataItem) => item.yearRange === yearRange);
+        const propertyValue = property.investment.investmentMarketValue || 0;
+        
+        if (existing) {
+          existing.propertyCount += 1;
+          existing.totalValue += propertyValue;
+          existing.averageValue = existing.totalValue / existing.propertyCount;
+        } else {
+          acc.push({
+            yearRange: yearRange,
+            propertyCount: 1,
+            totalValue: propertyValue,
+            averageValue: propertyValue
+          });
+        }
+        return acc;
+      }, [] as BuildingYearDataItem[])
+      .sort((a: BuildingYearDataItem, b: BuildingYearDataItem) => a.yearRange.localeCompare(b.yearRange));
+
+    // Leverage Analysis Data (for leverage vs ROI scatter plot)
     const leverageData = realEstateInvestments
       .filter(property => 
-        property.investment.leverageRatio !== null && 
-        property.investment.leverageRatio !== undefined &&
-        property.investment.marketValue !== null &&
-        property.investment.marketValue !== undefined
-      )
-      .map(property => ({
-        name: property.displayName || 'Unknown Property',
-        leverageRatio: property.investment.leverageRatio || 0,
-        marketValue: property.investment.marketValue || 0,
-        debtFinancing: property.investment.debtFinancing || 0,
-        color: 'blue'
-      }));
-
-    // ROI vs Size Analysis
-    const roiSizeData = realEstateInvestments
-      .filter(property => 
-        property.size && 
-        property.investment.marketValue && 
-        property.investment.initialInvestmentAmount
+        property.investment.debtFinancingAmount !== null &&
+        property.investment.totalInvestmentAmount !== null &&
+        property.investment.totalInvestmentAmount !== undefined &&
+        property.investment.totalInvestmentAmount > 0 &&
+        property.investment.investmentMarketValue !== null
       )
       .map(property => {
-        const marketValue = property.investment.marketValue || 0;
-        const initialInvestment = property.investment.initialInvestmentAmount || 0;
-        const calculatedROI = initialInvestment > 0 ? ((marketValue - initialInvestment) / initialInvestment) * 100 : 0;
+        const totalInvestment = property.investment.totalInvestmentAmount || 0;
+        const debtFinancing = property.investment.debtFinancingAmount || 0;
+        const marketValue = property.investment.investmentMarketValue || 0;
+        const leverageRatio = totalInvestment > 0 ? (debtFinancing / totalInvestment) * 100 : 0;
+        const roi = totalInvestment > 0 ? ((marketValue - totalInvestment) / totalInvestment) * 100 : 0;
         
         return {
           name: property.displayName || 'Unknown Property',
-          size: property.size || 0,
-          roi: calculatedROI,
-          propertyType: property.realEstateType?.value || 'Unknown'
+          leverage: Math.max(0, Math.min(100, leverageRatio)), // Cap at 0-100%
+          roi: Math.max(-100, Math.min(200, roi)), // Cap ROI
+          investmentAmount: totalInvestment,
+          debtFinancing: debtFinancing,
+          country: property.realEstateInvestment?.country?.value || 'Unknown'
         };
       });
 
-    // Ownership Structure Data
-    const ownershipStructureData = realEstateInvestments.reduce((acc, property) => {
-      const structure = property.investmentOwnershipStructure?.value || 'Unknown';
-      const existing = acc.find(item => item.name === structure);
-      if (existing) {
-        existing.value += 1;
-        existing.totalValue += property.investment.marketValue || property.investment.bookValue || 0;
-      } else {
-        acc.push({
-          name: structure,
-          value: 1,
-          totalValue: property.investment.marketValue || property.investment.bookValue || 0
-        });
-      }
-      return acc;
-    }, [] as any[]);
-
-    // Investment Performance Metrics (multi-dimensional radar chart data)
-    const performanceData = realEstateInvestments
+    // ROI vs Size Data (if we had size data - for now simulate with investment amount)
+    const roiSizeData = realEstateInvestments
       .filter(property => 
-        property.occupancyPercent !== null &&
-        property.investment.marketValue &&
-        property.investment.initialInvestmentAmount &&
-        property.investment.leverageRatio !== null
+        property.investment.totalInvestmentAmount !== null &&
+        property.investment.totalInvestmentAmount !== undefined &&
+        property.investment.investmentMarketValue !== null &&
+        property.investment.totalInvestmentAmount > 0
       )
       .map(property => {
-        const marketValue = property.investment.marketValue || 0;
-        const initialInvestment = property.investment.initialInvestmentAmount || 0;
-        const calculatedROI = initialInvestment > 0 ? ((marketValue - initialInvestment) / initialInvestment) * 100 : 0;
+        const totalInvestment = property.investment.totalInvestmentAmount || 0;
+        const marketValue = property.investment.investmentMarketValue || 0;
+        const roi = totalInvestment > 0 ? ((marketValue - totalInvestment) / totalInvestment) * 100 : 0;
+        // Use investment amount as proxy for property size since size field doesn't exist
+        const propertySize = totalInvestment / 1000; // Convert to thousands for better scatter plot
         
         return {
-          property: property.displayName || 'Unknown',
-          occupancy: property.occupancyPercent || 0,
-          roi: Math.max(-100, Math.min(100, calculatedROI)), // Normalize ROI
-          leverage: property.investment.leverageRatio || 0,
-          value: property.investment.marketValue || property.investment.bookValue || 0,
-          country: property.country?.value || 'Unknown'
+          name: property.displayName || 'Unknown Property',
+          propertySize: propertySize,
+          roi: Math.max(-100, Math.min(200, roi)), // Cap ROI
+          investmentAmount: totalInvestment,
+          country: property.realEstateInvestment?.country?.value || 'Unknown'
         };
       });
 
-    // Geographic Value Density (for heat map visualization)
-    const geoValueData = realEstateInvestments.reduce((acc, property) => {
-      const location = `${property.city || 'Unknown'}, ${property.country?.value || 'Unknown'}`;
-      const existing = acc.find(item => item.location === location);
+    // Occupancy Data (grouped by occupancy rate ranges)
+    const occupancyRanges = ['0-25%', '26-50%', '51-75%', '76-100%'];
+    const occupancyData = occupancyRanges.map(range => {
+      const [min, max] = range.split('-').map(r => parseInt(r.replace('%', '')));
+      const propertiesInRange = realEstateInvestments.filter(property => {
+        const occupancy = property.occupancyRate || 0;
+        return occupancy >= min && occupancy <= max;
+      });
+      
+      return {
+        range: range,
+        count: propertiesInRange.length,
+        totalValue: propertiesInRange.reduce((sum, p) => sum + (p.investment.investmentMarketValue || 0), 0),
+        averageOccupancy: propertiesInRange.length > 0 
+          ? propertiesInRange.reduce((sum, p) => sum + (p.occupancyRate || 0), 0) / propertiesInRange.length 
+          : 0
+      };
+    });
+
+    // Expenses vs Value Data (based on available fields)
+    const expensesValueData = realEstateInvestments
+      .filter(property => 
+        property.realEstateInvestment?.actualAnnualExpenses !== null &&
+        property.realEstateInvestment?.actualAnnualExpenses !== undefined &&
+        property.investment.investmentMarketValue !== null &&
+        property.realEstateInvestment?.actualAnnualExpenses &&
+        property.realEstateInvestment.actualAnnualExpenses > 0
+      )
+      .map(property => {
+        const annualExpenses = property.realEstateInvestment?.actualAnnualExpenses || 0;
+        const propertyValue = property.investment.investmentMarketValue || 0;
+        
+        return {
+          name: property.displayName || 'Unknown Property',
+          annualExpenses: annualExpenses,
+          propertyValue: propertyValue,
+          expenseRatio: propertyValue > 0 ? (annualExpenses / propertyValue) * 100 : 0,
+          country: property.realEstateInvestment?.country?.value || 'Unknown'
+        };
+      });
+
+    // Geographic Analysis Data
+    const geoData = realEstateInvestments.reduce((acc, property) => {
+      const country = property.realEstateInvestment?.country?.value || 'Unknown';
+      const locality = property.realEstateInvestment?.locality || 'Unknown City';
+      const location = `${locality}, ${country}`;
+      
+      const existing = acc.find((item: GeoDataItem) => item.location === location);
       if (existing) {
         existing.count += 1;
-        existing.totalValue += property.investment.marketValue || property.investment.bookValue || 0;
-        existing.avgOccupancy = (existing.avgOccupancy * (existing.count - 1) + (property.occupancyPercent || 0)) / existing.count;
+        existing.totalvalue += property.investment?.totalInvestmentAmount || 0;
+        existing.averagevalue = existing.totalvalue / existing.count;
       } else {
         acc.push({
           location: location,
-          city: property.city || 'Unknown',
-          country: property.country?.value || 'Unknown',
+          city: locality,
+          country: country,
           count: 1,
-          totalValue: property.investment.marketValue || property.investment.bookValue || 0,
-          avgOccupancy: property.occupancyPercent || 0
+          totalvalue: property.investment?.totalInvestmentAmount || 0,
+          averagevalue: property.investment?.totalInvestmentAmount || 0
         });
       }
       return acc;
-    }, [] as any[]);
+    }, [] as GeoDataItem[]);
 
     return {
-      propertyTypeData,
-      countryData,
-      regionData,
-      occupancyData,
-      expensesValueData,
-      buildingYearData,
+      typeData,
       statusData,
-      phaseData,
-      riskLevelData,
       currencyData,
-      propertySizeData,
       timelineData,
+      performanceData,
+      buildingYearData,
       leverageData,
       roiSizeData,
-      ownershipStructureData,
-      performanceData,
-      geoValueData
+      occupancyData,
+      expensesValueData,
+      geoData
     };
   }, [realEstateInvestments]);
 
   return chartData;
-}; 
+};

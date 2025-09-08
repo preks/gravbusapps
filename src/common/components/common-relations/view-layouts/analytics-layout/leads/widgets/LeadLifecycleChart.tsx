@@ -18,7 +18,7 @@ export interface LeadLifecycleChartProps {
   data: LeadsOverTimePoint[];
   selectedTimeFilter: TimeFilter;
   onTimeFilterChange: (filter: TimeFilter) => void;
-  variant?: "default" | "secondary" | "success" | "destructive" | "warning" | "info";
+  moduleColor?: string;
 }
 
 const timeFilterOptions = [
@@ -29,7 +29,7 @@ const timeFilterOptions = [
   { key: "historical" as TimeFilter, label: "Historical" },
 ];
 
-export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({ data, selectedTimeFilter, onTimeFilterChange, variant = 'default' }) => {
+export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({ data, selectedTimeFilter, onTimeFilterChange, moduleColor }) => {
   const [visibleLines, setVisibleLines] = useState({
     leadsCreated: true,
     leadsConverted: true,
@@ -64,7 +64,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({ data, se
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartLineIcon} variant={variant} size="md" decorative />
+            <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
             Lead Lifecycle Overview
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">

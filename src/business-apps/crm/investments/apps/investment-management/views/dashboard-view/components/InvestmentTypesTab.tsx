@@ -81,9 +81,6 @@ const formatGroupName = (groupName: string): string => {
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
     return 'Liquid Fund';
   }
-  if (groupName === 'PrivateEquity') {
-    return 'Private Equity';
-  }
   
   // For other cases, add spaces before capital letters (camelCase to Title Case)
   return groupName.replace(/([A-Z])/g, ' $1').trim();

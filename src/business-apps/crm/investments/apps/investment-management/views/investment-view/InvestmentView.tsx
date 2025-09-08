@@ -21,7 +21,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
       "overview",
       "equity",
       "real-estate",
-      "private-equity",
       "liquid-funds",
     ]);
     if (!val) return "overview";

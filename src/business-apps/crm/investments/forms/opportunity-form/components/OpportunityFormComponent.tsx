@@ -14,7 +14,7 @@ import AdditionalInformationSection from "./AdditionalInformationSection";
 const prefixDataTestId = "InvestmentOpportunityForm";
 
 const OpportunityFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, businessAppContext } =
+  const { formValues, onSubmit, onCancel, isLoading, error, businessAppContext, hideActions } =
     useOpportunityFormContext();
 
   // Check if all mandatory fields are filled for Investment Opportunity
@@ -25,7 +25,8 @@ const OpportunityFormComponent: React.FC = () => {
     formValues.pipelineStage &&
     formValues.estimatedAmount &&
     !isNaN(parseFloat(formValues.estimatedAmount)) &&
-    parseFloat(formValues.estimatedAmount) > 0;
+    parseFloat(formValues.estimatedAmount) > 0 &&
+    formValues.currency;
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (value: string): string | undefined => {
@@ -197,31 +198,35 @@ const OpportunityFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id
-              ? "Update Investment Opportunity"
-              : "Create Investment Opportunity"}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (only if not hidden) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={!isFormValid}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            >
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {formValues.id
+                ? "Update Investment Opportunity"
+                : "Create Investment Opportunity"}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

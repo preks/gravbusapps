@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Tag, Button, Space, Alert, Spin, Typography, Tabs } from 'antd';
-import { PlusOutlined, PieChartOutlined, FundOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
+import { Alert, AlertTitle, AlertDescription, Spinner, Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { PieChartOutlined, FundOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
+import { Button, Badge } from '@newwork/nw-design-system';
+import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -10,31 +12,35 @@ import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts';
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts';
 import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts';
 
-const { Title, Text } = Typography;
+// Typography components removed - using native HTML elements with nw-design-system styling
 
 interface InvestmentPortfolioOverviewProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+  if (previous === 0) return { value: "N/A", positive: true };
+  const change = ((current - previous) / previous) * 100;
+  return {
+    value: `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+    positive: change >= 0
+  };
+};
+
 const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = (props) => {
   const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview';
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('distribution');
   
-  const { investments, kpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props);
+  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props);
   const chartData = usePortfolioChartData(investments);
 
   if (isLoading) {
     return (
       <div
         data-testid={formatDataTestId(prefixDataTestId, 'Loading')}
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '400px'
-        }}
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
       >
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -43,245 +49,174 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
     return (
       <Alert
         data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-        message={getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={() => refetch()}>
+        variant="destructive"
+      >
+        <AlertTitle>{getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <div className="gba:mt-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             {getTranslationFromI18nKeyAndLabel('button.retry', 'Retry')}
           </Button>
-        }
-      />
+        </div>
+      </Alert>
     );
   }
 
   return (
     <div
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
+      className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('investment.portfolio.title', 'Investment Portfolio Overview')}
-          </Title>
-          <Tag color="blue">{investments.length} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}</Tag>
+          </h1>
+          <Badge variant="secondary" className="gba:text-sm">
+            {investments.length} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
+          </Badge>
         </div>
-        <Space>
-          <Button
-            data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
-            type="primary"
-            icon={<PlusOutlined />}
-          >
-            {getTranslationFromI18nKeyAndLabel('button.addInvestment', 'Add Investment')}
-          </Button>
-        </Space>
       </div>
 
       {/* KPI Cards */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-        gap: '16px',
-        marginBottom: '24px'
-      }}>
-        <Card
-          data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalPortfolioValue')}
-          style={{ borderRadius: '8px' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              backgroundColor: '#1890ff', 
-              borderRadius: '8px', 
-              padding: '12px',
-              color: 'white'
-            }}>
-              <PieChartOutlined style={{ fontSize: '24px' }} />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: '14px' }}>
-                {getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value')}
-              </Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                {formatCurrency(kpis.totalPortfolioValue)}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card
-          data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalInvestments')}
-          style={{ borderRadius: '8px' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              backgroundColor: '#52c41a', 
-              borderRadius: '8px', 
-              padding: '12px',
-              color: 'white'
-            }}>
-              <FundOutlined style={{ fontSize: '24px' }} />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: '14px' }}>
-                {getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments')}
-              </Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                {formatNumber(kpis.totalInvestments)}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card
-          data-testid={formatDataTestId(prefixDataTestId, 'KPICard-AverageROI')}
-          style={{ borderRadius: '8px' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              backgroundColor: '#fa8c16', 
-              borderRadius: '8px', 
-              padding: '12px',
-              color: 'white'
-            }}>
-              <BarChartOutlined style={{ fontSize: '24px' }} />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: '14px' }}>
-                {getTranslationFromI18nKeyAndLabel('kpi.averageROI', 'Average ROI')}
-              </Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                {formatPercentage(kpis.averageROI)}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card
-          data-testid={formatDataTestId(prefixDataTestId, 'KPICard-ActiveInvestments')}
-          style={{ borderRadius: '8px' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              backgroundColor: '#722ed1', 
-              borderRadius: '8px', 
-              padding: '12px',
-              color: 'white'
-            }}>
-              <RiseOutlined style={{ fontSize: '24px' }} />
-            </div>
-            <div>
-              <Text type="secondary" style={{ fontSize: '14px' }}>
-                {getTranslationFromI18nKeyAndLabel('kpi.activeInvestments', 'Active Investments')}
-              </Text>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-                {formatNumber(kpis.activeInvestments)}
-              </div>
-            </div>
-          </div>
-        </Card>
+      <div className="gba:mb-6">
+        <WidgetGroup
+          widgets={[
+            {
+              key: "total-portfolio-value",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value'),
+              value: formatCurrency(kpis.totalPortfolioValue),
+              prefix: <PieChartOutlined />,
+              color: "var(--nw-color-primary-500)",
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Current market valuation across all investments",
+              trend: {
+                value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
+                positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "total-investments",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
+              value: kpis.totalInvestments,
+              prefix: <FundOutlined />,
+              color: "var(--nw-color-success-500)",
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Total number of investment positions",
+              trend: {
+                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
+                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "total-amount-invested",
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
+              value: formatCurrency(kpis.totalAmountInvested),
+              prefix: <BarChartOutlined />,
+              color: "var(--nw-color-warning-500)",
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Sum of all total invested amounts",
+              trend: {
+                value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
+                positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
+                description: "vs 7 days ago",
+              },
+            },
+            {
+              key: "active-investments",
+              title: getTranslationFromI18nKeyAndLabel('kpi.activeInvestments', 'Active Investments'),
+              value: kpis.activeInvestments,
+              prefix: <RiseOutlined />,
+              color: "var(--nw-color-purple-500)",
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: "Currently active investment positions",
+              trend: {
+                value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
+                positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
+                description: "vs 7 days ago",
+              },
+            },
+          ]}
+          isLoading={isLoading}
+          error={error ? new Error(error) : null}
+          onRetry={refetch}
+          data-testid={formatDataTestId(prefixDataTestId, 'KPICards')}
+        />
       </div>
 
       {/* Tabbed Charts */}
-      <Card style={{ borderRadius: '8px', background: 'white' }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'overview',
-              label: (
-                <span>
-                  <BarChartOutlined />
-                  {getTranslationFromI18nKeyAndLabel('tab.overview', 'Overview')}
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '16px 0' }}>
-                  <div style={{ textAlign: 'center', color: '#666', fontSize: '16px' }}>
-                    {getTranslationFromI18nKeyAndLabel('overview.coming.soon', 'Overview content coming soon...')}
-                  </div>
-                </div>
-              )
-            },
-            {
-              key: 'timeline',
-              label: (
-                <span>
+      <Card className="gba:rounded-lg gba:bg-white gba:p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+          <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-6">
+            <TabsTrigger 
+              value="distribution" 
+              data-testid={formatDataTestId(prefixDataTestId, 'DistributionTab')}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <PieChartOutlined />
+              {getTranslationFromI18nKeyAndLabel('tab.distribution.analysis', 'Distribution Analysis')}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="timeline" 
+              data-testid={formatDataTestId(prefixDataTestId, 'TimelineTab')}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
                   <RiseOutlined />
                   {getTranslationFromI18nKeyAndLabel('tab.timeline.analysis', 'Timeline Analysis')}
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '16px 0' }}>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics" 
+              data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsTab')}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <FundOutlined />
+              {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analytics')}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent 
+            value="distribution" 
+            className="gba:py-4"
+            data-testid={formatDataTestId(prefixDataTestId, 'DistributionContent')}
+          >
+            <PortfolioDistributionCharts
+              investmentGroupData={chartData.investmentGroupData}
+              statusData={chartData.statusData}
+              currencyData={chartData.currencyData}
+              rawInvestments={investments}
+            />
+          </TabsContent>
+
+          <TabsContent 
+            value="timeline" 
+            className="gba:py-4"
+            data-testid={formatDataTestId(prefixDataTestId, 'TimelineContent')}
+          >
                   <PortfolioTimelineCharts
                     performanceTimelineData={chartData.performanceTimelineData}
                     valueOverTimeData={chartData.valueOverTimeData}
-                  />
-                </div>
-              )
-            },
-            {
-              key: 'analytics',
-              label: (
-                <span>
-                  <FundOutlined />
-                  {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analytics')}
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '16px 0' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+              rawInvestments={investments}
+            />
+          </TabsContent>
+
+          <TabsContent 
+            value="analytics" 
+            className="gba:py-4"
+            data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsContent')}
+          >
+            <div className="gba:grid gba:grid-cols-1 gba:lg:gba:grid-cols-2 gba:gap-6">
                     <PortfolioAnalyticsCharts
-                      sizeVsRoiData={chartData.sizeVsRoiData}
-                      leverageAnalysisData={chartData.leverageAnalysisData}
-                      riskReturnData={chartData.riskReturnData}
                       concentrationByGroupData={chartData.concentrationByGroupData}
                       valueByAccountData={chartData.valueByAccountData}
                     />
                   </div>
-                </div>
-              )
-            },
-            {
-              key: 'distribution',
-              label: (
-                <span>
-                  <PieChartOutlined />
-                  {getTranslationFromI18nKeyAndLabel('tab.distribution.analysis', 'Distribution Analysis')}
-                </span>
-              ),
-              children: (
-                <div style={{ padding: '16px 0' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
-                    <PortfolioDistributionCharts
-                      investmentTypeData={chartData.investmentTypeData}
-                      investmentGroupData={chartData.investmentGroupData}
-                      statusData={chartData.statusData}
-                      phaseData={chartData.phaseData}
-                      riskLevelData={chartData.riskLevelData}
-                      currencyData={chartData.currencyData}
-                      roiData={chartData.roiData}
-                      roiDistributionData={chartData.roiDistributionData}
-                    />
-                  </div>
-                </div>
-              )
-            }
-          ]}
-        />
+          </TabsContent>
+        </Tabs>
       </Card>
     </div>
   );

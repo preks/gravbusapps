@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card } from '@newwork/nw-design-system';
 import { 
   BarChart, 
   Bar, 
@@ -50,8 +50,8 @@ export const LiquidFundPortfolioCharts: React.FC<PortfolioChartsProps> = ({
               }}
             />
             <Legend />
-            <Bar yAxisId="left" dataKey="count" fill="#8884d8" name="Fund Count" />
-            <Line yAxisId="right" type="monotone" dataKey="totalValue" stroke="#82ca9d" strokeWidth={2} name="Total Value" />
+            <Bar yAxisId="left" dataKey="count" fill="var(--nw-color-primary-500)" name="Fund Count" />
+            <Line yAxisId="right" type="monotone" dataKey="totalValue" stroke="var(--nw-color-success-500)" strokeWidth={2} name="Total Value" />
             <Line yAxisId="left" type="monotone" dataKey="avgInterestRate" stroke="#ff7300" strokeWidth={2} name="Avg Interest Rate %" />
           </ComposedChart>
         </ResponsiveContainer>
@@ -79,7 +79,7 @@ export const LiquidFundPortfolioCharts: React.FC<PortfolioChartsProps> = ({
               }}
             />
             <Legend />
-            <Bar yAxisId="left" dataKey="count" fill="#8884d8" name="Fund Count" />
+            <Bar yAxisId="left" dataKey="count" fill="var(--nw-color-primary-500)" name="Fund Count" />
             <Bar yAxisId="right" dataKey="avgYield" fill="#82ca9d" name="Avg Yield %" />
           </ComposedChart>
         </ResponsiveContainer>
@@ -104,8 +104,8 @@ export const LiquidFundPortfolioCharts: React.FC<PortfolioChartsProps> = ({
               }}
             />
             <Legend />
-            <Bar yAxisId="left" dataKey="count" fill="#8884d8" name="Fund Count" />
-            <Line yAxisId="left" type="monotone" dataKey="value" stroke="#82ca9d" strokeWidth={2} name="Total Value" />
+            <Bar yAxisId="left" dataKey="count" fill="var(--nw-color-primary-500)" name="Fund Count" />
+            <Line yAxisId="left" type="monotone" dataKey="value" stroke="var(--nw-color-success-500)" strokeWidth={2} name="Total Value" />
             <Line yAxisId="right" type="monotone" dataKey="avgInterestRate" stroke="#ff7300" strokeWidth={2} name="Avg Interest Rate %" />
           </ComposedChart>
         </ResponsiveContainer>

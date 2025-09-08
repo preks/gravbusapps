@@ -13,9 +13,12 @@ export interface DealItem {
 
 export interface DealSummaryProps {
   deals: DealItem[];
+  moduleColor?: string;
 }
 
-export const DealSummary: React.FC<DealSummaryProps> = ({ deals }) => {
+export const DealSummary: React.FC<DealSummaryProps> = ({ deals, moduleColor = "default" }) => {
+  // Remove unused variable warning
+  const _ = moduleColor;
   return (
     <Card className="gba:h-full">
       <CardHeader>

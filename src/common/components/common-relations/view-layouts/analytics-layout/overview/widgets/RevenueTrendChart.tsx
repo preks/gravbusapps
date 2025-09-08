@@ -20,7 +20,7 @@ export interface RevenueTrendChartProps {
   onPipelineChange?: (pipelineId: string | undefined) => void;
   selectedTimeFilter?: TimeFilter;
   onTimeFilterChange?: (timeFilter: TimeFilter) => void;
-  variant?: "default" | "secondary" | "success" | "destructive" | "warning" | "info";
+  moduleColor?: string;
 }
 
 export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ 
@@ -31,7 +31,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   onPipelineChange,
   selectedTimeFilter = 'sixMonths',
   onTimeFilterChange,
-  variant = 'default'
+  moduleColor = 'default'
 }) => {
   // Early return for loading state BEFORE any hooks
   if (isLoading) {
@@ -39,7 +39,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
       <Card data-testid="revenue-trend-chart-loading">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartLineIcon} variant={variant} size="md" decorative />
+            <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
             Revenue Trends
           </CardTitle>
         </CardHeader>
@@ -102,7 +102,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartLineIcon} variant={variant} size="md" decorative />
+            <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
             Revenue Trends ({currentFilterLabel})
             {selectedPipelineId && (
               <span className="gba:text-sm gba:font-normal gba:text-gray-500">

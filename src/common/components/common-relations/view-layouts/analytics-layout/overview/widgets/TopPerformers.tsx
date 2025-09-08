@@ -1,6 +1,13 @@
 import React from "react";
-import { Card, CardContent } from "@newwork/nw-design-system";
-import { TrophyOutlined } from "@ant-design/icons";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+} from "@newwork/nw-design-system";
+import { TrophyIcon } from "@phosphor-icons/react";
 
 export interface TopPerformerItem {
   employeeId: string;
@@ -11,16 +18,29 @@ export interface TopPerformerItem {
 
 export interface TopPerformersProps {
   performers: TopPerformerItem[];
+  moduleColor?: string;
 }
 
-export const TopPerformers: React.FC<TopPerformersProps> = ({ performers }) => {
+export const TopPerformers: React.FC<TopPerformersProps> = ({ 
+  performers, 
+  moduleColor = "default" 
+}) => {
   return (
     <Card data-testid="top-performers-section">
-      <CardContent className="gba:p-6">
-        <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center gba:gap-2">
-          <TrophyOutlined />
-          Top Performers
-        </h3>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={TrophyIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Top Performers</CardTitle>
+          <CardDescription>Best performing team members</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
         {performers.length > 0 ? (
           <div className="gba:space-y-3">
             {performers.map((performer, index) => (
@@ -47,7 +67,7 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({ performers }) => {
           </div>
         ) : (
           <div className="gba:text-center gba:text-gray-500 gba:py-12">
-            <TrophyOutlined className="gba:text-4xl gba:mb-4 gba:opacity-50" />
+            <TrophyIcon className="gba:text-4xl gba:mb-4 gba:opacity-50" />
             <p>No performance data available</p>
           </div>
         )}

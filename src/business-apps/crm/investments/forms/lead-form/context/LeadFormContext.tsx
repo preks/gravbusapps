@@ -734,6 +734,18 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
         
         return newFormValues;
       });
+
+      // ✅ ADDED: Automatically set the correct addressLineCount based on filled address lines
+      const filledAddressLines = [
+        mappedValues.addressLine1,
+        mappedValues.addressLine2,
+        mappedValues.addressLine3,
+        mappedValues.addressLine4,
+      ].filter((line) => line && line.trim()).length;
+      
+      if (filledAddressLines > 0) {
+        setAddressLineCount(Math.max(1, filledAddressLines));
+      }
       // Don't auto-select current user if we're editing an existing lead
       autoSelectionDone.current = true;
     }

@@ -3,21 +3,23 @@
  * Shows the total amount of paid expenses per month in EUR for the current year
  */
 
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useMemo } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
+import { BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { MonthlyExpenseTrend } from '../../types';
-import { EXPENSE_COLORS } from '../../utils/colorConstants';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { ChartBarIcon } from '@phosphor-icons/react';
+
 
 export interface MonthlyExpenseTrendsCardProps {
   loading: boolean;
   error: Error | null;
   monthlyTrends: MonthlyExpenseTrend[];
   selectedCurrencyCode: string;
+  moduleColor?: string;
 }
 
-const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loading, error, monthlyTrends, selectedCurrencyCode }) => {
+const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loading, error, monthlyTrends, selectedCurrencyCode, moduleColor }) => {
   const currentYear = new Date().getFullYear();
 
   const formatCurrency = (value: number) => {
@@ -54,9 +56,12 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
 
   if (loading) {
     return (
-      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-loading">
+      <Card data-testid="monthly-expense-trends-loading">
         <CardHeader>
-          <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}</CardTitle>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -69,9 +74,12 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
 
   if (error) {
     return (
-      <Card className="gba:bg-blue-50 gba:h-full" data-testid="monthly-expense-trends-error">
+      <Card data-testid="monthly-expense-trends-error">
         <CardHeader>
-          <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}</CardTitle>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -84,72 +92,57 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
     );
   }
 
-  // Custom tooltip formatter to match the original behavior
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const translatedMonth = getTranslatedMonthName(label);
-      return (
-        <div className="gba:bg-white gba:p-2 gba:border gba:rounded gba:shadow">
-          <p className="gba:text-sm gba:font-medium">{`${getTranslationFromI18nKeyAndLabel('lowcoder:cards.month', 'Month').charAt(0).toUpperCase() + getTranslationFromI18nKeyAndLabel('lowcoder:cards.month', 'Month').slice(1)}: ${translatedMonth}`}</p>
-          <p className="gba:text-sm" style={{ color: EXPENSE_COLORS.PRIMARY_BLUE }}>
-            {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', "Total")}: ${formatCurrency(payload[0].value)}
-          </p>
-        </div>
-      );
+  // Chart configuration for design system
+  const chartConfig = useMemo(() => ({
+    totalAmount: { 
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', "Total Amount")
     }
-    return null;
-  };
-
-  // Custom label component for bar tops
-  const renderCustomLabel = (props: any) => {
-    const { x, y, width, value } = props;
-    return (
-      <text 
-        x={x + width / 2} 
-        y={y - 10} 
-        fill={EXPENSE_COLORS.PRIMARY_BLUE} 
-        textAnchor="middle" 
-        dy={-6}
-        className="gba:text-xs gba:opacity-60"
-      >
-        {formatCurrency(value)}
-      </text>
-    );
-  };
+  }), []);
 
   return (
-    <Card className="gba:bg-blue-50 gba:w-full" data-testid="monthly-expense-trends-card">
+    <Card data-testid="monthly-expense-trends-card">
       <CardHeader>
-        <CardTitle className="gba:text-sm gba:font-medium gba:text-gray-700">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+          <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
         </CardTitle>
       </CardHeader>
-      <CardContent className="gba:p-6">
-        <div className="gba:h-80 gba:w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={monthlyTrends}
-              margin={{ top: 30, right: 30, left: 20, bottom: 5 }}
-            >
-                             <XAxis 
-                 dataKey="monthName" 
-                 tick={{ fontSize: 12 }}
-                 interval={0}
-                 tickFormatter={getTranslatedMonthName}
-               />
+      <CardContent>
+        {monthlyTrends.length === 0 ? (
+          <div className="gba:text-center gba:p-8" data-testid="monthly-expense-trends-empty-state">
+            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">No expense trends data found for {currentYear}.</p>
+          </div>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="gba:h-[320px] gba:w-full"
+            data-testid="monthly-expense-trends-chart"
+          >
+            <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <XAxis 
+                dataKey="monthName" 
+                tick={{ fontSize: 12 }}
+                interval={0}
+                tickFormatter={getTranslatedMonthName}
+              />
               <YAxis 
                 tickFormatter={formatCurrency}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
+              <ChartLegend content={<ChartLegendContent />} />
               <Bar 
                 dataKey="totalAmount" 
-                fill={EXPENSE_COLORS.PRIMARY_BLUE}
-                label={renderCustomLabel}
+                name="totalAmount"
+                stroke={`var(--color-totalAmount)`} 
+                fill={`var(--color-totalAmount)`}
+                fillOpacity={0.8}
               />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   );

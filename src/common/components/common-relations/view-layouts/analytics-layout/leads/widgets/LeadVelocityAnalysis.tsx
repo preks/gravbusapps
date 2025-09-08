@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@newwork/nw-design-system";
 import { BarChart, Bar, XAxis, YAxis } from "recharts";
 import { ClockIcon } from "@phosphor-icons/react";
-import { SupportedVariant } from "@/common/constants/ui";
 
 export interface LeadOverTimePoint {
   date: string;
@@ -16,10 +15,10 @@ export interface LeadVelocityAnalysisProps {
     conversionRate: number;
     leadsOverTime: LeadOverTimePoint[];
   };
-  variant?: SupportedVariant;
+  moduleColor?: string;
 }
 
-export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data, variant = 'default' }) => {
+export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data, moduleColor = 'default' }) => {
   const aggregateDataByMonth = (dailyData: LeadOverTimePoint[]) => {
     const monthMap = new Map<string, { leadsCreated: number; leadsConverted: number; date: string }>();
 
@@ -62,7 +61,7 @@ export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data
     <Card data-testid="lead-velocity-analysis">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <IconAvatar icon={ClockIcon} variant={variant} size="md" decorative />
+          <IconAvatar icon={ClockIcon} variant={moduleColor as any} size="md" decorative />
           Lead Velocity Analysis
         </CardTitle>
       </CardHeader>

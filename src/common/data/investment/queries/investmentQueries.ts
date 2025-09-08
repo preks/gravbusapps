@@ -173,6 +173,12 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           id
           buildingYear
           annualNetColdRent
+          actualAnnualExpenses
+          occupancyPercent
+          locality
+          country {
+            ${CATALOG_ENTRY}
+          }
         }
         
         # Liquid Fund Investment specialization
@@ -182,6 +188,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           bankAccountNumber
           earlyTerminationAllowed
           interestRate
+          investmentLiquidFundType {
+            ${CATALOG_ENTRY}
+          }
         }
       }
       

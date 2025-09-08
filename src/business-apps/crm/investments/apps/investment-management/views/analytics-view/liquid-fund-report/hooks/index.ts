@@ -1,1 +1,1 @@
-export { useLiquidFundChartData } from './useLiquidFundChartData'; 
+export { useLiquidFundKPIIntegration } from './useLiquidFundKPIIntegration';

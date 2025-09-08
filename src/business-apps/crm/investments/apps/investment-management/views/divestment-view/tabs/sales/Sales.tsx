@@ -333,12 +333,12 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`sold-opportunity-update-button-${opportunity.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.entityContext]}
+                          contextsArray={[FlowContextName.investmentOpportunityEntity]}
                           externalContextData={{ opportunityId: opportunity.id }}
                           prefixDataTestId={`sold-opportunity-update`}
                           accessToken={accessToken}
