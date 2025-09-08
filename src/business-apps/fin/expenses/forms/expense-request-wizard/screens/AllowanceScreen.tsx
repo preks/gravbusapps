@@ -226,6 +226,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
             dinner: !!dd.dinner,
             overnight: !!dd.overnight
           };
+          const initialDeductions: string[] = [];
+          if (dd.breakfast && visibleDeductionKeys.includes(DEDUCTION_KEYS.BREAKFAST)) initialDeductions.push(DEDUCTION_KEYS.BREAKFAST);
+          if (dd.lunch && visibleDeductionKeys.includes(DEDUCTION_KEYS.LUNCH)) initialDeductions.push(DEDUCTION_KEYS.LUNCH);
+          if (dd.dinner && visibleDeductionKeys.includes(DEDUCTION_KEYS.DINNER)) initialDeductions.push(DEDUCTION_KEYS.DINNER);
+          if (dd.overnight && visibleDeductionKeys.includes(DEDUCTION_KEYS.OVERNIGHT)) initialDeductions.push(DEDUCTION_KEYS.OVERNIGHT);
+          updatedElement.deductions = initialDeductions;
         } else {
           updatedElement.deductionDay = {
             id: null,
@@ -236,6 +242,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
             dinner: false,
             overnight: false
           };
+          updatedElement.deductions = [];
         }
       } else {
         updatedElement.deductionDay = null;
