@@ -215,7 +215,11 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     searchEntities(q);
   }, [searchEntities]);
 
-  // form declared earlier
+  // Detect approval mode from additionalData.typeRef
+  const isApprovalMode = React.useMemo(() => {
+    const t = (additionalData as any)?.typeRef || (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.typeRef;
+    return t === 'InvestmentTaskType:v1:APPROVAL' || (typeof t === 'string' && t.toLowerCase() === 'approval');
+  }, [additionalData]);
 
   return (
     <AppActionForm
@@ -262,6 +266,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         assigneesHasMore={employeesHasMore}
         onAssigneeLoadMore={loadMoreEmployees}
         data-testid="investment-task-segment"
+        // show/hide
+        showType={!isApprovalMode}
+        staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
       />
     </AppActionForm>
   );
