@@ -33,7 +33,6 @@ export interface AppActionFormProps {
   // Support for custom form layouts (like wizards)
   customFormLayout?: boolean;
   customActions?: React.ReactNode;
-  showSuccessMessage?: boolean;
   // Support for disabling form submission when using WizardForm or other custom handlers
   disableFormSubmission?: boolean;
   // Form type selection
@@ -189,7 +188,6 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   'data-testid': dataTestId = 'process-dialog',
   customFormLayout = false,
   customActions,
-  showSuccessMessage = true,
   disableFormSubmission = false,
   formType = 'form',
   wizardSteps,
@@ -212,14 +210,13 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         const errors = validateForm(dataForValidation);
         if (errors && errors.length > 0) {
           setMessage({ type: 'error', message: errors.join(', ') });
+          setLoading(false); // Stop loading on validation error
           return;
         }
       }
       const result = await onSubmit(dataForValidation);
-      if (showSuccessMessage) {
-        const successMessage = getSuccessMessage(processType);
-        setMessage({ type: 'success', message: successMessage });
-      }
+      // Success messages are no longer displayed in the form
+      // They should be handled by the calling component or shown via other means
       dispatchProcessContinueEvent(submitEventType, result);
       if (onSuccess) {
         onSuccess(result);
@@ -230,7 +227,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, showSuccessMessage]);
+  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData]);
 
   const handleCancel = useCallback(() => {
     dispatchProcessContinueEvent(cancelEventType, {});
@@ -289,9 +286,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
   return (
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
-      {message && (
+      {message && message.type === 'error' && (
         <Alert
-          variant={message.type === 'success' ? 'default' : 'destructive'}
+          variant="destructive"
           className="gba:mb-4"
           data-testid={`${dataTestId}-message`}
         >

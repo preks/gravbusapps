@@ -1,41 +1,7 @@
-export interface InvestmentFormValues {
-  // Investment Information
-  ownerEmployeeId: string;
-  name: string;
-  accountId: string;
-  initialInvestmentAmount: number | string;
-  group: string;
+import { InvestmentFormData } from '@/common/data/investment/payloads/investmentPayloads';
 
-  // Equity Information (only for EQUITY type)
-  equityInvestmentId?: string;
-  equityInvestmentVersion?: number | string;
-  equityRole?: string;
-  currentCompanyValue?: number | string;
-  lastReportedTurnover?: number | string;
-  lastReportedEbitda?: number | string;
-
-
-  // Real Estate Information (only for REAL_ESTATE type)
-  realEstateInvestmentId?: string;
-  realEstateInvestmentVersion?: number | string;
-  realEstateTypeRef?: string;
-  investmentOwnershipStructureRef?: string;
-  numberOfUnits?: number | string;
-  buildingYear?: number | string;
-
-  // Liquid Fund Information (only for LIQUID_FUND type)
-  liquidFundInvestmentId?: string;
-  liquidFundInvestmentVersion?: number | string;
-  accountNumber?: string;
-  earlyTerminationAllowed?: boolean;
-  interestRate?: number | string;
-  interestPaymentFrequencyRef?: string;
-  maturityDate?: string;
-
-  // System fields
-  id?: string;
-  version?: number;
-}
+// Re-export the form data interface for backwards compatibility
+export interface InvestmentFormValues extends InvestmentFormData {}
 
 export interface SelectOption {
   id: string | number;
@@ -63,7 +29,7 @@ export interface InvestmentContextState {
   // Data collections
   investmentGroups: SelectOption[];
   employeePositions: SelectOption[];
-  accounts: SelectOption[];
+  // Note: accounts now accessed via centralized fetchInvestmentAccounts function
 }
 
 export interface InvestmentApiPayload {

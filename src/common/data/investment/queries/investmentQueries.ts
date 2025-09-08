@@ -399,6 +399,26 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           }
         }
         
+        # Loan recipient investment account
+        loanRecipientInvestmentAccount {
+          id
+          code
+          name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          ${AUDIT_FIELDS}
+        }
+        
         # All investment specializations with full details
         equityInvestment {
           id

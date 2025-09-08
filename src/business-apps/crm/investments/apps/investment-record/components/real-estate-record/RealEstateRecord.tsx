@@ -9,10 +9,9 @@ import {
   OthersDetailsHeader,
   MezzanineLoansDetailsHeader,
   RealEstateInvestmentReports,
-  RealEstateSections,
   LiquidityForecast
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments } from '../shared';
+import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -172,10 +171,14 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Real Estate Investment Sections */}
-            <RealEstateSections 
-              realEstateData={realEstateData}
+            {/* Investment Tile Section */}
+            <InvestmentTileSection 
+              investment={realEstateData?.investment}
               isLoading={isLoading}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              additionalData={props.additionalData}
+              data-testid="real-estate-record-tiles"
             />
 
             {/* Liquidity Forecast 5 Years */}
