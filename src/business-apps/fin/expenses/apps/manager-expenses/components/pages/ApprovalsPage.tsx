@@ -16,9 +16,10 @@ import { PiMagnifyingGlass, PiArrowLeft, PiClipboardText } from "react-icons/pi"
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ApprovalRequest, useGetApprovals } from "../../hooks/useGetApprovals";
 import {
-  formatNumberFunction,
   getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
 } from "@/common/utils/windowUtils";
+import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 import Pill from "@/components/pill";
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
@@ -194,7 +195,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                             ? (() => {
                                 try {
                                   const date = new Date(request.createdAt);
-                                  return date.toLocaleDateString("en-US", {
+                                  const userLocale = getCurrentActiveUserLocale();
+                                  return date.toLocaleDateString(userLocale, {
                                     month: "2-digit",
                                     day: "2-digit",
                                     year: "2-digit",
@@ -215,14 +217,12 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                         </TableCell>
                         <TableCell className="gba:text-right">
                           <span className="gba:font-medium gba:text-sm">
-                            {formatNumberFunction(
-                              (request.totalAmount !== undefined && request.totalAmount !== null
+                            {formatCurrencyDisplay(
+                              request.totalAmount !== undefined && request.totalAmount !== null
                                 ? request.totalAmount
-                                : 0
-                              ).toString(),
-                              "0.00[,]00",
+                                : 0,
+                              "EUR",
                             )}
-                            €
                           </span>
                         </TableCell>
                         <TableCell>

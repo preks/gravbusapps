@@ -20,11 +20,14 @@ import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { useAdvancePaymentFilters } from "../../../hooks/useAdvancePaymentFilters";
 import { useMainViewAdvancePayments } from "../../../hooks/useMainViewAdvancePayments";
 import { getAdvancePaymentStatusDisplay } from "../../../utils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AdvancePayment as AdvancePaymentItem } from "../../../hooks/useMainViewAdvancePayments";
 import AdvancePaymentDetails from "./AdvancePaymentDetails";
@@ -322,7 +325,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       ? (() => {
                           try {
                             const date = new Date(record.expensePlan.startDate);
-                            return date.toLocaleDateString("en-US", {
+                            const userLocale = getCurrentActiveUserLocale();
+                            return date.toLocaleDateString(userLocale, {
                               month: "2-digit",
                               day: "2-digit",
                               year: "2-digit",
@@ -338,7 +342,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       ? (() => {
                           try {
                             const date = new Date(record.expensePlan.endDate);
-                            return date.toLocaleDateString("en-US", {
+                            const userLocale = getCurrentActiveUserLocale();
+                            return date.toLocaleDateString(userLocale, {
                               month: "2-digit",
                               day: "2-digit",
                               year: "2-digit",
@@ -376,7 +381,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       ? (() => {
                           try {
                             const date = new Date(record.createdAt);
-                            return date.toLocaleDateString("en-US", {
+                            const userLocale = getCurrentActiveUserLocale();
+                            return date.toLocaleDateString(userLocale, {
                               month: "2-digit",
                               day: "2-digit",
                               year: "2-digit",
@@ -393,14 +399,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   >
                     <span className="gba:font-medium gba:text-sm">
                       {typeof record.amount === "number"
-                        ? formatCurrency(
+                        ? formatCurrencyDisplay(
                             record.amount,
                             (record.currencyRef || currencyFilter || "").replace(
                               "Currency:v1:",
                               "",
-                            ),
+                            ) || "EUR",
                           )
-                        : "N/A"}
+                        : formatCurrencyDisplay(0, "EUR")}
                     </span>
                   </TableCell>
                   <TableCell>

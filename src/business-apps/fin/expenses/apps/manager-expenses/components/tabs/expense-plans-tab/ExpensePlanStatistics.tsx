@@ -2,11 +2,8 @@ import React, { useCallback, useMemo } from "react";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { PiCalendar, PiFileText } from "react-icons/pi";
 import { ExpenseStatus } from "../../../utils";
-import { formatCurrency } from "../../../utils/currencyUtils";
-import {
-  formatNumberFunction,
-  getTranslationFromI18nKeyAndLabel,
-} from "@/common/utils/windowUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { ExpensePlanStatistics } from "../../../hooks/useGetExpensePlans"; // Assuming this type is exported from your hook
 
 interface ExpensePlanStatisticsProps {
@@ -158,8 +155,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           "Total Amount (Submitted)",
         ),
         value: planStats.sumTotalAmount
-          ? formatCurrency(planStats.sumTotalAmount, displayCurrency)
-          : `${displayCurrency} 0,00`,
+          ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
+          : formatCurrencyDisplay(0, displayCurrency),
         prefix: (
           <span className="gba:font-medium" data-testid="expense-plan-stats-total-currency-code">
             {displayCurrency}

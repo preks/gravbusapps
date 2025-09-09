@@ -3,7 +3,7 @@ import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from "../../
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useCurrencyStore } from "../../../store/useCurrencyStore";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface AdvancePaymentStatisticsProps {
   advancePaymentStats: AdvancePaymentStatisticsData | null;
@@ -31,8 +31,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
             "Total Advance Payment",
           ),
           value: advancePaymentStats.sumAmount
-            ? formatCurrency(advancePaymentStats.sumAmount, primaryCurrency)
-            : `${primaryCurrency} 0,00`,
+            ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
+            : formatCurrencyDisplay(0, primaryCurrency),
           color: "#52c41a",
           valueIsString: true, // Mark as pre-formatted string
           span: { xs: 24, sm: 12, lg: 6 },
@@ -48,8 +48,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
             "Pending Amount",
           ),
           value: advancePaymentStats.pendingAmount
-            ? formatCurrency(advancePaymentStats.pendingAmount, primaryCurrency)
-            : `${primaryCurrency} 0,00`,
+            ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
+            : formatCurrencyDisplay(0, primaryCurrency),
           color: "#ff4d4f",
           valueIsString: true, // Mark as pre-formatted string
           span: { xs: 24, sm: 12, lg: 6 },

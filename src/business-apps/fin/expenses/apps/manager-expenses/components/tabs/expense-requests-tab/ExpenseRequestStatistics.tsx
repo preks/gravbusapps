@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface ExpenseRequestStatisticsProps {
@@ -80,7 +80,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "lowcoder:team_expenses_page.expense_plans_tab.pending_amount",
             "Pending Amount",
           ),
-          value: formatCurrency(requestStats.pendingAmount || 0, displayCurrency),
+          value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
           color: "#52c41a",
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
@@ -118,7 +118,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount",
             "Total Submitted Amount",
           ),
-          value: formatCurrency(requestStats.totalSubmittedAmount || 0, displayCurrency),
+          value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
           color: selectedFilters.length === 0 ? "#1677ff" : "#722ed1",
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(

@@ -22,8 +22,11 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import Pill from "@/components/pill/Pill";
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
 import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../../personal-expenses/utils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
@@ -433,7 +436,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(plan.startDate);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -449,7 +453,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(plan.endDate);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -485,7 +490,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(plan.createdAt);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -499,11 +505,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     <TableCell className="gba:text-right">
                       <span className="gba:font-medium gba:text-sm">
                         {typeof plan.totalAmount === "number"
-                          ? formatCurrency(
+                          ? formatCurrencyDisplay(
                               plan.totalAmount,
                               currentCurrencyFilter || plan.currency || "EUR",
                             )
-                          : "N/A"}
+                          : formatCurrencyDisplay(
+                              0,
+                              currentCurrencyFilter || plan.currency || "EUR",
+                            )}
                       </span>
                     </TableCell>
                     <TableCell>

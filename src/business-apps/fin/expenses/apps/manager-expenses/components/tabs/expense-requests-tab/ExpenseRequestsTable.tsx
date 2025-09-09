@@ -24,9 +24,12 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
 import { getExpenseRequestStatusDisplay } from "../../../utils";
 import ExpenseRequestDetails from "./ExpenseRequestDetails";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { Modal } from "antd";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
@@ -462,7 +465,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(record.startDate);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -478,7 +482,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(record.endDate);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -521,7 +526,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? (() => {
                             try {
                               const date = new Date(record.requestDate);
-                              return date.toLocaleDateString("en-US", {
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
                                 month: "2-digit",
                                 day: "2-digit",
                                 year: "2-digit",
@@ -537,8 +543,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       data-testid={`expense-request-amount-cell-${record.id}`}
                     >
                       {typeof record.amount === "number"
-                        ? formatCurrency(record.amount, record.currency)
-                        : "N/A"}
+                        ? formatCurrencyDisplay(record.amount, record.currency)
+                        : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
                     <TableCell>
                       <Pill

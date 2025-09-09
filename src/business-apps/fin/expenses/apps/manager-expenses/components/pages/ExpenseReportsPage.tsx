@@ -19,10 +19,8 @@ import { PiMagnifyingGlass, PiDownload, PiArrowLeft, PiFileText } from "react-ic
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useExpenseReportData, ReportType } from "../../hooks/useExpenseReportData";
 import { ensureShortDateFormat } from "../../utils/dateUtils";
-import {
-  formatNumberFunction,
-  getTranslationFromI18nKeyAndLabel,
-} from "@/common/utils/windowUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 
 interface ExpenseReportsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -450,11 +448,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                           >
                             {column.key.includes("amount") || column.key.includes("Amount") ? (
                               <span className="gba:text-sm">
-                                {formatNumberFunction(
-                                  (row[column.key] || 0).toString(),
-                                  "0.00[,]00",
-                                )}
-                                €
+                                {formatCurrencyDisplay(row[column.key] || 0, "EUR")}
                               </span>
                             ) : column.key === "date" ? (
                               <span className="gba:text-sm">

@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Icon,
-  IconAvatar,
-} from "@newwork/nw-design-system";
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from "@newwork/nw-design-system";
 import {
   PiListChecks,
   PiChartLineUp,
@@ -23,7 +16,7 @@ import CurrencyFilter from "../../../components/currency-filter";
 import ExpenseTrendsChart from "./components/ExpenseTrendsChart";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { formatCurrency } from "../../../utils/currencyUtils";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -128,14 +121,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     },
   ];
 
-  // Debug logging
-  console.log("Dashboard Data in UI:", {
-    teamMembersCount: dashboardData?.teamMembersCount,
-    pendingApprovalsCount: dashboardData?.pendingApprovalsCount,
-    monthlyExpensesAmount: dashboardData?.monthlyExpensesAmount,
-    expenseCategoriesCount: dashboardData?.expenseCategoriesCount,
-  });
-
   // Transform dashboard data into widgets format
   const widgets: WidgetItem[] = [
     {
@@ -175,8 +160,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
         "Monthly Expenses",
       ),
       value: dashboardData?.monthlyExpensesAmount
-        ? formatCurrency(dashboardData.monthlyExpensesAmount, displayCurrency)
-        : `${displayCurrency} 0,00`,
+        ? formatCurrencyDisplay(dashboardData.monthlyExpensesAmount, displayCurrency)
+        : formatCurrencyDisplay(0, displayCurrency),
       prefix: (
         <span className="gba:font-medium" data-testid="dashboard-monthly-expenses-currency-code">
           {displayCurrency}
@@ -321,11 +306,14 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                       <div className="gba:text-right gba:ml-4">
                         <p className="gba:font-medium gba:text-sm">
                           {typeof request.totalAmount === "number"
-                            ? formatCurrency(
+                            ? formatCurrencyDisplay(
                                 request.totalAmount,
                                 request.currency || displayCurrency,
                               )
-                            : `${request.currency || displayCurrency} ${request.totalAmount}`}
+                            : formatCurrencyDisplay(
+                                request.totalAmount || 0,
+                                request.currency || displayCurrency,
+                              )}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
                           {request.requestDate}
@@ -382,14 +370,20 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                           "lowcoder:absence_hub.used_colon",
                           "Used:",
                         )}{" "}
-                        {formatCurrency(dashboardData.teamBudget?.used || 0, displayCurrency)}
+                        {formatCurrencyDisplay(
+                          dashboardData.teamBudget?.used || 0,
+                          displayCurrency,
+                        )}
                       </span>
                       <span>
                         {getTranslationFromI18nKeyAndLabel(
                           "lowcoder:absence_hub.total_colon",
                           "Total:",
                         )}{" "}
-                        {formatCurrency(dashboardData.teamBudget?.total || 0, displayCurrency)}
+                        {formatCurrencyDisplay(
+                          dashboardData.teamBudget?.total || 0,
+                          displayCurrency,
+                        )}
                       </span>
                     </div>
                     <div className="gba:w-full gba:bg-secondary gba:rounded-full gba:h-2">
