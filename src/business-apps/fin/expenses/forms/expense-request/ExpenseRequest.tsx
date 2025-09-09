@@ -12,7 +12,7 @@ import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/pla
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { formatDateToISO } from '@/common/utils/windowUtils';
 import { showToast } from '../../utils/notificationUtils';
-import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS} from './constants/constants';
+import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM, SUBMIT_SUCCESS_RESET_TIMEOUT } from './constants/constants';
 import { EVENTS } from '../../utils/constants';
 
 const { Title } = Typography;
@@ -76,12 +76,12 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
   
   const isExpenseDisabled = React.useMemo(() => {
     const expenseType = getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData);
-    return expenseType?.additionalValue1 === "disabled";
+    return expenseType?.additionalValue1 === DISABLED_FLAG;
   }, [expenseCatalogueData]);
   
   const isTripDisabled = React.useMemo(() => {
     const tripType = getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData);
-    return tripType?.additionalValue1 === "disabled";
+    return tripType?.additionalValue1 === DISABLED_FLAG;
   }, [expenseCatalogueData]);
   
   const handleExpenseClick = () => {
@@ -115,7 +115,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       if (fullPlanData.description) {
         formValues.comment = fullPlanData.description;
       }
-      if (plan.planType === 'TRIP') {
+      if (plan.planType === PLAN_TYPE_ENUM.TRIP) {
         setShowTransportation(true);
         let additionalProps = fullPlanData.additionalProperties;
         if (typeof additionalProps === 'string') {
@@ -188,10 +188,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         return;
       }
       
-      const isTrip = (step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType=== 'TRIP'));
+      const isTrip = (step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType=== PLAN_TYPE_ENUM.TRIP));
       let expenseTypeRef =""
       if(selectedPlan && selectedPlan?.planType){
-        if(selectedPlan?.planType === 'TRIP'){
+        if(selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP){
           expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData))?.id
         }else{
           expenseTypeRef = (getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData))?.id
@@ -255,7 +255,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           form.resetFields();
         setSelectedPlan(null);
         setStep(FORM_STEPS.START);
-        }, 3000)
+        }, SUBMIT_SUCCESS_RESET_TIMEOUT)
       }
     } catch (error) {
       showToast(
@@ -269,7 +269,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   return (
     <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-request-main-container">
-     {step === 'expense' || step === 'plan' || step === 'trip' ? (
+     {step === FORM_STEPS.EXPENSE || step === FORM_STEPS.PLAN || step === FORM_STEPS.TRIP ? (
         <>
           {/* Expense form header */}
           <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-form-header-container">
@@ -290,14 +290,14 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
             </Button>
             <div className="gba:flex-1" style={{ position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }} data-testid="expense-form-title-container">
               <Title level={4} style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }} data-testid="expense-form-header-title">
-                {step =='plan' ? t('lowcoder:create_expense_request.initial_expense_plan_select_placeholder', 'Select Expense Plan') : step=='expense' ?t('lowcoder:create_expense_request.expense_request_container.create_expense_header', 'New Expense Request') : t('lowcoder:create_expense_request.expense_request_container.create_expense_header_trip', 'New Expense Request for Trip')}
+                {step ==FORM_STEPS.PLAN ? t('lowcoder:create_expense_request.initial_expense_plan_select_placeholder', 'Select Expense Plan') : step==REQUEST_TYPES.EXPENSE ?t('lowcoder:create_expense_request.expense_request_container.create_expense_header', 'New Expense Request') : t('lowcoder:create_expense_request.expense_request_container.create_expense_header_trip', 'New Expense Request for Trip')}
               </Title>
             </div>
           </div>
           <Divider style={{ margin: '0 0 30px 0' }} data-testid="expense-form-header-divider" />
           
           {/* Expense form content */}
-          {step === 'plan' ? (
+          {step === FORM_STEPS.PLAN ? (
             <>
               {selectedPlan ? (
                 <>
@@ -315,9 +315,9 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                   <Divider style={{ margin: '24px 0' }} data-testid="expense-form-content-divider" />
                   <ExpenseFormContent 
                     form={form} 
-                    showTransportation={selectedPlan.planType === 'TRIP'} 
+                    showTransportation={selectedPlan.planType === PLAN_TYPE_ENUM.TRIP} 
                     setFormIsValid={setFormIsValid} 
-                    testIdPrefix="expense"
+                    testIdPrefix={REQUEST_TYPES.EXPENSE}
                     costCenters={costCenters}
                     projects={projects}
                     selectedCostCenter={selectedCostCenter}
@@ -338,7 +338,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               form={form} 
               showTransportation={showTransportation} 
               setFormIsValid={setFormIsValid} 
-              testIdPrefix="expense"
+              testIdPrefix={REQUEST_TYPES.EXPENSE}
               costCenters={costCenters}
               projects={projects}
               selectedCostCenter={selectedCostCenter}
@@ -348,14 +348,14 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           )}
           
           {/* Footer with divider and action buttons - hide when selecting a plan */}
-          {!(step === 'plan' && !selectedPlan) && (
+          {!(step === FORM_STEPS.PLAN && !selectedPlan) && (
             <FormFooter 
-              step={selectedPlan ? 'expense' : step} 
+              step={selectedPlan ? REQUEST_TYPES.EXPENSE : step} 
               loading={loading}
               formIsValid={formIsValid}
               onCancel={handleCancel} 
               onSubmit={handleSubmit} 
-              testIdPrefix="expense"
+              testIdPrefix={REQUEST_TYPES.EXPENSE}
               additionalData={additionalData}
             />
           )}
@@ -467,7 +467,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         <FormFooter 
           step={step} 
           onCancel={handleCancel} 
-          testIdPrefix="expense"
+          testIdPrefix={REQUEST_TYPES.EXPENSE}
           additionalData={additionalData}
         />
       </>

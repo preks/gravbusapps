@@ -10,7 +10,7 @@ import { FormFooter, ExpenseFormContent } from './components';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 
 import { showToast } from '../../utils/notificationUtils';
-import { FORM_STEPS, PLAN_TYPES, PLAN_STATUS} from './constants/constants';
+import { FORM_STEPS, PLAN_TYPES, PLAN_STATUS, DISABLED_FLAG, SUBMIT_SUCCESS_RESET_TIMEOUT, ABORT_EXIT_STRATEGY } from './constants/constants';
 import { EVENTS } from '../../utils/constants';
 import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getCatalogTypeTransformer } from '../expense-request/utils/planUtils';
@@ -54,12 +54,12 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
   
   const isExpenseDisabled = React.useMemo(() => {
     const expenseType = getCatalogTypeTransformer(PLAN_TYPES.EXPENSE, expenseCatalogueData);
-    return expenseType?.additionalValue1 === "disabled";
+    return expenseType?.additionalValue1 === DISABLED_FLAG;
   }, [expenseCatalogueData]);
   
   const isTripDisabled = React.useMemo(() => {
     const tripType = getCatalogTypeTransformer(PLAN_TYPES.TRIP, expenseCatalogueData);
-    return tripType?.additionalValue1 === "disabled";
+    return tripType?.additionalValue1 === DISABLED_FLAG;
   }, [expenseCatalogueData]);
   
   const handleExpenseClick = () => {
@@ -82,7 +82,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       dispatchProcessContinueEventIfEnabled(
         EVENTS.ABORT, {
           "event": EVENTS.ABORT,
-          pso_exitStrategy: "abort",
+          pso_exitStrategy: ABORT_EXIT_STRATEGY,
           pso_completeNotification: {
             type: 'error',
             messageKey: getTranslationFromI18nKeyAndLabel(
@@ -161,7 +161,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         setTimeout(()=>{
           form.resetFields();
         setStep(FORM_STEPS.START);
-        }, 3000)
+        }, SUBMIT_SUCCESS_RESET_TIMEOUT)
       }
     } catch (error) {
       showToast(
@@ -175,7 +175,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
   return (
     <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-plan-main-container">
-      {step === 'expense' || step === 'trip' ? (
+      {step === FORM_STEPS.EXPENSE || step === FORM_STEPS.TRIP ? (
         <>
           {/* Expense form header */}
           <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-plan-form-header-container">
