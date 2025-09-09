@@ -146,21 +146,35 @@ definitions:
         artifacts:
           - changed-tsx.txt
           - manual-screens.txt
+    - step: &sonar_scan
+        name: Sonar scan
+        size: 2x
+        clone:
+          enabled: true
+          depth: full # SonarCloud scanner needs the full history to assign issues properly
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - pipe: sonarsource/sonarcloud-scan:4.1.0
 
 pipelines:
   pull-requests:
     '**':
       - step: *install_dependencies
       - step: *build-validate-screens
+      - step: *sonar_scan
 
   branches:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-
+      - step: *sonar_scan
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
+      - step: *sonar_scan
 
     main:
       - step: *install_dependencies
