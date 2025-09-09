@@ -22,6 +22,7 @@ export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
   onNavigateToReports?: () => void;
   onNavigateToAnalytics?: () => void;
+  moduleColor?: string;
 }
 
 // Define a type for recent requests if not already available from the hook
@@ -51,6 +52,7 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
+  const { moduleColor } = props;
   // Get manager ID from props
   const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || "";
   const accessToken = props.accessToken || "";
@@ -250,7 +252,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           </h3>
           <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
             {quickActions.map((action) => {
-              const IconComponent = action.icon;
               return (
                 <Card
                   key={action.key}
@@ -260,7 +261,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                 >
                   <CardContent className="gba:p-6">
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <IconComponent className={`gba:text-2xl ${action.iconColor} gba:mr-3`} />
+                      <Icon
+                        icon={action.icon}
+                        className={`gba:text-2xl ${action.iconColor} gba:mr-3`}
+                      />
                       <h4 className="gba:text-base gba:font-semibold gba:m-0">{action.title}</h4>
                     </div>
                     <p className="gba:text-sm gba:text-muted-foreground gba:m-0">
@@ -417,6 +421,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
               "Monthly Expense Trends",
             )}
             currencyFilter={chartCurrency}
+            moduleColor={moduleColor}
           />
         </div>
       </div>

@@ -498,7 +498,9 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 title={getTranslationFromI18nKeyAndLabel('flow.creator.assignmentInfo', 'Assignment Information')}
                 trigger="hover"
                 zIndex={9999}
-                overlayStyle={{ zIndex: 9999 }}
+                styles={{
+                  root: { zIndex: 9999 }
+                }}
               >
                 <InfoCircleOutlined className="gba:text-gray-400 gba:cursor-help" />
               </Popover>

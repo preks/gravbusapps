@@ -77,65 +77,11 @@ const CompanyInformationSection: React.FC = () => {
     revenueSizesTotalFetched,
     loadMoreRevenueSizes,
 
-    // ✅ ADDED: Time Zones
     timeZones,
     timeZonesLoading,
     timeZonesHasMore,
     loadMoreTimeZones,
   } = useLeadFormContext();
-
-  // ✅ DEBUG: Add debug logging for form values
-  useEffect(() => {
-    console.log("🔍 CompanyInformationSection Debug - Form Values:", {
-      legalForm: formValues.legalForm,
-      industry: formValues.industry,
-      numberOfEmployees: formValues.numberOfEmployees,
-      annualRevenue: formValues.annualRevenue,
-      timeZone: formValues.timeZone,
-      legalFormsCount: legalForms?.length || 0,
-      industriesCount: industries?.length || 0,
-      employeeSizesCount: employeeSizes?.length || 0,
-      revenueSizesCount: revenueSizes?.length || 0,
-      timeZonesCount: timeZones?.length || 0,
-      // Check if values match any options
-      legalFormMatch: legalForms?.find(
-        (opt) =>
-          opt.value === formValues.legalForm || opt.id === formValues.legalForm
-      ),
-      industryMatch: industries?.find(
-        (opt) =>
-          opt.value === formValues.industry || opt.id === formValues.industry
-      ),
-      employeeSizeMatch: employeeSizes?.find(
-        (opt) =>
-          opt.value === formValues.numberOfEmployees ||
-          opt.id === formValues.numberOfEmployees
-      ),
-      revenueSizeMatch: revenueSizes?.find(
-        (opt) =>
-          opt.value === formValues.annualRevenue ||
-          opt.id === formValues.annualRevenue
-      ),
-      timeZoneMatch: timeZones?.find(
-        (opt) =>
-          opt.value === formValues.timeZone || opt.id === formValues.timeZone
-      ),
-      // ✅ DEBUG: Check first few options to verify catalog content after fix
-      employeeSizesFirst3: employeeSizes?.slice(0, 3) || [],
-      revenueSizesFirst3: revenueSizes?.slice(0, 3) || [],
-    });
-  }, [
-    formValues.legalForm,
-    formValues.industry,
-    formValues.numberOfEmployees,
-    formValues.annualRevenue,
-    formValues.timeZone,
-    legalForms,
-    industries,
-    employeeSizes,
-    revenueSizes,
-    timeZones,
-  ]);
 
   // Simple effect to load more legal forms when needed
   useEffect(() => {
@@ -153,9 +99,6 @@ const CompanyInformationSection: React.FC = () => {
   // Simple effect to load more industries when needed
   useEffect(() => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      console.log(
-        `🚀 Auto-loading more industries from API (${industriesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreIndustries();
     }
   }, [
@@ -189,9 +132,6 @@ const CompanyInformationSection: React.FC = () => {
       industriesDisplayCount < industriesTotalFetched &&
       industriesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Industry dropdown opened - showing more from cache (${industriesDisplayCount}/${industriesTotalFetched})`
-      );
       showMoreIndustries();
     }
   }, [
@@ -208,9 +148,6 @@ const CompanyInformationSection: React.FC = () => {
       !employeeSizesLoading &&
       employeeSizesHasMore
     ) {
-      console.log(
-        `🚀 Auto-loading more employee sizes from API (${employeeSizesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreEmployeeSizes();
     }
   }, [
@@ -230,9 +167,7 @@ const CompanyInformationSection: React.FC = () => {
       !revenueSizesLoading &&
       revenueSizesHasMore
     ) {
-      console.log(
-        `🚀 Auto-loading more revenue sizes from API (${revenueSizesTotalFetched} fetched so far, loading 100 more)`
-      );
+
       loadMoreRevenueSizes();
     }
   }, [
@@ -247,28 +182,16 @@ const CompanyInformationSection: React.FC = () => {
 
   const handleLoadMoreLegalForms = () => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 legal forms from API`
-      );
       loadMoreLegalForms();
     } else if (legalFormsDisplayCount < legalFormsTotalFetched) {
-      console.log(
-        `🚀 Manual load more - showing more legal forms from cache (${legalFormsDisplayCount}/${legalFormsTotalFetched})`
-      );
       showMoreLegalForms();
     }
   };
 
   const handleLoadMoreIndustries = () => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 industries from API`
-      );
       loadMoreIndustries();
     } else if (industriesDisplayCount < industriesTotalFetched) {
-      console.log(
-        `🚀 Manual load more - showing more industries from cache (${industriesDisplayCount}/${industriesTotalFetched})`
-      );
       showMoreIndustries();
     }
   };
@@ -299,6 +222,7 @@ const CompanyInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
@@ -474,6 +398,7 @@ const CompanyInformationSection: React.FC = () => {
             }}
           >
             <Button
+              type="button"
               variant="ghost"
               onClick={() =>
                 setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)

@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Button, List, Spin, Alert, Empty, message, Timeline, Typography } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
-import { useGetSalesActivities, SalesActivityData } from '../queries/OpportunityActivityQueries';
+import { useGetInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentActivities';
+import type { InvestmentActivity as SalesActivityData } from '@/common/data/investment/types';
 
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useAiSummary } from '../hooks/useAiSummary';
 import { useSalesManagerEmployees } from '../hooks/useSalesManagerEmployees';
 import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { ActivityDeletionPopup } from '@/common/components';
 
 const { Text } = Typography;
 
@@ -51,13 +54,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
 
-  const { fetchSalesActivities } = useGetSalesActivities(context);
+  const { fetchInvestmentActivities } = useGetInvestmentActivities(context);
   const { fetchSalesTasks } = useGetSalesTasks(context);
-  const { salesManagers, loading: salesManagersLoading, error: salesManagersError } = useSalesManagerEmployees(context.accessToken);
+  const { error: salesManagersError } = useSalesManagerEmployees(context.accessToken);
   const graphqlClient = useGraphQLClient(context.accessToken);
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
 
   // Listen for process completion to refetch approval tasks
@@ -81,9 +83,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     setActivitiesError(null);
 
     try {
-      const result = await fetchSalesActivities({ opportunityId });
+      const result = await fetchInvestmentActivities({ opportunityId });
       // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => {
+      const sortedActivities = (result.InvestmentActivity || []).sort((a, b) => {
         const dateA = new Date(a.occurredAt || a.createdAt).getTime();
         const dateB = new Date(b.occurredAt || b.createdAt).getTime();
         return dateB - dateA;
@@ -359,18 +361,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     };
   }, [opportunityId]);
 
-  const handleAddActivity = () => {
-    if (opportunityId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesActivity',
-        payload: {
-          opportunityId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  
 
   const handleRequestApproval = () => {
     if (opportunityId) {
@@ -389,41 +380,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
 
 
 
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({ open: false });
+
   const handleDeleteActivity = (activity: SalesActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
-            changeMode: "DELETE",
-            salesActivity: {
-              id: activity.id,
-              version: activity.version,
-              opportunity: opportunityId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-
-          // Remove the activity from both states
-          setActivities(prevActivities =>
-            prevActivities.filter(a => a.id !== activity.id)
-          );
-
-          // Also remove from original activities ref
-          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+    setDeletePopup({ open: true, activity });
   };
 
   const handleDeleteTask = (task: SalesTaskData) => {
@@ -579,14 +539,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                 />
               )}
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.createInvestmentActivity]}
+              externalContextData={{ 
+                opportunityId, 
+                opportunity: opportunityId,
+                investmentActivity: { opportunity: opportunityId }
+              }}
+              prefixDataTestId="add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -702,14 +674,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentTaskCreate]}
+              externalContextData={{
+                opportunityId,
+                typeRef: 'SalesTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="irm-opportunity-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -836,6 +819,27 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
           </div>
         </div>
       )}
+
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity!.title}
+          opportunityId={opportunityId}
+          domain="investments"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
 
       {/* Documents functionality moved to separate Documents tab */}
 

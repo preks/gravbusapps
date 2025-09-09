@@ -1,13 +1,14 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import { PipelineStatistics, PipelineStatisticsMetrics } from './widgets/PipelineStatistics';
+import { OpportunityFunnel, OpportunityFunnelData } from './widgets/OpportunityFunnel';
+import { ConversionPerformance, WinRateMetrics } from './widgets/ConversionPerformance';
+import { ActivityVolume, ActivityVolumeMetrics } from './widgets/ActivityVolume';
+import { PerformanceLeaderboard, SalesRepPerformance } from './widgets/PerformanceLeaderboard';
 
 export interface PipelineTabLayoutProps {
-  headerLeft: React.ReactNode;                 // Optional header content (e.g., icon/title) if needed
-  metrics: React.ReactNode;                    // PipelineStatistics
-  leftTop: React.ReactNode;                    // OpportunityFunnel
-  leftBottom: React.ReactNode;                 // ConversionPerformance
-  rightTop: React.ReactNode;                   // ActivityVolume
-  rightBottom: React.ReactNode;                // PerformanceLeaderboard
+  moduleColor?: string;
+  headerLeft?: React.ReactNode;                 // Optional header content (e.g., icon/title) if needed
 
   // Pipeline selector ownership here
   pipelines?: Array<{ id: string; name: string }>;
@@ -16,22 +17,34 @@ export interface PipelineTabLayoutProps {
   pipelineHeaderBadges?: { label: string; variant?: 'default' | 'secondary' | 'outline' }[];
   pipelineTitle?: string;
   pipelineDescription?: string;
+  
+  // Data props for widgets
+  pipelineId: string;
+  metrics: PipelineStatisticsMetrics;
+  funnelData: OpportunityFunnelData[];
+  winRateMetrics: WinRateMetrics;
+  activityVolume: ActivityVolumeMetrics;
+  leaderboard: SalesRepPerformance[];
 }
 
 export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
+  moduleColor = "default",
   headerLeft,
-  metrics,
-  leftTop,
-  leftBottom,
-  rightTop,
-  rightBottom,
   pipelines,
   selectedPipelineId,
   onPipelineChange,
   pipelineHeaderBadges,
   pipelineTitle,
   pipelineDescription,
+  pipelineId,
+  metrics,
+  funnelData,
+  winRateMetrics,
+  activityVolume,
+  leaderboard,
 }) => {
+  // Remove unused variable warning
+  const _ = moduleColor;
   return (
     <div className="gba:space-y-6">
       {/* Pipeline Header */}
@@ -86,20 +99,20 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
       </Card>
 
       {/* KPI Overview Grid */}
-      {metrics}
+      <PipelineStatistics pipelineId={pipelineId} metrics={metrics} />
 
       {/* Main Components Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
         {/* Left Column */}
         <div className="gba:space-y-6">
-          {leftTop}
-          {leftBottom}
+          <OpportunityFunnel funnelData={funnelData} pipelineId={pipelineId} />
+          <ConversionPerformance winRateMetrics={winRateMetrics} pipelineId={pipelineId} />
         </div>
 
         {/* Right Column */}
         <div className="gba:space-y-6">
-          {rightTop}
-          {rightBottom}
+          <ActivityVolume activityVolume={activityVolume} pipelineId={pipelineId} />
+          <PerformanceLeaderboard leaderboard={leaderboard} pipelineId={pipelineId} />
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ interface InvestmentOpportunityFormProps {
   initialValues?: Partial<InvestmentOpportunityFormValues>;
   onSubmit?: (values: InvestmentOpportunityFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean;
 }
 
 const InvestmentOpportunityForm: React.FC<
@@ -16,6 +17,7 @@ const InvestmentOpportunityForm: React.FC<
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
   accessToken,
   userInfo,
   additionalData,
@@ -43,6 +45,7 @@ const InvestmentOpportunityForm: React.FC<
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
+      hideActions={hideActions}
     >
       <OpportunityFormComponent />
     </OpportunityFormProvider>

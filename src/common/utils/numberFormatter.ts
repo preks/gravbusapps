@@ -53,4 +53,28 @@ export const formatCompactCurrency = (
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(amount as number);
 };
 
+/**
+ * Format percentage with specified decimal places
+ * @param value - The numeric value to format as percentage
+ * @param decimals - Number of decimal places (default: 1)
+ * @returns Formatted percentage string
+ */
+export const formatPercentage = (value: number | null | undefined, decimals: number = 1): string => {
+  if (value === null || value === undefined || !isFinite(value)) {
+    return '0%';
+  }
+  return `${value.toFixed(decimals)}%`;
+};
+
+/**
+ * Extract currency code from reference string (e.g., "Currency:v1:EUR" -> "EUR")
+ * Common pattern in business applications
+ * @param currencyRef - Currency reference string
+ * @returns Currency code or default
+ */
+export const extractCurrencyCode = (currencyRef: string | null | undefined): string => {
+  if (!currencyRef) return 'EUR';
+  return currencyRef.split(':').pop() || 'EUR';
+};
+
 

@@ -3,7 +3,7 @@ import { Button, Card, CardContent } from '@newwork/nw-design-system';
 import { EditOutlined, CloseOutlined, UserOutlined, CalendarOutlined, PlusCircleOutlined, BellOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
@@ -25,9 +25,10 @@ interface NoteSectionProps extends BusinessAppContextProps {
   demo?: boolean;
   notes?: NoteItem[];
   'data-testid'?: string;
+  noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp }) => {
+const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp, noteActionProps }) => {
   const defaultNotes: NoteItem[] = [
     {
       id: 'n1',
@@ -50,7 +51,8 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
   ];
   const notes = notesProp && notesProp.length ? notesProp : defaultNotes;
 
-  const externalContextData = accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {};
+  const externalContextData = noteActionProps?.externalContextData
+    || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {});
 
   return (
     <div className="gba:notes-content" data-testid="note-section">
@@ -58,10 +60,10 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
         <div className="gba:text-lg gba:font-medium">Notes</div>
         <AppAction
           accessToken={accessToken}
-          contextsArray={[FlowContextName.investmentNoteEntity]}
+          contextsArray={noteActionProps?.contextsArray}
           externalContextData={externalContextData}
-          prefixDataTestId="notes"
-          emptyStateBehavior="enable"
+          prefixDataTestId={noteActionProps?.prefixDataTestId || 'notes'}
+          emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
         >
           <Button data-testid="add-note-button"><span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Note</span></Button>
         </AppAction>
@@ -90,10 +92,10 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
                   <div className="gba:flex gba:items-center gba:gap-3 gba:shrink-0">
                     <AppAction
                       accessToken={accessToken}
-                      contextsArray={[FlowContextName.investmentNoteEntity]}
+                      contextsArray={noteActionProps?.contextsArray}
                       externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId="notes-edit"
-                      emptyStateBehavior="enable"
+                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-edit` : 'notes-edit'}
+                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
                     >
                       <span
                         aria-label="Edit note"
@@ -105,10 +107,10 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
                     </AppAction>
                     <AppAction
                       accessToken={accessToken}
-                      contextsArray={[FlowContextName.investmentNoteEntity]}
+                      contextsArray={noteActionProps?.contextsArray}
                       externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId="notes-delete"
-                      emptyStateBehavior="enable"
+                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-delete` : 'notes-delete'}
+                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
                     >
                       <span
                         aria-label="Delete note"

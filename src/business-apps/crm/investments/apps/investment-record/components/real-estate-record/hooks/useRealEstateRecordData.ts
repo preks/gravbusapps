@@ -29,23 +29,21 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
 
       if (!result.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
+        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
 
-      const rawRei = (result.investment as any).realEstateInvestment;
-      const normalizedRei = Array.isArray(rawRei) ? (rawRei[0] || null) : rawRei;
+      // Check if this investment has real estate-specific data (array format)
+      const realEstateInvestmentArray = (result.investment as any).realEstateInvestment;
+      const hasRealEstateData = realEstateInvestmentArray && 
+                               Array.isArray(realEstateInvestmentArray) && 
+                               realEstateInvestmentArray.length > 0;
 
-      const hasRealEstateData = !!(normalizedRei && Object.keys(normalizedRei).length > 0);
-      if (!hasRealEstateData) {
-        const errorMsg = `Investment ${investmentId} is not a real estate investment or has no real estate-specific data`;
-        setError(errorMsg);
-        return;
-      }
-
+      // Always create the real estate data structure, even without real estate-specific data
       const realEstateInvestmentData: RealEstateInvestmentData = {
         investment: result.investment,
-        realEstateInvestment: normalizedRei
+        realEstateInvestment: hasRealEstateData ? realEstateInvestmentArray[0] : undefined
       };
 
       setRealEstateData(realEstateInvestmentData);
@@ -59,6 +57,73 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
 
   useEffect(() => {
     fetchRealEstateData();
+  }, [fetchRealEstateData]);
+
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('RealEstateRecordData: Process completion event received:', event.type, event.detail);
+        
+        // Skip immediate form submission events from AppActionForm to avoid double refresh
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.event === 'pse_submit') {
+          console.log('RealEstateRecordData: Skipping immediate form submission event to avoid double refresh');
+          return;
+        }
+        
+        // Check for successful completion from backend
+        if (event.detail?.resolution === 'success') {
+          console.log('RealEstateRecordData: Backend process completed successfully, refreshing real estate investment data');
+          fetchRealEstateData();
+          return;
+        }
+        
+        // Check for different event structures - specifically for real estate investments
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || 
+            response?.investment || 
+            response?.realEstateInvestment) {
+          console.log('RealEstateRecordData: Real estate investment data detected from backend, refreshing record');
+          fetchRealEstateData();
+          return;
+        }
+        
+        // Check for continue events with actual backend payload (not form submission)
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.payload && 
+            event.detail?.event !== 'pse_submit') {
+          console.log('RealEstateRecordData: Backend continue event with payload detected, refreshing data');
+          fetchRealEstateData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in RealEstateRecordData:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
   }, [fetchRealEstateData]);
 
   return {

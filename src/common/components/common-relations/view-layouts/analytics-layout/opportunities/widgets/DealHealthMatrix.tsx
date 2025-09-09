@@ -1,7 +1,19 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system';
-import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  Badge,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+} from '@newwork/nw-design-system';
+import { ScatterChart, Scatter, XAxis, YAxis } from 'recharts';
 import { HeartOutlined, WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { HeartIcon } from '@phosphor-icons/react';
 
 export interface DealHealthItem {
   id: string;
@@ -23,30 +35,57 @@ export interface DealHealthData {
 
 interface DealHealthMatrixProps {
   data: DealHealthData;
+  moduleColor?: string;
 }
 
-export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data }) => {
+export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
   const [selectedCategory, setSelectedCategory] = React.useState<'all' | DealHealthItem['healthCategory']>('all');
 
   const filteredData = useMemo(() => (selectedCategory === 'all' ? data.matrixData : data.matrixData.filter((d) => d.healthCategory === selectedCategory)), [selectedCategory, data]);
 
-  const getHealthColor = (category: string) => {
-    switch (category) {
-      case 'excellent': return '#10B981';
-      case 'healthy': return '#3B82F6';
-      case 'warning': return '#F59E0B';
-      case 'critical': return '#EF4444';
-      default: return '#6B7280';
-    }
-  };
+  const chartConfig = useMemo(() => ({
+    excellent: {
+      label: "Excellent",
+      color: "var(--nw-color-success)",
+    },
+    healthy: {
+      label: "Healthy", 
+      color: "var(--nw-color-info)",
+    },
+    warning: {
+      label: "Warning",
+      color: "var(--nw-color-warning)",
+    },
+    critical: {
+      label: "Critical",
+      color: "var(--nw-color-destructive)",
+    },
+  } satisfies ChartConfig), []);
+
+  const chartData = useMemo(() => {
+    return filteredData.map(item => ({
+      ...item,
+      fill: `var(--color-${item.healthCategory})`,
+    }));
+  }, [filteredData]);
 
   return (
     <Card data-testid="deal-health-matrix">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <HeartOutlined />
-          Deal Health Matrix
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={HeartIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Deal Health Matrix</CardTitle>
+          <CardDescription>Opportunity health analysis and risk assessment</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4 gba:mb-6">
@@ -69,32 +108,31 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data }) => {
         </div>
 
         <div className="gba:h-80 gba:mb-6">
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart data={filteredData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+          <ChartContainer config={chartConfig} className="gba:w-full gba:h-full">
+            <ScatterChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
               <XAxis type="number" dataKey="winningChance" name="Win Chance %" unit="%" domain={[0, 100]} />
               <YAxis type="number" dataKey="healthScore" name="Health Score" domain={[0, 100]} />
-              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
-                if (active && payload && payload.length > 0) {
-                  const d = payload[0].payload as DealHealthItem;
-                  return (
-                    <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
-                      <p className="gba:font-medium">{d.name}</p>
-                      <p className="gba:text-sm gba:text-gray-600">Health Score: {d.healthScore}/100</p>
-                      <p className="gba:text-sm gba:text-gray-600">Win Chance: {d.winningChance}%</p>
-                      <p className="gba:text-sm gba:text-gray-600">Value: €{d.estimatedAmount.toLocaleString()}</p>
-                      <p className="gba:text-sm gba:text-gray-600">Days in Pipeline: {d.daysInPipeline}</p>
-                    </div>
-                  );
-                }
-                return null;
-              }} />
-              <Scatter name="Deals" dataKey="estimatedAmount" fill="#8884d8">
-                {filteredData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getHealthColor(entry.healthCategory)} />
-                ))}
-              </Scatter>
+              <ChartTooltip 
+                cursor={{ strokeDasharray: '3 3' }} 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length > 0) {
+                    const d = payload[0].payload as DealHealthItem;
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+                        <p className="gba:font-medium">{d.name}</p>
+                        <p className="gba:text-sm gba:text-gray-600">Health Score: {d.healthScore}/100</p>
+                        <p className="gba:text-sm gba:text-gray-600">Win Chance: {d.winningChance}%</p>
+                        <p className="gba:text-sm gba:text-gray-600">Value: €{d.estimatedAmount.toLocaleString()}</p>
+                        <p className="gba:text-sm gba:text-gray-600">Days in Pipeline: {d.daysInPipeline}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Scatter name="Deals" dataKey="estimatedAmount" />
             </ScatterChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </div>
 
         {(selectedCategory === 'all' || selectedCategory === 'critical') && (

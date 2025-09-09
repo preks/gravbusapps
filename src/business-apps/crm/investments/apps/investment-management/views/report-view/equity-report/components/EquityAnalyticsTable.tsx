@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -11,18 +11,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Badge
+  Badge,
+  Button
 } from '@newwork/nw-design-system';
-import { Spin, Alert } from 'antd';
+import { Spin } from 'antd';
 import { 
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  PieChart,
-  ExternalLink
+  PieChart
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useEquityAnalyticsIntegration } from '../hooks';
+import { useEquityAnalyticsIntegration } from "../hooks/useEquityAnalyticsIntegration";
 import { EquityAnalyticsFilters } from '../types';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
@@ -41,23 +41,26 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
   investmentType,
   title
 }) => {
-  // Use real data integration hook
+  // Create stable filters object to prevent infinite loops
+  const stableFilters = useMemo(() => ({
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    currency: filters.currency,
+    fundManagerName: filters.fundManagerName,
+    investmentType: investmentType
+  }), [filters.startDate, filters.endDate, filters.currency, filters.fundManagerName, investmentType]);
+
+  // Use the new report-based data source
   const {
     analyticsData,
+    totalCount,
     isLoading,
     error,
-    totalCount,
     refetch
   } = useEquityAnalyticsIntegration({
     accessToken,
     userInfo,
-    filters,
-    options: {
-      page: 1,
-      pageSize: 1000, // Load all available data without artificial limits
-      sortBy: 'date',
-      sortOrder: 'DESC'
-    }
+    filters: stableFilters
   });
 
   const formatCurrency = (amount: number, currency: string = filters.currency || 'EUR'): string => {
@@ -120,17 +123,15 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
     );
   };
 
-  const handleInvestmentClick = (investmentId: string) => {
-    try {
-      // Navigate to investment record view
-      const investmentUrl = buildPlatformUrl('/platform/irm/investment-record', {
-        investmentId: investmentId
-      });
-      navigateTo(investmentUrl);
-    } catch (error) {
-      console.error('Error navigating to investment detail:', error);
-    }
-  };
+  // Handle row click navigation
+  const handleRowClick = useCallback((investmentId: string) => {
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'reports',
+      fromSubView: 'equity'
+    });
+    navigateTo(detailsUrl);
+  }, []);
 
   const hasData = !isLoading && !error && analyticsData.length > 0;
 
@@ -144,19 +145,18 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
 
   if (error) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-error`}>
-        <Alert
-          message="Error Loading Equity Analytics Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <button onClick={refetch} className="gba:text-blue-600 hover:gba:text-blue-800">
-              <RefreshCw className="gba:h-4 gba:w-4" />
-            </button>
-          }
-        />
-      </div>
+      <Card>
+        <CardContent className="gba:p-6">
+          <div className="gba:text-center gba:text-red-600">
+            <PieChart className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4" />
+            <p className="gba:font-medium">{error}</p>
+            <Button onClick={refetch} className="gba:mt-4">
+              <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -173,18 +173,8 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!hasData ? (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${dataTestId}-empty-state`}>
-            <PieChart className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
-            <p className="gba:text-lg gba:font-medium gba:mb-2">No {investmentType} Data Found</p>
-            <p className="gba:text-sm">
-              No equity investment reports are available in the database.
-              Contact your administrator if you expect to see equity data here.
-            </p>
-          </div>
-        ) : (
-          <div className="gba:overflow-x-auto">
-            <Table data-testid={`${dataTestId}-table`}>
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${dataTestId}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Investment</TableHead>
@@ -193,7 +183,6 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Acquisition Date</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Market Value</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">EBITDA</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Forecasted Revenue</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Unrealized Gain</TableHead>
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">EBITDA Margin</TableHead>
               </TableRow>
@@ -201,11 +190,11 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
             <TableBody>
               {analyticsData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="gba:text-center gba:py-12 gba:text-gray-500">
+                  <TableCell colSpan={8} className="gba:text-center gba:py-12 gba:text-gray-500">
                     <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
                       <PieChart className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">No data available</p>
-                      <p className="gba:text-sm">No equity investments found for the selected criteria.</p>
+                      <p className="gba:text-lg gba:font-medium">No {investmentType} Data Found</p>
+                      <p className="gba:text-sm">No equity investment reports are available for {investmentType.toLowerCase()} in the selected time period.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -214,27 +203,14 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                   {analyticsData.map((row, index) => (
                     <TableRow
                       key={row.id}
-                      className="gba:border-b gba:hover:gba:bg-gray-50"
+                      className="gba:cursor-pointer gba:border-b gba:hover:gba:bg-gray-50"
+                      onClick={() => row.investmentId && handleRowClick(row.investmentId)}
                       data-testid={`${dataTestId}-row-${index + 1}`}
                     >
                       <TableCell className="gba:font-medium gba:text-left gba:py-3 gba:px-4">
-                        <div>
-                          {row.investmentId ? (
-                            <button
-                              onClick={() => handleInvestmentClick(row.investmentId!)}
-                              className="gba:text-xs gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
-                              data-testid={`${dataTestId}-investment-link-${row.id}`}
-                            >
-                              🔗 {row.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
-                            </button>
-                          ) : (
-                            <div>
-                              <div className="gba:font-medium">{row.investmentName}</div>
-                              <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                                ❌ No Investment ID Available
-                              </div>
-                            </div>
-                          )}
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <TrendingUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                          <span className="gba:font-medium">{row.investmentName}</span>
                         </div>
                       </TableCell>
                       <TableCell className="gba:text-left gba:py-3 gba:px-4">{row.fundManagerName}</TableCell>
@@ -251,9 +227,6 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
                         {formatCurrency(row.currentEbitda, row.currency)}
                       </TableCell>
                       <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.forecastedRevenue, row.currency)}
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
                         {formatGain(row.unrealizedGain, row.currency)}
                       </TableCell>
                       <TableCell className="gba:text-center gba:py-3 gba:px-4">
@@ -265,8 +238,7 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
               )}
             </TableBody>
           </Table>
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

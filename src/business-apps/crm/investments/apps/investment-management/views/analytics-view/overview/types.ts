@@ -3,7 +3,7 @@ export interface InvestmentSummary {}
 export interface InvestmentPortfolioKPIs {
   totalPortfolioValue: number;
   totalInvestments: number;
-  averageROI: number;
+  totalAmountInvested: number;
   activeInvestments: number;
 }
 

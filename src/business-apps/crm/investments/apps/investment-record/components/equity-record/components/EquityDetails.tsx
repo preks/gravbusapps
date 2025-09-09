@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
 import { BarChart3 } from 'lucide-react';
-import { formatCurrency, formatPercentage } from '../../../utils/formatters';
+import { formatCurrency, formatPercentage, formatDate as formatCentralDate } from '@/common/data/investment';
 import { EquityInvestmentRecord } from '../types';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 
@@ -32,11 +32,11 @@ const EquityDetails: React.FC<EquityDetailsProps> = ({ data, equityData, isLoadi
     return new Intl.NumberFormat('de-DE').format(value);
   };
 
-  // Helper function to format dates
+  // Helper function to format dates using central formatter
   const formatDate = (dateString: string | null | undefined): string => {
     if (dateString === null) return '-'; // Schema field with null value
     if (!dateString) return 'N/A'; // Field not in schema
-    return new Date(dateString).toLocaleDateString('de-DE');
+    return formatCentralDate(dateString, 'L', '-');
   };
 
   // Helper function to format strings

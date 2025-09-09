@@ -14,7 +14,7 @@ import { TeamCoverageOptimizerPage } from './components/pages/TeamCoverageOptimi
 import { AbsenceListPage } from './components/pages/AbsenceListPage';
 import { MODULE_COLORS } from '@/common/constants/ui';
 
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 
 export interface ManagerAbsencesProps extends BusinessAppContextProps {}
 

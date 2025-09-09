@@ -1,23 +1,23 @@
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { EnhancedLiquidFundInvestmentSummary } from '../types';
+import { LiquidFundInvestmentSummary } from '../../shared/types';
 
-export const useLiquidFundChartData = (liquidFundInvestments: EnhancedLiquidFundInvestmentSummary[]) => {
+export const useLiquidFundChartData = (liquidFundInvestments: LiquidFundInvestmentSummary[]) => {
   return useMemo(() => {
     // Interest rate distribution data
     const interestRateData = liquidFundInvestments.map(fund => ({
       name: fund.displayName,
-      value: fund.interestRate || 0,
+      value: fund.liquidFundInvestment?.interestRate || 0,
       color: fund.fundTypeColor
     }));
 
     // Maturity timeline data
     const maturityTimelineData = liquidFundInvestments
-      .filter(fund => fund.maturityDate)
+      .filter(fund => fund.liquidFundInvestment?.maturityDate)
       .map(fund => ({
         name: fund.displayName,
-        maturityYear: dayjs(fund.maturityDate).year(),
-        value: fund.investment.marketValue || fund.investment.bookValue || 0,
+        maturityYear: dayjs(fund.liquidFundInvestment!.maturityDate!).year(),
+        value: fund.investment.investmentMarketValue || fund.investment.bookValue || 0,
         isNearMaturity: fund.isNearMaturity
       }))
       .reduce((acc, curr) => {

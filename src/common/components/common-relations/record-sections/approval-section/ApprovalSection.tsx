@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button, TimelineLayout } from '@newwork/nw-design-system';
 import { AppAction } from '@/components/app-action';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 type ApprovalDemoItem = { id: string | number; title: string; status?: string; date?: string; actor?: string };
@@ -14,16 +14,12 @@ interface ApprovalSectionProps extends BusinessAppContextProps {
   demo?: boolean;
   demoApprovals?: ApprovalDemoItem[];
   'data-testid'?: string;
+  approvalActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const ApprovalSection: React.FC<ApprovalSectionProps> = ({ accountId, contactId, opportunityId, leadId, accessToken, demo, demoApprovals, ...rest }) => {
-  const entityContext = accountId ? FlowContextName.customerAccountEntity
-    : contactId ? FlowContextName.customerAccountEntity
-    : opportunityId ? FlowContextName.customerOpportunityEntity
-    : leadId ? FlowContextName.customerLeadEntity
-    : FlowContextName.customerAccountEntity;
-
-  const externalContextData = accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {};
+const ApprovalSection: React.FC<ApprovalSectionProps> = ({ accountId, contactId, opportunityId, leadId, accessToken, demo, demoApprovals, approvalActionProps, ...rest }) => {
+  const externalContextData = approvalActionProps?.externalContextData
+    || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {});
 
   const demoItems = demo || Object.keys(externalContextData).length === 0;
 
@@ -40,10 +36,10 @@ const ApprovalSection: React.FC<ApprovalSectionProps> = ({ accountId, contactId,
         <div style={{ fontSize: '18px', fontWeight: 500 }}>Approval Tasks</div>
         <AppAction
           accessToken={accessToken}
-          contextsArray={[entityContext]}
+          contextsArray={approvalActionProps?.contextsArray}
           externalContextData={externalContextData}
-          prefixDataTestId="approvals"
-          emptyStateBehavior="enable"
+          prefixDataTestId={approvalActionProps?.prefixDataTestId || 'approvals'}
+          emptyStateBehavior={approvalActionProps?.emptyStateBehavior || 'enable'}
         >
           <Button data-testid="request-approval-button">Request Approval</Button>
         </AppAction>

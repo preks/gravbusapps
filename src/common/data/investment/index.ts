@@ -19,6 +19,8 @@ export * from './utils';
 // Export payload builders
 export * from './payloads';
 
+// Note: Components moved to investment-record/components/shared
+
 // Re-export commonly used items for convenience
 export type {
   // Core types
@@ -104,6 +106,15 @@ export {
   GET_EQUITY_INVESTMENT_ROUNDS,
   GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS
 } from './queries';
+
+// Export commonly used mappers
+export {
+  toInvestment,
+  toEquityInvestment,
+  toRealEstateInvestment,
+  toLiquidFundInvestment,
+  toLiquidFundInvestments
+} from './mappers';
 
 
 

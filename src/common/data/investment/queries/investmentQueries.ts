@@ -2,7 +2,7 @@
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentRelationFragments';
+import { INVESTMENT_OPPORTUNITY_REF, INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -173,6 +173,12 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           id
           buildingYear
           annualNetColdRent
+          actualAnnualExpenses
+          occupancyPercent
+          locality
+          country {
+            ${CATALOG_ENTRY}
+          }
         }
         
         # Liquid Fund Investment specialization
@@ -182,12 +188,171 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           bankAccountNumber
           earlyTerminationAllowed
           interestRate
+          investmentLiquidFundType {
+            ${CATALOG_ENTRY}
+          }
         }
       }
       
       InvestmentAggregate(${where}) {
         aggregate {
           count
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Activities by Investment ID
+export const GET_INVESTMENT_ACTIVITIES_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentActivitiesByInvestmentId {
+      InvestmentActivity(
+        where: { 
+          investment: { id: { _eq: "${investmentId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ occurredAt: DESC }]
+      ) {
+        ${INVESTMENT_ACTIVITY}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Tasks by Investment ID
+export const GET_INVESTMENT_TASKS_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentTasksByInvestmentId {
+      InvestmentTask(
+        where: { 
+          investment: { id: { _eq: "${investmentId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_TASK}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Notes by Investment ID
+export const GET_INVESTMENT_NOTES_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentNotesByInvestmentId {
+      InvestmentNote(
+        where: { 
+          investment: { id: { _eq: "${investmentId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_NOTE}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Note by ID
+export const GET_INVESTMENT_NOTE_BY_ID = (noteId: string): string => {
+  return `
+    query GetInvestmentNoteById {
+      InvestmentNote(
+        where: { 
+          id: { _eq: "${noteId}" }, 
+          isDeleted: { _eq: false } 
+        }
+      ) {
+        ${INVESTMENT_NOTE}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+        account {
+          id
+          name
+        }
+        contact {
+          id
+          firstName
+          lastName
+        }
+        lead {
+          id
+          firstName
+          lastName
+        }
+        opportunity {
+          id
+          name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Documents by Investment ID
+export const GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentDocumentsByInvestmentId {
+      InvestmentDocument(
+        where: { 
+          investment: { id: { _eq: "${investmentId}" } }, 
+          isDeleted: { _eq: false } 
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        ${INVESTMENT_DOCUMENT}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+        
+        # Parent document reference (for folders)
+        parentDocument {
+          id
+          name
+          description
+        }
+        
+        # Related activity and task references
+        activity {
+          id
+          title
+          description
+        }
+        task {
+          id
+          name
+          description
         }
       }
     }
@@ -234,13 +399,49 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           }
         }
         
+        # Loan recipient investment account
+        loanRecipientInvestmentAccount {
+          id
+          code
+          name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          ${AUDIT_FIELDS}
+        }
+        
         # All investment specializations with full details
         equityInvestment {
           id
           foundationDate
           marketValue
           ebitdaAmount
+          turnoverAmount
           ${AUDIT_FIELDS}
+          
+          # Investment rounds
+          equityInvestmentRound {
+            id
+            name
+            year
+            preValue
+            investmentVolume
+            volumeShare
+            roundSharePercentage
+            currency {
+              ${CATALOG_ENTRY}
+            }
+            ${AUDIT_FIELDS}
+          }
         }
         
         realEstateInvestment {

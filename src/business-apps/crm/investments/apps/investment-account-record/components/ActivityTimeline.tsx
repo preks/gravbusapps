@@ -3,6 +3,9 @@ import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, Clou
 import { Button, Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -40,6 +43,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({ open: false });
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
   
   // Use the centralized investment data hooks
   const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(context);
@@ -569,14 +574,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
             >
               Activities
             </div>
-            <Button 
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.createInvestmentActivity]}
+              externalContextData={{
+                accountId,
+                account: accountId,
+                investmentActivity: { account: accountId }
+              }}
+              prefixDataTestId="investment-account-add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button 
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -662,7 +679,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                           padding: '4px',
                           lineHeight: 1
                         }}
-                        onClick={() => handleDeleteActivity(activity)}
+                        onClick={() => setDeletePopup({ open: true, activity })}
                         data-testid={`delete-activity-${activity.id}`}
                       />
                     </div>
@@ -696,14 +713,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentTaskCreate]}
+              externalContextData={{
+                accountId,
+                typeRef: 'SalesTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="irm-account-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                data-testid="request-approval-button"
+              >
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -824,7 +852,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                           icon={<CloseOutlined />} 
                           size="small"
                           style={{ padding: '4px', lineHeight: 1 }}
-                          onClick={() => handleDeleteApprovalTask(task)}
+                          onClick={() => setDeleteApprovalPopup({ open: true, task })}
                           data-testid={`delete-approval-task-${task.id}`}
                           title="Delete Task"
                         />
@@ -837,6 +865,56 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
           </div>
         </div>
       )}
+
+      {deletePopup?.open && deletePopup.activity ? (
+        <ActivityDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity?.title || 'Activity'}
+          accountId={accountId}
+          domain="investments"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
+
+      {deleteApprovalPopup?.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: deleteApprovalPopup.task!.version,
+            },
+            accountId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid={`delete-approval-task-popup`}
+        />
+      ) : null}
 
     </div>
   );

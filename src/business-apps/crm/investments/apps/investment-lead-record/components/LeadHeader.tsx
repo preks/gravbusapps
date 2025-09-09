@@ -172,13 +172,12 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
               externalContextData={{
                 leadId: leadId,
               }}
-              staticFlowData={staticActions}
+              //staticFlowData={staticActions}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
               emptyStateBehavior="hide"
               deferMainContextRequestsUntilClick={false}
             >
-              Actions
             </AppActionButton>
           )}
         </div>

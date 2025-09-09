@@ -7,7 +7,6 @@ import {
 } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getDestinationsFromTrips, getDestinationCountriesSummary } from './utils/destinationUtils';
 import { splitExpenseItems } from './utils/expenseItemUtils';
 import { useExpensePlanData } from './hooks/useExpensePlanData';
@@ -26,6 +25,7 @@ import {
   TripSection,
   AllowancesSection
 } from '../../reusable-components/approval';
+import { REQUEST_TYPES } from '../expense-request/constants/constants';
 
 const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ 
   accessToken, 
@@ -46,33 +46,32 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
   const handleApprove = async () => {
     setSubmitting(true);
     try {
-      // Create absence object for approval
-      const absenceObject = {
-        typeRef: "AbsenceType:v1:A101",
-        employeeId: expensePlan?.employee?.id,
-        startDate: expensePlan?.startDate,
-        endDate: expensePlan?.endDate,
-        description: expensePlan?.description,
-        substituteEmployee: "",
-        status: "APPROVED"
-      };
+        // Conditionally add absence object for TRIP plans
+        const isTrip = expensePlan?.requestType?.code === REQUEST_TYPES.TRIP;
 
-             // Create approval payload
-       const approvalPayload = {
-         event: "pse_approve",
-         expensePlanComment: {
-           commentDate: new Date().toISOString().slice(0, 19), // Format: YYYY-MM-DDTHH:mm:ss (without timezone)
-           comment: message.length > 0 ? message : "",
-           commentType: "APPROVE_COMMENT",
-           authorEmployee: userInfo?.employeeDetails?.employeeId,
-           expensePlan: expensePlan?.id
-         },
-         employeeAbsence: absenceObject
-       };
-
-      // Dispatch the approval event
-      dispatchProcessContinueEvent("pse_approve", approvalPayload);
-      
+        // Create approval payload
+        const approvalPayload = {
+          event: "pse_approve",
+          expensePlanComment: {
+            commentDate: new Date().toISOString().slice(0, 19), // Format: YYYY-MM-DDTHH:mm:ss (without timezone)
+            comment: message.length > 0 ? message : "",
+            commentType: "APPROVE_COMMENT",
+            authorEmployee: userInfo?.employeeDetails?.employeeId,
+            expensePlan: expensePlan?.id
+          },
+          ...(isTrip ? { employeeAbsence: {
+            typeRef: "AbsenceType:v1:A101",
+            employeeId: expensePlan?.employee?.id,
+            startDate: expensePlan?.startDate,
+            endDate: expensePlan?.endDate,
+            description: expensePlan?.description,
+            substituteEmployee: "",
+            status: "APPROVED"
+          }} : {})
+        };
+  
+        // Dispatch the approval event
+        dispatchProcessContinueEvent("pse_approve", approvalPayload);
 
     } catch (err) {
       console.error('Error approving expense plan:', err);
@@ -89,22 +88,32 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
     
     setSubmitting(true);
     try {
-             // Create rejection payload
-       const rejectionPayload = {
-         event: "pse_reject",
-         changeMode: "INSERT",
-         expensePlanComment: {
-           commentDate: new Date().toISOString().slice(0, 19), // Format: YYYY-MM-DDTHH:mm:ss (without timezone)
-           comment: message,
-           commentType: "REJECT_COMMENT",
-           authorEmployee: userInfo?.employeeDetails?.employeeId,
-           expensePlan: expensePlan?.id
-         }
-       };
+        // Conditionally add absence object for TRIP plans
+        const isTrip = expensePlan?.requestType?.code === REQUEST_TYPES.TRIP;
 
-      // Dispatch the rejection event
-      dispatchProcessContinueEvent("pse_reject", rejectionPayload);
-      
+        // Create approval payload
+        const approvalPayload = {
+          event: "pse_approve",
+          expensePlanComment: {
+            commentDate: new Date().toISOString().slice(0, 19), // Format: YYYY-MM-DDTHH:mm:ss (without timezone)
+            comment: message.length > 0 ? message : "",
+            commentType: "APPROVE_COMMENT",
+            authorEmployee: userInfo?.employeeDetails?.employeeId,
+            expensePlan: expensePlan?.id
+          },
+          ...(isTrip ? { employeeAbsence: {
+            typeRef: "AbsenceType:v1:A101",
+            employeeId: expensePlan?.employee?.id,
+            startDate: expensePlan?.startDate,
+            endDate: expensePlan?.endDate,
+            description: expensePlan?.description,
+            substituteEmployee: "",
+            status: "APPROVED"
+          }} : {})
+        };
+  
+        // Dispatch the approval event
+        dispatchProcessContinueEvent("pse_approve", approvalPayload);
     } catch (err) {
       console.error('Error returning expense plan:', err);
     } finally {

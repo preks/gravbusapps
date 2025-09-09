@@ -1,57 +1,104 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { ResponsiveContainer, PieChart, Pie, Tooltip, Legend, Cell } from "recharts";
-
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+import React, { useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@newwork/nw-design-system";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@newwork/nw-design-system";
+import { PieChart, Pie } from "recharts";
 
 export interface LeadsBySourceTypeItem { sourceType: string; count: number; }
 
 export interface LeadsBySourceTypePieProps {
   data: LeadsBySourceTypeItem[];
+  moduleColor?: string;
 }
 
-export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({ data }) => {
-  const formatter = (value: number, _name: string, props: any) => {
-    const total = data?.reduce((sum, item) => sum + item.count, 0) || 0;
-    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
-    return [`${value} (${percentage}%)`, props.payload.sourceType];
-  };
+const formatLargeNumber = (value: number): string => {
+  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return value.toString();
+};
 
-  if (!data || data.length === 0) {
-    return (
-      <Card data-testid="leads-by-source-type-chart" className="gba:flex-1 gba:w-1/3">
-        <CardHeader>
-          <CardTitle>Leads by Source Type</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-[300px] gba:text-gray-500">
-            No lead source type data available
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+const toKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+
+export const LeadsBySourceTypePie: React.FC<LeadsBySourceTypePieProps> = ({
+  data,
+  moduleColor,
+}) => {
+  const dataKey = "leads";
+  const nameKey = "sourceType";
+
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item) => {
+      const key = toKey(item.sourceType);
+      return {
+        [nameKey]: key,
+        [dataKey]: item.count,
+        fill: `var(--color-${key})`,
+      } as Record<string, string | number>;
+    });
+  }, [data]);
+
+  const chartConfig = useMemo(() => {
+    if (!data || data.length === 0) return {} as ChartConfig;
+    const config: Record<string, { label?: string }> = {
+      [dataKey]: {},
+    };
+    data.forEach((item) => {
+      const key = toKey(item.sourceType);
+      config[key] = { label: item.sourceType };
+    });
+    return config as ChartConfig;
+  }, [data]);
+
+  const totalLeads = useMemo(() => {
+    return data?.reduce((sum, item) => sum + item.count, 0) || 0;
+  }, [data]);
 
   return (
-    <Card data-testid="leads-by-source-type-chart" className="gba:flex-1 gba:w-1/3">
-      <CardHeader>
-        <CardTitle>Leads by Source Type</CardTitle>
+    <Card data-testid="leads-by-source-type-chart" className="gba:flex gba:flex-col">
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <div>
+          <CardTitle>Leads by Source Type</CardTitle>
+          <CardDescription>Distribution by source type</CardDescription>
+        </div>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+      <CardContent className="gba:flex-1 gba:pb-0">
+        <ChartContainer
+          config={chartConfig}
+          className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[300px] gba:pb-0"
+        >
           <PieChart>
-            <Pie data={data} cx="50%" cy="40%" outerRadius={75} fill="#8884d8" dataKey="count" label={false}>
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={formatter as any} />
-            <Legend verticalAlign="bottom" height={40} formatter={(value, entry: any) => {
-              const payload = entry.payload;
-              return `${payload?.sourceType || 'Unknown'} (${payload?.count || 0})`;
-            }} />
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="40%"
+              outerRadius={75}
+              dataKey={dataKey}
+              nameKey={nameKey}
+            />
+            <ChartTooltip
+              content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />}
+            />
+            <ChartLegend content={<ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />} />
           </PieChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

@@ -17,7 +17,7 @@ import FinancialInformationSection from "./FinancialInformationSection";
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } =
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
     useAccountFormContext();
 
   // Check if all mandatory fields are filled
@@ -193,29 +193,33 @@ const AccountFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? "Update Account" : "Create Account"}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (only shown when not embedded) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={!isFormValid}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            >
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {formValues.id ? "Update Account" : "Create Account"}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,9 @@ import { useExpenseRequestFilters } from "../../../hooks/useExpenseRequestFilter
 import ExpenseRequestStatistics from "./ExpenseRequestStatistics";
 import ExpenseRequestsTable from "./ExpenseRequestsTable";
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
+export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
+  moduleColor?: string;
+}
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const contextProps = useMemo(

@@ -91,7 +91,7 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps &
   return (
     <Combobox
       ref={ref as any}
-      className={className}
+      className={`nw:w-full nw:h-auto ${className || ''}`}
       options={options as any}
       value={value || ''}
       onValueChange={onValueChange}

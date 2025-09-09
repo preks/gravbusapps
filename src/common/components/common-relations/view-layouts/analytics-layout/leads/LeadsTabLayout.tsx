@@ -42,7 +42,7 @@ export interface LeadsTabLayoutProps {
   topOwners: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>;
   leadsByRating?: Array<{ rating: string; count: number; percentage?: number }>;
   leadHealthIndicators?: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>;
-  variant?: "default";
+  moduleColor?: string;
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
@@ -61,7 +61,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   topOwners,
   leadsByRating,
   leadHealthIndicators,
-  variant = "default",
+  moduleColor = "default",
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
@@ -272,7 +272,7 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         data={leadsOverTimeFiltered}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
-        variant={variant}
+        moduleColor={moduleColor}
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
@@ -282,9 +282,12 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
             conversionRate,
             leadsOverTime,
           }}
-          variant={variant}
+          moduleColor={moduleColor}
         />
-        <LeadQualityMatrix data={{ totalLeads, conversionRate, leadsBySource: leadsBySource.map(s => ({ source: s.source, count: s.count, percentage: s.percentage || 0 })) }} />
+        <LeadQualityMatrix 
+          data={{ totalLeads, conversionRate, leadsBySource: leadsBySource.map(s => ({ source: s.source, count: s.count, percentage: s.percentage || 0 })) }} 
+          moduleColor={moduleColor}
+        />
       </div>
 
       <LeadEngagementInsights 
@@ -293,15 +296,16 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         conversionRate={conversionRate}
         avgTimeToConversion={avgTimeToConversion}
         leadsOverTime={leadsOverTime}
+        moduleColor={moduleColor}
       />
 
-      <div className="gba:flex gba:gap-4">
-        <LeadsBySourcePie data={leadsBySource.map(s => ({ source: s.source, count: s.count }))} />
-        <LeadsBySourceTypePie data={leadsBySourceType} />
-        <LeadsByStatusPie data={leadsByStatus} />
+      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2 gba:lg:grid-cols-3">
+        <LeadsBySourcePie data={leadsBySource.map(s => ({ source: s.source, count: s.count }))} moduleColor={moduleColor} />
+        <LeadsBySourceTypePie data={leadsBySourceType} moduleColor={moduleColor} />
+        <LeadsByStatusPie data={leadsByStatus} moduleColor={moduleColor} />
       </div>
 
-      <TopLeadOwners owners={topOwners} />
+      <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />
     </div>
   );
 };

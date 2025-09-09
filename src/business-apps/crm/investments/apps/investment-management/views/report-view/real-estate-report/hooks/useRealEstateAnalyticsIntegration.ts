@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
 import type { 
   RealEstateAnalyticsFilters, 
   RealEstateAnalyticsRowData, 
@@ -11,6 +10,7 @@ interface UseRealEstateAnalyticsIntegrationProps {
   accessToken: string;
   userInfo: any;
   filters: RealEstateAnalyticsFilters;
+  additionalData?: any;
 }
 
 interface UseRealEstateAnalyticsIntegrationReturn {
@@ -26,9 +26,14 @@ interface UseRealEstateAnalyticsIntegrationReturn {
 export const useRealEstateAnalyticsIntegration = ({
   accessToken,
   userInfo,
-  filters
+  filters,
+  additionalData = {}
 }: UseRealEstateAnalyticsIntegrationProps): UseRealEstateAnalyticsIntegrationReturn => {
-  const graphqlClient = useGraphQLClient(accessToken);
+  const { fetchInvestmentReports } = useGetInvestmentReports({
+    accessToken,
+    userInfo,
+    additionalData
+  });
   
   const [data, setData] = useState<RealEstateAnalyticsRowData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -78,128 +83,81 @@ export const useRealEstateAnalyticsIntegration = ({
     };
   }, []);
 
-  // Load Real Estate analytics data using direct RealEstateInvestmentReport query
+  // Load Real Estate analytics data using central investment reports hook
   const loadRealEstateAnalyticsData = useCallback(async (): Promise<RealEstateAnalyticsResponse> => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build where clause for filtering
-      let whereClause = 'where: { isDeleted: { _eq: false }';
+      // Use central investment reports query with real estate filtering
+      const filterParams = {
+        reportDateFrom: filters.startDate,
+        reportDateTo: filters.endDate,
+        limit: 100,
+        offset: 0,
+        orderBy: [{
+          field: 'date',
+          direction: 'DESC_NULLS_LAST' as 'DESC_NULLS_LAST'
+        }]
+      };
+
+      console.log('RealEstate Central Query Parameters:', filterParams);
+
+      const response = await fetchInvestmentReports(filterParams);
+      console.log('RealEstate Central Response:', response);
+
+      // Extract real estate investment reports from the central response
+      const investmentReports = response.InvestmentReport || [];
       
-      // Filter by date range
-      if (filters.startDate || filters.endDate) {
-        let dateFilter = 'date: {';
-        if (filters.startDate) {
-          dateFilter += ` _gte: "${filters.startDate}"`;
-        }
-        if (filters.endDate) {
-          if (filters.startDate) {
-            dateFilter += ',';
-          }
-          dateFilter += ` _lte: "${filters.endDate}"`;
-        }
-        dateFilter += ' }';
-        whereClause += `, ${dateFilter}`;
+      // Transform all real estate investment reports to analytics format
+      const allTransformedData: RealEstateAnalyticsRowData[] = [];
+      investmentReports.forEach(investmentReport => {
+        const realEstateReports = investmentReport.realEstateInvestmentReport || [];
+        realEstateReports.forEach((realEstateReport: any) => {
+          const transformedData = transformRealEstateToAnalyticsRow({
+            ...realEstateReport,
+            realEstateInvestment: investmentReport.investment?.realEstateInvestment?.[0]
+          });
+          allTransformedData.push(transformedData);
+        });
+      });
+
+      // Filter by property type if specified (legacy support)
+      let filteredData = filters.propertyType && filters.propertyType !== 'all'
+        ? allTransformedData.filter(item => item.propertyType?.toLowerCase().includes(filters.propertyType!.toLowerCase()))
+        : allTransformedData;
+        
+      // Filter by investment type if specified
+      if (filters.investmentType) {
+        filteredData = filteredData.filter(item => {
+          // Direct match with the investment type category
+          return item.propertyType === filters.investmentType;
+        });
+        
+        console.log(`Filtered for ${filters.investmentType}:`, {
+          originalCount: allTransformedData.length,
+          filteredCount: filteredData.length,
+          sampleTypes: allTransformedData.slice(0, 5).map(item => item.propertyType)
+        });
       }
+
+      console.log('RealEstate Transformed Data:', filteredData);
       
-      // Note: Investment type filtering moved to JavaScript level due to broken DB relationships
-      // GraphQL level filtering: realEstateInvestment.investment is often null
-      
-      whereClause += ' }';
-
-      const query = `
-        query GetRealEstateInvestmentReports {
-          RealEstateInvestmentReport(
-            limit: 100
-            offset: 0
-            orderBy: [{ date: DESC }]
-            ${whereClause}
-          ) {
-            id
-            date
-            annualNetColdRent
-            occupancyPercent
-            numberOfUnits
-            actualAnnualExpenses
-            funding
-            ${AUDIT_FIELDS}
-            
-            realEstateInvestment {
-              id
-              locality
-              buildingYear
-              investment {
-                id
-                name
-                code
-                investmentType {
-                  id
-                  value
-                }
-              }
-            }
-          }
-          
-          RealEstateInvestmentReportAggregate(${whereClause}) {
-            aggregate {
-              count
-            }
-          }
-        }
-      `;
-
-      console.log('RealEstate Direct Query:', query);
-
-      const response = await graphqlClient.request<{
-        RealEstateInvestmentReport: any[];
-        RealEstateInvestmentReportAggregate: { aggregate: { count: number } };
-      }>(query);
-      
-      console.log('RealEstate Direct Response:', response);
-
-      const realEstateReports = response.RealEstateInvestmentReport || [];
-      
-                  // Transform reports directly to UI format
-            const allTransformedData: RealEstateAnalyticsRowData[] = realEstateReports.map(transformRealEstateToAnalyticsRow);
-
-            // Filter by property type if specified (legacy support)
-            let filteredData = filters.propertyType && filters.propertyType !== 'all'
-              ? allTransformedData.filter(item => item.propertyType?.toLowerCase().includes(filters.propertyType!.toLowerCase()))
-              : allTransformedData;
-              
-            // Filter by investment type if specified (JavaScript level filtering due to broken DB relationships)
-            if (filters.investmentType) {
-              filteredData = filteredData.filter(item => {
-                // Direct match with the investment type category
-                return item.propertyType === filters.investmentType;
-              });
-              
-              console.log(`Filtered for ${filters.investmentType}:`, {
-                originalCount: allTransformedData.length,
-                filteredCount: filteredData.length,
-                sampleTypes: allTransformedData.slice(0, 5).map(item => item.propertyType)
-              });
-            }
-
-                  console.log('RealEstate Transformed Data:', filteredData);
-            console.log('RealEstate Raw Reports:', realEstateReports);
-            
-            // Debug investment data
-            console.log('Debug - Investment data in reports:', filteredData.slice(0, 3).map(item => ({
-              id: item.id,
-              propertyName: item.propertyName,
-              investmentId: item.investmentId,
-              investmentName: item.investmentName,
-              hasInvestmentId: !!item.investmentId
-            })));
+      // Debug investment data
+      console.log('Debug - Investment data in reports:', filteredData.slice(0, 3).map(item => ({
+        id: item.id,
+        propertyName: item.propertyName,
+        investmentId: item.investmentId,
+        investmentName: item.investmentName,
+        hasInvestmentId: !!item.investmentId
+      })));
 
       setData(filteredData);
-      setTotalCount(response.RealEstateInvestmentReportAggregate.aggregate.count);
+      setTotalCount(response.InvestmentReportAggregate?.aggregate?.count || filteredData.length);
 
       return {
         data: filteredData,
-        totalCount: response.RealEstateInvestmentReportAggregate.aggregate.count,
+        totalCount: response.InvestmentReportAggregate?.aggregate?.count || filteredData.length,
       };
     } catch (err) {
       console.error('Error loading real estate analytics data:', err);
@@ -214,7 +172,7 @@ export const useRealEstateAnalyticsIntegration = ({
     } finally {
       setLoading(false);
     }
-  }, [graphqlClient, filters, transformRealEstateToAnalyticsRow]);
+  }, [fetchInvestmentReports, filters, transformRealEstateToAnalyticsRow]);
 
   // Load data when dependencies change
   useEffect(() => {

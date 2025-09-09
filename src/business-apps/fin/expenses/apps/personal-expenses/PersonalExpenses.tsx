@@ -6,7 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { MODULE_COLORS } from '@/common/constants/ui';
 
 
-const moduleVariant = MODULE_COLORS.FIN;
+const moduleColor = MODULE_COLORS.FIN;
 // Create a global API for tab navigation
 
 interface TabNavigationState {
@@ -136,7 +136,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
             { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar','Calendar') }
           ]
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         {/* Render content header (statistics/widget cards) if available */}

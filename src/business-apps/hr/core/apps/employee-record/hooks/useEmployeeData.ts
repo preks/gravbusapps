@@ -134,6 +134,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
         postalCode
         locality
         type
+        country {
+          code
+          value
+        }
       }
       relationship {
         isEmergencyContact

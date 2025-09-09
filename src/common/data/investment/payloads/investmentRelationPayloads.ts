@@ -8,13 +8,32 @@ export const buildActivityPayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
-  // Helper to get the single entity reference
+  // Helper to build entity references
   const getEntityRef = () => {
-    if (activity.account) return { account: activity.account.id };
-    if (activity.contact) return { contact: activity.contact.id };
-    if (activity.opportunity) return { opportunity: activity.opportunity.id };
-    if (activity.lead) return { lead: activity.lead.id };
-    return {};
+    const refs: Record<string, any> = {};
+    if (activity.account) refs.account = activity.account.id;
+    if (activity.contact) refs.contact = activity.contact.id;
+    if (activity.opportunity) refs.opportunity = activity.opportunity.id;
+    if (activity.lead) refs.lead = activity.lead.id;
+    
+    // Always include parent investment when provided via additionalData
+    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    if (investmentId) {
+      refs.investment = investmentId;
+      console.log('🔍 Activity Payload Debug - Investment ID found:', investmentId);
+      
+      // CRITICAL: Include the investment's account to satisfy backend validation
+      // Backend validation expects at least one traditional parent reference
+      const accountId = (businessAppContext as any)?.additionalData?.accountId;
+      if (accountId && !refs.account) {
+        refs.account = accountId;
+        console.log('🔍 Activity Payload Debug - Also adding investment account:', accountId);
+      }
+    } else {
+      console.log('⚠️ Activity Payload Debug - No investment ID in additionalData:', businessAppContext?.additionalData);
+    }
+    console.log('🔍 Activity Payload Debug - Final refs:', refs);
+    return refs;
   };
 
 
@@ -46,9 +65,12 @@ export const buildActivityPayload = (
     }),
   };
 
-  return {
+  const finalPayload = {
     investmentActivity: payloadBody,
   };
+
+  console.log('🔍 Activity Payload Debug - Final payload being sent:', JSON.stringify(finalPayload, null, 2));
+  return finalPayload;
 };
 
 // ==============================
@@ -87,11 +109,15 @@ export const buildInvestmentTaskPayload = (
   options: { isUpdate?: boolean } = {}
 ) => {
   const getEntityRef = () => {
-    if (task.account) return { account: task.account.id };
-    if (task.contact) return { contact: task.contact.id };
-    if (task.opportunity) return { opportunity: task.opportunity.id };
-    if (task.lead) return { lead: task.lead.id };
-    return {} as Record<string, any>;
+    const refs: Record<string, any> = {};
+    if (task.account) refs.account = task.account.id;
+    if (task.contact) refs.contact = task.contact.id;
+    if (task.opportunity) refs.opportunity = task.opportunity.id;
+    if (task.lead) refs.lead = task.lead.id;
+    // Always include parent investment when provided via additionalData
+    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    if (investmentId) refs.investment = investmentId;
+    return refs;
   };
 
 
@@ -142,7 +168,7 @@ export const buildInvestmentTaskPayload = (
 export const buildInvestmentNotePayload = (
   note: NoteSegmentSchema,
   businessAppContext: BusinessAppContextProps,
-  additionalData?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string },
+  additionalData?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string; investmentId?: string },
   options: { isUpdate?: boolean } = {}
 ) => {
   const getEntityRef = () => {
@@ -155,6 +181,7 @@ export const buildInvestmentNotePayload = (
     if (additionalData?.contactId) return { contact: additionalData.contactId };
     if (additionalData?.opportunityId) return { opportunity: additionalData.opportunityId };
     if (additionalData?.leadId) return { lead: additionalData.leadId };
+    if (additionalData?.investmentId) return { investment: additionalData.investmentId };
     return {} as Record<string, any>;
   };
 
@@ -167,7 +194,12 @@ export const buildInvestmentNotePayload = (
   };
 
   if (options.isUpdate) {
-    // The form currently does not provide id/version; extend when edit support is added
+    // For updates, we need the noteId from additionalData
+    const noteId = (businessAppContext as any)?.additionalData?.noteId;
+    if (noteId) {
+      payloadBody.id = noteId;
+      // Note: version is typically handled by the backend, but can be added if needed
+    }
   }
 
   return {

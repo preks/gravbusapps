@@ -16,9 +16,12 @@ export interface TaskItem {
 
 export interface TaskSummaryProps {
   tasks: TaskItem[];
+  moduleColor?: string;
 }
 
-export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks }) => {
+export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, moduleColor = "default" }) => {
+  // Remove unused variable warning
+  const _ = moduleColor;
   return (
     <Card className="gba:h-full">
       <CardHeader>

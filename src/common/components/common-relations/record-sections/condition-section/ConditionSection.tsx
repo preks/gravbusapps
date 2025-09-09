@@ -3,20 +3,21 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
 
 interface ConditionSectionProps extends Partial<BusinessAppContextProps> {
   opportunity?: any;
   stageConditionStatuses?: any[];
   'data-testid'?: string;
+  stageConditionActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageConditionStatuses = [], ...context }) => {
+const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageConditionStatuses = [], stageConditionActionProps, ...context }) => {
   const [hoveredConditionId, setHoveredConditionId] = useState<string | null>(null);
 
   const handleConditionMouseLeave = useCallback(() => setHoveredConditionId(null), []);
-  const conditionContextsArray = useMemo(() => [FlowContextName.saveOpportunityStageConditionStatus], []);
+  const conditionContextsArray = useMemo(() => stageConditionActionProps?.contextsArray || [], [stageConditionActionProps?.contextsArray]);
 
   const conditionProps = useMemo(() => {
     const props: Record<string, {

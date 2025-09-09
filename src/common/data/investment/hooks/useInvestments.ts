@@ -13,6 +13,11 @@ import type {
   LiquidFundInvestment
 } from '../types';
 
+// Interface for investment by ID data
+export interface InvestmentByIdData {
+  investment?: Investment;
+}
+
 // Use the new query imports
 import {
   GET_INVESTMENTS,
@@ -82,13 +87,13 @@ export const useGetInvestmentById = (context: BusinessAppContextProps) => {
   
   const fetchInvestmentById = useCallback(async (id: string) => {
     const query = GET_INVESTMENT_BY_ID(id);
-    
     try {
-      const result = await graphqlClient.request<{ Investment: BaseInvestment[] }>(query);
-      const baseInvestment = result.Investment[0];
-      
+      // Request raw object to preserve specialization blocks (equity/realEstate/liquidFund)
+      const result = await graphqlClient.request<any>(query);
+      const rawInvestment = result?.Investment?.[0];
       return {
-        investment: baseInvestment ? toInvestment(baseInvestment) : undefined
+        // Return raw object so callers can access specialization arrays; cast to keep external type stable
+        investment: rawInvestment as unknown as Investment
       } as InvestmentByIdData;
     } catch (error) {
       console.error('Error fetching investment by ID:', error);

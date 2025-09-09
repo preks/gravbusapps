@@ -1,8 +1,20 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@newwork/nw-design-system";
-import { IconAvatar } from "@newwork/nw-design-system";
+import React, { useMemo } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+} from "@newwork/nw-design-system";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@newwork/nw-design-system";
+import { FunnelChart, Funnel, LabelList } from "recharts";
 import { FunnelSimpleIcon } from "@phosphor-icons/react";
-import { SupportedVariant } from "@/common/constants/ui";
 
 export interface AggregatedFunnelStage {
   stage: string;
@@ -16,7 +28,7 @@ export interface PipelineFunnelProps {
   title?: string;
   description?: string;
   headerIcon?: React.ReactNode;
-  variant?: SupportedVariant;
+  moduleColor?: string;
 }
 
 const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
@@ -32,20 +44,117 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string =>
   }
 };
 
+const toKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+
+
+
+// Custom label renderer for funnel elements
+const renderCustomLabel = (entry: any) => {
+  const { payload, count, originalValue, value: dataValue, x, y, width, height } = entry;
+  // Always use originalValue if available, otherwise use the stage value from payload
+  const displayValue = originalValue !== undefined ? originalValue : 
+                      (payload?.originalValue !== undefined ? payload.originalValue : dataValue);
+  
+  return (
+    <g>
+      <text
+        x={x + width / 2}
+        y={y + height / 2 - 8}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        className="gba:fill-white gba:text-sm gba:font-bold"
+        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+      >
+        {formatCurrency(displayValue)}
+      </text>
+      <text
+        x={x + width / 2}
+        y={y + height / 2 + 8}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        className="gba:fill-white gba:text-xs gba:opacity-90"
+        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+      >
+        {count} opp{count !== 1 ? "s" : ""}
+      </text>
+    </g>
+  );
+};
+
 export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   aggregatedFunnel,
   title = "All Pipeline - Current Year",
   description = "Opportunity progression by stage",
   headerIcon,
-  variant = 'default',
+  moduleColor = 'default',
 }) => {
+  const dataKey = "value";
+  const nameKey = "stage";
+
+  const chartData = useMemo(() => {
+    if (aggregatedFunnel.length === 0) return [];
+    
+    // Calculate better proportional sizing for funnel visibility
+    const values = aggregatedFunnel.map(stage => stage.value).filter(v => v > 0);
+    if (values.length === 0) return [];
+    
+    const maxValue = Math.max(...values);
+    const minValue = Math.min(...values);
+    
+    // If the ratio is too extreme (>100:1), apply logarithmic scaling
+    const shouldNormalize = maxValue > 0 && minValue > 0 && (maxValue / minValue > 100);
+    
+    // Preserve the original order from aggregatedFunnel (which is ordered by pipeline progression)
+    return aggregatedFunnel.map((stage, index) => {
+      const key = toKey(stage.stage);
+      
+      let visualValue = stage.value;
+      if (shouldNormalize && stage.value > 0) {
+        // Use square root scaling to compress extreme ratios while maintaining order
+        const normalizedRatio = Math.sqrt(stage.value / maxValue);
+        // Ensure minimum 20% and maximum 100% relative size
+        visualValue = Math.max(maxValue * 0.2, maxValue * normalizedRatio);
+      }
+      
+      return {
+        [nameKey]: key,
+        [dataKey]: visualValue,
+        count: stage.count,
+        originalValue: stage.value, // Keep original for labels
+        originalIndex: index, // Preserve original order
+        fill: `var(--color-${key})`,
+        // Add payload data for the label renderer
+        payload: {
+          originalValue: stage.value,
+          count: stage.count,
+          stage: stage.stage,
+        },
+      } as Record<string, any>;
+    });
+  }, [aggregatedFunnel]);
+
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label?: string, color?: string }> = {
+      [dataKey]: {},
+    };
+    aggregatedFunnel.forEach((stage) => {
+      const key = toKey(stage.stage);
+      config[key] = { label: stage.stage, color: stage.color};
+    });
+    return config as ChartConfig;
+  }, [aggregatedFunnel]);
+
   return (
     <Card className="gba:h-full">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         {headerIcon ?? (
           <IconAvatar
             icon={FunnelSimpleIcon}
-            variant={variant}
+            variant={moduleColor as any}
             size="md"
             decorative={true}
           />
@@ -58,73 +167,74 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
       <CardContent>
         {aggregatedFunnel && aggregatedFunnel.length > 0 ? (
           <div className="gba:space-y-4">
-            {/* Funnel visualization */}
-            <div className="gba:relative gba:flex gba:flex-col gba:items-center gba:space-y-2">
-              {aggregatedFunnel.map((stage, index) => {
-                const maxValue = Math.max(
-                  ...aggregatedFunnel.map((s) => s.value),
-                );
-                const widthPercentage = (stage.value / maxValue) * 100;
-                const actualWidth = Math.max(widthPercentage, 20);
+            {/* Funnel Chart */}
+            <div className="gba:relative gba:w-full gba:flex gba:justify-center">
+              <ChartContainer config={chartConfig} className="gba:w-[400px] gba:h-[300px]">
+                <FunnelChart width={400} height={300}>
+                  <Funnel
+                    data={chartData}
+                    dataKey={dataKey}
+                    nameKey={nameKey}
+                    cx="50%"
+                    cy="50%"
+                    isAnimationActive={true}
+                  >
+                    <LabelList content={renderCustomLabel} />
+                  </Funnel>
+                  <ChartTooltip
+                    content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />}
+                  />
+                </FunnelChart>
+              </ChartContainer>
+            </div>
 
+            {/* Stage legend */}
+            <div className="gba:space-y-2 gba:mt-4">
+              {aggregatedFunnel.map((stage, index) => {
+                // Check if normalization was applied
+                const isNormalized = chartData.length > 0 && chartData.some(item => 
+                  item.originalValue !== undefined && item.originalValue !== item[dataKey]
+                );
+                
                 return (
                   <div
                     key={stage.stage}
-                    className="gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:scale-105"
-                    style={{
-                      width: `${actualWidth}%`,
-                      minWidth: "120px",
-                      height: "50px",
-                      backgroundColor: stage.color || `hsl(${index * 60}, 70%, 50%)`,
-                      clipPath:
-                        index === 0
-                          ? "polygon(0 0, 100% 0, 95% 100%, 5% 100%)"
-                          : index === aggregatedFunnel.length - 1
-                            ? "polygon(5% 0, 95% 0, 90% 100%, 10% 100%)"
-                            : "polygon(5% 0, 95% 0, 90% 100%, 10% 100%)",
-                      borderRadius: "4px",
-                    }}
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm"
                   >
-                    <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-white gba:text-center gba:px-2">
-                      <div className="gba:text-sm gba:font-bold">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <div
+                        className="gba:w-3 gba:h-3 gba:rounded-sm"
+                        style={{
+                          backgroundColor:
+                            stage.color || `hsl(${index * 60}, 70%, 50%)`,
+                        }}
+                      />
+                      <span className="gba:text-gray-700">
+                        {stage.stage}
+                        {isNormalized && (
+                          <span className="gba:text-xs gba:text-blue-500 gba:ml-1" title="Funnel sizes adjusted for visibility">*</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="gba:text-right">
+                      <div className="gba:font-medium gba:text-gray-900">
                         {formatCurrency(stage.value)}
                       </div>
-                      <div className="gba:text-xs gba:opacity-90">
+                      <div className="gba:text-xs gba:text-gray-500">
                         {stage.count} opp{stage.count !== 1 ? "s" : ""}
                       </div>
                     </div>
                   </div>
                 );
               })}
-            </div>
-
-            {/* Stage legend */}
-            <div className="gba:space-y-2 gba:mt-4">
-              {aggregatedFunnel.map((stage, index) => (
-                <div
-                  key={stage.stage}
-                  className="gba:flex gba:items-center gba:justify-between gba:text-sm"
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <div
-                      className="gba:w-3 gba:h-3 gba:rounded-sm"
-                      style={{
-                        backgroundColor:
-                          stage.color || `hsl(${index * 60}, 70%, 50%)`,
-                      }}
-                    />
-                    <span className="gba:text-gray-700">{stage.stage}</span>
-                  </div>
-                  <div className="gba:text-right">
-                    <div className="gba:font-medium gba:text-gray-900">
-                      {formatCurrency(stage.value)}
-                    </div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      {stage.count} opp{stage.count !== 1 ? "s" : ""}
-                    </div>
-                  </div>
+              {/* Show normalization note if applied */}
+              {chartData.length > 0 && chartData.some(item => 
+                item.originalValue !== undefined && item.originalValue !== item[dataKey]
+              ) && (
+                <div className="gba:text-xs gba:text-gray-500 gba:italic gba:mt-2">
+                  * Funnel sizes adjusted for visibility. Values show actual amounts.
                 </div>
-              ))}
+              )}
             </div>
 
             {/* Total summary */}

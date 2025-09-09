@@ -138,6 +138,7 @@ const CompanyInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
@@ -195,7 +196,7 @@ const CompanyInformationSection: React.FC = () => {
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Legal Form
+                Legal Form <span className="gba:text-red-500">*</span>
               </Label>
               <Select
                 value={formValues.legalForm}

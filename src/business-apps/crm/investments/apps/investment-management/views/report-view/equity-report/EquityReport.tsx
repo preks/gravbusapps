@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -45,8 +45,15 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   
 
   
-  // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
+  // Sub-tab management - start with first investment type
+  const [activeSubTab, setActiveSubTab] = useState<string>('');
+
+  // Set initial tab when investment types are loaded
+  useEffect(() => {
+    if (effectiveInvestmentTypes.length > 0 && !activeSubTab) {
+      setActiveSubTab(effectiveInvestmentTypes[0].code);
+    }
+  }, [effectiveInvestmentTypes, activeSubTab]);
 
   // Filter states - Updated to 2024 where actual equity data exists
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
@@ -97,13 +104,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     return filters;
   }, [startDateString, endDateString, appliedCurrency, appliedFundManager, selectedInvestmentType, activeSubTab]);
 
-  // Create overview filters (without investment type filtering)
-  const overviewFilters = useMemo((): EquityAnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
-    fundManagerName: appliedFundManager && appliedFundManager !== 'All' ? appliedFundManager : undefined
-  }), [startDateString, endDateString, appliedCurrency, appliedFundManager]);
+
 
   // Apply filters handler
   const handleApplyFilters = () => {
@@ -243,10 +244,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
 
       {/* Equity Analytics Tables with Sub-tabs */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${effectiveInvestmentTypes.length + 1}, minmax(0, 1fr))` }}>
-          <TabsTrigger value="overview" data-testid={`${dataTestId}-overview-tab`}>
-            Overview
-          </TabsTrigger>
+        <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${effectiveInvestmentTypes.length}, minmax(0, 1fr))` }}>
           {effectiveInvestmentTypes.map((type) => (
             <TabsTrigger 
               key={type.code} 
@@ -257,17 +255,6 @@ export const EquityReport: React.FC<EquityReportProps> = ({
             </TabsTrigger>
           ))}
         </TabsList>
-        
-        <TabsContent value="overview" className="gba:mt-6">
-          <EquityAnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={overviewFilters}
-            investmentType="All Equity Investments"
-            title="Equity Analytics - Overview"
-            data-testid={`${dataTestId}-overview-table`}
-          />
-        </TabsContent>
         
         {effectiveInvestmentTypes.map((type) => (
           <TabsContent key={type.code} value={type.code} className="gba:mt-6">

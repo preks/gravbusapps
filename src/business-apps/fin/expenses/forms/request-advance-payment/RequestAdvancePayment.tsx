@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useRequestAdvancePaymentData } from './hooks/useRequestAdvancePaymentData';
-import { getCurrencyWithFallback, formatCurrencyRef } from './utils/currencyUtils';
+import { formatCurrencyRef } from './utils/currencyUtils';
 import { validateForm } from './utils/validationUtils';
 import { FormData, FormValidationState, FormSubmissionState } from './types/FormTypes';
 
@@ -66,61 +66,38 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     additionalData
   });
 
-  // Set default values when expense plan is provided
+  // Initialize when a preselected expense plan exists; fetch details and set plan id
   useEffect(() => {
-    if (expensePlanId && expensePlans.length > 0) {
-      const plan = expensePlans.find(p => p.id === expensePlanId);
-      if (plan) {
-        // Fetch detailed information for the selected plan
-        fetchExpensePlanDetails(plan.id);
-      }
+    if (!expensePlanId || expensePlans.length === 0) return;
+    const existing = expensePlans.find(p => p.id === expensePlanId);
+    if (existing) {
+      setFormData(prev => ({ ...prev, expensePlanId: existing.id }));
+      fetchExpensePlanDetails(existing.id);
     }
   }, [expensePlanId, expensePlans, fetchExpensePlanDetails]);
 
-  // Update form data when expense plans are loaded and we have a pre-selected plan
+  // Keep currency and cost center in sync with the selected plan (after details load too)
   useEffect(() => {
-    if (expensePlans.length > 0 && expensePlanId) {
-      const plan = expensePlans.find(p => p.id === expensePlanId);
-      if (plan) {
-        setFormData(prev => ({
-          ...prev,
-          expensePlanId: plan.id,
-          currency: getCurrencyWithFallback(plan.currency?.code),
-          costCenter: plan.costCenterId || ''
-        }));
-        
-        // Fetch detailed information for the selected plan to get cost center
-        fetchExpensePlanDetails(plan.id);
-      }
-    }
-  }, [expensePlans, expensePlanId, fetchExpensePlanDetails]);
+    if (!formData.expensePlanId) return;
+    const selected = expensePlans.find(p => p.id === formData.expensePlanId);
+    if (!selected) return;
 
-  // Update form data when expense plan details are fetched and cost center becomes available
-  useEffect(() => {
-    if (formData.expensePlanId) {
-      const selectedPlan = expensePlans.find(plan => plan.id === formData.expensePlanId);
-    
-      if (selectedPlan?.costCenterId && !formData.costCenter) {
-        setFormData(prev => ({
-          ...prev,
-          costCenter: selectedPlan.costCenterId || ''
-        }));
-      }
-    }
-  }, [expensePlans, formData.expensePlanId, formData.costCenter]);
+    setFormData(prev => {
+      const nextCurrency = selected?.currency?.code || '';
+      const nextCostCenter = selected?.costCenterId || '';
+      const shouldUpdateCurrency = nextCurrency && prev.currency !== nextCurrency;
+      const shouldUpdateCostCenter = nextCostCenter && prev.costCenter !== nextCostCenter;
+      if (!shouldUpdateCurrency && !shouldUpdateCostCenter) return prev;
+      return {
+        ...prev,
+        currency: shouldUpdateCurrency ? nextCurrency : prev.currency,
+        costCenter: shouldUpdateCostCenter ? nextCostCenter : prev.costCenter
+      };
+    });
+  }, [expensePlans, formData.expensePlanId]);
 
   const handleExpensePlanChange = (planId: string) => {
-    const selectedPlan = expensePlans.find(plan => plan.id === planId);
-
-    setFormData(prev => ({ 
-      ...prev, 
-      expensePlanId: planId,
-      // Prefill currency and cost center from the selected plan
-      currency: getCurrencyWithFallback(selectedPlan?.currency?.code),
-      costCenter: selectedPlan?.costCenterId || ''
-    }));
-    
-    // Fetch detailed information for the selected plan to get complete cost center data
+    setFormData(prev => ({ ...prev, expensePlanId: planId }));
     if (planId) {
       fetchExpensePlanDetails(planId);
     }
@@ -182,7 +159,6 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
   // Get selected expense plan details
   const selectedPlan = expensePlans.find(plan => plan.id === formData.expensePlanId);
   const maxAmount = selectedPlan?.totalRemainingAmount || 0;
-
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
@@ -234,8 +210,8 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
         {selectedPlan && (
           <TotalAmountDisplay
             totalRemainingAmount={selectedPlan.totalRemainingAmount}
-            currencyCode={selectedPlan.currency?.code}
             requestTypeValue={selectedPlan?.requestType?.value}
+            selectedPlan={selectedPlan}
           />
         )}
 
@@ -271,7 +247,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
           </div>
         )}
 
-                <CostCenterSelect
+        <CostCenterSelect
           costCenters={costCenters}
           selectedPlanCostCenterId={selectedPlan?.costCenterId}
           value={formData.costCenter}
