@@ -158,6 +158,8 @@ definitions:
           - docker
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
+            variables:
+              SONAR_SCANNER_OPTS: -Xmx2560m
 
 pipelines:
   pull-requests:
