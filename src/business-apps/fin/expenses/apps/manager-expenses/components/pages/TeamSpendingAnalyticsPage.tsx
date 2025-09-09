@@ -1,7 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useCurrencyStore } from '../../store/useCurrencyStore';
-import { useCurrencyData } from '../../hooks/useCurrencyData';
-import { 
+import React, { useMemo, useState, useEffect } from "react";
+import { useCurrencyStore } from "../../store/useCurrencyStore";
+import { useCurrencyData } from "../../hooks/useCurrencyData";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -19,16 +19,19 @@ import {
   RadioGroup,
   RadioGroupItem,
   Label,
-  Separator
-} from '@newwork/nw-design-system';
-import { PiArrowLeft, PiChartLineUp, PiMagnifyingGlass } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSpendingAnalytics';
-import { useExpenseGroupCatalog } from '../../hooks/useExpenseGroupCatalog';
-import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import CurrencyFilter from '../../components/currency-filter';
+  Separator,
+} from "@newwork/nw-design-system";
+import { PiArrowLeft, PiChartLineUp, PiMagnifyingGlass } from "react-icons/pi";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
+import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
+import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
+import {
+  formatNumberFunction,
+  getTranslationFromI18nKeyAndLabel,
+} from "@/common/utils/windowUtils";
+import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import CurrencyFilter from "../../components/currency-filter";
 
 interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -37,38 +40,38 @@ interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
 const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   onNavigateBack,
   accessToken,
-  userInfo
+  userInfo,
 }) => {
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
-  const [activeTab, setActiveTab] = React.useState<string>('expense-items');
-  
+  const [activeTab, setActiveTab] = React.useState<string>("expense-items");
+
   // Use the currency data hook to get dynamic currency information
-  const { 
-    availableCurrencies, 
-    defaultCurrency, 
+  const {
+    availableCurrencies,
+    defaultCurrency,
     isLoading: isCurrencyLoading,
-    standardizeCurrencyRef
+    standardizeCurrencyRef,
   } = useCurrencyData(
     accessToken,
-    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+    userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000",
   );
-  
+
   // Initialize currency filter with null, will be set after data is loaded
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
-  
+
   // Create a standardized currency reference for GraphQL queries
   const standardizedCurrencyRef = useMemo(() => {
     return currencyFilter ? standardizeCurrencyRef(currencyFilter) : null;
   }, [currencyFilter, standardizeCurrencyRef]);
-  
+
   // Use the team spending analytics hook
-  const { 
-    isLoading, 
-    error, 
-    data, 
-    dateRange, 
-    setDateRange, 
+  const {
+    isLoading,
+    error,
+    data,
+    dateRange,
+    setDateRange,
     locationFilters,
     toggleLocationFilter,
     searchTerm,
@@ -76,20 +79,20 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     departmentFilters,
     toggleDepartmentFilter,
     departmentSearchTerm,
-    setDepartmentSearchTerm
+    setDepartmentSearchTerm,
   } = useTeamSpendingAnalytics(
     accessToken,
-    userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000',
-    standardizedCurrencyRef // Use standardized currency reference instead of raw currencyFilter
+    userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000",
+    standardizedCurrencyRef, // Use standardized currency reference instead of raw currencyFilter
   );
-  
+
   // Use the expense group catalog hook to get category names
   const { expenseGroups } = useExpenseGroupCatalog(accessToken);
-  
+
   // Set the default currency when data is loaded
   useEffect(() => {
     if (!currencyFilter && defaultCurrency) {
-      console.log('Setting default currency to:', defaultCurrency);
+      console.log("Setting default currency to:", defaultCurrency);
       setCurrencyFilter(defaultCurrency);
     }
   }, [defaultCurrency, currencyFilter]);
@@ -97,27 +100,27 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
     if (!data?.expenseItemsByCategory || !expenseGroups) return data?.expenseItemsByCategory || [];
-    
-    return data.expenseItemsByCategory.map(item => {
+
+    return data.expenseItemsByCategory.map((item) => {
       // Get the friendly name from the catalog
       let friendlyName = expenseGroups[item.name]?.name;
-      
+
       // If no friendly name found, try to extract it from the reference format
-      if (!friendlyName && typeof item.name === 'string' && item.name.includes(':')) {
+      if (!friendlyName && typeof item.name === "string" && item.name.includes(":")) {
         // Format is typically ExpenseGroup:v1:CATEGORY_NAME
-        const parts = item.name.split(':');
+        const parts = item.name.split(":");
         if (parts.length >= 3) {
           // Use the last part and make it more readable
           friendlyName = parts[parts.length - 1]
-            .replace(/_/g, ' ')
+            .replace(/_/g, " ")
             .toLowerCase()
-            .replace(/\b\w/g, c => c.toUpperCase());
+            .replace(/\b\w/g, (c) => c.toUpperCase());
         }
       }
-      
+
       return {
         name: friendlyName || item.name,
-        value: item.value
+        value: item.value,
       };
     });
   }, [data?.expenseItemsByCategory, expenseGroups]);
@@ -130,45 +133,99 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Create widgets for summary statistics
   const widgets: WidgetItem[] = [
     {
-      key: 'total-expense-items',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_items', 'Total Expense Items'),
-      value: data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">{currencyFilter || primaryCurrency}</span>,
-      color: '#1890ff',
+      key: "total-expense-items",
+      title: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.total_expense_items",
+        "Total Expense Items",
+      ),
+      value: data?.totalExpenseAmount
+        ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00")
+        : "0,00",
+      prefix: (
+        <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">
+          {currencyFilter || primaryCurrency}
+        </span>
+      ),
+      color: "#1890ff",
       suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Individual expense transactions'
+      description: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions",
+        "Individual expense transactions",
+      ),
     },
     {
-      key: 'total-expense-requests',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_requests', 'Total Expense Requests'),
-      value: data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-requests-currency-code">{currencyFilter || primaryCurrency}</span>,
-      color: '#52c41a',
+      key: "total-expense-requests",
+      title: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.total_expense_requests",
+        "Total Expense Requests",
+      ),
+      value: data?.totalRequestAmount
+        ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00")
+        : "0,00",
+      prefix: (
+        <span
+          className="gba:font-medium"
+          data-testid="team-analytics-expense-requests-currency-code"
+        >
+          {currencyFilter || primaryCurrency}
+        </span>
+      ),
+      color: "#52c41a",
       suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Submitted expense requests'
+      description: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests",
+        "Submitted expense requests",
+      ),
     },
     {
-      key: 'total-expense-plans',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_expense_plans', 'Total Expense Plans'),
-      value: data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">{currencyFilter || primaryCurrency}</span>,
-      color: '#722ed1',
+      key: "total-expense-plans",
+      title: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.total_expense_plans",
+        "Total Expense Plans",
+      ),
+      value: data?.totalPlanAmount
+        ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00")
+        : "0,00",
+      prefix: (
+        <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">
+          {currencyFilter || primaryCurrency}
+        </span>
+      ),
+      color: "#722ed1",
       suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Planned expense budgets'
+      description: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets",
+        "Planned expense budgets",
+      ),
     },
     {
-      key: 'total-advance-payments',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.total_advance_payments', 'Total Advance Payments'),
-      value: data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00',
-      prefix: <span className="gba:font-medium" data-testid="team-analytics-advance-payments-currency-code">{currencyFilter || primaryCurrency}</span>,
-      color: '#fa8c16',
+      key: "total-advance-payments",
+      title: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
+        "Total Advance Payments",
+      ),
+      value: data?.totalAdvanceAmount
+        ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00")
+        : "0,00",
+      prefix: (
+        <span
+          className="gba:font-medium"
+          data-testid="team-analytics-advance-payments-currency-code"
+        >
+          {currencyFilter || primaryCurrency}
+        </span>
+      ),
+      color: "#fa8c16",
       suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
-      description: 'Advance payments to employees'
-    }
+      description: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees",
+        "Advance payments to employees",
+      ),
+    },
   ];
 
   const renderExpenseItemsTab = () => (
@@ -176,51 +233,68 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items', 'Monthly Expense Items')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items",
+                "Monthly Expense Items",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <LineChartComponent 
-              data={data?.expenseItemsByMonth || []} 
-              title="" 
-              lineColor="#1890ff" 
+            <LineChartComponent
+              data={data?.expenseItemsByMonth || []}
+              title=""
+              lineColor="#1890ff"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category', 'Expense Items by Category')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category",
+                "Expense Items by Category",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <PieChartComponent 
-              data={expenseItemsByCategoryWithNames} 
-              title="" 
+            <PieChartComponent
+              data={expenseItemsByCategoryWithNames}
+              title=""
               currency={currencyFilter || primaryCurrency}
-              colors={['#1890ff', '#52c41a', '#722ed1', '#f5222d', '#fa8c16']} 
+              colors={["#1890ff", "#52c41a", "#722ed1", "#f5222d", "#fa8c16"]}
             />
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_items_by_status', 'Expense Items by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_items_by_status",
+                "Expense Items by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
-              data={data?.expenseItemsByStatus.map(item => ({
-                name: item.status,
-                value: item.count
-              })) || []}
+              data={
+                data?.expenseItemsByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
               title=""
               barColor="#1890ff"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Summary Statistics</CardTitle>
@@ -236,7 +310,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                  <span data-testid="team-analytics-expense-items-total-amount-currency">{primaryCurrency}</span> {data?.totalExpenseAmount ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-items-total-amount-currency">
+                    {primaryCurrency}
+                  </span>{" "}
+                  {data?.totalExpenseAmount
+                    ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00")
+                    : "0,00"}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -252,28 +331,40 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests', 'Monthly Expense Requests')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests",
+                "Monthly Expense Requests",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <LineChartComponent 
-              data={data?.expenseRequestsByMonth || []} 
-              title="" 
-              lineColor="#52c41a" 
+            <LineChartComponent
+              data={data?.expenseRequestsByMonth || []}
+              title=""
+              lineColor="#52c41a"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status', 'Expense Requests by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
+                "Expense Requests by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
-              data={data?.expenseRequestsByStatus.map(item => ({
-                name: item.status,
-                value: item.count
-              })) || []}
+              data={
+                data?.expenseRequestsByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
               title=""
               barColor="#52c41a"
               currency={currencyFilter || primaryCurrency}
@@ -281,25 +372,32 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status', 'Expense Requests by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
+                "Expense Requests by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <PieChartComponent 
-              data={data?.expenseRequestsByStatus.map(item => ({ 
-                name: item.status, 
-                value: item.count 
-              })) || []} 
-              title="" 
+            <PieChartComponent
+              data={
+                data?.expenseRequestsByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
+              title=""
               currency={currencyFilter || primaryCurrency}
-              colors={['#52c41a', '#1890ff', '#722ed1', '#f5222d', '#fa8c16']} 
+              colors={["#52c41a", "#1890ff", "#722ed1", "#f5222d", "#fa8c16"]}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Summary Statistics</CardTitle>
@@ -315,7 +413,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-                  <span data-testid="team-analytics-expense-requests-total-amount-currency">{primaryCurrency}</span> {data?.totalRequestAmount ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-requests-total-amount-currency">
+                    {primaryCurrency}
+                  </span>{" "}
+                  {data?.totalRequestAmount
+                    ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00")
+                    : "0,00"}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -331,28 +434,40 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans', 'Monthly Expense Plans')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans",
+                "Monthly Expense Plans",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <LineChartComponent 
-              data={data?.expensePlansByMonth || []} 
-              title="" 
-              lineColor="#722ed1" 
+            <LineChartComponent
+              data={data?.expensePlansByMonth || []}
+              title=""
+              lineColor="#722ed1"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status', 'Expense Plans by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status",
+                "Expense Plans by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
-              data={data?.expensePlansByStatus.map(item => ({
-                name: item.status,
-                value: item.count
-              })) || []}
+              data={
+                data?.expensePlansByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
               title=""
               barColor="#722ed1"
               currency={currencyFilter || primaryCurrency}
@@ -360,25 +475,32 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status', 'Expense Plans by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status",
+                "Expense Plans by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <PieChartComponent 
-              data={data?.expensePlansByStatus.map(item => ({ 
-                name: item.status, 
-                value: item.count 
-              })) || []} 
-              title="" 
+            <PieChartComponent
+              data={
+                data?.expensePlansByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
+              title=""
               currency={currencyFilter || primaryCurrency}
-              colors={['#722ed1', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
+              colors={["#722ed1", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Summary Statistics</CardTitle>
@@ -394,7 +516,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
-                  <span data-testid="team-analytics-expense-plans-total-amount-currency">{primaryCurrency}</span> {data?.totalPlanAmount ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-expense-plans-total-amount-currency">
+                    {primaryCurrency}
+                  </span>{" "}
+                  {data?.totalPlanAmount
+                    ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00")
+                    : "0,00"}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -410,52 +537,71 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments', 'Monthly Advance Payments')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments",
+                "Monthly Advance Payments",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <LineChartComponent 
-              data={data?.advancePaymentsByMonth || []} 
-              title="" 
-              lineColor="#13c2c2" 
+            <LineChartComponent
+              data={data?.advancePaymentsByMonth || []}
+              title=""
+              lineColor="#13c2c2"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status', 'Advance Payments by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status",
+                "Advance Payments by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
-              data={data?.advancePaymentsByStatus.map(item => ({
-                name: item.status,
-                value: item.count
-              })) || []}
+              data={
+                data?.advancePaymentsByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
               title=""
               barColor="#13c2c2"
             />
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status', 'Advance Payments by Status')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status",
+                "Advance Payments by Status",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <PieChartComponent 
-              data={data?.advancePaymentsByStatus.map(item => ({ 
-                name: item.status, 
-                value: item.count 
-              })) || []} 
-              title="" 
-              colors={['#13c2c2', '#52c41a', '#1890ff', '#f5222d', '#fa8c16']} 
+            <PieChartComponent
+              data={
+                data?.advancePaymentsByStatus.map((item) => ({
+                  name: item.status,
+                  value: item.count,
+                })) || []
+              }
+              title=""
+              colors={["#13c2c2", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
             />
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Summary Statistics</CardTitle>
@@ -471,7 +617,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-cyan-600">
-                  <span data-testid="team-analytics-advance-payments-total-amount-currency">{primaryCurrency}</span> {data?.totalAdvanceAmount ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00") : '0,00'}
+                  <span data-testid="team-analytics-advance-payments-total-amount-currency">
+                    {primaryCurrency}
+                  </span>{" "}
+                  {data?.totalAdvanceAmount
+                    ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00")
+                    : "0,00"}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
               </div>
@@ -485,32 +636,74 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   const renderFilters = () => (
     <Card className="gba:sticky gba:top-6">
       <CardHeader className="gba:pb-4">
-        <CardTitle className="gba:text-lg gba:font-semibold">Filters & Settings</CardTitle>
+        <CardTitle className="gba:text-lg gba:font-semibold">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.dashboard_tab.filters_settings",
+            "Filters & Settings",
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-8">
         {/* Date Range Filter */}
         <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Date Range</Label>
-          <RadioGroup 
-            value={dateRange} 
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.date_range",
+              "Date Range",
+            )}
+          </Label>
+          <RadioGroup
+            value={dateRange}
             onValueChange={(value) => handleDateRangeChange(value as DateRangeOption)}
             className="gba:space-y-3"
           >
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
               <RadioGroupItem value={DateRangeOption.LAST_30_DAYS} id="last-30-days" />
-              <Label htmlFor="last-30-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 30 Days</Label>
+              <Label
+                htmlFor="last-30-days"
+                className="gba:text-sm gba:leading-relaxed gba:cursor-pointer"
+              >
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.last_30_days",
+                  "Last 30 Days",
+                )}
+              </Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
               <RadioGroupItem value={DateRangeOption.LAST_90_DAYS} id="last-90-days" />
-              <Label htmlFor="last-90-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Last 90 Days</Label>
+              <Label
+                htmlFor="last-90-days"
+                className="gba:text-sm gba:leading-relaxed gba:cursor-pointer"
+              >
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.last_90_days",
+                  "Last 90 Days",
+                )}
+              </Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
               <RadioGroupItem value={DateRangeOption.YEAR_TO_DATE} id="current-year" />
-              <Label htmlFor="current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Current Year</Label>
+              <Label
+                htmlFor="current-year"
+                className="gba:text-sm gba:leading-relaxed gba:cursor-pointer"
+              >
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.current_year",
+                  "Current Year",
+                )}
+              </Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
               <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" />
-              <Label htmlFor="custom" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">Custom Range</Label>
+              <Label
+                htmlFor="custom"
+                className="gba:text-sm gba:leading-relaxed gba:cursor-pointer"
+              >
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.custom_range",
+                  "Custom Range",
+                )}
+              </Label>
             </div>
           </RadioGroup>
         </div>
@@ -519,11 +712,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         {/* Location Filters */}
         <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Location Filters</Label>
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.location_filters",
+              "Location Filters",
+            )}
+          </Label>
           <div className="gba:relative">
             <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <Input
-              placeholder="Search locations..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.search_locations",
+                "Search locations...",
+              )}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
@@ -531,17 +732,30 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
             {locationFilters.map((location) => (
-              <div key={location.id} className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors">
+              <div
+                key={location.id}
+                className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
+              >
                 <Checkbox
                   id={location.id}
                   checked={location.selected}
                   onCheckedChange={() => toggleLocationFilter(location.id)}
                 />
-                <Label htmlFor={location.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{location.name}</Label>
+                <Label
+                  htmlFor={location.id}
+                  className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1"
+                >
+                  {location.name}
+                </Label>
               </div>
             ))}
             {locationFilters.length === 0 && (
-              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No locations found</div>
+              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.no_locations_available",
+                  "No locations available",
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -551,7 +765,10 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         {/* Currency Filter */}
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency')}
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_calculation_rule.expense_table.currency",
+              "Currency",
+            )}
           </Label>
           <CurrencyFilter
             data-testid="team-analytics-currency-filter"
@@ -559,7 +776,10 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             onChange={setCurrencyFilter}
             currencies={availableCurrencies}
             showAllOption={false}
-            placeholder="Select Currency"
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder",
+              "Select Currency",
+            )}
             isLoading={isCurrencyLoading}
           />
         </div>
@@ -568,11 +788,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         {/* Department Filters */}
         <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">Department Filters</Label>
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.department_filters",
+              "Department Filters",
+            )}
+          </Label>
           <div className="gba:relative">
             <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <Input
-              placeholder="Search departments..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.search_departments",
+                "Search departments...",
+              )}
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
               className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
@@ -580,17 +808,27 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
             {departmentFilters.map((department) => (
-              <div key={department.id} className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors">
+              <div
+                key={department.id}
+                className="gba:flex gba:items-center gba:space-x-3 gba:py-1 gba:rounded-md gba:hover:bg-accent/50 gba:px-2 gba:-mx-2 gba:transition-colors"
+              >
                 <Checkbox
                   id={department.id}
                   checked={department.selected}
                   onCheckedChange={() => toggleDepartmentFilter(department.id)}
                 />
-                <Label htmlFor={department.id} className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1">{department.name}</Label>
+                <Label
+                  htmlFor={department.id}
+                  className="gba:text-sm gba:leading-relaxed gba:cursor-pointer gba:flex-1"
+                >
+                  {department.name}
+                </Label>
               </div>
             ))}
             {departmentFilters.length === 0 && (
-              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">No departments found</div>
+              <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">
+                No departments found
+              </div>
             )}
           </div>
         </div>
@@ -608,13 +846,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           data-testid="team-spending-analytics-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />
-          <span>Back to Dashboard</span>
+          <span>
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.back_to_btn",
+              "Back to Dashboard",
+            )}
+          </span>
         </button>
       </div>
 
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics', 'Team Spending Analytics')}
-        headerDescription="Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories"
+        headerTitle={getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics",
+          "Team Spending Analytics",
+        )}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",
+          "Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories",
+        )}
         headerIcon={<PiChartLineUp />}
         className="gba:min-h-screen"
       >
@@ -626,16 +875,17 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             error={error ? error : null}
             onRetry={() => window.location.reload()}
             skeletonCount={4}
-            emptyText="No analytics data available."
+            emptyText={getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.no_analytics_data",
+              "No analytics data available.",
+            )}
             data-testid="team-spending-analytics-statistics"
           />
 
           {/* Main Content */}
           <div className="gba:flex gba:gap-6">
             {/* Left Sidebar - Filters */}
-            <div className="gba:w-80 gba:flex-shrink-0">
-              {renderFilters()}
-            </div>
+            <div className="gba:w-80 gba:flex-shrink-0">{renderFilters()}</div>
 
             {/* Main Content Area */}
             <div className="gba:flex-1">
@@ -649,16 +899,28 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
                   <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
                     <TabsTrigger value="expense-items">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_items_tab.title', 'Expense Items')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:personal_expenses.expense_items",
+                        "Expense Items",
+                      )}
                     </TabsTrigger>
                     <TabsTrigger value="expense-requests">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.expense_requests', 'Expense Requests')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:employee_list.flows_button.expense_requests",
+                        "Expense Requests",
+                      )}
                     </TabsTrigger>
                     <TabsTrigger value="expense-plans">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.expense_plans', 'Expense Plans')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:team_expenses_page.dashboard_tab.expense_plans",
+                        "Expense Plans",
+                      )}
                     </TabsTrigger>
                     <TabsTrigger value="advance-payments">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payments', 'Advance Payments')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:backoffice_expense_landing_page.advance_title",
+                        "Advance Payments",
+                      )}
                     </TabsTrigger>
                   </TabsList>
 
@@ -711,4 +973,4 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   );
 };
 
-export default TeamSpendingAnalyticsPage; 
+export default TeamSpendingAnalyticsPage;
