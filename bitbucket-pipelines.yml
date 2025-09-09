@@ -176,7 +176,8 @@ pipelines:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-      - step: *sonar_scan
+# Deactivated due to current SonarCloud sizing limits
+#      - step: *sonar_scan
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
