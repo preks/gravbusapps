@@ -49,6 +49,7 @@ export const INVESTMENT = `
     totalCommitmentAmount
     totalDistributionAmount
     fundManagerName
+    additionalProperties
     ${AUDIT_FIELDS}
 
     # Catalog relationships

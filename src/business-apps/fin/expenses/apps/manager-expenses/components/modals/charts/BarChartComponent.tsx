@@ -1,6 +1,7 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface BarChartProps {
   data: {
@@ -18,14 +19,14 @@ interface BarChartProps {
 /**
  * Reusable bar chart component for analytics
  */
-const BarChartComponent: React.FC<BarChartProps> = ({ 
-  data, 
-  title, 
-  xAxisDataKey = 'name',
-  barDataKey = 'value',
-  barColor = '#1890ff',
+const BarChartComponent: React.FC<BarChartProps> = ({
+  data,
+  title,
+  xAxisDataKey = "name",
+  barDataKey = "value",
+  barColor = "#1890ff",
   height = 300,
-  currency = 'EUR'
+  currency = "EUR",
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -57,7 +58,10 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
+        <div
+          style={{ height: height }}
+          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
@@ -71,8 +75,8 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
-              <Tooltip 
-                formatter={(value) => [`${value} ${currency}`, 'Amount']}
+              <Tooltip
+                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
                 labelFormatter={(label) => `${label}`}
               />
               <Bar dataKey={barDataKey} fill={barColor} />

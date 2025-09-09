@@ -1,175 +1,226 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { PiArrowRight } from 'react-icons/pi';
-import Pill from '@/components/pill/Pill';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { useCurrencyStore } from '../../../store/useCurrencyStore';
-import { formatCurrency } from '../../../utils/currencyUtils';
+import React from "react";
+import {
+  Badge,
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@newwork/nw-design-system";
+import { getExpensePlanStatusDisplay } from "../../../utils";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { PiCalendarDuotone, PiClock, PiArrowRight } from "react-icons/pi";
+import dayjs from "dayjs";
+import { getTranslationFromI18nKeyAndLabel, getDateFormat } from "@/common/utils/windowUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import { formatNumberFunction } from "@/common/utils/windowUtils";
+import { ExpensePlan } from "../../../hooks/useMainViewExpensePlans";
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
-  plan: any;
-  onApprove?: (planId: string) => Promise<void>;
-  onReject?: (planId: string) => Promise<void>;
+  selectedItem: ExpensePlan;
+  onClose: () => void;
 }
 
-// Shared component for expense details view
-interface ExpenseDetailsViewProps {
-  title: string;
-  code: string;
-  status: string;
-  requester: string;
-  department: string;
-  tripType: string;
-  totalAmount: string;
-  onViewDetails: () => void;
-}
+const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem }) => {
+  if (!selectedItem) return null;
 
-const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
-  title,
-  code,
-  status,
-  requester,
-  department,
-  tripType,
-  totalAmount,
-  onViewDetails,
-}) => {
-  // Helper function to get status display info
-  const getStatusDisplay = (status: string) => {
-    type PillType = "draft" | "completed" | "waiting" | "task" | "error";
-
-    const statusMap: Record<string, { label: string; type: PillType }> = {
-      DRAFT: { label: "Draft", type: "draft" },
-      PENDING: { label: "Pending Approval", type: "waiting" },
-      APPROVED: { label: "Approved", type: "completed" },
-      REJECTED: { label: "Rejected", type: "error" },
-      PAID: { label: "Paid", type: "completed" },
-      CREATED: { label: "Created", type: "waiting" },
-    };
-
-    return statusMap[status] || { label: status, type: "waiting" };
+  // Get trip type - for manager view, we'll use a default since we don't have requestType
+  const getTripType = () => {
+    return "Business Travel";
   };
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-medium gba:mb-2">{title}</h3>
-        <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{code}</p>
-        <Pill
-          type={getStatusDisplay(status).type}
-          label={getStatusDisplay(status).label}
-        />
+    <div className="gba:p-6 gba:space-y-6" data-testid="expense-plan-details-content">
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+        <div className="gba:flex-1">
+          <h2
+            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
+            data-testid="expense-plan-title"
+          >
+            {selectedItem.title}
+          </h2>
+          <p className="gba:text-sm gba:text-gray-500" data-testid="expense-plan-code">
+            {selectedItem.code}
+          </p>
+        </div>
+        <Badge
+          variant={
+            getExpensePlanStatusDisplay(selectedItem.status).type === "completed"
+              ? "success"
+              : getExpensePlanStatusDisplay(selectedItem.status).type === "error"
+              ? "destructive"
+              : getExpensePlanStatusDisplay(selectedItem.status).type === "task"
+              ? "warning"
+              : getExpensePlanStatusDisplay(selectedItem.status).type === "waiting"
+              ? "secondary"
+              : "default"
+          }
+          className="gba:text-sm"
+          data-testid="expense-plan-status-badge"
+        >
+          {getExpensePlanStatusDisplay(selectedItem.status).label}
+        </Badge>
       </div>
 
-      <div className="gba:mb-6">
-        <div className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Requester
-              </div>
-              <div className="gba:text-sm">{requester}</div>
+      {/* Date Information */}
+      <Card>
+        <CardContent className="gba:p-4 gba:space-y-3">
+          {selectedItem.startDate && selectedItem.endDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiCalendarDuotone className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.duration",
+                  "Duration",
+                )}
+                : {dayjs(selectedItem.startDate).format(getDateFormat("date.short"))} {" → "}
+                {dayjs(selectedItem.endDate).format(getDateFormat("date.short"))}
+              </span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Department
-              </div>
-              <div className="gba:text-sm">{department}</div>
+          )}
+
+          {selectedItem.planDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiClock className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.plan_date",
+                  "Plan Date",
+                )}
+                : {dayjs(selectedItem.planDate).format(getDateFormat("date.short"))}
+              </span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Trip Type
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Description */}
+      {selectedItem.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-base">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:personal_expenses.description",
+                "Description",
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">
+              {selectedItem.description}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Details Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-base">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:personal_expenses.plan_details",
+              "Plan Details",
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+            {selectedItem.employee && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_overview.side_bar.requester",
+                    "Requester",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {selectedItem.employee.displayName || selectedItem.employee.fullName}
+                </span>
               </div>
-              <div className="gba:text-sm">{tripType}</div>
+            )}
+
+            {selectedItem.employee?.employeePosition?.organizationalUnit && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.department_title",
+                    "Department",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {selectedItem.employee.employeePosition.organizationalUnit.name}
+                </span>
+              </div>
+            )}
+
+            {selectedItem.employee?.employeePosition?.siteLocation && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.location_title",
+                    "Location",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {selectedItem.employee.employeePosition.siteLocation.name}
+                </span>
+              </div>
+            )}
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.trip_type",
+                  "Trip Type",
+                )}
+              </span>
+              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Total Amount
-              </div>
-              <div className="gba:text-sm">{totalAmount}</div>
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:expense_request_list.expense_plan_table.total_amount",
+                  "Total Amount",
+                )}
+              </span>
+              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+                {typeof selectedItem.totalAmount === "number"
+                  ? `${formatNumberFunction(String(selectedItem.totalAmount))} ${
+                      selectedItem.currency || "-"
+                    }`
+                  : "-"}
+              </span>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="gba:flex gba:justify-end gba:mt-6">
+      <Separator />
+
+      {/* Action Button */}
+      <div className="gba:flex gba:justify-end">
         <Button
           variant="default"
-          onClick={onViewDetails}
-          data-testid="view-full-details-button"
-          className="gba:flex gba:items-center gba:gap-2"
+          onClick={() => {
+            // Navigate to the expense plan record page
+            const url = buildPlatformUrl("/platform/fin/expenses/expense-plan-record", {
+              expensePlanId: selectedItem.id,
+            });
+            navigateTo(url);
+          }}
+          data-testid="view-expense-plan-details-button"
         >
-          <PiArrowRight className="gba:w-4 gba:h-4" />
+          <PiArrowRight className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel(
-            "expense.details.view",
-            "View Full Details"
+            "lowcoder:team_expenses_page.plan_details.view_full_details",
+            "View Full Details",
           )}
         </Button>
       </div>
     </div>
-  );
-};
-
-const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
-  plan,
-  onApprove,
-  onReject,
-}) => {
-  // Use the currency store for global currency state management
-  const { primaryCurrency } = useCurrencyStore();
-
-  // Get trip type
-  const getTripType = () => {
-    if (plan.requestType?.value) {
-      return plan.requestType.value;
-    }
-    const additionalProps = plan.additionalProperties as Record<
-      string,
-      unknown
-    > | null;
-    const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? "Business Travel";
-  };
-
-  // Helper function to get department safely
-  const getDepartment = () => {
-    // Check the nested organizational unit structure first (from API response)
-    if (plan.employee?.employeePosition?.organizationalUnit?.name) {
-      return plan.employee.employeePosition.organizationalUnit.name;
-    }
-    // Fallback to direct department field
-    if (plan.employee?.department) {
-      return plan.employee.department;
-    }
-    // Fallback to additional properties
-    if (plan.employee?.additionalProperties?.department) {
-      return plan.employee.additionalProperties.department;
-    }
-    return "Not specified";
-  };
-
-  const handleViewDetails = () => {
-    const url = buildPlatformUrl("/platform/fin/expenses/expense-plan-record", {
-      expensePlanId: plan.id,
-    });
-    navigateTo(url);
-  };
-
-  return (
-    <ExpenseDetailsView
-      title={plan.title || "No title"}
-      code={plan.code || ""}
-      status={plan.status}
-      requester={
-        plan.employee?.fullName || plan.employee?.displayName || "Unknown"
-      }
-      department={getDepartment()}
-      tripType={getTripType()}
-      totalAmount={typeof plan.totalAmount === 'number' ? formatCurrency(plan.totalAmount, primaryCurrency || plan.currency?.value) : '-'}
-      onViewDetails={handleViewDetails}
-    />
   );
 };
 

@@ -275,6 +275,47 @@ export const GET_INVESTMENT_NOTES_BY_INVESTMENT_ID = (investmentId: string): str
   `;
 };
 
+// Get Investment Note by ID
+export const GET_INVESTMENT_NOTE_BY_ID = (noteId: string): string => {
+  return `
+    query GetInvestmentNoteById {
+      InvestmentNote(
+        where: { 
+          id: { _eq: "${noteId}" }, 
+          isDeleted: { _eq: false } 
+        }
+      ) {
+        ${INVESTMENT_NOTE}
+        
+        # Entity references
+        investment {
+          id
+          code
+          name
+        }
+        account {
+          id
+          name
+        }
+        contact {
+          id
+          firstName
+          lastName
+        }
+        lead {
+          id
+          firstName
+          lastName
+        }
+        opportunity {
+          id
+          name
+        }
+      }
+    }
+  `;
+};
+
 // Get Investment Documents by Investment ID
 export const GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID = (investmentId: string): string => {
   return `
@@ -356,6 +397,26 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
               ${AUDIT_FIELDS}
             }
           }
+        }
+        
+        # Loan recipient investment account
+        loanRecipientInvestmentAccount {
+          id
+          code
+          name
+          email
+          foundationDate
+          geographicPresence
+          companySize {
+            ${CATALOG_ENTRY}
+          }
+          accountAnnualRevenueBand {
+            ${CATALOG_ENTRY}
+          }
+          industryClass {
+            ${CATALOG_ENTRY}
+          }
+          ${AUDIT_FIELDS}
         }
         
         # All investment specializations with full details

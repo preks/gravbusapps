@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
-import { Typography, Spin, Alert } from 'antd';
-import { CalendarTimeline, TimelineItem, TimelineEvent } from '@newwork/gravity-ui-catalog'; // Assuming these types are exported
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCalendarExpensePlans, ExpensePlan } from '../../../hooks/useCalendarExpensePlans';
-import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import { ExpenseStatus } from '../../../utils'; // Assuming utils exist, getExpensePlanStatusDisplay removed
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useMemo } from "react";
+import { Typography, Spin, Alert } from "antd";
+import { CalendarTimeline, TimelineItem, TimelineEvent } from "@newwork/gravity-ui-catalog"; // Assuming these types are exported
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCalendarExpensePlans, ExpensePlan } from "../../../hooks/useCalendarExpensePlans";
+import { useGetExpenseRequests, ExpenseRequest } from "../../../hooks/useGetExpenseRequests";
+import { ExpenseStatus } from "../../../utils"; // Assuming utils exist, getExpensePlanStatusDisplay removed
+import { formatDate, getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 const { Text } = Typography;
 
@@ -19,7 +19,7 @@ interface ExpenseTimelineItem extends TimelineItem {
 
 // Define the shape of events for the timeline (e.g., Expense Plans)
 interface ExpenseTimelineEvent extends TimelineEvent {
-  eventType: 'Plan' | 'Request'; // To differentiate event source
+  eventType: "Plan" | "Request"; // To differentiate event source
   // id, itemId, startDate, endDate, label, color are inherited or can be part of TimelineEvent
 
   // Add any other properties related to the expense event
@@ -37,20 +37,20 @@ const getEventTypeFromStatus = (status: ExpenseStatus): string => {
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
     case ExpenseStatus.RETURNED:
-      return 'personal'; // Blue - In Transit
+      return "personal"; // Blue - In Transit
     case ExpenseStatus.PENDING:
-      return 'pending';  // Yellow - Approval Required
+      return "pending"; // Yellow - Approval Required
     case ExpenseStatus.PAID:
     case ExpenseStatus.CLOSED:
-      return 'approved'; // Green - Paid
+      return "approved"; // Green - Paid
     default:
-      return 'other_expense_status'; // Gray
+      return "other_expense_status"; // Gray
   }
 };
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
   const { accessToken, userInfo } = props;
-  
+
   // Use hardcoded manager ID for consistency with other tabs - used by the hooks internally
 
   // Placeholder: Adapt useGetExpensePlans or create a new hook for calendar data
@@ -58,7 +58,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
   const {
     plans: expensePlans,
     loading: isLoadingPlans,
-    error: plansError
+    error: plansError,
   } = useCalendarExpensePlans({
     accessToken,
     userInfo,
@@ -71,46 +71,45 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
     error: requestsError,
   } = useGetExpenseRequests({
     accessToken,
-    userInfo
+    userInfo,
   });
-  
-
 
   // Add debugging logs for calendar data loading
   React.useEffect(() => {
-    console.log('ExpenseCalendar component mounted, data sources:', {
+    console.log("ExpenseCalendar component mounted, data sources:", {
       plansLoading: isLoadingPlans,
       plansError: !!plansError,
       plansCount: expensePlans?.length || 0,
       requestsLoading: isLoadingRequests,
       requestsError: !!requestsError,
-      requestsCount: expenseRequests?.length || 0
+      requestsCount: expenseRequests?.length || 0,
     });
   }, [isLoadingPlans, plansError, expensePlans, isLoadingRequests, requestsError, expenseRequests]);
-  
-
 
   const timelineItems = useMemo((): ExpenseTimelineItem[] => {
     const employeesMap = new Map<string, ExpenseTimelineItem>();
 
     expensePlans?.forEach((item: ExpensePlan) => {
-      if (item.employee && !employeesMap.has(item.employee.id)) {
+      if (item.employee && item.employee.id && !employeesMap.has(item.employee.id)) {
         employeesMap.set(item.employee.id, {
           id: item.employee.id,
-          name: item.employee.displayName ?? item.employee.fullName,
-          detail: item.employee.employeePosition?.organizationalUnit?.name ?? '',
+          name: item.employee.displayName ?? item.employee.fullName ?? "Unknown Employee",
+          detail: item.employee.employeePosition?.organizationalUnit?.name ?? "",
         });
       }
     });
 
     expenseRequests?.forEach((item: ExpenseRequest) => {
-      if (item.employee && !employeesMap.has(item.employee.id)) {
+      if (item.employee && item.employee.id && !employeesMap.has(item.employee.id)) {
         employeesMap.set(item.employee.id, {
           id: item.employee.id,
-          name: item.employee.displayName ?? item.employee.fullName,
+          name: item.employee.displayName ?? item.employee.fullName ?? "Unknown Employee",
           // Assuming department info might be structured differently or not present for requests
           // For consistency, one might need to ensure `item.employee.department.name` path is valid or provide fallback
-          detail: (item.employee as any).department?.name ?? ((item.employee as any).employeePosition?.organizationalUnit?.name) ?? '',
+          detail:
+            (item.employee as any).department?.name ??
+            (item.employee as any).employeePosition?.organizationalUnit?.name ??
+            "",
         });
       }
     });
@@ -129,20 +128,25 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         eventStartDate = plan.planDate;
         eventEndDate = plan.planDate;
       }
-      
+
       // Skip if no valid date can be determined
       if (!eventStartDate || !eventEndDate) return;
 
       events.push({
         id: `plan-${plan.id}`,
-        itemId: plan.employee.id,
+        itemId: plan.employee?.id || "unknown",
         startDate: eventStartDate, // Keep original date format for calendar functionality
-        endDate: eventEndDate,     // Keep original date format for calendar functionality
+        endDate: eventEndDate, // Keep original date format for calendar functionality
         type: getEventTypeFromStatus(plan.status as ExpenseStatus),
-        note: `${plan.title || 'Expense Plan'} (${formatDate(plan.startDate, 'date.short')} - ${formatDate(plan.endDate, 'date.short')})`,
+        note: `${plan.title || "Expense Plan"} (${
+          formatDate(plan.startDate, "date.short") || "N/A"
+        } - ${formatDate(plan.endDate, "date.short") || "N/A"})`,
         status: plan.status,
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan'),
-        eventType: 'Plan',
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:create_expense_request.initial_expense_plan_select_label",
+          "Expense Plan",
+        ),
+        eventType: "Plan",
       });
     });
 
@@ -159,7 +163,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
 
       // Skip if no valid date can be determined
       if (!eventStartDate || !eventEndDate) return;
-      
+
       // Ensure employee ID exists for itemId
       if (!request.employee?.id) return;
 
@@ -167,12 +171,17 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         id: `request-${request.id}`,
         itemId: request.employee.id,
         startDate: eventStartDate, // Keep original date format for calendar functionality
-        endDate: eventEndDate,     // Keep original date format for calendar functionality
+        endDate: eventEndDate, // Keep original date format for calendar functionality
         type: getEventTypeFromStatus(request.status as ExpenseStatus),
-        note: `${request.title || 'Expense Request'} (${formatDate(request.requestDate, 'date.short')})`,
+        note: `${request.title || "Expense Request"} (${
+          formatDate(request.requestDate, "date.short") || "N/A"
+        })`,
         status: request.status,
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_title_header', 'Expense Request'),
-        eventType: 'Request',
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:create_expense_request.initiate_title_header",
+          "Expense Request",
+        ),
+        eventType: "Request",
       });
     });
 
@@ -180,32 +189,64 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
   }, [expensePlans, expenseRequests]);
 
   const renderDataBody = () => {
-    if (isLoadingPlans || isLoadingRequests) return <div className="gba:flex gba:justify-center gba:items-center gba:h-full"><Spin size="large" /></div>;
-    
+    if (isLoadingPlans || isLoadingRequests)
+      return (
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
+          <Spin size="large" />
+        </div>
+      );
+
     let errorMessages = [];
     if (plansError) errorMessages.push(`Error fetching expense plans: ${plansError.message}`);
     if (requestsError) errorMessages.push(`Error fetching expense requests: ${requestsError}`); // Use requestsError directly
-    if (errorMessages.length > 0) return <Alert message={errorMessages.join('\n')} type="error" showIcon />;
+    if (errorMessages.length > 0)
+      return <Alert message={errorMessages.join("\n")} type="error" showIcon />;
 
-    if (timelineItems.length === 0 && timelineEvents.length === 0) return <Text>No expense data available for the calendar view.</Text>;
+    if (timelineItems.length === 0 && timelineEvents.length === 0)
+      return <Text>No expense data available for the calendar view.</Text>;
 
     return (
       <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_calendar', 'Expense Calendar')}
+        title={getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.dashboard_tab.expense_calendar",
+          "Expense Calendar",
+        )}
         items={timelineItems}
         events={timelineEvents}
-        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+        itemLabel={getTranslationFromI18nKeyAndLabel(
+          "lowcoder:hr_absences.create_absence.employee",
+          "Employee",
+        )}
         searchPlaceholder="Search Employees..."
         renderItemContent={(item) => (
           <div className="gba:p-2">
             <Text strong>{item.name}</Text>
-            {item.detail && <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>{item.detail}</Text>}
+            {item.detail && (
+              <Text type="secondary" style={{ fontSize: "12px", display: "block" }}>
+                {item.detail}
+              </Text>
+            )}
           </div>
         )}
         legendItems={[
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'), color: 'blue' }, 
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approval_required', 'Approval Required'), color: 'yellow' },
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'), color: 'green' }
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_statuses.in_transit",
+              "In Transit",
+            ),
+            color: "blue",
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_statuses.approval_required",
+              "Approval Required",
+            ),
+            color: "yellow",
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
+            color: "green",
+          },
         ]}
         // initialDate={new Date()} // Optional: set an initial date
         // initialViewRange={30} // Optional: set initial number of days to show
@@ -215,17 +256,15 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
 
   // Add debugging logs for calendar data
   React.useEffect(() => {
-    console.log('Expense Calendar data:', {
+    console.log("Expense Calendar data:", {
       plans: expensePlans?.length || 0,
       requests: expenseRequests?.length || 0,
       timelineItems: timelineItems?.length || 0,
-      timelineEvents: timelineEvents?.length || 0
+      timelineEvents: timelineEvents?.length || 0,
     });
   }, [expensePlans, expenseRequests, timelineItems, timelineEvents]);
 
-  return (
-    <div>{renderDataBody()}</div>
-  );
+  return <div>{renderDataBody()}</div>;
 };
 
 export default ExpenseCalendar;

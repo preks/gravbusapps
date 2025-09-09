@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface CurrencyState {
   primaryCurrency: string;
@@ -20,52 +20,76 @@ interface CurrencyState {
  * Store for managing currency-related state across the manager-expenses app
  */
 export const useCurrencyStore = create<CurrencyState>((set) => ({
-  primaryCurrency: 'EUR',
-  availableCurrencies: ['EUR', 'USD'],
+  primaryCurrency: "EUR",
+  availableCurrencies: ["EUR", "USD"],
   mostUsedCurrency: null,
   isLoading: false,
   isUserSelected: false,
   isInitialized: false,
-  setPrimaryCurrency: (currency) => set((state) => {
-    // Only update if different from current or if user hasn't made a selection yet
-    if (currency !== state.primaryCurrency || !state.isUserSelected) {
-      return { primaryCurrency: currency };
-    }
-    return {};
-  }),
-  setAvailableCurrencies: (currencies) => set((state) => {
-    // Only update if we have new currencies or haven't initialized yet
-    if (!state.isInitialized || currencies.length > 0) {
-      return { 
-        availableCurrencies: currencies,
-        isInitialized: true
-      };
-    }
-    return {};
-  }),
-  setMostUsedCurrency: (currency) => set((state) => {
-    // Only update if different from current
-    if (currency !== state.mostUsedCurrency) {
-      // If user hasn't explicitly selected a currency, also update primaryCurrency
-      if (!state.isUserSelected) {
-        return { 
-          mostUsedCurrency: currency,
-          primaryCurrency: currency || state.primaryCurrency
+  setPrimaryCurrency: (currency) =>
+    set((state) => {
+      // Only update if different from current or if user hasn't made a selection yet
+      if (currency !== state.primaryCurrency || !state.isUserSelected) {
+        return { primaryCurrency: currency };
+      }
+      return {};
+    }),
+  setAvailableCurrencies: (currencies) =>
+    set((state) => {
+      // Only update if we have new currencies or haven't initialized yet
+      if (!state.isInitialized || currencies.length > 0) {
+        return {
+          availableCurrencies: currencies,
+          isInitialized: true,
         };
       }
-      return { mostUsedCurrency: currency };
-    }
-    return {};
-  }),
+      return {};
+    }),
+  setMostUsedCurrency: (currency) =>
+    set((state) => {
+      console.log(
+        "setMostUsedCurrency called with:",
+        currency,
+        "current state:",
+        {
+          mostUsedCurrency: state.mostUsedCurrency,
+          primaryCurrency: state.primaryCurrency,
+          isUserSelected: state.isUserSelected,
+        }
+      );
+
+      // Only update if different from current
+      if (currency !== state.mostUsedCurrency) {
+        // If user hasn't explicitly selected a currency, also update primaryCurrency
+        if (!state.isUserSelected) {
+          console.log(
+            "User has not selected currency, updating primaryCurrency to:",
+            currency
+          );
+          return {
+            mostUsedCurrency: currency,
+            primaryCurrency: currency || state.primaryCurrency,
+          };
+        }
+        console.log(
+          "User has selected currency, only updating mostUsedCurrency to:",
+          currency
+        );
+        return { mostUsedCurrency: currency };
+      }
+      console.log("No update needed, currency is the same");
+      return {};
+    }),
   setLoading: (isLoading) => set({ isLoading }),
   setUserSelected: (isUserSelected) => set({ isUserSelected }),
   setInitialized: (isInitialized) => set({ isInitialized }),
-  reset: () => set({ 
-    primaryCurrency: 'EUR',
-    availableCurrencies: ['EUR', 'USD'],
-    mostUsedCurrency: null,
-    isLoading: false,
-    isUserSelected: false,
-    isInitialized: false
-  })
+  reset: () =>
+    set({
+      primaryCurrency: "EUR",
+      availableCurrencies: ["EUR", "USD"],
+      mostUsedCurrency: null,
+      isLoading: false,
+      isUserSelected: false,
+      isInitialized: false,
+    }),
 }));

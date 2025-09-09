@@ -3,14 +3,16 @@ import { InvestmentFormValues, SelectOption, InvestmentContextState } from '../t
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeePositions } from '../hooks/useEmployeePositions';
 import { useEmployeeById, EmployeeByIdData } from '../hooks/useEmployeeById';
-import { useAccountsData } from '../hooks/useAccountsData';
+import { useGetInvestmentAccounts } from '@/common/data/investment';
 import { useInvestmentGroups } from '../hooks/useInvestmentGroupCatalog';
 import { useInvestmentRoleCatalog } from '../hooks/useInvestmentRoleCatalog';
 import { useRealEstateTypes } from '../hooks/useRealEstateTypeCatalog';
 import { useInvestmentOwnershipStructures } from '../hooks/useInvestmentOwnershipStructureCatalog';
 import { useInterestPaymentFrequencies } from '../hooks/useInterestPaymentFrequencyCatalog';
-import { validateInvestmentForm } from '../utils/validationUtils';
-import { useGetInvestmentById, InvestmentData } from '../queries/InvestmentQueries';
+import { useInvestmentTypeCatalog } from '../hooks/useInvestmentTypeCatalog';
+// validation handled via zod resolver in the form component
+// Note: Using centralized investment queries but with form-specific data transformation
+import { useGetInvestmentCatalogData, InvestmentCatalogData, FormFieldsDefinition } from '../queries/InvestmentCatalogQueries';
 
 interface InvestmentFormContextValue extends InvestmentContextState {
   formValues: InvestmentFormValues;
@@ -71,20 +73,29 @@ interface InvestmentFormContextValue extends InvestmentContextState {
   interestPaymentFrequencies: SelectOption[];
   interestPaymentFrequenciesLoading: boolean;
   interestPaymentFrequenciesError: string | null;
+
+  // Investment types (based on selected group)
+  investmentTypes: SelectOption[];
+  investmentTypesLoading: boolean;
+  investmentTypesError: string | null;
   interestPaymentFrequenciesHasMore: boolean;
   searchInterestPaymentFrequencies: (search: string) => void;
   loadMoreInterestPaymentFrequencies: () => void;
   
-  // Account autocomplete
-  accountSuggestions: SelectOption[];
-  searchAccounts: (search: string) => Promise<SelectOption[]>;
-  isSearchingAccounts: boolean;
-  setIsSearchingAccounts: (loading: boolean) => void;
-  setAccountSuggestions: (suggestions: SelectOption[]) => void;
+  // Account data (centralized)
+  fetchInvestmentAccounts: (variables?: any) => Promise<any>;
   
   // Validation
   validationErrors: Record<string, string>;
   isFormValid: boolean;
+  
+  // Investment catalog data (form fields definitions)
+  investmentCatalogData: InvestmentCatalogData | null;
+  investmentCatalogLoading: boolean;
+  investmentCatalogError: string | null;
+  
+  // Helper to get form fields for current selection
+  getFormFieldsDefinition: () => FormFieldsDefinition | null;
 }
 
 interface InvestmentFormProviderProps {
@@ -133,16 +144,32 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
 
 
+  // Enhanced setFormValues that handles investment type clearing when group changes
+  const setFormValues = useCallback((updates: Partial<InvestmentFormValues>) => {
+    setFormValuesState(prev => {
+      const newValues = { ...prev, ...updates };
+      
+      // If group is changing, clear investment type only when no explicit type is provided
+      if (
+        updates.group !== undefined &&
+        updates.group !== prev.group &&
+        updates.investmentTypeRef === undefined
+      ) {
+        newValues.investmentTypeRef = '';
+      }
+      
+      return newValues;
+    });
+  }, []);
+
   // Global state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors] = useState<Record<string, string>>({});
 
 
 
-  // Account autocomplete state
-  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>([]);
-  const [isSearchingAccounts, setIsSearchingAccounts] = useState(false);
+  // Note: Account autocomplete now uses centralized fetchInvestmentAccounts
 
   // Ref to track if auto-selection has been done
   const autoSelectionDone = useRef(false);
@@ -167,6 +194,78 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     employeeId: formValues.ownerEmployeeId 
   });
 
+  // Investment catalog data - load immediately when context initializes
+  const [investmentCatalogData, setInvestmentCatalogData] = useState<InvestmentCatalogData | null>(null);
+  const [investmentCatalogLoading, setInvestmentCatalogLoading] = useState(false);
+  const [investmentCatalogError, setInvestmentCatalogError] = useState<string | null>(null);
+  
+  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(businessAppContext);
+
+  // Load investment catalog data immediately
+  useEffect(() => {
+    if (!businessAppContext.accessToken) return;
+
+    const loadCatalogData = async () => {
+      setInvestmentCatalogLoading(true);
+      setInvestmentCatalogError(null);
+      
+      try {
+        const data = await fetchInvestmentCatalogData();
+        setInvestmentCatalogData(data);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch investment catalog data';
+        setInvestmentCatalogError(errorMessage);
+        console.error('Failed to load investment catalog data:', err);
+      } finally {
+        setInvestmentCatalogLoading(false);
+      }
+    };
+
+    loadCatalogData();
+  }, [businessAppContext.accessToken, fetchInvestmentCatalogData]);
+
+  // Helper function to get form fields for current selection
+  const getFormFieldsDefinition = useCallback((): FormFieldsDefinition | null => {
+    if (!investmentCatalogData) return null;
+
+    // Extract codes
+    const groupCode = formValues.group ? formValues.group.split(':').pop() : null;
+    const typeCode = formValues.investmentTypeRef ? formValues.investmentTypeRef.split(':').pop() : null;
+
+    // First, try to get from investment type
+    if (typeCode) {
+      const typeEntry = investmentCatalogData.investmentTypes.find(type => type.code === typeCode);
+      if (typeEntry && typeEntry.objectValue && typeEntry.objectValue.formFields?.length > 0) {
+        return typeEntry.objectValue;
+      }
+    }
+
+    // Fallback to investment group
+    if (groupCode) {
+      const groupEntry = investmentCatalogData.investmentGroups.find(group => group.code === groupCode);
+      if (groupEntry && groupEntry.objectValue && groupEntry.objectValue.formFields?.length > 0) {
+        return groupEntry.objectValue;
+      }
+    }
+
+    return null;
+  }, [investmentCatalogData, formValues.group, formValues.investmentTypeRef]);
+
+  // Current user employee hook - for ensuring current user is always available in the list
+  const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+  const {
+    employee: currentUserEmployee,
+    loading: currentUserEmployeeLoading,
+    error: currentUserEmployeeError
+  } = useEmployeeById({ 
+    accessToken: businessAppContext.accessToken,
+    employeeId: currentUserEmployeeId || ''
+  });
+  
+  // Prevent unused variable warnings
+  void currentUserEmployeeLoading;
+  void currentUserEmployeeError;
+
   // Investment groups hook
   const investmentGroupsHook = useInvestmentGroups(businessAppContext.accessToken);
 
@@ -182,148 +281,18 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   // Interest payment frequencies hook
   const interestPaymentFrequenciesHook = useInterestPaymentFrequencies(businessAppContext.accessToken);
 
-  // Accounts data hook for account autocomplete
-  const { searchAccounts, loadDefaultAccounts } = useAccountsData(businessAppContext);
+  // Investment types hook (based on selected group)
+  const investmentTypesHook = useInvestmentTypeCatalog(businessAppContext.accessToken, formValues.group);
 
-  // Investment data hook for loading existing investment
-  const { fetchInvestmentById } = useGetInvestmentById(businessAppContext);
+  // Accounts data hook for account autocomplete  
+  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(businessAppContext);
 
-  // Transform investment data to form values
-  const transformInvestmentToFormValues = useCallback((investment: InvestmentData): InvestmentFormValues => {
-    
-    const formValues: InvestmentFormValues = {
-      id: investment.id,
-      version: investment.version,
-      ownerEmployeeId: investment.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-      name: investment.name,
-      accountId: investment.accountId,
-      // Direct mapping since field names now match
-      initialInvestmentAmount: (() => {
-        const amount = investment.initialInvestmentAmount;
-        
-        if (amount === null || amount === undefined) {
-          return '';
-        }
-        
-        // Handle both string and number types, preserve decimal values
-        const numValue = typeof amount === 'string' ? parseFloat(amount) : amount;
-        const result = isNaN(numValue) ? '' : String(numValue);
-        return result;
-      })(),
-      // Use investmentGroupRef for the group field since we're using investmentGroup catalog
-      group: investment.investmentGroupRef || ''
-    };
+  // TODO: Need to implement form-specific investment loading for update mode
 
+  // TODO: Re-implement investment data transformation when investment loading is restored
+  // removed unused transform helper
 
-
-    // Add equity information if available
-    if (investment.equityInvestment) {
-      formValues.equityInvestmentId = investment.equityInvestment.id || '';
-      formValues.equityInvestmentVersion = investment.equityInvestment.version || '';
-      formValues.equityRole = investment.equityInvestment.investmentRoleRef || '';
-      formValues.currentCompanyValue = investment.equityInvestment.currentCompanyValuation?.toString() || '';
-      formValues.lastReportedTurnover = investment.equityInvestment.lastReportedTurnover?.toString() || '';
-      formValues.lastReportedEbitda = investment.equityInvestment.lastReportedEbitda?.toString() || '';
-    }
-
-
-    // Add real estate information if available
-    if (investment.realEstateInvestment) {
-      formValues.realEstateInvestmentId = investment.realEstateInvestment.id || '';
-      formValues.realEstateInvestmentVersion = investment.realEstateInvestment.version || '';
-      formValues.realEstateTypeRef = investment.realEstateInvestment.realEstateTypeRef || '';
-      formValues.investmentOwnershipStructureRef = investment.realEstateInvestment.investmentOwnershipStructureRef || '';
-      formValues.numberOfUnits = investment.realEstateInvestment.numberOfUnits?.toString() || '';
-      formValues.buildingYear = investment.realEstateInvestment.buildingYear?.toString() || '';
-    }
-
-    // Add liquid fund information if available
-    if (investment.liquidFundInvestment) {
-      formValues.liquidFundInvestmentId = investment.liquidFundInvestment.id || '';
-      formValues.liquidFundInvestmentVersion = investment.liquidFundInvestment.version || '';
-      formValues.accountNumber = investment.liquidFundInvestment.accountNumber || '';
-      formValues.earlyTerminationAllowed = investment.liquidFundInvestment.earlyTerminationAllowed || false;
-      formValues.interestRate = investment.liquidFundInvestment.interestRate?.toString() || '';
-      formValues.interestPaymentFrequencyRef = investment.liquidFundInvestment.interestPaymentFrequencyRef || '';
-      
-      // Handle maturity date format conversion
-      const rawMaturityDate = investment.liquidFundInvestment.maturityDate;
-      
-      if (rawMaturityDate) {
-        // Convert date to YYYY-MM-DD format for HTML date input (timezone-safe)
-        let formattedDate = '';
-        try {
-          const date = new Date(rawMaturityDate);
-          if (!isNaN(date.getTime())) {
-            // Use local date components to avoid timezone issues
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            formattedDate = `${year}-${month}-${day}`;
-          }
-        } catch {
-          // Handle date parsing errors silently
-        }
-        formValues.maturityDate = formattedDate;
-      } else {
-        formValues.maturityDate = '';
-      }
-    }
-
-    return formValues;
-  }, [businessAppContext.userInfo?.employeeDetails?.employeeId]);
-
-  // Load investment data when investmentId is provided and catalogs are loaded
-  useEffect(() => {
-    
-    const loadInvestmentData = async () => {
-      if (
-        initialValues?.id && 
-        businessAppContext.accessToken && 
-        !investmentGroupsHook.loading && 
-        investmentGroupsHook.options.length > 0
-      ) {
-        setIsLoading(true);
-        setError(null);
-        
-        try {
-          const investmentData = await fetchInvestmentById({ id: initialValues.id });
-          
-          if (investmentData) {
-            const transformedValues = transformInvestmentToFormValues(investmentData);
-            setFormValuesState(transformedValues);
-            
-            // Pre-populate account suggestions with the loaded account
-            if (investmentData.account) {
-              setAccountSuggestions([{
-                id: investmentData.account.id,
-                name: investmentData.account.name,
-                label: investmentData.account.name,
-                value: investmentData.account.id,
-              }]);
-            }
-          } else {
-            // Investment ID was provided but no investment was found
-            console.error('Investment not found for ID:', initialValues.id);
-            setError(`Investment with ID "${initialValues.id}" was not found`);
-          }
-        } catch (err) {
-          console.error('Error loading investment data:', err);
-          setError(err instanceof Error ? err.message : 'Failed to load investment data');
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadInvestmentData();
-  }, [
-    initialValues?.id, 
-    businessAppContext.accessToken, 
-    investmentGroupsHook.loading, 
-    investmentGroupsHook.options.length
-    // Note: fetchInvestmentById and transformInvestmentToFormValues are stable functions, no need to include in deps
-  ]);
+  // Removed obsolete update-mode warning; update loading is handled in component
 
   // Initialize investment groups and roles on mount
   const hasInitialized = useRef(false);
@@ -340,23 +309,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
 
 
-  // Load default accounts on mount
-  const hasLoadedDefaultAccounts = useRef(false);
-  useEffect(() => {
-    const loadInitialAccounts = async () => {
-      if (businessAppContext.accessToken && !hasLoadedDefaultAccounts.current) {
-        hasLoadedDefaultAccounts.current = true;
-        try {
-          const defaultAccounts = await loadDefaultAccounts();
-          setAccountSuggestions(defaultAccounts);
-        } catch (err) {
-          console.error('Error loading default accounts:', err);
-        }
-      }
-    };
-
-    loadInitialAccounts();
-  }, [businessAppContext.accessToken]);
+  // Note: Account loading now uses centralized fetchInvestmentAccounts
 
   // Auto-select current user as owner when ownerEmployeeId is null or not provided
   useEffect(() => {
@@ -373,23 +326,64 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
   }, [businessAppContext.userInfo?.employeeDetails?.employeeId, formValues.ownerEmployeeId]);
 
-  // Form validation
-  const validateForm = useCallback(() => {
-    const validation = validateInvestmentForm(formValues);
-    setValidationErrors(validation.errors);
-    return validation.isValid;
-  }, [formValues]);
+  // Enhanced employee positions list that always includes current user at the top
+  const enhancedEmployeePositions = useMemo(() => {
+    const positions = [...employeePositionData];
+    
+    // If we have current user employee data and it's not already in the list, add it at the top
+    if (currentUserEmployee && currentUserEmployeeId && 
+        !positions.some(emp => emp.value === currentUserEmployeeId)) {
+      const currentUserPosition: SelectOption = {
+        id: currentUserEmployeeId,
+        value: currentUserEmployeeId,
+        label: currentUserEmployee.employee?.displayName || 
+               `${currentUserEmployee.firstName || ''} ${currentUserEmployee.lastName || ''}`.trim(),
+        name: currentUserEmployee.employee?.displayName || 
+              `${currentUserEmployee.firstName || ''} ${currentUserEmployee.lastName || ''}`.trim(),
+        extraInfo: {
+          picture: currentUserEmployee.employee?.picture || null,
+          pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail || null,
+          jobPosition: currentUserEmployee.jobPosition?.name || 'No Position',
+          organizationalUnit: currentUserEmployee.organizationalUnit?.name || 'No Unit',
+          department: currentUserEmployee.organizationalUnit?.name || 'No Department',
+          position: currentUserEmployee.jobPosition?.name || 'No Position',
+          userId: currentUserEmployee.employee?.userId || null,
+        },
+      };
+      
+      // Add current user at the beginning of the list
+      positions.unshift(currentUserPosition);
+    }
+    
+    // Ensure current owner (loaded from form) is present as an option
+    if (currentEmployee && formValues.ownerEmployeeId &&
+        !positions.some(emp => emp.value === formValues.ownerEmployeeId)) {
+      const ownerDisplayName = currentEmployee.employee?.displayName || 
+        `${currentEmployee.firstName || ''} ${currentEmployee.lastName || ''}`.trim();
+      const ownerOption: SelectOption = {
+        id: formValues.ownerEmployeeId,
+        value: formValues.ownerEmployeeId,
+        label: ownerDisplayName,
+        name: ownerDisplayName,
+        extraInfo: {
+          picture: currentEmployee.employee?.picture || null,
+          pictureThumbnail: currentEmployee.employee?.pictureThumbnail || null,
+          jobPosition: currentEmployee.jobPosition?.name || 'No Position',
+          organizationalUnit: currentEmployee.organizationalUnit?.name || 'No Unit',
+          department: currentEmployee.organizationalUnit?.name || 'No Department',
+          position: currentEmployee.jobPosition?.name || 'No Position',
+          userId: currentEmployee.employee?.userId || null,
+        },
+      };
+      positions.unshift(ownerOption);
+    }
+    
+    return positions;
+  }, [employeePositionData, currentUserEmployee, currentUserEmployeeId]);
 
-  // Check if form is valid
-  const isFormValid = useMemo(() => {
-    const validation = validateInvestmentForm(formValues);
-    return validation.isValid;
-  }, [formValues]);
+  // Validation is handled by zod in AppActionForm; treat context as always valid
+  const isFormValid = useMemo(() => true, []);
 
-  // Update form values
-  const setFormValues = useCallback((updates: Partial<InvestmentFormValues>) => {
-    setFormValuesState(prev => ({ ...prev, ...updates }));
-  }, []);
 
   // Handle form submission
   const handleSubmit = useCallback(async (values: InvestmentFormValues) => {
@@ -397,11 +391,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     setError(null);
     
     try {
-      if (!validateForm()) {
-        setError('Please fix the validation errors before submitting');
-        return;
-      }
-      
       await onSubmit(values);
     } catch (err) {
       console.error('Error submitting investment form:', err);
@@ -409,7 +398,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [onSubmit, validateForm]);
+  }, [onSubmit]);
 
   // Handle form cancellation
   const handleCancel = useCallback(async () => {
@@ -466,7 +455,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     currentEmployeeError,
     
     // Employee positions
-    employeePositions: employeePositionData,
+    employeePositions: enhancedEmployeePositions,
     employeePositionsLoading,
     employeePositionsError,
     employeePositionsHasMore,
@@ -512,16 +501,22 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     interestPaymentFrequenciesHasMore: interestPaymentFrequenciesHook.hasMore,
     searchInterestPaymentFrequencies: interestPaymentFrequenciesHook.search,
     loadMoreInterestPaymentFrequencies: interestPaymentFrequenciesHook.loadMore,
+
+    // Investment types (based on selected group)
+    investmentTypes: investmentTypesHook.options,
+    investmentTypesLoading: investmentTypesHook.loading,
+    investmentTypesError: investmentTypesHook.error,
     
-    // Account autocomplete
-    accountSuggestions,
-    searchAccounts,
-    isSearchingAccounts,
-    setIsSearchingAccounts,
-    setAccountSuggestions,
+    // Account autocomplete (migrated to centralized)
+    fetchInvestmentAccounts,
     
-    // Data collections
-    accounts: accountSuggestions,
+    // Note: Account data now accessed via fetchInvestmentAccounts
+    
+    // Investment catalog data (form fields definitions)
+    investmentCatalogData,
+    investmentCatalogLoading,
+    investmentCatalogError,
+    getFormFieldsDefinition,
   };
 
   return (

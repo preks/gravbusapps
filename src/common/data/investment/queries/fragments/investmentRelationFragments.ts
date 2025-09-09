@@ -229,6 +229,7 @@ export const INVESTMENT_TASK = `
     dueDate
     endDate
     taskTiming
+    taskTypeRef
     ${AUDIT_FIELDS}
 
     # Catalog references
