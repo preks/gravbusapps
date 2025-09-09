@@ -20,6 +20,7 @@ import {
   getCurrentActiveUserLocale,
 } from "@/common/utils/windowUtils";
 import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
+import { getExpenseRequestStatusDisplay } from "../../utils";
 import Pill from "@/components/pill";
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
@@ -226,12 +227,16 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Pill
-                            type={
-                              request.status === "PENDING" ? ("warning" as any) : ("default" as any)
-                            }
-                            label={request.status}
-                          />
+                          {(() => {
+                            const { type, label } = getExpenseRequestStatusDisplay(request.status);
+                            return (
+                              <Pill
+                                type={type as any}
+                                label={label}
+                                data-testid={`status-pill-${request.status?.toLowerCase()}`}
+                              />
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                     ))}

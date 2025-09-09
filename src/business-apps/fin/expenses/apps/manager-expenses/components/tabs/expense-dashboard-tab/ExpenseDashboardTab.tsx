@@ -14,9 +14,13 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import CurrencyFilter from "../../../components/currency-filter";
 
 import ExpenseTrendsChart from "./components/ExpenseTrendsChart";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { getExpenseRequestStatusDisplay } from "../../../utils";
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -71,6 +75,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
 
   // For chart display, use the same currency as display
   const chartCurrency = displayCurrency;
+
+  // Get user locale for date formatting
+  const userLocale = getCurrentActiveUserLocale();
 
   // Quick actions data
   const quickActions = [
@@ -299,7 +306,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                             {request.employeeName}
                           </p>
                           <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground">
-                            {request.status}
+                            {getExpenseRequestStatusDisplay(request.status).label}
                           </span>
                         </div>
                       </div>
@@ -316,7 +323,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                               )}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
-                          {request.requestDate}
+                          {new Date(request.requestDate).toLocaleDateString(userLocale, {
+                            month: "2-digit",
+                            day: "2-digit",
+                            year: "2-digit",
+                          })}
                         </p>
                       </div>
                     </div>

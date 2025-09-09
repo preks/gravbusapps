@@ -28,6 +28,11 @@ import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
+import {
+  getExpenseRequestStatusDisplay,
+  getAdvancePaymentStatusDisplay,
+  getExpensePlanStatusDisplay,
+} from "../../utils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import CurrencyFilter from "../../components/currency-filter";
 
@@ -251,7 +256,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <BarChartComponent
               data={
                 data?.expenseItemsByStatus.map((item) => ({
-                  name: item.status,
+                  name: getExpenseRequestStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -343,7 +348,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <BarChartComponent
               data={
                 data?.expenseRequestsByStatus.map((item) => ({
-                  name: item.status,
+                  name: getExpenseRequestStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -369,7 +374,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <PieChartComponent
               data={
                 data?.expenseRequestsByStatus.map((item) => ({
-                  name: item.status,
+                  name: getExpenseRequestStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -461,7 +466,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <BarChartComponent
               data={
                 data?.expensePlansByStatus.map((item) => ({
-                  name: item.status,
+                  name: getExpensePlanStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -487,7 +492,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <PieChartComponent
               data={
                 data?.expensePlansByStatus.map((item) => ({
-                  name: item.status,
+                  name: getExpensePlanStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -576,7 +581,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <BarChartComponent
               data={
                 data?.advancePaymentsByStatus.map((item) => ({
-                  name: item.status,
+                  name: getAdvancePaymentStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
@@ -601,7 +606,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <PieChartComponent
               data={
                 data?.advancePaymentsByStatus.map((item) => ({
-                  name: item.status,
+                  name: getAdvancePaymentStatusDisplay(item.status).label,
                   value: item.count,
                 })) || []
               }
