@@ -50,7 +50,7 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
     () => ({
       amount: {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:initiate_advance_payment.amount",
+          "lowcoder:advance_payment_table.amount_label",
           "Amount",
         ),
       },

@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@newwork/nw-design-system";
-import { PiArrowRight, PiCheckCircle, PiXCircle, PiCalendarDuotone, PiClock } from "react-icons/pi";
+import { PiArrowRight, PiCalendarDuotone, PiClock } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   getTranslationFromI18nKeyAndLabel,
@@ -21,35 +21,14 @@ import dayjs from "dayjs";
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: any;
-  onApprove?: (paymentId: string) => Promise<void>;
-  onReject?: (paymentId: string) => Promise<void>;
 }
 
-const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
-  payment,
-  onApprove,
-  onReject,
-}) => {
+const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
   if (!payment) return null;
 
   // Get trip type
   const getTripType = () => {
     return payment.purpose || "Advance Payment";
-  };
-
-  const canApprove = payment.status === "PENDING" || payment.status === "CREATED";
-  const canReject = payment.status === "PENDING" || payment.status === "CREATED";
-
-  const handleApprove = () => {
-    if (onApprove) {
-      onApprove(payment.id);
-    }
-  };
-
-  const handleReject = () => {
-    if (onReject) {
-      onReject(payment.id);
-    }
   };
 
   return (
@@ -72,12 +51,12 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             getAdvancePaymentStatusDisplay(payment.status).type === "completed"
               ? "success"
               : getAdvancePaymentStatusDisplay(payment.status).type === "error"
-              ? "destructive"
-              : getAdvancePaymentStatusDisplay(payment.status).type === "task"
-              ? "warning"
-              : getAdvancePaymentStatusDisplay(payment.status).type === "waiting"
-              ? "secondary"
-              : "default"
+                ? "destructive"
+                : getAdvancePaymentStatusDisplay(payment.status).type === "task"
+                  ? "warning"
+                  : getAdvancePaymentStatusDisplay(payment.status).type === "waiting"
+                    ? "secondary"
+                    : "default"
           }
           className="gba:text-sm"
           data-testid="advance-payment-status-badge"
@@ -238,28 +217,6 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
 
       {/* Action Buttons */}
       <div className="gba:flex gba:justify-end gba:gap-3">
-        {canApprove && onApprove && (
-          <Button
-            variant="default"
-            onClick={handleApprove}
-            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-white gba:hover:bg-green-600"
-            data-testid="advance-payment-approve-button"
-          >
-            {getTranslationFromI18nKeyAndLabel("advance_payment_approve", "Approve")}
-            <PiCheckCircle className="gba:h-4 gba:w-4" />
-          </Button>
-        )}
-        {canReject && onReject && (
-          <Button
-            variant="destructive"
-            onClick={handleReject}
-            className="gba:flex gba:items-center gba:gap-2"
-            data-testid="advance-payment-reject-button"
-          >
-            {getTranslationFromI18nKeyAndLabel("advance_payment_reject", "Reject")}
-            <PiXCircle className="gba:h-4 gba:w-4" />
-          </Button>
-        )}
         <Button
           variant="default"
           onClick={() => {

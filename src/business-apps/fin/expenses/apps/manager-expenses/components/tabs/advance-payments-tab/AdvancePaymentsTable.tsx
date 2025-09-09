@@ -65,7 +65,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   // Local state management
   const [selectedPayment, setSelectedPayment] = useState<AdvancePaymentItem | null>(null);
-  const [currentActionPlanId, setCurrentActionPlanId] = useState<string>("");
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -75,10 +74,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     loading: isLoading,
     error,
     totalCount,
-    approving,
-    rejecting,
-    approvePayment,
-    rejectPayment,
     sorting,
     updateSorting,
   } = useMainViewAdvancePayments({
@@ -98,30 +93,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
   }, []);
-
-  const handleApprovePayment = useCallback(
-    async (paymentId: string) => {
-      setCurrentActionPlanId(paymentId);
-      try {
-        await approvePayment(paymentId, "Approved");
-      } finally {
-        setCurrentActionPlanId("");
-      }
-    },
-    [approvePayment],
-  );
-
-  const handleRejectPayment = useCallback(
-    async (paymentId: string) => {
-      setCurrentActionPlanId(paymentId);
-      try {
-        await rejectPayment(paymentId, "Rejected");
-      } finally {
-        setCurrentActionPlanId("");
-      }
-    },
-    [rejectPayment],
-  );
 
   // Render the table
   const renderDataBody = useCallback(() => {
@@ -503,19 +474,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         )}
       </div>
     );
-  }, [
-    error,
-    isLoading,
-    filteredPayments,
-    approvePayment,
-    rejectPayment,
-    approving,
-    rejecting,
-    currentActionPlanId,
-    totalCount,
-    pageSize,
-    currentPage,
-  ]);
+  }, [error, isLoading, filteredPayments, totalCount, pageSize, currentPage]);
 
   return (
     <>
@@ -567,12 +526,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
             {selectedPayment && (
-              <AdvancePaymentDetails
-                payment={selectedPayment}
-                onApprove={handleApprovePayment}
-                onReject={handleRejectPayment}
-                {...contextProps}
-              />
+              <AdvancePaymentDetails payment={selectedPayment} {...contextProps} />
             )}
           </div>
         </SheetContent>

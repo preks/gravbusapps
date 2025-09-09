@@ -26,10 +26,8 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
-import {
-  formatNumberFunction,
-  getTranslationFromI18nKeyAndLabel,
-} from "@/common/utils/windowUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import CurrencyFilter from "../../components/currency-filter";
 
@@ -92,7 +90,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Set the default currency when data is loaded
   useEffect(() => {
     if (!currencyFilter && defaultCurrency) {
-      console.log("Setting default currency to:", defaultCurrency);
       setCurrencyFilter(defaultCurrency);
     }
   }, [defaultCurrency, currencyFilter]);
@@ -139,15 +136,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Items",
       ),
       value: data?.totalExpenseAmount
-        ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00")
-        : "0,00",
-      prefix: (
-        <span className="gba:font-medium" data-testid="team-analytics-expense-items-currency-code">
-          {currencyFilter || primaryCurrency}
-        </span>
-      ),
+        ? formatCurrencyDisplay(data.totalExpenseAmount, currencyFilter || primaryCurrency)
+        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
       color: "#1890ff",
-      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions",
@@ -161,18 +152,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Requests",
       ),
       value: data?.totalRequestAmount
-        ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00")
-        : "0,00",
-      prefix: (
-        <span
-          className="gba:font-medium"
-          data-testid="team-analytics-expense-requests-currency-code"
-        >
-          {currencyFilter || primaryCurrency}
-        </span>
-      ),
+        ? formatCurrencyDisplay(data.totalRequestAmount, currencyFilter || primaryCurrency)
+        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
       color: "#52c41a",
-      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests",
@@ -186,15 +168,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Plans",
       ),
       value: data?.totalPlanAmount
-        ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00")
-        : "0,00",
-      prefix: (
-        <span className="gba:font-medium" data-testid="team-analytics-expense-plans-currency-code">
-          {currencyFilter || primaryCurrency}
-        </span>
-      ),
+        ? formatCurrencyDisplay(data.totalPlanAmount, currencyFilter || primaryCurrency)
+        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
       color: "#722ed1",
-      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets",
@@ -208,18 +184,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Advance Payments",
       ),
       value: data?.totalAdvanceAmount
-        ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00")
-        : "0,00",
-      prefix: (
-        <span
-          className="gba:font-medium"
-          data-testid="team-analytics-advance-payments-currency-code"
-        >
-          {currencyFilter || primaryCurrency}
-        </span>
-      ),
+        ? formatCurrencyDisplay(data.totalAdvanceAmount, currencyFilter || primaryCurrency)
+        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
       color: "#fa8c16",
-      suffix: currencyFilter || primaryCurrency,
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees",
@@ -297,7 +264,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         <Card>
           <CardHeader>
-            <CardTitle>Summary Statistics</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.summary_statistics",
+                "Summary Statistics",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -305,19 +277,29 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 <div className="gba:text-3xl gba:font-bold gba:text-primary">
                   {data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Items</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_expense_items",
+                    "Total Items",
+                  )}
+                </div>
               </div>
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                  <span data-testid="team-analytics-expense-items-total-amount-currency">
-                    {primaryCurrency}
-                  </span>{" "}
                   {data?.totalExpenseAmount
-                    ? formatNumberFunction(data.totalExpenseAmount.toString(), "0.00[,]00")
-                    : "0,00"}
+                    ? formatCurrencyDisplay(
+                        data.totalExpenseAmount,
+                        currencyFilter || primaryCurrency,
+                      )
+                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_list.expense_plan_table.total_amount",
+                    "Total Amount",
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -400,7 +382,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         <Card>
           <CardHeader>
-            <CardTitle>Summary Statistics</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.summary_statistics",
+                "Summary Statistics",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -408,19 +395,29 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 <div className="gba:text-3xl gba:font-bold gba:text-primary">
                   {data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Requests</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_expense_requests",
+                    "Total Requests",
+                  )}
+                </div>
               </div>
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-                  <span data-testid="team-analytics-expense-requests-total-amount-currency">
-                    {primaryCurrency}
-                  </span>{" "}
                   {data?.totalRequestAmount
-                    ? formatNumberFunction(data.totalRequestAmount.toString(), "0.00[,]00")
-                    : "0,00"}
+                    ? formatCurrencyDisplay(
+                        data.totalRequestAmount,
+                        currencyFilter || primaryCurrency,
+                      )
+                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_amount",
+                    "Total Amount",
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -503,7 +500,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         <Card>
           <CardHeader>
-            <CardTitle>Summary Statistics</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.summary_statistics",
+                "Summary Statistics",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -511,19 +513,26 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 <div className="gba:text-3xl gba:font-bold gba:text-primary">
                   {data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Plans</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_expense_plans",
+                    "Total Plans",
+                  )}
+                </div>
               </div>
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
-                  <span data-testid="team-analytics-expense-plans-total-amount-currency">
-                    {primaryCurrency}
-                  </span>{" "}
                   {data?.totalPlanAmount
-                    ? formatNumberFunction(data.totalPlanAmount.toString(), "0.00[,]00")
-                    : "0,00"}
+                    ? formatCurrencyDisplay(data.totalPlanAmount, currencyFilter || primaryCurrency)
+                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_amount",
+                    "Total Amount",
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -604,7 +613,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
         <Card>
           <CardHeader>
-            <CardTitle>Summary Statistics</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.summary_statistics",
+                "Summary Statistics",
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -612,19 +626,29 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 <div className="gba:text-3xl gba:font-bold gba:text-primary">
                   {data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Payments</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
+                    "Total Payments",
+                  )}
+                </div>
               </div>
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-cyan-600">
-                  <span data-testid="team-analytics-advance-payments-total-amount-currency">
-                    {primaryCurrency}
-                  </span>{" "}
                   {data?.totalAdvanceAmount
-                    ? formatNumberFunction(data.totalAdvanceAmount.toString(), "0.00[,]00")
-                    : "0,00"}
+                    ? formatCurrencyDisplay(
+                        data.totalAdvanceAmount,
+                        currencyFilter || primaryCurrency,
+                      )
+                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Amount</div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.total_amount",
+                    "Total Amount",
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
