@@ -150,7 +150,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     onNavigateToApprovals: handleNavigateToApprovals,
     onNavigateToReports: handleNavigateToReports,
     onNavigateToAnalytics: handleNavigateToAnalytics,
-    moduleColor: moduleColor,
     // Currency is now managed globally via the store, no need to pass it explicitly
   };
 
@@ -214,7 +213,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
             icon: option.icon,
           })),
         }}
-        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

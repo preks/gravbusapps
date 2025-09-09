@@ -1,5 +1,12 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Icon,
+  IconAvatar,
+} from "@newwork/nw-design-system";
 import {
   PiListChecks,
   PiChartLineUp,
@@ -261,9 +268,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                 >
                   <CardContent className="gba:p-6">
                     <div className="gba:flex gba:items-center gba:mb-3">
-                      <Icon
-                        icon={action.icon}
+                      <IconAvatar
+                        icon={action.icon as any}
                         className={`gba:text-2xl ${action.iconColor} gba:mr-3`}
+                        variant="default"
+                        size="md"
+                        data-testid={`quick-action-icon-${action.key}`}
                       />
                       <h4 className="gba:text-base gba:font-semibold gba:m-0">{action.title}</h4>
                     </div>
