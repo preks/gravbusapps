@@ -55,6 +55,12 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const locale = getCurrentActiveUserLocale();
   const structureId = getCurrentActiveStructureId();
 
+  const propStartDate = additionalData?.psi_taskPayload?.psi_initialParameters?.startDate
+  const propEndDate = additionalData?.psi_taskPayload?.psi_initialParameters?.endDate;
+
+  const initialStartDate = propStartDate ? new Date(propStartDate) : undefined;
+  const initialEndDate = propEndDate ? new Date(propEndDate) : undefined;
+
   // Get absenceType from different possible sources
   // This is the parent entry ID (absence group) that determines which absence types to show
   const absenceType = additionalData?.absenceType || 
@@ -70,8 +76,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
 
   const initialFormValues: CreateNewAbsenceFormValues = {
     selectedType: "",
-    startDate: undefined,
-    endDate: undefined,
+    startDate: initialStartDate,
+    endDate: initialEndDate,
     selectedSubstitute: undefined,
     comment: "",
   };
