@@ -85,10 +85,8 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   const [debugTicket, setDebugTicket] = useState<StepInstance | null>(null);
   const [isDebugModalOpen, setIsDebugModalOpen] = useState<boolean>(false);
 
-  // Filter and search state
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  // UI FILTERING DISABLED - Filter state variables removed
+  // All filtering now happens at the backend level only
 
   // Fetch tickets for this desk
   const { tickets, isLoading, refetch } = useDeskTickets({
@@ -211,7 +209,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     }
   }, [ticketId]);
 
-  // Filter and search tickets
+  // Filter and search tickets - UI FILTERING DISABLED
   const filteredTickets = useMemo(() => {
     if (!tickets) return [];
 
@@ -221,54 +219,16 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       ...optimisticUpdates[ticket.id]
     }));
 
-    return ticketsWithOptimisticUpdates.filter(ticket => {
-      // Status filter
-      if (statusFilter !== 'all' && ticket.status !== statusFilter) {
-        return false;
-      }
+    // UI FILTERING DISABLED - Return all tickets without filtering
+    console.log(`[DeskQueue] UI filtering disabled - showing all ${ticketsWithOptimisticUpdates.length} tickets for desk: ${deskKey}`);
+    return ticketsWithOptimisticUpdates;
 
-      // Assignee filter
-      if (assigneeFilter !== 'all') {
-        if (assigneeFilter === 'unassigned' && (ticket.assignedToUserId || ticket.claimedByUserId)) {
-          return false;
-        }
-        if (assigneeFilter === 'assigned' && !ticket.assignedToUserId && !ticket.claimedByUserId) {
-          return false;
-        }
-        if (assigneeFilter !== 'unassigned' && assigneeFilter !== 'assigned') {
-          if (ticket.assignedToUserId !== assigneeFilter && ticket.claimedByUserId !== assigneeFilter) {
-            return false;
-          }
-        }
-      }
-
-      // Search filter (requestId, formatted requestId, requester, or step name)
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesRequestId = ticket.requestId?.toLowerCase().includes(searchLower);
-        const matchesFormattedRequestId = ticket.requestId ? formatRequestId(ticket.requestId).toLowerCase().includes(searchLower) : false;
-        const matchesRequester = ticket.requesterId?.toLowerCase().includes(searchLower);
-        const matchesStepName = ticket.name?.toLowerCase().includes(searchLower);
-        
-        if (!matchesRequestId && !matchesFormattedRequestId && !matchesRequester && !matchesStepName) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [tickets, statusFilter, assigneeFilter, searchTerm, optimisticUpdates]);
-
-  // Get unique assignees for filter dropdown
-  const uniqueAssignees = useMemo(() => {
-    if (!tickets) return [];
-    const assignees = new Set<string>();
-    tickets.forEach(ticket => {
-      if (ticket.assignedToUserId) assignees.add(ticket.assignedToUserId);
-      if (ticket.claimedByUserId) assignees.add(ticket.claimedByUserId);
-    });
-    return Array.from(assignees);
-  }, [tickets]);
+    // DISABLED FILTERS:
+    // - Status filter (statusFilter)
+    // - Assignee filter (assigneeFilter) 
+    // - Search filter (searchTerm)
+    // All filtering now happens at the backend level only
+  }, [tickets, optimisticUpdates, deskKey]);
 
   // Handle ticket selection
   const handleViewTicket = (ticket: StepInstance) => {
@@ -624,103 +584,14 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         )}
       </div>
 
-      {/* Filters and Search */}
-      <Card className="gba:mb-4" size="small">
-        <div className="gba:flex gba:flex-wrap gba:gap-4 gba:items-center">
-          {/* Search */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-64">
-            <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-gray-400" />
-            <Input
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'services.queue.search.placeholder',
-                'Search by Request ID, Requester, or Step Name...'
-              )}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:flex-1"
-              size="small"
-              allowClear
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Funnel className="gba:w-4 gba:h-4 gba:text-gray-400" />
-            <Text className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('services.queue.filters.status', 'Status:')}
-            </Text>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              size="small"
-              className="gba:min-w-32"
-              data-testid="status-filter"
-            >
-              <Option value="all">
-                {getTranslationFromI18nKeyAndLabel('services.queue.filters.all', 'All')}
-              </Option>
-              <Option value="queued">
-                {getTranslationFromI18nKeyAndLabel('services.status.queued', 'Queued')}
-              </Option>
-              <Option value="claimed">
-                {getTranslationFromI18nKeyAndLabel('services.status.claimed', 'Claimed')}
-              </Option>
-              <Option value="in_progress">
-                {getTranslationFromI18nKeyAndLabel('services.status.in_progress', 'In Progress')}
-              </Option>
-              <Option value="waiting">
-                {getTranslationFromI18nKeyAndLabel('services.status.waiting', 'Waiting')}
-              </Option>
-              <Option value="done">
-                {getTranslationFromI18nKeyAndLabel('services.status.done', 'Done')}
-              </Option>
-              <Option value="canceled">
-                {getTranslationFromI18nKeyAndLabel('services.status.canceled', 'Canceled')}
-              </Option>
-            </Select>
-          </div>
-
-          {/* Assignee Filter */}
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <User className="gba:w-4 gba:h-4 gba:text-gray-400" />
-            <Text className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('services.queue.filters.assignee', 'Assignee:')}
-            </Text>
-            <Select
-              value={assigneeFilter}
-              onChange={setAssigneeFilter}
-              size="small"
-              className="gba:min-w-32"
-              data-testid="assignee-filter"
-            >
-              <Option value="all">
-                {getTranslationFromI18nKeyAndLabel('services.queue.filters.all', 'All')}
-              </Option>
-              <Option value="unassigned">
-                {getTranslationFromI18nKeyAndLabel('services.queue.filters.unassigned', 'Unassigned')}
-              </Option>
-              <Option value="assigned">
-                {getTranslationFromI18nKeyAndLabel('services.queue.filters.assigned', 'Assigned')}
-              </Option>
-              {uniqueAssignees.map(assignee => (
-                <Option key={assignee} value={assignee}>
-                  {assignee}
-                </Option>
-              ))}
-            </Select>
-          </div>
-
-          {/* Results Count */}
-          <div className="gba:ml-auto">
-            <Text className="gba:text-sm gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'services.queue.results',
-                `${filteredTickets.length} of ${tickets?.length || 0} tickets`
-              )}
-            </Text>
-          </div>
-        </div>
-      </Card>
+      {/* UI FILTERING DISABLED - Filter controls hidden */}
+      {/* 
+      Filters and Search controls have been hidden since UI filtering is disabled.
+      All filtering now happens at the backend level only:
+      - Desk filtering by task assignment targets
+      - Orphaned task removal  
+      - User access control by capabilities
+      */}
 
       {/* Enhanced Table */}
       <Card className="gba:overflow-hidden">
@@ -747,30 +618,15 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
             emptyText: (
               <div className="gba:text-center gba:py-8 gba:text-gray-500">
                 <div className="gba:mb-2">
-                  {searchTerm || statusFilter !== 'all' || assigneeFilter !== 'all' ? (
-                    <div>
-                      <div className="gba:mb-2">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'services.queue.noResults',
-                          'No tickets match your filters'
-                        )}
-                      </div>
-                      <Button 
-                        size="small"
-                        onClick={() => {
-                          setSearchTerm('');
-                          setStatusFilter('all');
-                          setAssigneeFilter('all');
-                        }}
-                      >
-                        {getTranslationFromI18nKeyAndLabel('services.queue.clearFilters', 'Clear Filters')}
-                      </Button>
-                    </div>
-                  ) : (
-                    getTranslationFromI18nKeyAndLabel(
-                      'services.queue.empty',
-                      'No tickets found for this desk'
-                    )
+                  {getTranslationFromI18nKeyAndLabel(
+                    'services.queue.empty',
+                    'No tickets found for this desk'
+                  )}
+                </div>
+                <div className="gba:text-xs gba:text-gray-400">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'services.queue.emptyHint',
+                    'Tasks are filtered at the backend level by assignment targets and workflow validation'
                   )}
                 </div>
               </div>

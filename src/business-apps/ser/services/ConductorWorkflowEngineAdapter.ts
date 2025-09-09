@@ -1806,6 +1806,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`, tasks.map(t => t.id));
       
       // VALIDATION: Filter out orphaned tasks (tasks without valid parent workflows)
+      // DISABLED FOR ALL DESKS - showing all tasks regardless of workflow state
+      console.warn(`[ConductorAdapter] 🚧 ORPHAN VALIDATION DISABLED FOR ALL DESKS (including ${desk}) - showing all tasks for debugging`);
+      const validTasks = tasks; // Skip validation for ALL desks
+      
+      /* 
+      // ORIGINAL ORPHAN VALIDATION (currently disabled):
       const validTasks = [];
       for (const task of tasks) {
         try {
@@ -1834,13 +1840,33 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} due to validation error:`, error);
         }
       }
+      */
       
-      console.log(`[ConductorAdapter] Filtered ${tasks.length} → ${validTasks.length} valid tasks (removed ${tasks.length - validTasks.length} orphaned tasks)`);
+      console.log(`[ConductorAdapter] Showing ${validTasks.length} tasks for desk ${desk} (orphan validation disabled for ALL DESKS)`);
       
-      // Convert only valid tasks to StepInstance format
-      const stepInstances = validTasks.map((task: any) => this.convertCustomFlowEngineTaskToStepInstance(task, desk));
+      // DESK FILTERING: Filter tasks by desk before converting
+      const deskSpecificTasks = [];
+      for (const task of validTasks) {
+        const actualTaskDesk = this.determineTaskDesk(task, []);
+        console.log(`[ConductorAdapter] Task ${task.id}: determined desk = ${actualTaskDesk}, requested desk = ${desk}`);
+        
+        if (actualTaskDesk === desk) {
+          deskSpecificTasks.push(task);
+          console.log(`[ConductorAdapter] ✅ Task ${task.id} matches desk ${desk}`);
+        } else {
+          console.log(`[ConductorAdapter] ❌ Task ${task.id} belongs to ${actualTaskDesk}, not ${desk} - skipping`);
+        }
+      }
       
-      console.log(`[ConductorAdapter] Converted to ${stepInstances.length} StepInstances for desk: ${desk}`);
+      console.log(`[ConductorAdapter] Desk filtering: ${validTasks.length} → ${deskSpecificTasks.length} tasks for desk ${desk}`);
+      
+      // Convert only desk-specific tasks to StepInstance format
+      const stepInstances = deskSpecificTasks.map((task: any) => {
+        const taskDesk = this.determineTaskDesk(task, []);
+        return this.convertCustomFlowEngineTaskToStepInstance(task, taskDesk);
+      });
+      
+      console.log(`[ConductorAdapter] Final result: ${stepInstances.length} StepInstances for desk: ${desk}`);
       return stepInstances;
 
     } catch (error) {
