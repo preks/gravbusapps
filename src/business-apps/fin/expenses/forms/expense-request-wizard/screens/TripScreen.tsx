@@ -392,36 +392,25 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     fetchAllowancePeriod();
   }, [accessToken, employeeRuleId, graphqlClient]);
 
-  // Determine checkbox visibility based on minHours and selected start/end
+  // Determine checkbox visibility: show if rule exists and dates are consecutive calendar days
   useEffect(() => {
     try {
-      if (!allowancePeriodRule || !allowancePeriodRule.minHours) {
+      if (!allowancePeriodRule) {
         setShowOvernightAccommodation(false);
         return;
       }
-      const startIso = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
-      const endIso = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
-      if (!startIso || !endIso) {
+      const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+      const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+      if (!startDate || !endDate) {
         setShowOvernightAccommodation(false);
         return;
       }
-      const startObj = new Date(startIso);
-      const endObj = new Date(endIso);
-      const diffHours = (endObj.getTime() - startObj.getTime()) / (1000 * 60 * 60);
-      if (!isFinite(diffHours)) {
-        setShowOvernightAccommodation(false);
-        return;
-      }
-      const isDifferentDay = (
-        startObj.getFullYear() !== endObj.getFullYear() ||
-        startObj.getMonth() !== endObj.getMonth() ||
-        startObj.getDate() !== endObj.getDate()
-      );
-      setShowOvernightAccommodation(isDifferentDay && diffHours < Number(allowancePeriodRule.minHours));
+      const diffDays = endDate.diff(startDate, 'day');
+      setShowOvernightAccommodation(diffDays === 1);
     } catch {
       setShowOvernightAccommodation(false);
     }
-  }, [allowancePeriodRule, startLocation.departureDate, startLocation.departureTime, endLocation.departureDate, endLocation.departureTime]);
+  }, [allowancePeriodRule, startLocation.departureDate, endLocation.departureDate]);
 
   const handleEndLocationChange = (updatedLocation: LocationData) => {
     const sanitizedLocation = validateAndSanitizeLocation(updatedLocation, endLimits);

@@ -687,7 +687,7 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
 `
 
 export const getRuleAllowancePeriod = `query getExpenseRuleAllowancePeriod($expenseRuleId: uuid!) {
-  ExpenseRuleAllowancePeriod(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false}, midnightRule: {_eq: true}}) {
+  ExpenseRuleAllowancePeriod(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false},  overnightAccomodation: {_eq: true}}) {
     id
     version
     activeTo
