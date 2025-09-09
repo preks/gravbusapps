@@ -21,6 +21,9 @@ definitions:
   services:
     docker:
       memory: 3072
+    docker-large:
+      memory: 7168
+      type: docker
   caches:
     nodecustom:
       key:
@@ -155,11 +158,11 @@ definitions:
         caches:
           - nodecustom
         services:
-          - docker
+          - docker-large
         script:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
-              SONAR_SCANNER_OPTS: -Xmx2560m
+              SONAR_SCANNER_OPTS: -Xmx6144m
 
 pipelines:
   pull-requests:
