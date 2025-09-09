@@ -45,7 +45,8 @@ export const GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES = `
             }
           },
           isDeleted: {_eq: false}
-        }
+        },
+        status: {_eq: "PAID"}
       }
     ) {
       currencyRef
