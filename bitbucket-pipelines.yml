@@ -163,6 +163,7 @@ definitions:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_SCANNER_OPTS: -Xmx6144m
+              EXTRA_ARGS: ['-Dsonar.javascript.node.maxspace=4096m']
 
 pipelines:
   pull-requests:
