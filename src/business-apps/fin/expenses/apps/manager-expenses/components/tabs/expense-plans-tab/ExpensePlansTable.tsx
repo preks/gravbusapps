@@ -49,6 +49,8 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   setCurrentPage: (page: number) => void;
   sorting: any;
   updateSorting: (field: SortField) => void;
+  pageSize: number;
+  setPageSize: (size: number) => void;
 }
 
 const DATA_TEST_ID_PREFIX = "ExpensePlansTable";
@@ -70,7 +72,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   const currentCurrencyFilter = props.currencyFilter || "EUR";
 
   // Set up local state
-  const [pageSize, setPageSize] = useState<number>(10);
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
   const [printPdfUrl, setPrintPdfUrl] = useState<string>("");
   const [printLoading, setPrintLoading] = useState<boolean>(false);
@@ -89,6 +90,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     setCurrentPage,
     sorting,
     updateSorting,
+    pageSize,
+    setPageSize,
   } = props;
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
