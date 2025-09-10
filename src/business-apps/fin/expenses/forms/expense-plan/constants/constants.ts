@@ -26,5 +26,5 @@ export const PLAN_TYPE_ENUM = {
   EXPENSE: "EXPENSE"
 } as const;
 
-export const SUBMIT_SUCCESS_RESET_TIMEOUT = 3000; 
+export const SUBMIT_SUCCESS_RESET_TIMEOUT = 5000; 
 export const ABORT_EXIT_STRATEGY = "abort";

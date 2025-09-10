@@ -31,7 +31,7 @@ export const PLAN_TYPE_ENUM = {
 } as const;
 
 // UI/behavioral constants
-export const SUBMIT_SUCCESS_RESET_TIMEOUT = 3000; // ms
+export const SUBMIT_SUCCESS_RESET_TIMEOUT = 5000; // ms
 
 // Currency defaults
 export const DEFAULT_PLAN_CURRENCY_CODE = "EUR" as const;
