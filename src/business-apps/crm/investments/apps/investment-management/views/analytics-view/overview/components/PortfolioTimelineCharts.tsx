@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
 import { 
   AreaChart,
@@ -26,8 +26,17 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
     return currencies.sort();
   }, [rawInvestments]);
 
-  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
-  const [valueCurrencyFilter, setValueCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState<string>('EUR');
+  const [valueCurrencyFilter, setValueCurrencyFilter] = useState<string>('EUR');
+
+  // Update currency filters when currencies become available
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      const defaultCurrency = availableCurrencies[0];
+      setPerformanceCurrencyFilter(defaultCurrency);
+      setValueCurrencyFilter(defaultCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Filter and regenerate performance timeline data
   const filteredPerformanceData = useMemo(() => {
@@ -138,8 +147,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
             config={useMemo(() => {
               const config = {
                 investmentcount: { label: "New Investments" },
-                totalinvestedamount: { label: "Total Invested Amount" },
-                cumulativeinvestments: { label: "Cumulative Investments" }
+                totalinvestmentamount: { label: "Total Invested Amount" }
               };
               return config;
             }, [])} 
@@ -153,12 +161,49 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Total Invested Amount') {
-                    return [formatCurrency(value as number, performanceCurrencyFilter), name];
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload
+                          .filter((entry) => {
+                            // Only show items that have actual visual chart elements
+                            return entry.dataKey === 'investmentCount' || entry.dataKey === 'totalInvestmentAmount';
+                          })
+                          .map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'investmentCount') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'New Investments';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalInvestmentAmount') {
+                            formattedValue = formatCurrency(entry.value as number, performanceCurrencyFilter);
+                            properLabel = 'Total Invested Amount';
+                            dotColor = 'var(--color-totalinvestmentamount)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  return [value, name];
-                }} />} 
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 
@@ -177,16 +222,6 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}
-              />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="cumulativeInvestments" 
-                name="cumulativeinvestments"
-                stroke="var(--color-cumulativeinvestments)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3 }}
               />
             </ComposedChart>
           </ChartContainer>
@@ -226,7 +261,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
           <ChartContainer 
             config={useMemo(() => {
               const config = {
-                totalinvestedamount: { label: "Total Invested Amount" },
+                totalinvestmentamount: { label: "Total Invested Amount" },
                 totalmarketvalue: { label: "Total Market Value" }
               };
               return config;
@@ -243,10 +278,41 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
                 tickFormatter={(value) => formatCurrency(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')} 
               />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => [
-                  formatCurrency(value as number, valueCurrencyFilter), 
-                  name
-                ]} />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'totalInvestmentAmount') {
+                            properLabel = 'Total Invested Amount';
+                            dotColor = 'var(--color-totalinvestmentamount)';
+                          } else if (entry.dataKey === 'totalMarketValue') {
+                            properLabel = 'Total Market Value';
+                            dotColor = 'var(--color-totalmarketvalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formatCurrency(entry.value as number, valueCurrencyFilter)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Area 

@@ -8,13 +8,12 @@ import {
   ChartLegendContent,
   IconAvatar
 } from '@newwork/nw-design-system';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, BarChart, Bar, ComposedChart } from 'recharts';
-import { ChartScatterIcon, ChartBarIcon, PercentIcon } from '@phosphor-icons/react';
+import { ScatterChart, Scatter, XAxis, YAxis, BarChart, Bar, ComposedChart } from 'recharts';
+import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react';
 import { formatCurrency, formatPercentage, formatNumber } from '@/common/data/investment';
 
 interface RealEstateAnalyticsChartsProps {
   chartData: {
-    roiSizeData: any[];
     occupancyData: any[];
     expensesValueData: any[];
   };
@@ -22,16 +21,10 @@ interface RealEstateAnalyticsChartsProps {
 
 export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps> = ({ chartData }) => {
   const {
-    roiSizeData,
     occupancyData,
     expensesValueData
   } = chartData;
 
-  // Property Size vs Investment Config
-  const sizeInvestmentConfig = useMemo(() => ({
-    propertysize: { label: "Property Size" },
-    totalinvestment: { label: "Total Investment" }
-  }), []);
 
   // Occupancy Analysis Config
   const occupancyConfig = useMemo(() => ({
@@ -48,53 +41,6 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-      {/* Property Size vs Total Investment */}
-      <Card>
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartScatterIcon} variant="default" />
-            <div>
-              <CardTitle>Property Size vs Total Investment</CardTitle>
-              <CardDescription>Investment correlation by property size</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={sizeInvestmentConfig}>
-            <ScatterChart data={roiSizeData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="propertySize" 
-                name="Property Size"
-                type="number"
-              />
-              <YAxis 
-                dataKey="investmentAmount" 
-                name="Total Investment"
-                type="number"
-              />
-              <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('investment') || name.includes('amount')) {
-                      return [formatCurrency(value), 'Total Investment'];
-                    }
-                    if (name.includes('size')) {
-                      return [`${formatNumber(value)}`, 'Property Size'];
-                    }
-                    return [value, name];
-                  }}
-                />} 
-              />
-              <Scatter 
-                dataKey="investmentAmount"
-                fill="var(--color-totalinvestment)"
-                name="Properties"
-              />
-            </ScatterChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
 
       {/* Occupancy Rate Distribution */}
       <Card>
@@ -110,22 +56,48 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
         <CardContent>
           <ChartContainer config={occupancyConfig}>
             <ComposedChart data={occupancyData}>
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="range" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('value')) {
-                      return [formatCurrency(value), name];
-                    }
-                    if (name.includes('rate')) {
-                      return [`${value}%`, name];
-                    }
-                    return [formatNumber(value), name];
-                  }}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let properLabel = '';
+                          let formattedValue = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'count') {
+                            properLabel = 'Property Count';
+                            formattedValue = `${entry.value}`;
+                            dotColor = 'var(--color-occupancyrate)';
+                          } else if (entry.dataKey === 'totalValue') {
+                            properLabel = 'Total Property Value';
+                            formattedValue = formatCurrency(entry.value as number);
+                            dotColor = 'var(--color-propertyvalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 
@@ -160,7 +132,6 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
         <CardContent>
           <ChartContainer config={expensesValueConfig}>
             <ScatterChart data={expensesValueData}>
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="propertyValue" 
                 name="Property Value"
@@ -172,14 +143,35 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                 type="number"
               />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('value') || name.includes('expenses')) {
-                      return [formatCurrency(value), name];
-                    }
-                    return [value, name];
-                  }}
-                />} 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {data.name || 'Property'}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-propertyvalue)' }}
+                          />
+                          <span className="gba:font-medium">Property Value:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.propertyValue)}</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-annualexpenses)' }}
+                          />
+                          <span className="gba:font-medium">Annual Expenses:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.annualExpenses)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <Scatter 
                 dataKey="annualExpenses"

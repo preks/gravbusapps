@@ -21,7 +21,7 @@ export interface CrmNoteResponse {
 export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
   return `
     query GetCrmNotes($opportunityId: uuid!) {
-      CrmNote(where: {opportunityId: {_eq: $opportunityId}, isDeleted: {_eq: false}}) {
+      CrmNote(where: {opportunity: {id: {_eq: $opportunityId}}, isDeleted: {_eq: false}}) {
         id
         version
         createdAt

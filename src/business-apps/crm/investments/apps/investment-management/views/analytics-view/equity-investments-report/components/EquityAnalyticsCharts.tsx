@@ -7,8 +7,7 @@ import {
   Bar,
   Line,
   XAxis,
-  YAxis,
-  CartesianGrid
+  YAxis
 } from 'recharts';
 import { formatCurrency } from '@/common/data/investment';
 import { ChartScatterIcon, ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react';
@@ -41,7 +40,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
             <div>
-              <CardTitle>Stake vs Investment Amount Correlation</CardTitle>
+              <CardTitle>Stake vs Amount Correlation</CardTitle>
               <CardDescription>Relationship between stake percentage and total investment amount</CardDescription>
             </div>
           </div>
@@ -69,20 +68,40 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
                 dataKey="investmentAmount" 
                 name="Investment Amount"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Investment Amount') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload; // Get the actual data point
+                    
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          Company: {data.company || data.name || 'Unknown'}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Stake Percentage:</span>
+                          <span className="gba:font-semibold">{data.stake}%</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+                        </div>
+                      </div>
+                    );
                   }
-                  if (name === 'Stake %') {
-                    return [`${value}%`, name];
-                  }
-                  return [value, name];
-                }} />}
+                  return null;
+                }}
               />
-              <CartesianGrid strokeDasharray="3 3" />
               <Scatter 
                 name="stakevsinvestment" 
                 data={stakeVsInvestmentAmountData} 
@@ -99,7 +118,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <IconAvatar icon={ChartScatterIcon} variant="secondary" size="md" decorative />
             <div>
-              <CardTitle>Investment Role vs Investment Amount</CardTitle>
+              <CardTitle>Role vs Amount</CardTitle>
               <CardDescription>Comparison of investment amounts across different investment roles</CardDescription>
             </div>
           </div>
@@ -129,21 +148,42 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
                 dataKey="investmentAmount" 
                 name="Investment Amount"
                 tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Investment Amount') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload; // Get the actual data point
+                    const roleValue = data.role;
+                    const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead';
+                    
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          Company: {data.company || data.name || 'Unknown'}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Role:</span>
+                          <span className="gba:font-semibold">{roleLabel}</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+                        </div>
+                      </div>
+                    );
                   }
-                  if (name === 'Investment Role') {
-                    const roleLabel = value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead';
-                    return [roleLabel, name];
-                  }
-                  return [value, name];
-                }} />}
+                  return null;
+                }}
               />
-              <CartesianGrid strokeDasharray="3 3" />
               <Scatter 
                 name="rolevsinvestment" 
                 data={roleInvestmentAmountData} 
@@ -160,7 +200,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <IconAvatar icon={ChartBarIcon} variant="success" size="md" decorative />
             <div>
-              <CardTitle>Portfolio Concentration by Investment Role</CardTitle>
+              <CardTitle>Portfolio Concentration by Role</CardTitle>
               <CardDescription>Investment distribution and valuation metrics by role</CardDescription>
             </div>
           </div>
@@ -182,12 +222,48 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Total Valuation' || name === 'Average Valuation') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'count') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Investment Count';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalValuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Total Valuation';
+                            dotColor = 'var(--color-totalvaluation)';
+                          } else if (entry.dataKey === 'averageValuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Average Valuation';
+                            dotColor = 'var(--color-averagevaluation)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  return [value, name];
-                }} />}
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 

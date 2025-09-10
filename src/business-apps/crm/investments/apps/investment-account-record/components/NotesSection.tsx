@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography } from 'antd';
+import { Spin, Alert, Empty, Timeline, Typography } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { NoteDeletionPopup } from '@/common/components';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
@@ -164,18 +165,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
     setDeletePopup({ open: true, note });
   };
 
-  const handleAddNote = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentNote',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add note handled by AppAction component
 
   return (
     <div className="gba:notes-content" data-testid="notes-content">
@@ -218,10 +208,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
           deferMainContextRequestsUntilClick
         >
           <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
+            variant="default"
             data-testid="add-note-button"
           >
+            <PlusCircleOutlined />
             Add Note
           </Button>
         </AppAction>
@@ -255,13 +245,35 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
             style={{ padding: '40px 0' }}
             data-testid="empty-notes"
           >
-            <Button 
-              type="primary" 
-              icon={<PlusCircleOutlined />} 
-              onClick={handleAddNote}
+            <AppAction
+              contextsArray={[FlowContextName.investmentNoteEntity]}
+              externalContextData={{
+                accountId,
+                account: accountId,
+                investmentNote: { account: accountId }
+              }}
+              staticFlowData={accountId ? [{
+                key: 'create-investment-note-fallback',
+                label: 'Add First Note',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentNote',
+                  payload: { accountId },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="add-first-note"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add First Note
-            </Button>
+              <Button 
+                variant="default"
+              >
+                <PlusCircleOutlined />
+                Add First Note
+              </Button>
+            </AppAction>
           </Empty>
         )}
 

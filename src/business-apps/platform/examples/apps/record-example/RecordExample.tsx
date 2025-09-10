@@ -157,15 +157,35 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
             <div>
               <ActivitySection
                 {...context}
-                activityActionProps={{
-                  contextsArray: [FlowContextName.investmentActivityEntity],
-                  externalContextData: { ...entityIds },
-                  prefixDataTestId: 'activities',
-                  emptyStateBehavior: 'enable'
-                }}
                 activities={[
-                  { id: 'a1', title: 'Intro Call', description: 'Initial discovery with client', occurredAt: new Date().toISOString(), createdBy: 'Daniel Vorberg', activityType: { value: 'Call' } },
-                  { id: 'a2', title: 'Email Follow-up', description: 'Sent recap and next steps', occurredAt: new Date(Date.now()-86400000).toISOString(), createdBy: 'You', activityType: { value: 'Email' } },
+                  { 
+                    id: 'a1', 
+                    title: 'Intro Call', 
+                    description: 'Initial discovery with client', 
+                    occurredAt: new Date().toISOString(), 
+                    createdBy: 'Daniel Vorberg', 
+                    activityType: { value: 'Call' },
+                    ownerEmployee: { 
+                      id: 'emp_daniel_vorberg', 
+                      displayName: 'Daniel Vorberg',
+                      firstName: 'Daniel',
+                      lastName: 'Vorberg'
+                    }
+                  },
+                  { 
+                    id: 'a2', 
+                    title: 'Email Follow-up', 
+                    description: 'Sent recap and next steps', 
+                    occurredAt: new Date(Date.now()-86400000).toISOString(), 
+                    createdBy: 'You', 
+                    activityType: { value: 'Email' },
+                    ownerEmployee: { 
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user', 
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
                 ]}
                 activitiesLoading={false}
                 activitiesError={null}
@@ -184,10 +204,53 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                   emptyStateBehavior: 'enable'
                 }}
                 demoTasks={[
-                  { id: 't1', title: 'Prepare proposal', assignee: 'Daniel Vorberg', due: 'Fri 17:00', statusCode: 'IN_PROGRESS' },
-                  { id: 't2', title: 'Schedule workshop', assignee: 'You', due: 'Mon 10:00', statusCode: 'PENDING' },
-                  { id: 't3', title: 'Contract review', assignee: 'Legal Team', due: 'Tue 12:00', statusCode: 'COMPLETED' },
-                  { id: 't4', title: 'Follow-up call', assignee: 'You', due: 'Yesterday 16:00', statusCode: 'OVERDUE' },
+                  { 
+                    id: 't1', 
+                    title: 'Prepare proposal', 
+                    assignee: 'Daniel Vorberg', 
+                    due: 'Fri 17:00', 
+                    statusCode: 'IN_PROGRESS',
+                    assigneeEmployee: {
+                      id: 'emp_daniel_vorberg',
+                      displayName: 'Daniel Vorberg',
+                      firstName: 'Daniel',
+                      lastName: 'Vorberg'
+                    }
+                  },
+                  { 
+                    id: 't2', 
+                    title: 'Schedule workshop', 
+                    assignee: 'You', 
+                    due: 'Mon 10:00', 
+                    statusCode: 'PENDING',
+                    assigneeEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
+                  { 
+                    id: 't3', 
+                    title: 'Contract review', 
+                    assignee: 'Legal Team', 
+                    due: 'Tue 12:00', 
+                    statusCode: 'COMPLETED'
+                    // No assigneeEmployee for Legal Team (generic team)
+                  },
+                  { 
+                    id: 't4', 
+                    title: 'Follow-up call', 
+                    assignee: 'You', 
+                    due: 'Yesterday 16:00', 
+                    statusCode: 'OVERDUE',
+                    assigneeEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
                 ]}
                 data-testid="record-example-task-section"
               />
@@ -206,8 +269,26 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                   emptyStateBehavior: 'enable'
                 }}
                 demoApprovals={[
-                  { id: 1, date: 'Created today', title: 'Budget Approval', status: 'pending' },
-                  { id: 2, date: 'Yesterday', title: 'Legal Review', status: 'approved', actor: 'Legal Team' }
+                  { 
+                    id: 1, 
+                    date: 'Created today', 
+                    title: 'Budget Approval', 
+                    status: 'pending',
+                    actorEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
+                  { 
+                    id: 2, 
+                    date: 'Yesterday', 
+                    title: 'Legal Review', 
+                    status: 'approved', 
+                    actor: 'Legal Team'
+                    // No actorEmployee for Legal Team (generic team)
+                  }
                 ]}
                 data-testid="record-example-approval-section"
               />

@@ -31,7 +31,6 @@ import {
 } from '@ant-design/icons';
 import { Modal, message, Input as AntdInput } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
@@ -40,11 +39,12 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
+import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
 
 interface Document {
   id: string;
-  version: number;
   name?: string | null;
+  description?: string | null;
   createdAt: string;
   expirationDate?: string | null;
   documentType?: {
@@ -61,8 +61,13 @@ interface Document {
   mimeType?: string | null;
   fileSize?: number;
   createdBy?: string | null;
-  format?: string | null;
   parentDocument?: string | null;
+  folder?: boolean;
+  verified?: boolean;
+  verificationDate?: string | null;
+  authenticated?: boolean;
+  authenticationDate?: string | null;
+  mandatory?: boolean;
 }
 
 interface DocumentFolder {
@@ -131,7 +136,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
   ]);
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
+  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const openRenameFolder = (node: DocumentFolder) => {
@@ -153,9 +158,9 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
       return;
     }
     try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
+      await restClient.post('/investments/saveInvestmentDocument', {
         changeMode: 'UPDATE',
-        crmDocument: {
+        investmentDocument: {
           id: node.folderId,
           version: node.folderVersion,
           name: newName,
@@ -174,10 +179,10 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
   const openEditDocument = (doc: Document) => {
     startProcess({
       domain: 'customer-relations',
-      processName: 'saveCrmDocument',
+      processName: 'saveInvestmentDocument',
       payload: {
         contactId,
-        crmDocument: {
+        investmentDocument: {
           id: doc.id,
           version: doc.version,
           name: doc.name,
@@ -373,37 +378,9 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
     setError(null);
 
     try {
-      const GET_CONTACT_DOCUMENTS = `
-        query GetContactDocuments($contactId: uuid!) {
-          CrmDocument(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
-            id
-            version
-            name
-            createdAt
-            expirationDate
-            format
-            parentDocument { id }
-            documentType {
-              id
-              value
-              code
-            }
-            documentGroup {
-              id
-              value
-              code
-            }
-            file
-            mimeType
-            fileSize
-            createdBy
-          }
-        }
-      `;
+      const result = await fetchInvestmentDocumentsByContactId(contactId);
 
-      const result = await graphQLClient.request<{ CrmDocument: any[] }>(GET_CONTACT_DOCUMENTS, { contactId });
-
-      const raw = Array.isArray(result?.CrmDocument) ? result.CrmDocument : [];
+      const raw = Array.isArray(result) ? result : [];
       const mapped: Document[] = raw.map((d: any) => ({
         ...d,
         parentDocument: d?.parentDocument?.id ?? null,
@@ -520,9 +497,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
   const documentFolders: DocumentFolder[] = useMemo(() => {
     const allDocs = Array.isArray(documents) ? documents : [];
     const allFolders = allDocs.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const looksLikeFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
-      return !looksLikeFile;
+      return d.folder === true;
     });
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
 
@@ -531,7 +506,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
 
     const docsByFolder: Record<string, Document[]> = {};
     for (const doc of docsForFilter) {
-      if ((doc.format || '').toUpperCase() === 'FILE' && doc.parentDocument) {
+      if (doc.folder !== true && doc.parentDocument) {
         if (!docsByFolder[doc.parentDocument]) docsByFolder[doc.parentDocument] = [];
         docsByFolder[doc.parentDocument].push(doc);
       }
@@ -561,8 +536,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
   const rootLevelFiles: Document[] = useMemo(() => {
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
     return docsForFilter.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const isFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
+      const isFile = d.folder !== true;
       return isFile && !d.parentDocument;
     });
   }, [filteredDocuments]);
@@ -640,9 +614,9 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
+          await restClient.post('/investments/saveInvestmentDocument', {
             changeMode: 'DELETE',
-            crmDocument: { id: document.id, version: document.version, contact: contactId },
+            investmentDocument: { id: document.id, version: document.version, contact: contactId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
           message.success('Document deleted');
           await fetchDocuments();
@@ -655,8 +629,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
   };
 
   const isFileDocument = (d: Document): boolean => {
-    const fmt = (d.format || '').toUpperCase();
-    return fmt === 'FILE' || !!d.mimeType || !!d.file;
+    return d.folder !== true;
   };
 
   const hasDescendantFiles = (startFolderId: string): boolean => {
@@ -695,9 +668,9 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
+          await restClient.post('/investments/saveInvestmentDocument', {
             changeMode: 'DELETE',
-            crmDocument: { id: node.folderId, version: node.folderVersion, contact: contactId },
+            investmentDocument: { id: node.folderId, version: node.folderVersion, contact: contactId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
           message.success('Folder deleted');
           await fetchDocuments();
@@ -758,10 +731,10 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
   ) => {
     try {
       await restClient.post(
-        '/customer-relations/saveCrmDocument',
+        '/investments/saveInvestmentDocument',
         {
           changeMode: 'UPDATE',
-          crmDocument: {
+          investmentDocument: {
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
@@ -819,7 +792,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
     }
   };
 
-  const isFile = (doc: Document) => (doc.format || '').toUpperCase() === 'FILE';
+  const isFile = (doc: Document) => doc.folder !== true;
   const totalDocuments = documents.filter(isFile).length;
   const totalSize = documents.filter(isFile).reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
@@ -839,7 +812,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
             variant="outline"
             onClick={() => startProcess({
               domain: 'customer-relations',
-              processName: 'saveCrmDocument',
+              processName: 'saveInvestmentDocument',
               payload: {
                 contactId,
               },
@@ -854,7 +827,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
               variant="outline"
               onClick={() => startProcess({
                 domain: 'customer-relations',
-                processName: 'saveCrmDocument',
+                processName: 'saveInvestmentDocument',
                 payload: {
                   contactId,
                   createFolder: true
@@ -1036,7 +1009,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
                                       e.stopPropagation();
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'saveInvestmentDocument',
                                         payload: { contactId, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1054,7 +1027,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
                                       e.stopPropagation();
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'saveInvestmentDocument',
                                         payload: { contactId, createFolder: true, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1183,7 +1156,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
               addButton: {
                 onClick: () => startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'saveInvestmentDocument',
                   payload: {
                     contactId,
                   },

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import {
   LineChart,
@@ -31,8 +31,17 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
   }, [rawLiquidFunds]);
 
   // Currency filters
-  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
-  const [valueCurrencyFilter, setValueCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState('EUR');
+  const [valueCurrencyFilter, setValueCurrencyFilter] = useState('EUR');
+
+  // Update currency filters when currencies become available
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      const defaultCurrency = availableCurrencies[0];
+      setPerformanceCurrencyFilter(defaultCurrency);
+      setValueCurrencyFilter(defaultCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Investment Performance Timeline (matching Overview pattern)
   const investmentPerformanceData = useMemo(() => {
@@ -116,7 +125,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
             <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
               <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
               <div>
-                <CardTitle>Investment Performance Timeline ({performanceCurrencyFilter})</CardTitle>
+                <CardTitle>Performance Timeline ({performanceCurrencyFilter})</CardTitle>
                 <CardDescription>Investment count, total invested amount, and cumulative investments over time</CardDescription>
               </div>
             </div>
@@ -156,12 +165,48 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Total Invested Amount') {
-                    return [formatCurrency(value as number, performanceCurrencyFilter), name];
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'investmentCount') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Investment Count';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalInvestmentAmount') {
+                            formattedValue = formatCurrency(entry.value as number, performanceCurrencyFilter);
+                            properLabel = 'Total Invested Amount';
+                            dotColor = 'var(--color-totalinvestmentamount)';
+                          } else if (entry.dataKey === 'cumulativeInvestments') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Cumulative Investments';
+                            dotColor = 'var(--color-cumulativeinvestments)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  return [value, name];
-                }} />} 
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 
@@ -203,7 +248,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
             <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
               <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
               <div>
-                <CardTitle>Investment Value Trends Over Time ({valueCurrencyFilter})</CardTitle>
+                <CardTitle>Value Trends Over Time ({valueCurrencyFilter})</CardTitle>
                 <CardDescription>Comparison of total invested amount vs. market value over time</CardDescription>
               </div>
             </div>
@@ -248,13 +293,41 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                 tickFormatter={(value) => formatCurrency(value, valueCurrencyFilter)}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value, name) => [
-                    formatCurrency(value as number, valueCurrencyFilter), 
-                    name
-                  ]} 
-                  labelFormatter={(label) => dayjs(label).format('MMMM YYYY')}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {dayjs(label).format('MMMM YYYY')}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'totalInvestmentAmount') {
+                            properLabel = 'Total Invested Amount';
+                            dotColor = 'var(--color-totalinvestmentamount)';
+                          } else if (entry.dataKey === 'totalMarketValue') {
+                            properLabel = 'Total Market Value';
+                            dotColor = 'var(--color-totalmarketvalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formatCurrency(entry.value as number, valueCurrencyFilter)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Line 

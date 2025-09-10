@@ -27,19 +27,10 @@ import TeamSpendingAnalyticsPage from "./components/pages/TeamSpendingAnalyticsP
 export interface ManagerExpensesProps extends BusinessAppContextProps {}
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
-  // Initialize currency store when the app loads
-  const { primaryCurrency, isLoading } = useAppCurrency(props);
-
-  // Log the primary currency once it's loaded
-  useEffect(() => {
-    if (isLoading) {
-      console.log("App initialized with primary currency:", primaryCurrency);
-    }
-  }, [isLoading, primaryCurrency]);
   const viewOptions = [
     {
       key: "dashboard",
-      icon: <PiGauge className="w-5 h-5" />,
+      icon: PiGauge,
       label: getTranslationFromI18nKeyAndLabel(
         "lowcoder:absence_management_hub_backoffice.dashboard_btn",
         "Dashboard",
@@ -47,7 +38,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     },
     {
       key: "expense-plans",
-      icon: <PiPath className="w-5 h-5" />,
+      icon: PiPath,
       label: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.expense_plans",
         "Expense Plans",
@@ -55,7 +46,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     },
     {
       key: "advance-payments",
-      icon: <PiHandCoins className="w-5 h-5" />,
+      icon: PiHandCoins,
       label: getTranslationFromI18nKeyAndLabel(
         "lowcoder:backoffice_expense_landing_page.advance_title",
         "Advance Payments",
@@ -63,7 +54,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     },
     {
       key: "expense-requests",
-      icon: <PiMoney className="w-5 h-5" />,
+      icon: PiMoney,
       label: getTranslationFromI18nKeyAndLabel(
         "lowcoder:expense_request_list.title",
         "Expense Requests",
@@ -71,7 +62,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     },
     {
       key: "expense-calendar",
-      icon: <PiCalendarBlank className="w-5 h-5" />,
+      icon: PiCalendarBlank,
       label: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.expense_calendar",
         "Expense Calendar",
@@ -195,7 +186,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
   return (
     <div data-testid="manager-expenses-container">
       <PageLayout
-        headerIcon={<PiWalletDuotone className="w-6 h-6 text-purple-600" />}
+        headerIcon={PiWalletDuotone}
         headerTitle={getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.team_expenses_title",
           "Team Expenses",

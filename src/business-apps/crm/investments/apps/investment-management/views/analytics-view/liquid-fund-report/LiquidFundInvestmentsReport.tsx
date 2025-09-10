@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, AlertTitle, AlertDescription, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Button } from '@newwork/nw-design-system';
+import { PieChart, TrendingUp, BarChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import type { LiquidFundInvestment } from '@/common/data/investment';
@@ -156,14 +157,17 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:mt-6">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-          <TabsTrigger value="distribution" data-testid={`${prefixDataTestId}-distribution-tab`}>
+          <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-distribution-tab`}>
+            <PieChart className="gba:h-4 gba:w-4" />
             Distribution Analysis
           </TabsTrigger>
-          <TabsTrigger value="timeline" data-testid={`${prefixDataTestId}-timeline-tab`}>
+          <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-timeline-tab`}>
+            <TrendingUp className="gba:h-4 gba:w-4" />
             Timeline Analysis  
           </TabsTrigger>
-          <TabsTrigger value="analytics" data-testid={`${prefixDataTestId}-analytics-tab`}>
-            Performance Analytics
+          <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-analytics-tab`}>
+            <BarChart className="gba:h-4 gba:w-4" />
+            Performance Analysis
           </TabsTrigger>
         </TabsList>
 

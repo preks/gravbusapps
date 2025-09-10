@@ -1,8 +1,10 @@
 import * as z from "zod";
 import useInformationExtraction, { UseInformationExtractionReturn } from "@/common/hooks/useInformationExtraction";
-import { useGetSalesActivities } from "../queries/SalesActivityQueries";
-import { useGetCrmNotes } from "../queries/CrmNoteQueries";
-import { useGetSalesTasks } from "../queries/SalesTaskQueries";
+import { 
+  useGetInvestmentActivitiesByLeadId,
+  useGetInvestmentNotesByLeadId,
+  useGetInvestmentTasksByLeadId
+} from '@/common/data/investment/hooks/useInvestmentLeads';
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from "../queries/GetLeadByIdQueries";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
@@ -21,9 +23,9 @@ type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
     const graphQLClient = useGraphQLClient(accessToken);
-    const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
-    const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
-    const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
+    const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId({ accessToken });
+    const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId({ accessToken });
+    const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId({ accessToken });
 
     const generateInputData = async () => {
         // get lead data
@@ -33,20 +35,20 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
         );
 
         // get activity data
-        const activityResult = await fetchSalesActivities({ leadId });
-        const sortedActivities = (activityResult.SalesActivity || []).sort((a, b) =>
+        const activityResult = await fetchInvestmentActivitiesByLeadId(leadId);
+        const sortedActivities = (activityResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         // get notes data
-        const notesResult = await fetchCrmNotes({ leadId });
-        const sortedNotes = (notesResult.CrmNote || []).sort((a, b) =>
+        const notesResult = await fetchInvestmentNotesByLeadId(leadId);
+        const sortedNotes = (notesResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         // get task data
-        const tasksResult = await fetchSalesTasks({ leadId });
-        const sortedTasks = (tasksResult.SalesTask || []).sort((a, b) =>
+        const tasksResult = await fetchInvestmentTasksByLeadId(leadId);
+        const sortedTasks = (tasksResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 

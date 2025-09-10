@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
+import { useGetInvestmentTasksByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
+import type { InvestmentTask } from '@/common/data/investment/types';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -20,10 +22,10 @@ interface TasksSectionProps {
 }
 
 export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }) => {
-  const [tasks, setTasks] = useState<ContactTaskData[]>([]);
+  const [tasks, setTasks] = useState<InvestmentTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { fetchContactTasks } = useGetContactTasks(context);
+  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
@@ -34,10 +36,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
     setError(null);
     
     try {
-      const result = await fetchContactTasks({ contactId });
+      const result = await fetchInvestmentTasksByContactId(contactId);
       
       // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = (result.SalesTask || []).filter(task => {
+      const nonApprovalTasks = (result || []).filter(task => {
         const isApprovalTask = task.type?.value?.toLowerCase() === 'approval';
         return !isApprovalTask;
       });
@@ -140,7 +142,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
 
   // Add task handled via AppAction below
 
-  const handleDeleteTask = (task: ContactTaskData) => {
+  const handleDeleteTask = (task: InvestmentTask) => {
     Modal.confirm({
       title: 'Confirm Deletion',
       content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
@@ -149,9 +151,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveSalesTask', {
+          await restClient.post('/investments/saveInvestmentTask', {
             changeMode: "DELETE",
-            salesTask: {
+            investmentTask: {
               id: task.id,
               version: task.version,
               contact: contactId
@@ -226,10 +228,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
           emptyStateBehavior="enable"
         >
           <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
+            variant="default"
             data-testid="add-task-button"
           >
+            <PlusCircleOutlined />
             Add Task
           </Button>
         </AppAction>
@@ -250,7 +252,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={loadTasks}>
+              <Button size="sm" onClick={loadTasks}>
                 Retry
               </Button>
             }
@@ -315,9 +317,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                     </div>
                   </div>
                   <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
+                    variant="ghost" 
+                    size="sm"
                     style={{ 
                       position: 'absolute', 
                       right: 0, 
@@ -327,7 +328,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                     }}
                     onClick={() => handleDeleteTask(task)}
                     data-testid={`delete-task-${task.id}`}
-                  />
+                  >
+                    <CloseOutlined />
+                  </Button>
                 </div>
               </Timeline.Item>
             ))}

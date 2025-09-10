@@ -893,7 +893,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",
           "Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories",
         )}
-        headerIcon={<PiChartLineUp />}
+        headerIcon={PiChartLineUp}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:space-y-6" data-testid="team-spending-analytics-page">

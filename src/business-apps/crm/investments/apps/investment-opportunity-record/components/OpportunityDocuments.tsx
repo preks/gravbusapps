@@ -31,7 +31,6 @@ import {
 } from '@ant-design/icons';
 import { Modal, message, Input as AntdInput } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
@@ -40,11 +39,12 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
+import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
 
 interface Document {
   id: string;
-  version: number;
   name?: string | null;
+  description?: string | null;
   createdAt: string;
   expirationDate?: string | null;
   documentType?: {
@@ -61,8 +61,13 @@ interface Document {
   mimeType?: string | null;
   fileSize?: number;
   createdBy?: string | null;
-  format?: string | null;
   parentDocument?: string | null;
+  folder?: boolean;
+  verified?: boolean;
+  verificationDate?: string | null;
+  authenticated?: boolean;
+  authenticationDate?: string | null;
+  mandatory?: boolean;
 }
 
 interface DocumentFolder {
@@ -131,7 +136,6 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
   ]);
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const openRenameFolder = (node: DocumentFolder) => {
@@ -152,9 +156,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       return;
     }
     try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
+      await restClient.post('/investments/saveInvestmentDocument', {
         changeMode: 'UPDATE',
-        crmDocument: {
+        investmentDocument: {
           id: node.folderId,
           version: node.folderVersion,
           name: newName,
@@ -172,11 +176,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
 
   const openEditDocument = (doc: Document) => {
     startProcess({
-      domain: 'customer-relations',
-      processName: 'saveCrmDocument',
+      domain: 'investments',
+      processName: 'saveInvestmentDocument',
       payload: {
         opportunityId,
-        crmDocument: {
+        investmentDocument: {
           id: doc.id,
           version: doc.version,
           name: doc.name,
@@ -362,6 +366,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     return filtered;
   }, [documents, searchQuery, selectedFilters]);
 
+  const { fetchInvestmentDocumentsByOpportunityId } = useGetInvestmentDocumentsByOpportunityId(context);
+
   const fetchDocuments = async () => {
     if (!opportunityId || !context.accessToken) {
       setLoading(false);
@@ -372,37 +378,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     setError(null);
 
     try {
-      const GET_OPPORTUNITY_DOCUMENTS = `
-        query GetOpportunityDocuments($opportunityId: uuid!) {
-          CrmDocument(where: {opportunityId: {_eq: $opportunityId}, isDeleted: {_eq: false}}) {
-            id
-            version
-            name
-            createdAt
-            expirationDate
-            format
-            parentDocument { id }
-            documentType {
-              id
-              value
-              code
-            }
-            documentGroup {
-              id
-              value
-              code
-            }
-            file
-            mimeType
-            fileSize
-            createdBy
-          }
-        }
-      `;
+      const result = await fetchInvestmentDocumentsByOpportunityId(opportunityId);
 
-      const result = await graphQLClient.request<{ CrmDocument: any[] }>(GET_OPPORTUNITY_DOCUMENTS, { opportunityId });
-
-      const raw = Array.isArray(result?.CrmDocument) ? result.CrmDocument : [];
+      const raw = Array.isArray(result) ? result : [];
       const mapped: Document[] = raw.map((d: any) => ({
         ...d,
         parentDocument: d?.parentDocument?.id ?? null,
@@ -521,15 +499,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const documentFolders: DocumentFolder[] = useMemo(() => {
     const allDocs = Array.isArray(documents) ? documents : [];
     const allFolders = allDocs.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const looksLikeFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
-      return !looksLikeFile;
+      return d.folder === true;
     });
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
 
     const docsByFolder: Record<string, Document[]> = {};
     for (const doc of docsForFilter) {
-      if ((doc.format || '').toUpperCase() === 'FILE' && doc.parentDocument) {
+      if (doc.folder !== true && doc.parentDocument) {
         if (!docsByFolder[doc.parentDocument]) docsByFolder[doc.parentDocument] = [];
         docsByFolder[doc.parentDocument].push(doc);
       }
@@ -559,8 +535,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const rootLevelFiles: Document[] = useMemo(() => {
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
     return docsForFilter.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const isFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
+      const isFile = d.folder !== true;
       return isFile && !d.parentDocument;
     });
   }, [filteredDocuments]);
@@ -638,9 +613,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
+          await restClient.post('/investments/saveInvestmentDocument', {
             changeMode: 'DELETE',
-            crmDocument: { id: document.id, version: document.version, opportunity: opportunityId },
+            investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
           message.success('Document deleted');
           await fetchDocuments();
@@ -653,8 +628,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   };
 
   const isFileDocument = (d: Document): boolean => {
-    const fmt = (d.format || '').toUpperCase();
-    return fmt === 'FILE' || !!d.mimeType || !!d.file;
+    return d.folder !== true;
   };
 
   const hasDescendantFiles = (startFolderId: string): boolean => {
@@ -693,9 +667,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
+          await restClient.post('/investments/saveInvestmentDocument', {
             changeMode: 'DELETE',
-            crmDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
+            investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
           message.success('Folder deleted');
           await fetchDocuments();
@@ -756,10 +730,10 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   ) => {
     try {
       await restClient.post(
-        '/customer-relations/saveCrmDocument',
+        '/investments/saveInvestmentDocument',
         {
           changeMode: 'UPDATE',
-          crmDocument: {
+          investmentDocument: {
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
@@ -817,7 +791,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     }
   };
 
-  const isFile = (doc: Document) => (doc.format || '').toUpperCase() === 'FILE';
+  const isFile = (doc: Document) => doc.folder !== true;
   const totalDocuments = documents.filter(isFile).length;
   const totalSize = documents.filter(isFile).reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
@@ -836,8 +810,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           <Button
             variant="outline"
             onClick={() => startProcess({
-              domain: 'customer-relations',
-              processName: 'saveCrmDocument',
+              domain: 'investments',
+              processName: 'saveInvestmentDocument',
               payload: { opportunityId },
               builderType: 'NATIVE_SCREEN',
             })}
@@ -849,8 +823,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
               <Button
                 variant="outline"
                 onClick={() => startProcess({
-                  domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  domain: 'investments',
+                  processName: 'saveInvestmentDocument',
                   payload: { opportunityId, createFolder: true },
                   builderType: 'NATIVE_SCREEN',
                 })}
@@ -1028,8 +1002,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startProcess({
-                                        domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        domain: 'investments',
+                                        processName: 'saveInvestmentDocument',
                                         payload: { opportunityId, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1046,8 +1020,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startProcess({
-                                        domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        domain: 'investments',
+                                        processName: 'saveInvestmentDocument',
                                         payload: { opportunityId, createFolder: true, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1175,8 +1149,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
               ),
               addButton: {
                 onClick: () => startProcess({
-                  domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  domain: 'investments',
+                  processName: 'saveInvestmentDocument',
                   payload: {
                     opportunityId,
                   },

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
 import { 
   PieChart, 
@@ -32,8 +32,17 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
     return currencies.sort();
   }, [rawInvestments]);
 
-  const [typeCurrencyFilter, setTypeCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
+  const [typeCurrencyFilter, setTypeCurrencyFilter] = useState<string>('EUR');
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState<string>('EUR');
+
+  // Update currency filters when currencies become available
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      const defaultCurrency = availableCurrencies[0];
+      setTypeCurrencyFilter(defaultCurrency);
+      setStatusCurrencyFilter(defaultCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Filter data based on selected currency for Type Total Amount chart
   const filteredTypeData = useMemo(() => {
@@ -124,7 +133,29 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     );
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.type}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} properties
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -140,7 +171,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   <CardTitle>
                     Type Distribution by Total Amount ({typeCurrencyFilter})
                   </CardTitle>
-                  <CardDescription>Total invested amount per type</CardDescription>
+                  <CardDescription>Total amount per type</CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
@@ -197,10 +228,27 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, typeCurrencyFilter),
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, typeCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -333,10 +381,27 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, statusCurrencyFilter),
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${statusKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, statusCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
