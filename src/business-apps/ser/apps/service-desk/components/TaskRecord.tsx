@@ -14,18 +14,20 @@ import {
   Textarea,
   Alert,
   Spinner,
+  Timeline,
+  TimelineItem,
   type KpiCardData
 } from '@newwork/nw-design-system';
 
 // Fallback to Ant Design for components not yet available in nw-design-system
-import { Typography, message, Timeline, Descriptions } from 'antd';
+import { Typography, message, Descriptions } from 'antd';
 
 // Import Phosphor icons
 import { 
   ArrowLeftIcon, UserIcon, ClockIcon, WarningIcon, CheckCircleIcon, 
   ChatCircleIcon, PaperPlaneRightIcon, UserCheckIcon, UserMinusIcon, 
   ArrowClockwiseIcon, TargetIcon, ClipboardIcon, InfoIcon, WarningCircleIcon,
-  TrendUpIcon
+  TrendUpIcon, Link as LinkIcon
 } from '@phosphor-icons/react';
 
 // Import types and hooks
@@ -35,6 +37,8 @@ import { useTicketActions } from '../hooks/useTicketActions';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
 import { formatRequestId, getSLAStatus } from '../../../utils';
 import { createConductorWorkflowEngine } from '../../../services';
+import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
+import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate';
 
 const { Text } = Typography;
 
@@ -67,6 +71,11 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [fullRequest, setFullRequest] = useState<SubmittedRequest | null>(null);
+  const [availableActions, setAvailableActions] = useState<any>(null);
+  const [flowComments, setFlowComments] = useState<any[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<DynamicFormValues>({});
+  const [isSubmittingTaskForm, setIsSubmittingTaskForm] = useState(false);
 
   // Load task data
   const { 
@@ -182,12 +191,26 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
   // Load full request details for overview
   const loadFullRequest = async () => {
-    const workflowId = ticket?.workflowId || ticket?.requestId;
+    // Use rootWorkflowId for the main workflow request, fallback to workflowId for compatibility
+    const workflowId = ticket?.workflowMeta?.rootWorkflowId || ticket?.workflowId || ticket?.requestId;
     if (!workflowId || !accessToken || !userInfo) return;
     
     try {
       const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
       const requestDetails = await workflowEngine.getRequest(workflowId);
+      
+      // 🔍 DEBUG: Log the full request data to see what we're getting
+      console.log('[TaskRecord] 🔍 Full request data loaded:', {
+        id: requestDetails?.id,
+        titleSnapshot: requestDetails?.titleSnapshot,
+        status: requestDetails?.status,
+        stepsCount: requestDetails?.steps?.length,
+        originalStepsCount: (requestDetails as any)?.originalSteps?.length,
+        steps: requestDetails?.steps,
+        originalSteps: (requestDetails as any)?.originalSteps,
+        fullRequest: requestDetails
+      });
+      
       setFullRequest(requestDetails);
     } catch (error) {
       console.error('Failed to load full request:', error);
@@ -196,11 +219,98 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
   // Load request details when ticket is available
   useEffect(() => {
-    const workflowId = ticket?.workflowId || ticket?.requestId;
+    const workflowId = ticket?.workflowMeta?.rootWorkflowId || ticket?.workflowId || ticket?.requestId;
     if (workflowId) {
       loadFullRequest();
     }
-  }, [ticket?.workflowId, ticket?.requestId]);
+  }, [ticket?.workflowMeta?.rootWorkflowId, ticket?.workflowId, ticket?.requestId]);
+
+  // Load available actions for the task
+  const loadAvailableActions = async () => {
+    if (!ticket?.id) return;
+    
+    console.log('🔍 Loading available actions for task:', ticket.id);
+    console.log('🔍 Full ticket data:', ticket);
+    console.log('🔍 ticket.availableActions:', ticket.availableActions);
+    
+    // Use the availableActions from the ticket data (now preserved by the adapter)
+    if (ticket.availableActions) {
+      console.log('✅ Using availableActions from ticket data:', ticket.availableActions);
+      setAvailableActions(ticket.availableActions);
+    } else {
+      console.log('⚠️ No availableActions in ticket data');
+      setAvailableActions(null);
+    }
+  };
+
+  // ✅ UPDATED: Load task step comments using new endpoint
+  const loadFlowComments = async () => {
+    if (!ticket?.id || !accessToken || !userInfo) {
+      console.warn('⚠️ Missing required data for loading comments');
+      return;
+    }
+    
+    setIsLoadingComments(true);
+    try {
+      console.log('🔍 Loading task step comments for taskId:', ticket.id);
+      
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
+      
+      // ✅ NEW: Use task-specific comments endpoint instead of flow comments
+      // This gets ALL comments for this task step (including from recreated task instances)
+      let response: { comments: any[]; totalComments: number };
+      
+      // Check if the new method exists (TypeScript interface might not be updated yet)
+      if (typeof (workflowEngine as any).getTaskStepComments === 'function') {
+        response = await (workflowEngine as any).getTaskStepComments(ticket.id);
+      } else {
+        console.warn('⚠️ getTaskStepComments method not available, falling back to empty comments');
+        response = { comments: [], totalComments: 0 };
+      }
+      
+      const comments = response.comments || [];
+      console.log(`✅ Found ${comments.length} comments for task step ${ticket.id}`);
+      
+      // Transform comments to match expected format
+      const transformedComments = comments.map((comment: any) => ({
+        id: comment.taskId || `comment-${Date.now()}-${Math.random()}`,
+        body: comment.comment,
+        comment: comment.comment,
+        message: comment.comment,
+        authorName: comment.commentedBy,
+        authorId: comment.commentedBy,
+        userId: comment.commentedBy,
+        createdAt: comment.commentedAt,
+        timestamp: comment.commentedAt,
+        action: comment.action,
+        stepId: comment.stepIndex?.toString(),
+        stepTitle: comment.stepTitle,
+        taskId: comment.taskId
+      }));
+      
+      setFlowComments(transformedComments);
+      
+    } catch (error) {
+      console.error('❌ Failed to load task step comments:', error);
+      setFlowComments([]);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  // Load available actions when ticket is available
+  useEffect(() => {
+    if (ticket?.id) {
+      loadAvailableActions();
+    }
+  }, [ticket?.id, ticket?.availableActions, accessToken, userInfo]);
+
+  // ✅ UPDATED: Load task step comments when ticket is available
+  useEffect(() => {
+    if (ticket?.id) {
+      loadFlowComments();
+    }
+  }, [ticket?.id, accessToken, userInfo]);
 
   // Handle task actions
   const handleTaskAction = async (action: 'claim' | 'unclaim' | 'complete' | 'reject') => {
@@ -223,6 +333,12 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           await rejectTicket(ticket.id, 'Task rejected via Service Desk');
           break;
       }
+      
+      // ✅ Refresh available actions and comments after any action
+      console.log(`🔄 Refreshing available actions and comments after ${action} action`);
+      await loadAvailableActions();
+      await loadFlowComments();
+      
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
       message.error(`Failed to ${action} task`);
@@ -249,6 +365,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       // The task detail will need to be refreshed from the queue to get the new ID
       try {
         await refetch();
+        // Also reload flow comments to show the new comment
+        await loadFlowComments();
       } catch (refetchError) {
         console.warn(`[TaskRecord] ⚠️ Could not refetch task ${ticket.id} - likely recreated with new ID:`, refetchError);
         message.warning('Comment added successfully, but task was recreated. Please refresh the queue to see the updated task.');
@@ -265,6 +383,85 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     } finally {
       setIsSubmittingComment(false);
     }
+  };
+
+  // Handle task form submission (complete task with form data)
+  const handleTaskFormSubmit = async (formData: DynamicFormValues) => {
+    if (!ticket) return;
+    
+    setIsSubmittingTaskForm(true);
+    try {
+      console.log(`[TaskRecord] Submitting task form for task ${ticket.id}:`, formData);
+      
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
+      
+      // Complete the task with form data
+      await (workflowEngine as any).completeTask(ticket.id, formData);
+      
+      console.log(`[TaskRecord] ✅ Task ${ticket.id} completed with form data successfully`);
+      message.success('Task completed successfully');
+      
+      // Refresh task data
+      await refetch();
+      await loadFullRequest();
+      await loadAvailableActions();
+      await loadFlowComments();
+      
+    } catch (error) {
+      console.error('Failed to complete task with form data:', error);
+      message.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSubmittingTaskForm(false);
+    }
+  };
+
+  // Transform task form fields to DynamicFormField format
+  const transformTaskFormFields = (taskForm: any[]): DynamicFormField[] => {
+    if (!taskForm || !Array.isArray(taskForm)) return [];
+    
+    return taskForm.map((field: any): DynamicFormField => ({
+      type: field.type || 'TEXT',
+      name: field.name || '',
+      label: field.label || field.name || '',
+      required: field.required || false,
+      placeholder: field.placeholder,
+      description: field.description,
+      options: field.options?.map((opt: any) => ({
+        value: opt.value || opt,
+        label: opt.label || opt.value || opt
+      })),
+      validation: field.required ? [{ type: 'required' as const }] : undefined
+    }));
+  };
+
+  // Get task form fields (prioritize 'form' over 'inputs')
+  const getTaskFormFields = () => {
+    if (!ticket) return [];
+    
+    const formFields = (ticket as any).form;
+    const inputFields = (ticket as any).inputs;
+    
+    // Use form fields if available and not empty, otherwise use inputs
+    let taskFormFields = null;
+    if (formFields && Array.isArray(formFields) && formFields.length > 0) {
+      taskFormFields = formFields;
+    } else if (inputFields && Array.isArray(inputFields) && inputFields.length > 0) {
+      taskFormFields = inputFields;
+    }
+    
+    console.log('🔍 [TaskRecord] Task form detection:', {
+      hasTicket: !!ticket,
+      ticketId: ticket?.id,
+      hasForm: !!formFields,
+      formLength: formFields?.length || 0,
+      hasInputs: !!inputFields,
+      inputsLength: inputFields?.length || 0,
+      selectedFieldsLength: taskFormFields?.length || 0,
+      usingForm: taskFormFields === formFields,
+      usingInputs: taskFormFields === inputFields
+    });
+    
+    return taskFormFields || [];
   };
 
   if (isLoading) {
@@ -321,7 +518,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
       <PageLayout
         headerTitle={ticket.name || 'Untitled Task'}
-        headerDescription={`Request ID: ${formatRequestId(ticket.workflowId || ticket.requestId)} • ${ticket.desk || 'Unknown Desk'} • Task ID: ${ticket.id}`}
+        headerDescription={`Request ID: ${formatRequestId(ticket.workflowMeta?.rootWorkflowId || ticket.workflowId || ticket.requestId)} • ${ticket.desk || 'Unknown Desk'} • Task ID: ${ticket.id}`}
         headerIcon={StatusIcon}
         variant="ext1"
         headerContent={
@@ -346,6 +543,67 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Task Message/Description */}
+              {ticket.message && (
+                <div className="gba:mb-6 gba:space-y-3">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:w-2 gba:h-2 gba:bg-primary gba:rounded-full"></div>
+                    <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Description</h4>
+                  </div>
+                  <div className="gba:bg-muted/20 gba:rounded-lg gba:p-4 gba:border gba:border-muted/40">
+                    <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed gba:whitespace-pre-wrap">
+                      {ticket.message}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Links - Show related links if available */}
+              {(ticket as any).links && (ticket as any).links.length > 0 && (
+                <div className="gba:mb-6 gba:space-y-3">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+                    <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Related Links</h4>
+                  </div>
+                  <div className="gba:space-y-3">
+                    {(ticket as any).links.map((link: any, index: number) => (
+                      <div key={index} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-blue-50 gba:rounded-lg gba:border gba:border-blue-100">
+                        <div className="gba:flex-shrink-0">
+                          <LinkIcon className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                        </div>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <h5 className="gba:text-sm gba:font-medium gba:text-blue-900 gba:truncate">
+                              {link.name || 'Link'}
+                            </h5>
+                            {link.type && (
+                              <Badge variant="outline" className="gba:text-xs gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200">
+                                {link.type}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="gba:text-xs gba:text-blue-600 gba:truncate" title={link.url}>
+                            {link.url}
+                          </p>
+                        </div>
+                        <div className="gba:flex-shrink-0">
+                          <a 
+                            href={link.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="gba:inline-flex gba:items-center gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-blue-700 gba:bg-blue-100 gba:rounded-md gba:border gba:border-blue-200 hover:gba:bg-blue-200 gba:transition-colors"
+                            data-testid={`task-link-${index}`}
+                          >
+                            <LinkIcon className="gba:w-3 gba:h-3 gba:mr-1" />
+                            Open
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Descriptions
                 column={{ xs: 1, sm: 2 }}
                 items={[
@@ -412,6 +670,149 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
             </CardContent>
           </Card>
 
+
+          {/* Task Form Card - Show dynamic form if task has form fields and is not completed */}
+          {(() => {
+            const hasFormFields = getTaskFormFields().length > 0;
+            const isTaskCompleted = ticket?.status === 'done' || ticket?.status === 'completed' || ticket?.status === 'canceled';
+            const shouldShowForm = hasFormFields && !isTaskCompleted;
+            
+            console.log('🔍 [TaskRecord] Task form card visibility check:', {
+              hasFormFields,
+              isTaskCompleted,
+              taskStatus: ticket?.status,
+              shouldShowForm,
+              formFields: getTaskFormFields(),
+              ticket: ticket
+            });
+            
+            return shouldShowForm;
+          })() && (
+            <Card data-testid="task-form-card">
+              <CardHeader>
+                <CardTitle className="gba:flex gba:items-center gba:gap-3">
+                  <CheckCircleIcon className="gba:w-5 gba:h-5" />
+                  Complete Task
+                  {getTaskFormFields().filter((f: any) => f.required).length > 0 && (
+                    <Badge variant="secondary" className="gba:ml-2">
+                      {getTaskFormFields().filter((f: any) => f.required).length} required
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
+                  Fill out the required information to complete this task.
+                </p>
+                
+                <DynamicFormGenerator
+                  schema={transformTaskFormFields(getTaskFormFields())}
+                  initialValues={taskFormData}
+                  onValuesChange={setTaskFormData}
+                  onSubmit={handleTaskFormSubmit}
+                  isSubmitting={isSubmittingTaskForm}
+                  submitButtonText="Complete Task"
+                  title="" // No title since we have card header
+                  showCard={false} // Don't wrap in card since we're already in one
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments & Activity Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:gap-3">
+                <ChatCircleIcon className="gba:w-5 gba:h-5" />
+                Comments & Activity
+                {flowComments?.length > 0 && (
+                  <Badge variant="secondary" className="gba:ml-2">
+                    {flowComments.length}
+                  </Badge>
+                )}
+                {isLoadingComments && (
+                  <Spinner className="gba:w-4 gba:h-4" />
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Comments List */}
+              <div className="gba:mb-6">
+                {isLoadingComments ? (
+                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                    <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2" />
+                    <p>Loading comments...</p>
+                  </div>
+                ) : flowComments && flowComments.length > 0 ? (
+                  <div className="gba:space-y-4 gba:max-h-80 gba:overflow-y-auto">
+                    {flowComments
+                      .sort((a, b) => {
+                        const dateA = new Date(a.createdAt || a.timestamp);
+                        const dateB = new Date(b.createdAt || b.timestamp);
+                        return dateA.getTime() - dateB.getTime();
+                      })
+                      .map((comment) => (
+                      <div key={comment.id} className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
+                                                  <Avatar className="gba:flex-shrink-0">
+                            <AvatarFallback>
+                              <UserIcon className="gba:w-4 gba:h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        <div className="gba:flex-1">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <span className="gba:text-sm gba:font-medium">
+                              <EmployeeDisplayName
+                                userId={comment.commentedBy || comment.authorId || comment.userId}
+                                accessToken={accessToken}
+                                showIcon={false}
+                                fallback="Unknown User"
+                                testId={`comment-author-${comment.id}`}
+                              />
+                            </span>
+                            <span className="gba:text-xs gba:text-muted-foreground">
+                              {new Date(comment.createdAt || comment.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="gba:text-sm">{comment.body || comment.comment || comment.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                    <ChatCircleIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
+                    <p>No comments yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Comment Form */}
+              <Separator className="gba:my-6" />
+              <div className="gba:space-y-4">
+                <h4 className="gba:text-sm gba:font-semibold">Add Comment</h4>
+                <Textarea
+                  placeholder="Enter your comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={3}
+                />
+                <div className="gba:flex gba:justify-end">
+                  <Button 
+                    onClick={handleSubmitComment}
+                    disabled={!newComment.trim() || isSubmittingComment || isActionLoading}
+                    className="gba:gap-2"
+                  >
+                    <PaperPlaneRightIcon className="gba:w-4 gba:h-4" />
+                    {isSubmittingComment ? 'Adding...' : 'Add Comment'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Assignment & Request Overview */}
+        <div className="gba:space-y-6">
           {/* Assignment & Ownership Card */}
           <Card>
             <CardHeader>
@@ -471,9 +872,23 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               {/* Quick Actions */}
               <Separator className="gba:my-4" />
               <div className="gba:flex gba:flex-wrap gba:gap-2">
+                {/* 🔍 DEBUG: Log button visibility logic */}
+                {(() => {
+                  console.log('🔍 Button visibility debug:', {
+                    ticketStatus: ticket.status,
+                    availableActions: availableActions,
+                    canClaim: availableActions?.canClaim,
+                    canComplete: availableActions?.canComplete,
+                    canUnclaim: availableActions?.canUnclaim,
+                    canReject: availableActions?.canReject
+                  });
+                  return null;
+                })()}
+                
                 {ticket.status !== 'done' && ticket.status !== 'canceled' && (
                   <>
-                    {!ticket.claimedByUserId && !ticket.assignedToUserId && (
+                    {/* ✅ Using availableActions from API instead of hardcoded logic */}
+                    {availableActions?.canClaim && (
                                               <Button 
                           size="sm"
                           onClick={() => handleTaskAction('claim')}
@@ -485,7 +900,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         </Button>
                     )}
 
-                    {ticket.claimedByUserId === userInfo?.id && (
+                    {availableActions?.canUnclaim && (
                       <Button 
                         variant="outline"
                         size="sm"
@@ -498,8 +913,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       </Button>
                     )}
 
-                    {(ticket.claimedByUserId === userInfo?.id || ticket.assignedToUserId === userInfo?.id) && (
-                      <>
+                    {availableActions?.canComplete && (
                         <Button 
                           size="sm"
                           onClick={() => handleTaskAction('complete')}
@@ -509,7 +923,9 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                           <CheckCircleIcon className="gba:w-4 gba:h-4" />
                           Complete
                         </Button>
+                    )}
 
+                    {availableActions?.canReject && (
                         <Button 
                           variant="destructive"
                           size="sm"
@@ -520,7 +936,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                           <WarningCircleIcon className="gba:w-4 gba:h-4" />
                           Reject
                         </Button>
-                      </>
                     )}
                   </>
                 )}
@@ -539,83 +954,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
             </CardContent>
           </Card>
 
-          {/* Comments & Activity Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="gba:flex gba:items-center gba:gap-3">
-                <ChatCircleIcon className="gba:w-5 gba:h-5" />
-                Comments & Activity
-                {ticket.comments?.length > 0 && (
-                  <Badge variant="secondary" className="gba:ml-2">
-                    {ticket.comments.length}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Comments List */}
-              <div className="gba:mb-6">
-                {ticket.comments && ticket.comments.length > 0 ? (
-                  <div className="gba:space-y-4 gba:max-h-80 gba:overflow-y-auto">
-                    {ticket.comments.map((comment) => (
-                      <div key={comment.id} className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
-                                                  <Avatar className="gba:flex-shrink-0">
-                            <AvatarFallback>
-                              <UserIcon className="gba:w-4 gba:h-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                        <div className="gba:flex-1">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <span className="gba:text-sm gba:font-medium">
-                              {comment.authorName || comment.authorId}
-                            </span>
-                            <span className="gba:text-xs gba:text-muted-foreground">
-                              {new Date(comment.createdAt).toLocaleString()}
-                            </span>
-                            {comment.action && (
-                              <Badge variant="outline">{comment.action}</Badge>
-                            )}
-                          </div>
-                          <p className="gba:text-sm">{comment.body}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                    <ChatCircleIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                    <p>No comments yet</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Add Comment Form */}
-              <Separator className="gba:my-6" />
-              <div className="gba:space-y-4">
-                <h4 className="gba:text-sm gba:font-semibold">Add Comment</h4>
-                <Textarea
-                  placeholder="Enter your comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  rows={3}
-                />
-                <div className="gba:flex gba:justify-end">
-                  <Button 
-                    onClick={handleSubmitComment}
-                    disabled={!newComment.trim() || isSubmittingComment || isActionLoading}
-                    className="gba:gap-2"
-                  >
-                    <PaperPlaneRightIcon className="gba:w-4 gba:h-4" />
-                    {isSubmittingComment ? 'Adding...' : 'Add Comment'}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Request Overview */}
-        <div className="gba:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="gba:flex gba:items-center gba:gap-3">
@@ -645,6 +983,17 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         ),
                       },
                       {
+                        key: 'templateId',
+                        label: 'Template ID',
+                        children: (fullRequest as any).templateId ? (
+                          <span className="gba:font-mono gba:text-sm gba:bg-muted gba:px-2 gba:py-1 gba:rounded" data-testid="template-id">
+                            {(fullRequest as any).templateId}
+                          </span>
+                        ) : (
+                          <span className="gba:text-muted-foreground">Not available</span>
+                        ),
+                      },
+                      {
                         key: 'created',
                         label: 'Created',
                         children: new Date(fullRequest.createdAt).toLocaleDateString(),
@@ -666,27 +1015,23 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     </div>
                   )}
 
+
                   {/* Recent Activity */}
                   {fullRequest.timeline && fullRequest.timeline.length > 0 && (
                     <div>
                       <h4 className="gba:font-semibold gba:mb-3">Recent Activity</h4>
-                      <Timeline
-                        items={fullRequest.timeline.slice(-3).map((item) => ({
-                          children: (
-                            <div>
-                              <p className="gba:text-xs gba:text-muted-foreground">
-                                {new Date(item.at).toLocaleDateString()}
-                              </p>
-                              <div className="gba:text-sm">{item.message}</div>
-                              {item.userName && (
-                                <p className="gba:text-xs gba:text-muted-foreground">
-                                  by {item.userName}
-                                </p>
-                              )}
-                            </div>
-                          )
-                        }))}
-                      />
+                      <Timeline size="sm">
+                        {fullRequest.timeline.slice(-3).map((item, idx) => (
+                          <TimelineItem
+                            key={idx}
+                            title={item.message}
+                            date={new Date(item.at).toLocaleDateString()}
+                            actor={item.userName}
+                            status="completed"
+                            iconColor="primary"
+                          />
+                        ))}
+                      </Timeline>
                     </div>
                   )}
                 </div>
@@ -698,6 +1043,204 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               )}
             </CardContent>
           </Card>
+
+          {/* Workflow Steps Card */}
+          {fullRequest && ((fullRequest as any).originalSteps || fullRequest.steps) && ((fullRequest as any).originalSteps || fullRequest.steps).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="gba:flex gba:items-center gba:gap-3">
+                  <ArrowClockwiseIcon className="gba:w-5 gba:h-5" />
+                  Workflow Steps
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
+                  This request follows {((fullRequest as any).originalSteps || fullRequest.steps).length} workflow steps:
+                </p>
+                
+                <Timeline size="md" className="gba:max-w-none">
+                  {((fullRequest as any).originalSteps || fullRequest.steps).map((step: any, index: number) => {
+                    const isCompleted = step.status === 'COMPLETED';
+                    const isInProgress = step.status === 'IN_PROGRESS';
+                    const stepNumber = (step.stepIndex ?? index) + 1;
+                    
+                    // 🔍 DEBUG: Log step data to see what's available
+                    console.log(`[TaskRecord] Step ${stepNumber} data:`, {
+                      stepIndex: step.stepIndex,
+                      title: step.title,
+                      name: step.name,
+                      displayTitle: step.name || step.title || `Step ${stepNumber}`,
+                      status: step.status,
+                      type: step.type,
+                      fullStep: step
+                    });
+                    
+                    // Map status to timeline status
+                    const timelineStatus = isCompleted ? 'completed' : isInProgress ? 'in-progress' : 'pending';
+                    
+                    // Map status to icon color
+                    const iconColor = isCompleted ? 'success' : isInProgress ? 'primary' : 'muted';
+                    
+                    // Create step description with details
+                    const stepDetails = [];
+                    if (step.type) stepDetails.push(`Type: ${step.type}`);
+                    if (step.assignmentMode) stepDetails.push(`Assignment: ${step.assignmentMode}`);
+                    if (step.totalTasks > 0 || step.completedTasks > 0) {
+                      stepDetails.push(`Progress: ${step.completedTasks} of ${step.totalTasks} tasks completed`);
+                    }
+                    if (step.totalForks > 0) {
+                      const forkText = `Forks: ${step.completedForks} of ${step.totalForks} completed`;
+                      if (step.inProgressForks > 0) {
+                        stepDetails.push(`${forkText} (${step.inProgressForks} in progress)`);
+                      } else {
+                        stepDetails.push(forkText);
+                      }
+                    }
+                    
+                    // Create a simple text description
+                    const description = stepDetails.length > 0 ? stepDetails.join(' • ') : `Status: ${step.status.replace('_', ' ').toLowerCase()}`;
+                    
+                    return (
+                      <TimelineItem
+                        key={step.stepIndex || index}
+                        title={step.title || step.name || `Step ${stepNumber}`}
+                        description={description}
+                        status={timelineStatus}
+                        iconColor={iconColor}
+                        icon={isCompleted ? <CheckCircleIcon className="gba:w-4 gba:h-4" /> : undefined}
+                        date={`Step ${stepNumber}`}
+                      />
+                    );
+                  })}
+                </Timeline>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assignment History Card */}
+          {(ticket as any).assignment?.assignmentHistory && (ticket as any).assignment.assignmentHistory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="gba:flex gba:items-center gba:gap-3">
+                  <ClockIcon className="gba:w-5 gba:h-5" />
+                  Assignment History
+                  <Badge variant="secondary" className="gba:ml-2">
+                    {(ticket as any).assignment.assignmentHistory.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:space-y-4">
+                  {(ticket as any).assignment.assignmentHistory
+                    .sort((a: any, b: any) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())
+                    .map((historyItem: any, index: number) => {
+                      const isLatest = index === 0;
+                      const actionConfig = {
+                        CLAIM: { 
+                          color: 'gba:text-green-700 gba:bg-green-50 gba:border-green-200', 
+                          icon: UserCheckIcon, 
+                          label: 'Claimed',
+                          description: 'Task was claimed by user'
+                        },
+                        UNCLAIM: { 
+                          color: 'gba:text-orange-700 gba:bg-orange-50 gba:border-orange-200', 
+                          icon: UserMinusIcon, 
+                          label: 'Unclaimed',
+                          description: 'Task was unclaimed'
+                        },
+                        ASSIGN: { 
+                          color: 'gba:text-blue-700 gba:bg-blue-50 gba:border-blue-200', 
+                          icon: UserCheckIcon, 
+                          label: 'Assigned',
+                          description: 'Task was assigned to user'
+                        },
+                        REASSIGN: { 
+                          color: 'gba:text-purple-700 gba:bg-purple-50 gba:border-purple-200', 
+                          icon: ArrowClockwiseIcon, 
+                          label: 'Reassigned',
+                          description: 'Task was reassigned to different user'
+                        }
+                      };
+                      
+                      const config = actionConfig[historyItem.action as keyof typeof actionConfig] || {
+                        color: 'gba:text-gray-700 gba:bg-gray-50 gba:border-gray-200',
+                        icon: ClockIcon,
+                        label: historyItem.action,
+                        description: `Task action: ${historyItem.action}`
+                      };
+                      
+                      const ActionIcon = config.icon;
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`gba:flex gba:items-start gba:gap-3 gba:p-4 gba:rounded-lg gba:border ${config.color} ${isLatest ? 'gba:ring-2 gba:ring-offset-1 gba:ring-primary/20' : ''}`}
+                          data-testid={`assignment-history-${index}`}
+                        >
+                          <div className="gba:flex-shrink-0 gba:mt-0.5">
+                            <ActionIcon className="gba:w-5 gba:h-5" />
+                          </div>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <h4 className="gba:text-sm gba:font-semibold">
+                                {config.label}
+                                {isLatest && (
+                                  <Badge variant="secondary" className="gba:ml-2 gba:text-xs">
+                                    Latest
+                                  </Badge>
+                                )}
+                              </h4>
+                            </div>
+                            <p className="gba:text-xs gba:mb-2 gba:opacity-80">
+                              {config.description}
+                            </p>
+                            <div className="gba:flex gba:flex-col gba:gap-1 gba:text-xs">
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                <ClockIcon className="gba:w-3 gba:h-3" />
+                                <span className="gba:font-medium">When:</span>
+                                <span>{new Date(historyItem.changedAt).toLocaleString()}</span>
+                              </div>
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                <UserIcon className="gba:w-3 gba:h-3" />
+                                <span className="gba:font-medium">By:</span>
+                                <EmployeeDisplayName
+                                  userId={historyItem.changedBy}
+                                  accessToken={accessToken}
+                                  showIcon={false}
+                                  fallback="Unknown User"
+                                  testId={`assignment-history-user-${index}`}
+                                />
+                              </div>
+                              {historyItem.changedTo && historyItem.changedTo !== historyItem.changedBy && (
+                                <div className="gba:flex gba:items-center gba:gap-1">
+                                  <ArrowClockwiseIcon className="gba:w-3 gba:h-3" />
+                                  <span className="gba:font-medium">To:</span>
+                                  <EmployeeDisplayName
+                                    userId={historyItem.changedTo}
+                                    accessToken={accessToken}
+                                    showIcon={false}
+                                    fallback="Unknown User"
+                                    testId={`assignment-history-to-${index}`}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                
+                {/* Summary Stats */}
+                <div className="gba:mt-6 gba:pt-4 gba:border-t gba:text-xs gba:text-muted-foreground gba:flex gba:justify-between">
+                  <span>Total Actions: {(ticket as any).assignment.assignmentHistory.length}</span>
+                  <span>
+                    First Action: {new Date((ticket as any).assignment.assignmentHistory[(ticket as any).assignment.assignmentHistory.length - 1]?.changedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       </PageLayout>

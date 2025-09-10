@@ -36,7 +36,7 @@ import { getCategoryById } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useRealEmployeeData, getEmployeeOptions, getJobPositionOptions, getDepartmentOptions } from '../hooks/useRealEmployeeData';
 import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
-import { DynamicFormGenerator } from './DynamicFormGenerator';
+import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 
 export interface RequestFormProps extends BusinessAppContextProps {
   template?: ServiceRequestTemplate;

@@ -73,11 +73,15 @@ export type StepInstance = {
   comments: Comment[];
   requestId: string; // backlink
   workflowId?: string; // workflow identifier
+  workflowMeta?: { // workflow metadata from custom-flow-engine
+    rootWorkflowId?: string; // main/parent workflow ID (for subflows)
+  };
   requesterId?: string; // who originally requested the parent flow (for Service Desk display)
   requesterName?: string; // name of the person who originally requested the parent flow
   
   // Additional rich data fields for detailed display
   description?: string;
+  message?: string; // Task message/description from custom-flow-engine
   expectedStartAt?: string;
   expectedFinishAt?: string;
   dueDate?: string;
@@ -95,6 +99,16 @@ export type StepInstance = {
   }>;
   assignmentMode?: string;
   allowReassignment?: boolean;
+  
+  // Available actions from custom-flow-engine
+  availableActions?: {
+    canClaim: boolean;
+    canUnclaim: boolean;
+    canComplete: boolean;
+    canReassign: boolean;
+    canReject: boolean;
+    canComment: boolean;
+  };
 };
 
 export type SubmittedRequest = {
@@ -117,6 +131,9 @@ export type SubmittedRequest = {
     completedSteps: number;
     percentage: number;
   };
+  
+  // Original flow steps for workflow visualization (preserves titles and raw data)
+  originalSteps?: any[];
   currentStep?: number;
   totalSteps?: number;
   completedSteps?: number;
@@ -138,6 +155,7 @@ export interface WorkflowEngine {
   assign(stepId: string, userId: string): Promise<void>;
   advance(stepId: string, payload?: any): Promise<void>;
   comment(stepId: string, body: string): Promise<Comment>;
+  getTaskStepComments(taskId: string): Promise<{ comments: any[]; totalComments: number }>; // ✅ NEW: Get comments for task step
 }
 
 // Analytics event types

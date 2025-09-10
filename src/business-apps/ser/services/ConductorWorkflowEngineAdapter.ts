@@ -944,7 +944,10 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       currentStep: flowData.progress?.currentStep,
       totalSteps: flowData.progress?.totalSteps,
       completedSteps: flowData.progress?.completedSteps,
-      progressPercentage: flowData.progress?.percentage
+      progressPercentage: flowData.progress?.percentage,
+      
+      // ✅ PRESERVE original flow steps for workflow visualization
+      originalSteps: flowData.steps
     } as SubmittedRequest;
   }
 
@@ -1124,8 +1127,13 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       finishedAt: taskData.completed ? new Date().toISOString() : undefined,
       comments: [],
       requestId: taskData.flowId,
+      workflowId: taskData.flowId, // Add workflowId field
+      workflowMeta: taskData.workflowMeta ? { // Map workflowMeta from custom-flow-engine
+        rootWorkflowId: taskData.workflowMeta.rootWorkflowId
+      } : undefined,
       requesterId: flowDetail?.initiatedBy || this.currentUserId, // Get from flow context
       requesterName: extractedRequesterName,
+      message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
       dueDate: taskData.dueDate
     };
@@ -1602,6 +1610,37 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Complete a task with form data (dynamic form completion)
+   * This method is specifically for completing tasks that have associated forms
+   */
+  async completeTask(taskId: string, formData: any, comment?: string): Promise<void> {
+    try {
+      console.log(`[ConductorAdapter] Completing task: ${taskId} with form data:`, formData);
+
+      const requestBody = {
+        userId: this.currentUserId,
+        outputData: {
+          formData: formData
+        },
+        ...(comment && { comment })
+      };
+
+      console.log(`[ConductorAdapter] Request body for task completion:`, requestBody);
+
+      await this.makeRequest(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log(`[ConductorAdapter] ✅ Task ${taskId} completed successfully with form data`);
+
+    } catch (error) {
+      console.error('[ConductorAdapter] Error completing task:', error);
+      throw new Error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Enhanced comment method with userId parameter
    * NOTE: custom-flow-engine recreates tasks on comment, so task ID may change
    */
@@ -1908,38 +1947,61 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     
     return {
       id: taskId,
+      defId: task.stepId || taskId, // Add defId field
       name: task.title || 'Unnamed Task',
-      stepIndex: 0,
       status: this.mapCustomFlowEngineStatusToStepStatus(task.status),
       desk: desk,
-      requesterId: task.workflowMeta?.rootWorkflowId || 'unknown',
+      requestId: task.workflowMeta?.rootWorkflowId || task.workflowId || 'unknown', // Add requestId field
       workflowId: task.workflowId, // Add the workflowId from API response
+      workflowMeta: task.workflowMeta ? { // Map workflowMeta from custom-flow-engine
+        rootWorkflowId: task.workflowMeta.rootWorkflowId
+      } : undefined,
+      requesterId: task.workflowMeta?.initiatedBy || 'unknown', // Fix requesterId mapping
       requesterName: undefined,
       startedAt: task.scheduledAt || new Date().toISOString(),
-      dueAt: task.dueDate,
-      formSchema: task.form || [],
-      data: task.inputs || {},
+      updatedAt: task.updatedAt,
+      dueDate: task.dueDate, // Fix field name from dueAt to dueDate
+      comments: task.comments || [], // Add comments field
       assignedToUserId,
       claimedByUserId,
       allowReassignment: task.assignment?.allowReassignment || false,
-    };
+      
+      // ✅ PRESERVE message from custom-flow-engine response
+      message: task.message,
+      
+      // ✅ PRESERVE availableActions from custom-flow-engine response
+      availableActions: task.availableActions ? {
+        canClaim: task.availableActions.canClaim || false,
+        canUnclaim: task.availableActions.canUnclaim || false,
+        canComplete: task.availableActions.canComplete || false,
+        canReassign: task.availableActions.canReassign || false,
+        canReject: task.availableActions.canReject || false,
+        canComment: task.availableActions.canComment !== false // Default to true
+      } : undefined,
+      
+      // ✅ PRESERVE form, inputs, links, and assignment from custom-flow-engine response
+      ...(task.form && { form: task.form }),
+      ...(task.inputs && { inputs: task.inputs }),
+      ...(task.links && { links: task.links }),
+      ...(task.assignment && { assignment: task.assignment }),
+    } as StepInstance & { form?: any[]; inputs?: any[]; links?: any[]; assignment?: any };
   }
 
   /**
    * Map custom-flow-engine task status to StepInstance status
    */
-  private mapCustomFlowEngineStatusToStepStatus(status: string): 'ready' | 'in-progress' | 'completed' | 'cancelled' {
+  private mapCustomFlowEngineStatusToStepStatus(status: string): StepStatus {
     switch (status?.toUpperCase()) {
       case 'SCHEDULED':
       case 'OPEN':
         return 'ready';
       case 'IN_PROGRESS':
-        return 'in-progress';
+        return 'in_progress';
       case 'COMPLETED':
-        return 'completed';
+        return 'done';
       case 'REJECTED':
       case 'FAILED':
-        return 'cancelled';
+        return 'canceled';
       default:
         return 'ready';
     }
@@ -2212,6 +2274,73 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       return result;
     } catch (error) {
       console.error(`[ConductorAdapterRequester] ❌ Error fetching templates:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ NEW: Get comments for a specific task step (all instances)
+   * Uses the new custom-flow-engine endpoint that includes comments from recreated tasks
+   */
+  async getTaskStepComments(taskId: string): Promise<{ comments: any[]; totalComments: number }> {
+    try {
+      console.log(`[ConductorAdapter] Getting task step comments for: ${taskId}`);
+
+      // makeRequest already handles response validation and returns parsed JSON
+      const result = await this.makeRequest(`/api/tasks/${taskId}/comments`, {
+        method: 'GET',
+      });
+
+      console.log(`[ConductorAdapter] ✅ Task step comments fetched:`, {
+        taskId,
+        commentsCount: result.totalComments,
+        comments: result.comments
+      });
+
+      return result;
+    } catch (error) {
+      console.error(`[ConductorAdapter] ❌ Error getting task step comments for ${taskId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ NEW: Get detailed information for a specific ticket/task
+   * Uses the custom-flow-engine API endpoint to get full task details including form fields
+   */
+  async getTicketDetail(taskId: string): Promise<StepInstance> {
+    try {
+      console.log(`[ConductorAdapter] Getting ticket detail for: ${taskId}`);
+
+      // Use makeRequest to get task details from custom-flow-engine
+      const taskDetail = await this.makeRequest(`/api/tasks/${taskId}?userId=${this.currentUserId}`, {
+        method: 'GET'
+      });
+
+      console.log(`[ConductorAdapter] ✅ Task detail fetched:`, {
+        taskId,
+        hasForm: !!taskDetail.form,
+        formLength: taskDetail.form?.length || 0,
+        hasInputs: !!taskDetail.inputs,
+        inputsLength: taskDetail.inputs?.length || 0,
+        hasLinks: !!taskDetail.links,
+        linksLength: taskDetail.links?.length || 0
+      });
+
+      // Convert the task to StepInstance format using existing conversion method
+      const desk = this.determineTaskDesk(taskDetail, []);
+      const stepInstance = this.convertCustomFlowEngineTaskToStepInstance(taskDetail, desk);
+
+      console.log(`[ConductorAdapter] ✅ Converted task to StepInstance:`, {
+        taskId,
+        hasFormInResult: !!(stepInstance as any).form,
+        hasInputsInResult: !!(stepInstance as any).inputs,
+        hasLinksInResult: !!(stepInstance as any).links
+      });
+
+      return stepInstance;
+    } catch (error) {
+      console.error(`[ConductorAdapter] ❌ Error getting ticket detail for ${taskId}:`, error);
       throw error;
     }
   }

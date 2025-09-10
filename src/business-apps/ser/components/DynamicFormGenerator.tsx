@@ -17,7 +17,7 @@ import {
   DynamicFormField, 
   DynamicFormValues, 
   ValidationRule 
-} from '../../../types/flowTemplate';
+} from '../types/flowTemplate';
 import { 
   CheckCircle, 
   Warning, 
@@ -36,6 +36,8 @@ export interface DynamicFormGeneratorProps {
   submitButtonText?: string;
   title?: string;
   description?: string;
+  showSubmitButton?: boolean;
+  showCard?: boolean;
 }
 
 interface FieldError {
@@ -43,15 +45,22 @@ interface FieldError {
   message: string;
 }
 
+/**
+ * Shared Dynamic Form Generator Component
+ * Used by both Service Portal and Service Desk for rendering dynamic forms
+ * based on workflow template field definitions
+ */
 export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
   schema,
   initialValues = {},
   onValuesChange,
   onSubmit,
   isSubmitting = false,
-  submitButtonText = 'Submit Request',
-  title = 'Request Details',
-  description
+  submitButtonText = 'Submit',
+  title = 'Form Details',
+  description,
+  showSubmitButton = true,
+  showCard = true
 }) => {
   const [values, setValues] = useState<DynamicFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -59,6 +68,11 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
   // Validation functions
   const validateField = useCallback((field: DynamicFormField, value: any): string | null => {
+    // Basic required validation
+    if (field.required && (!value || (typeof value === 'string' && !value.trim()))) {
+      return `${field.label} is required`;
+    }
+
     if (!field.validation) return null;
 
     for (const rule of field.validation) {
@@ -183,19 +197,20 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
       id: field.name,
       required: field.required,
       placeholder: field.placeholder,
-      className: hasError ? 'gba:border-red-500' : ''
+      className: hasError ? 'gba:border-red-500' : '',
+      'data-testid': `form-field-${field.name}`
     };
 
     switch (field.type) {
       case 'TEXT':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Input
               {...commonProps}
@@ -204,7 +219,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -214,14 +229,14 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'EMAIL':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               <Envelope className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Input
               {...commonProps}
@@ -231,7 +246,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -241,14 +256,14 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'URL':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               <LinkIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Input
               {...commonProps}
@@ -258,7 +273,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -268,14 +283,14 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'NUMBER':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               <Hash className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Input
               {...commonProps}
@@ -285,7 +300,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -295,13 +310,13 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'TEXTAREA':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Textarea
               {...commonProps}
@@ -311,7 +326,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               rows={4}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -321,31 +336,31 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'SELECT':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Select
               value={value}
               onValueChange={(newValue) => handleFieldChange(field.name, newValue)}
             >
-              <SelectTrigger className={hasError ? 'gba:border-red-500' : ''}>
+              <SelectTrigger className={hasError ? 'gba:border-destructive' : ''} data-testid={`select-${field.name}`}>
                 <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
               </SelectTrigger>
               <SelectContent>
                 {field.options?.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value} data-testid={`option-${field.name}-${option.value}`}>
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -355,14 +370,14 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       case 'DATE':
         return (
-          <div className="gba:space-y-2" key={field.name}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-700">
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
               <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
               {field.label}
-              {field.required && <span className="gba:text-red-500 gba:ml-1">*</span>}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
             {field.description && (
-              <p className="gba:text-xs gba:text-gray-500">{field.description}</p>
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
             )}
             <Input
               {...commonProps}
@@ -372,7 +387,93 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
             />
             {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:text-xs">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                <Warning size={12} />
+                {error}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'CHECKBOX':
+        return (
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              {field.label}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+            )}
+            <div className="gba:space-y-2">
+              {field.options?.map(option => (
+                <label key={option.value} className="gba:flex gba:items-center gba:space-x-2">
+                  <input
+                    type="checkbox"
+                    value={option.value}
+                    checked={Array.isArray(value) ? value.includes(option.value) : false}
+                    onChange={(e) => {
+                      const currentValue = Array.isArray(value) ? value : [];
+                      let newValue;
+                      if (e.target.checked) {
+                        newValue = [...currentValue, option.value];
+                      } else {
+                        newValue = currentValue.filter(v => v !== option.value);
+                      }
+                      handleFieldChange(field.name, newValue);
+                    }}
+                    className="gba:rounded gba:border-input"
+                    data-testid={`checkbox-${field.name}-${option.value}`}
+                  />
+                  <span className="gba:text-sm">{option.label}</span>
+                </label>
+              ))}
+            </div>
+            {hasError && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                <Warning size={12} />
+                {error}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'MULTISELECT':
+        return (
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              {field.label}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+            )}
+            <div className="gba:space-y-2 gba:border gba:rounded-md gba:p-3">
+              {field.options?.map(option => (
+                <label key={option.value} className="gba:flex gba:items-center gba:space-x-2">
+                  <input
+                    type="checkbox"
+                    value={option.value}
+                    checked={Array.isArray(value) ? value.includes(option.value) : false}
+                    onChange={(e) => {
+                      const currentValue = Array.isArray(value) ? value : [];
+                      let newValue;
+                      if (e.target.checked) {
+                        newValue = [...currentValue, option.value];
+                      } else {
+                        newValue = currentValue.filter(v => v !== option.value);
+                      }
+                      handleFieldChange(field.name, newValue);
+                    }}
+                    className="gba:rounded gba:border-input"
+                    data-testid={`multiselect-${field.name}-${option.value}`}
+                  />
+                  <span className="gba:text-sm">{option.label}</span>
+                </label>
+              ))}
+            </div>
+            {hasError && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
                 <Warning size={12} />
                 {error}
               </div>
@@ -382,7 +483,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       default:
         return (
-          <Alert key={field.name} variant="destructive">
+          <Alert key={field.name} variant="destructive" data-testid={`unsupported-field-${field.name}`}>
             <Warning className="gba:h-4 gba:w-4" />
             <div>
               <p className="gba:font-semibold">Unsupported Field Type</p>
@@ -399,41 +500,48 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
   }, [schema]);
 
   if (!schema || schema.length === 0) {
-    return (
-      <Card className="gba:p-6">
-        <div className="gba:text-center gba:text-gray-500">
-          <p>No form fields defined for this template</p>
-        </div>
-      </Card>
+    const emptyContent = (
+      <div className="gba:text-center gba:text-muted-foreground gba:py-8" data-testid="no-fields-message">
+        <p>No form fields defined</p>
+      </div>
     );
+
+    return showCard ? (
+      <Card className="gba:p-6" data-testid="dynamic-form-generator">
+        {emptyContent}
+      </Card>
+    ) : emptyContent;
   }
 
-  return (
-    <Card className="gba:p-6">
-      <div className="gba:space-y-6">
-        {/* Header */}
+  const formContent = (
+    <div className="gba:space-y-6" data-testid="dynamic-form-generator">
+      {/* Header */}
+      {title && (
         <div className="gba:space-y-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{title}</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{title}</h3>
             <Badge variant="outline" className="gba:text-xs">
               Dynamic Form
             </Badge>
           </div>
           {description && (
-            <p className="gba:text-sm gba:text-gray-600">{description}</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{description}</p>
           )}
         </div>
+      )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="gba:space-y-4">
-          {sortedFields.map(renderField)}
-          
-          {/* Submit Button */}
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="gba:space-y-4" data-testid="dynamic-form">
+        {sortedFields.map(renderField)}
+        
+        {/* Submit Button */}
+        {showSubmitButton && (
           <div className="gba:pt-4 gba:border-t gba:flex gba:justify-end gba:gap-3">
             <Button
               type="submit"
               disabled={isSubmitting || errors.length > 0}
               className="gba:min-w-[140px]"
+              data-testid="form-submit-button"
             >
               {isSubmitting ? (
                 <>
@@ -448,16 +556,22 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               )}
             </Button>
           </div>
-        </form>
-
-        {/* Form Stats */}
-        {schema.length > 0 && (
-          <div className="gba:pt-4 gba:border-t gba:text-xs gba:text-gray-500 gba:flex gba:justify-between">
-            <span>Fields: {schema.length}</span>
-            <span>Required: {schema.filter(f => f.required).length}</span>
-          </div>
         )}
-      </div>
-    </Card>
+      </form>
+
+      {/* Form Stats */}
+      {schema.length > 0 && (
+        <div className="gba:pt-4 gba:border-t gba:text-xs gba:text-muted-foreground gba:flex gba:justify-between">
+          <span>Fields: {schema.length}</span>
+          <span>Required: {schema.filter(f => f.required).length}</span>
+        </div>
+      )}
+    </div>
   );
+
+  return showCard ? (
+    <Card className="gba:p-6">
+      {formContent}
+    </Card>
+  ) : formContent;
 };
