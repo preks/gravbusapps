@@ -80,9 +80,6 @@ export const useAbsenceTypesByGroup = (
             catalogEntry: entry
           };
         });
-
-        console.log("parentEntryId", parentEntryId);
-        console.log("processedOptions", processedOptions);
         
         return processedOptions;
       } else {
@@ -106,7 +103,6 @@ export const useAbsenceTypesByGroup = (
     
     try {
       const types = await loadAbsenceTypes();
-      console.log("types from hook", types);
       setAbsenceTypes(types);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load absence types';
