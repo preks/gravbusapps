@@ -250,13 +250,13 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         );
       }
       
-      if (operationSuccessful) {
-        setTimeout(()=>{
-          form.resetFields();
-        setSelectedPlan(null);
-        setStep(FORM_STEPS.START);
-        }, SUBMIT_SUCCESS_RESET_TIMEOUT)
-      }
+      // if (operationSuccessful) {
+      //   setTimeout(()=>{
+      //     form.resetFields();
+      //   setSelectedPlan(null);
+      //   setStep(FORM_STEPS.START);
+      //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
+      // }
     } catch (error) {
       showToast(
         t("lowcoder:create_expense_request.error_fields_validation", "Please check all required fields"),

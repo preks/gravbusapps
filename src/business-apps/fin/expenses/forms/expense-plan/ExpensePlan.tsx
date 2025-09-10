@@ -157,12 +157,12 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         );
       }
       
-      if (operationSuccessful) {
-        setTimeout(()=>{
-          form.resetFields();
-        setStep(FORM_STEPS.START);
-        }, SUBMIT_SUCCESS_RESET_TIMEOUT)
-      }
+      // if (operationSuccessful) {
+      //   setTimeout(()=>{
+      //     form.resetFields();
+      //   setStep(FORM_STEPS.START);
+      //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
+      // }
     } catch (error) {
       showToast(
         t("lowcoder:create_expense_request.error_fields_validation", "Please check all required fields"),
