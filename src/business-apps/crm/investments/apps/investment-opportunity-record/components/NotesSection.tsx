@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
+import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { NoteDeletionPopup } from '@/common/components';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries';
+import { useGetInvestmentNotesByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import { InvestmentNote } from '@/common/data/investment/types';
 // import { useRestClient } from '@/common/network/rest/useRestClient';
 // import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
@@ -21,7 +23,7 @@ interface NotesSectionProps {
   context: BusinessAppContextProps;
 }
 
-interface TranslatedNote extends CrmNoteData {
+interface TranslatedNote extends InvestmentNote {
   id: string;
   noteTitle: string;
   noteText: string;
@@ -38,10 +40,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
   const [error, setError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
-  const originalNotesRef = useRef<CrmNoteData[]>([]);
-  const { fetchCrmNotes } = useGetCrmNotes(context);
+  const originalNotesRef = useRef<InvestmentNote[]>([]);
+  const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId(context);
   // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: CrmNoteData }>({ open: false });
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: InvestmentNote }>({ open: false });
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const loadNotes = async () => {
@@ -51,8 +53,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     setError(null);
     
     try {
-      const result = await fetchCrmNotes({ opportunityId });
-      const sortedNotes = (result.CrmNote || []).sort((a: CrmNoteData, b: CrmNoteData) => 
+      const result = await fetchInvestmentNotesByOpportunityId(opportunityId);
+      const sortedNotes = (result || []).sort((a: InvestmentNote, b: InvestmentNote) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
@@ -150,7 +152,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     };
   }, [opportunityId]);
 
-  const handleDeleteNote = (note: CrmNoteData) => {
+  const handleDeleteNote = (note: InvestmentNote) => {
     setDeletePopup({ open: true, note });
   };
 
@@ -211,10 +213,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
           deferMainContextRequestsUntilClick
         >
           <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
+            variant="default"
             data-testid="add-note-button"
           >
+            <PlusCircleOutlined />
             Add Note
           </Button>
         </AppAction>
@@ -254,7 +256,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={loadNotes}>
+              <Button size="sm" onClick={loadNotes}>
                 Retry
               </Button>
             }
@@ -292,9 +294,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
                     <div>{note.translatedText || note.noteText}</div>
                   </div>
                   <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
+                    variant="ghost" 
+                    size="sm"
                     style={{ 
                       position: 'absolute', 
                       right: 0, 
@@ -304,7 +305,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
                     }}
                     onClick={() => handleDeleteNote(note)}
                     data-testid={`delete-note-${note.id}`}
-                  />
+                  >
+                    <CloseOutlined />
+                  </Button>
                 </div>
               </Timeline.Item>
             ))}

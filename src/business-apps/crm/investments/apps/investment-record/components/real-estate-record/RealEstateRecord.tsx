@@ -44,6 +44,7 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           isLoading={isLoading}
           error={error}
           context={props}
+          investmentId={props.investmentId}
         />
       );
     }
@@ -58,6 +59,7 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           isLoading={isLoading}
           error={error}
           context={props}
+          investmentId={props.investmentId}
         />
       );
     }
@@ -72,6 +74,7 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           isLoading={isLoading}
           error={error}
           context={props}
+          investmentId={props.investmentId}
         />
       );
     }

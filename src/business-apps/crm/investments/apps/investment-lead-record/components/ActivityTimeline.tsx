@@ -161,31 +161,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
 
 
-  const handleAddNote = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentNote',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
-
-  const handleAddTask = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Direct process calls removed - now handled by AppAction components
 
   const handleDeleteActivity = (activity: InvestmentActivity) => {
     setDeletePopup({ open: true, activity });
@@ -241,19 +217,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   };
 
-  const handleRequestApproval = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          leadId,
-          typeRef: 'InvestmentTaskType:v1:APPROVAL',
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Request approval handled by AppAction component
 
   const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals' | 'ai-summary') => {
     updateActiveTab(newTab);
@@ -511,20 +475,43 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Notes
             </div>
-            <Button
-              variant="default"
-              onClick={handleAddNote}
-              data-testid="add-note-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentNoteEntity]}
+              externalContextData={{
+                leadId,
+                lead: leadId,
+                investmentNote: { lead: leadId }
+              }}
+              staticFlowData={leadId ? [{
+                key: 'create-investment-note-fallback',
+                label: 'Add Note',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentNote',
+                  payload: { leadId },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="add-note"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              <PlusCircleOutlined />
-              Add Note
-            </Button>
+              <Button
+                variant="default"
+                data-testid="add-note-button"
+              >
+                <PlusCircleOutlined />
+                Add Note
+              </Button>
+            </AppAction>
           </div>
           <div style={{ padding: '0 24px 24px' }}>
             <NotesSection
               key={`notes-${notesKey}`}
               leadId={leadId}
               context={context}
+              showHeader={false}
             />
           </div>
         </div>
@@ -547,14 +534,39 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Approvals
             </div>
-            <Button
-              variant="default"
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentTaskCreate]}
+              externalContextData={{ 
+                leadId,
+                lead: leadId,
+                investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
+              }}
+              staticFlowData={leadId ? [{
+                key: 'create-investment-approval-fallback',
+                label: 'Request Approval',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentTask',
+                  payload: {
+                    leadId,
+                    typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                  },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="request-approval"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              <CheckCircleOutlined />
-              Request Approval
-            </Button>
+              <Button
+                variant="default"
+                data-testid="request-approval-button"
+              >
+                <CheckCircleOutlined />
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           {/* List of approval tasks */}

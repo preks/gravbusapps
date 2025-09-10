@@ -28,7 +28,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartBarIcon} variant="default" size="md" decorative />
               <div>
-                <CardTitle>Top Investment Accounts by Value</CardTitle>
+                <CardTitle>Top Accounts by Value</CardTitle>
                 <CardDescription>Investment accounts ranked by total portfolio value</CardDescription>
               </div>
             </div>
@@ -61,13 +61,32 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                 />
                 <YAxis 
                   tick={{ fontSize: 12 }}
-                  tickFormatter={(value) => formatCurrency(value, 'EUR').replace('€', '')}
+                  tickFormatter={(value) => formatCurrency(value).replace(/[€$£¥]/g, '')}
                 />
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, 'EUR'),
-                    name
-                  ]} />}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:mb-2">
+                            <span className="gba:font-medium">{label}</span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: 'var(--color-totalvalue)' }}
+                            />
+                            <span className="gba:font-medium">Total Value:</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar 
@@ -88,7 +107,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
           <div className="gba:flex gba:items-center gba:gap-3">
             <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
             <div>
-              <CardTitle>Portfolio Concentration by Investment Group</CardTitle>
+              <CardTitle>Portfolio Concentration by Group</CardTitle>
               <CardDescription>Investment distribution and performance across different groups</CardDescription>
             </div>
           </div>
@@ -114,12 +133,48 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
               <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => {
-                  if (name === 'Total Value' || name === 'Average Value') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'count') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Investment Count';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalValue') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Total Value';
+                            dotColor = 'var(--color-totalvalue)';
+                          } else if (entry.dataKey === 'averageValue') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Average Value';
+                            dotColor = 'var(--color-averagevalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  return [value, name];
-                }} />}
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 

@@ -9,20 +9,26 @@ import {
   Target
 } from 'lucide-react';
 import type { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getStatusColor } from '@/common/data/investment';
 import PlannedExitFlag from '../../shared/PlannedExitFlag';
+import { AiSummaryButton } from '../../shared/AiSummaryButton';
 
 export interface OthersDetailsHeaderProps {
   realEstateData?: RealEstateInvestmentData | null;
   isLoading?: boolean;
   error?: string | null;
+  context?: BusinessAppContextProps;
+  investmentId?: string;
 }
 
 const OthersDetailsHeader: React.FC<OthersDetailsHeaderProps> = ({ 
   realEstateData, 
   isLoading, 
-  error 
+  error,
+  context,
+  investmentId
 }) => {
   // Helper function to format currency with GraphQL data
   const formatCurrencyValue = (amount: number | null, currency?: { code: string } | null): string => {
@@ -79,11 +85,20 @@ const OthersDetailsHeader: React.FC<OthersDetailsHeaderProps> = ({
         <CardContent className="gba:p-6">
           {/* Company Name and Investment Type */}
           <div className="gba:mb-6">
-            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-              <Building2 className="gba:h-6 gba:w-6 gba:text-purple-600" />
-              <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {companyName || investment?.name || 'Others Investment Details'}
-              </h1>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <Building2 className="gba:h-6 gba:w-6 gba:text-purple-600" />
+                <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                  {companyName || investment?.name || 'Others Investment Details'}
+                </h1>
+              </div>
+              {/* AI Summary Button */}
+              {context && investmentId && (
+                <AiSummaryButton 
+                  investmentId={investmentId} 
+                  accessToken={context.accessToken} 
+                />
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <Badge variant="secondary" className="gba:text-sm">

@@ -70,7 +70,7 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
       return acc;
     }, [] as TypeDistributionItem[]);
 
-    // Investment Status Distribution
+    // Status Distribution
     const statusData = realEstateInvestments.reduce((acc, property) => {
       const status = property.investment?.investmentStatus?.value || 'Unknown';
       const existing = acc.find((item: StatusDistributionItem) => item.status === status);

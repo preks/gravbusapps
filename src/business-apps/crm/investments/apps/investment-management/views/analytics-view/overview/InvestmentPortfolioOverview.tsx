@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, AlertTitle, AlertDescription, Spinner, Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { PieChartOutlined, FundOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
+import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
+import { BarChart } from 'lucide-react';
 import { Button, Badge } from '@newwork/nw-design-system';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -102,7 +103,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               key: "total-investments",
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
-              prefix: <FundOutlined />,
+              prefix: <BarChartOutlined />,
               color: "var(--nw-color-success-500)",
               span: { xs: 24, sm: 12, lg: 6 },
               description: "Total number of investment positions",
@@ -174,8 +175,8 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsTab')}
               className="gba:flex gba:items-center gba:gap-2"
             >
-              <FundOutlined />
-              {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analytics')}
+              <BarChart className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
 

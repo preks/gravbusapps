@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-sys
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { Spinner } from '@newwork/nw-design-system';
 import { Badge } from '@newwork/nw-design-system';
-import { DollarSign, Building, TrendingUp, Users, BarChart, PieChart, Activity, Briefcase } from 'lucide-react';
+import { DollarSign, Building, TrendingUp, Users, BarChart, PieChart, Activity } from 'lucide-react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -286,8 +286,8 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2">
-              <Briefcase className="gba:h-4 gba:w-4" />
-              {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analytics')}
+              <BarChart className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
 

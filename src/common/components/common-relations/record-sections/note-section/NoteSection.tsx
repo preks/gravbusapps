@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 type NoteItem = {
   id: string;
@@ -131,14 +131,13 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
                   <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
                     <UserOutlined />
                     {note.assigneeEmployee?.id ? (
-                      <button
-                        type="button"
-                        onClick={() => navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId: note.assigneeEmployee?.id as string }))}
-                        className="gba:underline gba:whitespace-nowrap"
+                      <a
+                        href={buildPlatformUrl('/platform/employee-record', { employeeId: note.assigneeEmployee?.id as string })}
+                        className="gba:underline gba:whitespace-nowrap gba:text-inherit hover:gba:text-primary"
                         data-testid={`note-assignee-link-${note.assigneeEmployee.id}`}
                       >
                         {note.assigneeEmployee.displayName || `${note.assigneeEmployee.firstName || ''} ${note.assigneeEmployee.lastName || ''}`.trim()}
-                      </button>
+                      </a>
                     ) : (
                       <span>{note.assigneeEmployee?.displayName || note.createdBy}</span>
                     )}

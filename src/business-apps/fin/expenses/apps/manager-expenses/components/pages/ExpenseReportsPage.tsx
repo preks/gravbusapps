@@ -344,7 +344,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader",
           "Generate and download comprehensive expense reports across different categories and time periods",
         )}
-        headerIcon={<PiFileText />}
+        headerIcon={PiFileText}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">

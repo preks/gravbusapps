@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
 import { 
   PieChart, 
@@ -27,8 +27,17 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
     return currencies.sort();
   }, [rawInvestments]);
 
-  const [groupCurrencyFilter, setGroupCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState<string>(() => availableCurrencies[0] || 'EUR');
+  const [groupCurrencyFilter, setGroupCurrencyFilter] = useState<string>('EUR');
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState<string>('EUR');
+
+  // Update currency filters when currencies become available
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      const defaultCurrency = availableCurrencies[0];
+      setGroupCurrencyFilter(defaultCurrency);
+      setStatusCurrencyFilter(defaultCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Filter data based on selected currency for Investment Group Total Amount chart
   const filteredInvestmentGroupData = useMemo(() => {
@@ -69,7 +78,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
 
   return (
     <div className="gba:space-y-6">
-      {/* Investment Group Distribution */}
+      {/* Group Distribution */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <Card>
           <CardHeader>
@@ -77,7 +86,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Group Distribution by Count</CardTitle>
+                  <CardTitle>Group Distribution by Count</CardTitle>
                   <CardDescription>Number of investments per investment group</CardDescription>
                 </div>
               </div>
@@ -120,7 +129,29 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     );
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const groupKey = data.payload.group.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${groupKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.group}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -134,9 +165,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="default" size="md" decorative />
                 <div>
                   <CardTitle>
-                    Investment Group Distribution by Total Amount ({groupCurrencyFilter})
+                    Group Distribution by Total Amount ({groupCurrencyFilter})
                   </CardTitle>
-                  <CardDescription>Total invested amount per investment group</CardDescription>
+                  <CardDescription>Total amount per group</CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
@@ -193,10 +224,27 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, groupCurrencyFilter),
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const groupKey = data.payload.group.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${groupKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, groupCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -205,7 +253,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
         </Card>
       </div>
 
-      {/* Investment Status Distribution */}
+      {/* Status Distribution */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -213,7 +261,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={ChartDonutIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Status Distribution by Count</CardTitle>
+                  <CardTitle>Status Distribution by Count</CardTitle>
                   <CardDescription>Number of investments per status</CardDescription>
                 </div>
               </div>
@@ -256,7 +304,29 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     );
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${statusKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.status}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -270,7 +340,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
                   <CardTitle>
-                    Investment Status Distribution by Total Amount ({statusCurrencyFilter})
+                    Status Distribution by Total Amount ({statusCurrencyFilter})
                   </CardTitle>
                   <CardDescription>Total invested amount per status</CardDescription>
                 </div>
@@ -329,10 +399,27 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, statusCurrencyFilter),
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${statusKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, statusCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -341,7 +428,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
         </Card>
       </div>
 
-      {/* Investment Currency Distribution */}
+      {/* Currency Distribution */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <Card>
           <CardHeader>
@@ -349,7 +436,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Currency Distribution by Count</CardTitle>
+                  <CardTitle>Currency Distribution by Count</CardTitle>
                   <CardDescription>Number of investments per currency</CardDescription>
                 </div>
               </div>
@@ -392,7 +479,29 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     );
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const currencyKey = data.payload.currency.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${currencyKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.currency}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -405,7 +514,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Currency Distribution by Total Amount</CardTitle>
+                  <CardTitle>Currency Distribution by Total Amount</CardTitle>
                   <CardDescription>Total invested amount per currency</CardDescription>
                 </div>
               </div>
@@ -449,10 +558,27 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, 'EUR'),
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const currencyKey = data.payload.currency.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${currencyKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, data.payload.currency)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>

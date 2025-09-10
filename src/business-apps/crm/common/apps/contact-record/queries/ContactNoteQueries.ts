@@ -21,7 +21,7 @@ export interface ContactNoteResponse {
 export const GET_CONTACT_NOTES = (variables: ContactNoteQueryVariables): string => {
   return `
     query GetContactNotes($contactId: uuid!) {
-      CrmNote(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
+      CrmNote(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
         id
         version
         createdAt

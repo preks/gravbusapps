@@ -374,7 +374,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     try {
       const GET_OPPORTUNITY_DOCUMENTS = `
         query GetOpportunityDocuments($opportunityId: uuid!) {
-          CrmDocument(where: {opportunityId: {_eq: $opportunityId}, isDeleted: {_eq: false}}) {
+          CrmDocument(where: {opportunity: {id: {_eq: $opportunityId}}, isDeleted: {_eq: false}}) {
             id
             version
             name
