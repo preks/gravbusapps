@@ -1,8 +1,10 @@
 import * as z from "zod";
 import useInformationExtraction, { UseInformationExtractionReturn } from "@/common/hooks/useInformationExtraction";
-import { useGetSalesActivities } from "../queries/OpportunityActivityQueries";
-import { useGetCrmNotes } from "../queries/CrmNoteQueries";
-import { useGetSalesTasks } from "../queries/OpportunityTaskQueries";
+import { 
+  useGetInvestmentActivitiesByOpportunityId,
+  useGetInvestmentNotesByOpportunityId,
+  useGetInvestmentTasksByOpportunityId
+} from '@/common/data/investment/hooks/useInvestmentOpportunities';
 import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from "../queries/GetOpportunityByIdQueries";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
@@ -21,9 +23,9 @@ type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(opportunityId: string, accessToken: string): UseAiSummaryReturn {
     const graphQLClient = useGraphQLClient(accessToken);
-    const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
-    const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
-    const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
+    const { fetchInvestmentActivitiesByOpportunityId } = useGetInvestmentActivitiesByOpportunityId({ accessToken });
+    const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId({ accessToken });
+    const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId({ accessToken });
 
     const generateInputData = async () => {
         // get opportunity data
@@ -33,20 +35,20 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
         );
 
         // get activity data
-        const activityResult = await fetchSalesActivities({ opportunityId });
-        const sortedActivities = (activityResult.SalesActivity || []).sort((a, b) =>
+        const activityResult = await fetchInvestmentActivitiesByOpportunityId(opportunityId);
+        const sortedActivities = (activityResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         // get notes data
-        const notesResult = await fetchCrmNotes({ opportunityId });
-        const sortedNotes = (notesResult.CrmNote || []).sort((a, b) =>
+        const notesResult = await fetchInvestmentNotesByOpportunityId(opportunityId);
+        const sortedNotes = (notesResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
         // get task data
-        const tasksResult = await fetchSalesTasks({ opportunityId });
-        const sortedTasks = (tasksResult.SalesTask || []).sort((a, b) =>
+        const tasksResult = await fetchInvestmentTasksByOpportunityId(opportunityId);
+        const sortedTasks = (tasksResult || []).sort((a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 

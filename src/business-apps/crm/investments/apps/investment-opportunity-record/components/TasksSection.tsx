@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
+import { useGetInvestmentTasksByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import { InvestmentTask } from '@/common/data/investment/types';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
@@ -18,10 +20,10 @@ interface TasksSectionProps {
 }
 
 export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, context }) => {
-  const [tasks, setTasks] = useState<SalesTaskData[]>([]);
+  const [tasks, setTasks] = useState<InvestmentTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { fetchSalesTasks } = useGetSalesTasks(context);
+  const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
@@ -32,11 +34,11 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
     setError(null);
     
     try {
-      const result = await fetchSalesTasks({ opportunityId });
+      const result = await fetchInvestmentTasksByOpportunityId(opportunityId);
       
       // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = (result.SalesTask || []).filter(task => {
-        const isApprovalTask = task.typeRef === 'SalesTaskType:v1:APPROVAL' || 
+      const nonApprovalTasks = (result || []).filter(task => {
+        const isApprovalTask = task.typeRef === 'InvestmentTaskType:v1:APPROVAL' || 
                               task.typeRef?.toLowerCase() === 'approval' ||
                               task.typeRef?.split(':').pop()?.toLowerCase() === 'approval';
         return !isApprovalTask;
@@ -143,7 +145,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
 
   // Add task handled via AppAction below
 
-  const handleDeleteTask = (task: SalesTaskData) => {
+  const handleDeleteTask = (task: InvestmentTask) => {
     Modal.confirm({
       title: 'Confirm Deletion',
       content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
@@ -152,9 +154,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveSalesTask', {
+          await restClient.post('/investments/saveInvestmentTask', {
             changeMode: "DELETE",
-            salesTask: {
+            investmentTask: {
               id: task.id,
               version: task.version,
               opportunity: opportunityId
@@ -231,10 +233,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
           emptyStateBehavior="enable"
         >
           <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
+            variant="default"
             data-testid="add-task-button"
           >
+            <PlusCircleOutlined />
             Add Task
           </Button>
         </AppAction>
@@ -255,7 +257,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={loadTasks}>
+              <Button size="sm" onClick={loadTasks}>
                 Retry
               </Button>
             }
@@ -297,9 +299,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                     </div>
                   </div>
                   <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
+                    variant="ghost" 
+                    size="sm"
                     style={{ 
                       position: 'absolute', 
                       right: 0, 
@@ -309,7 +310,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                     }}
                     onClick={() => handleDeleteTask(task)}
                     data-testid={`delete-task-${task.id}`}
-                  />
+                  >
+                    <CloseOutlined />
+                  </Button>
                 </div>
               </Timeline.Item>
             ))}
