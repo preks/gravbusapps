@@ -47,37 +47,19 @@ export const useCurrencyStore = create<CurrencyState>((set) => ({
     }),
   setMostUsedCurrency: (currency) =>
     set((state) => {
-      console.log(
-        "setMostUsedCurrency called with:",
-        currency,
-        "current state:",
-        {
-          mostUsedCurrency: state.mostUsedCurrency,
-          primaryCurrency: state.primaryCurrency,
-          isUserSelected: state.isUserSelected,
-        }
-      );
-
       // Only update if different from current
       if (currency !== state.mostUsedCurrency) {
         // If user hasn't explicitly selected a currency, also update primaryCurrency
         if (!state.isUserSelected) {
-          console.log(
-            "User has not selected currency, updating primaryCurrency to:",
-            currency
-          );
           return {
             mostUsedCurrency: currency,
             primaryCurrency: currency || state.primaryCurrency,
           };
         }
-        console.log(
-          "User has selected currency, only updating mostUsedCurrency to:",
-          currency
-        );
+
         return { mostUsedCurrency: currency };
       }
-      console.log("No update needed, currency is the same");
+
       return {};
     }),
   setLoading: (isLoading) => set({ isLoading }),
