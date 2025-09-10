@@ -20,7 +20,10 @@ const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({ plans, value, onC
       </label>
       {plans.length > 0 ? (
         <Select value={value} onValueChange={onChange} data-testid="request-advance-payment-expense-plan-select">
-          <SelectTrigger className="gba:w-full gba:h-10 gba:bg-gray-100 gba:border-none">
+          <SelectTrigger
+            className="gba:h-10 gba:bg-gray-100 gba:border-none"
+            style={{ width: '100%', justifyContent: 'space-between' }}
+          >
             <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
               'Select Expense Plan'

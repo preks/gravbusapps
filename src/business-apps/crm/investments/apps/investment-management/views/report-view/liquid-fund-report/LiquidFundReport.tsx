@@ -36,8 +36,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   userInfo,
   'data-testid': dataTestId = 'liquid-fund-analytics'
 }) => {
-  // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
+  // Sub-tab management - Start with Bank Deposits since Overview is removed
+  const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
   // Filter states - Updated to 2024 where actual data exists
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
@@ -90,14 +90,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
            selectedCurrency !== appliedCurrency;
   }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
 
-  // Create filters for Overview and specific investment types
-  const overviewFilters = useMemo((): AnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency
-    // No investmentType filter to show all liquid fund reports
-  }), [startDateString, endDateString, appliedCurrency]);
-
+  // Create filters for specific investment types (Overview removed)
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
@@ -202,12 +195,9 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
         </CardContent>
       </Card>
 
-      {/* Analytics Tables with Sub-tabs */}
+      {/* Analytics Tables with Sub-tabs - Overview removed */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-          <TabsTrigger value="overview" data-testid={`${dataTestId}-overview`}>
-            Overview
-          </TabsTrigger>
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
           <TabsTrigger value="tab1" data-testid={`${dataTestId}-tab1`}>
             Bank Deposits
           </TabsTrigger>
@@ -218,17 +208,6 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             Multiple Types
           </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="overview" className="gba:mt-6">
-          <AnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={overviewFilters}
-            investmentType="All Liquid Fund Reports"
-            title="Liquid Fund Analytics - Overview"
-            data-testid={`${dataTestId}-overview-table`}
-          />
-        </TabsContent>
         
         <TabsContent value="tab1" className="gba:mt-6">
           <AnalyticsTable

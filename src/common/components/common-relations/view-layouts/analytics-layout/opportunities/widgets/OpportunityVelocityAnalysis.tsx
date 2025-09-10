@@ -1,7 +1,22 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system';
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { StarOutlined, ClockCircleOutlined, RiseOutlined, TrophyOutlined } from '@ant-design/icons';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  Badge,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@newwork/nw-design-system';
+import { LineChart, Line, XAxis, YAxis } from 'recharts';
+import { ClockCircleOutlined, RiseOutlined, TrophyOutlined } from '@ant-design/icons';
+import { TrendUpIcon } from '@phosphor-icons/react';
 
 export interface OpportunityVelocityData {
   averageDaysInPipeline: number;
@@ -12,16 +27,35 @@ export interface OpportunityVelocityData {
 
 interface OpportunityVelocityAnalysisProps {
   data: OpportunityVelocityData;
+  moduleColor?: string;
 }
 
-export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisProps> = ({ data }) => {
+export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
+  const chartConfig = {
+    averageDays: {
+      label: "Avg Days",
+    },
+    conversionRate: {
+      label: "Conversion Rate (%)",
+    },
+  } satisfies ChartConfig;
   return (
     <Card data-testid="opportunity-velocity-analysis">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <StarOutlined />
-          Opportunity Velocity Analysis
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={TrendUpIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Opportunity Velocity Analysis</CardTitle>
+          <CardDescription>Pipeline flow and opportunity progression</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4 gba:mb-6">
@@ -48,16 +82,33 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
         </div>
 
         <div className="gba:h-80 gba:mb-6">
-          <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer config={chartConfig} className="gba:w-full gba:h-full">
             <LineChart data={data.velocityTrend}>
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value: number, name: string) => [name === 'averageDays' ? `${value} days` : name === 'conversionRate' ? `${value}%` : value, name === 'averageDays' ? 'Avg Days' : name === 'conversionRate' ? 'Conversion Rate' : 'Opportunities']} />
-              <Legend />
-              <Line type="monotone" dataKey="averageDays" stroke="#3B82F6" strokeWidth={3} name="Avg Days" />
-              <Line type="monotone" dataKey="conversionRate" stroke="#10B981" strokeWidth={2} name="Conversion Rate (%)" />
+              <ChartTooltip 
+                content={<ChartTooltipContent 
+                  formatter={(value: number, name: string) => [
+                    name === 'averageDays' ? `${value} days` : name === 'conversionRate' ? `${value}%` : value, 
+                    name === 'averageDays' ? 'Avg Days' : name === 'conversionRate' ? 'Conversion Rate' : 'Opportunities'
+                  ]}
+                />}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Line 
+                type="monotone" 
+                dataKey="averageDays" 
+                stroke="var(--color-averageDays)" 
+                strokeWidth={3} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="conversionRate" 
+                stroke="var(--color-conversionRate)" 
+                strokeWidth={2} 
+              />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </div>
 
         <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mt-6">

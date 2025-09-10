@@ -28,6 +28,7 @@ export interface AccountsTabLayoutProps {
   accountsByIndustry: Array<{ industry: string; count: number; percentage: number }>;
   accountsBySize: Array<{ sizeRange: string; count: number; percentage: number }>;
   topAccounts: Array<{ id: string; name: string; industry: string; opportunityCount?: number; wonOpportunities?: number; totalValue: number }>;
+  moduleColor?: string;
 }
 
 const calculateTrend = (current: number, previous: number): { value: string; positive: boolean; description: string } => {
@@ -49,7 +50,9 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   accountsByIndustry,
   accountsBySize,
   topAccounts,
+  moduleColor = "default",
 }) => {
+
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<AccountsTimeFilter>("quarter");
   const [visibleLines, setVisibleLines] = useState({ accountsCreated: true, accountsWithOpportunities: true, accountsActive: true });
 
@@ -164,16 +167,26 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         onToggleLineVisibility={toggleLineVisibility}
         formatXAxisLabel={formatXAxisLabel}
         formatTooltip={formatTooltip}
+        moduleColor={moduleColor}
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <AccountGrowthAnalysis data={{ totalAccounts, accountsWithOpportunities, topAccounts, accountsOverTime }} />
-        <AccountHealthMatrix data={{ totalAccounts, accountsWithOpportunities, avgOpportunitiesPerAccount, topAccounts, accountsByIndustry, accountsBySize }} />
+        <AccountGrowthAnalysis 
+          data={{ totalAccounts, accountsWithOpportunities, topAccounts, accountsOverTime }} 
+          moduleColor={moduleColor}
+        />
+        <AccountHealthMatrix 
+          data={{ totalAccounts, accountsWithOpportunities, avgOpportunitiesPerAccount, topAccounts, accountsByIndustry, accountsBySize }} 
+          moduleColor={moduleColor}
+        />
       </div>
 
-      <AccountRelationshipInsights data={{ accountsByIndustry, accountsBySize, totalAccounts, accountsWithOpportunities, accountsOverTime }} />
+      <AccountRelationshipInsights 
+        data={{ accountsByIndustry, accountsBySize, totalAccounts, accountsWithOpportunities, accountsOverTime }} 
+        moduleColor={moduleColor}
+      />
 
-      <TopAccountsByRevenue topAccounts={topAccounts} />
+      <TopAccountsByRevenue topAccounts={topAccounts} moduleColor={moduleColor} />
     </div>
   );
 };

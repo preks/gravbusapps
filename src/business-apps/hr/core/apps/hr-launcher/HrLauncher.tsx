@@ -29,7 +29,7 @@ import {
 import { MODULE_COLORS } from '@/common/constants/ui';
 
 interface HrLauncherProps extends BusinessAppContextProps {}
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 const HrLauncher: React.FC<HrLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useHrStats(context);
 
@@ -270,7 +270,7 @@ const HrLauncher: React.FC<HrLauncherProps> = (context) => {
          icon: action.icon,
          onClick: () => handleQuickAction(action)
        }))}
-       variant={moduleVariant}
+       variant={moduleColor}
      />
    );
 };

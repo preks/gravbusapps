@@ -59,6 +59,9 @@ export interface InvestmentOpportunityFormValues {
 
   // Real Estate Specific (Investment-specific)
   annualNetColdRent: string;
+  buildingYear: string;
+  size: string;
+  measurementUnit: string;
 
   // Relationship Information
   account: string;

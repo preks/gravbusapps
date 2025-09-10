@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import { WidgetGroup } from "@/components/widget-group";
 import { ContactsOutlined, TeamOutlined, DollarCircleOutlined, RiseOutlined } from "@ant-design/icons";
-import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@newwork/nw-design-system";
+import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
 import { ContactInsightsDashboard, ContactInsightsDashboardData } from "./widgets/ContactInsightsDashboard";
 import { ContactQualityMatrix, ContactQualityData } from "./widgets/ContactQualityMatrix";
 import { TopRevenueEarners, TopRevenueContact } from "./widgets/TopRevenueEarners";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
+import { ContactLifecycleChart } from "./widgets/ContactLifecycleChart";
 
 export type TimeFilter = "month" | "quarter" | "year" | "historical";
 
@@ -30,6 +30,7 @@ export interface ContactsTabLayoutProps {
   qualityData?: ContactQualityData;
   topRevenueContacts?: TopRevenueContact[];
   topRevenueLoading?: boolean;
+  moduleColor?: string;
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
@@ -51,8 +52,8 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   qualityData,
   topRevenueContacts,
   topRevenueLoading,
+  moduleColor = "default",
 }) => {
-  const [visibleLines, setVisibleLines] = useState({ totalContacts: true, accountLinked: true });
   const safeThisMonth = thisMonth || 0;
   const safeLastMonth = lastMonth || 0;
   const newThisMonthTrendPercent = safeLastMonth > 0
@@ -80,43 +81,15 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
         <WidgetGroup widgets={kpis} data-testid="contacts-key-metrics" />
       </div>
 
-      <Card data-testid="contact-lifecycle-chart">
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle>Contact Lifecycle Overview</CardTitle>
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <Select value={selectedTimeFilter} onValueChange={(v: string) => onTimeFilterChange(v as TimeFilter)}>
-                <SelectTrigger className="gba:w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Last Month</SelectItem>
-                  <SelectItem value="quarter">Last Quarter</SelectItem>
-                  <SelectItem value="year">Last Year</SelectItem>
-                  <SelectItem value="historical">Historical</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button variant={visibleLines.totalContacts ? "default" : "outline"} size="sm" onClick={() => setVisibleLines((p) => ({ ...p, totalContacts: !p.totalContacts }))}>Monthly</Button>
-                <Button variant={visibleLines.accountLinked ? "default" : "outline"} size="sm" onClick={() => setVisibleLines((p) => ({ ...p, accountLinked: !p.accountLinked }))}>Cumulative</Button>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <AreaChart data={overTimeData}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip labelFormatter={(value) => `Date: ${value}`} formatter={(value: number, name: string) => [value, name === 'count' ? 'Monthly Created' : 'Total Contacts']} />
-              {/* recharts Legend is not part of design-system exports; omit for parity */}
-              {visibleLines.totalContacts && (<Area type="monotone" dataKey="count" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name="Monthly Created" />)}
-              {visibleLines.accountLinked && (<Area type="monotone" dataKey="cumulative" stackId="2" stroke="#10B981" fill="#10B981" fillOpacity={0.4} name="Cumulative Total" />)}
-            </AreaChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <ContactLifecycleChart
+        data={overTimeData}
+        selectedTimeFilter={selectedTimeFilter}
+        onTimeFilterChange={onTimeFilterChange}
+        moduleColor={moduleColor}
+      />
 
       {/** Optional full insights dashboard (exact copy from originals) */}
-      {insightsData && (<ContactInsightsDashboard data={insightsData} />)}
+      {insightsData && (<ContactInsightsDashboard data={insightsData} moduleColor={moduleColor} />)}
 
       {!insightsData && (
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
@@ -160,7 +133,7 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
         </Card>
       </div>) }
 
-      {qualityData && (<ContactQualityMatrix data={qualityData} />)}
+      {qualityData && (<ContactQualityMatrix data={qualityData} moduleColor={moduleColor} />)}
 
       {topRevenueContacts && (
         <TopRevenueEarners contacts={topRevenueContacts} isLoading={topRevenueLoading} />

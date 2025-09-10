@@ -1,0 +1,80 @@
+{
+  "simple": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "label": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "donut": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "donutText": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "legend": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "interactive": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "separatorNone": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "customLabel": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "labelList": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "donutActive": [
+    { "browser": "chrome", "visitors": 275, "fill": "var(--color-chrome)" },
+    { "browser": "safari", "visitors": 200, "fill": "var(--color-safari)" },
+    { "browser": "firefox", "visitors": 187, "fill": "var(--color-firefox)" },
+    { "browser": "edge", "visitors": 173, "fill": "var(--color-edge)" },
+    { "browser": "other", "visitors": 90, "fill": "var(--color-other)" }
+  ],
+  "stacked": [
+    { "month": "january", "desktop": 186, "mobile": 80 },
+    { "month": "february", "desktop": 305, "mobile": 200 },
+    { "month": "march", "desktop": 237, "mobile": 120 },
+    { "month": "april", "desktop": 73, "mobile": 190 },
+    { "month": "may", "desktop": 209, "mobile": 130 },
+    { "month": "june", "desktop": 214, "mobile": 140 }
+  ]
+}

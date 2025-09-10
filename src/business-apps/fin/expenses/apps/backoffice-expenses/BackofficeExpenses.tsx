@@ -19,7 +19,7 @@ import AdvancePaymentTab from './components/tabs/advance-payments-tab/AdvancePay
 
 import { MODULE_COLORS } from '@/common/constants/ui';
 
-const moduleVariant = MODULE_COLORS.FIN;
+const moduleColor = MODULE_COLORS.FIN;
 
 interface BackofficeExpensesProps extends BusinessAppContextProps {}
 
@@ -82,7 +82,8 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
 
   const renderTabContent = () => {
     const tabProps = {
-      ...props
+      ...props,
+      moduleColor: moduleColor
     };
 
     switch (activeTab) {
@@ -112,7 +113,7 @@ const BackofficeExpenses: React.FC<BackofficeExpensesProps> = (props) => {
             icon: option.icon
           }))
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">

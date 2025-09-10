@@ -17,7 +17,7 @@ import { MODULE_COLORS } from '@/common/constants/ui';
  * Employee Directory page component. Renders the employee directory module with grid, infinite scroll, and alphabet filter.
  * @returns {JSX.Element}
  */
-const moduleVariant = MODULE_COLORS.HR;
+const moduleColor = MODULE_COLORS.HR;
 
 
 export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
@@ -93,7 +93,7 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
         headerTitle="Employee Directory"
         headerDescription="Browse and connect with employees across your organization"
         className="gba:min-h-screen"
-        variant={moduleVariant}
+        variant={moduleColor}
       >
         <DataContainer<DataControllerProps>
           dataControllerComponent={DataController}

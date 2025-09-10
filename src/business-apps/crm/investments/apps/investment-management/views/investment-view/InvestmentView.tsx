@@ -6,7 +6,7 @@ import EquityInvestmentsList from "./components/EquityInvestmentsList";
 import RealEstateInvestmentsList from "./components/RealEstateInvestmentsList";
 import LiquidFundInvestmentsList from "./components/LiquidFundInvestmentsList";
 import InvestmentStatistics from "./components/InvestmentStatistics";
-import { LiquidPortfolioTab } from "./components";
+
 
 export interface InvestmentViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -21,9 +21,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
       "overview",
       "equity",
       "real-estate",
-      "private-equity",
       "liquid-funds",
-      "liquid-portfolio",
     ]);
     if (!val) return "overview";
     return allowed.has(val) ? val : "overview";
@@ -62,12 +60,11 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="liquid-funds">Liquid Fund</TabsTrigger>
           <TabsTrigger value="real-estate">Real Estate</TabsTrigger>
           <TabsTrigger value="equity">Equity</TabsTrigger>
-          <TabsTrigger value="liquid-portfolio" data-testid="liquid-portfolio-tab">Liquid Portfolio</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">
@@ -84,10 +81,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
 
         <TabsContent value="liquid-funds" className="gba:mt-6">
           <LiquidFundInvestmentsList {...context} />
-        </TabsContent>
-
-        <TabsContent value="liquid-portfolio" className="gba:mt-6">
-          <LiquidPortfolioTab {...context} />
         </TabsContent>
       </Tabs>
     </div>

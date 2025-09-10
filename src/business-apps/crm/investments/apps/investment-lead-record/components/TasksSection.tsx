@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -150,18 +153,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     };
   }, [leadId]);
 
-  const handleAddTaskClick = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments', // Updated from 'customer-relations'
-        processName: 'createInvestmentTask', // Updated naming
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add task handled by AppAction component
 
   const handleUpdateTask = (task: SimpleTaskData) => {
     startProcess({
@@ -256,7 +248,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         showIcon
         className="gba:mb-4"
         action={
-          <Button size="small" onClick={loadTasks}>
+          <Button size="sm" onClick={loadTasks}>
             Retry
           </Button>
         }
@@ -274,14 +266,35 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
             Manage tasks and activities related to this investment lead
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          className="gba:bg-blue-600 gba:hover:bg-blue-700"
+        <AppAction
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          externalContextData={{ 
+            leadId,
+            lead: leadId,
+            investmentTask: { lead: leadId }
+          }}
+          staticFlowData={leadId ? [{
+            key: 'create-investment-task-fallback',
+            label: 'Add Task',
+            onClick: () => startProcess({
+              domain: 'investments',
+              processName: 'createInvestmentTask',
+              payload: { leadId },
+              builderType: 'NATIVE_SCREEN'
+            })
+          }] : []}
+          prefixDataTestId="add-task"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          Add Task
-        </Button>
+          <Button
+            variant="default"
+          >
+            <PlusCircleOutlined />
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       {/* Tasks List */}
@@ -343,19 +356,20 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                   
                   <div className="gba:flex gba:gap-2 gba:ml-4">
                     <Button
-                      size="small"
-                      icon={<EditOutlined />}
+                      size="sm"
+                      variant="ghost"
                       onClick={() => handleUpdateTask(task)}
-                      className="gba:text-blue-600 gba:border-blue-600 gba:hover:text-blue-700 gba:hover:border-blue-700"
+                      className="gba:text-blue-600 gba:hover:text-blue-700"
                     >
+                      <EditOutlined />
                       Edit
                     </Button>
                     <Button
-                      size="small"
-                      danger
-                      icon={<CloseOutlined />}
+                      size="sm"
+                      variant="destructive"
                       onClick={() => handleDeleteTask(task)}
                     >
+                      <CloseOutlined />
                       Delete
                     </Button>
                   </div>

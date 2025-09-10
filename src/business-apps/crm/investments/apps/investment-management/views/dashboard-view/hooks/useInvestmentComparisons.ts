@@ -9,7 +9,6 @@ export interface InvestmentComparisons {
   typePerformanceComparison: {
     equity: number;
     realEstate: number;
-    privateEquity: number;
     liquidFunds: number;
   };
   isLoading: boolean;
@@ -116,16 +115,6 @@ const GET_INVESTMENT_COMPARISONS = `
       }
     }
     
-    # Private Equity Investments Count
-    privateEquityInvestments: PrivateEquityInvestmentAggregate(
-      where: {
-        investment: { isDeleted: { _eq: false } }
-      }
-    ) {
-      aggregate {
-        count
-      }
-    }
   }
 `;
 
@@ -140,7 +129,6 @@ export const useInvestmentComparisons = (
     typePerformanceComparison: {
       equity: 0,
       realEstate: 0,
-      privateEquity: 0,
       liquidFunds: 0,
     },
     isLoading: true,
@@ -254,8 +242,6 @@ export const useInvestmentComparisons = (
         result.liquidFundInvestments.aggregate.avg?.interestRate || 0;
       const liquidFundsPerformance = Math.round(liquidFundRate * 20); // Convert to percentage
 
-      // Remove private equity since it's not available
-      const privateEquityPerformance = 0; // Set to 0 since PrivateEquity is not available
 
       setComparisons({
         portfolioGrowthRate,
@@ -265,7 +251,6 @@ export const useInvestmentComparisons = (
         typePerformanceComparison: {
           equity: Math.max(equityPerformance, 0),
           realEstate: Math.max(realEstatePerformance, 0),
-          privateEquity: Math.max(privateEquityPerformance, 0),
           liquidFunds: Math.max(liquidFundsPerformance, 0),
         },
         isLoading: false,

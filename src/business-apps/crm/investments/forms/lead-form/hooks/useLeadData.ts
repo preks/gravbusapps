@@ -19,6 +19,37 @@ interface UseInvestmentLeadDataReturn {
   ) => Partial<LeadFormValues>;
 }
 
+// Helper function to extract address from various formats
+const extractAddressFromObject = (addressLine: any): string => {
+  if (!addressLine || typeof addressLine !== "object") {
+    return typeof addressLine === "string" ? addressLine : "";
+  }
+
+  // Standard format: { "lines": ["value"] } - PRIORITIZE THIS
+  if (addressLine.lines && Array.isArray(addressLine.lines)) {
+    return addressLine.lines.join(", ");
+  }
+
+  // Alternative format: { "address": "value" }
+  if (addressLine.address) {
+    // Handle corrupted double-encoded JSON
+    if (typeof addressLine.address === "string" && addressLine.address.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(addressLine.address);
+        if (parsed.lines && Array.isArray(parsed.lines)) {
+          return parsed.lines.join(", ");
+        }
+      } catch (e) {
+        // If parsing fails, return the raw string
+        return addressLine.address;
+      }
+    }
+    return addressLine.address;
+  }
+
+  return "";
+};
+
 export const useInvestmentLeadData = ({
   businessAppContext,
 }: UseInvestmentLeadDataProps): UseInvestmentLeadDataReturn => {
@@ -34,6 +65,7 @@ export const useInvestmentLeadData = ({
   // Function to map investment lead data to form values
   const mapLeadToFormValues = useCallback(
     (lead: InvestmentLeadQueryResult): Partial<LeadFormValues> => {
+
       const mappedValues = {
         // System fields
         id: lead.id,
@@ -71,24 +103,30 @@ export const useInvestmentLeadData = ({
         // Notes - ✅ ADDED: Map description to notes field
         notes: lead.description || "",
 
-        // Address Information - ✅ UPDATED: Single addressLine and locality
+        // Address Information - ✅ UPDATED: Multiple addressLine support and locality
         country: lead.countryRef || lead.country?.id || "",
         region: lead.regionRef || lead.region?.id || "",
         locality: lead.locality || "", // ✅ UPDATED: Use locality field
         postalCode: lead.postalCode || "",
-        addressLine: lead.addressLine
-          ? typeof lead.addressLine === "object"
-            ? lead.addressLine.address || JSON.stringify(lead.addressLine)
-            : lead.addressLine
-          : "", // ✅ UPDATED: Single addressLine field
+        addressLine: extractAddressFromObject(lead.addressLine), // ✅ FIXED: Use helper to handle all address formats
 
         // Legacy fields for backward compatibility
         city: lead.locality || "",
-        addressLine1: lead.addressLine
-          ? typeof lead.addressLine === "object"
-            ? lead.addressLine.address || JSON.stringify(lead.addressLine)
-            : lead.addressLine
-          : "",
+        // ✅ UPDATED: Split address lines from database into individual fields
+        ...(() => {
+          const addressLines = lead.addressLine && typeof lead.addressLine === "object" && lead.addressLine.lines
+            ? lead.addressLine.lines
+            : lead.addressLine 
+              ? [extractAddressFromObject(lead.addressLine)]
+              : [];
+          
+          return {
+            addressLine1: addressLines[0] || "",
+            addressLine2: addressLines[1] || "",
+            addressLine3: addressLines[2] || "",
+            addressLine4: addressLines[3] || "",
+          };
+        })(),
 
         // Company relationship - ✅ ADDED: Support both convertedAccount and convertedAccountId
         accountId: lead.convertedAccountId || lead.convertedAccount?.id || "",
@@ -109,14 +147,12 @@ export const useInvestmentLeadData = ({
         requiredCapitalAmount: lead.requiredCapitalAmount?.toString() || "",
         forecastedProfitAmount: lead.forecastedProfitAmount?.toString() || "",
         annualNetColdRent: lead.annualNetColdRent?.toString() || "",
-      };
 
-      console.log("🔄 Final mapped values for address fields:", {
-        country: mappedValues.country,
-        region: mappedValues.region,
-        locality: mappedValues.locality,
-        addressLine: mappedValues.addressLine,
-      });
+        // Real Estate specific fields
+        buildingYear: lead.buildingYear?.toString() || "",
+        size: lead.size?.toString() || "",
+        measurementUnit: lead.sizeMeasurementUnitRef || lead.sizeMeasurementUnit?.id || "",
+      };
 
       return mappedValues;
     },

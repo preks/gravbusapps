@@ -14,9 +14,10 @@ export interface AccountHealthMatrixProps {
     accountsByIndustry: AccountsByIndustryItem[];
     accountsBySize: AccountsBySizeItem[];
   };
+  moduleColor?: string;
 }
 
-export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data }) => {
+export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, moduleColor = "default" }) => {
   const opportunityRatio = data?.totalAccounts > 0 ? (data.accountsWithOpportunities / data.totalAccounts) * 100 : 0;
   const avgOpportunitiesScore = data?.avgOpportunitiesPerAccount ? Math.min((data.avgOpportunitiesPerAccount / 5) * 100, 100) : 0;
   const revenueScore = data?.topAccounts?.length > 0 ? Math.min((data.topAccounts.length / data.totalAccounts) * 100 * 10, 100) : 0;

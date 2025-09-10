@@ -41,6 +41,11 @@ export enum FlowContextName {
   customerActivityEntity = "customerActivityEntity",
   customerActivityCreate = "customerActivityCreate",
   customerActivityUpdate = "customerActivityUpdate",
+  customerActivityDelete = "customerActivityDelete",
+
+  /// Customer Notes
+  customerNoteCreate = "customerNoteCreate",
+  customerNoteDelete = "customerNoteDelete",
 
   /// Customer Documents
   createCustomerDocument = "customerDocumentCreate",
@@ -48,6 +53,7 @@ export enum FlowContextName {
 
   customerTaskEntity = 'customerTaskEntity',
   createCustomerTask = 'customerTaskCreate',
+  customerTaskDelete = 'customerTaskDelete',
 
 
   // Investment Relations
@@ -78,15 +84,18 @@ export enum FlowContextName {
 
   investmentActivityEntity = "investmentActivityEntity",
   createInvestmentActivity = "investmentActivityCreate",
+  investmentActivityDelete = "investmentActivityDelete",
 
   /// Investment Tasks
 
   investmentTaskEntity = "investmentTaskEntity",
   investmentTaskCreate = "investmentTaskCreate",
   investmentTaskUpdate = "investmentTaskUpdate",
+  investmentTaskDelete = "investmentTaskDelete",
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
+  investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents
   investmentDocumentEntity = "investmentDocumentEntity",
@@ -97,6 +106,7 @@ export enum FlowContextName {
   createInvestment = "investmentCreate", // TODO: Obsolete
   investmentCreate = "investmentCreate", // TODO: Replace startProcess
   investmentEntity = "investmentEntity",
+  investmentTileUpdate = "investmentTileUpdate",
 
   equityInvestmentEntity = "equityInvestmentEntity", // TODO: Check
   privateEquityInvestmentEntity = "privateEquityInvestmentEntity", // TODO: Check
@@ -104,13 +114,8 @@ export enum FlowContextName {
   liquidFundInvestmentEntity = "liquidFundInvestmentEntity", // TODO: Check
 
   /// Investment Reports
-  uploadInvestmentReport = "uploadInvestmentReport",
+  investmentReportUpload = "investmentReportUpload",
   investmentReportEntity = "investmentReportEntity", // Integrate
-
-
-
-
-
 
 
 

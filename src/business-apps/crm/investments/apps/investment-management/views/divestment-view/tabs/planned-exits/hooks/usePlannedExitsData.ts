@@ -4,15 +4,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 export interface PlannedExitInvestment {
   id: string;
   name: string;
-  accountId: string;
-  opportunityId: string;
-  ownerEmployeeId: string;
   acquisitionDate: string;
   exitDate?: string;
   plannedExitDate?: string;
-  notesSummary?: string;
-  bookValue: number;
-  marketValue: number;
   initialInvestmentAmount: number;
   totalInvestmentAmount: number;
   stakePercentage: number;
@@ -21,7 +15,14 @@ export interface PlannedExitInvestment {
   investmentGroup?: {
     id: string;
     code: string;
+    value: string;
     description: string;
+  };
+  ownerEmployee?: {
+    id: string;
+    displayName: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -52,7 +53,6 @@ const PLANNED_EXITS_QUERY = `
     Investment(where: $where, orderBy: $orderBy, limit: $limit, offset: $offset) {
       id
       name
-      ownerEmployeeId
       acquisitionDate
       exitDate
       plannedExitDate
@@ -64,7 +64,14 @@ const PLANNED_EXITS_QUERY = `
       investmentGroup {
         id
         code
+        value
         description
+      }
+      ownerEmployee {
+        id
+        displayName
+        firstName
+        lastName
       }
     }
     InvestmentAggregate(where: $where) {

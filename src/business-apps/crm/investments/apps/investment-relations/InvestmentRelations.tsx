@@ -24,7 +24,7 @@ import { PipelineInfo } from "./views/dashboard-view/types/dashboardTypes";
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
 
-const moduleVariant = MODULE_COLORS.IRM;
+const moduleColor = MODULE_COLORS.IRM;
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   context
@@ -168,6 +168,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             <DashboardView
               pipelines={pipelines}
               dateRange={dateRange}
+              moduleColor={moduleColor}
               {...context}
             />
           </div>
@@ -206,7 +207,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       case "analytics":
         return (
           <div data-testid="analytics-tab-content">
-            <AnalyticsView {...context} />
+            <AnalyticsView moduleColor={moduleColor} {...context} />
           </div>
         );
       default:
@@ -238,7 +239,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             icon: option.icon,
           })),
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

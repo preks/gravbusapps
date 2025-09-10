@@ -6,7 +6,7 @@ import {
   Label,
   Button,
 } from "@newwork/nw-design-system";
-import { PiCaretDown, PiCaretUp } from "react-icons/pi";
+import { PiPlus, PiMinus, PiCaretDown, PiCaretUp } from "react-icons/pi";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
 import SearchableSelect from "./SearchableSelect";
@@ -17,8 +17,14 @@ const prefixDataTestId = "LeadForm";
 const AddressInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { formValues, setFormValues, businessAppContext } =
-    useLeadFormContext();
+  const { 
+    formValues, 
+    setFormValues, 
+    businessAppContext,
+    addressLineCount,
+    addAddressLine,
+    removeAddressLine,
+  } = useLeadFormContext();
 
   // Use the new countries and regions hook with business app context (same as account form)
   const {
@@ -36,28 +42,7 @@ const AddressInformationSection: React.FC = () => {
     setSelectedCountry,
   } = useCountriesRegions(businessAppContext);
 
-  // ✅ DEBUG: Log address form values and countries data
-  useEffect(() => {
-    console.log("🔍 AddressInformationSection Debug:", {
-      countryValue: formValues.country,
-      countryValueType: typeof formValues.country,
-      regionValue: formValues.region,
-      countriesCount: countries?.length || 0,
-      countriesFirst: countries?.[0] || null,
-      countryMatch: countries?.find(
-        (opt) =>
-          opt.value === formValues.country || opt.id === formValues.country
-      ),
-      regionMatch: regions?.find(
-        (opt) => opt.value === formValues.region || opt.id === formValues.region
-      ),
-      // Check different format possibilities
-      countryMatchById: countries?.find((opt) => opt.id === formValues.country),
-      countryMatchByValue: countries?.find(
-        (opt) => opt.value === formValues.country
-      ),
-    });
-  }, [formValues.country, formValues.region, countries, regions]);
+
 
   // Handle country selection change
   const handleCountryChange = (countryId: string) => {
@@ -74,12 +59,35 @@ const AddressInformationSection: React.FC = () => {
   // Sync selected country when form values change
   useEffect(() => {
     if (formValues.country && formValues.country !== selectedCountryCode) {
-      console.log(
-        `🌍 AddressInformationSection: Setting country from form value "${formValues.country}"`
-      );
+
       setSelectedCountry(formValues.country);
     }
   }, [formValues.country, selectedCountryCode, setSelectedCountry]);
+
+  // Render individual address line input
+  const renderAddressLine = (lineNumber: number) => {
+    const fieldName = `addressLine${lineNumber}` as keyof typeof formValues;
+    const value = formValues[fieldName] as string;
+
+    return (
+      <div key={lineNumber} className="gba:space-y-2">
+        <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+          Address Line {lineNumber}
+        </Label>
+        <Input
+          name={fieldName}
+          value={value || ""}
+          onChange={(e) => setFormValues({ [fieldName]: e.target.value })}
+          placeholder="Enter address..."
+          className="gba:border-gray-300 gba:bg-white"
+          data-testid={formatDataTestId(
+            prefixDataTestId,
+            `AddressLine${lineNumber}Input`
+          )}
+        />
+      </div>
+    );
+  };
 
   return (
     <Card
@@ -95,6 +103,7 @@ const AddressInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
@@ -198,22 +207,51 @@ const AddressInformationSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Single Address Line */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Address Line
-            </Label>
-            <Input
-              name="addressLine"
-              value={formValues.addressLine || ""}
-              onChange={(e) => setFormValues({ addressLine: e.target.value })}
-              placeholder="Enter address..."
-              className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "AddressLineInput"
-              )}
-            />
+          {/* Address Lines */}
+          <div className="gba:space-y-4">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Address Lines
+              </Label>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {addressLineCount > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={removeAddressLine}
+                    className="gba:text-red-700 gba:border-gray-300 gba:bg-white gba:hover:bg-red-50 gba:text-xs gba:px-2 gba:py-1"
+                    data-testid={formatDataTestId(
+                      prefixDataTestId,
+                      "RemoveAddressLineButton"
+                    )}
+                  >
+                    <PiMinus className="gba:w-3 gba:h-3 gba:mr-1" />
+                    Remove Line
+                  </Button>
+                )}
+                {addressLineCount < 4 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addAddressLine}
+                    className="gba:text-blue-700 gba:border-gray-300 gba:bg-white gba:hover:bg-blue-50 gba:text-xs gba:px-2 gba:py-1"
+                    data-testid={formatDataTestId(
+                      prefixDataTestId,
+                      "AddAddressLineButton"
+                    )}
+                  >
+                    <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+                    Add Line
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {Array.from({ length: addressLineCount }, (_, index) =>
+              renderAddressLine(index + 1)
+            )}
           </div>
 
           {/* Postal Code and City - Side by side */}

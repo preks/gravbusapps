@@ -12,13 +12,14 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  Combobox,
   Spinner,
 } from '@newwork/nw-design-system';
 import { useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCatalogOptions } from '../shared/hooks/useCatalogOptions';
+import EntitySelect from '../shared/components/EntitySelect';
+import { EmployeeSelect } from '@/components/employee-select';
 
 export interface ActivityTypeOption {
   value: string;
@@ -56,6 +57,7 @@ export interface ActivitySegmentProps {
   accessToken?: string;
   typeCatalog?: { identifier: string; version: string };
   fetchTypeOptions?: () => Promise<ActivityTypeOption[]>;
+  onTypeSearch?: (searchTerm: string) => void;
 
   // Entity selection
   showEntitySelection?: boolean;
@@ -65,6 +67,20 @@ export interface ActivitySegmentProps {
   entitiesHasMore?: boolean;
   onEntityLoadMore?: () => void;
   initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string };
+
+  // Assignees (owner employee)
+  assignees?: Array<{
+    id: string;
+    displayName: string;
+    userId?: string;
+    pictureThumbnail?: string;
+    organizationalUnitName?: string;
+    jobPositionName?: string;
+  }>;
+  assigneesLoading?: boolean;
+  onAssigneeSearch?: (q: string) => void;
+  assigneesHasMore?: boolean;
+  onAssigneeLoadMore?: () => void;
 
   // Labels
   titleLabel: React.ReactNode;
@@ -77,6 +93,13 @@ export interface ActivitySegmentProps {
   // Callbacks
   onFilesChange?: (files: File[]) => void;
 
+  // Render props for Ant Design compatibility
+  renderTextField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
+  renderSelectField?: (props: { name: string; label: React.ReactNode; options: ActivityTypeOption[]; loading?: boolean; onSearch?: (searchTerm: string) => void; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
+  renderDateField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
+  renderTextareaField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
+  renderFileField?: (props: { 'data-testid'?: string }) => React.ReactNode;
+
   // TestId prefix for container
   ['data-testid']?: string;
 }
@@ -87,6 +110,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   accessToken,
   typeCatalog,
   fetchTypeOptions,
+  onTypeSearch,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -94,6 +118,11 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   entitiesHasMore,
   onEntityLoadMore,
   initialEntityFromContext,
+  assignees = [],
+  assigneesLoading = false,
+  onAssigneeSearch,
+  assigneesHasMore,
+  onAssigneeLoadMore,
   titleLabel,
   typeLabel,
   dateLabel,
@@ -101,9 +130,23 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   uploadFileLabel,
   entityLabel,
   onFilesChange,
+  renderTextField,
+  renderSelectField,
+  renderDateField,
+  renderTextareaField,
+  renderFileField,
   'data-testid': dataTestId = 'activity-segment',
 }) => {
-  const form = useFormContext<any>();
+  // Try to get form context, but don't require it if using render props
+  let form: any = null;
+  try {
+    form = useFormContext<any>();
+  } catch {
+    // Form context not available, using render props mode
+  }
+  
+  // Check if we're in render props mode (Ant Design)
+  const isRenderPropsMode = Boolean(renderTextField || renderSelectField || renderDateField || renderTextareaField || renderFileField);
 
   const typeOptionsState = useCatalogOptions({
     accessToken,
@@ -113,10 +156,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     fetchOptions: fetchTypeOptions,
   });
 
-  const entityOptions = React.useMemo(
-    () => (entities || []).map((e) => ({ value: e.id, label: `${e.name} (${String(e.type).charAt(0).toUpperCase() + String(e.type).slice(1)})` })),
-    [entities]
-  );
+
 
   const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
     if (!v) return '';
@@ -126,14 +166,14 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
   // Prime entity search on mount if needed
   React.useEffect(() => {
-    if (showEntitySelection && onEntitySearch && entityOptions.length === 0) {
+    if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
       onEntitySearch('');
     }
-  }, [showEntitySelection, onEntitySearch, entityOptions.length]);
+  }, [showEntitySelection, onEntitySearch, entities]);
 
   // Apply initial entity from context when none is set yet
   React.useEffect(() => {
-    if (!showEntitySelection || !initialEntityFromContext) return;
+    if (!showEntitySelection || !initialEntityFromContext || !form) return;
     const hasEntity = Boolean(
       form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
     );
@@ -149,8 +189,68 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     const found = map.find((m) => m.id);
     if (found?.id) {
       form.setValue(found.key, { id: found.id });
+      form.setValue('relatedEntityId', found.id);
     }
   }, [showEntitySelection, initialEntityFromContext, form]);
+
+  // Prime assignee search when empty (similar to TaskSegment)
+  React.useEffect(() => {
+    if (onAssigneeSearch && assignees.length === 0) {
+      onAssigneeSearch('');
+    }
+  }, [onAssigneeSearch, assignees.length]);
+
+  // Render in Ant Design mode using render props
+  if (isRenderPropsMode) {
+    return (
+      <>
+        {/* Title Field */}
+        {renderTextField?.({
+          name: 'title',
+          label: titleLabel,
+          required: true,
+          'data-testid': `${dataTestId}-title`
+        })}
+
+        {/* Type Field */}
+        {renderSelectField?.({
+          name: 'activityTypeRef',
+          label: typeLabel,
+          options: typeOptionsState.options,
+          loading: typeOptionsState.loading,
+          onSearch: onTypeSearch,
+          required: true,
+          'data-testid': `${dataTestId}-type`
+        })}
+
+        {/* Date Field */}
+        {renderDateField?.({
+          name: 'date',
+          label: dateLabel,
+          required: true,
+          'data-testid': `${dataTestId}-date`
+        })}
+
+        {/* Description Field */}
+        {renderTextareaField?.({
+          name: 'description',
+          label: descriptionLabel,
+          required: true,
+          'data-testid': `${dataTestId}-description`
+        })}
+
+        {/* File Upload Field */}
+        {uploadFileLabel && renderFileField?.({
+          'data-testid': `${dataTestId}-file`
+        })}
+      </>
+    );
+  }
+
+  // Original React Hook Form mode
+  if (!form?.control) {
+    return <div>Error: Form context not available. Please use render props or provide form context.</div>;
+  }
 
   return (
     <>
@@ -233,32 +333,31 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                 {entityLabel || 'Related Entity'} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
               </FormLabel>
               <FormControl>
-                <Combobox
-                  className="gba:w-full"
-                  options={entityOptions}
+                <EntitySelect
+                  entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
                     field.onChange(v);
-                    const id = String(v || '');
-                    const e = (entities || []).find((x) => x.id === id);
-                    form.setValue('account', undefined);
-                    form.setValue('contact', undefined);
-                    form.setValue('opportunity', undefined);
-                    form.setValue('lead', undefined);
-                    if (e) {
-                      form.setValue(e.type, { id: e.id });
+                    if (form) {
+                      const id = String(v || '');
+                      const e = (entities || []).find((x) => x.id === id);
+                      form.setValue('account', undefined);
+                      form.setValue('contact', undefined);
+                      form.setValue('opportunity', undefined);
+                      form.setValue('lead', undefined);
+                      if (e) {
+                        form.setValue(e.type, { id: e.id });
+                        form.setValue('relatedEntityId', e.id);
+                      }
                     }
                   }}
                   placeholder="Search leads, contacts, accounts, or opportunities..."
                   searchPlaceholder="Type to search..."
-                  emptyText={entitiesLoading ? 'Loading...' : 'No results'}
                   onSearch={onEntitySearch}
-                  searchDebounce={300}
                   loading={Boolean(entitiesLoading)}
                   hasMore={Boolean(entitiesHasMore)}
                   onLoadMore={onEntityLoadMore}
                   data-testid={`${dataTestId}-entity`}
-                  align="start"
                 />
               </FormControl>
               <FormMessage />
@@ -278,6 +377,34 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
             </FormLabel>
             <FormControl>
               <Textarea data-testid={`${dataTestId}-description`} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Owner Employee */}
+      <FormField
+        control={form.control as any}
+        name="ownerEmployeeId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Owner</FormLabel>
+            <FormControl>
+              <EmployeeSelect
+                className="gba:w-full gba:h-auto"
+                employees={assignees as any}
+                value={field.value || ''}
+                onValueChange={(v: string | null) => {
+                  field.onChange(v);
+                  // Optionally set owner user id if provided later
+                }}
+                onSearch={onAssigneeSearch}
+                loading={Boolean(assigneesLoading)}
+                onLoadMore={onAssigneeLoadMore}
+                hasMore={Boolean(assigneesHasMore)}
+                data-testid={`${dataTestId}-owner`}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>

@@ -41,7 +41,7 @@ import { formatCurrencyLocalized } from "@/business-apps/fin/expenses/apps/expen
 import { MODULE_COLORS } from "@/common/constants/ui";
 interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
-const moduleVariant = MODULE_COLORS.FIN;
+const moduleColor = MODULE_COLORS.FIN;
 
 const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   const { stats, isLoading, error, refetch } = useExpenseDashboardStats(context);
@@ -814,7 +814,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used expense functions and shortcuts"
-      variant={moduleVariant}
+      variant={moduleColor}
     />
   );
 };

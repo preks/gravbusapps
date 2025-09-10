@@ -179,3 +179,7 @@ export interface ReferenceData {
   value: string;
   alternativeCode?: string;
 }
+
+// Default export for wrapper compatibility (export an empty object to satisfy default import)
+const defaultExport: Record<string, unknown> = {};
+export default defaultExport;

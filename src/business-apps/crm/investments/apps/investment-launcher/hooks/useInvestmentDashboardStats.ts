@@ -27,7 +27,6 @@ export const useInvestmentDashboardStats = (context: BusinessAppContextProps) =>
     totalInvestments: 0,
     equityInvestments: 0,
     realEstateInvestments: 0,
-    privateEquityInvestments: 0,
     liquidFunds: 0,
     totalPortfolioValue: 0,
     assetTypes: 0,
@@ -53,14 +52,12 @@ export const useInvestmentDashboardStats = (context: BusinessAppContextProps) =>
     // Group breakdown
     let equityInvestments = 0;
     let realEstateInvestments = 0;
-    let privateEquityInvestments = 0;
     let liquidFunds = 0;
 
     investments.forEach(inv => {
       const group = (inv as any).investmentGroup?.value || (inv as any).investmentGroupLabel || '';
       if (group === 'Equity') equityInvestments += 1;
       else if (group === 'Real Estate') realEstateInvestments += 1;
-      else if (group === 'Private Equity') privateEquityInvestments += 1;
       else if (group === 'Liquid Fund') liquidFunds += 1;
     });
 
@@ -88,7 +85,6 @@ export const useInvestmentDashboardStats = (context: BusinessAppContextProps) =>
       totalInvestments,
       equityInvestments,
       realEstateInvestments,
-      privateEquityInvestments,
       liquidFunds,
       totalPortfolioValue,
       assetTypes,

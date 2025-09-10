@@ -36,7 +36,7 @@ export interface ContactActivityResponse {
 export const GET_CONTACT_ACTIVITIES = (variables: ContactActivityQueryVariables): string => {
   return `
     query GetContactActivities($contactId: uuid!) {
-      SalesActivity(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
+      SalesActivity(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
         id
         title
         version

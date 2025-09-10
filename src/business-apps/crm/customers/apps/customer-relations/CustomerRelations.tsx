@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button, Alert, AlertTitle, AlertDescription } from "@newwork/nw-design-system";
 import { Spinner } from "@newwork/nw-design-system";
 import { PageLayout } from "@newwork/nw-design-system";
-import { HandshakeIcon, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House, Handshake } from "@phosphor-icons/react";
+import { HandshakeIcon, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { LeadList } from "./views/lead-view";
 import { AccountList } from "./views/account-view";
@@ -17,7 +17,8 @@ import { TaskView } from "./views/task-view";
 import { MODULE_COLORS } from "@/common/constants/ui";
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
-const moduleVariant = MODULE_COLORS.CRM;
+
+const moduleColor = MODULE_COLORS.CRM;
 export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   context
 ) => {
@@ -191,6 +192,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
       <DashboardView
         pipelines={pipelines}
         dateRange={dateRange}
+        moduleColor={moduleColor}
         {...context}
       />
     );
@@ -199,7 +201,9 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
   const renderAnalyticsContent = () => {
     return (
       <div data-testid="analytics-tab-content">
-        <AnalyticsView {...context} />
+        <AnalyticsView 
+        moduleColor={moduleColor}
+        {...context} />
       </div>
     );
   };
@@ -266,7 +270,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
             icon: option.icon
           }))
         }}
-        variant={moduleVariant}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

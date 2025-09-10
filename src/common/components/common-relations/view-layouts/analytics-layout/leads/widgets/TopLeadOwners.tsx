@@ -11,9 +11,10 @@ export interface TopLeadOwnerItem {
 
 export interface TopLeadOwnersProps {
   owners: TopLeadOwnerItem[];
+  moduleColor?: string;
 }
 
-export const TopLeadOwners: React.FC<TopLeadOwnersProps> = ({ owners }) => {
+export const TopLeadOwners: React.FC<TopLeadOwnersProps> = ({ owners, moduleColor = "default" }) => {
   return (
     <Card data-testid="top-lead-owners-section">
       <CardHeader>

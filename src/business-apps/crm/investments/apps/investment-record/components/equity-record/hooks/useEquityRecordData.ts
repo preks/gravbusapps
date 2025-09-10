@@ -40,16 +40,10 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
                            Array.isArray(equityInvestmentArray) && 
                            equityInvestmentArray.length > 0;
 
-      if (!hasEquityData) {
-        const errorMsg = `Investment ${investmentId} is not an equity investment or has no equity-specific data`;
-        setError(errorMsg);
-        return;
-      }
-
-      // Create the equity data structure (take first equity investment)
+      // Always create the equity data structure, even without equity-specific data
       const equityInvestmentData: EquityInvestmentData = {
         investment: result.investment,
-        equityInvestment: equityInvestmentArray[0]
+        equityInvestment: hasEquityData ? equityInvestmentArray[0] : undefined
       };
 
       setEquityData(equityInvestmentData);
@@ -65,6 +59,73 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
 
   useEffect(() => {
     fetchEquityData();
+  }, [fetchEquityData]);
+
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('EquityRecordData: Process completion event received:', event.type, event.detail);
+        
+        // Skip immediate form submission events from AppActionForm to avoid double refresh
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.event === 'pse_submit') {
+          console.log('EquityRecordData: Skipping immediate form submission event to avoid double refresh');
+          return;
+        }
+        
+        // Check for successful completion from backend
+        if (event.detail?.resolution === 'success') {
+          console.log('EquityRecordData: Backend process completed successfully, refreshing equity investment data');
+          fetchEquityData();
+          return;
+        }
+        
+        // Check for different event structures - specifically for equity investments
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || 
+            response?.investment || 
+            response?.equityInvestment) {
+          console.log('EquityRecordData: Equity investment data detected from backend, refreshing record');
+          fetchEquityData();
+          return;
+        }
+        
+        // Check for continue events with actual backend payload (not form submission)
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.payload && 
+            event.detail?.event !== 'pse_submit') {
+          console.log('EquityRecordData: Backend continue event with payload detected, refreshing data');
+          fetchEquityData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in EquityRecordData:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
   }, [fetchEquityData]);
 
   return {

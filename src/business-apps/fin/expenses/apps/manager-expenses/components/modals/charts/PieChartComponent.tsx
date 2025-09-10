@@ -1,7 +1,7 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface PieChartProps {
   data: {
@@ -19,14 +19,14 @@ interface PieChartProps {
 /**
  * Reusable pie chart component for analytics
  */
-const PieChartComponent: React.FC<PieChartProps> = ({ 
-  data, 
-  title, 
-  nameKey = 'name',
-  dataKey = 'value',
+const PieChartComponent: React.FC<PieChartProps> = ({
+  data,
+  title,
+  nameKey = "name",
+  dataKey = "value",
   height = 300,
-  colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#fa8c16'],
-  currency = 'EUR'
+  colors = ["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#fa8c16"],
+  currency = "EUR",
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -58,7 +58,10 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
+        <div
+          style={{ height: height }}
+          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -70,14 +73,16 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 innerRadius={60}
                 fill="#8884d8"
                 dataKey={dataKey}
-                label={(entry) => `${entry[nameKey]}: ${formatNumberFunction(entry[dataKey].toString(), "0.00[,]00")} ${currency}`}
+                label={(entry) =>
+                  `${entry[nameKey]}: ${formatCurrencyDisplay(entry[dataKey], currency)}`
+                }
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip 
-                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")} ${currency}`, 'Amount']}
+              <Tooltip
+                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
                 labelFormatter={(name) => `${name}`}
               />
               <Legend />

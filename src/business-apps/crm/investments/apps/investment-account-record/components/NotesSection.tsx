@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd';
+import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, Timeline, Typography } from 'antd';
+import { Button } from '@newwork/nw-design-system';
+import { NoteDeletionPopup } from '@/common/components';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentNotesByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
 import type { InvestmentNote } from '@/common/data/investment/types';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -16,11 +20,11 @@ interface NotesSectionProps {
   context: BusinessAppContextProps;
 }
 
-interface TranslatedNote extends InvestmentNote {
+type TranslatedNote = InvestmentNote & {
   translatedTitle?: string;
   translatedText?: string;
   isTranslating?: boolean;
-}
+};
 
 export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }) => {
   const [notes, setNotes] = useState<TranslatedNote[]>([]);
@@ -28,7 +32,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
   const [error, setError] = useState<string | null>(null);
   const originalNotesRef = useRef<InvestmentNote[]>([]);
   const { fetchInvestmentNotesByAccountId } = useGetInvestmentNotesByAccountId(context);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: InvestmentNote }>({ open: false });
 
   const loadNotes = async () => {
     if (!accountId) return;
@@ -158,54 +162,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
   }, [accountId]);
 
   const handleDeleteNote = (note: InvestmentNote) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the note "${note.noteTitle}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentNote', {
-            changeMode: "DELETE",
-            investmentNote: {
-              id: note.id,
-              version: note.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the note from both states
-          setNotes(prevNotes => 
-            prevNotes.filter(n => n.id !== note.id)
-          );
-          
-          // Also remove from original notes ref
-          originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
-          
-          message.success('Note deleted successfully');
-        } catch (error) {
-          console.error('Error deleting note:', error);
-          message.error('Failed to delete note');
-        }
-      },
-    });
+    setDeletePopup({ open: true, note });
   };
 
-  const handleAddNote = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentNote',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add note handled by AppAction component
 
   return (
     <div className="gba:notes-content" data-testid="notes-content">
@@ -225,14 +185,36 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
             Notes
           </div>
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddNote}
-          data-testid="add-note-button"
+        <AppAction
+          contextsArray={[FlowContextName.investmentNoteEntity]}
+          externalContextData={{
+            accountId,
+            account: accountId,
+            investmentNote: { account: accountId }
+          }}
+          staticFlowData={accountId ? [{
+            key: 'create-investment-note-fallback',
+            label: 'Add Note',
+            onClick: () => startProcess({
+              domain: 'investments',
+              processName: 'createInvestmentNote',
+              payload: { accountId },
+              builderType: 'NATIVE_SCREEN'
+            })
+          }] : []}
+          prefixDataTestId="add-note"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          Add Note
-        </Button>
+          <Button 
+            variant="default"
+            data-testid="add-note-button"
+          >
+            <PlusCircleOutlined />
+            Add Note
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
@@ -263,13 +245,35 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
             style={{ padding: '40px 0' }}
             data-testid="empty-notes"
           >
-            <Button 
-              type="primary" 
-              icon={<PlusCircleOutlined />} 
-              onClick={handleAddNote}
+            <AppAction
+              contextsArray={[FlowContextName.investmentNoteEntity]}
+              externalContextData={{
+                accountId,
+                account: accountId,
+                investmentNote: { account: accountId }
+              }}
+              staticFlowData={accountId ? [{
+                key: 'create-investment-note-fallback',
+                label: 'Add First Note',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentNote',
+                  payload: { accountId },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="add-first-note"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add First Note
-            </Button>
+              <Button 
+                variant="default"
+              >
+                <PlusCircleOutlined />
+                Add First Note
+              </Button>
+            </AppAction>
           </Empty>
         )}
 
@@ -280,7 +284,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
-                      {note.noteTitle}
+                      {note.title}
                     </Text>
                   </div>
                   <div>
@@ -289,7 +293,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
                     </Text>
                   </div>
                   <div style={{ marginTop: '4px', color: '#374151' }}>
-                    {note.noteText}
+                    {note.text}
                   </div>
                   <Button 
                     type="text" 
@@ -311,6 +315,25 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
           </Timeline>
         )}
       </div>
+
+      {deletePopup.open && deletePopup.note && (
+        <NoteDeletionPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          noteId={deletePopup.note.id}
+          noteVersion={deletePopup.note.version}
+          noteTitle={deletePopup.note.title || 'Untitled Note'}
+          domain="investments"
+          onSuccess={() => {
+            const id = deletePopup.note!.id;
+            setNotes(prev => prev.filter(n => n.id !== id));
+            originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== id);
+            setDeletePopup({ open: false });
+          }}
+          onError={() => setDeletePopup({ open: false })}
+        />
+      )}
     </div>
   );
 }; 

@@ -21,9 +21,11 @@ import { useOpportunityVelocityData } from "./hooks/useOpportunityVelocityData";
 import { useDealHealthData } from "./hooks/useDealHealthData";
 import { useLeadsTrendData } from "./hooks/useLeadsTrendData";
 
-export interface AnalyticsViewProps extends BusinessAppContextProps {}
+export interface AnalyticsViewProps extends BusinessAppContextProps {
+  moduleColor?: string;
+}
 
-export const AnalyticsView: React.FC<AnalyticsViewProps> = (context) => {
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = "default", ...context }) => {
   const [leadsTimeFilter, setLeadsTimeFilter] = useState<"month" | "quarter" | "sixMonths" | "year" | "historical">("quarter");
   const [oppTimeFilter, setOppTimeFilter] = useState<"month" | "quarter" | "sixMonths" | "year" | "historical">("quarter");
   const [contactsTimeFilter, setContactsTimeFilter] = useState<"month" | "quarter" | "sixMonths" | "year" | "historical">("quarter");
@@ -221,6 +223,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = (context) => {
         accountsProps={accountsProps}
         opportunitiesProps={opportunitiesProps}
         contactsProps={contactsProps}
+        moduleColor={moduleColor}
       />
     </div>
   );

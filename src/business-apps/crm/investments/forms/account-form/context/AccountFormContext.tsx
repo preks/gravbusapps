@@ -26,12 +26,14 @@ import {
   useAccountData,
   mapAccountToFormValues,
 } from "../hooks/useAccountData";
+import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
   setFormValues: (updates: Partial<AccountFormValues>) => void;
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
+  hideActions: boolean; // Hide submit/cancel buttons when embedded
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;
@@ -146,6 +148,7 @@ interface AccountFormProviderProps {
   initialValues?: Partial<AccountFormValues>;
   onSubmit?: (values: AccountFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean; // Hide submit/cancel buttons when embedded
 }
 
 export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
@@ -154,6 +157,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   initialValues = {},
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<AccountFormValues>({
@@ -213,6 +217,16 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     ...initialValues,
   });
 
+  // 🎯 DEBUG: Log initial values and form state for owner field debugging
+  console.log('🎯 AccountFormContext - Initialization:', {
+    initialValues: initialValues,
+    initialValuesOwner: initialValues?.owner,
+    formValuesOwner: formValues.owner,
+    isLeadConversion: businessAppContext.additionalData?.isLeadConversion,
+    leadOwnerId: businessAppContext.additionalData?.leadOwnerId,
+    note: 'Check if initialValues.owner is being properly set in form state'
+  });
+
   // Global state (minimal for simplified InvestmentAccount form)
   // ✅ REMOVED: isLoading, setError, addressLineCount - not needed for simplified form
 
@@ -238,6 +252,18 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     accessToken: businessAppContext.accessToken,
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
   });
+
+  // 🎯 Lead owner employee hook - for lead conversion scenarios
+  const isLeadConversion = businessAppContext.additionalData?.isLeadConversion === true;
+  const leadOwnerId = businessAppContext.additionalData?.leadOwnerId;
+  const {
+    employeeData: leadOwnerEmployee,
+    isLoading: leadOwnerLoading,
+    error: leadOwnerError,
+  } = useEmployeeByIdGraphQL(
+    businessAppContext.accessToken,
+    isLeadConversion && leadOwnerId ? leadOwnerId : undefined
+  );
 
   // Employee positions hook
   const {
@@ -476,8 +502,50 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       }
     }
 
+    // 🎯 Add lead owner employee for lead conversion scenarios
+    if (isLeadConversion && leadOwnerEmployee && leadOwnerId) {
+      const isLeadOwnerInList = finalEmployees.some(
+        (emp) => emp.value === leadOwnerId
+      );
+
+      if (!isLeadOwnerInList) {
+        const leadOwnerDisplayName =
+          leadOwnerEmployee.employee.displayName ||
+          `${leadOwnerEmployee.employee.firstName} ${leadOwnerEmployee.employee.lastName}`.trim();
+        const leadOwnerJobTitle =
+          leadOwnerEmployee.jobPosition?.name || "Lead Owner";
+        const leadOwnerOrgUnit =
+          leadOwnerEmployee.organizationalUnit?.name || "Unknown";
+
+        const leadOwnerOption: SelectOption = {
+          id: leadOwnerId,
+          value: leadOwnerId,
+          label: `${leadOwnerDisplayName} - ${leadOwnerJobTitle}`,
+          name: leadOwnerDisplayName,
+          extraInfo: {
+            picture: leadOwnerEmployee.employee.picture,
+            pictureThumbnail: leadOwnerEmployee.employee.pictureThumbnail,
+            jobPosition: leadOwnerJobTitle,
+            organizationalUnit: leadOwnerOrgUnit,
+            userId: leadOwnerEmployee.employee.userId,
+          },
+        };
+
+        // Add lead owner at the beginning for easy access
+        finalEmployees.unshift(leadOwnerOption);
+        
+        console.log('🎯 Added lead owner to account form employee options:', {
+          leadOwnerId,
+          leadOwnerDisplayName,
+          leadOwnerJobTitle,
+          isLeadConversion,
+          totalEmployees: finalEmployees.length
+        });
+      }
+    }
+
     return finalEmployees;
-  }, [employeePositionData, currentUserEmployee, accountData]);
+  }, [employeePositionData, currentUserEmployee, accountData, isLeadConversion, leadOwnerEmployee, leadOwnerId]);
 
   // Use dynamic forms from catalog (same as lead form)
   const legalForms: SelectOption[] = useMemo(() => {
@@ -562,12 +630,14 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // 3. We haven't already done auto-selection
     // 4. We're NOT editing an existing account (no accountId)
     // 5. We don't have account data (meaning it's a new account)
+    // 6. We're NOT in a lead conversion context (preserve lead's owner)
     if (
       currentUserEmployee &&
       !formValues.owner &&
       !autoSelectionDone.current &&
       !currentAccountId && // Don't auto-select when editing existing account
-      !accountData // Don't auto-select when we have account data
+      !accountData && // Don't auto-select when we have account data
+      !businessAppContext.additionalData?.isLeadConversion // Don't auto-select during lead conversion
     ) {
       console.log(
         "✅ Auto-selecting current user as owner:",
@@ -578,6 +648,16 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
         owner: currentUserEmployee.employeeId,
       }));
       autoSelectionDone.current = true;
+    } else {
+      console.log("⏩ Account auto-selection skipped - reasons:", {
+        hasCurrentUserEmployee: !!currentUserEmployee,
+        hasOwner: !!formValues.owner,
+        autoSelectionAlreadyDone: autoSelectionDone.current,
+        hasCurrentAccountId: !!currentAccountId,
+        hasAccountData: !!accountData,
+        isLeadConversion: !!businessAppContext.additionalData?.isLeadConversion,
+        leadOwnerId: businessAppContext.additionalData?.leadOwnerId
+      });
     }
   }, [
     currentUserEmployee,
@@ -595,6 +675,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     setFormValues,
     onSubmit,
     onCancel,
+    hideActions,
     isLoading: false, // Simplified form doesn't track global loading state
     error: null, // Simplified form doesn't track global error state
 

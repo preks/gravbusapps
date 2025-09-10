@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card } from '@newwork/nw-design-system';
 import { 
   PieChart, 
   Pie, 
@@ -25,7 +25,8 @@ import {
   PolarRadiusAxis,
   Radar
 } from 'recharts';
-import { formatCurrency, formatPercentage, renderCustomizedLabel, CHART_COLORS } from '../utils/formatters';
+import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import { renderCustomizedLabel, CHART_COLORS } from '../utils';
 
 interface RealEstateChartsProps {
   chartData: {
@@ -430,8 +431,8 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
         </ResponsiveContainer>
       </Card>
 
-      {/* Investment Status Distribution - Pie Chart */}
-      <Card title="Investment Status Distribution" style={{ borderRadius: '8px' }}>
+      {/* Status Distribution - Pie Chart */}
+      <Card title="Status Distribution" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie

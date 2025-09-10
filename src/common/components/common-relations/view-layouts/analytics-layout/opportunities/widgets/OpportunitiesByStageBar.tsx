@@ -1,30 +1,73 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import React, { useMemo } from "react";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@newwork/nw-design-system";
+import { BarChart, Bar, XAxis, YAxis } from "recharts";
+import { ChartBarIcon } from "@phosphor-icons/react";
 
 export interface StageItem { stage: string; count: number; value: number }
 
 interface OpportunitiesByStageBarProps {
   data: StageItem[];
+  moduleColor?: string;
 }
 
-export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({ data }) => {
+export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
+  const chartConfig = useMemo(() => ({
+    count: {
+      label: "Opportunities",
+    },
+    value: {
+      label: "Total Value",
+    },
+  } satisfies ChartConfig), []);
   return (
     <Card data-testid="opportunities-by-stage-chart">
-      <CardHeader>
-        <CardTitle>Opportunities by Stage</CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={ChartBarIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Opportunities by Stage</CardTitle>
+          <CardDescription>Stage progression analysis</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
           <BarChart data={data} margin={{ bottom: 60 }}>
             <XAxis dataKey="stage" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(value: number, name: string) => [name === 'count' ? `${value}` : `€${Number(value).toLocaleString()}`, name === 'count' ? 'Opportunities' : 'Total Value']} />
-            <Legend wrapperStyle={{ paddingTop: "10px", fontSize: "12px" }} />
-            <Bar dataKey="count" fill="#3B82F6" name="Opportunities" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="value" fill="#10B981" name="Total Value" radius={[2, 2, 0, 0]} />
+            <ChartTooltip 
+              content={<ChartTooltipContent 
+                formatter={(value: number, name: string) => [
+                  name === 'count' ? `${value}` : `€${Number(value).toLocaleString()}`, 
+                  name === 'count' ? 'Opportunities' : 'Total Value'
+                ]}
+              />}
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="count" fill="var(--color-count)" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="value" fill="var(--color-value)" radius={[2, 2, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

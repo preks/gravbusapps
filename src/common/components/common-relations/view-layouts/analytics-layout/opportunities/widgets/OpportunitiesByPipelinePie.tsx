@@ -1,42 +1,97 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import React, { useMemo } from "react";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent,
+} from "@newwork/nw-design-system";
+import { PieChart, Pie } from "recharts";
+import { ChartPieIcon } from "@phosphor-icons/react";
 
 export interface PipelineItem { pipeline: string; count: number; percentage: number }
 
 interface OpportunitiesByPipelinePieProps {
   data: PipelineItem[];
+  moduleColor?: string;
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+const toKey = (value: string): string =>
+  value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-export const OpportunitiesByPipelinePie: React.FC<OpportunitiesByPipelinePieProps> = ({ data }) => {
+export const OpportunitiesByPipelinePie: React.FC<OpportunitiesByPipelinePieProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label?: string }> = {};
+    data.forEach((item) => {
+      const key = toKey(item.pipeline);
+      config[key] = { label: item.pipeline };
+    });
+    return config as ChartConfig;
+  }, [data]);
+
+  const chartData = useMemo(() => {
+    return data.map((item) => {
+      const key = toKey(item.pipeline);
+      return {
+        ...item,
+        fill: `var(--color-${key})`,
+      };
+    });
+  }, [data]);
   return (
     <Card data-testid="opportunities-by-pipeline-chart">
-      <CardHeader>
-        <CardTitle className="gba:text-sm">Opportunities by Pipeline</CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={ChartPieIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Opportunities by Pipeline</CardTitle>
+          <CardDescription>Pipeline distribution overview</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={200}>
+        <ChartContainer config={chartConfig} className="gba:w-full gba:h-[200px]">
           <PieChart>
-            <Pie data={data} cx="50%" cy="50%" outerRadius={60} dataKey="count" label={({ percentage }) => `${percentage}%`}>
-              {data.map((_entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value: number, _name: string, props: any) => { const total = data.reduce((s, i) => s + i.count, 0); const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'; return [`${value} (${percentage}%)`, props.payload.pipeline]; }} />
-            <Legend content={() => (
-              <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-4 gba:justify-center">
-                {data.map((item, index) => (
-                  <div key={item.pipeline} className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
-                    <div className="gba:w-3 gba:h-3 gba:rounded-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                    <span className="gba:text-gray-700">{item.pipeline}: {item.count}</span>
-                  </div>
-                ))}
-              </div>
-            )} />
+            <Pie 
+              data={chartData} 
+              cx="50%" 
+              cy="50%" 
+              outerRadius={60} 
+              dataKey="count" 
+              label={({ percentage }) => `${percentage}%`}
+            />
+            <ChartTooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length > 0) {
+                  const data = payload[0].payload;
+                  const total = chartData.reduce((s, i) => s + i.count, 0);
+                  const percentage = total > 0 ? ((data.count / total) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div className="gba:bg-white gba:p-2 gba:border gba:rounded gba:shadow">
+                      <p className="gba:font-medium">{data.pipeline}</p>
+                      <p className="gba:text-sm">{data.count} ({percentage}%)</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

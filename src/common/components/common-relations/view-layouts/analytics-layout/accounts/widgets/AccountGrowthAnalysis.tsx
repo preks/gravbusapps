@@ -1,7 +1,20 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { RiseOutlined } from '@ant-design/icons';
+import React, { useMemo } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  IconAvatar,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@newwork/nw-design-system';
+import { BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { TrendUpIcon } from '@phosphor-icons/react';
 
 export interface AccountsOverTimePoint {
   date: string;
@@ -17,9 +30,13 @@ export interface AccountGrowthAnalysisProps {
     topAccounts: Array<{ totalValue: number }>;
     accountsOverTime: AccountsOverTimePoint[];
   };
+  moduleColor?: string;
 }
 
-export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({ data }) => {
+export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({ 
+  data, 
+  moduleColor = "default" 
+}) => {
   const expansionRate = data?.totalAccounts > 0 ? Math.round((data.accountsWithOpportunities / data.totalAccounts) * 100) : 0;
   const avgRevenuePerAccount = data?.topAccounts?.length > 0 ? Math.round(data.topAccounts.reduce((sum, account) => sum + account.totalValue, 0) / data.topAccounts.length) : 0;
 
@@ -51,13 +68,32 @@ export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({ da
   const totalActiveAccounts = recentAccountsData.reduce((sum, item) => sum + item.accountsActive, 0);
   const activityRate = totalRecentAccounts > 0 ? Math.round((totalActiveAccounts / totalRecentAccounts) * 100) : 0;
 
+  const chartConfig = useMemo(() => ({
+    accountsCreated: {
+      label: "New Accounts",
+    },
+    accountsWithOpportunities: {
+      label: "Accounts with Opportunities",
+    },
+    accountsActive: {
+      label: "Active Accounts",
+    },
+  } satisfies ChartConfig), []);
+
   return (
     <Card data-testid="account-growth-analysis">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <RiseOutlined />
-          Account Growth Analysis
-        </CardTitle>
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar
+          icon={TrendUpIcon}
+          variant={moduleColor as any}
+          size="md"
+          iconWeight="regular"
+          decorative={true}
+        />
+        <div>
+          <CardTitle>Account Growth Analysis</CardTitle>
+          <CardDescription>Account performance and growth metrics</CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
@@ -83,16 +119,29 @@ export const AccountGrowthAnalysis: React.FC<AccountGrowthAnalysisProps> = ({ da
           {growthTrendData.length > 0 ? (
             <div className="gba:h-56">
               <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Recent Growth Trend (Monthly)</h4>
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={chartConfig} className="gba:w-full gba:h-full">
                 <BarChart data={growthTrendData} maxBarSize={30} barCategoryGap="25%" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} height={40} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(value, name) => { const labelMap: Record<string, string> = { accountsCreated: 'New Accounts', accountsWithOpportunities: 'Accounts with Opportunities', accountsActive: 'Active Accounts' }; return [value, labelMap[name] || name]; }} labelFormatter={(label) => `Month: ${label}`} />
-                  <Bar dataKey="accountsCreated" fill="#3B82F6" name="accountsCreated" />
-                  <Bar dataKey="accountsWithOpportunities" fill="#10B981" name="accountsWithOpportunities" />
-                  <Bar dataKey="accountsActive" fill="#F59E0B" name="accountsActive" />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent 
+                      formatter={(value, name) => { 
+                        const labelMap: Record<string, string> = { 
+                          accountsCreated: 'New Accounts', 
+                          accountsWithOpportunities: 'Accounts with Opportunities', 
+                          accountsActive: 'Active Accounts' 
+                        }; 
+                        return [value, labelMap[name] || name]; 
+                      }} 
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />}
+                  />
+                  <Bar dataKey="accountsCreated" fill="var(--color-accountsCreated)" />
+                  <Bar dataKey="accountsWithOpportunities" fill="var(--color-accountsWithOpportunities)" />
+                  <Bar dataKey="accountsActive" fill="var(--color-accountsActive)" />
+                  <ChartLegend content={<ChartLegendContent />} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
           ) : (
             <div className="gba:text-center gba:text-gray-500 gba:py-4"><p className="gba:text-sm">No growth trend data available</p></div>

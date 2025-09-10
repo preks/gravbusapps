@@ -4,14 +4,16 @@ import { FileText } from 'lucide-react';
 import type { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import EquityHistoricalDataTable from './EquityHistoricalDataTable';
 
 interface EquityReportsProps {
   equityData?: EquityInvestmentData | null;
   isLoading?: boolean;
   context?: BusinessAppContextProps;
+  investmentId?: string;
 }
 
-const EquityReports: React.FC<EquityReportsProps> = ({ equityData, isLoading, context }) => {
+const EquityReports: React.FC<EquityReportsProps> = ({ equityData, isLoading, context, investmentId }) => {
   const reports: Array<{ id: string }> = [];
 
   if (isLoading) {
@@ -36,24 +38,36 @@ const EquityReports: React.FC<EquityReportsProps> = ({ equityData, isLoading, co
   }
 
   return (
-    <Card data-testid="equity-reports-card">
-      <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <FileText className="gba:h-5 gba:w-5 gba:text-gray-700" />
-          {getTranslationFromI18nKeyAndLabel('crm.investments.equity.reports.title', 'Reports')}
-          <Badge className="gba:ml-2" variant="secondary">{reports.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {reports.length === 0 ? (
-          <div className="gba:text-sm gba:text-gray-600" data-testid="equity-reports-empty">-</div>
-        ) : (
-          <div className="gba:divide-y gba:divide-gray-200">
-            {/* map reports here when schema is ready */}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="gba:space-y-6" data-testid="equity-reports-container">
+      {/* Historical Data Table */}
+      {context && investmentId && (
+        <EquityHistoricalDataTable
+          {...context}
+          investmentId={investmentId}
+          equityInvestmentId={equityData?.equityInvestment?.id}
+        />
+      )}
+      
+      {/* Original Reports Card - kept for future enhancements */}
+      <Card data-testid="equity-reports-card">
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <FileText className="gba:h-5 gba:w-5 gba:text-gray-700" />
+            {getTranslationFromI18nKeyAndLabel('crm.investments.equity.reports.title', 'Reports')}
+            <Badge className="gba:ml-2" variant="secondary">{reports.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reports.length === 0 ? (
+            <div className="gba:text-sm gba:text-gray-600" data-testid="equity-reports-empty">-</div>
+          ) : (
+            <div className="gba:divide-y gba:divide-gray-200">
+              {/* map reports here when schema is ready */}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

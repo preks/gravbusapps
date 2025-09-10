@@ -310,6 +310,7 @@ export interface BaseInvestmentNote extends BaseEntity {
   reminderDate?: string; // ISO date string
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   authorEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
   contact?: InvestmentContactRef;
@@ -366,6 +367,7 @@ export interface BaseInvestmentActivity extends BaseEntity {
   activityType?: CatalogEntry;
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   ownerEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
   contact?: InvestmentContactRef;
@@ -409,7 +411,6 @@ export interface BaseInvestmentTask extends BaseEntity {
   // Common Fields (from nw_common_relations.task)
   code?: string;
   name?: string;
-  comment?: string;
   source?: SourceTable;
   description?: string;
   templateStartDate?: string; // ISO date string
@@ -424,6 +425,7 @@ export interface BaseInvestmentTask extends BaseEntity {
   taskStatus?: CatalogEntry;
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   creatorEmployee?: EmployeeRef;
   assignedEmployee?: EmployeeRef;
   creatorUserId?: string;
@@ -433,7 +435,6 @@ export interface BaseInvestmentTask extends BaseEntity {
   contact?: InvestmentContactRef;
   lead?: InvestmentLeadRef;
   opportunity?: InvestmentOpportunityRef;
-  // Note: investment reference will be added in investmentBaseTypes.ts
 }
 
 // investment_opportunity_stage_condition table

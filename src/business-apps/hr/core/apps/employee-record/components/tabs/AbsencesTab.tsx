@@ -71,6 +71,7 @@ interface AbsencesTabProps {
   employeeId?: string; // Optional employeeId override for permissions check
   userInfo?: UserInfoProps; // Current user info for self-view check
   isSelfView?: boolean; // Whether user is viewing their own profile
+  shownTab?: string;
 }
 
 // GraphQL queries for absences and entitlements
@@ -105,9 +106,10 @@ const GET_EMPLOYEE_ABSENCES = `
 const AbsencesTab: React.FC<AbsencesTabProps> = ({ 
   employee, 
   employeeAbsenceEntitlement,
-  accessToken 
+  accessToken,
+  shownTab
 }) => {
-  const [activeTab, setActiveTab] = useState("calendar");
+  const [activeTab, setActiveTab] = useState<string>(shownTab ?? "calendar");
   const [absenceList, setAbsenceList] = useState<AbsenceListCardAbsence[]>([]);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,6 +119,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   
   // Calendar state
   const [currentDate, setCurrentDate] = useState(dayjs());
+  const [selectedStartDate, setSelectedStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null);
   
   // Helper function to create a new dayjs instance (like clone)
   const cloneDayjs = (date: dayjs.Dayjs) => dayjs(date.valueOf());
@@ -131,6 +135,12 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const onTabChange = (key: string) => {
     setActiveTab(key);
   };
+  
+  useEffect(() => {
+    if (shownTab) {
+      setActiveTab(shownTab);
+    }
+  }, [shownTab]);
   
   const employeeId = employee?.id;
   const client = useGraphqlClient(accessToken);
@@ -246,51 +256,512 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     return type?.value || 'Unknown';
   };
 
+  const tabsItems = [
+    {
+      key: "calendar",
+      label: (
+        <span className="gba:tabLabel">
+          <CalendarOutlined className="gba:tabIcon" />
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.calendar",
+            "Calendar"
+          )}
+        </span>
+      ),
+      children: (
+        <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
+          {loading ? (
+            <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spin size="large" />
+            </div>
+          ) : error ? (
+            <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.error_loading",
+                "Failed to load absence data."
+              )}
+            </div>
+          ) : (
+            <div className="gba:calendar-content">
+              <div className="gba:calendar-view gba:bg-white gba:rounded gba:border gba:shadow-sm" data-testid="absence-calendar-view">
+                {/* Calendar Header (hidden when shownTab is provided) */}
+                
+                <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b">
+                  <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
+                    {currentDate.format('MMMM YYYY')}
+                  </div>
+                  <div className="gba:calendar-nav gba:flex gba:gap-2">
+                    <Button 
+                      variant="secondary"
+                      className="gba:px-3 gba:py-1"
+                      data-testid="calendar-prev-month"
+                      onClick={() => setCurrentDate(cloneDayjs(currentDate).subtract(1, 'month'))}
+                    >
+                      <LeftOutlined className="gba:mr-1" />
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.previous",
+                        "Previous"
+                      )}
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      className="gba:px-3 gba:py-1"
+                      data-testid="calendar-today"
+                      onClick={() => setCurrentDate(dayjs())}
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.today",
+                        "Today"
+                      )}
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      className="gba:px-3 gba:py-1"
+                      data-testid="calendar-next-month"
+                      onClick={() => setCurrentDate(cloneDayjs(currentDate).add(1, 'month'))}
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.next",
+                        "Next"
+                      )}
+                      <RightOutlined className="gba:ml-1" />
+                    </Button>
+                  </div>
+                </div>
+                
+                
+                {/* Calendar Grid */}
+                <div className="gba:calendar-grid gba:p-4">
+                  {/* Weekday Headers */}
+                  <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:mb-2">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                      <div key={day} className="gba:text-center gba:font-medium gba:text-gray-600 gba:py-2">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Calendar Days */}
+                  <div className="gba:grid gba:grid-cols-7 gba:gap-1">
+                    {/* Generate days for the current month with proper offset */}
+                    {(() => {
+                      const daysInMonth = currentDate.daysInMonth();
+                      const firstDayOfMonth = currentDate.startOf('month');
+                      const startOfCalendar = firstDayOfMonth.startOf('week');
+                      
+                      // Calculate how many days to display (either 35 or 42 depending on the month)
+                      const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7;
+                      
+                      return Array.from({ length: daysToDisplay }).map((_, idx) => {
+                        // Create a new dayjs object for each day to avoid mutation issues
+                        const currentDay = cloneDayjs(startOfCalendar).add(idx, 'day');
+                        const isCurrentMonth = currentDay.month() === currentDate.month();
+                        const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+                        
+                        const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
+                          const absenceStart = dayjs(absence.startDate);
+                          const absenceEnd = dayjs(absence.endDate);
+                          return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
+                        });
+                        
+                        const isSelectedStart = selectedStartDate ? currentDay.isSame(selectedStartDate, 'day') : false;
+                        const isSelectedEnd = selectedEndDate ? currentDay.isSame(selectedEndDate, 'day') : false;
+                        const isInSelectedRange =
+                          selectedStartDate && selectedEndDate
+                            ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
+                            : false;
+
+                        return (
+                          <div 
+                            key={idx}
+                            className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:rounded 
+                              ${isSelectedStart || isSelectedEnd ? 'gba:bg-blue-200 gba:border-blue-500' : isInSelectedRange ? 'gba:bg-blue-50' : (isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white')} 
+                              ${!isCurrentMonth ? 'gba:opacity-40' : 'gba:cursor-pointer'}`}
+                            data-testid={`calendar-day-${currentDay.date()}`}
+                            onClick={() => {
+                              if (!isCurrentMonth) return;
+                              if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+                                setSelectedStartDate(currentDay.startOf('day'));
+                                setSelectedEndDate(null);
+                                return;
+                              }
+                              if (currentDay.isBefore(selectedStartDate, 'day')) {
+                                setSelectedStartDate(currentDay.startOf('day'));
+                                setSelectedEndDate(null);
+                              } else if (currentDay.isSame(selectedStartDate, 'day')) {
+                                setSelectedEndDate(currentDay.startOf('day'));
+                              } else {
+                                setSelectedEndDate(currentDay.startOf('day'));
+                              }
+                            }}
+                          >
+                            <div className={`gba:day-number gba:text-right 
+                              ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-blue-700' : (isToday ? 'gba:font-bold gba:text-blue-600' : '')} 
+                              ${!isCurrentMonth ? 'gba:text-gray-400' : ''}`}
+                            >
+                              {currentDay.date()}
+                            </div>
+                            {hasAbsence && isCurrentMonth && (
+                              <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+                
+                <div className="gba:calendar-footer gba:p-4 gba:border-t gba:text-center gba:text-sm gba:text-gray-500">
+                  {selectedStartDate && selectedEndDate ? (
+                    <span data-testid="selected-range">
+                      {selectedStartDate.format('MMM D, YYYY')} - {selectedEndDate.format('MMM D, YYYY')}
+                    </span>
+                  ) : selectedStartDate ? (
+                    <span data-testid="select-end-prompt">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_hub.select_end_date',
+                        'Select an end date'
+                      )}
+                    </span>
+                  ) : (
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_hub.calendar_note',
+                      'Click on a day to view or add absences'
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "absence-list",
+      label: (
+        <span className="gba:tabLabel">
+          <UnorderedListOutlined className="gba:tabIcon" />
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.absence_list",
+            "Absence List"
+          )}
+        </span>
+      ),
+      children: (
+        <div className="gba:absenceList" data-testid="absencehub-absence-list">
+          {loading ? (
+            <div className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-loading">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="gba:error-container gba:text-center gba:py-8" data-testid="absencehub-error">
+              <div className="gba:text-red-500 gba:text-lg gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.error_loading",
+                  "Failed to load absence data."
+                )}
+              </div>
+              <div className="gba:text-gray-500">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.try_again_later",
+                  "Please try again later or contact support if the problem persists."
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <h3 className="gba:absenceListTitle gba:text-lg gba:font-medium gba:mb-4" data-testid="absencehub-absence-history-title">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.absence_history",
+                  "Absence History"
+                )}
+              </h3>
+              
+              {absenceList.length > 0 ? (
+                <div className="gba:absenceListCards gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-absence-list-cards">
+                  {paginatedAbsenceList.map((absence, idx) => (
+                    <div 
+                      key={idx + (currentPage - 1) * pageSize}
+                      className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
+                      data-testid={`absence-card-${idx}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                        <div 
+                          className="gba:icon-container gba:p-2 gba:rounded-full" 
+                          style={{ backgroundColor: `${absence.typeColor}20` }}
+                        >
+                          <span className="gba:icon">{absence.icon}</span>
+                        </div>
+                        <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
+                      </div>
+                      
+                      <div className="gba:absence-details gba:mt-3">
+                        <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
+                          <div className="gba:text-gray-500">
+                            {formatDate(absence.startDate, "date.long")} - {formatDate(absence.endDate, "date.long")}
+                          </div>
+                          <div 
+                            className="gba:status-badge gba:px-3 gba:py-1 gba:rounded gba:text-sm" 
+                            style={{ backgroundColor: absence.statusColor }}
+                          >
+                            {absence.status}
+                          </div>
+                        </div>
+                        
+                        <div className="gba:mb-2">
+                          <span className="gba:text-gray-500 gba:mr-1">
+                            {getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:absence_hub.duration",
+                              "Duration"
+                            )}:
+                          </span>
+                          <span>{absence.duration}</span>
+                        </div>
+                        
+                        {absence.description && (
+                          <div className="gba:mb-2 gba:text-gray-700">
+                            <span className="gba:text-gray-500 gba:mr-1">
+                              {getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:absence_hub.description",
+                                "Description"
+                              )}:
+                            </span>
+                            <span>{absence.description}</span>
+                          </div>
+                        )}
+                        
+                        <div className="gba:text-gray-400 gba:text-sm gba:mt-3 gba:text-right">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.requested_on",
+                            "Requested on"
+                          )}: {formatDate(absence.requestDate, "date.short")}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="gba:absenceListEmpty gba:text-center gba:py-8 gba:text-gray-500" data-testid="absencehub-absence-list-empty">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:absence_hub.no_absences_found",
+                    "No absences found."
+                  )}
+                </div>
+              )}
+              
+              {absenceList.length > pageSize && (
+                <div
+                  className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center"
+                  data-testid="absencehub-absence-list-pagination"
+                >
+                  <Pagination
+                    current={currentPage}
+                    pageSize={pageSize}
+                    total={absenceList.length}
+                    showSizeChanger
+                    pageSizeOptions={["10", "20", "50"]}
+                    onChange={(page: number, size?: number) => {
+                      setCurrentPage(page);
+                      if (size) setPageSize(size);
+                    }}
+                    showTotal={(total: number, range: [number, number]) =>
+                      getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:absence_hub.pagination",
+                        "{{range0}}-{{range1}} of {{total}}",
+                        { range0: range[0], range1: range[1], total }
+                      )
+                    }
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "entitlements",
+      label: (
+        <span className="gba:tabLabel">
+          <PaperClipOutlined className="gba:tabIcon" />
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.entitlements",
+            "Entitlements"
+          )}
+        </span>
+      ),
+      children: (
+        <div className="gba:entitlements-content">
+          {loading ? (
+            <div className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="entitlements-loading">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="gba:error-container gba:text-center gba:py-8" data-testid="entitlements-error">
+              <div className="gba:text-red-500 gba:text-lg gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.error_loading",
+                  "Failed to load entitlements data."
+                )}
+              </div>
+              <div className="gba:text-gray-500">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:absence_hub.try_again_later",
+                  "Please try again later or contact support if the problem persists."
+                )}
+              </div>
+            </div>
+          ) : entitlements.length === 0 ? (
+            <div className="gba:no-entitlements gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-entitlements">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.no_entitlements",
+                "No entitlements found"
+              )}
+            </div>
+          ) : (
+            <div className="gba:entitlements-grid gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="entitlements-grid">
+              {entitlements.map((entitlement, idx) => (
+                <div 
+                  key={`${entitlement.type}-${idx}`}
+                  className="gba:entitlement-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
+                  data-testid={`entitlement-card-${idx}`}
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                    <div 
+                      className="gba:icon-container gba:p-2 gba:rounded-full" 
+                      style={{ backgroundColor: `#${entitlement.color}20` }}
+                    >
+                      <span className="gba:icon">{entitlement.icon}</span>
+                    </div>
+                    <h4 className="gba:text-lg gba:font-medium">{entitlement.type}</h4>
+                  </div>
+                  
+                  <div className="gba:entitlement-details gba:mt-4">
+                    <div className="gba:flex gba:justify-between gba:mb-1">
+                      <span className="gba:text-gray-500">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.used",
+                          "Used"
+                        )}
+                      </span>
+                      <span className="gba:font-medium">{entitlement.used} / {entitlement.total}</span>
+                    </div>
+                    
+                    <div className="gba:progress-bar gba:bg-gray-200 gba:rounded-full gba:h-2 gba:mb-3">
+                      <div 
+                        className="gba:progress gba:h-full gba:rounded-full" 
+                        style={{
+                          width: `${entitlement.total > 0 ? (entitlement.used / entitlement.total) * 100 : 0}%`,
+                          backgroundColor: `#${entitlement.color}`
+                        }}
+                      ></div>
+                    </div>
+                    
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span className="gba:text-gray-500">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.available",
+                          "Available"
+                        )}
+                      </span>
+                      <span className="gba:font-medium gba:text-lg gba:text-green-600">{entitlement.available}</span>
+                    </div>
+                    
+                    {entitlement.pending > 0 && (
+                      <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
+                        <span className="gba:text-amber-500">
+                          {getTranslationFromI18nKeyAndLabel(
+                            "lowcoder:absence_hub.pending",
+                            "Pending"
+                          )}
+                        </span>
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
+                          <span className="gba:text-xs gba:text-gray-500">
+                            {getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:absence_hub.days_pending",
+                              "days in approval"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {entitlement.checkEntitlement && (
+                      <div className="gba:entitlement-note gba:mt-3 gba:text-xs gba:text-gray-500 gba:border-t gba:pt-2">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:absence_hub.entitlement_note",
+                          "Entitlement is checked before approval"
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+  ].filter((item) => (shownTab ? item.key === shownTab : true));
+
+  // tabsItems prepared above based on shownTab
+
+  // shownTab provided -> render only content of that tab
+
   return (
     <div className="gba:absences-tab gba:space-y-8">
       {/* Absence Overview Headline with Action Button */}
-      <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
-        <div className="gba:absence-header">
-          <div
-            className="gba:font-bold gba:text-2xl"
-            data-testid="absencehub-title"
-          >
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_absences.absence_overview",
-              "Absence Overview"
-            )}
-          </div>
-          <div
-            className="gba:text-gray-500 gba:text-lg"
-            data-testid="absencehub-description"
-          >
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.absence_description",
-              "View and manage your absences"
-            )}
-          </div>
-        </div>
-        
-        {/* Request Absence Button */}
-        <div>
-          <AppActionMenu
-            data-testid="employee-absence-request-button"
-            contextsArray={[FlowContextName.employeeAbsenceRecord]}
-            externalContextData={{
-              employeeId: employee.id,
-              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-              flowType: 'vacation'
-            }}
-            prefixDataTestId="employee-absence-request"
-            accessToken={accessToken}
-          >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <PiPencilSimple className="gba:h-5 gba:w-5" />
-              Request Absence
+      {!shownTab && (
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
+          <div className="gba:absence-header">
+            <div
+              className="gba:font-bold gba:text-2xl"
+              data-testid="absencehub-title"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_absences.absence_overview",
+                "Absence Overview"
+              )}
             </div>
-          </AppActionMenu>
+            <div
+              className="gba:text-gray-500 gba:text-lg"
+              data-testid="absencehub-description"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.absence_description",
+                "View and manage your absences"
+              )}
+            </div>
+          </div>
+          
+          {/* Request Absence Button */}
+          <div>
+            <AppActionMenu
+              data-testid="employee-absence-request-button"
+              contextsArray={[FlowContextName.employeeAbsenceRecord]}
+              externalContextData={{
+                employeeId: employee.id,
+                absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                flowType: 'vacation',
+                startDate: selectedStartDate?.format('YYYY-MM-DD'),
+                endDate: selectedEndDate?.format('YYYY-MM-DD')
+              }}
+              prefixDataTestId="employee-absence-request"
+              accessToken={accessToken}
+            >
+              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                <PiPencilSimple className="gba:h-5 gba:w-5" />
+                Request Absence
+              </div>
+            </AppActionMenu>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Absence Charts Section */}
       {loading ? (
@@ -578,435 +1049,56 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
       )}
 
+      {shownTab === 'calendar' && (
+        <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
+          <AppActionMenu
+            data-testid="employee-absence-request-inline-button"
+            contextsArray={[FlowContextName.employeeAbsenceRecord]}
+            externalContextData={{
+              employeeId: employee.id,
+              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+              flowType: 'vacation',
+              startDate: selectedStartDate?.format('YYYY-MM-DD'),
+              endDate: selectedEndDate?.format('YYYY-MM-DD')
+            }}
+            prefixDataTestId="employee-absence-request-inline"
+            accessToken={accessToken}
+          >
+            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+              <PiPencilSimple className="gba:h-5 gba:w-5" />
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:absence_hub.request_absence",
+                "Request Absence"
+              )}
+            </div>
+          </AppActionMenu>
+        </div>
+      )}
+
       {/* Absence Hub Integration */}
       <div className="gba:absence-hub-integration" data-testid="absence-hub-integration">
-        <div
-          className="gba:tabsContainer"
-          data-testid="absencehub-tabs-container"
-        >
-          <Tabs
-            activeKey={activeTab}
-            data-testid="absencehub-tabs"
-            items={[
-              {
-                key: "calendar",
-                label: (
-                  <span className="gba:tabLabel">
-                    <CalendarOutlined className="gba:tabIcon" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.calendar",
-                      "Calendar"
-                    )}
-                  </span>
-                ),
-                children: (
-                  <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
-                    {loading ? (
-                      <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-                        <Spin size="large" />
-                      </div>
-                    ) : error ? (
-                      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.error_loading",
-                          "Failed to load absence data."
-                        )}
-                      </div>
-                    ) : (
-                      <div className="gba:calendar-content">
-                        
-                        <div className="gba:calendar-view gba:bg-white gba:rounded gba:border gba:shadow-sm" data-testid="absence-calendar-view">
-                          {/* Calendar Header */}
-                          <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b">
-                            <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
-                              {currentDate.format('MMMM YYYY')}
-                            </div>
-                            <div className="gba:calendar-nav gba:flex gba:gap-2">
-                              <Button 
-                                variant="secondary"
-                                className="gba:px-3 gba:py-1"
-                                data-testid="calendar-prev-month"
-                                onClick={() => setCurrentDate(cloneDayjs(currentDate).subtract(1, 'month'))}
-                              >
-                                <LeftOutlined className="gba:mr-1" />
-                                {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.previous",
-                                  "Previous"
-                                )}
-                              </Button>
-                              <Button 
-                                variant="secondary"
-                                className="gba:px-3 gba:py-1"
-                                data-testid="calendar-today"
-                                onClick={() => setCurrentDate(dayjs())}
-                              >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.today",
-                                  "Today"
-                                )}
-                              </Button>
-                              <Button 
-                                variant="secondary"
-                                className="gba:px-3 gba:py-1"
-                                data-testid="calendar-next-month"
-                                onClick={() => setCurrentDate(cloneDayjs(currentDate).add(1, 'month'))}
-                              >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.next",
-                                  "Next"
-                                )}
-                                <RightOutlined className="gba:ml-1" />
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          {/* Calendar Grid */}
-                          <div className="gba:calendar-grid gba:p-4">
-                            {/* Weekday Headers */}
-                            <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:mb-2">
-                              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                                <div key={day} className="gba:text-center gba:font-medium gba:text-gray-600 gba:py-2">
-                                  {day}
-                                </div>
-                              ))}
-                            </div>
-                            
-                            {/* Calendar Days */}
-                            <div className="gba:grid gba:grid-cols-7 gba:gap-1">
-                              {/* Generate days for the current month with proper offset */}
-                              {(() => {
-                                const daysInMonth = currentDate.daysInMonth();
-                                const firstDayOfMonth = currentDate.startOf('month');
-                                const startOfCalendar = firstDayOfMonth.startOf('week');
-                                
-                                // Calculate how many days to display (either 35 or 42 depending on the month)
-                                const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7;
-                                
-                                return Array.from({ length: daysToDisplay }).map((_, idx) => {
-                                  // Create a new dayjs object for each day to avoid mutation issues
-                                  const currentDay = cloneDayjs(startOfCalendar).add(idx, 'day');
-                                  const isCurrentMonth = currentDay.month() === currentDate.month();
-                                  const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
-                                  
-                                  const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
-                                    const absenceStart = dayjs(absence.startDate);
-                                    const absenceEnd = dayjs(absence.endDate);
-                                    return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
-                                  });
-                                  
-                                  return (
-                                    <div 
-                                      key={idx}
-                                      className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:rounded 
-                                        ${isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'} 
-                                        ${!isCurrentMonth ? 'gba:opacity-40' : ''}`}
-                                      data-testid={`calendar-day-${currentDay.date()}`}
-                                    >
-                                      <div className={`gba:day-number gba:text-right 
-                                        ${isToday ? 'gba:font-bold gba:text-blue-600' : ''} 
-                                        ${!isCurrentMonth ? 'gba:text-gray-400' : ''}`}
-                                      >
-                                        {currentDay.date()}
-                                      </div>
-                                      {hasAbsence && isCurrentMonth && (
-                                        <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
-                                      )}
-                                    </div>
-                                  );
-                                });
-                              })()}
-                            </div>
-                          </div>
-                          
-                          <div className="gba:calendar-footer gba:p-4 gba:border-t gba:text-center gba:text-sm gba:text-gray-500">
-                            {getTranslationFromI18nKeyAndLabel(
-                              "lowcoder:absence_hub.calendar_note",
-                              "Click on a day to view or add absences"
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                key: "absence-list",
-                label: (
-                  <span className="gba:tabLabel">
-                    <UnorderedListOutlined className="gba:tabIcon" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.absence_list",
-                      "Absence List"
-                    )}
-                  </span>
-                ),
-                children: (
-                  <div className="gba:absenceList" data-testid="absencehub-absence-list">
-                    {loading ? (
-                      <div className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-loading">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
-                        ))}
-                      </div>
-                    ) : error ? (
-                      <div className="gba:error-container gba:text-center gba:py-8" data-testid="absencehub-error">
-                        <div className="gba:text-red-500 gba:text-lg gba:mb-2">
-                          {getTranslationFromI18nKeyAndLabel(
-                            "lowcoder:absence_hub.error_loading",
-                            "Failed to load absence data."
-                          )}
-                        </div>
-                        <div className="gba:text-gray-500">
-                          {getTranslationFromI18nKeyAndLabel(
-                            "lowcoder:absence_hub.try_again_later",
-                            "Please try again later or contact support if the problem persists."
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="gba:absenceListTitle gba:text-lg gba:font-medium gba:mb-4" data-testid="absencehub-absence-history-title">
-                          {getTranslationFromI18nKeyAndLabel(
-                            "lowcoder:absence_hub.absence_history",
-                            "Absence History"
-                          )}
-                        </h3>
-                        
-                        {absenceList.length > 0 ? (
-                          <div className="gba:absenceListCards gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-absence-list-cards">
-                            {paginatedAbsenceList.map((absence, idx) => (
-                              <div 
-                                key={idx + (currentPage - 1) * pageSize}
-                                className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
-                                data-testid={`absence-card-${idx}`}
-                              >
-                                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                  <div 
-                                    className="gba:icon-container gba:p-2 gba:rounded-full" 
-                                    style={{ backgroundColor: `${absence.typeColor}20` }}
-                                  >
-                                    <span className="gba:icon">{absence.icon}</span>
-                                  </div>
-                                  <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
-                                </div>
-                                
-                                <div className="gba:absence-details gba:mt-3">
-                                  <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
-                                    <div className="gba:text-gray-500">
-                                      {formatDate(absence.startDate, "date.long")} - {formatDate(absence.endDate, "date.long")}
-                                    </div>
-                                    <div 
-                                      className="gba:status-badge gba:px-3 gba:py-1 gba:rounded gba:text-sm" 
-                                      style={{ backgroundColor: absence.statusColor }}
-                                    >
-                                      {absence.status}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="gba:mb-2">
-                                    <span className="gba:text-gray-500 gba:mr-1">
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        "lowcoder:absence_hub.duration",
-                                        "Duration"
-                                      )}:
-                                    </span>
-                                    <span>{absence.duration}</span>
-                                  </div>
-                                  
-                                  {absence.description && (
-                                    <div className="gba:mb-2 gba:text-gray-700">
-                                      <span className="gba:text-gray-500 gba:mr-1">
-                                        {getTranslationFromI18nKeyAndLabel(
-                                          "lowcoder:absence_hub.description",
-                                          "Description"
-                                        )}:
-                                      </span>
-                                      <span>{absence.description}</span>
-                                    </div>
-                                  )}
-                                  
-                                  <div className="gba:text-gray-400 gba:text-sm gba:mt-3 gba:text-right">
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:absence_hub.requested_on",
-                                      "Requested on"
-                                    )}: {formatDate(absence.requestDate, "date.short")}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="gba:absenceListEmpty gba:text-center gba:py-8 gba:text-gray-500" data-testid="absencehub-absence-list-empty">
-                            {getTranslationFromI18nKeyAndLabel(
-                              "lowcoder:absence_hub.no_absences_found",
-                              "No absences found."
-                            )}
-                          </div>
-                        )}
-                        
-                        {absenceList.length > pageSize && (
-                          <div
-                            className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center"
-                            data-testid="absencehub-absence-list-pagination"
-                          >
-                            <Pagination
-                              current={currentPage}
-                              pageSize={pageSize}
-                              total={absenceList.length}
-                              showSizeChanger
-                              pageSizeOptions={["10", "20", "50"]}
-                              onChange={(page: number, size?: number) => {
-                                setCurrentPage(page);
-                                if (size) setPageSize(size);
-                              }}
-                              showTotal={(total: number, range: [number, number]) =>
-                                getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:absence_hub.pagination",
-                                  "{{range0}}-{{range1}} of {{total}}",
-                                  { range0: range[0], range1: range[1], total }
-                                )
-                              }
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                key: "entitlements",
-                label: (
-                  <span className="gba:tabLabel">
-                    <PaperClipOutlined className="gba:tabIcon" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.entitlements",
-                      "Entitlements"
-                    )}
-                  </span>
-                ),
-                children: (
-                  <div className="gba:entitlements-content">
-                    {loading ? (
-                      <div className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="entitlements-loading">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
-                        ))}
-                      </div>
-                    ) : error ? (
-                      <div className="gba:error-container gba:text-center gba:py-8" data-testid="entitlements-error">
-                        <div className="gba:text-red-500 gba:text-lg gba:mb-2">
-                          {getTranslationFromI18nKeyAndLabel(
-                            "lowcoder:absence_hub.error_loading",
-                            "Failed to load entitlements data."
-                          )}
-                        </div>
-                        <div className="gba:text-gray-500">
-                          {getTranslationFromI18nKeyAndLabel(
-                            "lowcoder:absence_hub.try_again_later",
-                            "Please try again later or contact support if the problem persists."
-                          )}
-                        </div>
-                      </div>
-                    ) : entitlements.length === 0 ? (
-                      <div className="gba:no-entitlements gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-entitlements">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_entitlements",
-                          "No entitlements found"
-                        )}
-                      </div>
-                    ) : (
-                      <div className="gba:entitlements-grid gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="entitlements-grid">
-                        {entitlements.map((entitlement, idx) => (
-                          <div 
-                            key={`${entitlement.type}-${idx}`}
-                            className="gba:entitlement-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
-                            data-testid={`entitlement-card-${idx}`}
-                          >
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div 
-                                className="gba:icon-container gba:p-2 gba:rounded-full" 
-                                style={{ backgroundColor: `#${entitlement.color}20` }}
-                              >
-                                <span className="gba:icon">{entitlement.icon}</span>
-                              </div>
-                              <h4 className="gba:text-lg gba:font-medium">{entitlement.type}</h4>
-                            </div>
-                            
-                            <div className="gba:entitlement-details gba:mt-4">
-                              <div className="gba:flex gba:justify-between gba:mb-1">
-                                <span className="gba:text-gray-500">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    "lowcoder:absence_hub.used",
-                                    "Used"
-                                  )}
-                                </span>
-                                <span className="gba:font-medium">{entitlement.used} / {entitlement.total}</span>
-                              </div>
-                              
-                              <div className="gba:progress-bar gba:bg-gray-200 gba:rounded-full gba:h-2 gba:mb-3">
-                                <div 
-                                  className="gba:progress gba:h-full gba:rounded-full" 
-                                  style={{
-                                    width: `${entitlement.total > 0 ? (entitlement.used / entitlement.total) * 100 : 0}%`,
-                                    backgroundColor: `#${entitlement.color}`
-                                  }}
-                                ></div>
-                              </div>
-                              
-                              <div className="gba:flex gba:justify-between gba:items-center">
-                                <span className="gba:text-gray-500">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    "lowcoder:absence_hub.available",
-                                    "Available"
-                                  )}
-                                </span>
-                                <span className="gba:font-medium gba:text-lg gba:text-green-600">{entitlement.available}</span>
-                              </div>
-                              
-                              {entitlement.pending > 0 && (
-                                <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
-                                  <span className="gba:text-amber-500">
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:absence_hub.pending",
-                                      "Pending"
-                                    )}
-                                  </span>
-                                  <div className="gba:flex gba:items-center gba:gap-1">
-                                    <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
-                                    <span className="gba:text-xs gba:text-gray-500">
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        "lowcoder:absence_hub.days_pending",
-                                        "days in approval"
-                                      )}
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {entitlement.checkEntitlement && (
-                                <div className="gba:entitlement-note gba:mt-3 gba:text-xs gba:text-gray-500 gba:border-t gba:pt-2">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    "lowcoder:absence_hub.entitlement_note",
-                                    "Entitlement is checked before approval"
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-            onChange={onTabChange}
-            className="gba:tabs"
-            type="card"
-          />
-        </div>
+        {shownTab ? (
+          <div
+            className="gba:tabsContainer"
+            data-testid="absencehub-tabs-container"
+          >
+            {tabsItems[0]?.children}
+          </div>
+        ) : (
+          <div
+            className="gba:tabsContainer"
+            data-testid="absencehub-tabs-container"
+          >
+            <Tabs
+              activeKey={activeTab}
+              data-testid="absencehub-tabs"
+              items={tabsItems}
+              onChange={onTabChange}
+              className="gba:tabs"
+              type="card"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

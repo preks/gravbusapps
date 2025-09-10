@@ -1,216 +1,241 @@
 import React from "react";
-import { Button } from "@newwork/nw-design-system";
-import { PiArrowRight } from "react-icons/pi";
-import Pill from "@/components/pill/Pill";
+import {
+  Badge,
+  Separator,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@newwork/nw-design-system";
+import { PiArrowRight, PiCalendarDuotone, PiClock } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getDateFormat,
+  formatNumberFunction,
+} from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
-import { formatAmount } from "../../../utils/currencyUtils";
+import { getAdvancePaymentStatusDisplay } from "../../../utils";
+import dayjs from "dayjs";
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: any;
-  onApprove: (paymentId: string) => void;
-  onReject: (paymentId: string) => void;
 }
 
-// Shared component for expense details view (same as in other components)
-interface ExpenseDetailsViewProps {
-  title: string;
-  code: string;
-  status: string;
-  requester: string;
-  department: string;
-  tripType: string;
-  totalAmount: string;
-  onViewDetails: () => void;
-}
+const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
+  if (!payment) return null;
 
-const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
-  title,
-  code,
-  status,
-  requester,
-  department,
-  tripType,
-  totalAmount,
-  onViewDetails,
-}) => {
-  // Helper function to get status display info
-  const getStatusDisplay = (status: string) => {
-    type PillType = "draft" | "completed" | "waiting" | "task" | "error";
-
-    const statusMap: Record<string, { label: string; type: PillType }> = {
-      DRAFT: { label: "Draft", type: "draft" },
-      PENDING: { label: "Pending Approval", type: "waiting" },
-      APPROVED: { label: "Approved", type: "completed" },
-      REJECTED: { label: "Rejected", type: "error" },
-      PAID: { label: "Paid", type: "completed" },
-      CREATED: { label: "Created", type: "waiting" },
-    };
-
-    return statusMap[status] || { label: status, type: "waiting" };
+  // Get trip type
+  const getTripType = () => {
+    return payment.purpose || "Advance Payment";
   };
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-medium gba:mb-2">{title}</h3>
-        <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{code}</p>
-        <Pill
-          type={getStatusDisplay(status).type}
-          label={getStatusDisplay(status).label}
-        />
+    <div className="gba:p-6 gba:space-y-6" data-testid="advance-payment-details-content">
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
+        <div className="gba:flex-1">
+          <h2
+            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
+            data-testid="advance-payment-title"
+          >
+            {payment.expensePlan?.title || "Advance Payment"}
+          </h2>
+          <p className="gba:text-sm gba:text-gray-500" data-testid="advance-payment-code">
+            {payment.expensePlan?.code || payment.id}
+          </p>
+        </div>
+        <Badge
+          variant={
+            getAdvancePaymentStatusDisplay(payment.status).type === "completed"
+              ? "success"
+              : getAdvancePaymentStatusDisplay(payment.status).type === "error"
+                ? "destructive"
+                : getAdvancePaymentStatusDisplay(payment.status).type === "task"
+                  ? "warning"
+                  : getAdvancePaymentStatusDisplay(payment.status).type === "waiting"
+                    ? "secondary"
+                    : "default"
+          }
+          className="gba:text-sm"
+          data-testid="advance-payment-status-badge"
+        >
+          {getAdvancePaymentStatusDisplay(payment.status).label}
+        </Badge>
       </div>
 
-      <div className="gba:mb-6">
-        <div className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Requester
-              </div>
-              <div className="gba:text-sm">{requester}</div>
+      {/* Date Information */}
+      <Card>
+        <CardContent className="gba:p-4 gba:space-y-3">
+          {payment.expensePlan?.startDate && payment.expensePlan?.endDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiCalendarDuotone className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.plan_details.duration",
+                  "Duration",
+                )}
+                : {dayjs(payment.expensePlan.startDate).format(getDateFormat("date.short"))} {" → "}
+                {dayjs(payment.expensePlan.endDate).format(getDateFormat("date.short"))}
+              </span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Department
-              </div>
-              <div className="gba:text-sm">{department}</div>
+          )}
+
+          {payment.createdAt && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiClock className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:advance_payment_details.creation_date",
+                  "Creation Date",
+                )}
+                : {dayjs(payment.createdAt).format(getDateFormat("date.short"))}
+              </span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Purpose
-              </div>
-              <div className="gba:text-sm">{tripType}</div>
+          )}
+
+          {payment.dueDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiClock className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:advance_payment_details.due_date",
+                  "Due Date",
+                )}
+                : {dayjs(payment.dueDate).format(getDateFormat("date.short"))}
+              </span>
             </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Total Amount
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Description */}
+      {payment.purpose && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-base">
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:advance_payment_details.purpose",
+                "Purpose",
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="gba:text-sm gba:text-gray-700" data-testid="advance-payment-purpose">
+              {payment.purpose}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Details Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-base">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:advance_payment_details.title",
+              "Advance Payment Details",
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+            {payment.expensePlan?.employee && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_overview.side_bar.requester",
+                    "Requester",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {payment.expensePlan.employee.displayName ||
+                    payment.expensePlan.employee.fullName}
+                </span>
               </div>
-              <div className="gba:text-sm">{totalAmount}</div>
+            )}
+
+            {payment.expensePlan?.employee?.employeePosition?.organizationalUnit && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.department_title",
+                    "Department",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {payment.expensePlan.employee.employeePosition.organizationalUnit.name}
+                </span>
+              </div>
+            )}
+
+            {payment.expensePlan?.employee?.employeePosition?.siteLocation && (
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_profile.profile_icon_list.location_title",
+                    "Location",
+                  )}
+                </span>
+                <span className="gba:text-sm gba:text-gray-900">
+                  {payment.expensePlan.employee.employeePosition.siteLocation.name}
+                </span>
+              </div>
+            )}
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:advance_payment_details.purpose",
+                  "Purpose",
+                )}
+              </span>
+              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+            </div>
+
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:advance_payment_details.amount",
+                  "Amount",
+                )}
+              </span>
+              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+                {typeof payment.amount === "number"
+                  ? `${formatNumberFunction(String(payment.amount))} ${
+                      payment.currencyRef?.split(":").pop() || "-"
+                    }`
+                  : "-"}
+              </span>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="gba:flex gba:justify-end gba:mt-6">
+      <Separator />
+
+      {/* Action Buttons */}
+      <div className="gba:flex gba:justify-end gba:gap-3">
         <Button
           variant="default"
-          onClick={onViewDetails}
-          data-testid="view-full-details-button"
-          className="gba:flex gba:items-center gba:gap-2"
+          onClick={() => {
+            // Navigate to the advance payment record page
+            const url = buildPlatformUrl("/platform/fin/expenses/advance-payment-record", {
+              advancePaymentId: payment.id,
+            });
+            navigateTo(url);
+          }}
+          data-testid="advance-payment-view-details-button"
         >
-          <PiArrowRight className="gba:w-4 gba:h-4" />
+          <PiArrowRight className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel(
-            "expense.details.view",
-            "View Full Details"
+            "lowcoder:team_expenses_page.plan_details.view_full_details",
+            "View Full Details",
           )}
         </Button>
       </div>
     </div>
-  );
-};
-
-const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
-  payment,
-  onApprove,
-  onReject,
-}) => {
-  const getTextType = (daysRemaining: number) => {
-    if (daysRemaining < 0) return "danger";
-    if (daysRemaining < 7) return "warning";
-    return undefined;
-  };
-
-  const getDaysRemainingText = (daysRemaining: number) => {
-    return daysRemaining < 0
-      ? `${Math.abs(daysRemaining)} days overdue`
-      : `${daysRemaining} days`;
-  };
-
-  const getPillType = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return "completed";
-      case "REJECTED":
-        return "error";
-      case "DRAFT":
-        return "draft";
-      default:
-        return "waiting";
-    }
-  };
-
-  // Helper function to get department safely
-  const getDepartment = () => {
-    // Check the expense plan employee first (primary source)
-    if (
-      payment.expensePlan?.employee?.employeePosition?.organizationalUnit?.name
-    ) {
-      return payment.expensePlan.employee.employeePosition.organizationalUnit
-        .name;
-    }
-    if (payment.expensePlan?.employee?.department) {
-      return payment.expensePlan.employee.department;
-    }
-    // Fallback to payment employee
-    if (payment.employee?.employeePosition?.organizationalUnit?.name) {
-      return payment.employee.employeePosition.organizationalUnit.name;
-    }
-    // Fallback to direct department field
-    if (payment.employee?.department) {
-      return payment.employee.department;
-    }
-    // Fallback to additional properties
-    if (payment.employee?.additionalProperties?.department) {
-      return payment.employee.additionalProperties.department;
-    }
-    return "Not specified";
-  };
-
-  const handleViewDetails = () => {
-    const url = buildPlatformUrl(
-      "/platform/fin/expenses/advance-payment-record",
-      { advancePaymentId: payment.id }
-    );
-    navigateTo(url);
-  };
-
-  const handleReject = () => {
-    onReject(payment.id);
-  };
-
-  // Helper function to calculate days remaining until due date
-  const calculateDaysRemaining = () => {
-    if (!payment.dueDate) return null;
-
-    const dueDate = new Date(payment.dueDate);
-    const today = new Date();
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays;
-  };
-
-  const daysRemaining = calculateDaysRemaining();
-
-  return (
-    <ExpenseDetailsView
-      title={payment.expensePlan?.title || "No title"}
-      code={payment.expensePlan?.code || ""}
-      status={payment.status}
-      requester={
-        payment.expensePlan?.employee?.fullName ||
-        payment.employee?.fullName ||
-        "Unknown"
-      }
-      department={getDepartment()}
-      tripType={payment.purpose || "Advance Payment"}
-      totalAmount={
-        payment.amount ? `€${formatAmount(payment.amount)}` : "€0,00"
-      }
-      onViewDetails={handleViewDetails}
-    />
   );
 };
 
