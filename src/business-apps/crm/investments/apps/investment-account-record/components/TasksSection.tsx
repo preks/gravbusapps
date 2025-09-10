@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -156,18 +159,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
     };
   }, [accountId]);
 
-  const handleAddTaskClick = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add task handled by AppAction component
 
   const handleUpdateTask = (task: TaskData) => {
     startProcess({
@@ -260,14 +252,36 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
         >
           Tasks
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          data-testid="investment-account-add-task-button"
+        <AppAction
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          externalContextData={{ 
+            accountId,
+            account: accountId,
+            investmentTask: { account: accountId }
+          }}
+          staticFlowData={accountId ? [{
+            key: 'create-investment-task-fallback',
+            label: 'Add Task',
+            onClick: () => startProcess({
+              domain: 'investments',
+              processName: 'createInvestmentTask',
+              payload: { accountId },
+              builderType: 'NATIVE_SCREEN'
+            })
+          }] : []}
+          prefixDataTestId="add-task"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          Add Task
-        </Button>
+          <Button
+            variant="default"
+            data-testid="investment-account-add-task-button"
+          >
+            <PlusCircleOutlined />
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>

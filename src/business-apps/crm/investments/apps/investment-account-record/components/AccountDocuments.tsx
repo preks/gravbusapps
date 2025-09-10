@@ -36,6 +36,7 @@ import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -111,7 +112,6 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
   ]);
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
 
@@ -134,9 +134,9 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
       return;
     }
     try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
+      await restClient.post('/investments/saveInvestmentDocument', {
         changeMode: 'UPDATE',
-        crmDocument: {
+        investmentDocument: {
           id: node.folderId,
           version: node.folderVersion,
           name: newName,
@@ -728,10 +728,10 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
   ) => {
     try {
       await restClient.post(
-        '/customer-relations/saveCrmDocument',
+        '/investments/saveInvestmentDocument',
         {
           changeMode: 'UPDATE',
-          crmDocument: {
+          investmentDocument: {
             id: docId,
             version: version,
             // Backend expects empty string to detach from parent (root level)

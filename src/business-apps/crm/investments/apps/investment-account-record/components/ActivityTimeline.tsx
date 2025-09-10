@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
+import { Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
@@ -176,11 +177,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
 
   const handleUpdateTask = (task: any) => {
     startProcess({
-      domain: 'customer-relations',
-      processName: 'saveSalesTask',
+      domain: 'investments',
+      processName: 'saveInvestmentTask',
       payload: {
         accountId: accountId,
-        typeRef: task.typeRef || 'SalesTaskType:v1:APPROVAL',
+        typeRef: task.typeRef || 'InvestmentTaskType:v1:APPROVAL',
         taskData: task // Pass existing task data for update mode
       },
       builderType: 'NATIVE_SCREEN',
@@ -386,31 +387,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     };
   }, [activeTab, accountId]);
 
-  const handleAddActivity = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesActivity',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
-
-  const handleUploadDocument = () => {
-    if (accountId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveCrmDocument',
-        payload: {
-          accountId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Activity and document actions handled by AppAction components
 
   const handleDeleteDocument = (document: CrmDocumentData) => {
     Modal.confirm({
@@ -421,9 +398,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
+          await restClient.post('/investments/saveInvestmentDocument', {
             changeMode: "DELETE",
-            crmDocument: {
+            investmentDocument: {
               id: document.id,
               version: document.version,
               account: accountId
@@ -455,9 +432,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
+          await restClient.post('/investments/saveInvestmentActivity', {
             changeMode: 'DELETE',
-            salesActivity: {
+            investmentActivity: {
               id: activity.id,
               version: activity.version,
               account: accountId
@@ -587,10 +564,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
               deferMainContextRequestsUntilClick
             >
               <Button 
-                type="primary"
-                icon={<PlusCircleOutlined />}
+                variant="default"
                 data-testid="add-activity-button"
               >
+                <PlusCircleOutlined />
                 Add Activity
               </Button>
             </AppAction>
@@ -624,13 +601,35 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                 style={{ padding: '40px 0' }}
                 data-testid="empty-activities"
               >
-                <Button 
-                  type="primary" 
-                  icon={<PlusCircleOutlined />} 
-                  onClick={handleAddActivity}
+                <AppAction
+                  contextsArray={[FlowContextName.createInvestmentActivity]}
+                  externalContextData={{ 
+                    accountId,
+                    account: accountId,
+                    investmentActivity: { account: accountId }
+                  }}
+                  staticFlowData={accountId ? [{
+                    key: 'create-investment-activity-fallback',
+                    label: 'Add First Activity',
+                    onClick: () => startProcess({
+                      domain: 'investments',
+                      processName: 'saveInvestmentActivity',
+                      payload: { accountId },
+                      builderType: 'NATIVE_SCREEN'
+                    })
+                  }] : []}
+                  prefixDataTestId="add-first-activity"
+                  accessToken={context.accessToken}
+                  emptyStateBehavior="enable"
+                  deferMainContextRequestsUntilClick
                 >
-                  Add First Activity
-                </Button>
+                  <Button 
+                    variant="default"
+                  >
+                    <PlusCircleOutlined />
+                    Add First Activity
+                  </Button>
+                </AppAction>
               </Empty>
             )}
 
@@ -717,7 +716,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
               contextsArray={[FlowContextName.investmentTaskCreate]}
               externalContextData={{
                 accountId,
-                typeRef: 'SalesTaskType:v1:APPROVAL'
+                typeRef: 'InvestmentTaskType:v1:APPROVAL'
               }}
               prefixDataTestId="irm-account-approvals"
               accessToken={context.accessToken}
@@ -725,10 +724,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
               deferMainContextRequestsUntilClick
             >
               <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
+                variant="default"
                 data-testid="request-approval-button"
               >
+                <CheckCircleOutlined />
                 Request Approval
               </Button>
             </AppAction>
