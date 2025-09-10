@@ -32,8 +32,6 @@ import { useAbsenceValidation } from "./hooks/useAbsenceValidation";
 import { useFileClient } from "@/common/network/files/useFileClient";
 import { useAbsenceTypesByGroup } from "./hooks/useAbsenceTypesByGroup";
 
-import { AbsenceTypeOption } from "./hooks/useAbsenceTypesByGroup";
-
 type Employee = {
   id: string;
   userId: string;
@@ -51,6 +49,7 @@ type CreateNewAbsenceFormValues = {
 
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
+  console.log("additionalData", additionalData);
   const client = useGraphQLClient(accessToken);
   const locale = getCurrentActiveUserLocale();
   const structureId = getCurrentActiveStructureId();
@@ -61,13 +60,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const initialStartDate = propStartDate ? new Date(propStartDate) : undefined;
   const initialEndDate = propEndDate ? new Date(propEndDate) : undefined;
 
-  // Get absenceType from different possible sources
-  // This is the parent entry ID (absence group) that determines which absence types to show
-  const absenceType = additionalData?.absenceType || 
-                     additionalData?.externalContextData?.absenceType ||
-                     additionalData?.psi_taskPayload?.absenceType ||
-                     additionalData?.psi_taskPayload?.psi_initialParameters?.absenceType ||
-                     "";
+  const processName = additionalData?.psi_processMetadata?.processMetadata?.name;
+  const processToParentAbsenceTypeMap: Record<string, string> = {
+    createEmployeeVacation: "AbsenceType:v1:A001",
+    createEmployeeSickLeave: "AbsenceType:v1:A021",
+    createEmployeeSpecialLeave: "AbsenceType:v1:A050",
+  };
+  const mappedParentType = processName && processToParentAbsenceTypeMap[processName];
+  const absenceType = mappedParentType ||  "";
 
   const [employees, setEmployees] = useState<Employee[]>([]);
 
@@ -356,7 +356,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
 
   return (
     <div
-      className="gba:min-h-screen gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white"
+      className="gba:min-h-screen gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white gba:mt-3"
       data-testid="create-new-absence-root"
     >
       <div
