@@ -744,7 +744,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 <Button
                   type="submit"
                   variant="default"
-                  className="gba:bg-blue-600 gba:text-white gba:px-5 gba:py-2 gba:rounded gba:font-medium"
                   data-testid="submit-button"
                   onClick={handleSubmit}
                   disabled={!isFormValid}
@@ -761,8 +760,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
-                  className="gba:bg-gray-200 gba:text-gray-700 gba:px-5 gba:py-2 gba:rounded gba:font-medium gba:mr-2"
+                  variant="outline"
                   data-testid="cancel-button"
                   onClick={handleCancel}
                 >
