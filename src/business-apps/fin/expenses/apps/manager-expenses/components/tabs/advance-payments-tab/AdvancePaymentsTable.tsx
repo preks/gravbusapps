@@ -229,7 +229,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:manager_expense_request_list.expense_table.status",
+                        "lowcoder:expense_item_list.expense_table.status",
                         "Status",
                       )}
                     </span>
@@ -410,7 +410,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {" "}
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:personal_expenses.rows_per_page",
+                    "Rows per page",
+                  )}
+                </p>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
@@ -427,7 +433,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="advance-payments-page-info"
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                {currentPage}{" "}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button

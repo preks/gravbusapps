@@ -52,6 +52,8 @@ export interface ExpenseRequest {
     id: string;
     displayName?: string;
     fullName: string;
+    firstName: string;
+    lastName: string;
     department?: string;
     pictureThumbnail?: string;
     employeePosition?: {

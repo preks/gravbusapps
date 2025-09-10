@@ -538,11 +538,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount,
-              )} of ${totalCount} expense plans`}
+              )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:team_expenses_page.expense_plans_tab.footer_expense_plans", "expense plans")} `}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {" "}
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:personal_expenses.rows_per_page",
+                    "Rows per page",
+                  )}
+                </p>
                 <select
                   className="gba:h-8 gba:rounded-md gba:border gba:border-gray-300 gba:bg-white gba:px-2 gba:text-sm"
                   value={pageSize}
@@ -559,7 +565,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                {currentPage}{" "}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
