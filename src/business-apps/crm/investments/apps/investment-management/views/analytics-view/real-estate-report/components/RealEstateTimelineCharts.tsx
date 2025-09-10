@@ -8,7 +8,7 @@ import {
   ChartLegendContent,
   IconAvatar
 } from '@newwork/nw-design-system';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, LineChart, AreaChart, Area } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, LineChart, AreaChart, Area } from 'recharts';
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react';
 import { formatCurrency, formatNumber } from '@/common/data/investment';
 
@@ -54,7 +54,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           <div className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineUpIcon} variant="default" />
             <div>
-              <CardTitle>Real Estate Investment Timeline</CardTitle>
+              <CardTitle>Real Estate Timeline</CardTitle>
               <CardDescription>Investment count and amounts over time</CardDescription>
             </div>
           </div>
@@ -62,19 +62,52 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
         <CardContent>
           <ChartContainer config={timelineConfig}>
             <ComposedChart data={timelineData}>
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('amount') || name.includes('value')) {
-                      return [formatCurrency(value), name];
-                    }
-                    return [formatNumber(value), name];
-                  }}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'investmentCount') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Investment Count';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalInvestmentAmount') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Total Investment Amount';
+                            dotColor = 'var(--color-totalinvestmentamount)';
+                          } else if (entry.dataKey === 'cumulativeInvestments') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Cumulative Investments';
+                            dotColor = 'var(--color-cumulativeinvestments)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 
@@ -119,22 +152,48 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
         <CardContent>
           <ChartContainer config={performanceConfig}>
             <ComposedChart data={performanceData}>
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('rate')) {
-                      return [`${value}%`, name];
-                    }
-                    if (name.includes('value')) {
-                      return [formatCurrency(value), name];
-                    }
-                    return [formatNumber(value), name];
-                  }}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let properLabel = '';
+                          let formattedValue = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'averageOccupancyRate') {
+                            properLabel = 'Average Occupancy Rate';
+                            formattedValue = `${entry.value}%`;
+                            dotColor = 'var(--color-averageoccupancyrate)';
+                          } else if (entry.dataKey === 'totalPropertyValue') {
+                            properLabel = 'Total Property Value';
+                            formattedValue = formatCurrency(entry.value as number);
+                            dotColor = 'var(--color-totalpropertyvalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Line 
@@ -172,19 +231,48 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
         <CardContent>
           <ChartContainer config={buildingYearConfig}>
             <ComposedChart data={buildingYearData}>
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value: any, name: string) => {
-                    if (name.includes('value')) {
-                      return [formatCurrency(value), name];
-                    }
-                    return [formatNumber(value), name];
-                  }}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let properLabel = '';
+                          let formattedValue = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'propertyCount') {
+                            properLabel = 'Property Count';
+                            formattedValue = `${entry.value}`;
+                            dotColor = 'var(--color-propertycount)';
+                          } else if (entry.dataKey === 'averageValue') {
+                            properLabel = 'Average Value';
+                            formattedValue = formatCurrency(entry.value as number);
+                            dotColor = 'var(--color-averagevalue)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 

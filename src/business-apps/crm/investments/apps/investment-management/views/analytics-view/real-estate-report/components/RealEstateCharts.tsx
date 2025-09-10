@@ -431,8 +431,8 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
         </ResponsiveContainer>
       </Card>
 
-      {/* Investment Status Distribution - Pie Chart */}
-      <Card title="Investment Status Distribution" style={{ borderRadius: '8px' }}>
+      {/* Status Distribution - Pie Chart */}
+      <Card title="Status Distribution" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
