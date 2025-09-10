@@ -1049,7 +1049,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
       )}
 
-      {shownTab === 'calendar' && (
+      {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
           <AppActionMenu
             data-testid="employee-absence-request-inline-button"
