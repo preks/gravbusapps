@@ -40,6 +40,21 @@ import { formatCurrency, formatDate } from "../../utils";
 import { useExitOpportunitiesData } from "./hooks/useExitOpportunitiesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
+import { useGetInvestmentOpportunities, InvestmentOpportunity, InvestmentOpportunityQueryVariables } from "@/common/data/investment";
+
+interface ExitOpportunitiesMetrics {
+  totalCount: number;
+  totalValue: number;
+  averageValue: number;
+  averageWinRate: number;
+  totalWonValue: number;
+  wonCount: number;
+  // Percentage changes
+  countChange: number;
+  totalValueChange: number;
+  averageValueChange: number;
+  winRateChange: number;
+}
 
 interface ExitOpportunitiesProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -64,22 +79,137 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   // Owner backend search
   const { employees: employeeOptions, search: searchEmployees, loading: loadingEmployees, error: employeeError } = useEmployeeSearch(accessToken);
 
-  const context = { accessToken, userInfo };
+  // State for exit opportunities data
+  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([]);
+  const [metrics, setMetrics] = useState<ExitOpportunitiesMetrics | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    opportunities,
-    metrics,
-    total,
-    loading,
-    error,
-    loadPage,
-  } = useExitOpportunitiesData({
-    search: searchTerm,
-    sortField,
-    sortOrder,
-    context,
-    statusFilter: "active", // Exclude WON opportunities (those are for Sales tab)
-  });
+  const context = { accessToken, userInfo };
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
+
+  // Data fetching function using central resources
+  const loadPage = useCallback(async (
+    page: number,
+    pageSize = 20,
+    additionalFilters?: any,
+    overrideSortField?: string,
+    overrideSortOrder?: "ASC" | "DESC" | ""
+  ) => {
+    if (!accessToken) {
+      console.warn("No access token provided for exit opportunities data loading");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Build query variables for InvestmentOpportunity
+      const variables: InvestmentOpportunityQueryVariables = {
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities using dealType
+        search: additionalFilters?.search || searchTerm,
+      };
+
+      // Add sorting
+      const sortFieldToUse = overrideSortField || sortField;
+      const sortOrderToUse = overrideSortOrder || sortOrder;
+      
+      if (sortFieldToUse && sortFieldToUse !== "" && sortOrderToUse) {
+        variables.orderBy = [{
+          field: sortFieldToUse,
+          direction: sortOrderToUse === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST"
+        }];
+      }
+
+      // Get current data
+      const currentResult = await fetchInvestmentOpportunities(variables);
+
+      // Get historical data (30 days ago)
+      const currentDate = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+
+      // Fetch historical data by removing time-based filters and getting larger dataset
+      const historicalVariables = { ...variables, limit: 1000, offset: 0 };
+      const historicalResult = await fetchInvestmentOpportunities(historicalVariables);
+
+      if (currentResult?.InvestmentOpportunity) {
+        setOpportunities(currentResult.InvestmentOpportunity);
+        
+        const totalCount = currentResult.InvestmentOpportunityAggregate?.aggregate?.count || 0;
+        setTotal(totalCount);
+
+        // Helper function to calculate metrics for a dataset
+        const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
+          let filteredOpportunities = opportunities;
+          
+          // Filter by date if provided
+          if (beforeDate) {
+            filteredOpportunities = opportunities.filter(opp => {
+              const updatedAt = new Date(opp.updatedAt);
+              return updatedAt <= beforeDate;
+            });
+          }
+
+          const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
+          const averageValue = filteredOpportunities.length > 0 ? totalValue / filteredOpportunities.length : 0;
+          
+          // For won opportunities, check status
+          const wonOpportunities = filteredOpportunities.filter(opp => 
+            opp.opportunityStatus?.alternativeCode?.toUpperCase() === "WON" ||
+            opp.opportunityStatus?.value?.toUpperCase() === "WON"
+          );
+          
+          return {
+            totalCount: filteredOpportunities.length,
+            totalValue,
+            averageValue,
+            averageWinRate: filteredOpportunities.length > 0 ? 
+              filteredOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / filteredOpportunities.length : 0,
+            wonCount: wonOpportunities.length,
+            totalWonValue: wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0),
+          };
+        };
+
+        // Calculate current and historical metrics
+        const current = calculateMetrics(currentResult.InvestmentOpportunity);
+        const historical = historicalResult?.InvestmentOpportunity ? 
+          calculateMetrics(historicalResult.InvestmentOpportunity, thirtyDaysAgo) : 
+          { totalCount: 0, totalValue: 0, averageValue: 0, averageWinRate: 0, wonCount: 0, totalWonValue: 0 };
+
+        // Calculate percentage changes
+        const calculatePercentageChange = (current: number, previous: number): number => {
+          if (previous === 0) return current > 0 ? 100 : 0;
+          return ((current - previous) / previous) * 100;
+        };
+
+        const countChange = calculatePercentageChange(current.totalCount, historical.totalCount);
+        const totalValueChange = calculatePercentageChange(current.totalValue, historical.totalValue);
+        const averageValueChange = calculatePercentageChange(current.averageValue, historical.averageValue);
+        const winRateChange = calculatePercentageChange(current.averageWinRate, historical.averageWinRate);
+
+        const metricsData: ExitOpportunitiesMetrics = {
+          ...current,
+          countChange,
+          totalValueChange,
+          averageValueChange,
+          winRateChange,
+        };
+        setMetrics(metricsData);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("Failed to load exit opportunities")
+      );
+      console.error("Error loading exit opportunities:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchInvestmentOpportunities, searchTerm, sortField, sortOrder, accessToken]);
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value);
@@ -225,6 +355,12 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   const renderMetrics = () => {
     if (!metrics) return null;
 
+    // Helper function to format percentage change
+    const formatPercentageChange = (change: number): string => {
+      const sign = change >= 0 ? '+' : '';
+      return `${sign}${change.toFixed(1)}%`;
+    };
+
     const widgets: WidgetItem[] = [
       {
         key: "total-opportunities",
@@ -235,9 +371,9 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("active_exit_opportunities", "Active exit opportunities"),
         trend: {
-          value: `${metrics.totalCount} ${getTranslationFromI18nKeyAndLabel("active", "active")}`,
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("ready_for_divestment", "ready for divestment")
+          value: formatPercentageChange(metrics.countChange),
+          positive: metrics.countChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -249,9 +385,9 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("estimated_opportunity_value", "Estimated opportunity value"),
         trend: {
-          value: formatCurrency(metrics.totalValue),
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("total_pipeline", "total pipeline")
+          value: formatPercentageChange(metrics.totalValueChange),
+          positive: metrics.totalValueChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -263,9 +399,9 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_opportunity_size", "Average opportunity size"),
         trend: {
-          value: formatCurrency(metrics.averageValue),
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("per_opportunity", "per opportunity")
+          value: formatPercentageChange(metrics.averageValueChange),
+          positive: metrics.averageValueChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -277,9 +413,9 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("success_probability", "Success probability"),
         trend: {
-          value: `${metrics.averageWinRate.toFixed(1)}% ${getTranslationFromI18nKeyAndLabel("win_rate", "win rate")}`,
-          positive: metrics.averageWinRate > 50,
-          description: getTranslationFromI18nKeyAndLabel("conversion_rate", "conversion rate")
+          value: formatPercentageChange(metrics.winRateChange),
+          positive: metrics.winRateChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       }
     ];
@@ -330,7 +466,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
       return (
         <Alert variant="destructive" className="gba:mb-4">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <span>Error loading exit opportunities: {error instanceof Error ? error.message : String(error)}</span>
+            <span>Error loading exit opportunities: {error?.message || 'Unknown error'}</span>
             <Button variant="outline" size="sm" onClick={() => loadPage(currentPage, pageSize)}>
               Retry
             </Button>

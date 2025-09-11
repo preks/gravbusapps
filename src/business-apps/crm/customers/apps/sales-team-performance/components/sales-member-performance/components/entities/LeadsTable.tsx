@@ -393,7 +393,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                     <Badge
                       variant={getLeadStatusBadgeVariant(record.leadStatus)}
                     >
-                      {record.leadStatus?.value || "-"}
+                      {record.leadStatus?.value || record.leadStatus?.code || "-"}
                     </Badge>
                   </TableCell>
                   <TableCell

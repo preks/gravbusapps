@@ -364,7 +364,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
   return (
     <div data-testid="planned-exits-container" className="gba:space-y-6">
       {/* Metrics Section */}
-      <PlannedExitsMetrics accessToken={accessToken} />
+      <PlannedExitsMetrics context={{ accessToken, userInfo }} />
 
       <DataContainer
         dataControllerProps={{
@@ -449,9 +449,9 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
                     {visibleColumns.includes('performance') && (<TableCell>
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalInvestmentValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalInvestmentValue;
+                        const performancePercentage = totalInvestmentValue > 0 ? (performanceAmount / totalInvestmentValue) * 100 : 0;
                         
                         return (
                           <div className="gba:flex gba:flex-col gba:items-start">

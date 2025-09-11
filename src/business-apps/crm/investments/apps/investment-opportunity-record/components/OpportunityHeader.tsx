@@ -4,6 +4,8 @@ import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined, TrophyOut
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useAiSummary } from '../hooks/useAiSummary';
 
 interface OpportunityHeaderProps {
   opportunity: any;
@@ -80,6 +82,19 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* AI Summary Button */}
+          {accessToken && opportunityId && (
+            <AiSummaryButton
+              config={{
+                entityType: 'opportunity',
+                loadingMessage: 'Generating AI Summary...',
+                loadingSubtitle: 'Analyzing opportunity data and activities'
+              }}
+              summaryHook={useAiSummary(opportunityId, accessToken)}
+              dataTestId={`opportunity-update-button-${opportunityId}`}
+            />
+          )}
+          
           {accessToken && (
             <AppActionButton
               data-testid="opportunity-record-action-button"

@@ -15,6 +15,8 @@ import { startProcess } from "@/common/utils/start-process";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useMarkLeadAsLost } from "../hooks/useMarkLeadAsLost";
 import { Lead } from "../types";
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useAiSummary } from '../hooks/useAiSummary';
 
 interface LeadHeaderProps {
   lead: Lead;
@@ -164,6 +166,19 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* AI Summary Button */}
+          {accessToken && leadId && (
+            <AiSummaryButton
+              config={{
+                entityType: 'lead',
+                loadingMessage: 'Generating AI Summary...',
+                loadingSubtitle: 'Analyzing lead data and activities'
+              }}
+              summaryHook={useAiSummary(leadId, accessToken)}
+              dataTestId={`lead-update-button-${leadId}`}
+            />
+          )}
+          
           {accessToken && (
             <AppActionButton
               data-testid="investment-lead-record-action-button"

@@ -303,7 +303,7 @@ export const AccountList: React.FC<AccountListProps> = ({
                             variant="secondary"
                             data-testid={`investment-account-legal-form-${account.id}`}
                           >
-                            {account.legalForm.code}
+                            {account.legalForm.value || account.legalForm.code}
                           </Badge>
                         ) : (
                           <span className="gba:text-gray-400">-</span>

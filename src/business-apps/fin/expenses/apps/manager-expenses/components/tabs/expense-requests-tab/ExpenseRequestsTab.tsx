@@ -15,7 +15,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       accessToken: props.accessToken,
       userInfo: props.userInfo,
     }),
-    [props.accessToken, props.userInfo]
+    [props.accessToken, props.userInfo],
   );
 
   const managerId = props.userInfo?.employeeDetails?.employeeId || "";
@@ -36,16 +36,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     userInfo: props.userInfo,
   });
 
-  const {
-    requestStats,
-    requestStatsLoading,
-    requestStatsError,
-    fetchRequestStatistics,
-  } = useGetExpenseRequests({
-    ...contextProps,
-    currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: true,
-  });
+  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } =
+    useGetExpenseRequests({
+      ...contextProps,
+      currentCurrencyFilter: primaryCurrency,
+      statisticsOnly: true,
+    });
 
   const {
     requests: expenseRequests,
@@ -94,6 +90,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
             addFilter={addFilter}
             removeFilter={removeFilter}
             handleDataFilterChange={handleDataFilterChange}
+            primaryCurrency={primaryCurrency}
           />
         </div>
       </div>

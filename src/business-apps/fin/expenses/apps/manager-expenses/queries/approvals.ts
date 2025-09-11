@@ -27,7 +27,9 @@ export const GET_PENDING_APPROVALS = `
       createdAt
       employee {
         id
-        fullName
+        fullName  
+        firstName
+        lastName
       }
     }
     PendingApprovalsAggregate: ExpenseRequestAggregate(
