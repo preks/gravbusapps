@@ -47,7 +47,7 @@ export interface ContactTaskResponse {
 export const GET_CONTACT_TASKS = (variables: ContactTaskQueryVariables): string => {
   return `
     query GetContactTasks($contactId: uuid!) {
-      SalesTask(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
+      SalesTask(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
         id
         name
         version

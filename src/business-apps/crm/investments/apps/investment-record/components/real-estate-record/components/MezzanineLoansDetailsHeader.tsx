@@ -15,19 +15,22 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getStatusColor } from '@/common/data/investment';
 import PlannedExitFlag from '../../shared/PlannedExitFlag';
+import { AiSummaryButton } from '../../shared/AiSummaryButton';
 
 export interface MezzanineLoansDetailsHeaderProps {
   realEstateData?: RealEstateInvestmentData | null;
   isLoading?: boolean;
   error?: string | null;
   context?: BusinessAppContextProps;
+  investmentId?: string;
 }
 
 const MezzanineLoansDetailsHeader: React.FC<MezzanineLoansDetailsHeaderProps> = ({ 
   realEstateData, 
   isLoading, 
   error,
-  context
+  context,
+  investmentId
 }) => {
   // Early return if loading or no data yet
   if (isLoading || !realEstateData) {
@@ -103,11 +106,20 @@ const MezzanineLoansDetailsHeader: React.FC<MezzanineLoansDetailsHeaderProps> = 
         <CardContent className="gba:p-6">
           {/* Company Name and Investment Type */}
           <div className="gba:mb-6">
-            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-              <Building2 className="gba:h-6 gba:w-6 gba:text-indigo-600" />
-              <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                {companyName || investment?.name || 'Mezzanine Loans Investment Details'}
-              </h1>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <Building2 className="gba:h-6 gba:w-6 gba:text-indigo-600" />
+                <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+                  {companyName || investment?.name || 'Mezzanine Loans Investment Details'}
+                </h1>
+              </div>
+              {/* AI Summary Button */}
+              {context && investmentId && (
+                <AiSummaryButton 
+                  investmentId={investmentId} 
+                  accessToken={context.accessToken} 
+                />
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <Badge variant="secondary" className="gba:text-sm">

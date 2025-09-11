@@ -12,6 +12,7 @@ import { getDayName } from '../utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+import { SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../constants/constants';
 
 /**
  * SummaryScreen component props
@@ -94,7 +95,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
     });
   }
   // Pagination state
-  const itemListLimit = 4;
+  const itemListLimit = SUMMARY_SCREEN_ITEM_LIST_LIMIT;
   const [allowanceCurrentPage, setAllowanceCurrentPage] = useState(1);
   const [expenseCurrentPage, setExpenseCurrentPage] = useState(1);
   

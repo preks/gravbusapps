@@ -61,6 +61,73 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
     fetchLiquidFundData();
   }, [fetchLiquidFundData]);
 
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('LiquidFundData: Process completion event received:', event.type, event.detail);
+        
+        // Skip immediate form submission events from AppActionForm to avoid double refresh
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.event === 'pse_submit') {
+          console.log('LiquidFundData: Skipping immediate form submission event to avoid double refresh');
+          return;
+        }
+        
+        // Check for successful completion from backend
+        if (event.detail?.resolution === 'success') {
+          console.log('LiquidFundData: Backend process completed successfully, refreshing liquid fund investment data');
+          fetchLiquidFundData();
+          return;
+        }
+        
+        // Check for different event structures - specifically for liquid fund investments
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || 
+            response?.investment || 
+            response?.liquidFundInvestment) {
+          console.log('LiquidFundData: Liquid fund investment data detected from backend, refreshing record');
+          fetchLiquidFundData();
+          return;
+        }
+        
+        // Check for continue events with actual backend payload (not form submission)
+        if (event.type === 'com.newwork.process.continue' && 
+            event.detail?.payload && 
+            event.detail?.event !== 'pse_submit') {
+          console.log('LiquidFundData: Backend continue event with payload detected, refreshing data');
+          fetchLiquidFundData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in LiquidFundData:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [fetchLiquidFundData]);
+
   return {
     liquidFundData,
     isLoading,

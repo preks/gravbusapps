@@ -5,3 +5,4 @@ export { default as ContactDetails } from './ContactDetails';
 export { default as UploadReportButton } from './UploadReportButton';
 export { default as InvestmentHomeTab } from './InvestmentHomeTab';
 export { default as InvestmentDocuments } from './InvestmentDocuments';
+export { default as InvestmentTileSection } from './InvestmentTileSection';

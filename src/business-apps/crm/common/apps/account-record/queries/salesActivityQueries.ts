@@ -36,7 +36,7 @@ export interface SalesActivityResponse {
 export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): string => {
   return `
     query GetSalesActivities($accountId: uuid!) {
-      SalesActivity(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
+      SalesActivity(where: {account: {id: {_eq: $accountId}}, isDeleted: {_eq: false}}) {
         id
         title
         version

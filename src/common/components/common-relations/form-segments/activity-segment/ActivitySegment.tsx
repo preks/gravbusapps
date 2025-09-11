@@ -189,6 +189,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     const found = map.find((m) => m.id);
     if (found?.id) {
       form.setValue(found.key, { id: found.id });
+      form.setValue('relatedEntityId', found.id);
     }
   }, [showEntitySelection, initialEntityFromContext, form]);
 
@@ -346,6 +347,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                       form.setValue('lead', undefined);
                       if (e) {
                         form.setValue(e.type, { id: e.id });
+                        form.setValue('relatedEntityId', e.id);
                       }
                     }
                   }}

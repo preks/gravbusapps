@@ -91,3 +91,13 @@ export const DEDUCTION_KEYS = {
   DINNER: 'dinner',
   OVERNIGHT: 'overnight'
 };
+
+export const REQUEST_STATUS = {
+  CREATED: "CREATED",
+} as const;
+
+export const DEFAULT_ITEM_LIST_LIMIT = 3;
+export const DEFAULT_CURRENCY_FALLBACK = "RON" as const;
+
+export const SUMMARY_SCREEN_ITEM_LIST_LIMIT = 4;
+export const PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT = 4;

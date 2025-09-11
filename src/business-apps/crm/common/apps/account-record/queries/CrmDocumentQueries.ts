@@ -26,7 +26,7 @@ export interface CrmDocumentResponse {
 export const GET_CRM_DOCUMENTS = (variables: CrmDocumentQueryVariables): string => {
   return `
     query GetCrmDocuments($accountId: uuid!) {
-      CrmDocument(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
+      CrmDocument(where: {account: {id: {_eq: $accountId}}, isDeleted: {_eq: false}}) {
         version
         id
         name

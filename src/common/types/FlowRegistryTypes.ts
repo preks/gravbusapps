@@ -106,6 +106,7 @@ export enum FlowContextName {
   createInvestment = "investmentCreate", // TODO: Obsolete
   investmentCreate = "investmentCreate", // TODO: Replace startProcess
   investmentEntity = "investmentEntity",
+  investmentTileUpdate = "investmentTileUpdate",
 
   equityInvestmentEntity = "equityInvestmentEntity", // TODO: Check
   privateEquityInvestmentEntity = "privateEquityInvestmentEntity", // TODO: Check

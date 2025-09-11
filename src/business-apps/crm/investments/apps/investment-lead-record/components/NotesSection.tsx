@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal, Input } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { NoteDeletionPopup } from '@/common/components';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action/AppAction';
@@ -269,9 +270,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
             deferMainContextRequestsUntilClick
           >
             <Button
-              type="primary"
+              variant="default"
               icon={<PlusCircleOutlined />}
-              className="gba:bg-blue-600 gba:hover:bg-blue-700"
             >
               Add Note
             </Button>

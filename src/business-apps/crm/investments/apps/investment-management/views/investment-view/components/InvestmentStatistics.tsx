@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import {
   DollarOutlined,
@@ -35,6 +35,62 @@ const calculateChange = (current: number, previous: number): { value: string; po
 
 export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...context }) => {
   const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context);
+
+  // Listen for process completion events to refresh statistics
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('InvestmentStatistics: Process completion event received:', event.type);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('InvestmentStatistics: Process completed successfully, refreshing statistics');
+          refetch();
+          return;
+        }
+        
+        // Check for different event structures
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || response?.investment) {
+          console.log('InvestmentStatistics: Investment data detected, refreshing statistics');
+          refetch();
+          return;
+        }
+        
+        // Check for continue events with payload (investment creation/update)
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('InvestmentStatistics: Continue event with payload detected, refreshing statistics');
+          refetch();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in InvestmentStatistics:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [refetch]);
 
   const { totalInvestments, totalInvested, averageStakePercentage, totalMarketValue } = useMemo(() => {
     return {

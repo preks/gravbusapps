@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES } from '../queries/distinctCurrencies';
-import { extractCurrencyCode } from '../utils/currencyUtils';
-import { useCurrencyStore } from '../store/useCurrencyStore';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES } from "../queries/distinctCurrencies";
+import { extractCurrencyCode } from "../utils/currencyUtils";
+import { useCurrencyStore } from "../store/useCurrencyStore";
 
 interface UseAdvancePaymentCurrenciesProps {
   accessToken: string;
@@ -20,78 +20,128 @@ interface UseAdvancePaymentCurrenciesReturn {
 /**
  * Hook to fetch distinct currencies used in advance payments
  */
-export const useAdvancePaymentCurrencies = ({ 
-  accessToken, 
-  managerId 
+export const useAdvancePaymentCurrencies = ({
+  accessToken,
+  managerId,
 }: UseAdvancePaymentCurrenciesProps): UseAdvancePaymentCurrenciesReturn => {
   // Use the global currency store for centralized state management
-  const { 
-    availableCurrencies: storeCurrencies, 
+  const {
+    availableCurrencies: storeCurrencies,
     setAvailableCurrencies,
     isInitialized: storeInitialized,
     setInitialized,
-    mostUsedCurrency
+    mostUsedCurrency,
   } = useCurrencyStore();
-  
+
   // Local state for component-specific data
   const [localCurrencies, setLocalCurrencies] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(!storeInitialized); // Start with loading only if store is not initialized
   const [error, setError] = useState<Error | null>(null);
   const [localInitialized, setLocalInitialized] = useState<boolean>(false);
-  
+
   const graphQLClient = useGraphQLClient(accessToken);
-  
+
   // Function to fetch currencies from the API
   const fetchCurrencies = useCallback(async () => {
     if (!accessToken || !managerId) return;
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      const response = await graphQLClient.request(GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES, {
-        managerId
-      });
-      
+
+      const response = await graphQLClient.request(
+        GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES,
+        {
+          managerId,
+        }
+      );
+
       // Extract currency codes from currency references and filter for distinct values
       const currencyCodes = (response?.AdvancePayment || [])
         .map((item: any) => extractCurrencyCode(item.currencyRef))
         .filter(Boolean) as string[];
-      
-      // Add default currencies if they don't exist in the data
-      const defaultCurrencies = ['EUR', 'USD'];
-      
-      // Create a unique set of currency codes to handle the lack of distinct_on in GraphQL
-      const uniqueCurrencies = Array.from(new Set([
-        ...currencyCodes,
-        ...defaultCurrencies
-      ])).sort();
-      
-      // Log the currencies found for debugging
-      console.log('Advance payment currencies fetched:', {
-        fromAPI: currencyCodes,
-        combined: uniqueCurrencies,
-        storeInitialized
+
+      console.log("Raw response:", response?.AdvancePayment);
+      console.log("Extracted currency codes:", currencyCodes);
+
+      // Calculate most used currency based on frequency
+      const currencyFrequency: { [key: string]: number } = {};
+      currencyCodes.forEach((currency) => {
+        currencyFrequency[currency] = (currencyFrequency[currency] || 0) + 1;
       });
-      
+
+      console.log("Currency frequency:", currencyFrequency);
+
+      // Find the most used currency
+      let mostUsedCurrency = null;
+      let maxFrequency = 0;
+      Object.entries(currencyFrequency).forEach(([currency, frequency]) => {
+        if (frequency > maxFrequency) {
+          maxFrequency = frequency;
+          mostUsedCurrency = currency;
+        }
+      });
+
+      console.log(
+        "Most used currency:",
+        mostUsedCurrency,
+        "with frequency:",
+        maxFrequency
+      );
+
+      // Add default currencies if they don't exist in the data
+      const defaultCurrencies = ["EUR", "USD"];
+
+      // Create a unique set of currency codes to handle the lack of distinct_on in GraphQL
+      const uniqueCurrencies = Array.from(
+        new Set([...currencyCodes, ...defaultCurrencies])
+      ).sort();
+
       // Update both local state and global store
       setLocalCurrencies(uniqueCurrencies);
       setAvailableCurrencies(uniqueCurrencies);
+
+      // Set the most used currency in the store
+      if (mostUsedCurrency) {
+        console.log("Setting most used currency in store:", mostUsedCurrency);
+        useCurrencyStore.getState().setMostUsedCurrency(mostUsedCurrency);
+
+        // Check what the store state is after setting
+        const storeState = useCurrencyStore.getState();
+        console.log("Store state after setting most used currency:", {
+          primaryCurrency: storeState.primaryCurrency,
+          mostUsedCurrency: storeState.mostUsedCurrency,
+          isUserSelected: storeState.isUserSelected,
+          isInitialized: storeState.isInitialized,
+        });
+      }
+
       setLocalInitialized(true);
       setInitialized(true);
     } catch (err) {
-      console.error('Error fetching advance payment currencies:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch advance payment currencies'));
-      
+      console.error("Error fetching advance payment currencies:", err);
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Failed to fetch advance payment currencies")
+      );
+
       // Fallback to default currencies on error
-      const fallbackCurrencies = ['EUR', 'USD'];
+      const fallbackCurrencies = ["EUR", "USD"];
       setLocalCurrencies(fallbackCurrencies);
       setAvailableCurrencies(fallbackCurrencies);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, managerId, graphQLClient, setAvailableCurrencies, setInitialized, storeInitialized]);
-  
+  }, [
+    accessToken,
+    managerId,
+    graphQLClient,
+    setAvailableCurrencies,
+    setInitialized,
+    storeInitialized,
+  ]);
+
   // Effect to fetch currencies on mount or when dependencies change
   useEffect(() => {
     // If the store is already initialized, use its data and skip fetching
@@ -101,7 +151,7 @@ export const useAdvancePaymentCurrencies = ({
       setIsLoading(false);
       return;
     }
-    
+
     // Only fetch if we have credentials and haven't initialized yet
     if (accessToken && managerId && !localInitialized) {
       fetchCurrencies();
@@ -109,28 +159,45 @@ export const useAdvancePaymentCurrencies = ({
       // Reset loading state if we don't have required props
       setIsLoading(false);
     }
-  }, [accessToken, managerId, localInitialized, fetchCurrencies, storeInitialized, storeCurrencies]);
-  
+  }, [
+    accessToken,
+    managerId,
+    localInitialized,
+    fetchCurrencies,
+    storeInitialized,
+    storeCurrencies,
+  ]);
+
   // Combine local currencies with store currencies for the most complete list
   const combinedCurrencies = useMemo(() => {
     // Combine all available currencies from both sources
-    const allCurrencies = Array.from(new Set([
-      ...localCurrencies,
-      ...storeCurrencies,
-      // Always include the most used currency if available
-      ...(mostUsedCurrency ? [mostUsedCurrency] : []),
-      // Always include these fallback currencies
-      'EUR', 'USD'
-    ])).sort();
-    
+    const allCurrencies = Array.from(
+      new Set([
+        ...localCurrencies,
+        ...storeCurrencies,
+        // Always include the most used currency if available
+        ...(mostUsedCurrency ? [mostUsedCurrency] : []),
+        // Always include these fallback currencies
+        "EUR",
+        "USD",
+      ])
+    ).sort();
+
+    console.log("Combined currencies calculation:", {
+      localCurrencies,
+      storeCurrencies,
+      mostUsedCurrency,
+      allCurrencies,
+    });
+
     return allCurrencies;
   }, [localCurrencies, storeCurrencies, mostUsedCurrency]);
-  
+
   return {
     availableCurrencies: combinedCurrencies,
     isLoading: isLoading && !storeInitialized, // Only show loading if both local and store are not ready
     error,
     refetch: fetchCurrencies,
-    isInitialized: localInitialized || storeInitialized
+    isInitialized: localInitialized || storeInitialized,
   };
 };

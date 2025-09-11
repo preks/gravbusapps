@@ -61,6 +61,7 @@ export interface BaseInvestment extends BaseEntity {
 
   fundManagerName?: string;
   identification?: any; // Jsonb
+  additionalProperties?: any; // Jsonb - stores custom tile data and other additional information
 }
 
 // investment_role table

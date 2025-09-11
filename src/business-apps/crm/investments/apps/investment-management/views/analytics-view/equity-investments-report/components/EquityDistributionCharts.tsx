@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import {
   PieChart,
@@ -66,11 +66,22 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
     return currencies.filter(currency => currency).sort();
   }, [rawInvestments]);
 
-  // Currency filters for value charts - dynamic initialization
-  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
-  const [stakeTypeCurrencyFilter, setStakeTypeCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
-  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useState(() => availableCurrencies[0] || 'EUR');
+  // Currency filters for value charts
+  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR');
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState('EUR');
+  const [stakeTypeCurrencyFilter, setStakeTypeCurrencyFilter] = useState('EUR');
+  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useState('EUR');
+
+  // Update currency filters when currencies become available
+  useEffect(() => {
+    if (availableCurrencies.length > 0) {
+      const defaultCurrency = availableCurrencies[0];
+      setRoleCurrencyFilter(defaultCurrency);
+      setStatusCurrencyFilter(defaultCurrency);
+      setStakeTypeCurrencyFilter(defaultCurrency);
+      setInvestmentTypeCurrencyFilter(defaultCurrency);
+    }
+  }, [availableCurrencies]);
 
   // Set default currency if available
   React.useEffect(() => {
@@ -169,7 +180,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
 
   return (
     <>
-      {/* Investment Role Distribution - Side by Side */}
+      {/* Role Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -177,8 +188,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Role Distribution by Count</CardTitle>
-                  <CardDescription>Distribution of equity investments by investment role</CardDescription>
+                  <CardTitle>Role Distribution by Count</CardTitle>
+                  <CardDescription>Distribution of equity positions by role</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -217,7 +228,28 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                     );
                   })}
             </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.type}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
             </ChartContainer>
@@ -230,8 +262,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Role Distribution by Total Amount ({roleCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount by investment role</CardDescription>
+                  <CardTitle>Role Distribution by Total Amount ({roleCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount by role</CardDescription>
                 </div>
               </div>
               <Select value={roleCurrencyFilter} onValueChange={setRoleCurrencyFilter}>
@@ -274,10 +306,26 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               ))}
             </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, roleCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.role}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, roleCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
@@ -286,7 +334,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       </Card>
       </div>
 
-      {/* Investment Status Distribution - Side by Side */}
+      {/* Status Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -294,8 +342,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartDonutIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Status Distribution by Count</CardTitle>
-                  <CardDescription>Distribution of equity investments by status</CardDescription>
+                  <CardTitle>Status Distribution by Count</CardTitle>
+                  <CardDescription>Distribution of equity positions by status</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -334,7 +382,28 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                     );
                   })}
             </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.type}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
             </ChartContainer>
@@ -347,8 +416,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Status Distribution by Total Amount ({statusCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount by investment status</CardDescription>
+                  <CardTitle>Status Distribution by Total Amount ({statusCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount by status</CardDescription>
                 </div>
               </div>
               <Select value={statusCurrencyFilter} onValueChange={setStatusCurrencyFilter}>
@@ -391,10 +460,26 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               ))}
             </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, statusCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.status}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, statusCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
@@ -403,7 +488,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       </Card>
       </div>
 
-      {/* Investment Stake Type Distribution - Side by Side */}
+      {/* Stake Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -411,8 +496,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={PercentIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Stake Type Distribution by Count</CardTitle>
-                  <CardDescription>Distribution of equity investments by stake percentage</CardDescription>
+                  <CardTitle>Stake Type Distribution by Count</CardTitle>
+                  <CardDescription>Distribution of equity positions by stake percentage</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -451,7 +536,29 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                     );
                   })}
               </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.type}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} positions
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
             </PieChart>
             </ChartContainer>
@@ -464,8 +571,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Stake Type Distribution by Total Amount ({stakeTypeCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount by stake percentage</CardDescription>
+                  <CardTitle>Stake Type Distribution by Total Amount ({stakeTypeCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount by stake percentage</CardDescription>
                 </div>
               </div>
               <Select value={stakeTypeCurrencyFilter} onValueChange={setStakeTypeCurrencyFilter}>
@@ -516,10 +623,27 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, stakeTypeCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const stakeKey = data.payload.stakeType.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${stakeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.stakeType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, stakeTypeCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -528,7 +652,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
         </Card>
       </div>
 
-      {/* Investment Type Distribution - Side by Side */}
+      {/* Equity Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -536,8 +660,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Type Distribution by Count</CardTitle>
-                  <CardDescription>Distribution of equity investments by investment type</CardDescription>
+                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardDescription>Distribution of equity positions by type</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -576,7 +700,29 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                     );
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.type}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -589,8 +735,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Type Distribution by Total Amount ({investmentTypeCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount by investment type</CardDescription>
+                  <CardTitle>Type Distribution by Total Amount ({investmentTypeCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount by type</CardDescription>
                 </div>
               </div>
               <Select value={investmentTypeCurrencyFilter} onValueChange={setInvestmentTypeCurrencyFilter}>
@@ -641,10 +787,27 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                   })}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, investmentTypeCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const typeKey = data.payload.investmentType.toLowerCase().replace(/\s+/g, '');
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.investmentType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, investmentTypeCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>

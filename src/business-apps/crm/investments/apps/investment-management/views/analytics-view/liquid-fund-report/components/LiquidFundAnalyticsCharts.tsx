@@ -74,7 +74,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
           <div className="gba:flex gba:items-center gba:gap-3">
             <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
             <div>
-              <CardTitle>Interest Rate vs Investment Amount Correlation for Fixed-Term Deposits</CardTitle>
+              <CardTitle>Interest Rate vs Amount Correlation for Fixed-Term Deposits</CardTitle>
               <CardDescription>Correlation between interest rates and investment amounts for fixed-term deposits</CardDescription>
             </div>
           </div>
@@ -98,7 +98,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                 type="number"
                 dataKey="investmentAmount"
                 name="Investment Amount"
-                tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
                 content={<ChartTooltipContent 
@@ -106,7 +106,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                     if (name === 'interestRate') {
                       return [`${value}%`, 'Interest Rate'];
                     }
-                    return [formatCurrency(value as number, 'EUR'), 'Investment Amount'];
+                    return [formatCurrency(value as number), 'Investment Amount'];
                   }}
                   labelFormatter={() => ''}
                 />} 
@@ -150,7 +150,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
               <YAxis 
                 yAxisId="right"
                 orientation="right"
-                tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
                 content={<ChartTooltipContent 
@@ -158,7 +158,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                     if (name === 'averageinterestrate') {
                       return [`${(value as number).toFixed(2)}%`, 'Average Interest Rate'];
                     }
-                    return [formatCurrency(value as number, 'EUR'), 'Average Investment Amount'];
+                    return [formatCurrency(value as number), 'Average Investment Amount'];
                   }}
                 />} 
               />

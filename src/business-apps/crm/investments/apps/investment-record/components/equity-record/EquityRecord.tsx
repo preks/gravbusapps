@@ -5,14 +5,11 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useEquityRecordData } from './hooks/useEquityRecordData';
 import {
   InvestmentDetailsHeader,
-  KeyMetrics,
-  EquityDetails,
   EquityInvestmentReports,
   EquityHistoricalDataTable,
-  InvestmentRounds,
-  InvestmentSections
+  InvestmentRounds
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments } from '../shared';
+import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -117,10 +114,14 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Three Information Sections */}
-            <InvestmentSections 
-              equityData={equityData}
+            {/* Investment Tile Section */}
+            <InvestmentTileSection 
+              investment={equityData?.investment}
               isLoading={isLoading}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              additionalData={props.additionalData}
+              data-testid="equity-record-tiles"
             />
 
             {/* Investment Rounds Table */}
@@ -162,13 +163,7 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
               </div>
               <UploadReportButton
                 investmentId={equityData?.investment?.id}
-                onUploadSuccess={(fileIds) => {
-                  console.log('Upload successful, file IDs:', fileIds);
-                  // Could trigger refresh of reports here if needed
-                }}
                 accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                additionalData={props.additionalData}
               />
             </div>
 

@@ -1,80 +1,71 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardTitle, CardContent, Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
 import { useGetAccountById } from '@/business-apps/crm/common/apps/account-record/queries/GetAccountByIdQueries';
+import { PiBank, PiGear, PiGlobe, PiPhone, PiUsers, PiCurrencyDollar, PiMapPin, PiCaretLeft, PiCaretRight } from 'react-icons/pi';
 
 interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   accountId?: string;
   accountData?: any;
   account?: any;
   accounts?: any[];
+  className?: string;
   'data-testid'?: string;
 }
 
-const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData, account, accounts, ...props }) => {
+const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData, account, accounts, className = '', ...props }) => {
   const accountList = useMemo(() => {
     const arr = Array.isArray(accounts) ? accounts.filter(Boolean) : [];
     return arr;
   }, [accounts]);
 
   const hasMultiple = accountList.length > 1;
-  const initialSelected: any | null = account || (accountList.length === 1 ? accountList[0] : null);
-  const [mode, setMode] = useState<'list' | 'detail'>(hasMultiple ? 'list' : 'detail');
+  const initialSelected: any | null = account || (accountList.length > 0 ? accountList[0] : null);
   const [selectedAccount, setSelectedAccount] = useState<any | null>(initialSelected);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  const handleSelect = (a: any) => {
-    setSelectedAccount(a);
-    setMode('detail');
+  // Update selected account when accountList changes
+  useEffect(() => {
+    if (accountList.length > 0 && !selectedAccount) {
+      setSelectedAccount(accountList[0]);
+      setCurrentIndex(0);
+    }
+  }, [accountList, selectedAccount]);
+
+  // Carousel navigation
+  const handlePrevious = () => {
+    if (hasMultiple) {
+      const newIndex = currentIndex > 0 ? currentIndex - 1 : accountList.length - 1;
+      setCurrentIndex(newIndex);
+      setSelectedAccount(accountList[newIndex]);
+    }
   };
 
-  const handleBackToList = () => {
-    setMode('list');
+  const handleNext = () => {
+    if (hasMultiple) {
+      const newIndex = currentIndex < accountList.length - 1 ? currentIndex + 1 : 0;
+      setCurrentIndex(newIndex);
+      setSelectedAccount(accountList[newIndex]);
+    }
   };
+
+  // Use the correct account data source
+  const displayAccount = hasMultiple ? selectedAccount : (accountData || account || initialSelected);
 
   return (
     <div data-testid={props['data-testid'] || 'account-section'} className="gba:w-full">
-      {mode === 'list' ? (
-        <Card className="gba:w-full gba:h-full">
-          <CardHeader>
-            <CardTitle>Accounts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div data-testid="accounts-list" role="list" className="gba:flex gba:flex-col gba:items-start gba:gap-2 gba:text-left">
-              {accountList.map((a) => {
-                const display = a.name || '-';
-                const initials = `${(a.name || '').split(' ').map((s:any)=>s.charAt(0)).join('').slice(0,2)}`.toUpperCase() || '?';
-                const rawSrc = (a as any).logoUrl || (a as any).pictureThumbnail || (a as any).avatar;
-                const src = rawSrc ? (String(rawSrc).startsWith('data:') || String(rawSrc).startsWith('http') ? String(rawSrc) : `data:image/jpeg;base64,${rawSrc}`) : undefined;
-                return (
-                  <button
-                    key={a.id}
-                    data-testid={`accounts-list-item-${a.id}`}
-                    onClick={() => handleSelect(a)}
-                    className="gba:flex gba:items-center gba:gap-2"
-                  >
-                    <Avatar className="gba:h-8 gba:w-8">
-                      {src ? <AvatarImage src={src} alt={display} /> : <AvatarFallback>{initials || '?'}</AvatarFallback>}
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col gba:items-start">
-                      <div>{display}</div>
-                      {a.website ? <div className="gba:opacity-80">{a.website}</div> : a.phone ? <div className="gba:opacity-80">{a.phone}</div> : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <AccountCompanyInformation 
-          accountId={accountId}
-          accountData={selectedAccount || accountData}
-          account={selectedAccount || account}
-          context={props as BusinessAppContextProps}
-          canGoBack={accountList.length > 1}
-          onBack={handleBackToList}
-        />
-      )}
+      <AccountCompanyInformation
+        account={displayAccount}
+        accountData={accountData}
+        accountId={accountId}
+        context={props as BusinessAppContextProps}
+        hasMultiple={hasMultiple}
+        currentIndex={currentIndex}
+        totalCount={accountList.length}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        className={className}
+      />
     </div>
   );
 };
@@ -87,8 +78,12 @@ interface InlinedCompanyInformationProps {
   accountData?: any;
   accountId?: string;
   context?: BusinessAppContextProps;
-  canGoBack?: boolean;
-  onBack?: () => void;
+  hasMultiple?: boolean;
+  currentIndex?: number;
+  totalCount?: number;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  className?: string;
 }
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({ 
@@ -96,12 +91,14 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   accountData: providedAccountData, 
   accountId,
   context,
-  canGoBack,
-  onBack
+  hasMultiple,
+  currentIndex = 0,
+  totalCount = 1,
+  onPrevious,
+  onNext,
+  className = ''
 }) => {
   const [fetchedAccountData, setFetchedAccountData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
   const { fetchAccountById } = context ? useGetAccountById(context) : { fetchAccountById: null } as any;
   
@@ -110,15 +107,12 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   useEffect(() => {
     if (!providedAccountData && accountId && fetchAccountById) {
       const loadAccountData = async () => {
-        setLoading(true);
-        setError(null);
         try {
           const result = await fetchAccountById({ id: accountId });
           setFetchedAccountData(result.Account?.[0] || null);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load account data');
-        } finally {
-          setLoading(false);
+          console.error('Failed to load account data:', err);
+          setFetchedAccountData(null);
         }
       };
       
@@ -126,152 +120,166 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
     }
   }, [providedAccountData, accountId, fetchAccountById]);
 
-  if (loading) {
-    return (
-      <Card className="gba:w-full gba:h-full">
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:text-center gba:py-10">
-            <Spinner size="lg" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="gba:w-full gba:h-full">
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <div className="gba:font-medium">Error Loading Company Information</div>
-            <div className="gba:text-sm gba:mt-1">{error}</div>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  const cardClassName = `gba:w-full ${className}`.trim();
+  
   return (
-    <Card className="gba:w-full gba:h-full">
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle>Account Information</CardTitle>
-          {canGoBack ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              data-testid="accounts-back-to-list-button"
-            >
-              Back to Accounts
-            </Button>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div style={{ marginBottom: '24px' }}>
-          {/* Company details grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px' }}>
-            {/* Left Column */}
-            <div>
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Name</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.name || account?.name || '-'}
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Legal Form</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.legalForm?.value || account?.legalForm || '-'}
-                </div>
-              </div>
-              
-              
-              
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.industry?.value || account?.industry || '-'}
-                </div>
-              </div>
-              
-              <div>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.addressLine || '-'}
-                </div>
-              </div>
+    <Card className={cardClassName}>
+      <CardHeader className="gba:flex gba:items-center gba:justify-between">
+
+          <CardTitle className="gba:text-base">
+            Account Information
+            {hasMultiple && (
+              <span className="gba:text-xs gba:opacity-60 gba:ml-2">
+                {currentIndex + 1} of {totalCount}
+              </span>
+            )}
+          </CardTitle>
+          {hasMultiple && (
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onPrevious}
+                data-testid="accounts-carousel-prev"
+                className="gba:p-1 gba:h-6 gba:w-6"
+              >
+                <PiCaretLeft style={{ fontSize: '12px' }} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onNext}
+                data-testid="accounts-carousel-next"
+                className="gba:p-1 gba:h-6 gba:w-6"
+              >
+                <PiCaretRight style={{ fontSize: '12px' }} />
+              </Button>
             </div>
-            
-            {/* Right Column */}
-            <div>
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Website</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {(() => {
-                    const website = accountData?.website || account?.website;
-                    if (!website) return '-';
-                    
-                    const fullUrl = website.includes('://') ? website : `https://${website}`;
-                    return (
-                      <a 
-                        href={fullUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: '#3b82f6', textDecoration: 'none' }}
-                      >
-                        {website}
-                      </a>
-                    );
-                  })()}
-                </div>
+          )}
+      </CardHeader>
+      <CardContent className="gba:pt-0 gba:pb-4 gba:px-4">
+        {/* Company details with carousel navigation - v4.0 */}
+        <div>
+          {/* Company Name */}
+          <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Show company logo if available, otherwise show icon */}
+            {(accountData?.logoUrl || account?.logoUrl) ? (
+              <Avatar className="gba:h-7 gba:w-7">
+                <AvatarImage src={accountData?.logoUrl || account?.logoUrl} alt="Company logo" />
+                <AvatarFallback>
+                  <PiBank style={{ fontSize: '14px' }} />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="gba:h-7 gba:w-7 gba:flex gba:items-center gba:justify-center gba:bg-orange-50 gba:rounded-full">
+                <PiBank 
+                  style={{ fontSize: '14px', color: '#ea580c' }} 
+                  title="Company name"
+                />
               </div>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {(() => {
-                    const phone = accountData?.phone || account?.phone;
-                    if (!phone) return '-';
-                    
-                    return (
-                      <a 
-                        href={`tel:${phone}`} 
-                        style={{ color: '#3b82f6', textDecoration: 'none' }}
-                        data-testid="account-phone-link"
-                      >
-                        {phone}
-                      </a>
-                    );
-                  })()}
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Employees</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size || '-'}
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }} data-testid="account-revenue-value">
-                  {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue || '-'}
-                </div>
-              </div>
-              
-              
+            )}
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+              {accountData?.name || account?.name || '-'}
             </div>
           </div>
+
+          {/* Legal Form and Industry combined */}
+          {((accountData?.legalForm?.value || account?.legalForm) || (accountData?.industry?.value || account?.industry)) && (
+            <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiGear 
+              style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+              title="Legal form and industry"
+            />
+              <div style={{ fontSize: '13px', fontWeight: '500', color: '#111827' }}>
+                {[
+                  accountData?.legalForm?.value || account?.legalForm,
+                  accountData?.industry?.value || account?.industry
+                ].filter(Boolean).join(' • ')}
+              </div>
+            </div>
+          )}
+
+          {/* Contact info row */}
+          <div style={{ marginBottom: '6px', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px' }}>
+            {(accountData?.website || account?.website) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PiGlobe 
+                  style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+                  title="Company website"
+                />
+                {(() => {
+                  const website = accountData?.website || account?.website;
+                  const fullUrl = website.includes('://') ? website : `https://${website}`;
+                  return (
+                    <a 
+                      href={fullUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#3b82f6', textDecoration: 'none' }}
+                    >
+                      {website}
+                    </a>
+                  );
+                })()}
+              </div>
+            )}
+            
+            {(accountData?.phone || account?.phone) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                 <PiPhone 
+                   style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+                   title="Phone number"
+                 />
+                <a 
+                  href={`tel:${accountData?.phone || account?.phone}`} 
+                  style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  data-testid="account-phone-link"
+                >
+                  {accountData?.phone || account?.phone}
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Stats row */}
+          <div style={{ marginBottom: accountData?.addressLine ? '6px' : '0', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', color: '#6b7280' }}>
+            {(accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PiUsers 
+                  style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+                  title="Number of employees"
+                />
+                <span style={{ color: '#111827', fontWeight: '500' }}>
+                  {accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size}
+                </span>
+              </div>
+            )}
+            
+            {(accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PiCurrencyDollar 
+                  style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+                  title="Annual revenue"
+                />
+                <span style={{ color: '#111827', fontWeight: '500' }} data-testid="account-revenue-value">
+                  {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Address */}
+          {accountData?.addressLine && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <PiMapPin 
+                style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
+                title="Company address"
+              />
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                {accountData.addressLine}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
