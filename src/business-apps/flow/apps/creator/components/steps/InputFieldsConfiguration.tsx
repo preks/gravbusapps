@@ -175,7 +175,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 </div>
                 
                 {(input.options || []).map((option: any, optionIndex: number) => (
-                  <div key={`option-${index}-${optionIndex}-${option.value || optionIndex}`} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
+                  <div key={`option-${index}-${optionIndex}`} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
                     <Input
                       value={option.label || ''}
                       onChange={(e) => handleUpdateOption(index, optionIndex, 'label', e.target.value)}

@@ -523,7 +523,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           navigateTo('/platform/apps/flow/apps/creator#create');
           break;
         case 'navigate-flow-launcher':
-          navigateTo('/platform/apps/flow/apps/launcher#launch');
+          navigateTo('/platform/apps/flow/apps/launcher');
           break;
         case 'navigate-flow-success':
           navigateTo('/platform/apps/flow/apps/success');
@@ -540,7 +540,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         'active-tasks': '/platform/apps/flow/apps/inbox?tab=open',
         'my-flows': '/platform/apps/flow/apps/inbox?tab=open',
         'flow-creator': '/platform/apps/flow/apps/creator#create',
-        'flow-launcher': '/platform/apps/flow/apps/launcher#launch',
+        'flow-launcher': '/platform/apps/flow/apps/launcher',
         'completed': '/platform/apps/flow/apps/success',
         'flow-success': '/platform/apps/flow/apps/success',
         'flow-guardian': '/platform/apps/flow/apps/guardian'
@@ -580,15 +580,15 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         navigateTo('/platform/apps/flow/apps/creator#manage');
         return;
       case 'templates-launch':
-        navigateTo('/platform/apps/flow/apps/launcher#launch');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
 
       // Launcher
       case 'launcher-launch':
-        navigateTo('/platform/apps/flow/apps/launcher#launch');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
       case 'launcher-simulate':
-        navigateTo('/platform/apps/flow/apps/launcher#simulate');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
 
       // Flow Success tabs via hash-based navigation
@@ -626,7 +626,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
 
     switch (action.action) {
       case 'start-workflow':
-        navigateTo('/platform/apps/flow/apps/creator#create');
+        navigateTo('/platform/apps/flow/apps/launcher');
         break;
       case 'create-template':
         navigateTo('/platform/apps/flow/apps/creator#create');

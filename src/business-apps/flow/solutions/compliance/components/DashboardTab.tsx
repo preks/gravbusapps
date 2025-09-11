@@ -117,7 +117,16 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
   // If a flow is selected, show the flow detail view
   if (selectedFlowId) {
     return (
-      <div className="gba:space-y-6" data-testid="compliance-flow-detail-view">
+      <div
+        className="gba:space-y-6"
+        data-testid="compliance-flow-detail-view"
+        style={{
+          backgroundColor: 'var(--color-surface-secondary)',
+          padding: 'var(--spacing-lg)',
+          borderRadius: 'var(--border-radius-lg)',
+          border: 'var(--border-width-thin) solid var(--color-border-default)'
+        }}
+      >
         {/* Back button */}
         <div className="gba:flex gba:items-center gba:gap-3 gba:mb-6">
           <Button
@@ -132,14 +141,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
               "Back to Dashboard",
             )}
           </Button>
-          <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Flow Details</h1>
-            <p className="gba:text-gray-600">Compliance Flow #{selectedFlowId.slice(0, 8)}</p>
-          </div>
         </div>
 
         {/* Flow Detail Component */}
-        <FlowDetailView {...context} flowId={selectedFlowId} />
+        <FlowDetailView 
+          {...context}
+          flowId={selectedFlowId}
+          showBackButton={false}
+        />
       </div>
     );
   }
