@@ -67,7 +67,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     createEmployeeSpecialLeave: "AbsenceType:v1:A050",
   };
   const mappedParentType = processName && processToParentAbsenceTypeMap[processName];
-  const absenceType = mappedParentType ||  "";
+  const absenceType = mappedParentType || "";
 
   const [employees, setEmployees] = useState<Employee[]>([]);
 
