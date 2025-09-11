@@ -149,6 +149,13 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
             ),
           },
           {
+            key: "status",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_list.expense_plan_table.status",
+              "Status",
+            ),
+          },
+          {
             key: "employeeName",
             title: getTranslationFromI18nKeyAndLabel(
               "lowcoder:hr_absences.create_absence.employee",
