@@ -213,4 +213,19 @@ export interface OpportunityMetrics {
   winRate: number;
   averageDealSize: number;
   pipelineVelocity: number;
-} 
+}
+
+// Default export for wrapper compatibility
+export default {
+  Note,
+  OpportunityStage,
+  Contact,
+  Account,
+  Opportunity,
+  OpportunityActivity,
+  OpportunityTask,
+  Competitor,
+  OpportunityProduct,
+  ReferenceData,
+  OpportunityMetrics,
+}; 

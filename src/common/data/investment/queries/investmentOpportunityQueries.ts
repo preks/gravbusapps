@@ -14,6 +14,9 @@ export interface InvestmentOpportunityQueryVariables {
   currencyIds?: string[];
   ownerEmployeeIds?: string[];
   forecastedProfitBetween?: [number, number];
+  // Date filters
+  createdAfter?: string;
+  createdBefore?: string;
   closeDateFrom?: string;
   closeDateTo?: string;
   limit?: number;
@@ -71,6 +74,15 @@ export const buildInvestmentOpportunityWhereCondition = (variables: InvestmentOp
 
   if (variables.forecastedProfitBetween) {
     whereClause += `, forecastedProfitAmount: { _gte: ${variables.forecastedProfitBetween[0]}, _lte: ${variables.forecastedProfitBetween[1]} }`;
+  }
+
+  // Created At range
+  if (variables.createdAfter) {
+    whereClause += `, createdAt: { _gte: "${variables.createdAfter}" }`;
+  }
+
+  if (variables.createdBefore) {
+    whereClause += `, createdAt: { _lte: "${variables.createdBefore}" }`;
   }
 
   if (variables.closeDateFrom) {

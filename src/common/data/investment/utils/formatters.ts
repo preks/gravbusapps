@@ -92,7 +92,6 @@ export const getStatusColor = (status: string): string => {
     case 'error':
     case 'failed':
     case 'rejected':
-    case 'cancelled':
       return 'gba:bg-red-100 gba:text-red-800';
       
     // Special states - Purple
