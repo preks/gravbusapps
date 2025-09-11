@@ -98,6 +98,64 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
     );
   }, [loadPage, currentPage, searchTerm, sortField, sortOrder, selectedFilters, closeAfter, closeBefore]);
 
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('Sales: Process completion event received:', event.type);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('Sales: Process completed successfully, refreshing sales data');
+          loadPage(currentPage, pageSize);
+          return;
+        }
+        
+        // Check for different event structures
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || 
+            response?.opportunity || 
+            response?.investment) {
+          console.log('Sales: Opportunity/Investment data detected, refreshing sales list');
+          loadPage(currentPage, pageSize);
+          return;
+        }
+        
+        // Check for continue events with payload
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('Sales: Continue event with payload detected, refreshing data');
+          loadPage(currentPage, pageSize);
+        }
+      } catch (err) {
+        console.error('Error handling process completion in Sales:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [loadPage, currentPage, pageSize]);
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");

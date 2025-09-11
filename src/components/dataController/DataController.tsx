@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import {
   PiFunnelSimple,
@@ -123,7 +129,10 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   filter = [],
   setFilter,
   filterLabelMap,
-  placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
+  placeholder = getTranslationFromI18nKeyAndLabel(
+    "lowcoder:employee_list.employee_report_filter.job_search",
+    "Search"
+  ) + "...",
   listTitle,
   listIcon,
   listAmount,
@@ -136,16 +145,16 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   const [localSearch, setLocalSearch] = useState(search);
   const [showSearchInput, setShowSearchInput] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   // Local state for immediate UI feedback
   // Keep local search in sync with external changes to search prop
   useEffect(() => {
     setLocalSearch(search || "");
   }, [search]);
-  
+
   // Use the useDebounce hook to debounce the local search value
   const debouncedSearch = useDebounce(localSearch, debounceDelay);
-  
+
   // Call setSearch only when the debounced value changes and differs from current search
   useEffect(() => {
     // Only update if the debounced value differs from the current search prop
@@ -154,7 +163,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       setSearch(debouncedSearch);
     }
   }, [debouncedSearch, search, setSearch]);
-  
+
   // Simple handler for input changes - updates local state immediately
   const handleSearchChange = useCallback((value: string) => {
     setLocalSearch(value);
@@ -167,47 +176,60 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   }, [showSearchInput]);
 
   // Helper function to format date range labels
-  const formatDateRangeLabel = useCallback((createdAfter?: string, createdBefore?: string): string => {
-    if (createdAfter && createdBefore) {
-      const startDate = new Date(createdAfter).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      const endDate = new Date(createdBefore).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      return `${startDate} - ${endDate}`;
-    } else if (createdAfter) {
-      const startDate = new Date(createdAfter).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      return `after ${startDate}`;
-    } else if (createdBefore) {
-      const endDate = new Date(createdBefore).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-      return `before ${endDate}`;
-    }
-    return '';
-  }, []);
+  const formatDateRangeLabel = useCallback(
+    (createdAfter?: string, createdBefore?: string): string => {
+      if (createdAfter && createdBefore) {
+        const startDate = new Date(createdAfter).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        const endDate = new Date(createdBefore).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        return `${startDate} - ${endDate}`;
+      } else if (createdAfter) {
+        const startDate = new Date(createdAfter).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        return `after ${startDate}`;
+      } else if (createdBefore) {
+        const endDate = new Date(createdBefore).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+        return `before ${endDate}`;
+      }
+      return "";
+    },
+    []
+  );
 
   //
 
   // Check if date range filter is active
-  const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
+  const hasDateRangeFilter =
+    dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
   return (
-    <div className="gba:w-full gba:bg-white gba:px-2 gba:pt-4" data-testid="data-controller-container">
-      <div className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2" data-testid="data-controller-main-bar">
+    <div
+      className="gba:w-full gba:bg-white gba:px-2 gba:pt-4"
+      data-testid="data-controller-container"
+    >
+      <div
+        className="gba:flex gba:flex-row gba:items-center gba:w-full gba:gap-2"
+        data-testid="data-controller-main-bar"
+      >
         {/* Left: Filter and Search */}
-        <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0" data-testid="data-controller-left-section">
+        <div
+          className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:pb-5 gba:shrink-0"
+          data-testid="data-controller-left-section"
+        >
           {!hideFilter && (
             <>
               <button
@@ -217,7 +239,9 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                     : "gba:!bg-black/[0.04] gba:text-black"
                 }`}
                 aria-label={
-                  showDataFilter ? "Close filter sidebar" : "Open filter sidebar"
+                  showDataFilter
+                    ? "Close filter sidebar"
+                    : "Open filter sidebar"
                 }
                 onClick={onToggleDataFilter}
                 type="button"
@@ -231,7 +255,6 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                   )}
                 </div>
               </button>
-
             </>
           )}
           {!showSearchInput ? (
@@ -247,7 +270,10 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               </div>
             </button>
           ) : (
-            <div className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]" data-testid="data-controller-search-container">
+            <div
+              className="gba:flex gba:items-center gba:bg-black/[0.04] gba:rounded gba:px-2 gba:h-8 gba:w-[240px]"
+              data-testid="data-controller-search-container"
+            >
               <span className="gba:text-gray-500 gba:mr-2">
                 <PiMagnifyingGlass size={20} />
               </span>
@@ -264,16 +290,27 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
           )}
           {/* Center: List Title */}
           {listTitle && (
-            <div className="gba:flex-1 gba:ml-1 gba:font-semibold gba:text-base gba:text-black gba:truncate" data-testid="data-controller-list-title">
+            <div
+              className="gba:flex-1 gba:ml-1 gba:font-semibold gba:text-base gba:text-black gba:truncate"
+              data-testid="data-controller-list-title"
+            >
               {listTitle}
             </div>
           )}
           {/* Optional: Icon and Amount */}
           {(listIcon || listAmount) && (
-            <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2" data-testid="data-controller-list-info">
-              {listIcon && <span data-testid="data-controller-list-icon">{listIcon}</span>}
+            <div
+              className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2"
+              data-testid="data-controller-list-info"
+            >
+              {listIcon && (
+                <span data-testid="data-controller-list-icon">{listIcon}</span>
+              )}
               {listAmount && (
-                <span className="gba:font-semibold gba:text-base gba:text-gray-700" data-testid="data-controller-list-amount">
+                <span
+                  className="gba:font-semibold gba:text-base gba:text-gray-700"
+                  data-testid="data-controller-list-amount"
+                >
                   {listAmount}
                 </span>
               )}
@@ -298,15 +335,21 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       </div>
       {/* Filter pills row: always below the bar group, left-aligned */}
       {((filter && filter.length > 0) || hasDateRangeFilter) && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:self-start gba:mt-4" data-testid="data-controller-filters-section">
+        <div
+          className="gba:flex gba:flex-wrap gba:items-start gba:gap-2 gba:self-start gba:mt-4 gba:max-w-full"
+          data-testid="data-controller-filters-section"
+        >
           {/* Date range filter pill */}
           {hasDateRangeFilter && (
             <div
-              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100 gba:max-w-80 gba:break-words gba:filter-pill"
+              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-blue-100 gba:max-w-80 gba:break-words gba:filter-pill gba:flex-shrink-0"
               data-testid="data-controller-date-range-filter"
             >
               <span className="gba:text-blue-800 gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">
-                {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
+                {formatDateRangeLabel(
+                  dateRange?.createdAfter,
+                  dateRange?.createdBefore
+                )}
               </span>
               <button
                 className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-blue-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-blue-200 gba:transition-colors"
@@ -320,28 +363,33 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               </button>
             </div>
           )}
-          
+
           {/* Regular filter pills */}
-          {filter && filter.length > 0 && setFilter && filter.map((val) => (
-            <div
-              key={val}
-              className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100 gba:max-w-80 gba:break-words gba:filter-pill"
-              data-testid={`data-controller-filter-pill-${val}`}
-            >
-              <span className="gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">{filterLabelMap?.[val] ?? val}</span>
-              <button
-                className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors gba:flex-shrink-0"
-                onClick={() => setFilter(filter.filter((f) => f !== val))}
-                aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
-                tabIndex={0}
-                type="button"
-                data-testid={`data-controller-filter-remove-button-${val}`}
+          {filter &&
+            filter.length > 0 &&
+            setFilter &&
+            filter.map((val) => (
+              <div
+                key={val}
+                className="gba:flex gba:min-h-6 gba:py-1 gba:px-3 gba:items-center gba:gap-3 gba:rounded-full gba:bg-gray-100 gba:max-w-80 gba:break-words gba:filter-pill gba:flex-shrink-0"
+                data-testid={`data-controller-filter-pill-${val}`}
               >
-                <PiX size={12} />
-              </button>
-            </div>
-          ))}
-          
+                <span className="gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">
+                  {filterLabelMap?.[val] ?? val}
+                </span>
+                <button
+                  className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-gray-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-gray-200 gba:transition-colors gba:flex-shrink-0"
+                  onClick={() => setFilter(filter.filter((f) => f !== val))}
+                  aria-label={`Remove filter ${filterLabelMap?.[val] ?? val}`}
+                  tabIndex={0}
+                  type="button"
+                  data-testid={`data-controller-filter-remove-button-${val}`}
+                >
+                  <PiX size={12} />
+                </button>
+              </div>
+            ))}
+
           {/* Clear all filters button */}
           <button
             className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-gray-600 gba:hover:text-gray-800 gba:transition-colors"
@@ -352,7 +400,12 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             type="button"
             data-testid="data-controller-clear-all-filters-button"
           >
-            <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear_all_filters_btn','Clear all filters')}</span>
+            <span>
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:personal_expenses.clear_all_filters_btn",
+                "Clear all filters"
+              )}
+            </span>
             <span className="gba:flex gba:items-center gba:justify-center">
               <PiXCircle size={16} />
             </span>

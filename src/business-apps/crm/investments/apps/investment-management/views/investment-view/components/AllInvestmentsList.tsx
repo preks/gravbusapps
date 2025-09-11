@@ -231,7 +231,66 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     if (search && !initialLoadDone.current) {
       setSearch(search);
     }
-  }, []);
+    loadData();
+  }, [loadData]);
+
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('AllInvestmentsList: Process completion event received:', event.type);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('AllInvestmentsList: Process completed successfully, refreshing data');
+          loadData();
+          return;
+        }
+        
+        // Check for different event structures
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || response?.investment) {
+          console.log('AllInvestmentsList: Investment data detected, refreshing list');
+          loadData();
+          return;
+        }
+        
+        // Check for continue events with payload (investment creation/update)
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('AllInvestmentsList: Continue event with payload detected, refreshing data');
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in AllInvestmentsList:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [loadData]);
+
+ 
 
   // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {

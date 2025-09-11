@@ -259,7 +259,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2">
               <BarChart className="gba:h-4 gba:w-4" />
-              {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analytics')}
+              {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
 

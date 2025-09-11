@@ -379,7 +379,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
     try {
       const GET_ACCOUNT_DOCUMENTS = `
         query GetAccountDocuments($accountId: uuid!) {
-          CrmDocument(where: {accountId: {_eq: $accountId}, isDeleted: {_eq: false}}) {
+          CrmDocument(where: {account: {id: {_eq: $accountId}}, isDeleted: {_eq: false}}) {
             id
             version
             name

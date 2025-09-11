@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -148,6 +148,62 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
     // Optional
     { id: 'created', label: 'Created', visible: false },
   ]);
+
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('PlannedExits: Process completion event received:', event.type);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('PlannedExits: Process completed successfully, refreshing planned exits data');
+          refetch();
+          return;
+        }
+        
+        // Check for different event structures
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || response?.investment) {
+          console.log('PlannedExits: Investment data detected, refreshing planned exits list');
+          refetch();
+          return;
+        }
+        
+        // Check for continue events with payload (investment updates)
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('PlannedExits: Continue event with payload detected, refreshing data');
+          refetch();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in PlannedExits:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [refetch]);
+
 
   const visibleColumns = columnConfig.filter(c => c.visible).map(c => c.id);
 

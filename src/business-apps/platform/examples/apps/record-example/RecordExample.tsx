@@ -23,6 +23,8 @@ const mockAccountData = {
   phone: '+49 30 1234567',
   numberOfEmployees: { value: '120' },
   annualRevenue: { value: '€12,000,000' },
+  // Company logo - dynamic demo v2.0
+  logoUrl: 'https://picsum.photos/40/40?random=1',
 };
 
 const mockAccounts = [
@@ -36,17 +38,34 @@ const mockAccounts = [
     phone: '+49 30 1234567',
     numberOfEmployees: { value: '120' },
     annualRevenue: { value: '€12,000,000' },
+    // Has uploaded logo - shows avatar
+    logoUrl: 'https://picsum.photos/40/40?random=2',
   },
   {
     id: 'acc_2',
-    name: 'Globex GmbH',
-    legalForm: { value: 'GmbH' },
+    name: 'StartupCorp Ltd',
+    legalForm: { value: 'Ltd' },
+    industry: { value: 'Software' },
+    addressLine: 'Innovation Street 789, 10117 Berlin',
+    website: 'startupcorp.example',
+    phone: '+49 30 5555555',
+    numberOfEmployees: { value: '25' },
+    annualRevenue: { value: '€2,500,000' },
+    // No logo uploaded - shows bank icon
+    // logoUrl: undefined
+  },
+  {
+    id: 'acc_3',
+    name: 'GlobalTech Solutions',
+    legalForm: { value: 'AG' },
     industry: { value: 'Consulting' },
-    addressLine: 'Consulting Allee 10, 80331 München',
-    website: 'globex.example',
-    phone: '+49 89 9876543',
-    numberOfEmployees: { value: '80' },
-    annualRevenue: { value: '€8,500,000' },
+    addressLine: 'Business Park 456, 10119 Berlin',
+    website: 'globaltech.example',
+    phone: '+49 30 9876543',
+    numberOfEmployees: { value: '500' },
+    annualRevenue: { value: '€45,000,000' },
+    // Has logo
+    logoUrl: 'https://picsum.photos/40/40?random=4',
   },
 ];
 
@@ -55,6 +74,13 @@ const mockContact = {
   lastName: 'Mustermann',
   email: 'max.mustermann@example.com',
   phone: '+49 30 7654321',
+  jobTitle: 'Chief Technology Officer',
+  department: 'engineering',
+  academicTitle: { id: 'at1', value: 'Dr.' },
+  linkedinUrl: 'https://linkedin.com/in/max-mustermann',
+  xingUrl: 'https://xing.com/profile/max-mustermann',
+  // Profile picture - shows when uploaded
+  pictureThumbnailUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
 };
 
 const mockContacts = [
@@ -69,20 +95,50 @@ const mockContacts = [
     academicTitle: { id: 'at1', value: 'Dr.' },
     linkedinUrl: 'https://linkedin.com/in/max-mustermann',
     xingUrl: 'https://www.xing.com/profile/Max_Mustermann',
+    // Has uploaded profile picture - shows avatar
+    pictureThumbnailUrl: 'https://randomuser.me/api/portraits/men/45.jpg',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'con_2',
-    firstName: 'Erika',
-    lastName: 'Musterfrau',
-    email: 'erika.musterfrau@example.com',
-    phone: '+49 30 11223344',
-    jobTitle: 'Account Executive',
-    department: 'sales',
-    academicTitle: { id: 'at2', value: 'M.Sc.' },
-    linkedinUrl: 'https://linkedin.com/in/erika-musterfrau',
-    xingUrl: 'https://www.xing.com/profile/Erika_Musterfrau',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    firstName: 'Anna',
+    lastName: 'Schmidt',
+    email: 'anna.schmidt@example.com',
+    phone: '+49 30 9988776',
+    jobTitle: 'Software Developer',
+    department: 'engineering',
+    academicTitle: { id: 'at3', value: 'B.Sc.' },
+    linkedinUrl: 'https://linkedin.com/in/anna-schmidt',
+    // No profile picture uploaded - shows user icon
+    // pictureThumbnailUrl: undefined
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+  },
+  {
+    id: 'con_3',
+    firstName: 'Julia',
+    lastName: 'Weber',
+    email: 'julia.weber@example.com',
+    phone: '+49 30 1122334',
+    jobTitle: 'Product Manager',
+    department: 'product',
+    academicTitle: { id: 'at4', value: 'M.Sc.' },
+    linkedinUrl: 'https://linkedin.com/in/julia-weber',
+    // Has profile picture
+    pictureThumbnailUrl: 'https://randomuser.me/api/portraits/women/32.jpg',
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+  },
+  {
+    id: 'con_4',
+    firstName: 'Thomas',
+    lastName: 'Fischer',
+    email: 'thomas.fischer@example.com',
+    phone: '+49 30 5566778',
+    jobTitle: 'Marketing Director',
+    department: 'marketing',
+    xingUrl: 'https://xing.com/profile/thomas-fischer',
+    // No profile picture
+    // pictureThumbnailUrl: undefined
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
 
@@ -116,8 +172,8 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
         </TabsList>
 
         <TabsContent value="overview" data-testid="record-example-overview">
-          <div className="gba:grid gba:grid-cols-4 gba:gap-6">
-            <div className="gba:col-span-3">
+          <div className="gba:flex gba:gap-6">
+            <div className="gba:w-80 gba:flex-shrink-0">
               <AccountSection
                 {...context}
                 accountId={entityIds.accountId}
@@ -125,7 +181,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                 data-testid="record-example-account-section"
               />
             </div>
-            <div className="gba:col-span-1">
+            <div className="gba:w-80 gba:flex-shrink-0">
               <ContactSection
                 {...context}
                 contactId={entityIds.contactId}
@@ -136,15 +192,15 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
           </div>
 
           {/* Multiple associations demo */}
-          <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mt-6">
-            <div className="gba:col-span-3">
+          <div className="gba:flex gba:gap-6 gba:mt-6">
+            <div className="gba:w-80 gba:flex-shrink-0">
               <AccountSection
                 {...context}
                 accounts={mockAccounts}
                 data-testid="record-example-account-section-multiple"
               />
             </div>
-            <div className="gba:col-span-1">
+            <div className="gba:w-80 gba:flex-shrink-0">
               <ContactSection
                 {...context}
                 contacts={mockContacts}
@@ -153,19 +209,39 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
             </div>
           </div>
 
-          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mt-6">
+          <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mt-6">
             <div>
               <ActivitySection
                 {...context}
-                activityActionProps={{
-                  contextsArray: [FlowContextName.investmentActivityEntity],
-                  externalContextData: { ...entityIds },
-                  prefixDataTestId: 'activities',
-                  emptyStateBehavior: 'enable'
-                }}
                 activities={[
-                  { id: 'a1', title: 'Intro Call', description: 'Initial discovery with client', occurredAt: new Date().toISOString(), createdBy: 'Daniel Vorberg', activityType: { value: 'Call' } },
-                  { id: 'a2', title: 'Email Follow-up', description: 'Sent recap and next steps', occurredAt: new Date(Date.now()-86400000).toISOString(), createdBy: 'You', activityType: { value: 'Email' } },
+                  { 
+                    id: 'a1', 
+                    title: 'Intro Call', 
+                    description: 'Initial discovery with client', 
+                    occurredAt: new Date().toISOString(), 
+                    createdBy: 'Daniel Vorberg', 
+                    activityType: { value: 'Call' },
+                    ownerEmployee: { 
+                      id: 'emp_daniel_vorberg', 
+                      displayName: 'Daniel Vorberg',
+                      firstName: 'Daniel',
+                      lastName: 'Vorberg'
+                    }
+                  },
+                  { 
+                    id: 'a2', 
+                    title: 'Email Follow-up', 
+                    description: 'Sent recap and next steps', 
+                    occurredAt: new Date(Date.now()-86400000).toISOString(), 
+                    createdBy: 'You', 
+                    activityType: { value: 'Email' },
+                    ownerEmployee: { 
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user', 
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
                 ]}
                 activitiesLoading={false}
                 activitiesError={null}
@@ -184,17 +260,60 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                   emptyStateBehavior: 'enable'
                 }}
                 demoTasks={[
-                  { id: 't1', title: 'Prepare proposal', assignee: 'Daniel Vorberg', due: 'Fri 17:00', statusCode: 'IN_PROGRESS' },
-                  { id: 't2', title: 'Schedule workshop', assignee: 'You', due: 'Mon 10:00', statusCode: 'PENDING' },
-                  { id: 't3', title: 'Contract review', assignee: 'Legal Team', due: 'Tue 12:00', statusCode: 'COMPLETED' },
-                  { id: 't4', title: 'Follow-up call', assignee: 'You', due: 'Yesterday 16:00', statusCode: 'OVERDUE' },
+                  { 
+                    id: 't1', 
+                    title: 'Prepare proposal', 
+                    assignee: 'Daniel Vorberg', 
+                    due: 'Fri 17:00', 
+                    statusCode: 'IN_PROGRESS',
+                    assigneeEmployee: {
+                      id: 'emp_daniel_vorberg',
+                      displayName: 'Daniel Vorberg',
+                      firstName: 'Daniel',
+                      lastName: 'Vorberg'
+                    }
+                  },
+                  { 
+                    id: 't2', 
+                    title: 'Schedule workshop', 
+                    assignee: 'You', 
+                    due: 'Mon 10:00', 
+                    statusCode: 'PENDING',
+                    assigneeEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
+                  { 
+                    id: 't3', 
+                    title: 'Contract review', 
+                    assignee: 'Legal Team', 
+                    due: 'Tue 12:00', 
+                    statusCode: 'COMPLETED'
+                    // No assigneeEmployee for Legal Team (generic team)
+                  },
+                  { 
+                    id: 't4', 
+                    title: 'Follow-up call', 
+                    assignee: 'You', 
+                    due: 'Yesterday 16:00', 
+                    statusCode: 'OVERDUE',
+                    assigneeEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
                 ]}
                 data-testid="record-example-task-section"
               />
             </div>
           </div>
 
-          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mt-6">
+          <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mt-6">
             <div>
               <ApprovalSection
                 {...context}
@@ -206,8 +325,26 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                   emptyStateBehavior: 'enable'
                 }}
                 demoApprovals={[
-                  { id: 1, date: 'Created today', title: 'Budget Approval', status: 'pending' },
-                  { id: 2, date: 'Yesterday', title: 'Legal Review', status: 'approved', actor: 'Legal Team' }
+                  { 
+                    id: 1, 
+                    date: 'Created today', 
+                    title: 'Budget Approval', 
+                    status: 'pending',
+                    actorEmployee: {
+                      id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                      displayName: 'Current User',
+                      firstName: 'Current',
+                      lastName: 'User'
+                    }
+                  },
+                  { 
+                    id: 2, 
+                    date: 'Yesterday', 
+                    title: 'Legal Review', 
+                    status: 'approved', 
+                    actor: 'Legal Team'
+                    // No actorEmployee for Legal Team (generic team)
+                  }
                 ]}
                 data-testid="record-example-approval-section"
               />

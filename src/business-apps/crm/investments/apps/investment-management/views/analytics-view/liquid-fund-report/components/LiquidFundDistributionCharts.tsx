@@ -5,7 +5,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { formatCurrency, formatPercentage } from '@/common/data/investment';
+import { formatCurrency } from '@/common/data/investment';
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react';
 import { LiquidFundInvestmentSummary } from '../../shared/types';
 
@@ -15,7 +15,6 @@ interface LiquidFundDistributionChartsProps {
 }
 
 export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = ({
-  chartData,
   rawLiquidFunds
 }) => {
   // Fixed currency options - only EUR and USD
@@ -26,7 +25,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
   const [liquidFundTypeCurrencyFilter, setLiquidFundTypeCurrencyFilter] = useState('EUR');
 
 
-  // Investment Type Distribution by Count
+  // Type Distribution by Count
   const investmentTypeCountData = useMemo(() => {
     return rawLiquidFunds.reduce((acc: any[], fund: any) => {
       const investmentType = fund.investment.investmentType?.value || 'Unknown';
@@ -44,7 +43,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     }, []);
   }, [rawLiquidFunds]);
 
-  // Investment Type Distribution by Total Amount (filtered by currency)
+  // Type Distribution by Total Amount (filtered by currency)
   const investmentTypeAmountData = useMemo(() => {
     const filteredFunds = rawLiquidFunds.filter(fund => fund.currencyCode === investmentTypeCurrencyFilter);
     return filteredFunds.reduce((acc: any[], fund: any) => {
@@ -63,7 +62,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     }, []);
   }, [rawLiquidFunds, investmentTypeCurrencyFilter]);
 
-  // Liquid Fund Type Distribution by Count
+  // Type Distribution by Count
   const liquidFundTypeCountData = useMemo(() => {
     return rawLiquidFunds.reduce((acc: any[], fund: any) => {
       const liquidFundType = fund.liquidFundInvestment?.investmentLiquidFundType?.value || 'Unknown';
@@ -81,7 +80,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     }, []);
   }, [rawLiquidFunds]);
 
-  // Liquid Fund Type Distribution by Total Amount (filtered by currency)
+  // Type Distribution by Total Amount (filtered by currency)
   const liquidFundTypeAmountData = useMemo(() => {
     const filteredFunds = rawLiquidFunds.filter(fund => fund.currencyCode === liquidFundTypeCurrencyFilter);
     return filteredFunds.reduce((acc: any[], fund: any) => {
@@ -102,7 +101,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
 
   return (
     <div className="gba:space-y-6">
-      {/* Investment Type Distribution - Side by Side */}
+      {/* Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -110,8 +109,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Type Distribution by Count</CardTitle>
-                  <CardDescription>Number of investments per type</CardDescription>
+                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -143,10 +142,26 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   ))}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    `${value} investments`,
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.investmentType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} investments
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -160,8 +175,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Investment Type Distribution by Total Amount ({investmentTypeCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount per investment type</CardDescription>
+                  <CardTitle>Type Distribution by Total Amount ({investmentTypeCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount per type</CardDescription>
                 </div>
               </div>
               <Select value={investmentTypeCurrencyFilter} onValueChange={setInvestmentTypeCurrencyFilter}>
@@ -204,10 +219,26 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   ))}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, investmentTypeCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.investmentType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, investmentTypeCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -216,7 +247,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
         </Card>
       </div>
 
-      {/* Liquid Fund Type Distribution - Side by Side */}
+      {/* Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -224,8 +255,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartDonutIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Liquid Fund Type Distribution by Count</CardTitle>
-                  <CardDescription>Number of liquid funds per fund type</CardDescription>
+                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
               <div className="gba:w-24 gba:h-8"></div>
@@ -257,10 +288,26 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   ))}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    `${value} funds`,
-                    name
-                  ]} />} 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {data.value} funds
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -274,8 +321,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Liquid Fund Type Distribution by Total Amount ({liquidFundTypeCurrencyFilter})</CardTitle>
-                  <CardDescription>Total invested amount per liquid fund type</CardDescription>
+                  <CardTitle>Type Distribution by Total Amount ({liquidFundTypeCurrencyFilter})</CardTitle>
+                  <CardDescription>Total amount per type</CardDescription>
                 </div>
               </div>
               <Select value={liquidFundTypeCurrencyFilter} onValueChange={setLiquidFundTypeCurrencyFilter}>
@@ -318,10 +365,26 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   ))}
                 </Pie>
                 <ChartTooltip 
-                  content={<ChartTooltipContent formatter={(value, name) => [
-                    formatCurrency(value as number, liquidFundTypeCurrencyFilter),
-                    name
-                  ]} />}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div 
+                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrency(data.value as number, liquidFundTypeCurrencyFilter)}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>

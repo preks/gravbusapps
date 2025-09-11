@@ -11,6 +11,7 @@ import { showToast } from '../../../utils/notificationUtils';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { EVENTS } from '../../../utils/constants';
 import { createAdvanceObject, createPaymentScreenLogObject } from '../utils/paymentScreenUtils';
+import { DEFAULT_PLAN_CURRENCY_CODE } from '../../expense-request/constants/constants';
 
 interface PaymentScreenProps extends BusinessAppContextProps {
   additionalData?: { 
@@ -47,7 +48,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     if (items.length > 0 && items[0].currency?.code) {
       return items[0].currency.code;
     }
-    return 'EUR';
+    return DEFAULT_PLAN_CURRENCY_CODE;
   }, [expensePlanData]);
 
   // Check for initial advance payment
@@ -185,7 +186,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     return parseFloat(amount) || 0;
   }, [amount]);
 
-  const currencyCode = expensePlanData?.ExpensePlanByPk?.currency?.code || 'EUR';
+  const currencyCode = expensePlanData?.ExpensePlanByPk?.currency?.code || DEFAULT_PLAN_CURRENCY_CODE;
 
   // Get total amount from expense plan data
   const expensePlanTotalAmount = useMemo(() => {
@@ -215,7 +216,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   // Get the selected currency code for display
   const selectedCurrencyCode = useMemo(() => {
     const selectedCurrency = currencies.find(c => c.id === currency);
-    return selectedCurrency?.code || 'EUR';
+    return selectedCurrency?.code || DEFAULT_PLAN_CURRENCY_CODE;
   }, [currency, currencies]);
 
   // Handle amount change

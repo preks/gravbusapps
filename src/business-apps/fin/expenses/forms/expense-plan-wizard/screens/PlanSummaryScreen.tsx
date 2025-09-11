@@ -10,6 +10,8 @@ import { getDayName } from '../../expense-request-wizard/utils/allowanceScreenUt
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+import { PLAN_TYPES } from '../../expense-plan/constants/constants';
+import { PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../../expense-request-wizard/constants/constants';
 
 /**
  * PlanSummaryScreen component props
@@ -35,7 +37,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   const planData = expensePlanData?.ExpensePlanByPk;
   const planItemData = expensePlanData?.ExpensePlanItem;
   const expenseItems = noAllowanceItemsFunction(planItemData);
-  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP);
   const handleSave = useCallback(() => {
     let skipStep =false
     if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
@@ -99,7 +101,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
     });
   }
   // Pagination state
-  const itemListLimit = 4;
+  const itemListLimit = PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT;
   const [allowanceCurrentPage, setAllowanceCurrentPage] = useState(1);
   const [expenseCurrentPage, setExpenseCurrentPage] = useState(1);
   

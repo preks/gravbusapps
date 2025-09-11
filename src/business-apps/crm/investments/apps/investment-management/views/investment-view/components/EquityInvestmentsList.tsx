@@ -162,6 +162,65 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
       loadData();
     }
   }, [search, filtersInitialized, loadData, updateURLParams]);
+  // Listen for process completion events to refresh data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        console.log('EquityInvestmentsList: Process completion event received:', event.type);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('EquityInvestmentsList: Process completed successfully, refreshing equity data');
+          loadData();
+          return;
+        }
+        
+        // Check for different event structures - specifically for equity investments
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || 
+            response?.investment || 
+            response?.equityInvestment) {
+          console.log('EquityInvestmentsList: Equity investment data detected, refreshing list');
+          loadData();
+          return;
+        }
+        
+        // Check for continue events with payload (investment creation/update)
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('EquityInvestmentsList: Continue event with payload detected, refreshing data');
+          loadData();
+        }
+      } catch (err) {
+        console.error('Error handling process completion in EquityInvestmentsList:', err);
+      }
+    };
+
+    // Listen to multiple possible event names for investment updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion',
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handleProcessCompletion);
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handleProcessCompletion);
+      });
+    };
+  }, [loadData]);
+
+
 
   // Trigger reload when filters change
   useEffect(() => {

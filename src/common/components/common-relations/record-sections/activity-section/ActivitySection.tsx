@@ -2,9 +2,10 @@ import React, { useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Button, Alert, Spinner, TimelineLayout } from '@newwork/nw-design-system';
 import { PlusCircleOutlined } from '@ant-design/icons';
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 interface ActivitySectionProps extends BusinessAppContextProps {
   accountId?: string;
@@ -89,6 +90,16 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
             const ownerId = activity.ownerEmployee?.id;
             const activityTypeLabel = activity.activityType?.value || activity.activityType;
             const description = [activityTypeLabel, activity.description].filter(Boolean).join('\n');
+            
+            // Determine icon based on activity type
+            const getActivityIcon = (type: string) => {
+              const lowerType = type?.toLowerCase() || '';
+              if (lowerType.includes('call') || lowerType.includes('phone')) return PhoneIcon;
+              if (lowerType.includes('email') || lowerType.includes('mail')) return EnvelopeIcon;
+              if (lowerType.includes('meeting') || lowerType.includes('appointment')) return CalendarBlankIcon;
+              return UserIcon; // Default icon
+            };
+            
             return {
               id: index,
               date: occurred,
@@ -96,26 +107,27 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
               actor: ownerName
                 ? ownerId
                   ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = buildPlatformUrl('/platform/employee-record', { employeeId: ownerId });
-                          navigateTo(url);
-                        }}
-                        className="gba:underline"
+                      <a
+                        href={buildPlatformUrl('/platform/employee-record', { employeeId: ownerId })}
+                        className="gba:underline gba:text-inherit hover:gba:text-primary"
                         data-testid={`activity-owner-link-${ownerId}`}
                       >
                         {ownerName}
-                      </button>
+                      </a>
                     )
                   : ownerName
                 : undefined,
               description,
-              color: 'pending',
+              icon: getActivityIcon(activityTypeLabel),
             } as any;
           });
           return (
-            <TimelineLayout size="sm" items={items} className="gba:w-full" />
+            <TimelineLayout 
+              items={items}
+              variant="default"
+              orientation="vertical"
+              className="gba:w-full" 
+            />
           );
         })()}
       </div>

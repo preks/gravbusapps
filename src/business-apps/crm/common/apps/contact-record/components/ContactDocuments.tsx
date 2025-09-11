@@ -375,7 +375,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
     try {
       const GET_CONTACT_DOCUMENTS = `
         query GetContactDocuments($contactId: uuid!) {
-          CrmDocument(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
+          CrmDocument(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
             id
             version
             name

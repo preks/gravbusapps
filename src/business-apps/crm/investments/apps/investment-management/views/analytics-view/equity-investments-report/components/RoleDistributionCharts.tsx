@@ -51,7 +51,7 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
               <div>
-                <CardTitle>Investment Role Distribution</CardTitle>
+                <CardTitle>Role Distribution</CardTitle>
                 <CardDescription>Count of investments by role</CardDescription>
               </div>
             </div>
@@ -90,7 +90,7 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
               <div>
-                <CardTitle>Investment Role Distribution by Total Amount</CardTitle>
+                <CardTitle>Role Distribution by Total Amount</CardTitle>
                 <CardDescription>Total investment amount by role</CardDescription>
               </div>
             </div>

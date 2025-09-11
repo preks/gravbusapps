@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { XCircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 
 interface SearchBarProps {
   onSearch: (value: string) => void;
@@ -79,11 +79,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
           onClick={handleClear}
           data-testid="plan-search-clear"
         >
-          <CloseCircleOutlined />
+          <XCircleIcon />
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', position: 'absolute', right: expanded ? 'auto' : '12px', left: expanded ? '10px' : 'auto', transition: 'right 0.3s, left 0.3s' }}>
-        <SearchOutlined />
+        <MagnifyingGlassIcon />
       </div>
     </div>
   );
