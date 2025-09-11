@@ -471,7 +471,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        height: 'fit-content'
       }}
     >
       {/* Tab Navigation */}

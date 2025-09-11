@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -12,10 +12,6 @@ import {
   Button
 } from "@newwork/nw-design-system";
 import {
-  Search,
-  Filter,
-  TrendingDown,
-  DollarSign,
   Building2,
   Calendar,
   User
@@ -25,11 +21,10 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "../../utils";
 import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
-import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
+import { useGetInvestments, Investment } from "@/common/data/investment";
 
 interface PlannedExitsProps extends BusinessAppContextProps {}
 
@@ -40,21 +35,66 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   const [sortField] = useState("plannedExitDate");
   const [sortOrder] = useState<"ASC" | "DESC">("ASC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  
+  // State for investments data
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const { 
-    investments, 
-    isLoading, 
-    error, 
-    totalCount,
-    refetch 
-  } = usePlannedExitsData({
-    accessToken,
-    searchTerm,
-    sortBy: sortField,
-    sortDirection: sortOrder.toLowerCase() as "asc" | "desc",
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-  });
+  const { fetchInvestments } = useGetInvestments({ accessToken, userInfo });
+
+  // Data fetching function using central resources
+  const fetchPlannedExits = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Use central investment query to get ALL investments, then filter for planned exits
+      // We need to get more than the page size to ensure we have enough planned exits
+      const response = await fetchInvestments({
+        search: searchTerm,
+        limit: 1000, // Get a large batch to filter properly
+        offset: 0,
+        orderBy: [{
+          field: sortField,
+          direction: sortOrder === 'DESC' ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+        }]
+      });
+
+      // Filter for planned exits (not EXITED) - this is the correct filtering logic
+      const plannedExits = response.Investment.filter(investment => 
+        investment.planedExit === true && 
+        investment.investmentStatus?.code !== 'EXITED'
+      );
+
+      // Apply pagination to filtered results
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedInvestments = plannedExits.slice(startIndex, endIndex);
+
+      setInvestments(paginatedInvestments);
+      setTotalCount(plannedExits.length);
+    } catch (err) {
+      console.error('Error fetching planned exits:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch planned exits');
+      setInvestments([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchInvestments, searchTerm, sortField, sortOrder, currentPage, pageSize]);
+
+  // Fetch data when dependencies change
+  useEffect(() => {
+    if (accessToken) {
+      fetchPlannedExits();
+    }
+  }, [accessToken, fetchPlannedExits]);
+
+  const refetch = useCallback(() => {
+    fetchPlannedExits();
+  }, [fetchPlannedExits]);
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value);
@@ -145,7 +185,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     return (
       <Alert variant="destructive" className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span>Error loading planned exits: {error instanceof Error ? error.message : String(error)}</span>
+          <span>Error loading planned exits: {typeof error === 'string' ? error : 'Unknown error'}</span>
           <Button variant="outline" size="sm" onClick={refetch}>
             Retry
           </Button>
@@ -157,7 +197,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   return (
     <div data-testid="planned-exits-container" className="gba:space-y-6">
       {/* Metrics Section */}
-      <PlannedExitsMetrics accessToken={accessToken} />
+      <PlannedExitsMetrics context={{ accessToken, userInfo }} />
 
       <DataContainer
         dataControllerProps={{
@@ -204,7 +244,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                 <TableRow>
                   <TableHead>Investment</TableHead>
                   <TableHead>Group</TableHead>
-                  <TableHead>Initial Investment</TableHead>
+                  <TableHead>Total Investment</TableHead>
                   <TableHead>Market Value</TableHead>
                   <TableHead>Performance</TableHead>
                   <TableHead>Stake %</TableHead>
@@ -226,7 +266,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                       <Badge variant="outline">{investment.investmentGroup?.value || "Unknown"}</Badge>
                     </TableCell>
                     <TableCell>
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
                     </TableCell>
                     <TableCell>
                       <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
@@ -234,9 +274,9 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                     <TableCell>
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalInvestmentValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalInvestmentValue;
+                        const performancePercentage = totalInvestmentValue > 0 ? (performanceAmount / totalInvestmentValue) * 100 : 0;
                         
                         return (
                           <div className="gba:flex gba:flex-col gba:items-start">

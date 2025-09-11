@@ -5,6 +5,8 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Account } from '../hooks/useAccountData';
 import type { InvestmentAccount } from '@/common/data/investment/types';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useAccountAiSummary } from '../hooks/useAccountAiSummary';
 
 interface AccountHeaderProps {
   account: Account;
@@ -26,38 +28,21 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
   // Actions button is now empty - no flows or static actions
 
   return (
-    <div className="gba:account-header" style={{ 
-      marginBottom: '24px', 
-      backgroundColor: 'white', 
-      borderRadius: '8px', 
-      padding: '20px'
-    }}>
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div className="gba:account-header gba:mb-6 gba:bg-white gba:rounded-lg gba:p-5">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <div className="gba:flex gba:items-center gba:gap-4">
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
+            <div className="gba:text-2xl gba:font-bold gba:mb-1">
               {account.name}
             </div>
             
             {/* Account-specific fields */}
-            <div style={{ 
-              color: '#8c8c8c', 
-              fontSize: '14px', 
-              marginBottom: '8px',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              flexWrap: 'nowrap'
-            }}>
+            <div className="gba:text-gray-500 gba:text-sm gba:mb-2 gba:flex gba:flex-row gba:items-center gba:flex-nowrap">
               {(accountData?.industryClassLabel || account.industry) && (
                 <>
                   <Tags className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
                   <span>Industry: {accountData?.industryClassLabel || account.industry}</span>
-                  <span style={{ margin: '0 8px' }}>•</span>
+                  <span className="gba:mx-2">•</span>
                 </>
               )}
               <User className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
@@ -66,7 +51,18 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {accessToken && (
+            <AiSummaryButton
+              config={{
+                entityType: 'account',
+                loadingMessage: 'Generating AI Summary...',
+                loadingSubtitle: 'Analyzing account data and activities'
+              }}
+              summaryHook={useAccountAiSummary(accountId, accessToken)}
+              dataTestId={`account-update-button-${accountId}`}
+            />
+          )}
           {accessToken && (
             <AppActionButton
               data-testid="investment-account-record-action-button"

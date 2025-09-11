@@ -31,7 +31,24 @@ import { AppActionButton } from "@/components/app-action-button/AppActionButton"
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "../../utils";
-import { useSalesData } from "./hooks/useSalesData";
+import { useGetInvestmentOpportunities, InvestmentOpportunity, InvestmentOpportunityQueryVariables } from "@/common/data/investment";
+
+// Extended interface for sold opportunities with display fields
+interface SoldOpportunity extends InvestmentOpportunity {
+  displayValue?: string; // Override for "Sold" display
+}
+
+interface SalesMetrics {
+  totalSold: number;
+  totalRevenue: number;
+  averageRevenue: number;
+  averageWinRate: number;
+  // Percentage changes
+  totalSoldChange: number;
+  totalRevenueChange: number;
+  averageRevenueChange: number;
+  winRateChange: number;
+}
 
 interface SalesProps extends BusinessAppContextProps {}
 
@@ -43,21 +60,165 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   const [pageSize] = useState(20);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  const context = { accessToken, userInfo };
+  // State for sales data
+  const [soldOpportunities, setSoldOpportunities] = useState<SoldOpportunity[]>([]);
+  const [metrics, setMetrics] = useState<SalesMetrics | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    soldOpportunities,
-    metrics,
-    total,
-    loading,
-    error,
-    loadPage,
-  } = useSalesData({
-    search: searchTerm,
-    sortField,
-    sortOrder,
-    context,
-  });
+  const context = { accessToken, userInfo };
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
+
+  // Transform function for sold opportunities
+  const transformSoldOpportunityData = (investmentOpportunity: InvestmentOpportunity): SoldOpportunity => {
+    return {
+      ...investmentOpportunity,
+      // Override WON status to display as "Sold"
+      displayValue: investmentOpportunity.opportunityStatus?.value === "WON" ? "Sold" : investmentOpportunity.opportunityStatus?.value,
+    };
+  };
+
+  // Data fetching function using central resources
+  const loadPage = useCallback(async (
+    page: number,
+    pageSize = 20,
+    additionalFilters?: any,
+    overrideSortField?: string,
+    overrideSortOrder?: "ASC" | "DESC" | ""
+  ) => {
+    if (!accessToken) {
+      console.warn("No access token provided for sales data loading");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Build query variables for InvestmentOpportunity
+      const variables: InvestmentOpportunityQueryVariables = {
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities
+        search: additionalFilters?.search || searchTerm,
+      };
+
+      // Add sorting
+      const sortFieldToUse = overrideSortField || sortField;
+      const sortOrderToUse = overrideSortOrder || sortOrder;
+      
+      if (sortFieldToUse && sortFieldToUse !== "" && sortOrderToUse) {
+        variables.orderBy = [{
+          field: sortFieldToUse,
+          direction: sortOrderToUse === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST"
+        }];
+      }
+
+      // Get current data
+      const currentResult = await fetchInvestmentOpportunities(variables);
+
+      // Get historical data (30 days ago)
+      const currentDate = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+
+      // Fetch historical data by removing time-based filters and getting larger dataset
+      const historicalVariables = { ...variables, limit: 1000, offset: 0 };
+      const historicalResult = await fetchInvestmentOpportunities(historicalVariables);
+
+      if (currentResult?.InvestmentOpportunity) {
+        // Helper function to filter for WON opportunities
+        const filterWonOpportunities = (opportunities: InvestmentOpportunity[]) => {
+          return opportunities.filter(opp => {
+            const statusValue = opp.opportunityStatus?.value?.toUpperCase();
+            const statusCode = opp.opportunityStatus?.code?.toUpperCase();
+            const statusAltCode = opp.opportunityStatus?.alternativeCode?.toUpperCase();
+            const directStatus = opp.status?.toUpperCase();
+            
+            // Check for various "WON" representations
+            const wonVariations = ["WON", "CLOSED WON", "SOLD", "SUCCESS", "COMPLETED"];
+            
+            return wonVariations.some(variation => 
+              statusValue === variation ||
+              statusCode === variation ||
+              statusAltCode === variation ||
+              directStatus === variation ||
+              statusValue?.includes("WON") ||
+              statusCode?.includes("WON") ||
+              statusAltCode?.includes("WON") ||
+              directStatus?.includes("WON")
+            );
+          });
+        };
+
+        // Helper function to calculate metrics for a dataset
+        const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
+          let filteredOpportunities = opportunities;
+          
+          // Filter by date if provided
+          if (beforeDate) {
+            filteredOpportunities = opportunities.filter(opp => {
+              const updatedAt = new Date(opp.updatedAt);
+              return updatedAt <= beforeDate;
+            });
+          }
+
+          const wonOpportunities = filterWonOpportunities(filteredOpportunities);
+          const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
+          const averageValue = wonOpportunities.length > 0 ? totalValue / wonOpportunities.length : 0;
+          const averageWinRate = wonOpportunities.length > 0 ? 
+            wonOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / wonOpportunities.length : 0;
+          
+          return {
+            totalSold: wonOpportunities.length,
+            totalRevenue: totalValue,
+            averageRevenue: averageValue,
+            averageWinRate,
+          };
+        };
+
+        // Get WON opportunities for display
+        const wonOpportunities = filterWonOpportunities(currentResult.InvestmentOpportunity);
+        const transformedOpportunities = wonOpportunities.map(transformSoldOpportunityData);
+        setSoldOpportunities(transformedOpportunities);
+        setTotal(wonOpportunities.length);
+
+        // Calculate current and historical metrics
+        const current = calculateMetrics(currentResult.InvestmentOpportunity);
+        const historical = historicalResult?.InvestmentOpportunity ? 
+          calculateMetrics(historicalResult.InvestmentOpportunity, thirtyDaysAgo) : 
+          { totalSold: 0, totalRevenue: 0, averageRevenue: 0, averageWinRate: 0 };
+
+        // Calculate percentage changes
+        const calculatePercentageChange = (current: number, previous: number): number => {
+          if (previous === 0) return current > 0 ? 100 : 0;
+          return ((current - previous) / previous) * 100;
+        };
+
+        const totalSoldChange = calculatePercentageChange(current.totalSold, historical.totalSold);
+        const totalRevenueChange = calculatePercentageChange(current.totalRevenue, historical.totalRevenue);
+        const averageRevenueChange = calculatePercentageChange(current.averageRevenue, historical.averageRevenue);
+        const winRateChange = calculatePercentageChange(current.averageWinRate, historical.averageWinRate);
+
+        const metricsData: SalesMetrics = {
+          ...current,
+          totalSoldChange,
+          totalRevenueChange,
+          averageRevenueChange,
+          winRateChange,
+        };
+        setMetrics(metricsData);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("Failed to load sales data")
+      );
+      console.error("Error loading sales data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchInvestmentOpportunities, searchTerm, sortField, sortOrder, accessToken]);
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value);
@@ -155,6 +316,12 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   const renderMetrics = () => {
     if (!metrics) return null;
 
+    // Helper function to format percentage change
+    const formatPercentageChange = (change: number): string => {
+      const sign = change >= 0 ? '+' : '';
+      return `${sign}${change.toFixed(1)}%`;
+    };
+
     const widgets: WidgetItem[] = [
       {
         key: "total-sold",
@@ -165,9 +332,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("successfully_sold_opportunities", "Successfully sold opportunities"),
         trend: {
-          value: `${metrics.totalSold} ${getTranslationFromI18nKeyAndLabel("sold", "sold")}`,
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("completed_exits", "completed exits")
+          value: formatPercentageChange(metrics.totalSoldChange),
+          positive: metrics.totalSoldChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -179,9 +346,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_amount_per_sale", "Average amount per sale"),
         trend: {
-          value: formatCurrency(metrics.averageRevenue),
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("per_transaction", "per transaction")
+          value: formatPercentageChange(metrics.averageRevenueChange),
+          positive: metrics.averageRevenueChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -193,9 +360,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("total_revenue_generated", "Total revenue generated from sales"),
         trend: {
-          value: formatCurrency(metrics.totalRevenue),
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("revenue_generated", "revenue generated")
+          value: formatPercentageChange(metrics.totalRevenueChange),
+          positive: metrics.totalRevenueChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
@@ -207,9 +374,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_revenue_per_sale", "Average revenue per sale"),
         trend: {
-          value: formatCurrency(metrics.averageRevenue),
-          positive: true,
-          description: getTranslationFromI18nKeyAndLabel("per_sale", "per sale")
+          value: formatPercentageChange(metrics.averageRevenueChange),
+          positive: metrics.averageRevenueChange >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       }
     ];
@@ -245,7 +412,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       return (
         <Alert variant="destructive" className="gba:mb-4">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <span>Error loading sales: {error instanceof Error ? error.message : String(error)}</span>
+            <span>Error loading sales: {error?.message || 'Unknown error'}</span>
             <Button variant="outline" size="sm" onClick={() => loadPage(currentPage, pageSize)}>
               Retry
             </Button>
