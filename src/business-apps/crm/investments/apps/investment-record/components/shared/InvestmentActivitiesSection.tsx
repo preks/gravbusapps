@@ -20,7 +20,7 @@ import type { InvestmentActivity, InvestmentTask } from '@/common/data/investmen
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
 
 
 const { Text } = Typography;
@@ -59,6 +59,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
 
   const originalActivitiesRef = useRef<InvestmentActivity[]>([]);
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
@@ -315,10 +316,20 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                 dot={<CheckCircleOutlined />}
                 color="green"
               >
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
-                    {task.name || 'Untitled Task'}
-                  </h4>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <h4 style={{ margin: 0, fontWeight: 'bold' }}>
+                      {task.name || 'Untitled Task'}
+                    </h4>
+                    <AntButton
+                      type="text"
+                      icon={<CloseOutlined />}
+                      size="small"
+                      onClick={() => setDeleteApprovalPopup({ open: true, task })}
+                      data-testid={`delete-approval-task-button-${task.id}`}
+                      title="Delete Approval"
+                    />
+                  </div>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
                     Due: {formatDate(task.dueDate)} • Requester: {
                       task.assignedEmployee?.displayName ||
@@ -484,6 +495,36 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
             message.error('Failed to delete activity');
           }}
           data-testid="investment-activity-deletion-popup"
+        />
+      ) : null}
+
+      {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task!.name || 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: (deleteApprovalPopup.task as any).version,
+            },
+            investmentId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid="investment-approval-deletion-popup"
         />
       ) : null}
 
