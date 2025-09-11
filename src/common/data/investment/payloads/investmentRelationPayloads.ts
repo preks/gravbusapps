@@ -115,8 +115,28 @@ export const buildInvestmentTaskPayload = (
     if (task.opportunity) refs.opportunity = task.opportunity.id;
     if (task.lead) refs.lead = task.lead.id;
     // Always include parent investment when provided via additionalData
-    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    const additional: any = (businessAppContext as any)?.additionalData || {};
+    const external: any = additional.externalContextData || {};
+    const investmentId =
+      // Primary: AppAction externalContextData (most common)
+      external.investmentId ||
+      external.investment?.id ||
+      external.investment ||
+      external.investmentTask?.investment ||
+      external.investmentTask?.investmentId ||
+      // Fallback: direct additionalData
+      additional.investmentId ||
+      additional.investment?.id ||
+      additional.investment ||
+      additional.investmentTask?.investment ||
+      additional.investmentTask?.investmentId;
     if (investmentId) refs.investment = investmentId;
+    console.log('🔍 Task Payload Debug - Investment search:', {
+      externalContextData: external,
+      additionalData: additional,
+      foundInvestmentId: investmentId,
+      finalRefs: refs
+    });
     return refs;
   };
 
@@ -176,12 +196,24 @@ export const buildInvestmentNotePayload = (
     if (note.contact) return { contact: note.contact.id };
     if (note.opportunity) return { opportunity: note.opportunity.id };
     if (note.lead) return { lead: note.lead.id };
-    // Fallback to additionalData if provided
+    
+    // Check for investment ID in externalContextData (AppAction) and additionalData
+    const additional: any = (businessAppContext as any)?.additionalData || {};
+    const external: any = additional.externalContextData || {};
+    const investmentId = external.investmentId || additional.investmentId || additionalData?.investmentId;
+    if (investmentId) return { investment: investmentId };
+    
+    // Fallback to other entity types from additionalData
     if (additionalData?.accountId) return { account: additionalData.accountId };
     if (additionalData?.contactId) return { contact: additionalData.contactId };
     if (additionalData?.opportunityId) return { opportunity: additionalData.opportunityId };
     if (additionalData?.leadId) return { lead: additionalData.leadId };
-    if (additionalData?.investmentId) return { investment: additionalData.investmentId };
+    
+    console.log('🔍 Note Payload Debug - No entity found:', {
+      externalContextData: external,
+      additionalData: additional,
+      passedAdditionalData: additionalData
+    });
     return {} as Record<string, any>;
   };
 

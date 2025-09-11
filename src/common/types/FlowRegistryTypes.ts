@@ -95,6 +95,7 @@ export enum FlowContextName {
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
+  createInvestmentNote = "investmentNoteCreate",
   investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents

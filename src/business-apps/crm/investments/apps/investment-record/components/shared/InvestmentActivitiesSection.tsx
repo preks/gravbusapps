@@ -373,9 +373,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                 contextsArray={[FlowContextName.createInvestmentActivity]}
                 accessToken={context.accessToken}
                 externalContextData={{ 
-                  investmentId: investmentId,
-                  accountId: accountIdForInvestment,
-                  investmentData: { investmentAccount: { id: accountIdForInvestment } }
+                  investmentId: investmentId
                 }}
                 prefixDataTestId="add-activity"
                 emptyStateBehavior="hide"
@@ -390,23 +388,33 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               </AppAction>
             )}
             {activeTab === 'notes' && (
-              <Button
-                variant="default"
-                onClick={handleAddNote}
-                data-testid="add-note-button"
+              <AppAction
+                contextsArray={[FlowContextName.createInvestmentNote]}
+                accessToken={context.accessToken}
+                externalContextData={{
+                  investmentId: investmentId
+                }}
+                prefixDataTestId="add-note"
+                emptyStateBehavior="hide"
               >
-                <PlusCircleOutlined />
-                Add Note
-              </Button>
+                <Button
+                  variant="default"
+                  data-testid="add-note-button"
+                >
+                  <PlusCircleOutlined />
+                  Add Note
+                </Button>
+              </AppAction>
             )}
             {activeTab === 'approvals' && (
               <AppAction
                 contextsArray={[FlowContextName.investmentTaskCreate]}
                 accessToken={context.accessToken}
                 externalContextData={{
+                  // ensure additionalData paths are populated for payload builder
                   investmentId,
                   investment: investmentId,
-                  investmentTask: { investment: investmentId },
+                  investmentTask: { investment: investmentId, investmentId },
                   typeRef: 'InvestmentTaskType:v1:APPROVAL',
                 }}
                 prefixDataTestId="request-approval"

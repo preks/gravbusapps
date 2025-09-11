@@ -39,8 +39,12 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   const isUpdateMode = !!activityId;
 
   // Get entity IDs from business app context
-  const { accountId, leadId, contactId, opportunityId } = additionalData || {};
+  const { accountId, leadId, contactId, opportunityId, investmentId } = additionalData || {};
   const hasEntityFromContext = accountId || leadId || contactId || opportunityId;
+  
+  // For investment activities, we hide entity selection since investment + account context is sufficient
+  const isInvestmentContext = Boolean(investmentId);
+  const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext;
 
   // Investment activity hooks
   const { fetchInvestmentActivityById } = useGetInvestmentActivityById({ accessToken, additionalData });
@@ -97,15 +101,16 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 
   // Prefetch entities on mount if selection is visible
   useEffect(() => {
-    if (!hasEntityFromContext) {
+    if (shouldShowEntitySelection) {
       searchEntities('');
     }
-  }, [hasEntityFromContext, searchEntities]);
+  }, [shouldShowEntitySelection, searchEntities]);
 
   // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback((data: any): string[] | null => {
-    return validateActivityData(data, { requireEntity: !hasEntityFromContext });
-  }, [hasEntityFromContext]);
+    // For investment context, we don't require entity selection since investment context is sufficient
+    return validateActivityData(data, { requireEntity: shouldShowEntitySelection });
+  }, [shouldShowEntitySelection]);
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: Activity) => {
@@ -146,6 +151,20 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
       data-testid="investment-activity-process-dialog"
     >
+      {isInvestmentContext && (
+        <div className="gba:mb-4 gba:p-4 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-md" data-testid="investment-context-header">
+          <h3 className="gba:text-sm gba:font-medium gba:text-blue-900 gba:mb-1">
+            {getTranslationFromI18nKeyAndLabel('crm:investmentActivity.title', 'Investment Activity')}
+          </h3>
+          <p className="gba:text-xs gba:text-blue-700">
+            {getTranslationFromI18nKeyAndLabel(
+              'crm:investmentActivity.description', 
+              'This activity will be associated with the current investment and its related account.'
+            )}
+          </p>
+        </div>
+      )}
+      
       <ActivitySegment
         // Let segment load type options from catalog
         accessToken={accessToken}
@@ -156,7 +175,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
         entitiesHasMore={entitiesHasMore}
         onEntityLoadMore={loadMoreEntities}
         onEntitySearch={handleEntitySearch}
-        showEntitySelection={!hasEntityFromContext}
+        showEntitySelection={shouldShowEntitySelection}
         initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
         titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
