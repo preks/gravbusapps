@@ -13,6 +13,7 @@ import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeDat
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import type { InvestmentTask } from '@/common/data/investment/types';
 import { AppAction } from '@/components/app-action';
+import { DeleteConfirmationPopup } from '@/common/components';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { Text } = Typography;
@@ -29,6 +30,7 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
   const [tasks, setTasks] = useState<SimpleTaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; task?: SimpleTaskData }>({ open: false });
   // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
@@ -224,18 +226,27 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
               color={isOverdue ? 'red' : 'blue'}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <h4 style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>
-                    {task.name || 'Untitled Task'}
-                  </h4>
-                  <Tag color={statusColor} size="small">
-                    {task.taskStatus?.value || 'Unknown'}
-                  </Tag>
-                  {task.taskPriority?.value && (
-                    <Tag color="orange" size="small">
-                      {task.taskPriority.value}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>
+                      {task.name || 'Untitled Task'}
+                    </h4>
+                    <Tag color={statusColor} size="small">
+                      {task.taskStatus?.value || 'Unknown'}
                     </Tag>
-                  )}
+                    {task.taskPriority?.value && (
+                      <Tag color="orange" size="small">
+                        {task.taskPriority.value}
+                      </Tag>
+                    )}
+                  </div>
+                  <AntButton
+                    type="text"
+                    size="small"
+                    icon={<CloseOutlined />}
+                    onClick={() => setDeletePopup({ open: true, task })}
+                    data-testid={`delete-task-button-${task.id}`}
+                  />
                 </div>
                 
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
@@ -303,6 +314,35 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
 
       {/* Content */}
       {renderContent()}
+      {deletePopup.open && deletePopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deletePopup.task!.name || 'Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deletePopup.task!.id,
+            investmentTask: {
+              id: deletePopup.task!.id,
+              version: (deletePopup.task as any).version,
+            },
+            investmentId,
+          }}
+          onFlowSuccess={() => {
+            const id = deletePopup.task!.id;
+            setTasks(prev => prev.filter(t => t.id !== id));
+            setDeletePopup({ open: false });
+            message.success('Task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeletePopup({ open: false });
+            message.error('Failed to delete task');
+          }}
+          data-testid="investment-task-deletion-popup"
+        />
+      ) : null}
     </div>
   );
 };
