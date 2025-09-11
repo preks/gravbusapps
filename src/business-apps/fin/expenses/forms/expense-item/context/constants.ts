@@ -6,6 +6,8 @@ export const DEFAULT_EXPENSE_STATUS = "CREATED";
 
 export const PRIORITY_CURRENCIES = ["EUR", "USD", "RON"];
 
+export const DEFAULT_CURRENCY_CODE = "EUR";
+
 export const generateUniqueId = () => `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
 export const DEFAULT_POSITION = {
