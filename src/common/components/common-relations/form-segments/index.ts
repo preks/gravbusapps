@@ -16,7 +16,7 @@ export { taskSegmentSchema, createTaskSegmentResolver } from './task-segment/Tas
 
 export { default as NoteSegment } from './note-segment/NoteSegment';
 export type { NoteSegmentProps, NoteSegmentSchema } from './note-segment/NoteSegment';
-export { noteSegmentSchema, createNoteSegmentResolver, validateNoteData } from './note-segment/NoteSegment';
+export { noteSegmentSchema, createNoteSegmentResolver } from './note-segment/NoteSegment';
 
 export { useCatalogOptions } from './shared/hooks/useCatalogOptions';
 

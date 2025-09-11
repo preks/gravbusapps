@@ -1,15 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { NoteSegment, NoteSegmentSchema, createNoteSegmentResolver } from '@/common/components/common-relations/form-segments';
+import { buildInvestmentNotePayload } from '@/common/data/investment/payloads';
+import { useInvestmentEntities } from '@/common/data/investment/hooks';
 import { AppActionForm } from '@/components/app-action-form';
 import { useForm } from 'react-hook-form';
-import { buildInvestmentNotePayload } from '@/common/data/investment/payloads';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Textarea } from '@newwork/nw-design-system';
-
-export interface NoteFormProps extends BusinessAppContextProps {
-  onSuccess?: (note: NoteSegmentSchema) => void;
-  onCancel?: () => void;
-}
 
 const initialFormData: NoteSegmentSchema = {
   title: '',
@@ -17,10 +13,25 @@ const initialFormData: NoteSegmentSchema = {
   reminderDate: undefined,
 };
 
-const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const [formData, setFormData] = useState<NoteSegmentSchema>(initialFormData);
+export interface NoteFormProps extends BusinessAppContextProps {
+  initialData?: Partial<NoteSegmentSchema>;
+  onSuccess?: (note: NoteSegmentSchema) => void;
+  onCancel?: () => void;
+}
 
-  // Check if we're in update mode
+const NoteForm: React.FC<NoteFormProps> = ({ 
+  accessToken, 
+  userInfo,
+  additionalData,
+  onSuccess, 
+  onCancel 
+}) => {
+  const [formData, setFormData] = useState<NoteSegmentSchema>(initialFormData);
+  
+  // TODO: Add note loading functionality for update mode (similar to activity form)
+  // This will use setFormData when implemented
+
+  // Check if we're in update mode (similar to activity form)
   const noteId = additionalData?.noteId;
   const isUpdateMode = !!noteId;
 
@@ -32,47 +43,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const isInvestmentContext = Boolean(investmentId);
   const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext;
 
-  // Investment note hooks
-  const { fetchInvestmentNoteById } = useGetInvestmentNoteById({ accessToken, additionalData });
-
-  // Entity search hook (controlled search/path)
-  const { entities, loading: entitiesLoading, searchEntities, hasMore: entitiesHasMore, loadMore: loadMoreEntities, hydrateEntityById } = useInvestmentEntities({ accessToken, additionalData });
-
-  // Load existing note if in update mode
-  useEffect(() => {
-    if (isUpdateMode && noteId) {
-      fetchInvestmentNoteById(noteId).then((result: any) => {
-        if (result.note) {
-          const note = result.note;
-          
-          // Set form data
-          setFormData({
-            title: note.title || '',
-            text: note.text || '',
-            reminderDate: note.reminderDate || undefined,
-            account: note.account,
-            contact: note.contact,
-            opportunity: note.opportunity,
-            lead: note.lead,
-            // keep relatedEntityId for validation convenience
-            ...(note.account?.id ? { relatedEntityId: note.account.id } : {}),
-            ...(note.contact?.id ? { relatedEntityId: note.contact.id } : {}),
-            ...(note.opportunity?.id ? { relatedEntityId: note.opportunity.id } : {}),
-            ...(note.lead?.id ? { relatedEntityId: note.lead.id } : {}),
-          } as any);
-
-          // Hydrate and pin related entity if present so combobox trigger keeps rich label
-          const relId = note.account?.id || note.contact?.id || note.opportunity?.id || note.lead?.id;
-          if (relId) {
-            if (note.account?.id) hydrateEntityById('account', note.account.id);
-            else if (note.contact?.id) hydrateEntityById('contact', note.contact.id);
-            else if (note.opportunity?.id) hydrateEntityById('opportunity', note.opportunity.id);
-            else if (note.lead?.id) hydrateEntityById('lead', note.lead.id);
-          }
-        }
-      });
-    }
-  }, [isUpdateMode, noteId, fetchInvestmentNoteById]);
+  // Entity search hook (controlled search/path) - same as activity form
+  const { entities, loading: entitiesLoading, searchEntities, hasMore: entitiesHasMore, loadMore: loadMoreEntities } = useInvestmentEntities({ accessToken, additionalData });
 
   const handleEntitySearch = useCallback((searchTerm: string) => {
     // Allow empty string to fetch first page
@@ -89,20 +61,34 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback((data: any): string[] | null => {
     // For investment context, we don't require entity selection since investment context is sufficient
-    return validateNoteData(data, { requireEntity: shouldShowEntitySelection });
+    // Basic validation for note fields
+    const errors: string[] = [];
+    
+    if (!data.title || data.title.trim() === '') {
+      errors.push('Title is required');
+    }
+    
+    if (!data.text || data.text.trim() === '') {
+      errors.push('Note text is required');
+    }
+    
+    // Only require entity selection if not in investment context
+    if (shouldShowEntitySelection && !data.account && !data.contact && !data.opportunity && !data.lead) {
+      errors.push('Please select a related entity');
+    }
+    
+    return errors.length > 0 ? errors : null;
   }, [shouldShowEntitySelection]);
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: NoteSegmentSchema) => {
-    const payload = buildInvestmentNotePayload(
-      formData, 
-      { accessToken, userInfo, additionalData } as any, 
-      { accountId, contactId, opportunityId, leadId, investmentId },
-      { isUpdate: isUpdateMode }
-    );
+    const payload = buildInvestmentNotePayload(formData, { accessToken, userInfo, additionalData } as any, {
+      isUpdate: isUpdateMode,
+    });
     return payload;
-  }, [accessToken, userInfo, additionalData, accountId, contactId, opportunityId, leadId, investmentId, isUpdateMode]);
+  }, [accessToken, userInfo, additionalData, isUpdateMode]);
 
+  // Success handler
   const handleSuccess = useCallback(() => {
     if (onSuccess) {
       onSuccess(formData);

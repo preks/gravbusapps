@@ -47,6 +47,8 @@ export interface NoteSegmentSchema {
   contact?: { id: string };
   opportunity?: { id: string };
   lead?: { id: string };
+  authorEmployee?: { id: string };
+  version?: number;
 }
 
 export const noteSegmentSchema = z.object({
@@ -57,25 +59,6 @@ export const noteSegmentSchema = z.object({
 });
 
 export const createNoteSegmentResolver = () => zodResolver(noteSegmentSchema);
-
-export const validateNoteData = (
-  data: NoteSegmentSchema,
-  options?: { requireEntity?: boolean }
-): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.title) errors.push('Title is required');
-  if (!data.text) errors.push('Note text is required');
-
-  const requireEntity = options?.requireEntity ?? true;
-  const hasEntity = Boolean(data.account || data.contact || data.opportunity || data.lead || data.relatedEntityId);
-
-  if (requireEntity && !hasEntity) {
-    errors.push('Please select a related entity');
-  }
-
-  return errors.length > 0 ? errors : null;
-};
 
 const NoteSegment: React.FC<NoteSegmentProps> = ({
   showEntitySelection = false,

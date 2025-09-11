@@ -8,7 +8,6 @@ export * from './useInvestmentOpportunities';
 export * from './useInvestmentTasks';
 export * from './useInvestmentActivities';
 export * from './useInvestmentEntities';
-export * from './useInvestmentNotes';
 
 // Core Investment Entity Hooks
 export * from './useInvestments';

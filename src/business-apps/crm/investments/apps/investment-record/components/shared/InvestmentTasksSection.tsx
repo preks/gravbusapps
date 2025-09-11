@@ -3,15 +3,17 @@ import { Spin, Alert, Timeline, Typography, message, Modal, Tag, Button as AntBu
 import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { formatDate } from '@/common/data/investment';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import type { InvestmentTask } from '@/common/data/investment/types';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { Text } = Typography;
 
@@ -27,7 +29,7 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
   const [tasks, setTasks] = useState<SimpleTaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
 
@@ -55,7 +57,12 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      setTasks(tasksData);
+      // Show only non-approval tasks in this card
+      const nonApproval = (tasksData || []).filter((t: any) => {
+        const typeVal = t?.taskType?.value || t?.taskType?.code || t?.taskTypeRef || '';
+        return String(typeVal).toLowerCase() !== 'approval' && !String(typeVal).toUpperCase().endsWith(':APPROVAL');
+      });
+      setTasks(nonApproval);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
     } finally {
@@ -166,26 +173,7 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
     }
   };
 
-  const handleAddTaskClick = () => {
-    if (!investmentId) {
-      message.error('Investment ID is required to create a task');
-      return;
-    }
-
-    try {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          investmentId: investmentId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    } catch (error) {
-      console.error('Error starting task creation process:', error);
-      message.error('Failed to start task creation process');
-    }
-  };
+  // Task creation handled via AppAction below; legacy startProcess removed
 
   const renderContent = () => {
     if (loading) {
@@ -255,11 +243,16 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
                     Due: {formatTaskDate(task.dueDate)}
                     {isOverdue && <Text type="danger"> (Overdue)</Text>}
                   </Text>
-                  {task.assignedEmployee && (
-                    <Text type="secondary" style={{ marginLeft: '16px' }}>
-                      Assigned: {getEmployeeDisplayName(task.assignedEmployee.id)}
-                    </Text>
-                  )}
+                  <Text type="secondary" style={{ marginLeft: '16px' }}>
+                    Assigned: {
+                      task.assignedEmployee?.displayName ||
+                      (task.assignedEmployee?.id ? getEmployeeDisplayName(task.assignedEmployee.id) : undefined) ||
+                      task.creatorEmployee?.displayName ||
+                      (task.creatorEmployee?.id ? getEmployeeDisplayName(task.creatorEmployee.id) : undefined) ||
+                      task.createdBy ||
+                      'Unknown'
+                    }
+                  </Text>
                 </div>
                 
                 {task.description && (
@@ -286,14 +279,26 @@ export const InvestmentTasksSection: React.FC<InvestmentTasksSectionProps> = ({ 
         <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
           Tasks ({tasks.length})
         </h3>
-        <Button
-          variant="default"
-          onClick={handleAddTaskClick}
-          data-testid="add-task-button"
+        <AppAction
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          accessToken={context.accessToken}
+          externalContextData={{
+            investmentId,
+            investment: investmentId,
+            investmentTask: { investment: investmentId, investmentId },
+          }}
+          prefixDataTestId="add-task"
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          <PlusCircleOutlined />
-          Add Task
-        </Button>
+          <Button
+            variant="default"
+            data-testid="add-task-button"
+          >
+            <PlusCircleOutlined />
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       {/* Content */}

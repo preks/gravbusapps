@@ -38,13 +38,14 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   const activityId = additionalData?.activityId;
   const isUpdateMode = !!activityId;
 
-  // Get entity IDs from business app context
-  const { accountId, leadId, contactId, opportunityId, investmentId } = additionalData || {};
-  const hasEntityFromContext = accountId || leadId || contactId || opportunityId;
+  // Get entity IDs from business app context (support externalContextData from AppAction)
+  const { accountId, leadId, contactId, opportunityId } = additionalData || {};
+  // const hasEntityFromContext = accountId || leadId || contactId || opportunityId; // not used after forcing hide
   
   // For investment activities, we hide entity selection since investment + account context is sufficient
-  const isInvestmentContext = Boolean(investmentId);
-  const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext;
+  // In the investment record context, this specialized form must never ask for a related entity
+  // Always hide the related entity selector
+  const shouldShowEntitySelection = false;
 
   // Investment activity hooks
   const { fetchInvestmentActivityById } = useGetInvestmentActivityById({ accessToken, additionalData });
@@ -151,19 +152,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
       data-testid="investment-activity-process-dialog"
     >
-      {isInvestmentContext && (
-        <div className="gba:mb-4 gba:p-4 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-md" data-testid="investment-context-header">
-          <h3 className="gba:text-sm gba:font-medium gba:text-blue-900 gba:mb-1">
-            {getTranslationFromI18nKeyAndLabel('crm:investmentActivity.title', 'Investment Activity')}
-          </h3>
-          <p className="gba:text-xs gba:text-blue-700">
-            {getTranslationFromI18nKeyAndLabel(
-              'crm:investmentActivity.description', 
-              'This activity will be associated with the current investment and its related account.'
-            )}
-          </p>
-        </div>
-      )}
+      {/* Investment context header intentionally removed as requested */}
       
       <ActivitySegment
         // Let segment load type options from catalog
@@ -176,6 +165,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
         onEntityLoadMore={loadMoreEntities}
         onEntitySearch={handleEntitySearch}
         showEntitySelection={shouldShowEntitySelection}
+        showOwnerSelection={false}
         initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
         titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
