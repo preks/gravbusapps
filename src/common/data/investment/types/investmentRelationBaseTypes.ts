@@ -23,9 +23,13 @@ export interface InvestmentAccountRef {
   // Fields used in investment queries (inline account selection)
   email?: string;
   phone?: string;
+  website?: string;
   foundationDate?: string; // ISO date string
   geographicPresence?: string;
+  picture?: string;
+  pictureThumbnail?: string;
   // Catalog references (inline)
+  legalForm?: CatalogEntry;
   companySize?: CatalogEntry;
   accountAnnualRevenueBand?: CatalogEntry;
   industryClass?: CatalogEntry;
@@ -51,6 +55,9 @@ export interface InvestmentContactRef {
   jobPosition?: string;
   picture?: string;
   pictureThumbnail?: string;
+  // Catalog references
+  academicTitle?: CatalogEntry;
+  salutation?: CatalogEntry;
 }
 
 export interface InvestmentOpportunityRef {
@@ -127,6 +134,10 @@ export interface BaseInvestmentLead extends BaseEntity {
   requiredCapitalAmount?: number;
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
+  buildingYear?: string;
+  size?: number;
+  sizeMeasurementUnit?: CatalogEntry;
+  sizeMeasurementUnitRef?: string;
 }
 
 // investment_account table
@@ -226,6 +237,13 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   ownerEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
   
+  // Contact relationships
+  investmentOpportunityContact?: Array<{
+    id: string;
+    contactType?: ContactType;
+    contact?: InvestmentContactRef;
+  }>;
+  
   // Related investments (bidirectional relationship)
   investment?: InvestmentRef[]; // List of investments related to this opportunity
 
@@ -244,9 +262,14 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   requiredCapitalAmount?: number;
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
+  buildingYear?: string;
+  size?: number;
+  sizeMeasurementUnit?: CatalogEntry;
+  sizeMeasurementUnitRef?: string;
+  currencyRef?: string;
 }
 
-// investment_opportunity_contact table
+// investment_opportunity_contact table (used for standalone entities)
 export interface BaseInvestmentOpportunityContact extends BaseEntity {
   id: string;
   
@@ -255,7 +278,7 @@ export interface BaseInvestmentOpportunityContact extends BaseEntity {
   
   // Entity references (using Ref types)
   opportunity?: InvestmentOpportunityRef;
-  contact?: InvestmentContactRef;
+  contact?: InvestmentContactRef; // Use ContactRef for consistency
 }
 
 // investment_communication_channel table

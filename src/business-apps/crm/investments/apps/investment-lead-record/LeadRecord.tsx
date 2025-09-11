@@ -17,11 +17,12 @@ import { navigateTo } from "@/common/utils/navigationUtils";
 import { useLeadData } from "./hooks/useLeadData";
 import { LeadHeader } from "./components/LeadHeader";
 import { StatusProgression } from "./components/StatusProgression";
-import { CompanyInformation } from "./components/CompanyInformation";
-import { ContactInformation } from "./components/ContactInformation";
+import { InvestmentSection } from "../../components/record-sections/investment-section";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { LeadDocuments } from "./components/LeadDocuments";
+import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
+import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
 
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
@@ -195,23 +196,56 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
 
           <TabsContent value="overview" data-testid="investment-lead-overview-content">
             {/* First Row: Company Information + Contacts */}
-            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
+            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6 gba:items-stretch">
               {/* Company Information - 3/4 width */}
               <div className="gba:col-span-3 gba:flex">
-                <CompanyInformation lead={lead} leadData={leadData} />
+                <AccountSection 
+                  account={leadData ? {
+                    name: leadData.companyName,
+                    email: leadData.companyEmail,
+                    phone: leadData.companyPhone,
+                    website: leadData.companyWebsite,
+                    legalForm: leadData.legalForm?.value || leadData.legalForm?.code,
+                    industry: leadData.industryClass?.value || leadData.industryClass?.code,
+                    companySize: leadData.companySize?.value || leadData.companySize?.code,
+                    // Add other mapping as needed
+                  } : undefined}
+                  data-testid="lead-account-section"
+                  className="gba:h-full"
+                  {...props}
+                />
               </div>
 
               {/* Contacts - 1/4 width */}
               <div className="gba:col-span-1 gba:flex">
-                <ContactInformation
-                  leadData={leadData}
-                  leadId={leadId}
-                  context={props}
+                <ContactSection 
+                  contact={leadData ? {
+                    firstName: leadData.firstName,
+                    lastName: leadData.lastName,
+                    email: leadData.email,
+                    phone: leadData.phoneNumber,
+                    jobTitle: leadData.position,
+                    academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
+                    salutation: leadData.salutation?.value || leadData.salutation?.code,
+                  } : undefined}
+                  data-testid="lead-contact-section"
+                  className="gba:h-full"
+                  {...props}
                 />
               </div>
             </div>
 
-            {/* Second Row: Activity Timeline + Tasks */}
+            {/* Second Row: Investment Information */}
+            <div className="gba:mb-6">
+            <InvestmentSection 
+              investmentData={leadData} 
+              businessAppContext={props}
+              isLoading={loading}
+              error={error}
+            />
+            </div>
+
+            {/* Third Row: Activity Timeline + Tasks */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-6">
               {/* Activity Timeline - 1/2 width */}
               <div>
@@ -246,11 +280,6 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   const leadId =
     props.leadId || new URLSearchParams(window.location.search).get("leadId");
 
-  const source = useMemo(() => {
-    return (
-      props.source || new URLSearchParams(window.location.search).get("source")
-    );
-  }, [props.source]);
 
   const fromEntity = useMemo(() => {
     const urlFromEntity = new URLSearchParams(window.location.search).get(

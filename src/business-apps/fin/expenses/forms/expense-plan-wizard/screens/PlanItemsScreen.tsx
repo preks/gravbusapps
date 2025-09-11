@@ -14,6 +14,7 @@ import { showToast } from '../../../utils/notificationUtils';
 import ExpenseItemCard from '../../expense-request-wizard/components/ExpenseItemCard';
 import RejectionComment from '../../expense-request-wizard/components/RejectionComment';
 import { getLatestRejectComment } from '../utils/tripScreenUtils';
+import { REQUEST_STATUS, DEFAULT_ITEM_LIST_LIMIT, DEFAULT_CURRENCY_FALLBACK } from '../constants/constants';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -48,7 +49,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 3;
+  const itemListLimit = DEFAULT_ITEM_LIST_LIMIT;
   
   const graphQLClient = useGraphqlClient(accessToken);
 
@@ -74,7 +75,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
-        const defaultCurrency = expensePlanData?.ExpensePlanByPk?.currency?.code || 'RON';
+        const defaultCurrency = expensePlanData?.ExpensePlanByPk?.currency?.code || DEFAULT_CURRENCY_FALLBACK;
         return [{ currency: defaultCurrency, amount: 0 }];
       }
 
@@ -166,7 +167,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
           const variables = {
             employeeId,
-            status: "CREATED",
+            status: REQUEST_STATUS.CREATED,
             activeUserLocale: userLocale,
             idsArray: newItemIds,
             itemCurrency: itemCurrency
@@ -382,7 +383,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
                 {expensePlanData?.ExpensePlanByPk && expensePlanData.ExpensePlanByPk.currency ? 
                   `0.00 ${expensePlanData.ExpensePlanByPk.currency.code}` : 
-                  "0.00 RON"}
+                  `0.00 ${DEFAULT_CURRENCY_FALLBACK}`}
               </span>
             )}
           </div>

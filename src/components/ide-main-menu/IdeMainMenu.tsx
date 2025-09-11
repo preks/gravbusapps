@@ -130,6 +130,11 @@ export const IdeMainMenu: React.FC<IdeMainMenuProps> = ({
         items={menuItems}
         inlineCollapsed={collapsed}
         data-testid="ide-menu"
+        style={{
+          height: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}
       />
     </ConfigProvider>
   );

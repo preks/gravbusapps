@@ -2,6 +2,7 @@ import React from 'react';
 import { Divider } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { useTranslation } from 'react-i18next';
+import { FORM_STEPS, REQUEST_TYPES } from '../constants/constants';
 
 interface FormFooterProps {
   step: string;
@@ -16,7 +17,7 @@ interface FormFooterProps {
 /**
  * Footer component with cancel and submit buttons
  */
-const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = "expense", additionalData }) => {
+const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsValid = false, onCancel, onSubmit, testIdPrefix = REQUEST_TYPES.EXPENSE, additionalData }) => {
   const { t } = useTranslation();
   return (
     <div style={{ marginTop: 'auto', width: '100%' }} data-testid={`${testIdPrefix}-footer`}>
@@ -31,7 +32,7 @@ const FormFooter: React.FC<FormFooterProps> = ({ step, loading = false, formIsVa
         >
           {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
-        {(step === 'expense' || step === 'trip') && (
+        {(step === FORM_STEPS.EXPENSE || step === FORM_STEPS.TRIP) && (
           <Button 
             variant="primary" 
             style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px', width: 'auto' }}

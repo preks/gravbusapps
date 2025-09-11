@@ -6,6 +6,7 @@ export {
   DEFAULT_EXPENSE_SOURCE,
   DEFAULT_EXPENSE_STATUS,
   PRIORITY_CURRENCIES,
+  DEFAULT_CURRENCY_CODE
 } from "../expense-item/context/constants";
 
 

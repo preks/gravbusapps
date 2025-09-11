@@ -22,6 +22,7 @@ import { useExpenseItem } from "../../context/ExpenseItemContext";
 import { Alert } from "antd";
 import { getCurrentActiveUserLocale, getDateFormat } from "../../../../../../../common/utils/windowUtils";
 import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
+import { DEFAULT_CURRENCY_ID } from "../../constants/constants";
 
 interface FormScreenComponentProps {
   form: any;
@@ -100,7 +101,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
-        currency: "Currency:v1:EUR",
+        currency: DEFAULT_CURRENCY_ID,
       }}
     >
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">

@@ -46,14 +46,29 @@ export const useAbsenceTypesByGroup = (
         localeCode: userLocale,
         includeChildCatalogEntries: true
       });
+
       
       if (response?.data) {
-        // Filter by parent entry ID if provided
+        // Filter by group: if parentEntryId provided, it can be either
+        // - a parent entry id (e.g. 'AbsenceType:v1:A001') OR
+        // - a child entry value (e.g. 'Vacation')
+        // Find the parent id first, then return all entries with the same parentEntryId
         let filteredEntries = response.data;
         if (parentEntryId) {
-          filteredEntries = response.data.filter((entry: CatalogEntry) => 
-            entry.parentEntryId === parentEntryId
-          );
+          const normalize = (s?: string) => (s ?? '').toLowerCase().trim();
+
+          // Try to find an entry matching by id OR by value
+          const matchedEntry = response.data.find((entry: CatalogEntry) => {
+            return entry.id === parentEntryId || normalize(entry.value) === normalize(parentEntryId);
+          });
+
+          // Determine the target parent id
+          const targetParentId = matchedEntry
+            ? (matchedEntry.parentEntryId || matchedEntry.id)
+            : parentEntryId;
+
+          // Return all entries that share this parent id
+          filteredEntries = response.data.filter((entry: CatalogEntry) => entry.parentEntryId === targetParentId);
         }
         
         const processedOptions = filteredEntries.map((entry: CatalogEntry) => {

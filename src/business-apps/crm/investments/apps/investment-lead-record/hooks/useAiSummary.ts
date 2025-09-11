@@ -3,10 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from "@/comm
 import { 
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
-  useGetInvestmentTasksByLeadId
+  useGetInvestmentTasksByLeadId,
+  useGetInvestmentLeadById
 } from '@/common/data/investment/hooks/useInvestmentLeads';
-import { GET_LEAD_BY_ID, GetLeadByIdResponse } from "../queries/GetLeadByIdQueries";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
 
 const taskDescription = `You are an assistant that summarises CRM lead timelines. 
@@ -22,17 +21,15 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
-    const graphQLClient = useGraphQLClient(accessToken);
+    const { fetchInvestmentLeadById } = useGetInvestmentLeadById({ accessToken });
     const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId({ accessToken });
     const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId({ accessToken });
     const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId({ accessToken });
 
     const generateInputData = async () => {
-        // get lead data
-        const lead = await graphQLClient.request<GetLeadByIdResponse>(
-            GET_LEAD_BY_ID,
-            { id: leadId }
-        );
+        // get lead data using central hook
+        const leadResult = await fetchInvestmentLeadById(leadId);
+        const lead = leadResult.lead;
 
         // get activity data
         const activityResult = await fetchInvestmentActivitiesByLeadId(leadId);

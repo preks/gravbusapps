@@ -32,8 +32,6 @@ import { useAbsenceValidation } from "./hooks/useAbsenceValidation";
 import { useFileClient } from "@/common/network/files/useFileClient";
 import { useAbsenceTypesByGroup } from "./hooks/useAbsenceTypesByGroup";
 
-import { AbsenceTypeOption } from "./hooks/useAbsenceTypesByGroup";
-
 type Employee = {
   id: string;
   userId: string;
@@ -61,13 +59,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const initialStartDate = propStartDate ? new Date(propStartDate) : undefined;
   const initialEndDate = propEndDate ? new Date(propEndDate) : undefined;
 
-  // Get absenceType from different possible sources
-  // This is the parent entry ID (absence group) that determines which absence types to show
-  const absenceType = additionalData?.absenceType || 
-                     additionalData?.externalContextData?.absenceType ||
-                     additionalData?.psi_taskPayload?.absenceType ||
-                     additionalData?.psi_taskPayload?.psi_initialParameters?.absenceType ||
-                     "";
+  const processName = additionalData?.psi_processMetadata?.processMetadata?.name;
+  const processToParentAbsenceTypeMap: Record<string, string> = {
+    createEmployeeVacation: "AbsenceType:v1:A001",
+    createEmployeeSickLeave: "AbsenceType:v1:A021",
+    createEmployeeSpecialLeave: "AbsenceType:v1:A050",
+  };
+  const mappedParentType = processName && processToParentAbsenceTypeMap[processName];
+  const absenceType = mappedParentType || "";
 
   const [employees, setEmployees] = useState<Employee[]>([]);
 
@@ -94,6 +93,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     generalErrors,
     existingSickLeave,
     hasExistingSickLeave,
+    validationWarnings
   } = useAbsenceValidation({
     accessToken,
     employeeId: userInfo?.employeeDetails?.employeeId || "",
@@ -102,6 +102,19 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     endDate: formValuesState.endDate,
     locale,
   });
+
+  // Keep end date in sync to allow same-day selection and prevent end < start
+  useEffect(() => {
+    setFormValuesState((prev) => {
+      const start = prev.startDate;
+      const end = prev.endDate;
+      if (!start) return prev;
+      if (!end || end < start) {
+        return { ...prev, endDate: start };
+      }
+      return prev;
+    });
+  }, [formValuesState.startDate]);
 
   // State for sick leave update/create mode
   const [isUpdateMode, setIsUpdateMode] = useState(false);
@@ -356,7 +369,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
 
   return (
     <div
-      className="gba:min-h-screen gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white"
+      className="gba:min-h-screen gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-white gba:mt-3"
       data-testid="create-new-absence-root"
     >
       <div
@@ -553,7 +566,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                       }
                       disabled={(date) => {
                         if (!formValuesState.startDate) return false;
-                        return date < formValuesState.startDate;
+                        return date < formValuesState.startDate || date === formValuesState.startDate;
                       }}
                       data-testid="end-date-calendar"
                     />
@@ -638,8 +651,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 </div>
               )}
 
-              {/* Validation Errors Display */}
-              {hasValidationErrors && (
+              {/* Validation Errors/Warnings Display */}
+              {(hasValidationErrors || validationWarnings.length > 0) && (
                 <div
                   className="gba:mb-4"
                   data-testid="validation-errors-container"
@@ -674,6 +687,16 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     >
                       <AlertCircle className="gba:h-4 gba:w-4" />
                       <span>{error.message}</span>
+                    </Alert>
+                  ))}
+                  {validationWarnings.map((warning, index) => (
+                    <Alert
+                      key={`warning-${index}`}
+                      className="gba:mb-2"
+                      data-testid={`validation-warning-${index}`}
+                    >
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{warning.message}</span>
                     </Alert>
                   ))}
                 </div>
@@ -744,7 +767,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 <Button
                   type="submit"
                   variant="default"
-                  className="gba:bg-blue-600 gba:text-white gba:px-5 gba:py-2 gba:rounded gba:font-medium"
                   data-testid="submit-button"
                   onClick={handleSubmit}
                   disabled={!isFormValid}
@@ -761,8 +783,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 </Button>
                 <Button
                   type="button"
-                  variant="secondary"
-                  className="gba:bg-gray-200 gba:text-gray-700 gba:px-5 gba:py-2 gba:rounded gba:font-medium gba:mr-2"
+                  variant="outline"
                   data-testid="cancel-button"
                   onClick={handleCancel}
                 >
