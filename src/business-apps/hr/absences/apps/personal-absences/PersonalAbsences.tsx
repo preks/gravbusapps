@@ -1,16 +1,10 @@
 import { PageLayout } from "@newwork/nw-design-system";
-import { Calendar, List, BarChart3, Paperclip } from "lucide-react";
-// import { StatsCard } from "./components/StatsCard";
-// import { UpcomingAbsenceCard } from "./components/UpcomingAbsenceCard";
-// import AbsenceListCard from "./components/AbsenceListCard";
+import { Calendar, List, Paperclip } from "lucide-react";
 import type {
   AbsenceItem,
   StatItem,
   AbsenceListCardAbsence,
 } from "./types/absenceTypes";
-// import AbsenceCalendar from "./components/absence-calendar/AbsenceCalendar";
-// import EntitlementCard from "./components/EntitlementCard";
-import StatisticsTab from "./components/StatisticsTab";
 import type { Entitlement } from "./types/entitlementTypes";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -21,7 +15,6 @@ import {
 } from "./queries/graphql";
 import { getAbsenceGroups } from "@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups";
 import dayjs from "dayjs";
-// import AbsenceTypeFilter from "./components/AbsenceTypeFilter";
 import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel,
