@@ -1,29 +1,10 @@
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  PageLayout,
-} from "@newwork/nw-design-system";
-import {
-  Calendar,
-  List,
-  BarChart3,
-  Paperclip,
-  ChevronDown,
-} from "lucide-react";
-import { StatsCard } from "./components/StatsCard";
-import { UpcomingAbsenceCard } from "./components/UpcomingAbsenceCard";
-import AbsenceListCard from "./components/AbsenceListCard";
+import { PageLayout } from "@newwork/nw-design-system";
+import { Calendar, List, Paperclip } from "lucide-react";
 import type {
   AbsenceItem,
   StatItem,
   AbsenceListCardAbsence,
 } from "./types/absenceTypes";
-import AbsenceCalendar from "./components/absence-calendar/AbsenceCalendar";
-import EntitlementCard from "./components/EntitlementCard";
-import StatisticsTab from "./components/StatisticsTab";
 import type { Entitlement } from "./types/entitlementTypes";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -34,7 +15,6 @@ import {
 } from "./queries/graphql";
 import { getAbsenceGroups } from "@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups";
 import dayjs from "dayjs";
-import AbsenceTypeFilter from "./components/AbsenceTypeFilter";
 import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel,
@@ -398,15 +378,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         "lowcoder:absence_hub.entitlements",
         "Entitlements"
       ),
-    },
-    {
-      key: "statistics",
-      icon: <BarChart3 className="gba:w-4 gba:h-4" />,
-      label: getTranslationFromI18nKeyAndLabel(
-        "lowcoder:absence_hub.statistics",
-        "Statistics"
-      ),
-    },
+    }
   ];
 
   const renderTabContent = useCallback(() => {
@@ -433,14 +405,13 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     }
 
     switch (activeTab) {
-      case "statistics":
-        return <StatisticsTab absences={absenceList} />;
-
       case "calendar":
+      case "absence-list": 
+      case "entitlements": 
         if (employee && absenceEntitlements) {
           return (
             <AbsencesTab
-              employee={employee}
+              employee={employee as any}
               employeeAbsenceEntitlement={absenceEntitlements}
               accessToken={accessToken || ""}
               shownTab={activeTab}
@@ -448,213 +419,6 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           );
         }
         return null;
-
-      case "absence-list":
-        return (
-          <div className="gba:flex gba:gap-6 gba:w-full">
-            <div className="gba:flex-1 gba:min-w-0">
-              <div
-                className="gba:absenceList"
-                data-testid="personal-absences-absence-list"
-              >
-                <div
-                  className="gba:flex gba:items-center gba:justify-between gba:mb-4"
-                  data-testid="absence-type-filter-row"
-                >
-                  <AbsenceTypeFilter
-                    filterOptions={filterOptions}
-                    activeFilter={activeFilter}
-                    onFilterChange={(filter) => {
-                      setActiveFilter(filter);
-                      setCurrentPage(1);
-                    }}
-                  />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        disabled={
-                          loadingAbsenceGroups || absenceGroups.length === 0
-                        }
-                        data-testid="personal-absences-create-dropdown-list"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "absence.create",
-                          "Create Absence",
-                          getCurrentActiveUserLocale()
-                        )}
-                        <ChevronDown className="gba:ml-2 gba:h-4 gba:w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {createAbsenceMenuItems().map((item) => (
-                        <DropdownMenuItem key={item.key} onClick={item.onClick}>
-                          {item.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <h3
-                  className="gba:absenceListTitle"
-                  data-testid="personal-absences-absence-history-title"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:absence_hub.absence_history",
-                    "Absence History"
-                  )}
-                </h3>
-                <div
-                  className="gba:absenceListCards"
-                  data-testid="personal-absences-absence-list-cards"
-                >
-                  {filteredAbsenceList.length > 0 ? (
-                    paginatedAbsenceList.map((absence, idx) => (
-                      <AbsenceListCard
-                        key={idx + (currentPage - 1) * pageSize}
-                        absence={absence}
-                      />
-                    ))
-                  ) : (
-                    <div
-                      className="gba:absenceListEmpty"
-                      data-testid="personal-absences-absence-list-empty"
-                    >
-                      {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:absence_hub.no_absences_found",
-                        "No absences found."
-                      )}
-                    </div>
-                  )}
-                </div>
-                {filteredAbsenceList.length > pageSize && (
-                  <div
-                    className="gba:absenceListPagination"
-                    data-testid="personal-absences-absence-list-pagination"
-                    style={{
-                      marginTop: 24,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-4">
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="gba:text-sm gba:text-gray-600">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.pagination",
-                          "{{range0}}-{{range1}} of {{total}}",
-                          {
-                            range0: (currentPage - 1) * pageSize + 1,
-                            range1: Math.min(
-                              currentPage * pageSize,
-                              filteredAbsenceList.length
-                            ),
-                            total: filteredAbsenceList.length,
-                          }
-                        )}
-                      </span>
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={
-                          currentPage * pageSize >= filteredAbsenceList.length
-                        }
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div
-              className="gba:sidebar gba:w-80 gba:flex-shrink-0"
-              data-testid="personal-absences-sidebar"
-            >
-              <div
-                className="gba:cardsContainer"
-                data-testid="personal-absences-cards-container"
-              >
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-timeoff-balance-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.time_off_balance",
-                      "Time Off Balance"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:statsGrid"
-                    data-testid="personal-absences-stats-grid"
-                  >
-                    {filteredStats.map((stat, index) => (
-                      <StatsCard key={index} stat={stat} />
-                    ))}
-                  </div>
-                </div>
-                <div className="gba:timeOffBalanceCard">
-                  <h3
-                    className="gba:cardTitle"
-                    data-testid="personal-absences-upcoming-title"
-                  >
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:absence_hub.upcoming_time_off",
-                      "Upcoming Time Off"
-                    )}
-                  </h3>
-                  <div
-                    className="gba:upcomingList"
-                    data-testid="personal-absences-upcoming-list"
-                  >
-                    {filteredUpcomingAbsences.length > 0 ? (
-                      filteredUpcomingAbsences
-                        .slice(0, 5)
-                        .map((absence) => (
-                          <UpcomingAbsenceCard
-                            key={absence.id}
-                            absence={absence}
-                          />
-                        ))
-                    ) : (
-                      <div
-                        className="gba:absenceListEmpty"
-                        data-testid="upcoming-absence-empty"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:absence_hub.no_upcoming_absences",
-                          "No upcoming absences"
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case "entitlements":
-        return (
-          <div
-            className="gba:entitlementsList"
-            data-testid="personal-absences-entitlements-list"
-          >
-            {entitlements.map((ent, idx) => (
-              <EntitlementCard key={idx} entitlement={ent} />
-            ))}
-          </div>
-        );
 
       default:
         return null;
