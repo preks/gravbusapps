@@ -49,7 +49,6 @@ type CreateNewAbsenceFormValues = {
 
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
-  console.log("additionalData", additionalData);
   const client = useGraphQLClient(accessToken);
   const locale = getCurrentActiveUserLocale();
   const structureId = getCurrentActiveStructureId();
