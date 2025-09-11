@@ -398,7 +398,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                               {currentDay.date()}
                             </div>
                             {isCurrentMonth && (() => {
-                              const overlappingAbsences = absenceList.filter((absence: any) => {
+                              const overlappingAbsences = absenceList.filter((absence: AbsenceListCardAbsence) => {
                                 const absenceStart = dayjs(absence.startDate);
                                 const absenceEnd = dayjs(absence.endDate);
                                 return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
