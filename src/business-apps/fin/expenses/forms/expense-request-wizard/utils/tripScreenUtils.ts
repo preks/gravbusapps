@@ -61,11 +61,11 @@ export const createTripLogObject = (
   employeeRuleId: string,
   currentTitle: string,
   currentCurrency: string | null,
-  event:string
+  event:string,
+  overnightAccommodation?: boolean
 ): LogObject => {
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
-  
   return {
     stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event,
     event: event,
@@ -84,7 +84,8 @@ export const createTripLogObject = (
       requestDate: initialRequest.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest.requestTypeRef,
       additionalProperties: initialRequest.additionalProperties || {},
-      currencyRef: currentCurrency || initialRequest.currency?.id
+      currencyRef: currentCurrency || initialRequest.currency?.id,
+      ...(typeof overnightAccommodation === 'boolean' ? { overnightAccommodation } : {})
     }
   };
 };
@@ -373,6 +374,7 @@ export const handleTripSubmitAction = (
   currentTitle: string,
   currentCurrency: string | null,
   event:string,
+  overnightAccommodation?: boolean,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   const initialRequest = expenseRequestData?.ExpenseRequestByPk;
@@ -386,7 +388,7 @@ export const handleTripSubmitAction = (
     );
     return false;
   }
-  const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency,event);
+  const logObject = createTripLogObject(startLocation, endLocation, initialRequest, employeeRuleId, currentTitle, currentCurrency, event, overnightAccommodation);
   const requestItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expenseRequest: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
     expenseRequestData.ExpenseItem.forEach((item: any) => {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { XCircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 
 interface SearchBarWithLabelProps {
   onSearch: (value: string) => void;
@@ -80,11 +80,11 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
             onClick={handleClear}
             data-testid="plan-search-clear"
           >
-            <CloseCircleOutlined data-testid="plan-search-clear-icon" />
+            <XCircleIcon data-testid="plan-search-clear-icon" />
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', position: 'absolute', right: expanded ? 'auto' : '12px', left: expanded ? '10px' : 'auto', transition: 'right 0.3s, left 0.3s' }} data-testid="plan-search-icon-container">
-          <SearchOutlined data-testid="plan-search-icon" />
+          <MagnifyingGlassIcon data-testid="plan-search-icon" />
         </div>
       </div>
       {!expanded && (

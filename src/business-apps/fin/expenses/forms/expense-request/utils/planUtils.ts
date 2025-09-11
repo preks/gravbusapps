@@ -1,5 +1,7 @@
 import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
 import { ICONS } from '../../../utils/icons';
+import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants';
+import { PLAN_TYPES } from '../../expense-plan/constants/constants';
 
 
 /**
@@ -29,8 +31,8 @@ export const getCatalogTypeTransformer = (typeNeeded: string, expenseCatalogueDa
 export const getPlanCardData = (planData: any, expenseCatalogueData: any, t: any): any => {
   if (!planData) return null;
   
-  const expenseType = getCatalogTypeTransformer('expense', expenseCatalogueData);
-  const planTypeData = planData.requestTypeRef === expenseType?.id ? 'EXPENSE' : 'TRIP';
+  const expenseType = getCatalogTypeTransformer(PLAN_TYPES.EXPENSE, expenseCatalogueData);
+  const planTypeData = planData.requestTypeRef === expenseType?.id ? PLAN_TYPE_ENUM.EXPENSE : PLAN_TYPE_ENUM.TRIP;
   
   const amountFormated = formatNumberFunction(planData.totalAmount ? planData.totalAmount : 0);
   const paymentamountFormated = formatNumberFunction(planData.advancePaymentTotalAmount || 0);
@@ -42,8 +44,8 @@ export const getPlanCardData = (planData: any, expenseCatalogueData: any, t: any
   return {
     id: planData.id,
     planType: planTypeData,
-    avatarImg: planTypeData === 'EXPENSE' ? ICONS.RECEIPT_ICON : ICONS.TRIP_ICON,
-    avatarTitle: planTypeData === 'EXPENSE' 
+    avatarImg: planTypeData === PLAN_TYPE_ENUM.EXPENSE ? ICONS.RECEIPT_ICON : ICONS.TRIP_ICON,
+    avatarTitle: planTypeData === PLAN_TYPE_ENUM.EXPENSE 
       ? t('lowcoder:create_expense_request.expense_select_button', 'Expense') 
       : t('lowcoder:create_expense_request.trip_select_button', 'Trip'),
     title: planData.title || '',
@@ -54,8 +56,8 @@ export const getPlanCardData = (planData: any, expenseCatalogueData: any, t: any
     tripEnd: planData.endDate || '',
     tripInterval: cardDate || '',
     paymentAmount: paymentamountFormated || '',
-    paymentCurrency: (planData.currency && planData.currency.code) ? planData.currency.code : 'EUR',
-    planCurrency: (planData.currency && planData.currency.code) ? planData.currency.code : 'EUR',
+    paymentCurrency: (planData.currency && planData.currency.code) ? planData.currency.code : DEFAULT_PLAN_CURRENCY_CODE,
+    planCurrency: (planData.currency && planData.currency.code) ? planData.currency.code : DEFAULT_PLAN_CURRENCY_CODE,
     planAmount: amountFormated || ''
   };
 };

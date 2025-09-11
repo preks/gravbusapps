@@ -23,6 +23,7 @@ import SummaryScreen from './screens/SummaryScreen';
 
 import ProgressIndicator from './components/ProgressIndicator';
 import { setInitialScreen } from './utils/tripScreenUtils';
+import { REQUEST_TYPES } from '../expense-request/constants/constants';
 
 const { Title } = Typography;
 
@@ -59,7 +60,7 @@ const ExpenseRequestWizardContent: React.FC<ExpenseRequestWizardContentProps> = 
 
  
 
-  const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes(REQUEST_TYPES.TRIP);
 
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {

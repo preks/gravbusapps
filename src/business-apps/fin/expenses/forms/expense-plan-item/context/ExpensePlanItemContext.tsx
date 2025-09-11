@@ -34,6 +34,7 @@ import { showToast } from "../../../utils/notificationUtils";
 import { handleSubmit, handleCancel, handleExpenseGroupChange, handleExpenseTypeChange, handleCurrencyChange } from "../services/eventHandlers";
 import { DEFAULT_EMPLOYEE_ID } from "../../expense-item/constants/constants";
 import { useProcessEventState } from "@/business-apps/fin/expenses/utils/useProcessEventState";
+import { DEFAULT_CURRENCY_CODE } from "../constants";
 
 interface ExpensePlanItemContextProps {
   form: any;
@@ -205,7 +206,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       // Set default currency if available
       if (transformedCurrencies.length > 0) {
         const defaultCurrency = transformedCurrencies.find(
-          (currency) => currency.code === "EUR"
+          (currency) => currency.code === DEFAULT_CURRENCY_CODE
         ) || transformedCurrencies[0];
         
         form.setFieldsValue({

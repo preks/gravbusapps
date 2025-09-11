@@ -23,11 +23,11 @@ import PlanSummaryScreen from './screens/PlanSummaryScreen';
 // Import context provider and hook
 import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './context/ExpensePlanWizardContext';
 
-// Import date validation hook
-import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 
 import { setInitialScreen } from './utils/tripScreenUtils';
 import ExpensePlanItem from '../expense-plan-item';
+import { PLAN_TYPES } from '../expense-plan/constants/constants';
+import { TITLE_MAX_LENGTH } from '../expense-request/constants/constants';
 
 const { Title } = Typography;
 
@@ -62,7 +62,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   const [itemsCount, setItemsCount] = useState<number>(0);
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
 
-  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP);
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -119,7 +119,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     if (!value.trim()) {
       return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_custom_rule', 'Please enter a title');
     }
-    if (value.length > 50) {
+    if (value.length > TITLE_MAX_LENGTH) {
       return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.maximum_characters_title_error_message',
         'Maximum limit reached: The title can be up to 50 characters only.');
     }
@@ -329,7 +329,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                     value={titleValue}
                     onChange={handleTitleChange}
                     placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_plan.title_placeholder', 'Enter title')}
-                    maxLength={50}
+                    maxLength={TITLE_MAX_LENGTH}
                     autoFocus
                   />
                 </div>

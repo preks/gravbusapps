@@ -16,6 +16,9 @@ export const DEFAULT_EMPLOYEE_ID = "";
 export const DEFAULT_EXPENSE_SOURCE = "GENERAL_EXPENSE_RULE";
 export const DEFAULT_EXPENSE_STATUS = REQUEST_STATUS.CREATED;
 export const PRIORITY_CURRENCIES = ["EUR", "USD", "RON"];
+export const DEFAULT_CURRENCY_ID = "Currency:v1:EUR";
+export const DEFAULT_EXPENSE_CLASS_ID = "ExpenseClass:v1:EXPENSE";
+export const EXPENSE_SEARCH_TERM = "expense";
 
 export const generateUniqueId = () => `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
