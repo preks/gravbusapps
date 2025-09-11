@@ -358,11 +358,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                         const isCurrentMonth = currentDay.month() === currentDate.month();
                         const isToday = currentDay.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
                         
-                        const hasAbsence = absenceList.some((absence: AbsenceListCardAbsence) => {
-                          const absenceStart = dayjs(absence.startDate);
-                          const absenceEnd = dayjs(absence.endDate);
-                          return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
-                        });
+                        // (kept purposely minimal; we compute overlappingAbsences later for indicators)
                         
                         const isSelectedStart = selectedStartDate ? currentDay.isSame(selectedStartDate, 'day') : false;
                         const isSelectedEnd = selectedEndDate ? currentDay.isSame(selectedEndDate, 'day') : false;
@@ -401,9 +397,35 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                             >
                               {currentDay.date()}
                             </div>
-                            {hasAbsence && isCurrentMonth && (
-                              <div className="gba:absence-indicator gba:mt-1 gba:h-2 gba:bg-blue-400 gba:rounded-full"></div>
-                            )}
+                            {isCurrentMonth && (() => {
+                              const overlappingAbsences = absenceList.filter((absence: any) => {
+                                const absenceStart = dayjs(absence.startDate);
+                                const absenceEnd = dayjs(absence.endDate);
+                                return currentDay.isBetween(absenceStart, absenceEnd, null, '[]');
+                              });
+
+                              if (overlappingAbsences.length === 0) return null;
+
+                              // Render small colored segments for each overlapping absence (max 3)
+                              const maxSegments = 3;
+                              const segments = overlappingAbsences.slice(0, maxSegments);
+                              const segmentWidth = `${100 / segments.length}%`;
+
+                              return (
+                                <div className="gba:flex gba:gap-1 gba:mt-1">
+                                  {segments.map((a: any, idx: number) => (
+                                    <div
+                                      key={`seg-${idx}`}
+                                      className="gba:h-2 gba:rounded-full"
+                                      style={{
+                                        width: segmentWidth,
+                                        backgroundColor: a.statusColor || '#6b7280'
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       });
