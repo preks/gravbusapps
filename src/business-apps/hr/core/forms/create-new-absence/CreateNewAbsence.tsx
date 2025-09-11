@@ -93,6 +93,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     generalErrors,
     existingSickLeave,
     hasExistingSickLeave,
+    validationWarnings
   } = useAbsenceValidation({
     accessToken,
     employeeId: userInfo?.employeeDetails?.employeeId || "",
@@ -101,6 +102,21 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     endDate: formValuesState.endDate,
     locale,
   });
+
+  console.log("validationWarnings", validationWarnings);
+
+  // Keep end date in sync to allow same-day selection and prevent end < start
+  useEffect(() => {
+    setFormValuesState((prev) => {
+      const start = prev.startDate;
+      const end = prev.endDate;
+      if (!start) return prev;
+      if (!end || end < start) {
+        return { ...prev, endDate: start };
+      }
+      return prev;
+    });
+  }, [formValuesState.startDate]);
 
   // State for sick leave update/create mode
   const [isUpdateMode, setIsUpdateMode] = useState(false);
@@ -552,7 +568,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                       }
                       disabled={(date) => {
                         if (!formValuesState.startDate) return false;
-                        return date < formValuesState.startDate;
+                        return date < formValuesState.startDate || date === formValuesState.startDate;
                       }}
                       data-testid="end-date-calendar"
                     />
@@ -637,8 +653,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 </div>
               )}
 
-              {/* Validation Errors Display */}
-              {hasValidationErrors && (
+              {/* Validation Errors/Warnings Display */}
+              {(hasValidationErrors || validationWarnings.length > 0) && (
                 <div
                   className="gba:mb-4"
                   data-testid="validation-errors-container"
@@ -673,6 +689,16 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     >
                       <AlertCircle className="gba:h-4 gba:w-4" />
                       <span>{error.message}</span>
+                    </Alert>
+                  ))}
+                  {validationWarnings.map((warning, index) => (
+                    <Alert
+                      key={`warning-${index}`}
+                      className="gba:mb-2"
+                      data-testid={`validation-warning-${index}`}
+                    >
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span>{warning.message}</span>
                     </Alert>
                   ))}
                 </div>
