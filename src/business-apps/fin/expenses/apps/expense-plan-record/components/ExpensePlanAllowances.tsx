@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, Card, Typography, Tag } from 'antd';
+import { Table } from 'antd';
+import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import type { ColumnsType } from 'antd/es/table';
 import { ExpenseAllowance } from '../types/expensePlanRecord.types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -12,7 +13,6 @@ interface ExpensePlanAllowancesProps {
   currencyCode?: string;
 }
 
-const { Text } = Typography;
 
 const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAllowances, currencyCode }) => {
   
@@ -44,14 +44,14 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
       title: getTranslationFromI18nKeyAndLabel('expense.allowance.region', 'Travel Region'),
       dataIndex: ['travelRegion', 'value'],
       key: 'travelRegion',
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
+      render: (text: string) => <Badge>{text}</Badge>,
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.allowance.dayRate', 'Day Rate'),
       dataIndex: 'dayRate',
       key: 'dayRate',
       align: 'right',
-      render: (amount: number) => <Text strong>{formatAmount(amount)}</Text>,
+      render: (amount: number) => <span className="gba:font-semibold">{formatAmount(amount)}</span>,
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.allowance.breakfast', 'Breakfast'),
@@ -98,11 +98,11 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
   ];
 
   return (
-    <Card 
-      title={getTranslationFromI18nKeyAndLabel('expense.plan.allowances.title', 'Allowances')} 
-      bordered={false}
-      data-testid="expense-plan-allowances"
-    >
+    <Card data-testid="expense-plan-allowances">
+      <CardHeader>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel('expense.plan.allowances.title', 'Allowances')}</CardTitle>
+      </CardHeader>
+      <CardContent>
       <Table
         columns={columns}
         dataSource={expenseAllowances.map((item, index) => ({ ...item, key: index }))}
@@ -131,22 +131,23 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={2}>
-                  <Text strong>
+                  <span className="gba:font-semibold">
                     {getTranslationFromI18nKeyAndLabel('expense.plan.allowances.total', 'Total')}
-                  </Text>
+                  </span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={2} align="right">
-                  <Text strong>{formatAmount(totalDayRate)}</Text>
+                  <span className="gba:font-semibold">{formatAmount(totalDayRate)}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={3} colSpan={5} />
                 <Table.Summary.Cell index={8} align="right">
-                  <Text>{formatAmount(totalDeductionLimit)}</Text>
+                  <span>{formatAmount(totalDeductionLimit)}</span>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
             </Table.Summary>
           );
         }}
       />
+      </CardContent>
     </Card>
   );
 };

@@ -24,11 +24,15 @@ export const getExpensePlanRecordQuery = `
         }
         status
         employee{
-          fullName
-        pictureThumbnail
-        employeePosition{
+         fullName
+         firstName
+         lastName
+         pictureThumbnail
+         employeePosition{
             supervisor{
               fullName
+              firstName   
+              lastName
             }
           }
         }
@@ -43,12 +47,21 @@ export const getExpensePlanRecordQuery = `
         }
         expensePlanComment(orderBy:{commentDate:ASC}){
           comment
-          commentDate
+          commentDate   
           commentType
+          authorEmployee{   
+            fullName  
+            firstName
+            lastName
+            pictureThumbnail
+          }
         }
         expensePlanItem(orderBy:{expenseDate:ASC,code:ASC}){
           code
           title
+          currency {
+           code
+          }
           expenseGroup{
             value
           }
@@ -60,7 +73,6 @@ export const getExpensePlanRecordQuery = `
           reimbursableAmount
           nonDeductibleAmount
           deductibleAmount
-          nonDeductibleAmount
           
         }
         expenseAllowance(orderBy:{allowanceOrder:ASC,allowanceDate:ASC}){

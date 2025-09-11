@@ -203,7 +203,7 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
   };
 
   return (
-    <div className="gba:space-y-6" data-testid="expense-plan-trip">
+    <div className="gba:space-y-6 gba:pl-6 gba:pr-6" data-testid="expense-plan-trip">
       <Card 
         title={
           <div className="gba:flex gba:items-center gba:justify-between">

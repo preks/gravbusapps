@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, Card, Badge } from 'antd';
+import { Table } from 'antd';
+import { Card, Badge } from '@newwork/nw-design-system';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancePayment } from '../types/expensePlanRecord.types';
@@ -27,17 +28,14 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
   // Format amount helper function
   const formatAmount = (amount: number, currencyCode?: string) => formatCurrencyDisplay(amount, currencyCode);
 
-  // Get status color
-  const getStatusColor = (status: string): string => {
+  // Map statuses to design system Badge variants
+  const getStatusVariant = (status: string): 'success' | 'destructive' | 'warning' | 'default' => {
     switch (status) {
       case 'PAID':
-        return 'success';
-      case 'REJECTED':
-        return 'error';
-      case 'PREPARED':
-        return 'processing';
       case 'APPROVED':
         return 'success';
+      case 'REJECTED':
+        return 'destructive';
       case 'PENDING':
         return 'warning';
       default:
@@ -65,10 +63,9 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge 
-          status={getStatusColor(status) as any} 
-          text={getTranslationFromI18nKeyAndLabel(`expense.advance.status.${status.toLowerCase()}`, status)} 
-        />
+        <Badge variant={getStatusVariant(status)}>
+          {getTranslationFromI18nKeyAndLabel(`expense.advance.status.${status.toLowerCase()}`, status)}
+        </Badge>
       ),
       filters: [
         { text: 'Prepared', value: 'PREPARED' },
@@ -123,7 +120,7 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
   ];
 
   return (
-    <Card className="gba:mb-6" data-testid="expense-plan-advance-payments-card">
+    <Card className="gba:m-6 gba:border-none" data-testid="expense-plan-advance-payments-card">
       <Table
         columns={columns}
         dataSource={advancePayments.map((item, index) => ({ ...item, key: index }))}

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Table, Typography } from 'antd';
+import { Table } from 'antd';
 import { ExpensePlanItem } from '../types/expensePlanRecord.types';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../utils/currency';
 
-const { Text } = Typography;
+ 
 
 interface ExpensePlanItemsSummaryProps {
   pageData: readonly ExpensePlanItem[];
@@ -27,18 +27,18 @@ const ExpensePlanItemsSummary: React.FC<ExpensePlanItemsSummaryProps> = ({ pageD
     <Table.Summary fixed>
       <Table.Summary.Row>
         <Table.Summary.Cell index={0} colSpan={5}>
-          <Text strong>
+          <span className="gba:font-semibold">
             {getTranslationFromI18nKeyAndLabel('expense.plan.items.total', 'Total')}
-          </Text>
+          </span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={5} align="right">
-          <Text strong>{formatAmount ? formatAmount(totalAmount) : formatCurrencyDisplay(totalAmount, currencyCode)}</Text>
+          <span className="gba:font-semibold">{formatAmount ? formatAmount(totalAmount) : formatCurrencyDisplay(totalAmount, currencyCode)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={6} align="right">
-          <Text>{formatAmount ? formatAmount(totalReimbursable) : formatCurrencyDisplay(totalReimbursable, currencyCode)}</Text>
+          <span>{formatAmount ? formatAmount(totalReimbursable) : formatCurrencyDisplay(totalReimbursable, currencyCode)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={7} align="right">
-          <Text>{formatAmount ? formatAmount(totalDeductible) : formatCurrencyDisplay(totalDeductible, currencyCode)}</Text>
+          <span>{formatAmount ? formatAmount(totalDeductible) : formatCurrencyDisplay(totalDeductible, currencyCode)}</span>
         </Table.Summary.Cell>
       </Table.Summary.Row>
     </Table.Summary>

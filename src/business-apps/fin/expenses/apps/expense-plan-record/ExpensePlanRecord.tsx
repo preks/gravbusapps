@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Card } from '@newwork/gravity-ui-catalog';
-import { Typography, Spin, Alert, Descriptions } from 'antd';
+import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
+import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { PiPath, PiHandCoins, PiMapPin, PiClock, PiChatCircle, PiWalletDuotone, PiCalendarDuotone } from 'react-icons/pi';
 import Pill from '@/components/pill';
 import dayjs from 'dayjs';
@@ -18,7 +18,7 @@ import ExpensePlanTrip from './components/ExpensePlanTrip.tsx';
 import ExpensePlanAdvancePayments from './components/ExpensePlanAdvancePayments.tsx';
 import ExpensePlanComments from './components/ExpensePlanComments.tsx';
 
-const { Title, Text } = Typography;
+ 
 
 const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
   const expensePlanId = additionalData.expensePlanId  || new URLSearchParams(window.location.search).get('expensePlanId') || 'd64d1b89-148e-462d-9add-534722eefe95';
@@ -192,11 +192,11 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     if (!expensePlan) return null;
     
     return (
-      <div className="gba:mb-6">
+      <div className="gba:ml-6 gba:mr-6">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <div>
-            <Title level={4} className="gba:mb-1">{expensePlan.title}</Title>
-            <Text type="secondary">{expensePlan?.code}</Text>
+            <h4 className="gba:text-lg gba:font-semibold gba:mb-1">{expensePlan.title ?? '-'}</h4>
+            <span className="gba:text-gray-500">{expensePlan?.code}</span>
           </div>
           <Pill 
             type={getExpensePlanStatusDisplay(expensePlan.status).type} 
@@ -208,47 +208,52 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
         {expensePlan?.startDate && expensePlan?.endDate && (
           <div className="gba:flex gba:items-center gba:mb-2">
             <PiCalendarDuotone className="gba:mr-2" />
-            <Text className="gba:text-sm">
+            <span className="gba:text-sm">
               {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
               {dayjs(expensePlan.startDate).format('DD.MM.YYYY')} {' → '} 
               {dayjs(expensePlan.endDate).format('DD.MM.YYYY')}
-            </Text>
+            </span>
           </div>
         )}
         <div className="gba:flex gba:items-center gba:mb-2">
           <PiClock className="gba:mr-2" />
-          <Text className="gba:text-sm">
+          <span className="gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('expense.plan.planDate', 'Plan Date')}: {' '}
             {expensePlan?.planDate ? dayjs(expensePlan.planDate).format('DD.MM.YYYY') : '-'}
-          </Text>
+          </span>
         </div>
         <div className="gba:flex gba:items-center gba:mb-4">
           <PiPath className="gba:mr-2" />
-          <Text className="gba:text-sm">
+          <span className="gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('expense.plan.decisionDate', 'Decision Date')}: {' '}
             {expensePlan?.decisionDate ? dayjs(expensePlan.decisionDate).format('DD.MM.YYYY') : '-'}
-          </Text>
+          </span>
         </div>
-        <Text className="gba:block gba:mb-4">{expensePlan.description}</Text>
-        <Descriptions size="small" column={1}>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}>
-            {expensePlan?.employee?.fullName}
-          </Descriptions.Item>
+        <span className="gba:block gba:mb-4">{expensePlan.description ?? '-' }</span>
+        <div className="gba:grid gba:grid-cols-1 gba:gap-1">
+          <div>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}: {' '} </span>
+            <span>{expensePlan?.employee?.fullName ?? expensePlan?.employee?.firstName + ' ' + expensePlan?.employee?.lastName}</span>
+          </div>
           {expensePlan?.employee?.employeePosition?.supervisor && (
-            <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.manager', 'Manager')}>
-              {expensePlan.employee.employeePosition.supervisor.fullName}
-            </Descriptions.Item>
+            <div>
+              <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.manager', 'Manager')}: {' '} </span>
+              <span>{expensePlan.employee.employeePosition.supervisor.fullName ?? expensePlan.employee.employeePosition.supervisor.firstName + ' ' + expensePlan.employee.employeePosition.supervisor.lastName}</span>
+            </div>
           )}
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.costCenter', 'Cost Center')}>
-            {expensePlan?.costCenter?.name}
-          </Descriptions.Item>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.project', 'Project')}>
-            {expensePlan?.project?.name}
-          </Descriptions.Item>
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}>
-            {formatCurrencyDisplay(expensePlan?.totalAmount, expensePlan?.currency?.code)}
-          </Descriptions.Item>
-        </Descriptions>
+          <div>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.costCenter', 'Cost Center')}: {' '} </span>
+            <span>{expensePlan?.costCenter?.name ?? '-'}</span>
+          </div>
+          <div>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.project', 'Project')}: {' '} </span>
+            <span>{expensePlan?.project?.name ?? '-'}</span>
+          </div>
+          <div>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}: {' '} </span>
+            <span>{formatCurrencyDisplay(expensePlan?.totalAmount, expensePlan?.currency?.code)}</span>
+          </div>
+        </div>
       </div>
     );
   };
@@ -280,7 +285,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
         headerLabel={getTranslationFromI18nKeyAndLabel('expense.plan.record.title', 'Expense Plan Record')}
         contentContainer={
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="expense-plan-record-loading">
-            <Spin size="large" />
+            <Spinner />
           </div>
         }
       />
@@ -317,13 +322,10 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       headerIcon={<PiWalletDuotone color="#c92559"/>}
         headerLabel={getTranslationFromI18nKeyAndLabel('expense.plan.record.title', 'Expense Plan Record')}
         contentContainer={
-          <Alert 
-            message={errorTitle}
-            description={errorDescription}
-            type="error" 
-            showIcon 
-            data-testid="expense-plan-record-error"
-          />
+          <Alert variant="destructive" data-testid="expense-plan-record-error">
+            <AlertTitle>{errorTitle}</AlertTitle>
+            <AlertDescription>{errorDescription}</AlertDescription>
+          </Alert>
         }
       />
     );
@@ -339,13 +341,20 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
             {renderHeader()}
           </Card>
           <Card className="gba:w-3/4">
-            <Tabs
-              activeKey={activeTab}
-              onChange={handleTabChange}
-              items={tabItems}
-              className="gba:mt-4"
-              data-testid="expense-plan-record-tabs"
-            />
+            <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList className="gba:grid gba:grid-cols-5 gba:w-full gba:ml-6 gba:mr-6">
+                  {tabItems.map(t => (
+                    <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+                  ))}
+                </TabsList>
+                {tabItems.map(t => (
+                  <TabsContent key={t.key} value={t.key} className="gba:mt-4">
+                    {t.children}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </div>
           </Card> 
         </div>
       }
