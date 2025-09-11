@@ -904,7 +904,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         status: stepStatus,
         assignedToUserId: step.assignedTo === 'AVAILABLE' ? undefined : step.assignedTo,
         claimedByUserId: step.claimedBy,
-        startedAt: step.startedAt || (stepStatus === 'in_progress' ? step.scheduledAt : undefined),
+        startedAt: step.startedAt || (stepStatus === 'IN_PROGRESS' ? step.scheduledAt : undefined),
         finishedAt: step.finishedAt,
         comments: step.comments || [],
         requestId: flowData.id || flowData.flowId,
@@ -979,25 +979,19 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Map Custom Flow Engine step status to Services+ step status
+   * Return original Custom Flow Engine step status without any mapping
    */
   private mapFlowStepStatusToStepStatus(flowStepStatus: string): StepStatus {
-    const statusMapping: Record<string, StepStatus> = {
-      'SCHEDULED': 'ready',
-      'READY': 'ready', 
-      'QUEUED': 'ready',
-      'IN_PROGRESS': 'in_progress',
-      'RUNNING': 'in_progress',
-      'COMPLETED': 'done',
-      'DONE': 'done',
-      'FAILED': 'blocked',
-      'ERROR': 'blocked',
-      'CANCELLED': 'blocked',
-      'SKIPPED': 'done',
-      'PAUSED': 'blocked'
-    };
-
-    return statusMapping[flowStepStatus] || 'ready';
+    // Return original status as-is, defaulting to 'UNKNOWN' if not recognized
+    const validStatuses: StepStatus[] = [
+      'SCHEDULED', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'FAILED', 'PAUSED',
+      'READY', 'QUEUED', 'RUNNING', 'DONE', 'ERROR', 'CANCELLED', 'SKIPPED', 
+      'TIMED_OUT', 'CANCELED', 'UNKNOWN'
+    ];
+    const upperStatus = flowStepStatus?.toUpperCase() as StepStatus;
+    
+    // Return the original status without any transformation
+    return validStatuses.includes(upperStatus) ? upperStatus : 'UNKNOWN';
   }
 
   /**
@@ -1033,7 +1027,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
       
       // Add claim entry if step is claimed
-      if (step.claimedByUserId && step.status === 'in_progress') {
+      if (step.claimedByUserId && step.status === 'IN_PROGRESS') {
         timeline.push({
           at: step.startedAt || new Date().toISOString(),
           message: `Step "${step.name}" claimed by ${step.claimedByUserId}`
@@ -1155,19 +1149,14 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Map custom-flow-engine task status to Services+ StepStatus
+   * Return original custom-flow-engine task status without mapping
    */
   private mapCustomFlowTaskStatus(taskStatus: string): StepStatus {
-    const statusMapping: Record<string, StepStatus> = {
-      'OPEN': 'ready',
-      'SCHEDULED': 'ready',
-      'IN_PROGRESS': 'in_progress',
-      'COMPLETED': 'done',
-      'REJECTED': 'canceled',
-      'FAILED': 'blocked'
-    };
+    // Return original status as-is, defaulting to 'SCHEDULED' if unknown
+    const validStatuses: StepStatus[] = ['SCHEDULED', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'FAILED', 'PAUSED'];
+    const upperStatus = taskStatus?.toUpperCase() as StepStatus;
     
-    return statusMapping[taskStatus] || 'pending';
+    return validStatuses.includes(upperStatus) ? upperStatus : 'SCHEDULED';
   }
 
   /**
@@ -1347,18 +1336,14 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Map flow engine task status to service portal step status
+   * Return original flow engine task status without mapping
    */
   private mapTaskStatusToStepStatus(taskStatus: string): StepStatus {
-    const statusMapping: Record<string, StepStatus> = {
-      'OPEN': 'ready',
-      'IN_PROGRESS': 'in_progress', 
-      'COMPLETED': 'done',
-      'REJECTED': 'canceled',
-      'SCHEDULED': 'ready'  // SCHEDULED tasks should be claimable → 'ready'
-    };
-
-    return statusMapping[taskStatus] || 'pending';
+    // Return original status as-is, defaulting to 'SCHEDULED' if unknown
+    const validStatuses: StepStatus[] = ['SCHEDULED', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'FAILED', 'PAUSED'];
+    const upperStatus = taskStatus?.toUpperCase() as StepStatus;
+    
+    return validStatuses.includes(upperStatus) ? upperStatus : 'SCHEDULED';
   }
 
   /**
@@ -1988,23 +1973,14 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Map custom-flow-engine task status to StepInstance status
+   * Return original custom-flow-engine task status without mapping
    */
   private mapCustomFlowEngineStatusToStepStatus(status: string): StepStatus {
-    switch (status?.toUpperCase()) {
-      case 'SCHEDULED':
-      case 'OPEN':
-        return 'ready';
-      case 'IN_PROGRESS':
-        return 'in_progress';
-      case 'COMPLETED':
-        return 'done';
-      case 'REJECTED':
-      case 'FAILED':
-        return 'canceled';
-      default:
-        return 'ready';
-    }
+    // Return original status as-is, defaulting to 'SCHEDULED' if unknown
+    const validStatuses: StepStatus[] = ['SCHEDULED', 'OPEN', 'IN_PROGRESS', 'COMPLETED', 'REJECTED', 'FAILED', 'PAUSED'];
+    const upperStatus = status?.toUpperCase() as StepStatus;
+    
+    return validStatuses.includes(upperStatus) ? upperStatus : 'SCHEDULED';
   }
 
   /**

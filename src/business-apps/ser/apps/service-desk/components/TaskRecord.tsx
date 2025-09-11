@@ -42,14 +42,27 @@ import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate
 
 const { Text } = Typography;
 
-// Status configuration with Phosphor icons
+// Status configuration with Phosphor icons - updated for ALL original API status values
 const STATUS_CONFIG = {
-  pending: { color: 'secondary', icon: ClockIcon, label: 'Pending' },
-  ready: { color: 'secondary', icon: TargetIcon, label: 'Ready' },
-  in_progress: { color: 'default', icon: TrendUpIcon, label: 'In Progress' },
-  blocked: { color: 'destructive', icon: WarningIcon, label: 'Blocked' },
-  done: { color: 'secondary', icon: CheckCircleIcon, label: 'Completed' },
-  canceled: { color: 'outline', icon: UserMinusIcon, label: 'Canceled' }
+  // Core statuses
+  SCHEDULED: { color: 'secondary', icon: TargetIcon, label: 'Scheduled' },
+  OPEN: { color: 'secondary', icon: ClockIcon, label: 'Open' },
+  IN_PROGRESS: { color: 'default', icon: TrendUpIcon, label: 'In Progress' },
+  COMPLETED: { color: 'secondary', icon: CheckCircleIcon, label: 'Completed' },
+  REJECTED: { color: 'outline', icon: UserMinusIcon, label: 'Rejected' },
+  FAILED: { color: 'destructive', icon: WarningIcon, label: 'Failed' },
+  PAUSED: { color: 'destructive', icon: WarningIcon, label: 'Paused' },
+  // Workflow engine specific statuses (preserved as-is)
+  READY: { color: 'secondary', icon: TargetIcon, label: 'Ready' },
+  QUEUED: { color: 'secondary', icon: ClockIcon, label: 'Queued' },
+  RUNNING: { color: 'default', icon: TrendUpIcon, label: 'Running' },
+  DONE: { color: 'secondary', icon: CheckCircleIcon, label: 'Done' },
+  ERROR: { color: 'destructive', icon: WarningIcon, label: 'Error' },
+  CANCELLED: { color: 'outline', icon: UserMinusIcon, label: 'Cancelled' },
+  CANCELED: { color: 'outline', icon: UserMinusIcon, label: 'Canceled' },
+  SKIPPED: { color: 'outline', icon: CheckCircleIcon, label: 'Skipped' },
+  TIMED_OUT: { color: 'destructive', icon: WarningIcon, label: 'Timed Out' },
+  UNKNOWN: { color: 'outline', icon: ClockIcon, label: 'Unknown' }
 } as const;
 
 export interface TaskRecordProps extends BusinessAppContextProps {
@@ -117,7 +130,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     if (!ticket) return [];
 
     const slaStatus = getSLAStatus(ticket);
-    const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+    const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN;
     const StatusIcon = statusConfig.icon;
 
     // Calculate task age
@@ -130,15 +143,17 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       {
         id: 'task-status',
         title: 'Task Status',
-        value: statusConfig.label,
+        value: ticket.status, // Show raw status instead of transformed label
         icon: <StatusIcon className="gba:w-5 gba:h-5" />,
         trend: {
-          value: statusConfig.label,
-          positive: ticket.status === 'done',
-          trendIcon: ticket.status === 'done' ? 'up' : ticket.status === 'blocked' ? 'down' : 'none',
-          badgeVariant: ticket.status === 'done' ? 'success' : ticket.status === 'blocked' ? 'destructive' : 'default'
+          value: ticket.status, // Show raw status in trend as well
+          positive: ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED',
+          trendIcon: (ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED') ? 'up' : 
+                    (ticket.status === 'FAILED' || ticket.status === 'ERROR' || ticket.status === 'PAUSED' || ticket.status === 'TIMED_OUT') ? 'down' : 'none',
+          badgeVariant: (ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED') ? 'success' : 
+                       (ticket.status === 'FAILED' || ticket.status === 'ERROR' || ticket.status === 'PAUSED' || ticket.status === 'TIMED_OUT') ? 'destructive' : 'default'
         },
-        subtitle: `Current state`,
+        subtitle: `Raw status value`,
       },
       {
         id: 'sla-progress',
@@ -503,7 +518,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   }
 
   const slaStatus = getSLAStatus(ticket);
-  const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+  const statusConfig = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN;
   const StatusIcon = statusConfig.icon;
 
   return (
@@ -523,7 +538,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
         variant="ext1"
         headerContent={
           <Badge variant={statusConfig.color as any}>
-            {statusConfig.label}
+            {ticket.status}
           </Badge>
         }
         kpiCardsData={kpiCards}
@@ -674,7 +689,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           {/* Task Form Card - Show dynamic form if task has form fields and is not completed */}
           {(() => {
             const hasFormFields = getTaskFormFields().length > 0;
-            const isTaskCompleted = ticket?.status === 'done' || ticket?.status === 'completed' || ticket?.status === 'canceled';
+            const isTaskCompleted = ticket?.status === 'COMPLETED' || ticket?.status === 'DONE' || ticket?.status === 'SKIPPED' || 
+                                     ticket?.status === 'REJECTED' || ticket?.status === 'CANCELLED' || ticket?.status === 'CANCELED';
             const shouldShowForm = hasFormFields && !isTaskCompleted;
             
             console.log('🔍 [TaskRecord] Task form card visibility check:', {
@@ -885,7 +901,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   return null;
                 })()}
                 
-                {ticket.status !== 'done' && ticket.status !== 'canceled' && (
+                {!(ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED' || 
+                   ticket.status === 'REJECTED' || ticket.status === 'CANCELLED' || ticket.status === 'CANCELED') && (
                   <>
                     {/* ✅ Using availableActions from API instead of hardcoded logic */}
                     {availableActions?.canClaim && (

@@ -7,7 +7,7 @@ export type StepReceiver =
   | 'HR' | 'IT' | 'Facilities' | 'Finance' | 'Procurement' | 'Legal'
   | 'Security' | 'AccessIdentity' | 'Workplace' | 'Fleet' | 'Data' | 'L&D' | 'Admin';
 
-export type StepStatus = 'pending' | 'ready' | 'in_progress' | 'blocked' | 'done' | 'canceled';
+export type StepStatus = 'SCHEDULED' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'FAILED' | 'PAUSED' | 'READY' | 'QUEUED' | 'RUNNING' | 'DONE' | 'ERROR' | 'CANCELLED' | 'SKIPPED' | 'TIMED_OUT' | 'CANCELED' | 'UNKNOWN';
 export type TicketStatus = 'queued' | 'claimed' | 'in_progress' | 'waiting' | 'done' | 'canceled';
 
 export type ServiceCategory = {
