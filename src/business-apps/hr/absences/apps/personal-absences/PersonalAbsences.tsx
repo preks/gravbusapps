@@ -385,15 +385,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         "lowcoder:absence_hub.entitlements",
         "Entitlements"
       ),
-    },
-    {
-      key: "statistics",
-      icon: <BarChart3 className="gba:w-4 gba:h-4" />,
-      label: getTranslationFromI18nKeyAndLabel(
-        "lowcoder:absence_hub.statistics",
-        "Statistics"
-      ),
-    },
+    }
   ];
 
   const renderTabContent = useCallback(() => {
@@ -420,9 +412,6 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     }
 
     switch (activeTab) {
-      case "statistics":
-        return <StatisticsTab absences={absenceList} />;
-
       case "calendar":
       case "absence-list": 
       case "entitlements": 
