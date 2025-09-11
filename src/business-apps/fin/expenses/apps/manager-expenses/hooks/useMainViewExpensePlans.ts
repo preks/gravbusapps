@@ -242,6 +242,11 @@ export const useMainViewExpensePlans = ({
           ];
         }
 
+        // Add status filtering to server-side query
+        if (activeFilter && activeFilter.length > 0) {
+          whereClause.status = { _in: activeFilter };
+        }
+
         // Build the orderBy configuration based on the sort field and order
         const orderBy: Record<string, any>[] = [];
 
@@ -280,30 +285,22 @@ export const useMainViewExpensePlans = ({
 
         const data = result.data as ExpensePlanResponse;
 
-        let filteredPlans = data.ExpensePlan;
+        let plans = data.ExpensePlan;
 
         // Map currency information from currencyRef field (for display purposes)
-        filteredPlans = filteredPlans.map((plan) => ({
+        plans = plans.map((plan) => ({
           ...plan,
           currency: plan.currencyRef ? plan.currencyRef.replace("Currency:v1:", "") : "EUR",
         }));
 
-        // Apply status filtering client-side
-        if (activeFilter && activeFilter.length > 0) {
-          const beforeFilterCount = filteredPlans.length;
-          filteredPlans = filteredPlans.filter((plan) => activeFilter.includes(plan.status));
-          const afterFilterCount = filteredPlans.length;
-        } else {
-        }
-
-        // Filter by employee if specified
+        // Filter by employee if specified (this is still client-side as it's a specific filter)
         if (employeeFilter) {
-          filteredPlans = filteredPlans.filter((plan) => plan.employee?.id === employeeFilter);
+          plans = plans.filter((plan) => plan.employee?.id === employeeFilter);
         }
 
-        setPlans(filteredPlans || []);
-        // Use filtered count for total count since we're doing client-side filtering
-        setTotalCount(filteredPlans?.length || 0);
+        setPlans(plans || []);
+        // Use server response count for total count since filtering is now server-side
+        setTotalCount(data.ExpensePlanAggregate?.aggregate?.count || 0);
       } catch (err) {
         console.error("Error fetching expense plans:", err);
         setError(err instanceof Error ? err : new Error("Failed to fetch expense plans"));
@@ -417,8 +414,6 @@ export const useMainViewExpensePlans = ({
 
   // Effect to debounce statistics fetch
   useEffect(() => {
-    const timestamp = new Date().getTime();
-
     // Clear any existing timer
     if (statsDebounceTimer.current) {
       clearTimeout(statsDebounceTimer.current);

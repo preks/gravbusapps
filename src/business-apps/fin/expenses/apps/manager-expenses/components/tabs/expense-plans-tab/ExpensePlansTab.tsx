@@ -42,6 +42,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     managerId,
   });
 
+  // State for page size
+  const [pageSize, setPageSize] = useState<number>(10);
+
   // Use the statistics-only hook to get KPI data without interfering with table data
   const { planStats, statsLoading, statsError } = useMainViewExpensePlans({
     ...contextProps,
@@ -61,7 +64,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     updateSorting,
   } = useMainViewExpensePlans({
     ...contextProps,
-    pageSize: 10,
+    pageSize,
     searchTerm,
     currentStatusFilter: statusFilter,
     currentCurrencyFilter: primaryCurrency,
@@ -177,6 +180,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
               setCurrentPage={setCurrentPage}
               sorting={sorting}
               updateSorting={updateSorting}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
             />
           </div>
         }

@@ -55,10 +55,13 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       expenseRequest {
         id
         createdAt
+        status
       }
       employee {
         id
         fullName
+        firstName
+        lastName
       }
     }
   }

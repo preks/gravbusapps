@@ -212,7 +212,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                           <div>
                             <div className="gba:font-medium gba:text-sm">{request.title}</div>
                             <div className="gba:text-xs gba:text-gray-500">
-                              {request.employee.fullName}
+                              {request.employee.firstName} {request.employee.lastName}
                             </div>
                           </div>
                         </TableCell>
@@ -254,11 +254,22 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                     className="gba:text-sm gba:text-gray-600"
                     data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
                   >
-                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} approval requests`}
+                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:personal_expenses.of",
+                      "of",
+                    )} ${totalCount} ${getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:team_expenses_page.dashboard_tab.approval_requests_footer",
+                      "approval requests",
+                    )}`}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                     <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                      <p className="gba:text-sm gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel(
+                          "lowcoder:personal_expenses.rows_per_page",
+                          "Rows per page",
+                        )}
+                      </p>
                       <select
                         value={pageSize}
                         onChange={(e) => {
@@ -278,7 +289,10 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                       className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                       data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
                     >
-                      Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                      {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                      {currentPage}{" "}
+                      {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                      {Math.ceil(totalCount / pageSize)}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-2">
                       <Button
