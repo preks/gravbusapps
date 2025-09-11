@@ -103,8 +103,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
     locale,
   });
 
-  console.log("validationWarnings", validationWarnings);
-
   // Keep end date in sync to allow same-day selection and prevent end < start
   useEffect(() => {
     setFormValuesState((prev) => {
