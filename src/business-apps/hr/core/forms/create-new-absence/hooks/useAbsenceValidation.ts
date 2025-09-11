@@ -74,6 +74,9 @@ export const useAbsenceValidation = ({
   const [validationErrors, setValidationErrors] = useState<
     AbsenceValidationError[]
   >([]);
+  const [validationWarnings, setValidationWarnings] = useState<
+    AbsenceValidationError[]
+  >([]);
   const [isValidating, setIsValidating] = useState(false);
   const [existingAbsences, setExistingAbsences] = useState<EmployeeAbsence[]>(
     []
@@ -354,8 +357,11 @@ export const useAbsenceValidation = ({
     [existingAbsences]
   );
 
+  type BalanceValidationResult = { errors: AbsenceValidationError[]; warnings: AbsenceValidationError[] };
+
   const checkBalanceValidation = useCallback(
-    (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
+    (newStartDate: Date, newEndDate: Date): BalanceValidationResult => {
+      const warnings: AbsenceValidationError[] = [];
       const errors: AbsenceValidationError[] = [];
 
       console.log("💰 Balance validation check:", {
@@ -366,12 +372,12 @@ export const useAbsenceValidation = ({
 
       if (!absenceBalance) {
         // If no balance info is available, we might want to warn
-        errors.push({
+        warnings.push({
           type: "balance",
           message: "Unable to verify absence balance. Please check manually.",
           details: { reason: "no_balance_info" },
         });
-        return errors;
+        return { errors, warnings };
       }
 
       // Calculate requested days (simple calculation - can be enhanced for business days)
@@ -399,7 +405,7 @@ export const useAbsenceValidation = ({
         });
       }
 
-      return errors;
+      return { errors, warnings };
     },
     [absenceBalance]
   );
@@ -416,7 +422,7 @@ export const useAbsenceValidation = ({
       }
 
       // Ensure end date is not before start date
-      if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate))) {
+      if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate).subtract(1, 'day'))) {
         const dateOrderError: AbsenceValidationError = {
           type: "general",
           message: "End date must be after start date",
@@ -426,19 +432,23 @@ export const useAbsenceValidation = ({
       }
 
       setIsValidating(true);
+      // Reset warnings before each validation run
+      setValidationWarnings([]);
 
       try {
         const overlapErrors = checkOverlapValidation(
           validationStartDate,
           validationEndDate
         );
-        const balanceErrors = checkBalanceValidation(
+        const { errors: balanceErrors, warnings: balanceWarnings } = checkBalanceValidation(
           validationStartDate,
           validationEndDate
         );
 
         const allErrors = [...overlapErrors, ...balanceErrors];
+        const allWarnings = [...balanceWarnings];
         setValidationErrors(allErrors);
+        setValidationWarnings(allWarnings);
 
         return allErrors;
       } catch (error) {
@@ -467,6 +477,7 @@ export const useAbsenceValidation = ({
 
   return {
     validationErrors,
+    validationWarnings,
     isValidating,
     validateAbsence,
     hasValidationErrors: validationErrors.length > 0,

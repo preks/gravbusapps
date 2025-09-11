@@ -16,13 +16,14 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
 import { OpportunityHeader } from "./components/OpportunityHeader";
-import { CompanyInformation } from "./components/CompanyInformation";
-import { ContactInformation } from "./components/ContactInformation";
 import { OpportunityDetails } from "./components/OpportunityDetails";
+import { InvestmentSection } from "../../components/record-sections/investment-section";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { TasksSection } from "./components/TasksSection";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
 import { OpportunityDocuments } from "./components/OpportunityDocuments";
+import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
+import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
@@ -45,9 +46,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loading,
     error,
     opportunityStages,
-    opportunityStatuses,
     loadingStages,
-    loadingStatuses,
     stagesError,
     refetchOpportunityData,
   } = useOpportunityData(opportunityId, props.accessToken);
@@ -202,22 +201,69 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           </TabsList>
 
           <TabsContent value="overview" data-testid="investment-opportunity-overview-content">
-            <div className="gba:grid gba:grid-cols-8 gba:gap-6 gba:mb-6">
-              <div className="gba:col-span-4 gba:flex">
-                <CompanyInformation opportunity={opportunity} />
+            <div className="gba:flex gba:gap-6 gba:mb-6">
+              {/* Left side: Account and Contact info with equal heights */}
+              <div className="gba:flex-1 gba:grid gba:grid-cols-2 gba:gap-6 gba:items-stretch">
+                  <AccountSection 
+                    account={opportunityData?.account ? {
+                      id: opportunityData.account.id,
+                      name: opportunityData.account.name,
+                      email: opportunityData.account.email,
+                      phone: opportunityData.account.phone,
+                      website: opportunityData.account.website,
+                      legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
+                      industry: opportunityData.account.industryClass?.value || opportunityData.account.industryClass?.code,
+                      size: opportunityData.account.companySize?.value || opportunityData.account.companySize?.code,
+                      revenue: opportunityData.account.accountAnnualRevenueBand?.value || opportunityData.account.accountAnnualRevenueBand?.code,
+                      numberOfEmployees: opportunityData.account.companySize,
+                      annualRevenue: opportunityData.account.accountAnnualRevenueBand,
+                      logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
+                      foundationDate: opportunityData.account.foundationDate,
+                      geographicPresence: opportunityData.account.geographicPresence,
+                    } : undefined}
+                    data-testid="opportunity-account-section"
+                    className="gba:h-full gba:flex"
+                    {...props}
+                  />
+
+                  <ContactSection 
+                    contacts={opportunityData?.investmentOpportunityContact?.map((ioc: any) => ioc.contact ? {
+                      id: ioc.contact.id,
+                      firstName: ioc.contact.firstName,
+                      lastName: ioc.contact.lastName,
+                      fullName: ioc.contact.fullName,
+                      email: ioc.contact.email,
+                      phone: ioc.contact.phone,
+                      jobTitle: ioc.contact.jobPosition,
+                      department: ioc.contact.department,
+                      picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
+                      academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
+                      salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
+                    } : null).filter(Boolean)}
+                    data-testid="opportunity-contact-section"
+                    className="gba:h-full gba:flex"
+                    {...props}
+                  />
               </div>
 
-              <div className="gba:col-span-2 gba:flex">
-                <ContactInformation opportunity={opportunity} />
-              </div>
-
-              <div className="gba:col-span-2 gba:flex">
+              {/* Right side: Stage conditions (completely independent) */}
+              <div className="gba:flex-1">
                 <OpportunityDetails
                   opportunityData={opportunityData}
                   stageConditionStatuses={stageConditionStatuses || []}
                   context={props}
                 />
               </div>
+            </div>
+
+            {/* Investment Information */}
+            <div className="gba:mb-6">
+            <InvestmentSection 
+              investmentData={opportunityData} 
+              businessAppContext={props}
+              isLoading={loading}
+              error={error}
+            />
             </div>
 
             <div className="gba:grid gba:grid-cols-2 gba:gap-6">

@@ -24,6 +24,9 @@ export const INVESTMENT_LEAD = `
         addressLine
         postalCode
         locality
+        
+        # Investment descriptive fields
+        investmentName
         ${AUDIT_FIELDS}
         
         # Catalog relationships
@@ -55,6 +58,35 @@ export const INVESTMENT_LEAD = `
           ${CATALOG_ENTRY}
         }
         
+        # Investment-specific fields
+        stakePercentage
+        marketValue
+        initialInvestmentAmount
+        buildingYear
+        size
+        sizeMeasurementUnit {
+          ${CATALOG_ENTRY}
+        }
+        sizeMeasurementUnitRef
+        forecastedProfitAmount
+        requiredCapitalAmount
+        loanAmount
+        loanInterestRate
+        
+        # Investment relationships
+        investmentGroup {
+          ${CATALOG_ENTRY}
+        }
+        investmentType {
+          ${CATALOG_ENTRY}
+        }
+        investmentRole {
+          ${CATALOG_ENTRY}
+        }
+        investmentStakeType {
+          ${CATALOG_ENTRY}
+        }
+        
         # Employee relationship
         ownerEmployee {
           ${EMPLOYEE_REF}
@@ -83,6 +115,12 @@ export const INVESTMENT_CONTACT_REF = `
     jobPosition
     picture
     pictureThumbnail
+    academicTitle {
+        ${CATALOG_ENTRY}
+    }
+    salutation {
+        ${CATALOG_ENTRY}
+    }
 `;
 
 export const INVESTMENT_CONTACT = `
@@ -127,8 +165,14 @@ export const INVESTMENT_ACCOUNT_REF = `
     name
     email
     phone
+    website
     foundationDate
     geographicPresence
+    picture
+    pictureThumbnail
+    legalForm {
+        ${CATALOG_ENTRY}
+    }
     accountAnnualRevenueBand {
         ${CATALOG_ENTRY}
     }
@@ -198,7 +242,37 @@ export const INVESTMENT_OPPORTUNITY = `
     closeDate
     annualNetColdRent
     dealType
+    
+    # Investment descriptive fields
+    investmentName
     ${AUDIT_FIELDS}
+    
+    # Investment-specific fields
+    stakePercentage
+    marketValue
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
+    requiredCapitalAmount
+    loanAmount
+    loanInterestRate
+    
+    # Investment relationships
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
     
     # Catalog relationships
     currency {
@@ -217,6 +291,20 @@ export const INVESTMENT_OPPORTUNITY = `
     # Employee relationship
     ownerEmployee {
       ${EMPLOYEE_REF}
+    }
+    
+    # Account relationship
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    
+    # Contact relationships
+    investmentOpportunityContact {
+      id
+      contactType
+      contact {
+        ${INVESTMENT_CONTACT_REF}
+      }
     }
 `;
 

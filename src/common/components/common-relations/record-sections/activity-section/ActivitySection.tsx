@@ -124,7 +124,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
           return (
             <TimelineLayout 
               items={items}
-              variant="activity"
+              variant="default"
               orientation="vertical"
               className="gba:w-full" 
             />

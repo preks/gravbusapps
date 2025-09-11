@@ -93,7 +93,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           "lowcoder:team_expenses_page.dashboard_tab.review_subheader",
           "Review and process pending expense approval requests from your team",
         )}
-        headerIcon={<PiClipboardText />}
+        headerIcon={PiClipboardText}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6" data-testid="approvals-page">

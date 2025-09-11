@@ -3,10 +3,9 @@ import useInformationExtraction, { UseInformationExtractionReturn } from "@/comm
 import { 
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
-  useGetInvestmentTasksByOpportunityId
+  useGetInvestmentTasksByOpportunityId,
+  useGetInvestmentOpportunityById
 } from '@/common/data/investment/hooks/useInvestmentOpportunities';
-import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from "../queries/GetOpportunityByIdQueries";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
 
 const taskDescription = `You are an assistant that summarises CRM opportunity timelines. 
@@ -22,17 +21,15 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(opportunityId: string, accessToken: string): UseAiSummaryReturn {
-    const graphQLClient = useGraphQLClient(accessToken);
+    const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById({ accessToken });
     const { fetchInvestmentActivitiesByOpportunityId } = useGetInvestmentActivitiesByOpportunityId({ accessToken });
     const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId({ accessToken });
     const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId({ accessToken });
 
     const generateInputData = async () => {
-        // get opportunity data
-        const opportunity = await graphQLClient.request<GetOpportunityByIdResponse>(
-            GET_OPPORTUNITY_BY_ID,
-            { id: opportunityId }
-        );
+        // get opportunity data using central hook
+        const opportunityResult = await fetchInvestmentOpportunityById(opportunityId);
+        const opportunity = opportunityResult.opportunity;
 
         // get activity data
         const activityResult = await fetchInvestmentActivitiesByOpportunityId(opportunityId);

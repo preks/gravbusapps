@@ -472,13 +472,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             </div>
           ) : (
             <>
-              <h3 className="gba:absenceListTitle gba:text-lg gba:font-medium gba:mb-4" data-testid="absencehub-absence-history-title">
-                {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:absence_hub.absence_history",
-                  "Absence History"
-                )}
-              </h3>
-              
               {absenceList.length > 0 ? (
                 <div className="gba:absenceListCards gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="absencehub-absence-list-cards">
                   {paginatedAbsenceList.map((absence, idx) => (
@@ -863,7 +856,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               })()}
             </Card>
             
-            {/* Chart 2: Absence Distribution by Type */}
+            {/* Chart 2: Absence Distribution by Type (use catalog/backoffice colors) */}
             <Card
               variant="outlined"
               className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
@@ -894,23 +887,30 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                     absenceByType[type] += duration;
                   }
                 });
-                
-                // Define consistent colors for chart
-                const chartColors = [
-                  '#22c55e', // Green
-                  '#f97316', // Orange
-                  'rgba(13, 188, 123, 1)', // Another green
-                  'rgba(255, 158, 2, 1)', // Another orange
-                  'rgba(141, 145, 153, 1)' // Gray
-                ];
-                
+
+                // Build a color map from catalog colors collected on items (fallback to grey)
+                const typeColorMap: Record<string, string> = {};
+                Object.keys(absenceByType).forEach((type) => {
+                  const item = absenceList.find(a => (a.type || 'Other') === type);
+                  let color = item?.typeColor || '#6b7280';
+                  if (color && typeof color === 'string') {
+                    // Ensure hex color starts with '#'
+                    if (!color.startsWith('#') && /^([0-9A-Fa-f]{6})$/.test(color)) {
+                      color = `#${color}`;
+                    }
+                  } else {
+                    color = '#6b7280';
+                  }
+                  typeColorMap[type] = color;
+                });
+
                 const keys = Object.keys(absenceByType);
-                const data = keys.map((type, index) => ({
+                const data = keys.map((type) => ({
                   name: type,
                   value: absenceByType[type],
-                  color: chartColors[index % chartColors.length]
+                  color: typeColorMap[type]
                 }));
-                
+
                 return (
                   <>
                     <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
@@ -926,10 +926,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                             outerRadius={70}
                             fill="#8884d8"
                           >
-                            {data.map((_, index) => (
+                            {data.map((entry, index) => (
                               <Cell 
                                 key={`cell-${index}`} 
-                                fill={chartColors[index % chartColors.length]} 
+                                fill={entry.color} 
                               />
                             ))}
                           </Pie>
@@ -1049,7 +1049,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         </div>
       )}
 
-      {shownTab === 'calendar' && (
+      {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
           <AppActionMenu
             data-testid="employee-absence-request-inline-button"

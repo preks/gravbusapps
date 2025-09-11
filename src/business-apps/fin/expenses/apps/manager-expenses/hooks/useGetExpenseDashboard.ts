@@ -114,11 +114,6 @@ export const useGetExpenseDashboard = (
     setError(null);
 
     try {
-      console.log("Fetching dashboard data with:", {
-        managerId,
-        accessToken: !!accessToken,
-      });
-
       if (!graphQLClient) {
         throw new Error("GraphQL client not initialized");
       }
