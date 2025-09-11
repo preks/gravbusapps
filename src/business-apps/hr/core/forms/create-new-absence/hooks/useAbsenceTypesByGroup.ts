@@ -47,7 +47,6 @@ export const useAbsenceTypesByGroup = (
         includeChildCatalogEntries: true
       });
 
-      console.log("response from hook", response);
       
       if (response?.data) {
         // Filter by group: if parentEntryId provided, it can be either
