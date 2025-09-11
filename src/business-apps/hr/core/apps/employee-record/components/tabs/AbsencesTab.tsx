@@ -413,7 +413,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
                               return (
                                 <div className="gba:flex gba:gap-1 gba:mt-1">
-                                  {segments.map((a: any, idx: number) => (
+                                  {segments.map((a: AbsenceListCardAbsence, idx: number) => (
                                     <div
                                       key={`seg-${idx}`}
                                       className="gba:h-2 gba:rounded-full"
