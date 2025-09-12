@@ -65,7 +65,12 @@ export const useSalesData = (
     async (
       page: number,
       pageSize = 20,
-      additionalFilters?: any,
+      additionalFilters?: {
+        search?: string;
+        ownerEmployeeIds?: string[];
+        closeDateFrom?: string;
+        closeDateTo?: string;
+      },
       overrideSortField?: string,
       overrideSortOrder?: "ASC" | "DESC" | ""
     ) => {
@@ -84,6 +89,9 @@ export const useSalesData = (
           offset: (page - 1) * pageSize,
           dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities
           search: additionalFilters?.search || params.search,
+          ownerEmployeeIds: additionalFilters?.ownerEmployeeIds,
+          closeDateFrom: additionalFilters?.closeDateFrom,
+          closeDateTo: additionalFilters?.closeDateTo,
         };
 
         // Add sorting

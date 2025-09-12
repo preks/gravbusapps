@@ -25,5 +25,5 @@ export default {
   TasksSection,
   NotesSection,
   AccountOpportunities,
-  AccountDocuments
+  AccountDocuments,
 }; 

@@ -11,10 +11,11 @@ import {
 import { getExpensePlanStatusDisplay } from "../../../utils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { PiCalendarDuotone, PiClock, PiArrowRight } from "react-icons/pi";
-import dayjs from "dayjs";
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from "@/common/utils/windowUtils";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
-import { formatNumberFunction } from "@/common/utils/windowUtils";
 import { ExpensePlan } from "../../../hooks/useMainViewExpensePlans";
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
@@ -25,9 +26,20 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem }) => {
   if (!selectedItem) return null;
 
+  // Get user locale for currency and date formatting
+  const userLocale = getCurrentActiveUserLocale();
+
   // Get trip type - for manager view, we'll use a default since we don't have requestType
   const getTripType = () => {
     return "Business Travel";
+  };
+
+  // Format amount with proper currency formatting
+  const formatAmount = (amount: number, currency: string) => {
+    return new Intl.NumberFormat(userLocale, {
+      style: "currency",
+      currency: currency,
+    }).format(amount);
   };
 
   return (
@@ -50,12 +62,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
             getExpensePlanStatusDisplay(selectedItem.status).type === "completed"
               ? "success"
               : getExpensePlanStatusDisplay(selectedItem.status).type === "error"
-              ? "destructive"
-              : getExpensePlanStatusDisplay(selectedItem.status).type === "task"
-              ? "warning"
-              : getExpensePlanStatusDisplay(selectedItem.status).type === "waiting"
-              ? "secondary"
-              : "default"
+                ? "destructive"
+                : getExpensePlanStatusDisplay(selectedItem.status).type === "task"
+                  ? "warning"
+                  : getExpensePlanStatusDisplay(selectedItem.status).type === "waiting"
+                    ? "secondary"
+                    : "default"
           }
           className="gba:text-sm"
           data-testid="expense-plan-status-badge"
@@ -75,8 +87,18 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
                 )}
-                : {dayjs(selectedItem.startDate).format(getDateFormat("date.short"))} {" → "}
-                {dayjs(selectedItem.endDate).format(getDateFormat("date.short"))}
+                :{" "}
+                {new Date(selectedItem.startDate).toLocaleDateString(userLocale, {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}{" "}
+                {" → "}
+                {new Date(selectedItem.endDate).toLocaleDateString(userLocale, {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
               </span>
             </div>
           )}
@@ -89,7 +111,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                   "lowcoder:team_expenses_page.plan_details.plan_date",
                   "Plan Date",
                 )}
-                : {dayjs(selectedItem.planDate).format(getDateFormat("date.short"))}
+                :{" "}
+                {new Date(selectedItem.planDate).toLocaleDateString(userLocale, {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
               </span>
             </div>
           )}
@@ -187,10 +214,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                 )}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {typeof selectedItem.totalAmount === "number"
-                  ? `${formatNumberFunction(String(selectedItem.totalAmount))} ${
-                      selectedItem.currency || "-"
-                    }`
+                {typeof selectedItem.totalAmount === "number" && selectedItem.currency
+                  ? formatAmount(selectedItem.totalAmount, selectedItem.currency)
                   : "-"}
               </span>
             </div>

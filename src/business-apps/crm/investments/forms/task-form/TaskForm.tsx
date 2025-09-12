@@ -160,7 +160,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
 
   // RHF + Zod resolver provided to AppActionForm
   const form = useForm<any>({
-    resolver: createTaskSegmentResolver(),
+    resolver: createTaskSegmentResolver({ requireAssignee: false, requireEntity: false, requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL') }),
     defaultValues: formData as any,
     mode: 'onChange',
   });
@@ -251,7 +251,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
         statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
         // entity search
-        showEntitySelection={!hasEntityFromContext}
+        // In investment context we always hide both Assigned To and Related Entity
+        showEntitySelection={false}
+        showAssigneeSelection={false}
         entities={entities}
         entitiesLoading={entitiesLoading}
         entitiesError={Boolean(entitiesError)}

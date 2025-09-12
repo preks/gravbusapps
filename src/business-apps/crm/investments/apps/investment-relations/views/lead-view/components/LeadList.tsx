@@ -342,7 +342,7 @@ export const LeadList: React.FC<LeadListProps> = ({
                             variant={getLeadStatusVariant(lead.leadStatus?.code)}
                             data-testid={`investment-lead-status-${lead.id}`}
                           >
-                            {lead.leadStatus?.code || "Unknown"}
+                            {lead.leadStatus?.value || lead.leadStatus?.code || "Unknown"}
                           </Badge>
                         </TableCell>
                       )}

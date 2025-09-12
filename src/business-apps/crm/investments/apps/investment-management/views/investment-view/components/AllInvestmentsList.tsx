@@ -20,9 +20,12 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User } from "lucide-react";
+import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "@/common/data/investment";
+import { ColumnConfig } from "@/components/dataController";
+import { useInvestmentListController } from "../hooks/useInvestmentListController";
+import { useAllInvestmentsFilters } from "../hooks/useAllInvestmentsFilters";
 
 
 // Helper function to format group names for display
@@ -39,17 +42,159 @@ const formatGroupName = (groupName: string): string => {
   return groupName.replace(/([A-Z])/g, ' $1').trim();
 };
 
+// Sortable table header component
+const SortableTableHead: React.FC<{
+  children: React.ReactNode;
+  field: string;
+  currentSortField: string;
+  currentSortOrder: "ASC" | "DESC";
+  onSort: (field: string, order: "ASC" | "DESC" | "") => void;
+  className?: string;
+}> = ({ children, field, currentSortField, currentSortOrder, onSort, className }) => {
+  const isSorted = currentSortField === field;
+  const nextOrder = isSorted 
+    ? (currentSortOrder === "ASC" ? "DESC" : "")
+    : "ASC";
+
+  return (
+    <TableHead 
+      className={`gba:cursor-pointer gba:select-none ${className || ''}`}
+      onClick={() => onSort(field, nextOrder)}
+    >
+      <div className="gba:flex gba:items-center gba:gap-1">
+        {children}
+        {isSorted && (
+          currentSortOrder === "ASC" ? 
+            <ChevronUp className="gba:w-4 gba:h-4" /> : 
+            <ChevronDown className="gba:w-4 gba:h-4" />
+        )}
+      </div>
+    </TableHead>
+  );
+};
+
 export interface AllInvestmentsListProps extends BusinessAppContextProps {}
 
 const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
   const { accessToken } = context;
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField] = useState("createdAt");
-  const [sortOrder] = useState<"ASC" | "DESC">("DESC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  // Use the shared controller for URL sync and state management
+  const {
+    search,
+    currentPage,
+    pageSize,
+    sortField,
+    sortOrder,
+    initialLoadDone,
+    setSearch,
+    handlePaginationChange,
+    handleSortingChange,
+    updateURLParams
+  } = useInvestmentListController();
+
+  // Use centralized filters hook
+  const {
+    selectedFilters,
+    filterGroups,
+    filterLabelMap,
+    addFilter,
+    removeFilter,
+    clearAllFilters,
+    getFilters,
+    filtersInitialized,
+    createdAfter,
+    createdBefore,
+    setCreatedAfter,
+    setCreatedBefore,
+  } = useAllInvestmentsFilters(context);
+
+  // Define available columns with default visibility
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: "Actions", visible: true, disabled: true },
+    { id: "investment", label: "Investment", visible: true },
+    { id: "group", label: "Group", visible: true },
+    { id: "type", label: "Type", visible: true },
+    { id: "initialInvestment", label: "Initial Investment", visible: true },
+    { id: "marketValue", label: "Market Value", visible: true },
+    { id: "performance", label: "Performance", visible: true },
+    { id: "owner", label: "Owner", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "created", label: "Created", visible: true },
+    // Optional columns with filters
+    { id: "acquisitionDate", label: "Acquisition Date", visible: false },
+    { id: "exitDate", label: "Exit Date", visible: false },
+    { id: "isin", label: "ISIN", visible: false },
+    { id: "currency", label: "Currency", visible: false },
+    { id: "fundManager", label: "Fund Manager", visible: false },
+    { id: "phase", label: "Phase", visible: false },
+    { id: "riskLevel", label: "Risk Level", visible: false },
+    { id: "stakePercentage", label: "Stake %", visible: false },
+    { id: "totalInvestment", label: "Total Investment", visible: false },
+    { id: "debtFinancing", label: "Debt Financing", visible: false },
+    { id: "forecastedProfit", label: "Forecasted Profit", visible: false },
+    { id: "plannedExitDate", label: "Planned Exit Date", visible: false },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
+
+  // Filter groups based on visible columns - ONLY show filters for visible columns
+  const visibleFilterGroups = useMemo(() => {
+    // Map each visible column to its filter group
+    const columnToFilterMap: Record<string, string> = {
+      group: "investmentGroup",         // Group column → Investment Group filter
+      type: "investmentType",           // Type column → Investment Type filter  
+      phase: "investmentPhase",         // Stage column → Investment Phase filter
+      riskLevel: "investmentRiskLevel", // Risk Level column → Investment Risk Level filter
+      status: "investmentStatus",       // Status column → Investment Status filter
+      owner: "owner",                   // Owner column → Owner filter
+      created: "creationDate",          // Created column → Creation Date filter
+      initialInvestment: "initialInvestmentRange", // Initial Investment column → amount range
+      marketValue: "marketValueRange",             // Market Value column → amount range
+      totalInvestment: "totalInvestmentRange",
+      debtFinancing: "debtFinancingRange",
+      forecastedProfit: "forecastedProfitRange",
+      isin: "isin",
+      currency: "currency", // already handled via catalog filter
+      fundManager: "fundManager",
+      stakePercentage: "stakeRange",
+      plannedExitDate: "plannedExitDate", // if enabled in filters
+    };
+
+    // Only show filters for currently visible columns
+    const visibleFilterIds = new Set<string>();
+    
+    visibleColumns.forEach(columnId => {
+      const filterId = columnToFilterMap[columnId];
+      if (filterId) {
+        visibleFilterIds.add(filterId);
+      }
+    });
+
+    // Return only filter groups that have visible columns
+    const result = filterGroups.filter(group => visibleFilterIds.has(group.id));
+    
+    console.log('🔍 AllInvestments visibleFilterGroups:', {
+      visibleColumns,
+      visibleFilterIds: Array.from(visibleFilterIds),
+      allFilterGroups: filterGroups.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length })),
+      visibleFilterGroups: result.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length }))
+    });
+    
+    return result;
+  }, [filterGroups, visibleColumns]);
 
   const { fetchInvestments } = useGetInvestments(context);
 
@@ -61,10 +206,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
   const queryVariables: InvestmentQueryVariables = useMemo(() => ({
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
-    search: searchTerm.trim() || undefined,
-    orderBy: [{ field: sortField, direction: sortOrder }],
-    ...selectedFilters
-  }), [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters]);
+    search: search.trim() || undefined,
+    orderBy: sortField ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+    ...getFilters(),
+  }), [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -81,7 +226,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     }
   }, [accessToken, fetchInvestments, queryVariables]);
 
+  // Initialize search from URL if not already set
   useEffect(() => {
+    if (search && !initialLoadDone.current) {
+      setSearch(search);
+    }
     loadData();
   }, [loadData]);
 
@@ -141,21 +290,74 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     };
   }, [loadData]);
 
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
+ 
 
-  const handleSetFilter = useCallback((filters: string[]) => {
-    setSelectedFilters(filters);
-    setCurrentPage(1);
-  }, []);
+  // Trigger initial data loading when component mounts and filters are initialized
+  useEffect(() => {
+    if (!initialLoadDone.current && accessToken && filtersInitialized) {
+      initialLoadDone.current = true;
+      loadData();
+    }
+  }, [accessToken, filtersInitialized, loadData]);
 
-  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    const targetPageSize = newPageSize || pageSize;
-    setCurrentPage(page);
-    setPageSize(targetPageSize);
-  }, [pageSize]);
+  // Trigger search when search term changes
+  useEffect(() => {
+    if (initialLoadDone.current && filtersInitialized) {
+      updateURLParams({ search, page: 1 });
+      loadData();
+    }
+  }, [search, filtersInitialized, loadData, updateURLParams]);
+
+  // Trigger reload when filters change
+  useEffect(() => {
+    if (initialLoadDone.current && filtersInitialized) {
+      loadData();
+    }
+  }, [
+    JSON.stringify(selectedFilters),
+    filtersInitialized,
+    loadData,
+  ]);
+
+  // Trigger reload when sorting changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      loadData();
+    }
+  }, [sortField, sortOrder, loadData]);
+
+  // Trigger reload when pagination changes
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      loadData();
+    }
+  }, [currentPage, pageSize, loadData]);
+
+  // Adapter function for DataFilter component
+  const handleFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      selected ? addFilter(filterId) : removeFilter(filterId);
+    },
+    [addFilter, removeFilter]
+  );
+
+  // Function for DataController setFilter requirement
+  const handleSetFilter = useCallback(
+    (filters: string[]) => {
+      // This is called by DataController's "Clear all filters" button or individual filter removal
+      if (filters.length === 0) {
+        // Clear all filters
+        clearAllFilters();
+      } else {
+        // Handle individual filter removal - find which filters were removed and remove them
+        const removedFilters = selectedFilters.filter(
+          (f) => !filters.includes(f)
+        );
+        removedFilters.forEach((filterId) => removeFilter(filterId));
+      }
+    },
+    [clearAllFilters, selectedFilters, removeFilter]
+  );
 
 
   const handleRowClick = useCallback((investmentId: string) => {
@@ -191,11 +393,17 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
   return (
     <DataContainer
       dataControllerProps={{
-        search: searchTerm,
-        setSearch: handleSearch,
+        search,
+        setSearch,
         debounceDelay: 500,
         filter: selectedFilters,
         setFilter: handleSetFilter,
+        filterLabelMap,
+        dateRange: {
+          createdAfter,
+          createdBefore,
+          onClear: () => { setCreatedAfter(undefined); setCreatedBefore(undefined); }
+        },
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -222,111 +430,291 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             </Button>
           </AppAction>
         ),
+        columnVisibility: {
+          columns: columnConfig,
+          onColumnVisibilityChange: handleColumnVisibilityChange,
+          'data-testid': 'all-investments-column-visibility'
+        },
       }}
       dataFilterProps={{
-        filterGroups: [],
-        onFilterChange: () => {},
+        filterGroups: visibleFilterGroups,
+        onFilterChange: handleFilterChange,
       }}
       dataBody={
         <div className="gba:bg-white gba:rounded-lg gba:border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Investment</TableHead>
-                <TableHead>Group</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Initial Investment</TableHead>
-                <TableHead>Market Value</TableHead>
-                <TableHead>Performance</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="gba:w-[60px]">Actions</TableHead>
+                {visibleColumns.includes('investment') && (
+                  <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Investment
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('group') && (
+                  <SortableTableHead field="investmentGroup.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Group
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('type') && (
+                  <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Type
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('initialInvestment') && (
+                  <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Initial Investment
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('marketValue') && (
+                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Market Value
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('performance') && <TableHead>Performance</TableHead>}
+                {visibleColumns.includes('owner') && <TableHead>Owner</TableHead>}
+                {visibleColumns.includes('status') && <TableHead>Status</TableHead>}
+                {visibleColumns.includes('created') && (
+                  <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Created
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('acquisitionDate') && (
+                  <SortableTableHead field="acquisitionDate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Acquisition Date
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('exitDate') && (
+                  <SortableTableHead field="exitDate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Exit Date
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('isin') && (
+                  <SortableTableHead field="isin" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    ISIN
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('currency') && <TableHead>Currency</TableHead>}
+                {visibleColumns.includes('fundManager') && (
+                  <SortableTableHead field="fundManagerName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Fund Manager
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('phase') && <TableHead>Phase</TableHead>}
+                {visibleColumns.includes('riskLevel') && <TableHead>Risk Level</TableHead>}
+                {visibleColumns.includes('stakePercentage') && (
+                  <SortableTableHead field="stakePercentage" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Stake %
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Total Investment
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('debtFinancing') && (
+                  <SortableTableHead field="debtFinancingAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Debt Financing
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('forecastedProfit') && (
+                  <SortableTableHead field="forecastedProfitAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Forecasted Profit
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('plannedExitDate') && (
+                  <SortableTableHead field="plannedExitDate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Planned Exit Date
+                  </SortableTableHead>
+                )}
+                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {investments.map((investment) => (
                 <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span className="gba:font-medium">{investment.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const currentValue = investment.investmentMarketValue || 0;
-                      const initialValue = investment.initialInvestmentAmount || 0;
-                      const performanceAmount = currentValue - initialValue;
-                      const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
-                      
-                      return (
-                        <div className="gba:flex gba:flex-col gba:items-start">
-                          <span className={`gba:font-semibold ${
-                            performancePercentage === 0 ? 'gba:text-gray-500' : 
-                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                          }`}>
-                            {formatCurrency(performanceAmount)}
-                          </span>
-                          <span className={`gba:text-sm ${
-                            performancePercentage === 0 ? 'gba:text-gray-400' : 
-                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                          }`}>
-                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                      <span>
-                        {investment.ownerEmployee?.displayName || 
-                         investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                           ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                           : "N/A"}
+                  {visibleColumns.includes('investment') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span className="gba:font-medium">{investment.name}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('group') && (
+                    <TableCell>
+                      <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('type') && (
+                    <TableCell>
+                      <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('initialInvestment') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('marketValue') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('performance') && (
+                    <TableCell>
+                      {(() => {
+                        const currentValue = investment.investmentMarketValue || 0;
+                        const initialValue = investment.initialInvestmentAmount || 0;
+                        const performanceAmount = currentValue - initialValue;
+                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        
+                        return (
+                          <div className="gba:flex gba:flex-col gba:items-start">
+                            <span className={`gba:font-semibold ${
+                              performancePercentage === 0 ? 'gba:text-gray-500' : 
+                              performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                            }`}>
+                              {formatCurrency(performanceAmount)}
+                            </span>
+                            <span className={`gba:text-sm ${
+                              performancePercentage === 0 ? 'gba:text-gray-400' : 
+                              performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                            }`}>
+                              ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('owner') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                        <span>
+                          {investment.ownerEmployee?.displayName || 
+                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                             : "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('status') && (
+                    <TableCell>
+                      <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
+                        {investment.investmentStatus?.value || "Unknown"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('created') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{formatDate(investment.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('acquisitionDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.acquisitionDate ? formatDate(investment.acquisitionDate) : '-'}
                       </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
-                      {investment.investmentStatus?.value || "Unknown"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatDate(investment.createdAt)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`all-investment-update-button-${investment.id}`}
-                        size="icon"
-                        contextsArray={[FlowContextName.investmentEntity]}
-                        externalContextData={{ investmentId: investment.id }}
-                        prefixDataTestId={`all-investment-update`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="enable"
-                        deferMainContextRequestsUntilClick={true}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('exitDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.exitDate ? formatDate(investment.exitDate) : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('isin') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:font-mono">
+                        {investment.isin || '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('currency') && (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {investment.currency?.value || 'EUR'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('fundManager') && (
+                    <TableCell>
+                      <span className="gba:text-sm">
+                        {investment.fundManagerName || '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('phase') && (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {investment.investmentPhase?.value || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('riskLevel') && (
+                    <TableCell>
+                      <Badge variant={
+                        investment.investmentRiskLevel?.code === 'LOW' ? 'default' :
+                        investment.investmentRiskLevel?.code === 'MEDIUM' ? 'secondary' :
+                        investment.investmentRiskLevel?.code === 'HIGH' ? 'destructive' :
+                        'outline'
+                      }>
+                        {investment.investmentRiskLevel?.value || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('stakePercentage') && (
+                    <TableCell>
+                      <span className="gba:text-sm">
+                        {investment.stakePercentage ? `${investment.stakePercentage}%` : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('debtFinancing') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.debtFinancingAmount || 0)}</span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('forecastedProfit') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.forecastedProfitAmount || 0)}</span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('plannedExitDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.plannedExitDate ? formatDate(investment.plannedExitDate) : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('actions') && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`all-investment-update-button-${investment.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.investmentEntity]}
+                          externalContextData={{ investmentId: investment.id }}
+                          prefixDataTestId={`all-investment-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick={true}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

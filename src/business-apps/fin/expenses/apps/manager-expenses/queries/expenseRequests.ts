@@ -43,6 +43,8 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       employee {
         id
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
         employeePosition {
@@ -124,6 +126,8 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       employee {
         id
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
         employeePosition {
@@ -157,6 +161,8 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
       employee {
         id
+        firstName
+        lastName
         fullName
         department
         additionalProperties
@@ -177,6 +183,8 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
       orderBy: {fullName: ASC}
     ) {
       id
+      firstName
+      lastName
       fullName
       department
       jobTitle

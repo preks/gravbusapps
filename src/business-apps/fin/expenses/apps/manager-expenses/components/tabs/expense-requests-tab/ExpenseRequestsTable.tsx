@@ -57,6 +57,7 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   addFilter: (filter: string) => void;
   removeFilter: (filter: string) => void;
   handleDataFilterChange: (filterId: string, selected: boolean) => void;
+  primaryCurrency: string | null;
 }
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
@@ -80,6 +81,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     loading: isLoading,
     error,
     totalCount,
+    fetchRequests,
     searchTerm,
     setSearchTerm,
     selectedFilters,
@@ -88,6 +90,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     addFilter,
     removeFilter,
     handleDataFilterChange,
+    primaryCurrency,
   } = props;
 
   const [sorting, setSorting] = useState<{
@@ -572,17 +575,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount,
-              )} of ${totalCount} expense requests`}
+              )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.expense_requests", "expense requests")}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:personal_expenses.rows_per_page",
+                    "Rows per page",
+                  )}
+                </p>
                 <select
                   value={pageSize}
                   onChange={(e) => {
                     const newPageSize = Number(e.target.value);
                     setPageSize(newPageSize);
                     setCurrentPage(1);
+                    fetchRequests(
+                      searchTerm,
+                      1,
+                      newPageSize,
+                      sorting.field,
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
                   }}
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="expense-requests-page-size-select"
@@ -597,13 +614,27 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="expense-requests-page-info"
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                {currentPage}{" "}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(1)}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    fetchRequests(
+                      searchTerm,
+                      1,
+                      pageSize,
+                      sorting.field,
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage === 1}
                   data-testid="expense-requests-first-page-button"
                 >
@@ -613,7 +644,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage - 1)}
+                  onClick={() => {
+                    const newPage = currentPage - 1;
+                    setCurrentPage(newPage);
+                    fetchRequests(
+                      searchTerm,
+                      newPage,
+                      pageSize,
+                      sorting.field,
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage === 1}
                   data-testid="expense-requests-previous-page-button"
                 >
@@ -622,7 +665,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage + 1)}
+                  onClick={() => {
+                    const newPage = currentPage + 1;
+                    setCurrentPage(newPage);
+                    fetchRequests(
+                      searchTerm,
+                      newPage,
+                      pageSize,
+                      sorting.field,
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-next-page-button"
                 >
@@ -631,7 +686,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
+                  onClick={() => {
+                    const lastPage = Math.ceil(totalCount / pageSize);
+                    setCurrentPage(lastPage);
+                    fetchRequests(
+                      searchTerm,
+                      lastPage,
+                      pageSize,
+                      sorting.field,
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-last-page-button"
                 >

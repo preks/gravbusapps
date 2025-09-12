@@ -458,6 +458,24 @@ export const handleTripSubmitAction = (
   (logObject as LogObject).expenseRequestTrips = {
     expenseTrips: verifiedTrips ? finalTrips : (initialRequest.expenseRequestTrip || [])
   };
+  const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || [])
+  .map((item: any) => ({
+    id: item.id,
+    version: item.version,
+    breakfast: item.breakfast,
+    lunch: item.lunch,
+    dinner: item.dinner,
+    overnight: item.overnight,
+    expenseDate: item.expenseDate,
+    travelRegionRef: item.travelRegionRef,
+    project: item.projectId,
+    expenseRule: item.expenseRuleId,
+    expenseRequest: initialRequest?.id,
+    costCenter: item.costCenterId
+  }));
+  (logObject as LogObject).travelBreakdownWrapper = {
+    travelBreakdowns: travelBreakdowns
+  };
   if (dispatchProcessContinueEventIfEnabled) {
     return dispatchProcessContinueEventIfEnabled(event, logObject);
   } else {
