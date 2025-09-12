@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Avatar, AvatarFallback, Separator, AvatarImage } from '@newwork/nw-design-system';
 import { ExpensePlanComment } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { UserOutlined, CommentOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -12,10 +12,6 @@ interface ExpensePlanCommentsProps {
  
 
 const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) => {
-  // Format date helper function
-  const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('DD.MM.YYYY HH:mm');
-  };
 
   // Sort comments by date (newest first)
   const sortedComments = [...comments].sort(
@@ -69,7 +65,7 @@ const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) =
                       <span className="gba:font-semibold">
                         {comment.commentType === 'SYSTEM_COMMENT' ? getTranslationFromI18nKeyAndLabel('expense.plan.comments.system', 'System') : comment.authorEmployee.fullName}
                       </span>
-                      <span className="gba:text-gray-500">{formatDate(comment.commentDate)}</span>
+                      <span className="gba:text-gray-500">{formatDate(comment.commentDate, 'date.short')}, {formatDate(comment.commentDate, 'time.short')}</span>
                     </div>
                     <p className="gba:m-0">{getCommentText(comment)}</p>
                   </div>

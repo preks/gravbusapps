@@ -3,7 +3,7 @@ import { Table, Card, Typography, Timeline, Button, Space } from 'antd';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { ExpenseRequestTripType } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi';
 import dayjs from 'dayjs';
 
@@ -16,10 +16,7 @@ const { Text, Paragraph } = Typography;
 const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestTrips }) => {
   // State to toggle between table and timeline view
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('timeline');
-  // Format date helper function
-  const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('DD.MM.YYYY HH:mm');
-  };
+  // Use shared formatDate util for display consistency
 
   // Sort trips by order
   const sortedTrips = [...expenseRequestTrips].sort((a, b) => a.tripOrder - b.tripOrder);
@@ -92,7 +89,11 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
       title: getTranslationFromI18nKeyAndLabel('expense.trip.dateTime', 'Date & Time'),
       dataIndex: 'tripDateTime',
       key: 'tripDateTime',
-      render: (date: string) => formatDate(date),
+      render: (date: string) => (
+        <>
+          {formatDate(date, 'date.short')}, {formatDate(date, 'time.short')}
+        </>
+      ),
       sorter: (a, b) => dayjs(a.tripDateTime).unix() - dayjs(b.tripDateTime).unix(),
     },
     {
@@ -156,7 +157,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         mode="left"
         className="gba:mt-6"
         items={sortedTrips.map((trip) => ({
-          label: formatDate(trip.tripDateTime),
+          label: `${formatDate(trip.tripDateTime, 'date.short')}, ${formatDate(trip.tripDateTime, 'time.short')}`,
           children: (
             <div className="gba:space-y-1">
               <div className="gba:flex gba:items-center gba:gap-2">

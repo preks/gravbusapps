@@ -3,7 +3,7 @@ import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-desi
 import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { PiPath, PiHandCoins, PiMapPin, PiClock, PiChatCircle, PiWalletDuotone, PiCalendarDuotone } from 'react-icons/pi';
 import Pill from '@/components/pill';
-import dayjs from 'dayjs';
+import { formatDate } from '@/common/utils/windowUtils';
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -136,7 +136,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} currencyCode={expensePlan?.currency?.code} />,
+      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />,
     },
     
     // Allowances tab - only show if there are allowances
@@ -210,8 +210,8 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
             <PiCalendarDuotone className="gba:mr-2" />
             <span className="gba:text-sm">
               {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
-              {dayjs(expensePlan.startDate).format('DD.MM.YYYY')} {' → '} 
-              {dayjs(expensePlan.endDate).format('DD.MM.YYYY')}
+              {formatDate(expensePlan.startDate, 'date.short')} {' → '} 
+              {formatDate(expensePlan.endDate, 'date.short')}
             </span>
           </div>
         )}
@@ -219,14 +219,14 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <PiClock className="gba:mr-2" />
           <span className="gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('expense.plan.planDate', 'Plan Date')}: {' '}
-            {expensePlan?.planDate ? dayjs(expensePlan.planDate).format('DD.MM.YYYY') : '-'}
+            {expensePlan?.planDate ? formatDate(expensePlan.planDate, 'date.short') : '-'}
           </span>
         </div>
         <div className="gba:flex gba:items-center gba:mb-4">
           <PiPath className="gba:mr-2" />
           <span className="gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('expense.plan.decisionDate', 'Decision Date')}: {' '}
-            {expensePlan?.decisionDate ? dayjs(expensePlan.decisionDate).format('DD.MM.YYYY') : '-'}
+            {expensePlan?.decisionDate ? formatDate(expensePlan.decisionDate, 'date.short') : '-'}
           </span>
         </div>
         <span className="gba:block gba:mb-4">{expensePlan.description ?? '-' }</span>

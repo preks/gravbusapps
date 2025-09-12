@@ -60,6 +60,12 @@ export const getExpenseRequestRecordQuery = `
         comment
         commentDate
         commentType
+        authorEmployee {
+          fullName
+          firstName
+          lastName
+          pictureThumbnail  
+        }
       }
       expenseRequestItem:expenseItem(orderBy: {expenseDate: ASC, code: ASC}) {
         code
@@ -69,6 +75,17 @@ export const getExpenseRequestRecordQuery = `
         }
         expenseClass {
           value
+        }
+        currency {
+          code
+        }
+        expensePosition {
+          expenseGroup {
+            value
+          }
+        }
+        currency {
+          code
         }
         expenseDate
         totalAmount

@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
-import { Table, Card, Typography } from 'antd';
+import { Table } from 'antd';
+import { Card, CardHeader, CardTitle, CardContent, Icon } from '@newwork/nw-design-system';
 import type { ColumnsType } from 'antd/es/table';
 import Pill from '@/components/pill';
 import { ExpenseRequestItem } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system';
+import { Check } from '@phosphor-icons/react';
+import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency';
+import { formatDate } from '@/common/utils/windowUtils';
 
 interface ExpenseRequestItemsProps {
   expenseRequestItems: ExpenseRequestItem[];
+  currencyCode?: string;
 }
-
-const { Text } = Typography;
 
 // Table summary component defined outside parent component to fix lint error
 interface TableSummaryProps {
@@ -33,69 +36,79 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
     <Table.Summary fixed>
       <Table.Summary.Row>
         <Table.Summary.Cell index={0} colSpan={5}>
-          <Text strong>
+          <span className="gba:font-semibold">
             {getTranslationFromI18nKeyAndLabel('expense.request.items.total', 'Total')}
-          </Text>
+          </span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={5} align="right">
-          <Text strong>{formatAmount(totalAmount)}</Text>
+          <span className="gba:font-semibold">{formatAmount(totalAmount)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={6} align="right">
-          <Text>{formatAmount(totalReimbursable)}</Text>
+          <span>{formatAmount(totalReimbursable)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={7} align="right">
-          <Text>{formatAmount(totalDeductible)}</Text>
+          <span>{formatAmount(totalDeductible)}</span>
         </Table.Summary.Cell>
       </Table.Summary.Row>
     </Table.Summary>
   );
 };
 
-const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseRequestItems }) => {
+const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseRequestItems, currencyCode }) => {
   const loading = false;
-  const activeUserLocale = getCurrentActiveUserLocale();
-  
-  // Format date helper function
-  const formatDate = (dateString: string | null) => {
+  // Date formatting via platform utility
+  const formatDateOnly = (dateString: string | null) => {
     if (!dateString) return '-';
-    return dayjs(dateString).format('DD.MM.YYYY');
+    return formatDate(dateString, 'date.short') || '-';
   };
 
   // Format amount helper function
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat(activeUserLocale, {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  const formatAmount = (amount: number, itemCurrencyCode?: string) => 
+    formatCurrencyDisplay(amount, itemCurrencyCode ?? currencyCode);
 
   const columns: ColumnsType<ExpenseRequestItem> = [
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.code', 'Code'),
       dataIndex: 'code',
       key: 'code',
-      render: (code: string | null) => code ?? '-',
+      render: (code: string | null) => code === null || code === '' ? '-' : code,
       width: 100,
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.title', 'Title'),
       dataIndex: 'title',
       key: 'title',
-      render: (text: string) => <Text strong>{text}</Text>,
+      render: (text: string) => <span className="gba:font-semibold">{text}</span>,
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.expenseGroup', 'Expense Group'),
-      dataIndex: ['expenseGroup', 'value'],
       key: 'expenseGroup',
-      render: (text: string) => (
-        <Pill 
-          label={text} 
-          type="waiting" 
-          data-testid={`expense-group-pill-${text}`}
-        />
-      ),
+      render: (_: unknown, record: ExpenseRequestItem) => {
+        const isAllowance = record?.expenseGroup?.value === 'Allowances';
+        const onePositionItem = record?.expensePosition?.length === 1;
+        const isMultipositionItem = record?.expensePosition?.length > 1;
+        // eslint-disable-next-line no-console
+        if (isAllowance || onePositionItem) {
+          const labelText = isAllowance
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.allowance', 'Allowance')
+            : (record?.expensePosition?.[0]?.expenseGroup?.value ?? '-');
+          return (
+            <Pill 
+              label={labelText}
+              type="waiting" 
+              data-testid={`expense-group-pill-${labelText}`}
+            />
+          );
+        }
+        if(isMultipositionItem){
+        return (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.multi_position_item', 'Multi Position Item')}</span>
+            <Icon icon={Check} size="sm" decorative />
+          </div>
+        );
+        }
+      },
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.expenseClass', 'Expense Class'),
@@ -106,15 +119,17 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.expenseDate', 'Date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
-      render: (date: string) => formatDate(date),
-      sorter: (a, b) => dayjs(a.expenseDate).unix() - dayjs(b.expenseDate).unix(),
+      render: (date: string) => formatDateOnly(date),
+      sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.totalAmount', 'Total Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
-      render: (amount: number) => <Text strong>{formatAmount(amount)}</Text>,
+      render: (amount: number, record) => (
+        <span className="gba:font-semibold">{ amount ? formatAmount(amount, record?.currency?.code) : '-'}</span>
+      ),
       sorter: (a, b) => a.totalAmount - b.totalAmount,
     },
     {
@@ -122,18 +137,18 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
-      render: (amount: number) => formatAmount(amount),
+      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.request.item.deductibleAmount', 'Deductible'),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
-      render: (amount: number) => formatAmount(amount),
+      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
     },
   ];
 
-  // Calculate summary amounts for the cards
+  // Calculate summary amounts for the KPI cards
   const summaryAmounts = useMemo(() => {
     if (!expenseRequestItems.length) {
       return { 
@@ -165,124 +180,61 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
       total: 0
     });
   }, [expenseRequestItems]);
-  
-  // Card background colors
-  const cardColors = {
-    reimbursable: '#e6f7ee',
-    nonReimbursable: '#fff7e6',
-    deductible: '#e6f2ff',
-    nonDeductible: '#ffebee',
-    total: '#e8eaf6'
-  };
-  
-  // Card text colors
-  const textColors = {
-    reimbursable: '#0DBC7B',
-    nonReimbursable: '#FF9E02',
-    deductible: '#0094D1',
-    nonDeductible: '#DE1D49',
-    total: '#3f51b5'
-  };
-  
-  return (
-    <Card 
-      title={getTranslationFromI18nKeyAndLabel('expense.plan.items.title', 'Expense Plan Items')} 
-      data-testid="expense-plan-items"
-    >
-      {/* Cards Grid Layout - 5 columns in a single row */}
-      <div className="gba:grid gba:grid-cols-5 gba:gap-4 gba:mb-6" data-testid="expense-plan-summary-cards">
-        {/* Total Amount Card */}
-        <div 
-          className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid" 
-          style={{ 
-            borderColor: textColors.total,
-            backgroundColor: cardColors.total
-          }}
-          data-testid="total-amount-card"
-        >
-          <Typography.Text className="gba:text-sm gba:mb-2 gba:block">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.item.totalAmount', 'Total Amount')}
-          </Typography.Text>
-          <Typography.Title level={3} style={{ color: textColors.total, margin: 0, fontWeight: 'bold' }}>
-            {formatAmount(summaryAmounts.total)}
-          </Typography.Title>
-        </div>
+  // KPI cards from design system
+  const kpiCards: KpiCardData[] = useMemo(() => ([
+    {
+      id: 'total-amount',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.item.totalAmount', 'Total Amount'),
+      value: formatAmount(summaryAmounts.total),
+    },
+    {
+      id: 'reimbursable-amount',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.item.reimbursableAmount', 'Reimbursable'),
+      value: formatAmount(summaryAmounts.reimbursable),
+    },
+    {
+      id: 'non-reimbursable-amount',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.item.nonReimbursableAmount', 'Non-Reimbursable'),
+      value: formatAmount(summaryAmounts.nonReimbursable),
+    },
+    {
+      id: 'deductible-amount',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.item.deductibleAmount', 'Deductible'),
+      value: formatAmount(summaryAmounts.deductible),
+    },
+    {
+      id: 'non-deductible-amount',
+      title: getTranslationFromI18nKeyAndLabel('expense.request.item.nonDeductibleAmount', 'Non-Deductible'),
+      value: formatAmount(summaryAmounts.nonDeductible),
+    },
+  ]), [summaryAmounts, currencyCode]);
 
-        {/* Reimbursable */}
-        <div 
-          className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
-          style={{ 
-            borderColor: textColors.reimbursable
-          }}
-          data-testid="reimbursable-amount-card"
-        >
-          <Typography.Text className="gba:text-sm gba:mb-2 gba:block">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.item.reimbursableAmount', 'Reimbursable')}
-          </Typography.Text>
-          <Typography.Title level={3} style={{ color: textColors.reimbursable, margin: 0 }}>
-            {formatAmount(summaryAmounts.reimbursable)}
-          </Typography.Title>
+  return (
+    <Card data-testid="expense-request-items" className="gba:p-8 gba:m-6">
+      <CardHeader className="gba:border-b gba:border-gray-200">
+        <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
+          {getTranslationFromI18nKeyAndLabel('expense.request.items.title', 'Expense Request Items')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="gba:p-0">
+        <div className="gba:mb-6" data-testid="expense-request-summary-widgets">
+          <SectionKpiCards 
+            cards={kpiCards}
+            className="gba:!grid-cols-5 gba:md:!grid-cols-5 gba:lg:!grid-cols-5 gba:[&_[data-slot=card-title]]:!text-xl"
+          />
         </div>
-        
-        {/* Non-Reimbursable */}
-        <div 
-          className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
-          style={{ 
-            borderColor: textColors.nonReimbursable
-          }}
-          data-testid="non-reimbursable-amount-card"
-        >
-          <Typography.Text className="gba:text-sm gba:mb-2 gba:block">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.item.nonReimbursableAmount', 'Non-Reimbursable')}
-          </Typography.Text>
-          <Typography.Title level={3} style={{ color: textColors.nonReimbursable, margin: 0 }}>
-            {formatAmount(summaryAmounts.nonReimbursable)}
-          </Typography.Title>
-        </div>
-        
-        {/* Deductible */}
-        <div 
-          className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
-          style={{ 
-            borderColor: textColors.deductible
-          }}
-          data-testid="deductible-amount-card"
-        >
-          <Typography.Text className="gba:text-sm gba:mb-2 gba:block">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.item.deductibleAmount', 'Deductible')}
-          </Typography.Text>
-          <Typography.Title level={3} style={{ color: textColors.deductible, margin: 0 }}>
-            {formatAmount(summaryAmounts.deductible)}
-          </Typography.Title>
-        </div>
-        
-        {/* Non-Deductible */}
-        <div 
-          className="gba:rounded gba:p-4 gba:flex gba:flex-col gba:justify-center gba:border-2 gba:border-solid gba:bg-white" 
-          style={{ 
-            borderColor: textColors.nonDeductible
-          }}
-          data-testid="non-deductible-amount-card"
-        >
-          <Typography.Text className="gba:text-sm gba:mb-2 gba:block">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.item.nonDeductibleAmount', 'Non-Deductible')}
-          </Typography.Text>
-          <Typography.Title level={3} style={{ color: textColors.nonDeductible, margin: 0 }}>
-            {formatAmount(summaryAmounts.nonDeductible)}
-          </Typography.Title>
-        </div>
-      </div>
-      <Table
-        columns={columns}
-        dataSource={expenseRequestItems.map((item, index) => ({ ...item, key: index }))}
-        loading={loading}
-        pagination={false}
-        size="middle"
-        scroll={{ x: 'max-content' }}
-        summary={(pageData) => (
-          <TableSummary pageData={pageData} formatAmount={formatAmount} />
-        )}
-      />
+        <Table
+          columns={columns}
+          dataSource={expenseRequestItems.map((item, index) => ({ ...item, key: index }))}
+          loading={loading}
+          pagination={false}
+          size="middle"
+          scroll={{ x: 'max-content' }}
+          summary={(pageData) => (
+            <TableSummary pageData={pageData} formatAmount={formatAmount} />
+          )}
+        />
+      </CardContent>
     </Card>
   );
 };

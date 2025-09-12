@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, Card, Badge } from 'antd';
+import { Table } from 'antd';
+import { Card, Badge } from '@newwork/nw-design-system';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancePayment } from '../types/expenseRequestRecord.types';
@@ -131,7 +132,7 @@ const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps
   ];
 
   return (
-    <Card className="gba:mb-6" data-testid="expense-plan-advance-payments-card">
+    <Card className="gba:mb-6" data-testid="expense-request-advance-payments-card">
       <Table
         columns={columns}
         dataSource={advancePayments.map((item, index) => ({ ...item, key: index }))}

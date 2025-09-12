@@ -8,7 +8,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../utils/currency';
 import type { WidgetItem } from '@/components/widget-group';
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system';
-import dayjs from 'dayjs';
+import { formatDate } from '@/common/utils/windowUtils';
 
 interface ExpensePlanItemsProps {
   expensePlanItems: ExpensePlanItem[];
@@ -24,14 +24,16 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
   const loading = false;
   
   
-  // Format date helper function
-  const formatDate = (dateString: string | null) => {
+  // Date formatting via platform utility
+  const formatDateOnly = (dateString: string | null) => {
     if (!dateString) return '-';
-    return dayjs(dateString).format('DD.MM.YYYY');
+    return formatDate(dateString, 'date.short') || '-';
   };
 
-  // Format amount helper function - display with plan currency code if available
-  const formatAmount = (amount: number) => formatCurrencyDisplay(amount, currencyCode);
+  // Format amount helper function - prefer item currency when provided
+  const formatAmount = (amount: number, itemCurrencyCode?: string) => (
+    formatCurrencyDisplay(amount, itemCurrencyCode ?? currencyCode)
+  );
 
   const columns: ColumnsType<ExpensePlanItem> = [
     {
@@ -68,15 +70,17 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       title: getTranslationFromI18nKeyAndLabel('expense.plan.item.expenseDate', 'Date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
-      render: (date: string) => formatDate(date),
-      sorter: (a, b) => dayjs(a.expenseDate).unix() - dayjs(b.expenseDate).unix(),
+      render: (date: string) => formatDateOnly(date),
+      sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.plan.item.totalAmount', 'Total Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
-      render: (amount: number) => <span className="gba:font-semibold">{amount ? formatAmount(amount) :'-'}</span>,
+      render: (amount: number, record) => (
+        <span className="gba:font-semibold">{amount ? formatAmount(amount, record?.currency?.code) : '-'}</span>
+      ),
       sorter: (a, b) => a.totalAmount - b.totalAmount,      
     },
     {
@@ -84,14 +88,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
-      render: (amount: number) => amount ? formatAmount(amount) : '-',
+      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.plan.item.deductibleAmount', 'Deductible'),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
-      render: (amount: number) =>  amount ? formatAmount(amount) : '-',
+      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
       },
   ];
 
