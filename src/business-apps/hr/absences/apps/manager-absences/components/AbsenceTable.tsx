@@ -7,7 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EnhancedAbsence } from '../types';
 import { useAbsenceColors } from '../utils/absenceColors';
 import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface AbsenceTableProps extends BusinessAppContextProps {
   absences: EnhancedAbsence[];
@@ -262,7 +262,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.startDate).format('MMM DD, YYYY')}
+                          {dayjs(record.startDate).format(getDateFormat("date.short"))}
                         </span>
                       </div>
                     ) : '-'}
@@ -272,7 +272,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.endDate).format('MMM DD, YYYY')}
+                          {dayjs(record.endDate).format(getDateFormat("date.short"))}
                         </span>
                       </div>
                     ) : '-'}
@@ -290,7 +290,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                          {dayjs(record.createdAt).format(getDateFormat("date.short"))}
                         </span>
                       </div>
                     ) : '-'}
