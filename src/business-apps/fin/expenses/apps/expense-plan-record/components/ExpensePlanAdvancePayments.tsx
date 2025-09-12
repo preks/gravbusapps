@@ -4,11 +4,10 @@ import { Card, Badge } from '@newwork/nw-design-system';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancePayment } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../utils/currency';
 import ExpensePlanAdvancePaymentsSummary from './ExpensePlanAdvancePaymentsSummary';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 interface ExpensePlanAdvancePaymentsProps {
   advancePayments: AdvancePayment[];
@@ -19,10 +18,10 @@ interface ExpensePlanAdvancePaymentsProps {
 const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({ advancePayments }) => {
   
   
-  // Format date helper function
-  const formatDate = (dateString: string | null) => {
+  // Localized date display
+  const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return '-';
-    return dayjs(dateString).format('YYYY-MM-DD');
+    return formatDate(dateString, 'date.short') as string;
   };
 
   // Format amount helper function
@@ -92,13 +91,13 @@ const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({
       title: getTranslationFromI18nKeyAndLabel('expense.advance.decisionDate', 'Decision Date'),
       dataIndex: 'decisionDate',
       key: 'decisionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionDate', 'Transaction Date'),
       dataIndex: 'transactionDate',
       key: 'transactionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionNumber', 'Transaction Number'),

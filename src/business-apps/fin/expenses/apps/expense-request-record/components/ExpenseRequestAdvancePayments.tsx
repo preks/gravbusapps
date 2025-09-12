@@ -4,10 +4,9 @@ import { Card, Badge } from '@newwork/nw-design-system';
 import Pill from '@/components/pill';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancePayment } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils';
 import ExpenseRequestAdvancePaymentsSummary from './ExpenseRequestAdvancePaymentsSummary';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 interface ExpenseRequestAdvancePaymentsProps {
   advancePayments: AdvancePayment[];
@@ -18,10 +17,10 @@ interface ExpenseRequestAdvancePaymentsProps {
 const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps> = ({ advancePayments }) => {
   const activeUserLocale = getCurrentActiveUserLocale();
   
-  // Format date helper function
-  const formatDate = (dateString: string | null) => {
+  // Localized date display
+  const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return '-';
-    return dayjs(dateString).format('YYYY-MM-DD');
+    return formatDate(dateString, 'date.short') as string;
   };
 
   // Format amount helper function
@@ -32,17 +31,14 @@ const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps
     }).format(amount);
   };
 
-  // Get status color
-  const getStatusColor = (status: string): string => {
+  // Map statuses to design system Badge variants
+  const getStatusVariant = (status: string): 'success' | 'destructive' | 'warning' | 'default' => {
     switch (status) {
       case 'PAID':
-        return 'success';
-      case 'REJECTED':
-        return 'error';
-      case 'PREPARED':
-        return 'processing';
       case 'APPROVED':
         return 'success';
+      case 'REJECTED':
+        return 'destructive';
       case 'PENDING':
         return 'warning';
       default:
@@ -74,10 +70,9 @@ const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge 
-          status={getStatusColor(status) as any} 
-          text={getTranslationFromI18nKeyAndLabel(`expense.advance.status.${status.toLowerCase()}`, status)} 
-        />
+        <Badge variant={getStatusVariant(status)}>
+          {getTranslationFromI18nKeyAndLabel(`expense.advance.status.${status.toLowerCase()}`, status)}
+        </Badge>
       ),
       filters: [
         { text: 'Prepared', value: 'PREPARED' },
@@ -104,13 +99,13 @@ const ExpenseRequestAdvancePayments: React.FC<ExpenseRequestAdvancePaymentsProps
       title: getTranslationFromI18nKeyAndLabel('expense.advance.decisionDate', 'Decision Date'),
       dataIndex: 'decisionDate',
       key: 'decisionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionDate', 'Transaction Date'),
       dataIndex: 'transactionDate',
       key: 'transactionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionNumber', 'Transaction Number'),
