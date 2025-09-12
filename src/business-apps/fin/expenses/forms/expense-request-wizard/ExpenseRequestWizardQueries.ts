@@ -330,6 +330,21 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     locality
     addressLine
   }
+     TravelBreakdown(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
+  }
     }`
 
 export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String) {

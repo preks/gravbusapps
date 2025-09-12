@@ -117,6 +117,21 @@ export const createItemsScreenLogObject = (
     expenseClassRef: item.expenseClassRef || '',
     autoCalculated: item.autoCalculated || false
   })))
+  const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || [])
+  .map((item: any) => ({
+    id: item.id,
+    version: item.version,
+    breakfast: item.breakfast,
+    lunch: item.lunch,
+    dinner: item.dinner,
+    overnight: item.overnight,
+    expenseDate: item.expenseDate,
+    travelRegionRef: item.travelRegionRef,
+    project: item.projectId,
+    expenseRule: item.expenseRuleId,
+    expenseRequest: initialRequest?.id,
+    costCenter: item.costCenterId
+  }));
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + event,
     event: event,
@@ -141,6 +156,9 @@ export const createItemsScreenLogObject = (
     },
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
+    },
+    travelBreakdownWrapper: {
+      travelBreakdowns: travelBreakdowns
     }
   };
 };
