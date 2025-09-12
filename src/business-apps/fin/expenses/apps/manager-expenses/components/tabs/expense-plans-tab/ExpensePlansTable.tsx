@@ -197,7 +197,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Render sort indicator
   const renderSortIndicator = useCallback(
     (field: SortField) => {
-      if (sorting.field === field) {
+      if (sorting.lastField === field && sorting.order !== null) {
         return sorting.order === "ASC" ? (
           <PiArrowUp className="gba:inline gba:ml-1" size={12} />
         ) : (
