@@ -109,6 +109,11 @@ export type StepInstance = {
   availableActions?: AvailableActions;
   dueDate?: string;
   escalatedAt?: string;
+  message?: string; // Task message/description from API
+  workflowMeta?: { // Workflow metadata from custom-flow-engine
+    rootWorkflowId?: string;
+    initiatedBy?: string;
+  };
 };
 
 export type SubmittedRequest = {
@@ -170,6 +175,10 @@ export interface WorkflowEngine {
     limit?: number;
   }): Promise<StepInstance[]>;
   getTaskStatistics(userId: string): Promise<TaskStatistics>;
+  getCompletedTickets(options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ tickets: StepInstance[]; totalCount: number; hasMore: boolean }>;
   
   // Task actions
   claim(stepId: string, userId: string): Promise<void>;

@@ -328,16 +328,16 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: StepInstance) => (
-        <div>
+        <div className="gba:max-w-xs">
           <div 
-            className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline"
+            className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline gba:break-words"
             onClick={() => onTaskSelect?.(record.id, deskKey)}
             data-testid={`step-name-${record.id}`}
           >
             {name}
           </div>
-          <div className="gba:text-xs gba:text-muted-foreground">
-            ID: {record.id}
+          <div className="gba:text-xs gba:text-muted-foreground gba:break-words gba:whitespace-normal">
+            {(record as any).message || `ID: ${record.id}`}
           </div>
         </div>
       ),

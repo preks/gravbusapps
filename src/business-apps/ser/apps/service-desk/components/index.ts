@@ -1,12 +1,13 @@
 export { DeskQueue } from './DeskQueue';
-export { TicketDetail } from './TicketDetail';
-export { ServiceDeskDiagnostic } from './ServiceDeskDiagnostic';
-export { TemplatesTab } from './TemplatesTab';
-export { EmployeeDisplayName } from './EmployeeDisplayName';
-export { DebugFlowModal } from './DebugFlowModal';
-export { TaskDetailScreen } from './TaskDetailScreen';
 export { TaskRecord } from './TaskRecord';
-export { DeskAccessGuard } from '../../../components/DeskAccessGuard';
-export { UserDisplayName } from '../../../components/UserDisplayName';
-export type { DeskQueueProps } from './DeskQueue';
-export type { TicketDetailProps } from './TicketDetail';
+export { TicketDetail } from './TicketDetail';
+export { DebugFlowModal } from './DebugFlowModal';
+export { EmployeeDisplayName } from './EmployeeDisplayName';
+export { CompletedTickets } from './CompletedTickets';
+export { CompletedTicketsKPICards } from './CompletedTicketsKPICards';
+export { TemplatesTab } from './TemplatesTab';
+export { ServiceDeskDiagnostic } from './ServiceDeskDiagnostic';
+
+// Export types
+export type { CompletedTicketsProps } from './CompletedTickets';
+export type { CompletedTicketsKPICardsProps } from './CompletedTicketsKPICards';

@@ -3,11 +3,10 @@ export { useDeskTickets } from './useDeskTickets';
 export { useTicketDetail } from './useTicketDetail';
 export { useTicketActions } from './useTicketActions';
 export { useEmployeeName } from './useEmployeeName';
+export { useCompletedTickets } from './useCompletedTickets';
 
 // New GraphQL-based hooks
-export { useUserCapabilitiesGraphQL } from '../../hooks/useUserCapabilitiesGraphQL';
-export { useDesksForUser } from '../../hooks/useDesksForUser';
-export { useUserDetails } from '../../hooks/useEmployeeDetails';
+// export { useDesksForUser } from '../../hooks/useDesksForUser';
 
 export type { 
   UseUserCapabilitiesProps, 
@@ -29,6 +28,11 @@ export type {
   UseTicketActionsProps, 
   UseTicketActionsReturn 
 } from './useTicketActions';
+
+export type { 
+  UseCompletedTicketsProps, 
+  UseCompletedTicketsReturn 
+} from './useCompletedTickets';
 
 export type { 
   UseEmployeeNameProps, 

@@ -1089,6 +1089,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       title: taskData.title,
       taskDefName: taskData.taskDefName,
       status: taskData.status,
+      urgency_level: taskData.urgency_level, // ✅ ADD URGENCY DEBUG
       assignment: taskData.assignment,
       hasFlowDetail: !!flowDetail,
       flowDetailKeys: flowDetail ? Object.keys(flowDetail) : []
@@ -1130,14 +1131,20 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       initiatedBy: flowDetail?.initiatedBy, // Raw initiatedBy field from API
       message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
-      dueDate: taskData.dueDate
-    };
+      dueDate: taskData.dueDate,
+      // ✅ PRESERVE urgency_level from task data
+      ...(taskData.urgency_level && { urgency_level: taskData.urgency_level }),
+      // ✅ PRESERVE assignment object from task data
+      ...(taskData.assignment && { assignment: taskData.assignment })
+    } as StepInstance & { urgency_level?: string; assignment?: any };
     
     console.log(`[ConductorAdapterRequester] ✅ Converted to StepInstance:`, {
       id: stepInstance.id,
       name: stepInstance.name,
       desk: stepInstance.desk,
       status: stepInstance.status,
+      urgency_level: (stepInstance as any).urgency_level, // ✅ ADD URGENCY DEBUG
+      assignment: (stepInstance as any).assignment, // ✅ ADD ASSIGNMENT DEBUG
       claimedBy: stepInstance.claimedByUserId,
       assignedTo: stepInstance.assignedToUserId,
       requesterId: stepInstance.requesterId,
@@ -1439,6 +1446,42 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     } catch (error) {
       console.error('[ConductorAdapter] Error getting task statistics:', error);
       throw new Error(`Failed to get task statistics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get completed tickets for a user
+   */
+  async getCompletedTickets(options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ tickets: StepInstance[]; totalCount: number; hasMore: boolean }> {
+    try {
+      console.log(`[ConductorAdapter] Getting completed tickets for user: ${this.currentUserId}`, options);
+
+      const params = new URLSearchParams();
+      if (options?.limit) params.set('limit', options.limit.toString());
+      if (options?.offset) params.set('offset', options.offset.toString());
+
+      const result = await this.makeRequest(`/api/tasks/user/${this.currentUserId}/completed?${params.toString()}`);
+      
+      const tasks = result.tasks || [];
+      const totalCount = result.totalCount || tasks.length;
+      const hasMore = result.hasMore || false;
+
+      console.log(`[ConductorAdapter] Retrieved ${tasks.length} completed tickets (${totalCount} total, hasMore: ${hasMore})`);
+      
+      const tickets = tasks.map((task: any) => this.convertTaskToStepInstance(task));
+
+      return {
+        tickets,
+        totalCount,
+        hasMore
+      };
+
+    } catch (error) {
+      console.error('[ConductorAdapter] Error getting completed tickets:', error);
+      throw new Error(`Failed to get completed tickets: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

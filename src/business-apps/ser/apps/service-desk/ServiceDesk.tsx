@@ -6,6 +6,7 @@ import type { StepReceiver } from 'packages/services-plus-core';
 import { DeskQueue } from './components/DeskQueue';
 import { TemplatesTab } from './components/TemplatesTab';
 import { TaskRecord } from './components/TaskRecord';
+import { CompletedTickets } from './components/CompletedTickets';
 import { useUserCapabilities } from './hooks/useUserCapabilities';
 import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
 
@@ -273,8 +274,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   }
 
   return (
-    <div data-testid="service-desk-container" className="gba:p-6">
-      <div className="gba:mb-6">
+    <div data-testid="service-desk-container" className="gba:p-6 gba:h-full gba:flex gba:flex-col">
+      <div className="gba:mb-6 gba:flex-shrink-0">
         <h1 className="gba:text-2xl gba:font-semibold gba:mb-1">
           {getTranslationFromI18nKeyAndLabel(
             'services.desk.title',
@@ -293,7 +294,7 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
         activeKey={activeTab}
         onChange={handleTabChange}
         data-testid="service-desk-tabs"
-        className="gba:w-full"
+        className="gba:w-full gba:flex-1 gba:flex gba:flex-col [&_.ant-tabs-content-holder]:gba:flex-1 [&_.ant-tabs-tabpane]:gba:h-full"
         items={[
           // Regular desk tabs
           ...capabilities.map(({ desk, name, ticketCount }) => ({
@@ -319,15 +320,43 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
               </span>
             ),
             children: (
-              <DeskQueue
-                deskKey={desk}
-                ticketId={ticketId}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                onTaskSelect={handleTaskSelect}
-              />
+              <div className="gba:h-full">
+                <DeskQueue
+                  deskKey={desk}
+                  ticketId={ticketId}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  onTaskSelect={handleTaskSelect}
+                />
+              </div>
             ),
           })),
+          // Completed Tickets tab
+          {
+            key: 'completed',
+            label: (
+              <span 
+                data-testid="desk-tab-completed"
+                className="gba:flex gba:items-center gba:gap-2"
+              >
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'services.desk.completed.name',
+                    'Completed Tickets'
+                  )}
+                </span>
+              </span>
+            ),
+            children: (
+              <div className="gba:h-full">
+                <CompletedTickets
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  onTaskSelect={handleTaskSelect}
+                />
+              </div>
+            ),
+          },
           // Templates tab for development
           {
             key: 'templates',
@@ -351,10 +380,12 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
               </span>
             ),
             children: (
-              <TemplatesTab
-                accessToken={accessToken}
-                userInfo={userInfo}
-              />
+              <div className="gba:h-full">
+                <TemplatesTab
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                />
+              </div>
             ),
           }
         ]}
