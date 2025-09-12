@@ -78,6 +78,7 @@ export type StepInstance = {
   };
   requesterId?: string; // who originally requested the parent flow (for Service Desk display)
   requesterName?: string; // name of the person who originally requested the parent flow
+  initiatedBy?: string; // UUID of the person who initiated the flow (raw from API)
   
   // Additional rich data fields for detailed display
   description?: string;

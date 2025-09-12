@@ -910,6 +910,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         requestId: flowData.id || flowData.flowId,
         requesterId: flowData.initiatedBy || this.currentUserId,
         requesterName: this.extractRequesterName(flowData),
+        initiatedBy: flowData.initiatedBy, // Raw initiatedBy field from API
         
         // Additional rich details for the UI
         description: step.message,
@@ -1121,12 +1122,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       finishedAt: taskData.completed ? new Date().toISOString() : undefined,
       comments: [],
       requestId: taskData.flowId,
-      workflowId: taskData.flowId, // Add workflowId field
       workflowMeta: taskData.workflowMeta ? { // Map workflowMeta from custom-flow-engine
         rootWorkflowId: taskData.workflowMeta.rootWorkflowId
       } : undefined,
       requesterId: flowDetail?.initiatedBy || this.currentUserId, // Get from flow context
       requesterName: extractedRequesterName,
+      initiatedBy: flowDetail?.initiatedBy, // Raw initiatedBy field from API
       message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
       dueDate: taskData.dueDate

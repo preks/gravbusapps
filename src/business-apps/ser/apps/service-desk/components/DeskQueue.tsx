@@ -12,11 +12,35 @@ import { useTicketActions } from '../hooks/useTicketActions';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
 // Note: DebouncedInput would be preferred but using Input with onChange for now
 
-// UI Components - TODO: Replace with @newwork/nw-design-system when available
-import { Table, Button, Tag, Drawer, Select, Input, Card, Space, Typography, Badge, message } from 'antd';
-
-const { Option } = Select;
-const { Text } = Typography;
+// Import nw-design-system components
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button, 
+  Badge,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Alert,
+  AlertDescription
+} from '@newwork/nw-design-system';
 
 export interface DeskQueueProps extends BusinessAppContextProps {
   deskKey: StepReceiver;
@@ -104,6 +128,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         id: ticket.id,
         name: ticket.name,
         requesterId: ticket.requesterId,
+        initiatedBy: ticket.initiatedBy,
         requesterName: ticket.requesterName,
         hasRequesterName: !!(ticket.requesterName && ticket.requesterName.trim().length > 0)
       })));
@@ -135,7 +160,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   // Handle claim ticket with optimistic update
   const handleClaimTicket = async (ticket: StepInstance) => {
     if (!currentUserId) {
-      message.error(getTranslationFromI18nKeyAndLabel('services.error.noUser', 'User information not available'));
+      console.error(getTranslationFromI18nKeyAndLabel('services.error.noUser', 'User information not available'));
       return;
     }
 
@@ -148,23 +173,18 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       }
     }));
 
-    const loadingMessage = message.loading(
-      getTranslationFromI18nKeyAndLabel('services.queue.claiming', 'Claiming ticket...'), 
-      0
-    );
+    console.log(getTranslationFromI18nKeyAndLabel('services.queue.claiming', 'Claiming ticket...'));
 
     try {
       await claimTicket(ticket.id);
-      message.success(getTranslationFromI18nKeyAndLabel('services.queue.claimed.success', 'Ticket claimed successfully'));
+      console.log(getTranslationFromI18nKeyAndLabel('services.queue.claimed.success', 'Ticket claimed successfully'));
     } catch (err) {
       // Remove optimistic update on error
       setOptimisticUpdates(prev => {
         const { [ticket.id]: removed, ...rest } = prev;
         return rest;
       });
-      message.error(getTranslationFromI18nKeyAndLabel('services.queue.claimed.error', 'Failed to claim ticket'));
-    } finally {
-      loadingMessage();
+      console.error(getTranslationFromI18nKeyAndLabel('services.queue.claimed.error', 'Failed to claim ticket'));
     }
   };
 
@@ -180,24 +200,19 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       }
     }));
 
-    const loadingMessage = message.loading(
-      getTranslationFromI18nKeyAndLabel('services.queue.unclaiming', 'Unclaiming ticket...'), 
-      0
-    );
+    console.log(getTranslationFromI18nKeyAndLabel('services.queue.unclaiming', 'Unclaiming ticket...'));
 
     try {
       // Use assign with empty string to simulate unclaim
       await assignTicket(ticket.id, '');
-      message.success(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.success', 'Ticket unclaimed successfully'));
+      console.log(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.success', 'Ticket unclaimed successfully'));
     } catch (err) {
       // Remove optimistic update on error
       setOptimisticUpdates(prev => {
         const { [ticket.id]: removed, ...rest } = prev;
         return rest;
       });
-      message.error(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.error', 'Failed to unclaim ticket'));
-    } finally {
-      loadingMessage();
+      console.error(getTranslationFromI18nKeyAndLabel('services.queue.unclaimed.error', 'Failed to unclaim ticket'));
     }
   };
 
@@ -241,13 +256,15 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   };
 
   // Handle sheet close
-  const handleCloseDetail = () => {
-    setIsDetailDrawerOpen(false);
-    setSelectedTicketId(null);
-    
-    // Update URL to go back to queue
-    const newPath = `/desk/${deskKey}`;
-    window.history.pushState({}, '', newPath);
+  const handleCloseDetail = (open: boolean) => {
+    setIsDetailDrawerOpen(open);
+    if (!open) {
+      setSelectedTicketId(null);
+      
+      // Update URL to go back to queue
+      const newPath = `/desk/${deskKey}`;
+      window.history.pushState({}, '', newPath);
+    }
   };
 
   // Handle debug modal open
@@ -264,16 +281,29 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     console.log(`[DeskQueue] ❌ Closing debug modal`);
   };
 
-  // Get status color for badges/tags
-  const getStatusColor = (status: TicketStatus): string => {
+  // Get status variant for badges
+  const getStatusVariant = (status: StepStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'queued': return 'blue';
-      case 'claimed': return 'orange';
-      case 'in_progress': return 'processing';
-      case 'waiting': return 'yellow';
-      case 'done': return 'green';
-      case 'canceled': return 'red';
-      default: return 'default';
+      case 'SCHEDULED':
+      case 'READY':
+      case 'QUEUED': 
+        return 'secondary';
+      case 'IN_PROGRESS':
+      case 'RUNNING':
+        return 'default';
+      case 'COMPLETED':
+      case 'DONE':
+      case 'SKIPPED':
+        return 'outline';
+      case 'FAILED':
+      case 'ERROR':
+      case 'REJECTED':
+      case 'CANCELLED':
+      case 'CANCELED':
+      case 'TIMED_OUT':
+        return 'destructive';
+      default: 
+        return 'outline';
     }
   };
 
@@ -285,17 +315,16 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       key: 'requestId',
       width: 120,
       render: (requestId: string) => (
-        <Text 
-          code 
-          className="gba:text-sm"
+        <code 
+          className="gba:text-sm gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:text-muted-foreground"
           data-testid={`request-id-${requestId}`}
         >
           {requestId ? formatRequestId(requestId) : 'N/A'}
-        </Text>
+        </code>
       ),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('services.queue.columns.stepName', 'Step Name'),
+      title: getTranslationFromI18nKeyAndLabel('services.queue.columns.stepName', 'Ticket Title'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: StepInstance) => (
@@ -307,7 +336,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           >
             {name}
           </div>
-          <div className="gba:text-xs gba:text-gray-500">
+          <div className="gba:text-xs gba:text-muted-foreground">
             ID: {record.id}
           </div>
         </div>
@@ -320,9 +349,11 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       width: 120,
       render: (requesterId: string, record: StepInstance) => {
         // Use EmployeeDisplayName to get user names from Employee table
+        // Prefer initiatedBy over requesterId for more accurate requester identification
+        const userId = record.initiatedBy || requesterId;
         return (
           <EmployeeDisplayName
-            userId={requesterId}
+            userId={userId}
             accessToken={accessToken}
             showIcon={true}
             fallback={record.requesterName || "Unknown User"}
@@ -336,17 +367,14 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: TicketStatus) => (
-        <Tag 
-          color={getStatusColor(status)} 
-          data-testid={`status-tag-${status}`}
-          className="gba:rounded-md gba:text-xs"
+      render: (status: StepStatus) => (
+        <Badge 
+          variant={getStatusVariant(status)}
+          data-testid={`status-badge-${status}`}
+          className="gba:text-xs"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            `services.status.${status}`,
-            status.replace('_', ' ').toUpperCase()
-          )}
-        </Tag>
+          {status}
+        </Badge>
       ),
     },
     {
@@ -356,13 +384,16 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       render: (_: unknown, record: StepInstance) => {
         const priority = getRandomPriority();
         const priorityOption = PRIORITY_OPTIONS.find(p => p.value === priority);
+        const variant = priority === 'critical' || priority === 'high' ? 'destructive' : 
+                       priority === 'medium' ? 'default' : 'secondary';
         return (
           <Badge 
-            color={priorityOption?.color}
-            text={priorityOption?.label}
+            variant={variant}
             className="gba:text-xs"
             data-testid={`priority-${record.id}`}
-          />
+          >
+            {priorityOption?.label}
+          </Badge>
         );
       },
     },
@@ -373,7 +404,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       render: (_: unknown, record: StepInstance) => {
         const dueDate = calculateSLADue(record);
         if (!dueDate) {
-          return <Text className="gba:text-gray-400 gba:text-xs">-</Text>;
+          return <span className="gba:text-muted-foreground gba:text-xs">-</span>;
         }
         
         const slaStatus = getSLAStatus(dueDate);
@@ -382,13 +413,13 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
-            {isOverdue && <Warning className="gba:w-3 gba:h-3 gba:text-red-500" />}
-            {!isOverdue && slaStatus.status === 'warning' && <Clock className="gba:w-3 gba:h-3 gba:text-yellow-500" />}
+            {isOverdue && <Warning className="gba:w-3 gba:h-3 gba:text-destructive" />}
+            {!isOverdue && slaStatus.status === 'warning' && <Clock className="gba:w-3 gba:h-3 gba:text-warning" />}
             <div>
-              <div className="gba:text-xs" style={{ color: slaStatus.color }}>
+              <div className={`gba:text-xs ${slaStatus.status === 'overdue' ? 'gba:text-destructive' : slaStatus.status === 'warning' ? 'gba:text-warning' : 'gba:text-success'}`}>
                 {dueDate.toLocaleDateString()}
               </div>
-              <div className="gba:text-xs gba:text-gray-400">
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
@@ -425,9 +456,9 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
           );
         }
         return (
-          <Text className="gba:text-gray-400 gba:text-sm">
+          <span className="gba:text-muted-foreground gba:text-sm">
             {getTranslationFromI18nKeyAndLabel('services.queue.unassigned', 'Unassigned')}
-          </Text>
+          </span>
         );
       },
     },
@@ -440,12 +471,12 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         const date = updatedAt ? new Date(updatedAt) : new Date(record.startedAt || Date.now());
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:w-3 gba:h-3 gba:text-gray-400" />
+            <Calendar className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
             <div>
-              <div className="gba:text-xs gba:text-gray-600">
+              <div className="gba:text-xs gba:text-foreground">
                 {date.toLocaleDateString()}
               </div>
-              <div className="gba:text-xs gba:text-gray-400">
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
@@ -460,14 +491,14 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       render: (_: unknown, record: StepInstance) => {
         return (
           <Button
-            type="default"
-            size="small"
-            icon={<Bug className="gba:w-3 gba:h-3" />}
+            variant="outline"
+            size="sm"
             onClick={() => handleOpenDebugModal(record)}
             data-testid={`debug-ticket-${record.id}`}
-            className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-purple-300 gba:text-purple-600 hover:gba:border-purple-500 hover:gba:text-purple-700"
+            className="gba:gap-1 gba:text-xs"
             title={getTranslationFromI18nKeyAndLabel('services.queue.actions.debug.tooltip', 'Show debug data from flow engine')}
           >
+            <Bug className="gba:w-3 gba:h-3" />
             <span className="gba:hidden md:gba:inline">
               {getTranslationFromI18nKeyAndLabel('services.queue.actions.debug', 'Debug')}
             </span>
@@ -500,20 +531,19 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         });
 
         return (
-          <Space size="small" className="gba:flex gba:flex-nowrap">
+          <div className="gba:flex gba:gap-2 gba:flex-nowrap">
             {/* Claim Button */}
             {canClaim && (
               <Button
-                type="default"
-                size="small"
-                icon={<UserPlus className="gba:w-3 gba:h-3" />}
+                variant="outline"
+                size="sm"
                 onClick={() => handleClaimTicket(record)}
-                loading={isPerformingAction && isOptimisticallyUpdating}
-                disabled={isPerformingAction}
+                disabled={isPerformingAction && isOptimisticallyUpdating}
                 data-testid={`claim-ticket-${record.id}`}
-                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-blue-300 gba:text-blue-600 hover:gba:border-blue-500 hover:gba:text-blue-700"
+                className="gba:gap-1 gba:text-xs"
                 title={getTranslationFromI18nKeyAndLabel('services.queue.actions.claim.tooltip', 'Claim this ticket')}
               >
+                <UserPlus className="gba:w-3 gba:h-3" />
                 {getTranslationFromI18nKeyAndLabel('services.queue.actions.claim', 'Claim')}
               </Button>
             )}
@@ -521,33 +551,31 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
             {/* Unclaim Button */}
             {canUnclaim && (
               <Button
-                type="default"
-                size="small"
-                icon={<UserMinus className="gba:w-3 gba:h-3" />}
+                variant="outline"
+                size="sm"
                 onClick={() => handleUnclaimTicket(record)}
-                loading={isPerformingAction && isOptimisticallyUpdating}
-                disabled={isPerformingAction}
+                disabled={isPerformingAction && isOptimisticallyUpdating}
                 data-testid={`unclaim-ticket-${record.id}`}
-                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:border-orange-300 gba:text-orange-600 hover:gba:border-orange-500 hover:gba:text-orange-700"
+                className="gba:gap-1 gba:text-xs"
                 title={getTranslationFromI18nKeyAndLabel('services.queue.actions.unclaim.tooltip', 'Unclaim this ticket')}
               >
+                <UserMinus className="gba:w-3 gba:h-3" />
                 {getTranslationFromI18nKeyAndLabel('services.queue.actions.unclaim', 'Unclaim')}
               </Button>
             )}
 
             {/* View Button - always show */}
             <Button
-              type="primary"
-              size="small"
-              icon={<Eye className="gba:w-3 gba:h-3" />}
+              size="sm"
               onClick={() => handleViewTicket(record)}
               data-testid={`view-ticket-${record.id}`}
-              className="gba:flex gba:items-center gba:gap-1 gba:text-xs"
+              className="gba:gap-1 gba:text-xs"
               title={getTranslationFromI18nKeyAndLabel('services.queue.actions.view.tooltip', 'View ticket details')}
             >
+              <Eye className="gba:w-3 gba:h-3" />
               {getTranslationFromI18nKeyAndLabel('services.queue.actions.view', 'View')}
             </Button>
-          </Space>
+          </div>
         );
       },
     },
@@ -576,11 +604,11 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         
         {tickets && tickets.length > 0 && (
           <Badge 
-            count={filteredTickets.length} 
-            showZero 
-            style={{ backgroundColor: '#1890ff' }}
+            variant="default"
             className="gba:text-sm"
-          />
+          >
+            {filteredTickets.length}
+          </Badge>
         )}
       </div>
 
@@ -595,74 +623,84 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
 
       {/* Enhanced Table */}
       <Card className="gba:overflow-hidden">
-        <Table
-          columns={columns}
-          dataSource={filteredTickets}
-          loading={isLoading}
-          rowKey="id"
-          scroll={{ x: 1300 }}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              getTranslationFromI18nKeyAndLabel(
-                'services.queue.pagination',
-                `${range[0]}-${range[1]} of ${total} tickets`
-              ),
-          }}
-          data-testid={`tickets-table-${deskKey.toLowerCase()}`}
-          className="gba:w-full"
-          size="small"
-          locale={{
-            emptyText: (
-              <div className="gba:text-center gba:py-8 gba:text-gray-500">
-                <div className="gba:mb-2">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'services.queue.empty',
-                    'No tickets found for this desk'
-                  )}
-                </div>
-                <div className="gba:text-xs gba:text-gray-400">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'services.queue.emptyHint',
-                    'Tasks are filtered at the backend level by assignment targets and workflow validation'
-                  )}
-                </div>
-              </div>
-            ),
-          }}
-        />
+        <CardContent className="gba:p-0">
+          <div className="gba:overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableHead key={column.key} className="gba:whitespace-nowrap">
+                      {column.title}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTickets.length === 0 ? (
+                  <TableRow>
+                    <TableCell 
+                      colSpan={columns.length} 
+                      className="gba:text-center gba:py-8 gba:text-muted-foreground"
+                    >
+                      <div className="gba:mb-2">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'services.queue.empty',
+                          'No tickets found for this desk'
+                        )}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground/70">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'services.queue.emptyHint',
+                          'Tasks are filtered at the backend level by assignment targets and workflow validation'
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTickets.map((ticket) => (
+                    <TableRow key={ticket.id}>
+                      {columns.map((column) => (
+                        <TableCell key={column.key} className="gba:align-top">
+                          {column.render ? column.render(column.dataIndex ? ticket[column.dataIndex as keyof StepInstance] as any : undefined, ticket) : (column.dataIndex ? String(ticket[column.dataIndex as keyof StepInstance] || '') : '')}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Ticket Detail Drawer */}
-      <Drawer
-        title={getTranslationFromI18nKeyAndLabel('services.ticket.detail.title', 'Ticket Details')}
-        open={isDetailDrawerOpen}
-        onClose={handleCloseDetail}
-        width={800}
-        data-testid="ticket-detail-drawer"
-        className="gba:rounded-l-lg"
-        styles={{
-          header: {
-            borderBottom: '1px solid #f0f0f0',
-            padding: '16px 24px',
-          },
-          body: {
-            padding: '24px',
-          },
-        }}
-      >
-        {selectedTicketId && (
-          <TicketDetail
-            ticketId={selectedTicketId}
-            deskKey={deskKey}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onTicketUpdate={refetch}
-          />
-        )}
-      </Drawer>
+      {/* Ticket Detail Sheet */}
+      <Sheet open={isDetailDrawerOpen} onOpenChange={handleCloseDetail}>
+        <SheetContent 
+          side="right" 
+          className="gba:w-[800px] sm:gba:max-w-[800px]"
+          data-testid="ticket-detail-sheet"
+        >
+          <SheetHeader>
+            <SheetTitle>
+              {getTranslationFromI18nKeyAndLabel('services.ticket.detail.title', 'Ticket Details')}
+            </SheetTitle>
+            <SheetDescription>
+              View and manage ticket details and actions
+            </SheetDescription>
+          </SheetHeader>
+          <div className="gba:mt-6">
+            {selectedTicketId && (
+              <TicketDetail
+                ticketId={selectedTicketId}
+                deskKey={deskKey}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                onTicketUpdate={refetch}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Debug Flow Modal - Development Tool */}
       <DebugFlowModal
