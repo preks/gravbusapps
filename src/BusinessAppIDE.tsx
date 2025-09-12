@@ -1,4 +1,4 @@
-import { useState, useEffect, createElement, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Button,
   Dialog,
@@ -12,6 +12,13 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  ThemeProvider,
+  ThemeSwitch,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@newwork/nw-design-system";
 import { toast } from "sonner";
 import { Gear, X, Info } from "@phosphor-icons/react";
@@ -199,6 +206,24 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   );
 
 
+  // Density state (affects spacing multipliers across DS components)
+  const [density, setDensity] = useState<"default" | "compact" | "comfortable">("default");
+  const densityClass =
+    density === "compact"
+      ? "gba:density-compact"
+      : density === "comfortable"
+      ? "gba:density-comfortable"
+      : "gba:density-default";
+
+  // Apply density globally on <html> to ensure DS components outside wrapper are affected
+  useEffect(() => {
+    const root = window?.document?.documentElement;
+    if (!root) return;
+    root.classList.remove("gba:density-default", "gba:density-compact", "gba:density-comfortable");
+    root.classList.add(densityClass);
+  }, [densityClass]);
+
+
   const [lastPublishedDate, setLastPublishedDate] = useState<string>("");
   const [openKeys, setOpenKeys] = useState<string[]>([]);
 
@@ -223,6 +248,16 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     if (savedAdditionalData) {
       setAdditionalData(savedAdditionalData);
       validateAdditionalData(savedAdditionalData);
+    }
+
+    // Load saved density
+    const savedDensity = localStorage.getItem("business-app-ide-density") as
+      | "default"
+      | "compact"
+      | "comfortable"
+      | null;
+    if (savedDensity === "default" || savedDensity === "compact" || savedDensity === "comfortable") {
+      setDensity(savedDensity);
     }
 
 
@@ -465,6 +500,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setSettingsModalVisible(false);
   };
 
+  // Persist density selection
+  useEffect(() => {
+    localStorage.setItem("business-app-ide-density", density);
+  }, [density]);
+
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -492,7 +532,9 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [additionalData]);
 
   return (
-    <UiCatalogProvider>
+    <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
+      <div className={densityClass}>
+        <UiCatalogProvider>
       <div className="gba:min-h-screen gba:flex gba:flex-col">
         <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
         <FeatureHubProvider userId={parsedUserInfo()?.id ?? ""} />
@@ -546,6 +588,23 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
           {/* Right section: Last Published Date and Settings Button */}
           <div className="gba:flex gba:items-center gba:justify-end gba:gap-4">
+            {/* Theme & Density controls */}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <ThemeSwitch data-testid="BusinessAppIDE-theme-switch" />
+              <Select
+                value={density}
+                onValueChange={(v) => setDensity(v as "default" | "compact" | "comfortable")}
+              >
+                <SelectTrigger data-testid="BusinessAppIDE-density-select" aria-label="Density">
+                  <SelectValue placeholder="Density" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default" data-testid="BusinessAppIDE-density-default">Default</SelectItem>
+                  <SelectItem value="compact" data-testid="BusinessAppIDE-density-compact">Compact</SelectItem>
+                  <SelectItem value="comfortable" data-testid="BusinessAppIDE-density-comfortable">Comfortable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {lastPublishedDate && (
               <div
                 className="gba:flex gba:items-center gba:text-sm gba:text-gray-600"
@@ -839,6 +898,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
                   <Toaster />
       </div>
-    </UiCatalogProvider>
+        </UiCatalogProvider>
+      </div>
+    </ThemeProvider>
   );
 }

@@ -26,6 +26,12 @@
 @import "tailwindcss" prefix(gba);
 @import "tw-animate-css";
 
+@import "@newwork/nw-design-system/core";
+@import "@newwork/nw-design-system/layout";
+@import "@newwork/nw-design-system/colors";
+@import "@newwork/nw-design-system/effects";
+@import "@newwork/nw-design-system/spacing";
+
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
 
 
