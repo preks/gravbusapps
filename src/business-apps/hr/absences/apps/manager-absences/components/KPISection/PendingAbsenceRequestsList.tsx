@@ -148,7 +148,7 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
                   {dayjs(request.createdAt).format('MMM D')}
                 </div>
                 <div className="gba:text-xs gba:text-gray-500 gba:text-right">
-                  {request.effectiveDays} {getTranslationFromI18nKeyAndLabel('common.days', 'days')}
+                  {request.effectiveDays} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.days', 'days')}
                 </div>
               </div>
             </div>
