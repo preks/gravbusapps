@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '@newwork/nw-design-system';
 import { RiTimeLine } from '@remixicon/react';
 import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface RecentAbsenceRequest {
   id: string;
@@ -105,10 +106,10 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
     >
       <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-4 gba:p-6">
         <div>
-          <h5 className="gba:text-sm gba:font-medium">This Month's Requests</h5>
-          <p className="gba:text-xs gba:text-muted-foreground">Created this month</p>
+          <h5 className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.this_month_requests_btn', "This Month's Requests")}</h5>
+          <p className="gba:text-xs gba:text-muted-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.created_this_month', 'Created this month')}</p>
           <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">{totalCount}</div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:text-left">This Month</div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:text-left">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.this_month', 'This Month')}</div>
         </div>
         <RiTimeLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:ml-2" />
       </div>
@@ -147,14 +148,14 @@ export const RecentAbsenceRequestsList: React.FC<RecentAbsenceRequestsListProps>
                   {dayjs(request.createdAt).format('MMM D')}
                 </div>
                 <div className="gba:text-xs gba:text-gray-500 gba:text-right">
-                  {request.effectiveDays} days
+                  {request.effectiveDays} {getTranslationFromI18nKeyAndLabel('common.days', 'days')}
                 </div>
               </div>
             </div>
           ))
         ) : (
           <div className="gba:text-center gba:text-muted-foreground gba:py-8">
-            <p className="gba:text-sm">No requests this month</p>
+            <p className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.emptyMessage', 'No requests this month')}</p>
           </div>
         )}
       </div>
