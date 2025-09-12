@@ -941,7 +941,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                   onChange={(e) => setOvernightAccommodation((e.value as boolean) || false)}
                   data-testid="overnight-accommodation-checkbox"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.checkbox_labe_accommodation', 'Accommodation?')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.checkbox_label_accommodation', 'Accommodation?')}
                 </Checkbox>
               </div>
             )}

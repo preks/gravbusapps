@@ -5,7 +5,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { DataControllerProps } from '@/components/dataController/DataController';
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules';
 import {
   Pagination,
@@ -23,6 +23,8 @@ import StandardFilter from './components/filters/StandardFilter';
 import ValidityPeriodFilter from './components/filters/ValidityPeriodFilter';
 import CalculationFilter from './components/filters/CalculationFilter';
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
+import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions';
+import FlowActionsButton from './components/FlowActionsButton';
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
 
@@ -61,6 +63,9 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
     setPage(pagination.current);
     setPageSize(pagination.pageSize);
   }, [setPage, setPageSize]);
+
+  const [flowModalOpen, setFlowModalOpen] = React.useState<boolean>(false);
+  const openCalculationRuleModal = useCallback(() => setFlowModalOpen(true), []);
 
   const handleHeaderSort = useCallback((field: string) => {
     let next: 'ASC' | 'DESC' | '' = 'ASC';
@@ -130,6 +135,16 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
     filter: [],
     setFilter: () => {},
     filterLabelMap: {},
+    actions: (
+      <FlowActionsButton
+        actions={EXPENSE_CALCULATION_RULES_FLOW_ACTIONS}
+        onAction={(action) => {
+          if (action.modalKey === 'openCalculationRuleModal') openCalculationRuleModal();
+          if (action.link) window.location.href = action.link;
+        }}
+        dataTestId={PREFIX}
+      />
+    ),
   } as any;
 
   return (
@@ -195,19 +210,15 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                         items.map((row) => (
                           <TableRow key={row.id} data-testid={`${PREFIX}-row-${row.id}`}>
                             <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${row.id}`}>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" size="icon" className="gba:w-8 gba:h-8 gba:rounded" data-testid={`${PREFIX}-actions-button-${row.id}`}>
-                                    <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent align="start" className="gba:p-0">
-                                  <div className="gba:flex gba:flex-col">
-                                    <button className="gba:px-4 gba:py-2 gba:text-left hover:gba:bg-gray-100" data-testid={`${PREFIX}-action-edit-${row.id}`}>getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.edit', 'Edit')</button>
-                                    <button className="gba:px-4 gba:py-2 gba:text-left hover:gba:bg-gray-100" data-testid={`${PREFIX}-action-delete-${row.id}`}>getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')</button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="gba:w-8 gba:h-8 gba:rounded"
+                                data-testid={`${PREFIX}-actions-button-${row.id}`}
+                                onClick={() => setFlowModalOpen(true)}
+                              >
+                                <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
+                              </Button>
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${row.id}`}>{row.code || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${row.id}`}>{row.name || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
@@ -242,27 +253,8 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                         );
                       })()}
                     </div>
-                    <div className="gba:flex gba:items-center gba:gap-4">
-                      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${PREFIX}-page-size-selector`}>
-                        <span className="gba:text-sm gba:text-gray-600">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.items_per_page', 'Items per page')}
-                        </span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={(val) => handleEnhancedTableChange({ current: 1, pageSize: Number(val) }, {}, {})}
-                        >
-                          <SelectTrigger className="gba:w-[80px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[10,20,50].map(size => (
-                              <SelectItem key={size} value={String(size)} data-testid={`${PREFIX}-page-size-${size}`}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:w-[100%]">
+                     
                       <Pagination>
                         <PaginationContent>
                         <PaginationItem>
@@ -311,11 +303,40 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                         </PaginationItem>
                         </PaginationContent>
                       </Pagination>
+                      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${PREFIX}-page-size-selector`}>
+                        <span className="gba:text-sm gba:text-gray-600">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.items_per_page', 'Items per page')}
+                        </span>
+                        <Select
+                          value={String(pageSize)}
+                          onValueChange={(val) => handleEnhancedTableChange({ current: 1, pageSize: Number(val) }, {}, {})}
+                        >
+                          <SelectTrigger className="gba:w-[80px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[10,20,50].map(size => (
+                              <SelectItem key={size} value={String(size)} data-testid={`${PREFIX}-page-size-${size}`}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Simple Modal for demo */}
+            <Dialog open={flowModalOpen} onOpenChange={setFlowModalOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>I am a modal</DialogTitle>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       />
