@@ -5,7 +5,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { DataControllerProps } from '@/components/dataController/DataController';
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader } from '@newwork/nw-design-system';
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules';
 import {
   Pagination,
@@ -25,6 +25,7 @@ import CalculationFilter from './components/filters/CalculationFilter';
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
 import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions';
 import FlowActionsButton from './components/FlowActionsButton';
+import { CreateCalculationRuleForm } from '@/business-apps/fin/expenses/forms/create-calculation-rule';
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
 
@@ -329,12 +330,16 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
               </CardContent>
             </Card>
 
-            {/* Simple Modal for demo */}
+            {/* Create Calculation Rule Modal */}
             <Dialog open={flowModalOpen} onOpenChange={setFlowModalOpen}>
-              <DialogContent>
+              <DialogContent data-testid={`${PREFIX}-create-modal`}>
                 <DialogHeader>
-                  <DialogTitle>I am a modal</DialogTitle>
                 </DialogHeader>
+                <CreateCalculationRuleForm
+                  accessToken={props.accessToken}
+                  onCancel={() => setFlowModalOpen(false)}
+                  onCreate={() => setFlowModalOpen(false)}
+                />
               </DialogContent>
             </Dialog>
           </div>
