@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '@newwork/nw-design-system';
 import { RiMedalLine } from '@remixicon/react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface EmployeeAbsence {
   id: string;
@@ -105,10 +106,10 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
     >
       <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:pb-4 gba:p-6">
         <div>
-          <h5 className="gba:text-sm gba:font-medium">Top Absentees</h5>
-          <p className="gba:text-xs gba:text-muted-foreground">Employees with most absence days</p>
+          <h5 className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.top_absentees_btn', 'Top Absentees')}</h5>
+          <p className="gba:text-xs gba:text-muted-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.employees_most_absence_days', 'Employees with most absence days')}</p>
           <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">{maxAbsenceDays}</div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:text-left">Max Absence Days</div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:text-left">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.max_absence_days', 'Max Absence Days')}</div>
         </div>
         <RiMedalLine className="gba:h-6 gba:w-6 gba:text-gray-500 gba:ml-2" />
       </div>
@@ -149,7 +150,7 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
           ))
         ) : (
           <div className="gba:text-center gba:text-muted-foreground gba:py-8">
-            <p className="gba:text-sm">No absence data available</p>
+            <p className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.emptyMessage', 'No absence data available')}</p>
           </div>
         )}
       </div>

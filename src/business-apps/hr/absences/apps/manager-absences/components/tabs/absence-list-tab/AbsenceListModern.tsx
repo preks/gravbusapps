@@ -5,6 +5,7 @@ import { AbsenceTable } from '../../AbsenceTable';
 import { EnhancedAbsence } from '../../../types';
 import { useAbsenceFilters } from '../../../hooks/useAbsenceFilters';
 import { useAbsenceListDataSimple } from '../../../hooks/useAbsenceListDataSimple';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface AbsenceListModernProps extends BusinessAppContextProps {}
 
@@ -141,7 +142,7 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = (props) => {
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Absences</span>
+                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'Absences')}</span>
                 <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
