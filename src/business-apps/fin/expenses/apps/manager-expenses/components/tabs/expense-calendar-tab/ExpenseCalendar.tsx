@@ -324,7 +324,14 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
       return <Alert message={errorMessages.join("\n")} type="error" showIcon />;
 
     if (timelineItems.length === 0 && timelineEvents.length === 0)
-      return <Text>No expense data available for the calendar view.</Text>;
+      return (
+        <Text>
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:personal_expenses.no_expense_data_available",
+            "No expense data available.",
+          )}
+        </Text>
+      );
 
     return (
       <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
@@ -337,6 +344,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = (props) => {
         itemLabel={getTranslationFromI18nKeyAndLabel(
           "lowcoder:hr_absences.create_absence.employee",
           "Employee",
+        )}
+        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
+          "lowcoder:employee_list.search_employee_list.recent_employees_table.department",
+          "Department",
         )}
         searchPlaceholder={getTranslationFromI18nKeyAndLabel(
           "lowcoder:expense_request_table.employee_search_filter",
