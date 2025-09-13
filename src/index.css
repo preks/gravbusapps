@@ -52,6 +52,10 @@
   html {
     scroll-behavior: smooth;
   }
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;

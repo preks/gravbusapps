@@ -13,6 +13,7 @@ export type CatalogEntry = {
   id: string;
   code: string;
   alternativeCode?: string;
+  displayOrder?: number;
   localeCode?: string;
   value: string;
   additionalValue1?: string;
