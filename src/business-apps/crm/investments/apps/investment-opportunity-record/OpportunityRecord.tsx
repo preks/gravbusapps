@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Spinner,
   Button,
@@ -15,6 +15,7 @@ import { LightbulbIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
+import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
 import { useAiSummary } from './hooks/useAiSummary';
 import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
@@ -208,142 +209,25 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadDocuments();
   }, [opportunityId]);
 
-  // Listen for process completion events to refresh opportunity data (including stage condition updates)
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        console.log("InvestmentOpportunityRecord: Process completion event received:", event);
-
-        // Check for successful completion
-        if (event.detail?.resolution === "success") {
-          console.log("InvestmentOpportunityRecord: Refreshing opportunity data after stage condition update...");
-          refetchOpportunityData();
-          loadActivities();
-          loadNotes();
-          loadTasksAndApprovals();
-          loadDocuments();
-          return;
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === "success" || response?.opportunityStageConditionStatus) {
-          console.log("InvestmentOpportunityRecord: Refreshing opportunity data from response...");
-          refetchOpportunityData();
-          loadActivities();
-          loadNotes();
-          loadTasksAndApprovals();
-          loadDocuments();
-        }
-      } catch (err) {
-        console.error("Error handling process completion in InvestmentOpportunityRecord:", err);
-      }
-    };
-
-    // Listen to multiple possible event names for stage condition updates
-    const eventNames = [
-      "com.newwork.process.taskCompletion",
-      "com.newwork.process.completion",
-      "com.newwork.process.continue",
-      "com.newwork.process.processCompletion",
-      "processCompletion",
-      "taskCompletion",
-      "taskCompleted",
-      "processCompleted",
-      "task-completion",
-      "process-completion",
-    ];
-
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
-
-    return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-    };
+  // Listen for process completion events to refresh only opportunity data
+  const refreshOnProcessCompletion = useCallback(() => {
+    console.log("InvestmentOpportunityRecord: Refreshing opportunity data after process completion...");
+    refetchOpportunityData();
   }, [refetchOpportunityData]);
 
-  if (loading) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+  useProcessCompletion({
+    onSuccess: refreshOnProcessCompletion
+  });
 
-  if (error || !opportunity) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
-        <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Investment Opportunity not found'}</p>
-          <Button
-            onClick={onBack}
-            className="gba:mt-4"
-            variant="default"
-          >
-            {getBackButtonText()}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Memoize stage condition action props to prevent recreation
+  const stageConditionActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentOpportunityConditionUpdate],
+    externalContextData: undefined,
+    prefixDataTestId: "stage-condition-status-icon",
+  }), []);
 
-  // Prepare RecordLayout data
-  const headerMeta = opportunity?.value ? (
-    <Badge variant="outline" className="gba:gap-1">
-      <DollarOutlined className="gba:w-4 gba:h-4" />
-      {formatCurrency(
-        opportunity.value, 
-        opportunity?.currency?.id || 'Currency:v1:EUR'
-      )}
-    </Badge>
-  ) : undefined;
-
-  const headerDetailGroups = [
-    {
-      id: 'opportunity-details',
-      items: [
-        {
-          label: 'Status',
-          value: opportunity.status,
-          icon: StarOutlined
-        },
-        {
-          label: 'Currency',
-          value: extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
-        },
-        {
-          label: 'Estimated Amount',
-          value: opportunity.value ? 
-            formatCurrency(opportunity.value, opportunity.currency.id) : 
-            'Not set'
-        },
-        {
-          label: 'Owner',
-          value: opportunity.ownerEmployee ? 
-            `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 
-            'Not assigned',
-          icon: UserOutlined
-        }
-      ]
-    }
-  ];
-
-  const headerActions = (
-    <AiSummaryButton
-      config={{
-        entityType: 'opportunity',
-        loadingMessage: 'Generating AI Summary...',
-        loadingSubtitle: 'Analyzing opportunity data and activities'
-      }}
-      summaryHook={aiSummaryHook}
-      dataTestId={`opportunity-update-button-${opportunityId}`}
-    />
-  );
-
-  const headerActionButton = (
+  // Memoize header action button to prevent recreation
+  const headerActionButton = useMemo(() => (
     <AppActionButton
       size="icon"
       contextsArray={[FlowContextName.investmentOpportunityEntity]}
@@ -353,9 +237,114 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       deferMainContextRequestsUntilClick={false}
       accessToken={props.accessToken}
     />
-  );
+  ), [opportunityId, props.accessToken]);
 
-  const headerContent = !loadingStages &&
+  // Memoize action props to prevent recreation and unnecessary re-renders
+  const taskActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskCreate],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-task"
+  }), [opportunityId]);
+
+  const approvalActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskCreate],
+    externalContextData: { opportunityId, typeRef: 'InvestmentTaskType:v1:APPROVAL' },
+    prefixDataTestId: "opportunity-approval"
+  }), [opportunityId]);
+
+  const noteActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.createInvestmentNote],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-note"
+  }), [opportunityId]);
+
+  const noteEntityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentNoteEntity],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-note-entity"
+  }), [opportunityId]);
+
+  const documentCreateFolderActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentDocumentCreate],
+    externalContextData: { 
+      opportunityId,
+      folder: true
+    },
+    prefixDataTestId: 'opportunity-document-create-folder'
+  }), [opportunityId]);
+
+  const documentUploadActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentDocumentCreate],
+    externalContextData: { 
+      opportunityId
+    },
+    prefixDataTestId: 'opportunity-document-upload'
+  }), [opportunityId]);
+
+  const activityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.createInvestmentActivity],
+    externalContextData: { 
+      opportunityId, 
+      opportunity: opportunityId,
+      investmentActivity: { opportunity: opportunityId }
+    },
+    prefixDataTestId: "add-activity"
+  }), [opportunityId]);
+
+  // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
+  const headerMeta = useMemo(() => opportunity?.value ? (
+    <Badge variant="outline" className="gba:gap-1">
+      <DollarOutlined className="gba:w-4 gba:h-4" />
+      {formatCurrency(
+        opportunity.value, 
+        opportunity?.currency?.id || 'Currency:v1:EUR'
+      )}
+    </Badge>
+  ) : undefined, [opportunity?.value, opportunity?.currency?.id]);
+
+  const headerDetailGroups = useMemo(() => [
+    {
+      id: 'opportunity-details',
+      items: [
+        {
+          label: 'Status',
+          value: opportunity?.status,
+          icon: StarOutlined
+        },
+        {
+          label: 'Currency',
+          value: extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
+        },
+        {
+          label: 'Estimated Amount',
+          value: opportunity?.value ? 
+            formatCurrency(opportunity.value, opportunity.currency.id) : 
+            'Not set'
+        },
+        {
+          label: 'Owner',
+          value: opportunity?.ownerEmployee ? 
+            `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 
+            'Not assigned',
+          icon: UserOutlined
+        }
+      ]
+    }
+  ], [opportunity?.status, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
+
+  const headerActions = useMemo(() => (
+    <AiSummaryButton
+      config={{
+        entityType: 'opportunity',
+        loadingMessage: 'Generating AI Summary...',
+        loadingSubtitle: 'Analyzing opportunity data and activities'
+      }}
+      summaryHook={aiSummaryHook}
+      dataTestId={`opportunity-update-button-${opportunityId}`}
+    />
+  ), [aiSummaryHook, opportunityId]);
+
+  const headerContent = useMemo(() => !loadingStages &&
     !stagesError &&
     opportunityStages.length > 0 &&
     opportunityData?.opportunityPipelineStage ? (
@@ -390,7 +379,32 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       }}>
         <p>No pipeline stage assigned to this opportunity</p>
       </div>
-    ) : undefined;
+    ) : undefined, [loadingStages, stagesError, opportunityStages, opportunityData?.opportunityPipelineStage, opportunity?.stage, opportunityId, stageConditionStatuses, props.accessToken]);
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error || !opportunity) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p className="gba:text-red-500 gba:text-lg">{error || 'Investment Opportunity not found'}</p>
+          <Button
+            onClick={onBack}
+            className="gba:mt-4"
+            variant="default"
+          >
+            {getBackButtonText()}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const subViewsConfig = {
     defaultValue: activeTab,
@@ -461,11 +475,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   <ConditionSection
                     opportunity={opportunityData}
                     stageConditionStatuses={stageConditionStatuses || []}
-                    stageConditionActionProps={{
-                      contextsArray: [FlowContextName.investmentOpportunityConditionUpdate],
-                      externalContextData: undefined,
-                      prefixDataTestId: "stage-condition-status-icon",
-                    }}
+                    stageConditionActionProps={stageConditionActionProps}
                     accessToken={props.accessToken}
                     data-testid="opportunity-condition-section"
                   />
@@ -481,11 +491,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       statusCode: task.taskStatus?.value?.toUpperCase() as any,
                       assigneeEmployee: task.assignedEmployee
                     }))}
-                    taskActionProps={{
-                      contextsArray: [FlowContextName.investmentTaskCreate],
-                      externalContextData: { opportunityId },
-                      prefixDataTestId: "opportunity-task"
-                    }}
+                    taskActionProps={taskActionProps}
                     data-testid="opportunity-task-section"
                     {...props}
                   />
@@ -499,11 +505,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       actor: approval.creatorEmployee?.displayName || approval.creatorEmployee?.fullName,
                       actorEmployee: approval.creatorEmployee
                     }))}
-                    approvalActionProps={{
-                      contextsArray: [FlowContextName.investmentTaskCreate],
-                      externalContextData: { opportunityId, typeRef: 'InvestmentTaskType:v1:APPROVAL' },
-                      prefixDataTestId: "opportunity-approval"
-                    }}
+                    approvalActionProps={approvalActionProps}
                     data-testid="opportunity-approval-section"
                     {...props}
                   />
@@ -515,16 +517,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 <NoteSection
                   opportunityId={opportunityId}
                   notes={notes}
-                  noteActionProps={{
-                    contextsArray: [FlowContextName.createInvestmentNote],
-                    externalContextData: { opportunityId },
-                    prefixDataTestId: "opportunity-note"
-                  }}
-                  noteEntityActionProps={{
-                    contextsArray: [FlowContextName.investmentNoteEntity],
-                    externalContextData: { opportunityId },
-                    prefixDataTestId: "opportunity-note-entity"
-                  }}
+                  noteActionProps={noteActionProps}
+                  noteEntityActionProps={noteEntityActionProps}
                   data-testid="opportunity-note-section"
                   {...props}
                 />
@@ -539,13 +533,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 activitiesLoading={activitiesLoading}
                 activitiesError={activitiesError}
                 onReloadActivities={loadActivities}
-                contextsArray={[FlowContextName.createInvestmentActivity]}
-                externalContextData={{ 
-                  opportunityId, 
-                  opportunity: opportunityId,
-                  investmentActivity: { opportunity: opportunityId }
-                }}
-                prefixDataTestId="add-activity"
+                {...activityActionProps}
                 showTranslation={true}
                 className="gba:h-full gba:h-full"
                 data-testid="opportunity-activity-section"
@@ -568,21 +556,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               isLoading={documentsLoading}
               error={documentsError}
               onRefresh={loadDocuments}
-              createFolderActionProps={{
-                contextsArray: [FlowContextName.investmentDocumentCreate],
-                externalContextData: { 
-                  opportunityId,
-                  folder: true
-                },
-                prefixDataTestId: 'opportunity-document-create-folder'
-              }}
-              uploadActionProps={{
-                contextsArray: [FlowContextName.investmentDocumentCreate],
-                externalContextData: { 
-                  opportunityId
-                },
-                prefixDataTestId: 'opportunity-document-upload'
-              }}
+              createFolderActionProps={documentCreateFolderActionProps}
+              uploadActionProps={documentUploadActionProps}
               data-testid="opportunity-document-section"
               {...props}
             />
