@@ -49,12 +49,9 @@ export const useAdvancePaymentCurrencies = ({
       setIsLoading(true);
       setError(null);
 
-      const response = await graphQLClient.request(
-        GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES,
-        {
-          managerId,
-        }
-      );
+      const response = await graphQLClient.request(GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES, {
+        managerId,
+      });
 
       // Extract currency codes from currency references and filter for distinct values
       const currencyCodes = (response?.AdvancePayment || [])
@@ -82,20 +79,13 @@ export const useAdvancePaymentCurrencies = ({
         }
       });
 
-      console.log(
-        "Most used currency:",
-        mostUsedCurrency,
-        "with frequency:",
-        maxFrequency
-      );
+      console.log("Most used currency:", mostUsedCurrency, "with frequency:", maxFrequency);
 
       // Add default currencies if they don't exist in the data
       const defaultCurrencies = ["EUR", "USD"];
 
       // Create a unique set of currency codes to handle the lack of distinct_on in GraphQL
-      const uniqueCurrencies = Array.from(
-        new Set([...currencyCodes, ...defaultCurrencies])
-      ).sort();
+      const uniqueCurrencies = Array.from(new Set([...currencyCodes, ...defaultCurrencies])).sort();
 
       // Update both local state and global store
       setLocalCurrencies(uniqueCurrencies);
@@ -121,9 +111,7 @@ export const useAdvancePaymentCurrencies = ({
     } catch (err) {
       console.error("Error fetching advance payment currencies:", err);
       setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to fetch advance payment currencies")
+        err instanceof Error ? err : new Error("Failed to fetch advance payment currencies"),
       );
 
       // Fallback to default currencies on error
@@ -180,15 +168,8 @@ export const useAdvancePaymentCurrencies = ({
         // Always include these fallback currencies
         "EUR",
         "USD",
-      ])
+      ]),
     ).sort();
-
-    console.log("Combined currencies calculation:", {
-      localCurrencies,
-      storeCurrencies,
-      mostUsedCurrency,
-      allCurrencies,
-    });
 
     return allCurrencies;
   }, [localCurrencies, storeCurrencies, mostUsedCurrency]);

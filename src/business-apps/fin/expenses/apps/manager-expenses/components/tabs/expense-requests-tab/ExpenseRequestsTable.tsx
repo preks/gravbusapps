@@ -17,7 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@newwork/nw-design-system";
-import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import Pill from "@/components/pill/Pill";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -76,6 +76,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [printPdfUrl, setPrintPdfUrl] = useState<string>("");
   const [printLoading, setPrintLoading] = useState<boolean>(false);
 
+  const [sorting, setSorting] = useState<{
+    field: SortField | null;
+    order: "ASC" | "DESC" | null;
+    lastField: SortField | null;
+  }>({
+    field: null,
+    order: null,
+    lastField: null,
+  });
+
   const {
     expenseRequests: requests,
     loading: isLoading,
@@ -93,30 +103,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     primaryCurrency,
   } = props;
 
-  const [sorting, setSorting] = useState<{
-    field: SortField;
-    order: "ASC" | "DESC";
-  }>({
-    field: "requestDate",
-    order: "DESC",
-  });
-
-  const updateSorting = useCallback((field: SortField) => {
-    setSorting((prevSorting) => {
-      if (prevSorting.field === field) {
-        return {
-          field,
-          order: prevSorting.order === "ASC" ? "DESC" : "ASC",
-        };
-      }
-
-      return {
-        field,
-        order: "DESC",
-      };
-    });
-  }, []);
-
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchTerm(value);
@@ -127,16 +113,55 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
   const handleSort = useCallback(
     (field: SortField) => {
-      updateSorting(field);
+      let newSorting: {
+        field: SortField | null;
+        order: "ASC" | "DESC" | null;
+        lastField: SortField | null;
+      };
+
+      if (sorting.lastField === field) {
+        if (sorting.order === "ASC") {
+          newSorting = { field, order: "DESC", lastField: field };
+        } else if (sorting.order === "DESC") {
+          newSorting = { field: null, order: null, lastField: null };
+        } else {
+          newSorting = { field, order: "ASC", lastField: field };
+        }
+      } else {
+        newSorting = { field, order: "ASC", lastField: field };
+      }
+
+      setSorting(newSorting);
       setCurrentPage(1);
+
+      if (newSorting.field && newSorting.order) {
+        const sortByParam = `${newSorting.field}:${newSorting.order.toLowerCase()}`;
+        fetchRequests(
+          searchTerm,
+          1,
+          pageSize,
+          sortByParam,
+          selectedFilters,
+          undefined,
+          primaryCurrency,
+        );
+      } else {
+        fetchRequests(searchTerm, 1, pageSize, "none", selectedFilters, undefined, primaryCurrency);
+      }
     },
-    [updateSorting, setCurrentPage],
+    [
+      setCurrentPage,
+      sorting,
+      fetchRequests,
+      searchTerm,
+      pageSize,
+      selectedFilters,
+      primaryCurrency,
+    ],
   );
 
-  // Use the file service hook for printing
   const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps);
 
-  // Handle print request
   const handlePrintRequest = useCallback(
     async (request: ExpenseRequest) => {
       setPrintLoading(true);
@@ -180,7 +205,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               },
             },
           },
-          // Additional fields needed for print function
+
           reimbursableAmount: request.totalAmount || 0,
           decisionDate: null,
           requestTypeRef: null,
@@ -213,7 +238,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     [printExpensePlan, isMounted],
   );
 
-  // Handle view request details navigation
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
     const url = buildPlatformUrl("/platform/fin/expenses/expense-request-record", {
       expenseRequestId: request.id,
@@ -223,12 +247,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
   const renderSortIndicator = useCallback(
     (field: SortField) => {
-      if (sorting.field === field) {
-        return sorting.order === "ASC" ? (
-          <ArrowUpOutlined className="gba:ml-1 gba:text-blue-500" />
-        ) : (
-          <ArrowDownOutlined className="gba:ml-1 gba:text-blue-500" />
-        );
+      if (sorting.lastField === field && sorting.order !== null) {
+        if (sorting.order === "ASC") {
+          return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+        } else if (sorting.order === "DESC") {
+          return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+        }
       }
       return null;
     },
@@ -259,7 +283,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     if (error) {
       return (
         <Alert variant="destructive">
-          <div className="gba:font-medium">Error loading expense requests</div>
+          <div className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
+              "Error loading data",
+            )}
+          </div>
           <div className="gba:text-sm">{error}</div>
         </Alert>
       );
@@ -268,7 +297,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     if (requests.length === 0) {
       return (
         <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
-          No expense requests found.
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:personal_expenses.no_expense_data_available",
+            "No expense data available.",
+          )}
         </div>
       );
     }
@@ -414,7 +446,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
                           staticFlowData={[
-                            // Print action - only available if document exists
                             ...(record.employeeDocument?.file
                               ? [
                                   {
@@ -433,7 +464,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                   },
                                 ]
                               : []),
-                            // View Request Details - always available
                             {
                               category: getTranslationFromI18nKeyAndLabel(
                                 "lowcoder:employee_list.flows_button.navigations",
@@ -595,7 +625,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       searchTerm,
                       1,
                       newPageSize,
-                      sorting.field,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
                       selectedFilters,
                       undefined,
                       primaryCurrency,
@@ -629,7 +661,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       searchTerm,
                       1,
                       pageSize,
-                      sorting.field,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
                       selectedFilters,
                       undefined,
                       primaryCurrency,
@@ -651,7 +685,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       searchTerm,
                       newPage,
                       pageSize,
-                      sorting.field,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
                       selectedFilters,
                       undefined,
                       primaryCurrency,
@@ -672,7 +708,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       searchTerm,
                       newPage,
                       pageSize,
-                      sorting.field,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
                       selectedFilters,
                       undefined,
                       primaryCurrency,
@@ -693,7 +731,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       searchTerm,
                       lastPage,
                       pageSize,
-                      sorting.field,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
                       selectedFilters,
                       undefined,
                       primaryCurrency,

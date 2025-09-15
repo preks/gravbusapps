@@ -3,7 +3,8 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
   query GetExpenseRequestsByManager(
     $where: ExpenseRequestBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpenseRequestOrderBy!]
   ) {
     ExpenseRequestAggregate(where: $where) {
       aggregate {
@@ -13,7 +14,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
     ExpenseRequest(
       limit: $limit,
       offset: $offset,
-      orderBy: {requestDate: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetExpenseRequests } from "../../../hooks/useGetExpenseRequests";
 import { useExpenseRequestFilters } from "../../../hooks/useExpenseRequestFilters";
@@ -57,6 +57,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     currentCurrencyFilter: primaryCurrency,
     statisticsOnly: false,
   });
+
+  useEffect(() => {
+    if (props.accessToken) {
+      fetchRequests("", 1, 10, "requestDate:desc", selectedFilters, undefined, primaryCurrency);
+    }
+  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">

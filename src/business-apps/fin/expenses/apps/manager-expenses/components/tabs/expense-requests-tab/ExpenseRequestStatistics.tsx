@@ -73,6 +73,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Waiting for approval",
           ),
           active: selectedFilters.includes("PENDING"),
+          onClick: () => handleCardClick("PENDING"),
         },
         {
           key: "pending-amount",
@@ -111,6 +112,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
             return multiFilters.every((filter) => selectedFilters.includes(filter));
           })(),
+          onClick: () => handleCardClick("", true), // Use multi-filter mode
         },
         {
           key: "total-submitted-amount",
@@ -141,10 +143,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         case "total-requests-submitted":
           handleCardClick("", true); // Use multi-filter mode
           break;
-        case "total-submitted-amount":
-          // Clear all filters when clicking this card
-          selectedFilters.forEach((filter) => removeFilter(filter));
-          break;
+
         default:
           break;
       }

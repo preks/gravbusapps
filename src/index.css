@@ -263,3 +263,17 @@
     background: #a8a8a8;
   }
 }
+
+/* Widget Group Cursor Handling */
+.widget-group-cards {
+  cursor: default;
+}
+
+/* Make individual cards clickable only when they have onClick handlers */
+.widget-group-cards [data-widget-key] {
+  cursor: default;
+}
+
+.widget-group-cards [data-widget-key].clickable {
+  cursor: pointer !important;
+}
