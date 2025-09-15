@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Avatar, AvatarFallback, Separator, AvatarImage } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardTitle, CardContent, Avatar, Separator, AvatarImage } from '@newwork/nw-design-system';
 import { ExpensePlanComment } from '../types/expensePlanRecord.types';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { UserOutlined, CommentOutlined } from '@ant-design/icons';
@@ -19,7 +19,7 @@ const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) =
   );
   const getCommentText = (comment: ExpensePlanComment) => {
     if (comment.commentType === 'APPROVE_COMMENT' && comment.comment === '') {
-      return 'Approved';
+      return getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_landing_page.upcoming_approved_badge', 'Approved');
     }
     return comment.comment;
   }
@@ -33,7 +33,7 @@ const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) =
     <Card data-testid="expense-plan-comments" className="gba:border-none gba:px-6 gba:pt-4">
       <CardHeader className="gba:border-b gba:border-gray-200 gba:pb-3">
         <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('expense.plan.comments.title', 'Comments')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -41,7 +41,7 @@ const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) =
           <div className="gba:text-center gba:py-8">
             <CommentOutlined className="gba:text-4xl gba:text-gray-300" />
             <p className="gba:mt-2 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('expense.plan.comments.empty', 'No comments available')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.expense_history.expense_history_table.description', 'No comments available')}
             </p>
           </div>
         ) : (
@@ -63,7 +63,7 @@ const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments }) =
                   <div className="gba:flex-1">
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                       <span className="gba:font-semibold">
-                        {comment.commentType === 'SYSTEM_COMMENT' ? getTranslationFromI18nKeyAndLabel('expense.plan.comments.system', 'System') : comment.authorEmployee.fullName}
+                        {comment.commentType === 'SYSTEM_COMMENT' ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.system', 'System') : comment.authorEmployee.fullName}
                       </span>
                       <span className="gba:text-gray-500">{formatDate(comment.commentDate, 'date.short')}, {formatDate(comment.commentDate, 'time.short')}</span>
                     </div>

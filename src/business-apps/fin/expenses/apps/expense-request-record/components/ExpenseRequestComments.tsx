@@ -17,7 +17,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
 
   const getCommentText = (comment: ExpenseRequestComment) => {
     if (comment.commentType === 'APPROVE_COMMENT' && comment.comment === '') {
-      return 'Approved';
+      return getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_landing_page.upcoming_approved_badge', 'Approved');
     }
     return comment.comment;
   };
@@ -36,7 +36,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
     <Card data-testid="expense-request-comments" className="gba:border-none gba:px-6 gba:pt-4">
       <CardHeader className="gba:border-b gba:border-gray-200 gba:pb-3">
         <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('expense.request.comments.title', 'Comments')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -44,7 +44,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
           <div className="gba:text-center gba:py-8">
             <CommentOutlined className="gba:text-4xl gba:text-gray-300" />
             <Paragraph className="gba:mt-2 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('expense.request.comments.empty', 'No comments available')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.expense_history.expense_history_table.description', 'No comments available')}
             </Paragraph>
           </div>
         ) : (
@@ -66,7 +66,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                       <span className="gba:font-semibold">
                         {comment.commentType === 'SYSTEM_COMMENT' 
-                          ? getTranslationFromI18nKeyAndLabel('expense.request.comments.system', 'System') 
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.system', 'System') 
                           : comment.authorEmployee?.fullName}
                       </span>
                       <span className="gba:text-gray-500">{formatDate(comment.commentDate, 'date.short')}, {formatDate(comment.commentDate, 'time.short')}</span>

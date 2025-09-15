@@ -133,7 +133,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiPath className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.items', 'Items')}</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
       children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />,
@@ -145,7 +145,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiClock className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.allowances', 'Allowances')}</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholders', 'Allowances')}</span>
         </div>
       ),
       children: <ExpensePlanAllowances expenseAllowances={expensePlan.expenseAllowance} currencyCode={expensePlan?.currency?.code} />,
@@ -157,7 +157,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiMapPin className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.trip', 'Trip')}</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')}</span>
         </div>
       ),
       children: <ExpensePlanTrip expenseRequestTrips={expensePlan.expenseRequestTrip} />,
@@ -169,7 +169,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiHandCoins className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.advance.payments', 'Advance Payments')}</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payments', 'Advance Payments')}</span>
         </div>
       ),
       children: <ExpensePlanAdvancePayments advancePayments={expensePlan.advancePayment} />,
@@ -181,7 +181,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PiChatCircle className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('expense.plan.record.tabs.comments', 'Comments')}</span>
+          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}</span>
         </div>
       ),
       children: <ExpensePlanComments comments={expensePlan.expensePlanComment} />,
@@ -209,7 +209,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <div className="gba:flex gba:items-center gba:mb-2">
             <PiCalendarDuotone className="gba:mr-2" />
             <span className="gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel('expense.plan.duration', 'Duration')}: {' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
               {formatDate(expensePlan.startDate, 'date.short')} {' → '} 
               {formatDate(expensePlan.endDate, 'date.short')}
             </span>
@@ -218,39 +218,39 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
         <div className="gba:flex gba:items-center gba:mb-2">
           <PiClock className="gba:mr-2" />
           <span className="gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.planDate', 'Plan Date')}: {' '}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: {' '}
             {expensePlan?.planDate ? formatDate(expensePlan.planDate, 'date.short') : '-'}
           </span>
         </div>
         <div className="gba:flex gba:items-center gba:mb-4">
           <PiPath className="gba:mr-2" />
           <span className="gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel('expense.plan.decisionDate', 'Decision Date')}: {' '}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.decision_date', 'Decision Date')}: {' '}
             {expensePlan?.decisionDate ? formatDate(expensePlan.decisionDate, 'date.short') : '-'}
           </span>
         </div>
         <span className="gba:block gba:mb-4">{expensePlan.description ?? '-' }</span>
         <div className="gba:grid gba:grid-cols-1 gba:gap-1">
           <div>
-            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.requester', 'Requester')}: {' '} </span>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requester', 'Requester')}: {' '} </span>
             <span>{expensePlan?.employee?.fullName ?? expensePlan?.employee?.firstName + ' ' + expensePlan?.employee?.lastName}</span>
           </div>
           {expensePlan?.employee?.employeePosition?.supervisor && (
             <div>
-              <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.manager', 'Manager')}: {' '} </span>
+              <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.summary_layout.public_profile_container.manager', 'Manager')}: {' '} </span>
               <span>{expensePlan.employee.employeePosition.supervisor.fullName ?? expensePlan.employee.employeePosition.supervisor.firstName + ' ' + expensePlan.employee.employeePosition.supervisor.lastName}</span>
             </div>
           )}
           <div>
-            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.costCenter', 'Cost Center')}: {' '} </span>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}: {' '} </span>
             <span>{expensePlan?.costCenter?.name ?? '-'}</span>
           </div>
           <div>
-            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.project', 'Project')}: {' '} </span>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}: {' '} </span>
             <span>{expensePlan?.project?.name ?? '-'}</span>
           </div>
           <div>
-            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('expense.plan.amount', 'Total Amount')}: {' '} </span>
+            <span className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}: {' '} </span>
             <span>{formatCurrencyDisplay(expensePlan?.totalAmount, expensePlan?.currency?.code)}</span>
           </div>
         </div>
@@ -282,7 +282,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     return (
       <PageLayout 
       headerIcon={<PiWalletDuotone color="#c92559"/>}
-        headerLabel={getTranslationFromI18nKeyAndLabel('expense.plan.record.title', 'Expense Plan Record')}
+        headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
         contentContainer={
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="expense-plan-record-loading">
             <Spinner />
@@ -299,28 +299,23 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     
     if (!expensePlanId) {
       // Case 1: No expense plan ID provided
-      errorTitle = getTranslationFromI18nKeyAndLabel('expense.plan.record.missing.title', 'Missing Expense Plan ID');
-      errorDescription = getTranslationFromI18nKeyAndLabel(
-        'expense.plan.record.missing.description', 
-        'No expense plan ID was provided. Please specify an expense plan ID.'
-      );
+      errorTitle = getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.missing_plan_id', 'Missing Expense Plan ID');
     } else if (error && (error.includes('No expense plan data found') || error.includes('No expense plan ID provided'))) {
       // Case 2: Expense plan not found with the provided ID
-      errorTitle = getTranslationFromI18nKeyAndLabel('expense.plan.record.notfound.title', 'Expense Plan Not Found');
+      errorTitle = getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.plan_not_found', 'Expense Plan Not Found');
       errorDescription = getTranslationFromI18nKeyAndLabel(
-        'expense.plan.record.notfound.description', 
-        `No expense plan found with ID: ${expensePlanId}`
+        'lowcoder:expense_records.plan.no_plan_found', 
+        `No expense plan found with provided ID`
       );
     } else {
       // Case 3: Other errors
-      errorTitle = getTranslationFromI18nKeyAndLabel('expense.plan.record.error.title', 'Error');
-      errorDescription = getTranslationFromI18nKeyAndLabel('expense.plan.record.error.description', error ?? '');
+      errorTitle = getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error');
     }
     
     return (
       <PageLayout 
       headerIcon={<PiWalletDuotone color="#c92559"/>}
-        headerLabel={getTranslationFromI18nKeyAndLabel('expense.plan.record.title', 'Expense Plan Record')}
+        headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
         contentContainer={
           <Alert variant="destructive" data-testid="expense-plan-record-error">
             <AlertTitle>{errorTitle}</AlertTitle>
@@ -334,28 +329,32 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   return (
     <PageLayout 
       headerIcon={<PiWalletDuotone color="#c92559"/>}
-      headerLabel={getTranslationFromI18nKeyAndLabel('expense.plan.record.title', 'Expense Plan Record')}
+      headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
       contentContainer={
-        <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-plan-record-container">
-          <Card className="gba:w-1/4">
-            {renderHeader()}
-          </Card>
-          <Card className="gba:w-3/4">
-            <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
-              <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="gba:grid gba:grid-cols-5 gba:w-full gba:ml-6 gba:mr-6">
+        <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+          <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-plan-record-container">
+            <Card className="gba:w-1/4">
+              {renderHeader()}
+            </Card>
+            <Card className="gba:w-3/4">
+              <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
+                <Tabs value={activeTab} onValueChange={handleTabChange}>
+                  <TabsList className="gba:grid gba:grid-cols-5 gba:w-full gba:ml-6 gba:mr-6">
+                    {tabItems.map(t => (
+                      <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+                    ))}
+                  </TabsList>
                   {tabItems.map(t => (
-                    <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
+                    <TabsContent key={t.key} value={t.key} className="gba:mt-4">
+                      <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
+                        {t.children}
+                      </div>
+                    </TabsContent>
                   ))}
-                </TabsList>
-                {tabItems.map(t => (
-                  <TabsContent key={t.key} value={t.key} className="gba:mt-4">
-                    {t.children}
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </div>
-          </Card> 
+                </Tabs>
+              </div>
+            </Card> 
+          </div>
         </div>
       }
     />

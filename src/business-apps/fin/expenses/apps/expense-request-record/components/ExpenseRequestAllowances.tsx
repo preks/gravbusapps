@@ -36,62 +36,62 @@ const ExpenseRequestAllowances: React.FC<ExpenseRequestAllowancesProps> = ({ exp
 
   const columns: ColumnsType<ExpenseAllowance> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.date', 'Date'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
       dataIndex: 'allowanceDate',
       key: 'allowanceDate',
       render: (date: string) => formatDate(date),
       sorter: (a, b) => dayjs(a.allowanceDate).unix() - dayjs(b.allowanceDate).unix(),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.region', 'Travel Region'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.travel_region', 'Travel Region'),
       dataIndex: ['travelRegion', 'value'],
       key: 'travelRegion',
       render: (text: string) => <Badge>{text}</Badge>,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.dayRate', 'Day Rate'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.day_rate', 'Day Rate'),
       dataIndex: 'dayRate',
       key: 'dayRate',
       align: 'right',
       render: (amount: number) => <span className="gba:font-semibold">{formatAmount(amount)}</span>,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.breakfast', 'Breakfast'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.expense_deduction_modal.breakfast_title', 'Breakfast'),
       dataIndex: 'breakfast',
       key: 'breakfast',
       align: 'center',
       render: (value: boolean) => <BooleanIndicator value={value} />,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.lunch', 'Lunch'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.expense_deduction_modal.lunch_title', 'Lunch'),
       dataIndex: 'lunch',
       key: 'lunch',
       align: 'center',
       render: (value: boolean) => <BooleanIndicator value={value} />,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.dinner', 'Dinner'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.expense_deduction_modal.dinner_title', 'Dinner'),
       dataIndex: 'dinner',
       key: 'dinner',
       align: 'center',
       render: (value: boolean) => <BooleanIndicator value={value} />,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.overnight', 'Overnight'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.overnight', 'Overnight'),
       dataIndex: 'overnight',
       key: 'overnight',
       align: 'center',
       render: (value: boolean) => <BooleanIndicator value={value} />,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.accommodation', 'Accommodation'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.accommodation', 'Accommodation'),
       dataIndex: 'overnightAccommodation',
       key: 'overnightAccommodation',
       align: 'center',
       render: (value: boolean) => <BooleanIndicator value={value} />,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.allowance.deductionLimit', 'Deduction Limit'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.tab_container.deduction_limit', 'Deduction Limit'),
       dataIndex: 'deductionLimit',
       key: 'deductionLimit',
       align: 'right',
@@ -102,7 +102,7 @@ const ExpenseRequestAllowances: React.FC<ExpenseRequestAllowancesProps> = ({ exp
   return (
     <Card data-testid="expense-request-allowances">
       <CardHeader>
-        <CardTitle>{getTranslationFromI18nKeyAndLabel('expense.request.allowances.title', 'Allowances')}</CardTitle>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholders', 'Allowances')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Table
@@ -112,10 +112,8 @@ const ExpenseRequestAllowances: React.FC<ExpenseRequestAllowancesProps> = ({ exp
             pageSize: 10,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
-            showTotal: (total, range) => 
-              getTranslationFromI18nKeyAndLabel(
-                'expense.request.allowances.pagination',
-                `${range[0]}-${range[1]} of ${total} items`
+            showTotal: (total, range) => (
+                `${range[0]}-${range[1]} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'Of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}`
               )
           }}
           size="middle"
@@ -134,7 +132,7 @@ const ExpenseRequestAllowances: React.FC<ExpenseRequestAllowancesProps> = ({ exp
                 <Table.Summary.Row>
                   <Table.Summary.Cell index={0} colSpan={2}>
                     <span className="gba:font-semibold">
-                      {getTranslationFromI18nKeyAndLabel('expense.request.allowances.total', 'Total')}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
                     </span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={2} align="right">

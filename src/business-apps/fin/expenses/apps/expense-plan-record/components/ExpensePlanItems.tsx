@@ -37,20 +37,20 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
 
   const columns: ColumnsType<ExpensePlanItem> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.code', 'Code'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
       dataIndex: 'code',
       key: 'code',
       render: (code: string | null) => code === null || code === '' ? '-' : code,
       width: 100,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.title', 'Title'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:calculation_rule_tab_custom_fields.custom_fields_modal.affected_expense_modal.title', 'Title'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string) => <span className="gba:font-semibold">{text}</span>,
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.expenseGroup', 'Expense Group'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label', 'Expense Group'),
       dataIndex: ['expenseGroup', 'value'],
       key: 'expenseGroup',
       render: (text: string) => (
@@ -62,19 +62,19 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       ),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.expenseClass', 'Expense Class'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
       dataIndex: ['expenseClass', 'value'],
       key: 'expenseClass',
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.expenseDate', 'Date'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
       render: (date: string) => formatDateOnly(date),
       sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.totalAmount', 'Total Amount'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
@@ -84,14 +84,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       sorter: (a, b) => a.totalAmount - b.totalAmount,      
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.reimbursableAmount', 'Reimbursable'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
       render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.deductibleAmount', 'Deductible'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible', 'Deductible'),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
@@ -136,31 +136,31 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
   const widgets: WidgetItem[] = useMemo(() => ([
     {
       key: 'total-amount',
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.totalAmount', 'Total Amount'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount'),
       value: formatAmount(summaryAmounts.total), 
       valueIsString: true,
     },
     {
       key: 'reimbursable-amount',
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.reimbursableAmount', 'Reimbursable'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
       value: formatAmount(summaryAmounts.reimbursable),
       valueIsString: true,
     },
     {
       key: 'non-reimbursable-amount',
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.nonReimbursableAmount', 'Non-Reimbursable'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan.item.nonReimbursableAmount', 'Non-Reimbursable'),
       value: formatAmount(summaryAmounts.nonReimbursable),
       valueIsString: true,
     },
     {
       key: 'deductible-amount',
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.deductibleAmount', 'Deductible'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible', 'Deductible'),
       value: formatAmount(summaryAmounts.deductible),
       valueIsString: true,
     },
     {
       key: 'non-deductible-amount',
-      title: getTranslationFromI18nKeyAndLabel('expense.plan.item.nonDeductibleAmount', 'Non-Deductible'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
       value: formatAmount(summaryAmounts.nonDeductible),
       valueIsString: true,
     },
@@ -170,7 +170,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
     <Card data-testid="expense-plan-items" className="gba:p-8 gba:m-6">
       <CardHeader className="gba:border-b gba:border-gray-200">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
-          {getTranslationFromI18nKeyAndLabel('expense.plan.items.title', 'Expense Plan Items')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.expense_plan_items', 'Expense Plan Items')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:p-0">
@@ -205,7 +205,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={5}>
                   <span className="gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel('expense.plan.items.total', 'Total')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
                   </span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={5} align="right">
