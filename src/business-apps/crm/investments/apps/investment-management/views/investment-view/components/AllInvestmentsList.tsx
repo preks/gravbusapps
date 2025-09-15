@@ -22,7 +22,8 @@ import { AppActionButton } from "@/components/app-action-button/AppActionButton"
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "@/common/data/investment";
+import { formatDate } from "@/common/data/investment";
+import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useAllInvestmentsFilters } from "../hooks/useAllInvestmentsFilters";
@@ -128,6 +129,17 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     { id: "status", label: "Status", visible: true },
     { id: "created", label: "Created", visible: true },
   ]);
+  // Currency helpers to match IRM Opportunity list (number-only + narrow symbol)
+  const renderAmount = (amount: number | undefined, currencyCode?: string) => {
+    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>;
+    const { number, symbol } = formatCurrencyParts(amount, { currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+      </div>
+    );
+  };
 
   const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
     setColumnConfig(prev => 
@@ -394,86 +406,196 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             <TableBody>
               {investments.map((investment) => (
                 <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span className="gba:font-medium">{investment.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const currentValue = investment.investmentMarketValue || 0;
-                      const initialValue = investment.initialInvestmentAmount || 0;
-                      const performanceAmount = currentValue - initialValue;
-                      const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
-                      
-                      return (
-                        <div className="gba:flex gba:flex-col gba:items-start">
-                          <span className={`gba:font-semibold ${
-                            performancePercentage === 0 ? 'gba:text-gray-500' : 
-                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                          }`}>
-                            {formatCurrency(performanceAmount)}
-                          </span>
-                          <span className={`gba:text-sm ${
-                            performancePercentage === 0 ? 'gba:text-gray-400' : 
-                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                          }`}>
-                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                      <span>
-                        {investment.ownerEmployee?.displayName || 
-                         investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                           ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                           : "N/A"}
+                  {visibleColumns.includes('investment') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span className="gba:font-medium">{investment.name}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('group') && (
+                    <TableCell>
+                      <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('type') && (
+                    <TableCell>
+                      <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('initialInvestment') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('marketValue') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.investmentMarketValue, investment.currency?.code)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('performance') && (
+                    <TableCell className="gba:text-right">
+                      {(() => {
+                        const currentValue = investment.investmentMarketValue || 0;
+                        const initialValue = investment.initialInvestmentAmount || 0;
+                        const performanceAmount = currentValue - initialValue;
+                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const isZero = performancePercentage === 0;
+                        const isPositive = performancePercentage > 0;
+
+                        return (
+                          <div className="gba:flex gba:flex-col gba:items-end">
+                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                              <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${
+                                isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'
+                              }`}>
+                                {formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }).number}
+                              </span>
+                              <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${
+                                isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
+                              }`}>
+                                {formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }).symbol}
+                              </span>
+                            </div>
+                            <span className={`${
+                              isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
+                            } gba:text-sm`}>
+                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(performancePercentage).toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('owner') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
+                        <span>
+                          {investment.ownerEmployee?.displayName || 
+                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                             : "N/A"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('status') && (
+                    <TableCell>
+                      <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
+                        {investment.investmentStatus?.value || "Unknown"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('created') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{formatDate(investment.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('acquisitionDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.acquisitionDate ? formatDate(investment.acquisitionDate) : '-'}
                       </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
-                      {investment.investmentStatus?.value || "Unknown"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                      <span>{formatDate(investment.createdAt)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`all-investment-update-button-${investment.id}`}
-                        size="icon"
-                        contextsArray={[FlowContextName.investmentEntity]}
-                        externalContextData={{ investmentId: investment.id }}
-                        prefixDataTestId={`all-investment-update`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="enable"
-                        deferMainContextRequestsUntilClick={true}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('exitDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.exitDate ? formatDate(investment.exitDate) : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('isin') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:font-mono">
+                        {investment.isin || '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('currency') && (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {investment.currency?.value || 'EUR'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('fundManager') && (
+                    <TableCell>
+                      <span className="gba:text-sm">
+                        {investment.fundManagerName || '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('phase') && (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {investment.investmentPhase?.value || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('riskLevel') && (
+                    <TableCell>
+                      <Badge variant={
+                        investment.investmentRiskLevel?.code === 'LOW' ? 'default' :
+                        investment.investmentRiskLevel?.code === 'MEDIUM' ? 'secondary' :
+                        investment.investmentRiskLevel?.code === 'HIGH' ? 'destructive' :
+                        'outline'
+                      }>
+                        {investment.investmentRiskLevel?.value || 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('stakePercentage') && (
+                    <TableCell>
+                      <span className="gba:text-sm">
+                        {investment.stakePercentage ? `${investment.stakePercentage}%` : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('debtFinancing') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.debtFinancingAmount, investment.currency?.code)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('forecastedProfit') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.forecastedProfitAmount, investment.currency?.code)}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('plannedExitDate') && (
+                    <TableCell>
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {investment.plannedExitDate ? formatDate(investment.plannedExitDate) : '-'}
+                      </span>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('actions') && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`all-investment-update-button-${investment.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.investmentEntity]}
+                          externalContextData={{ investmentId: investment.id }}
+                          prefixDataTestId={`all-investment-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick={true}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

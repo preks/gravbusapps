@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { Spin, Alert, Empty, Timeline, Typography } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { NoteDeletionPopup } from '@/common/components';
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -317,7 +317,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
       </div>
 
       {deletePopup.open && deletePopup.note && (
-        <NoteDeletionPopup
+        <NoteDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}

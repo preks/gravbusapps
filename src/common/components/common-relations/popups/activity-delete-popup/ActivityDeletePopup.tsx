@@ -1,9 +1,9 @@
 import React from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmationPopup } from '../delete-confirmation-popup/DeleteConfirmationPopup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
-export interface ActivityDeletionPopupProps extends BusinessAppContextProps {
+export interface ActivityDeletePopupProps extends BusinessAppContextProps {
   isOpen: boolean;
   onClose: () => void;
   activityId: string;
@@ -26,32 +26,29 @@ export interface ActivityDeletionPopupProps extends BusinessAppContextProps {
 }
 
 /**
- * ActivityDeletionPopup
+ * ActivityDeletePopup
  * Thin wrapper around the universal DeleteConfirmationPopup configured for Sales/Investment Activities.
  * - Routes delete through Flow Registry with correct context per domain
  * - Passes entity scoping into externalContextData
  */
-const ActivityDeletionPopup: React.FC<ActivityDeletionPopupProps> = ({
+export const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({
   isOpen,
   onClose,
   activityId,
   activityVersion,
   activityTitle,
-  opportunityId,
-  accountId,
-  contactId,
-  leadId,
   accessToken,
   domain = 'crm',
   onSuccess,
   onError,
-  'data-testid': dataTestId = 'activity-deletion-popup',
+  'data-testid': dataTestId = 'activity-delete-popup',
 }) => {
   const flowContextName = domain === 'investments'
     ? FlowContextName.investmentActivityDelete
     : FlowContextName.customerActivityDelete;
 
   const externalContextData: Record<string, any> = {
+    // Flow compatibility keys
     activityId,
     // Provide nested model required by each domain
     ...(domain === 'investments'
@@ -60,7 +57,6 @@ const ActivityDeletionPopup: React.FC<ActivityDeletionPopupProps> = ({
           investmentActivity: {
             id: activityId,
             ...(typeof activityVersion === 'number' ? { version: activityVersion } : {}),
-            // Do NOT pass parent refs for delete
           },
         }
       : {
@@ -72,7 +68,7 @@ const ActivityDeletionPopup: React.FC<ActivityDeletionPopupProps> = ({
   };
 
   return (
-    <DeleteConfirmationPopup
+    <DeleteConfirmPopup
       isOpen={isOpen}
       onClose={onClose}
       itemTitle={activityTitle}
@@ -86,8 +82,3 @@ const ActivityDeletionPopup: React.FC<ActivityDeletionPopupProps> = ({
     />
   );
 };
-
-export default ActivityDeletionPopup;
-export { ActivityDeletionPopup };
-
-

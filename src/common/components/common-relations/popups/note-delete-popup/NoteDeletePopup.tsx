@@ -1,9 +1,9 @@
 import React from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmationPopup } from '../delete-confirmation-popup/DeleteConfirmationPopup';
+import { DeleteConfirmPopup } from '../../../popups/delete-confirm-popup';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
-export interface NoteDeletionPopupProps extends BusinessAppContextProps {
+export interface NoteDeletePopupProps extends BusinessAppContextProps {
   isOpen: boolean;
   onClose: () => void;
   noteId: string;
@@ -25,7 +25,7 @@ export interface NoteDeletionPopupProps extends BusinessAppContextProps {
   'data-testid'?: string;
 }
 
-const NoteDeletionPopup: React.FC<NoteDeletionPopupProps> = ({
+const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({
   isOpen,
   onClose,
   noteId,
@@ -35,7 +35,7 @@ const NoteDeletionPopup: React.FC<NoteDeletionPopupProps> = ({
   domain = 'crm',
   onSuccess,
   onError,
-  'data-testid': dataTestId = 'note-deletion-popup',
+  'data-testid': dataTestId = 'note-delete-popup',
 }) => {
   const flowContextName = domain === 'investments'
     ? FlowContextName.investmentNoteDelete
@@ -60,7 +60,7 @@ const NoteDeletionPopup: React.FC<NoteDeletionPopupProps> = ({
   };
 
   return (
-    <DeleteConfirmationPopup
+    <DeleteConfirmPopup
       isOpen={isOpen}
       onClose={onClose}
       itemTitle={noteTitle}
@@ -75,7 +75,5 @@ const NoteDeletionPopup: React.FC<NoteDeletionPopupProps> = ({
   );
 };
 
-export default NoteDeletionPopup;
-export { NoteDeletionPopup };
-
-
+export default NoteDeletePopup;
+export { NoteDeletePopup };

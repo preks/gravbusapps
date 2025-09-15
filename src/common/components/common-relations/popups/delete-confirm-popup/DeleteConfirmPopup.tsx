@@ -15,7 +15,7 @@ import { AlertTriangleIcon } from 'lucide-react';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
-export interface DeleteConfirmationPopupProps {
+export interface DeleteConfirmPopupProps {
   /** Whether the popup is visible */
   isOpen: boolean;
   
@@ -69,7 +69,7 @@ export interface DeleteConfirmationPopupProps {
   onConfirm?: () => void | Promise<void>;
 }
 
-export const DeleteConfirmationPopup: React.FC<DeleteConfirmationPopupProps> = ({
+export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
   isOpen,
   onClose,
   itemTitle,
@@ -78,7 +78,7 @@ export const DeleteConfirmationPopup: React.FC<DeleteConfirmationPopupProps> = (
   warningText = "This action cannot be undone.",
   confirmButtonText = "Delete",
   cancelButtonText = "Cancel",
-  'data-testid': dataTestId = 'delete-confirmation-popup',
+  'data-testid': dataTestId = 'delete-confirm-popup',
   // Flow Registry props
   accessToken,
   flowContextName,
@@ -248,4 +248,4 @@ export const DeleteConfirmationPopup: React.FC<DeleteConfirmationPopupProps> = (
   );
 };
 
-export default DeleteConfirmationPopup;
+export default DeleteConfirmPopup;

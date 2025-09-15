@@ -20,6 +20,7 @@ import type { InvestmentAccount } from "@/common/data/investment/types";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { formatDate } from "../utils";
+import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { navigateTo } from "@/common/utils/navigationUtils";
 import type { SortInput } from "@/common/network/graphql/queryHelpers";
 
@@ -118,6 +119,50 @@ export const AccountList: React.FC<AccountListProps> = ({
       contactInfo
     ) : (
       <span className="gba:text-gray-400">No contact info</span>
+    );
+  };
+
+  // Currency rendering via central formatter
+  const renderAmount = (amount: number, currencyCode?: string) => {
+    const { number, symbol } = formatCurrencyParts(amount, { currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+      </div>
+    );
+  };
+
+  // Render revenue (band code may be a single number or a range "min-max").
+  const renderRevenueCell = (account: InvestmentAccount) => {
+    const band = account.accountAnnualRevenueBand;
+    if (!band?.code && !band?.value) {
+      return <span className="gba:text-gray-400">-</span>;
+    }
+
+    const code = (band.code || "").trim();
+    if (!code) {
+      return <span className="gba:text-gray-400">-</span>;
+    }
+
+    // Parse numeric(s)
+    const parts = code.split("-").map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n));
+    if (parts.length === 0) {
+      // Fallback to label if code not numeric
+      return <span className="gba:text-sm">{band.value || "-"}</span>;
+    }
+
+    if (parts.length === 1) return renderAmount(parts[0]);
+
+    // Range: show "min – max" with a single trailing symbol
+    const [min, max] = parts;
+    const left = formatCurrencyParts(min, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const right = formatCurrencyParts(max, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{left.number} – {right.number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{right.symbol}</span>
+      </div>
     );
   };
 
@@ -325,8 +370,8 @@ export const AccountList: React.FC<AccountListProps> = ({
                       </TableCell>
                     )}
                     {visibleColumns.includes("revenue") && (
-                      <TableCell>
-                        <span className="gba:text-gray-400">-</span>
+                      <TableCell className="gba:text-right">
+                        {renderRevenueCell(account)}
                       </TableCell>
                     )}
                     {visibleColumns.includes("owner") && (
