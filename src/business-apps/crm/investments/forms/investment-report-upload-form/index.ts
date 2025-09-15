@@ -1,5 +1,5 @@
 // Main reusable form component (supports both modal and inline modes)
-export { InvestmentDocumentUploadForm } from './UploadInvestmentReportForm';
+export { InvestmentReportUploadForm } from './InvestmentReportUploadForm';
 
 // Hooks
 export { useInvestmentFileUpload } from './hooks/useInvestmentFileUpload';
@@ -7,7 +7,7 @@ export { useInvestmentDocumentUpload } from './hooks/useInvestmentDocumentUpload
 
 // Types
 export type {
-  InvestmentDocumentUploadFormProps,
+  InvestmentReportUploadFormProps,
   UploadFile,
   UploadProgress,
   Investment,
@@ -16,4 +16,4 @@ export type {
 } from './types';
 
 // Default export - the main reusable component
-export { InvestmentDocumentUploadForm as default } from './UploadInvestmentReportForm';
+export { InvestmentReportUploadForm as default } from './InvestmentReportUploadForm';

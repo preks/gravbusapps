@@ -1,6 +1,4 @@
-import type { RcFile } from 'antd/es/upload';
-
-export interface InvestmentDocumentUploadFormProps {
+export interface InvestmentReportUploadFormProps {
   // Form behavior
   onSuccess?: (fileIds: string[]) => void;
   onCancel?: () => void;
@@ -20,7 +18,8 @@ export interface UploadFile {
   uid: string;
   name: string;
   status: 'uploading' | 'done' | 'error';
-  originFileObj?: RcFile;
+  originFileObj?: File;
+  errorMessage?: string;
 }
 
 export interface UploadProgress {
@@ -41,7 +40,7 @@ export interface UseInvestmentDocumentUploadProps {
 }
 
 export interface UseInvestmentDocumentUploadReturn {
-  uploadFiles: (files: RcFile[], investmentId: string) => Promise<string[]>;
+  uploadFiles: (files: File[], investmentId: string) => Promise<string[]>;
   isUploading: boolean;
   uploadProgress: UploadProgress | null;
   error: string | null;
